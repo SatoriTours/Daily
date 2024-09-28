@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/modules/share_dialog/views/share_dialog_view.dart';
 import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,11 +12,13 @@ class HomeView extends GetView<HomeController> {
   @override
   Widget build(BuildContext context) {
     const platform = MethodChannel('tours.sator.daily/share');
+
     platform.setMethodCallHandler((call) async {
       logger.i("接收到原生 android 的消息: ${call.method}");
       if (call.method == 'receiveSharedText') {
         shareText = call.arguments;
-        Get.toNamed(Routes.SHARE_DIALOG);
+        Get.off(() => const ShareDialogView(),
+            transition: Transition.leftToRight);
       }
     });
 
