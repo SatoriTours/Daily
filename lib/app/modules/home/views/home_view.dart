@@ -16,9 +16,9 @@ class HomeView extends GetView<HomeController> {
     platform.setMethodCallHandler((call) async {
       logger.i("接收到原生 android 的消息: ${call.method}");
       if (call.method == 'receiveSharedText') {
-        shareText = call.arguments;
         Get.off(() => const ShareDialogView(),
-            transition: Transition.leftToRight);
+            transition: Transition.leftToRight,
+            arguments: {'shareURL': call.arguments});
       }
     });
 

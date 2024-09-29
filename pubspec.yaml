@@ -17,7 +17,10 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # getx 框架
-  get: ^5.0.0-release-candidate-9.2
+  get:
+    git:
+      url: https://github.com/jonataslaw/getx
+      ref: master
 
   # 数据库
   sqflite: ^2.3.3+1
@@ -30,6 +33,9 @@ dependencies:
   android_intent_plus: ^5.1.0
   share_plus: ^10.0.2
 
+  # 浏览器
+  flutter_inappwebview: ^6.0.0
+
   # 分享
   # receive_sharing_intent: ^1.8.0
 
@@ -38,7 +44,7 @@ dev_dependencies:
     sdk: flutter
 
   # 代码规范
-  flutter_lints: ^4.0.0
+  flutter_lints: ^5.0.0
 
 flutter:
   # 使用 Material Design 设计
