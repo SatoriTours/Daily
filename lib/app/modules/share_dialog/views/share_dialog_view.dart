@@ -10,14 +10,12 @@ import 'package:daily_satori/app/modules/share_dialog/controllers/share_dialog_c
 class ShareDialogView extends GetView<ShareDialogController> {
   const ShareDialogView({super.key});
 
-  String? get shareURL =>
-      Get.arguments?['shareURL'] ??
-      (isProduction
-          ? null
-          : 'https://x.com/mrbear1024/status/1840380988448247941');
-
   @override
   Widget build(BuildContext context) {
+    if (Get.arguments?['shareURL'] != null) {
+      controller.shareURL = Get.arguments?['shareURL'];
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("保存文章"),
@@ -42,12 +40,43 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   Widget _displaySharedLink() {
-    return Text(
-      shareURL ?? "没有得到链接",
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w500,
-      ),
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.home),
+          onPressed: () {
+            controller.webViewController?.loadUrl(
+                urlRequest: URLRequest(url: WebUri(controller.shareURL ?? '')));
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            controller.webViewController?.goBack();
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.arrow_forward),
+          onPressed: () {
+            controller.webViewController?.goForward();
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          onPressed: () {
+            controller.webViewController?.reload();
+          },
+        ),
+        Expanded(
+          child: Obx(() => controller.webloadProgress.value > 0
+              ? LinearProgressIndicator(
+                  value: controller.webloadProgress.value,
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                )
+              : const SizedBox.shrink()),
+        ),
+      ],
     );
   }
 
@@ -67,20 +96,31 @@ class ShareDialogView extends GetView<ShareDialogController> {
         ),
       ),
       child: InAppWebView(
-        initialUrlRequest: URLRequest(url: WebUri(shareURL ?? '')),
+        initialUrlRequest: URLRequest(url: WebUri(controller.shareURL ?? '')),
         initialSettings: settings,
-        onWebViewCreated: (controller) {
-          // 可以在这里保存 WebView 控制器以供后续使用
+        onWebViewCreated: (webController) {
+          controller.webViewController = webController;
         },
         onPermissionRequest: (controller, request) async {
           return PermissionResponse(
               resources: request.resources,
               action: PermissionResponseAction.GRANT);
         },
-        onLoadStart: (controller, url) {
-          // 页面开始加载时的回调
+        onLoadStart: (webController, url) {
+          controller.webloadProgress.value = 0;
         },
-        onLoadStop: (controller, url) {},
+        onLoadStop: (webController, url) {
+          controller.webloadProgress.value = 0;
+        },
+        onReceivedError: (webController, request, error) {
+          controller.webloadProgress.value = 0;
+        },
+        onProgressChanged: (webController, progress) {
+          controller.webloadProgress.value = progress / 100;
+          if (controller.webloadProgress.value >= 1.0) {
+            controller.webloadProgress.value = 0;
+          }
+        },
       ),
     );
   }
