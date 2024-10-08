@@ -109,8 +109,10 @@ class ShareDialogView extends GetView<ShareDialogController> {
         onLoadStart: (webController, url) {
           controller.webloadProgress.value = 0;
         },
-        onLoadStop: (webController, url) {
+        onLoadStop: (webController, url) async {
           controller.webloadProgress.value = 0;
+          await webController.injectJavascriptFileFromAsset(
+              assetFilePath: "assets/js/.js");
         },
         onReceivedError: (webController, request, error) {
           controller.webloadProgress.value = 0;
