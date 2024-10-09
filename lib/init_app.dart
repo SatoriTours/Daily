@@ -1,7 +1,10 @@
 import 'dart:developer';
 
 import 'package:daily_satori/app/services/ai_service.dart';
+import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/database_service.dart';
+import 'package:daily_satori/app/services/file_service.dart';
+import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:logger/logger.dart';
@@ -34,4 +37,7 @@ Future<void> initServices() async {
   await DatabaseService.instance.init();
   await SettingsService.instance.init();
   await AiService.instance.init();
+  await ArticleService.instance.init();
+  await FileService.instance.init();
+  await HttpService.instance.init();
 }

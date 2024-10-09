@@ -20,3 +20,10 @@ Map<String, String?> updateTimestamps(Map<String, String?> data) {
 bool isChinese(String text) {
   return RegExp(r'[\u4e00-\u9fa5]').hasMatch(text);
 }
+
+String getSubstring(String text, {int length = 50}) {
+  if (length < 0) {
+    throw ArgumentError('length不能为负数');
+  }
+  return text.length > length ? text.substring(0, length) : text;
+}

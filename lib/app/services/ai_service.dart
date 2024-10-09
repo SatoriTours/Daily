@@ -14,10 +14,10 @@ class AiService extends GetxService {
     if (isChinese(text)) {
       return text;
     }
-    logger.i("[AI翻译]: ${text.substring(0, 50)}");
+    // logger.i("[AI翻译]: ${getSubstring(text)}");
     return await sendRequest(
-        '你是一个翻译助手, 能够将任何文本翻译成中文',
-        '''
+      '你是一个翻译助手, 能够将任何文本翻译成中文',
+      '''
 请将以下文本翻译成中文：
 ```
 $text
@@ -32,21 +32,25 @@ $text
   }
 
   Future<String> summarize(String text) async {
-    logger.i("[AI总结]: ${text.substring(0, 50)}");
+    // logger.i("[AI总结]: ${getSubstring(text)}");
     return await sendRequest(
-        '你是一个信息提取助手，能够从文章中提取关键信息和要点',
-        ''''
-请对以下文章进行总结：
+      '你是一个文章读者, 能总结文章的核心内容',
+      ''''
+请对以下文章进行总结成新的文章：
 ```
 $text
 ```
 注意事项：
-1. 提取文章的主要观点和关键信息。
-2. 确保总结简洁明了。
+1. 提取文章的主要观点和关键信息, 用中文输出。
+2. 确保总结简洁明了, 直接给结果，不要给其他任何的解释。
 3. 保持原文的意思，不要添加个人观点。
 4. 请注意```内的内容是附加信息，翻译时要保持其完整性。
         ''',
     );
+  }
+
+  Future<String> getRelatedTags() async {
+    return "";
   }
 
   Future<String> sendRequest(String role, String content) async {
@@ -54,7 +58,7 @@ $text
       return "";
     }
 
-    content = content.length > 500 ? content.substring(0, 500) : content;
+    content = getSubstring(content, length: 500);
 
     final client = createClient();
     final res = await client.createChatCompletion(
@@ -62,10 +66,10 @@ $text
         model: ChatCompletionModel.modelId('gpt-4o-mini'),
         messages: [
           ChatCompletionMessage.system(
-            content: role,
+            content: role.trim(),
           ),
           ChatCompletionMessage.user(
-            content: ChatCompletionUserMessageContent.string(content),
+            content: ChatCompletionUserMessageContent.string(content.trim()),
           ),
         ],
         temperature: 0,

@@ -1,7 +1,6 @@
 import 'dart:collection';
 
 import 'package:daily_satori/global.dart';
-import 'package:get/get.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 
@@ -71,25 +70,32 @@ class DatabaseService {
           content TEXT,
           ai_content TEXT,
           html_content TEXT,
-          url TEXT,
+          url TEXT UNIQUE, -- 根据url来判断唯一使得同一篇文章不会被保存多次
           image_url TEXT,  -- 文章banner图片URL
           image_path TEXT, -- 图片本地保存路径
           is_read INTEGER DEFAULT 0,
           is_favorite INTEGER DEFAULT 0,
           pub_date DATETIME, -- 文章的发布日期
+          comment TEXT, -- 文章备注
 
           tag_id INTEGER,
 
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (url) REFERENCES article_urls(url)
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )''',
       '''CREATE TABLE IF NOT EXISTS tags (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )'''
+      )''',
+      '''CREATE TABLE IF NOT EXISTS articles_tags (
+          article_id INTEGER,
+          tag_id INTEGER,
+          PRIMARY KEY (article_id, tag_id),
+          FOREIGN KEY (article_id) REFERENCES articles(id),
+          FOREIGN KEY (tag_id) REFERENCES tags(id)
+      )''',
     ],
     "02_创建配置表": [
       '''CREATE TABLE IF NOT EXISTS settings (

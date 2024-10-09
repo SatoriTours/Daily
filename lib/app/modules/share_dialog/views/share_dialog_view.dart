@@ -30,7 +30,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
             _displaySharedLink(),
             Expanded(child: _displayWebContent()),
             const SizedBox(height: 10),
-            _buildCommentsTextfield(),
+            _buildCommentTextfield(),
             const SizedBox(height: 10),
             _buildActionButtons(),
           ],
@@ -79,9 +79,9 @@ class ShareDialogView extends GetView<ShareDialogController> {
           },
         ),
         Expanded(
-          child: Obx(() => controller.webloadProgress.value > 0
+          child: Obx(() => controller.webLoadProgress.value > 0
               ? LinearProgressIndicator(
-                  value: controller.webloadProgress.value,
+                  value: controller.webLoadProgress.value,
                   backgroundColor: Colors.grey[200],
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
                 )
@@ -107,42 +107,52 @@ class ShareDialogView extends GetView<ShareDialogController> {
         ),
       ),
       child: InAppWebView(
-          initialUrlRequest: URLRequest(url: WebUri(controller.shareURL ?? '')),
-          initialSettings: settings,
-          onWebViewCreated: (webController) {
-            controller.webViewController = webController;
-            webController.addJavaScriptHandler(
-                handlerName: "getPageContent",
-                callback: (args) {
-                  controller.saveArticleInfo(args[0], args[1], args[2], args[3]);
-                });
-          },
-          onPermissionRequest: (controller, request) async {
-            return PermissionResponse(resources: request.resources, action: PermissionResponseAction.GRANT);
-          },
-          onLoadStart: (webController, url) {
-            controller.webloadProgress.value = 0;
-          },
-          onLoadStop: (webController, url) async {
-            controller.webloadProgress.value = 0;
-            await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/Readability.js");
-            await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/main.js");
-            await webController.evaluateJavascript(source: "parseContent()");
-          },
-          onReceivedError: (webController, request, error) {
-            controller.webloadProgress.value = 0;
-          },
-          onProgressChanged: (webController, progress) {
-            controller.webloadProgress.value = progress / 100;
-            if (controller.webloadProgress.value >= 1.0) {
-              controller.webloadProgress.value = 0;
-            }
-          }),
+        initialUrlRequest: URLRequest(url: WebUri(controller.shareURL ?? '')),
+        initialSettings: settings,
+        onWebViewCreated: (webController) {
+          controller.webViewController = webController;
+          webController.addJavaScriptHandler(
+              handlerName: "getPageContent",
+              callback: (args) {
+                controller.saveArticleInfo(
+                  args[0].toString().trim(),
+                  args[1].toString().trim(),
+                  args[2].toString().trim(),
+                  args[3].toString().trim(),
+                  args[4].toString().trim(),
+                  args[5].toString().trim(),
+                  args[6].toString().trim(),
+                );
+              });
+        },
+        onPermissionRequest: (controller, request) async {
+          return PermissionResponse(resources: request.resources, action: PermissionResponseAction.GRANT);
+        },
+        onLoadStart: (webController, url) async {
+          controller.webLoadProgress.value = 0;
+        },
+        onLoadStop: (webController, url) async {
+          controller.webLoadProgress.value = 0;
+        },
+        onReceivedError: (webController, request, error) {
+          controller.webLoadProgress.value = 0;
+        },
+        onProgressChanged: (webController, progress) {
+          controller.webLoadProgress.value = progress / 100;
+          if (controller.webLoadProgress.value >= 1.0) {
+            controller.webLoadProgress.value = 0;
+          }
+        },
+        // onConsoleMessage: (controller, consoleMessage) {
+        //   logger.d("浏览器日志: ${consoleMessage.message}");
+        // },
+      ),
     );
   }
 
-  Widget _buildCommentsTextfield() {
-    return const TextField(
+  Widget _buildCommentTextfield() {
+    return TextField(
+      controller: controller.commentController,
       decoration: InputDecoration(
         labelText: "备注",
         border: OutlineInputBorder(),
@@ -176,8 +186,8 @@ class ShareDialogView extends GetView<ShareDialogController> {
             ),
             child: const Text("保存"),
             onPressed: () async {
-              await controller.saveArticle();
-              // SystemNavigator.pop();
+              controller.showProcessDialog();
+              controller.parseWebContent();
             },
           ),
         ),
