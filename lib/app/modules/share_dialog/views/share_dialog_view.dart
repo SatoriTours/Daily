@@ -114,7 +114,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
             webController.addJavaScriptHandler(
                 handlerName: "getPageContent",
                 callback: (args) {
-                  logger.i(args[1]);
+                  controller.saveArticleInfo(args[0], args[1], args[2], args[3]);
                 });
           },
           onPermissionRequest: (controller, request) async {
@@ -175,8 +175,9 @@ class ShareDialogView extends GetView<ShareDialogController> {
               foregroundColor: Colors.white,
             ),
             child: const Text("保存"),
-            onPressed: () {
-              SystemNavigator.pop();
+            onPressed: () async {
+              await controller.saveArticle();
+              // SystemNavigator.pop();
             },
           ),
         ),

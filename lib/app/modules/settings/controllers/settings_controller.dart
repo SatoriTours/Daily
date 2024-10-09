@@ -8,13 +8,13 @@ class SettingsController extends GetxController {
 
   Future<void> save() async {
     SettingsService.instance.saveSettings({
-      'openai_address': openaiAddress.text,
-      'openai_token': openaiToken.text,
+      SettingsService.openAIAddressKey: openaiAddress.text,
+      SettingsService.openAITokenKey: openaiToken.text,
     });
   }
 
   void initData(){
-    openaiAddress.text = SettingsService.instance.getSetting('openai_address');
-    openaiToken.text = SettingsService.instance.getSetting('openai_token');
+    openaiAddress.text = SettingsService.instance.getSetting(SettingsService.openAIAddressKey);
+    openaiToken.text = SettingsService.instance.getSetting(SettingsService.openAITokenKey);
   }
 }

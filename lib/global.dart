@@ -16,3 +16,7 @@ Map<String, String?> updateTimestamps(Map<String, String?> data) {
   }
   return data;
 }
+
+bool isChinese(String text) {
+  return RegExp(r'[\u4e00-\u9fa5]').hasMatch(text);
+}

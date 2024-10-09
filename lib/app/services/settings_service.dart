@@ -8,6 +8,9 @@ class SettingsService extends GetxService {
   static final SettingsService _instance = SettingsService._privateConstructor();
   static SettingsService get instance => _instance;
 
+  static String openAITokenKey   = 'openai_token';
+  static String openAIAddressKey = 'openai_address';
+
   Future<void> init() async {
     await reloadSettings();
   }

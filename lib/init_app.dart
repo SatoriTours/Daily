@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:daily_satori/app/services/ai_service.dart';
 import 'package:daily_satori/app/services/database_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
 import 'package:daily_satori/global.dart';
@@ -32,4 +33,5 @@ Future<void> initServices() async {
   logger.i("开始初始化服务");
   await DatabaseService.instance.init();
   await SettingsService.instance.init();
+  await AiService.instance.init();
 }
