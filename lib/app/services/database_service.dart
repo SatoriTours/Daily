@@ -5,27 +5,29 @@ import 'package:get/get.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 
-class DatabaseService extends GetxService {
-  static const String _database = 'daily_satori.db';
+class DatabaseService {
+  DatabaseService._privateConstructor();
+  static final DatabaseService _instance = DatabaseService._privateConstructor();
+  static DatabaseService get instance => _instance;
 
-  Future<DatabaseService> init() async {
+  Future<void> init() async {
     await initDatabase();
-    return this;
   }
 
-  static DatabaseService get to => Get.find<DatabaseService>();
+  static const String _databaseFile = 'daily_satori.db';
 
-  late Database db;
+  late Database _database;
+  Database get database => _database;
 
   Future<String> dbFilePath() async {
-    return path.join(await getDatabasesPath(), _database);
+    return path.join(await getDatabasesPath(), _databaseFile);
   }
 
   Future<DatabaseService> initDatabase() async {
     logger.i("开始启动数据库服务");
     var dbPath = await dbFilePath();
     logger.d("打开数据库: $dbPath");
-    db = await openDatabase(
+    _database = await openDatabase(
       dbPath,
       version: _migrations.length,
       onCreate: (db, version) async {
@@ -56,12 +58,11 @@ class DatabaseService extends GetxService {
       },
       onDowngrade: onDatabaseDowngradeDelete,
     );
-    logger.i("数据库当前版本: ${await db.getVersion()}");
+    logger.i("数据库当前版本: ${await database.getVersion()}");
     return this;
   }
 
-  final LinkedHashMap<String, List<String>> _migrations =
-      LinkedHashMap<String, List<String>>.from({
+  final LinkedHashMap<String, List<String>> _migrations = LinkedHashMap<String, List<String>>.from({
     "01_初始化数据库": [
       '''CREATE TABLE IF NOT EXISTS articles (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,6 +70,7 @@ class DatabaseService extends GetxService {
           ai_title TEXT,
           content TEXT,
           ai_content TEXT,
+          html_content TEXT,
           url TEXT,
           image_url TEXT,  -- 文章banner图片URL
           image_path TEXT, -- 图片本地保存路径

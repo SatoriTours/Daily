@@ -18,16 +18,16 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("保存文章"),
-        centerTitle: true,
+        title: const Center(child: Text('分享对话框')),
+        toolbarHeight: 30, // 调整工具栏高度以减少与body之间的空隙
       ),
       body: Container(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _displaySharedLink(),
             const SizedBox(height: 10),
+            _displaySharedLink(),
             Expanded(child: _displayWebContent()),
             const SizedBox(height: 10),
             _buildCommentsTextfield(),
@@ -39,14 +39,25 @@ class ShareDialogView extends GetView<ShareDialogController> {
     );
   }
 
+  Widget _title() {
+    return const Center(
+      child: Text(
+        '保存文章',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   Widget _displaySharedLink() {
     return Row(
       children: [
         IconButton(
           icon: const Icon(Icons.home),
           onPressed: () {
-            controller.webViewController?.loadUrl(
-                urlRequest: URLRequest(url: WebUri(controller.shareURL ?? '')));
+            controller.webViewController?.loadUrl(urlRequest: URLRequest(url: WebUri(controller.shareURL ?? '')));
           },
         ),
         IconButton(
@@ -96,34 +107,37 @@ class ShareDialogView extends GetView<ShareDialogController> {
         ),
       ),
       child: InAppWebView(
-        initialUrlRequest: URLRequest(url: WebUri(controller.shareURL ?? '')),
-        initialSettings: settings,
-        onWebViewCreated: (webController) {
-          controller.webViewController = webController;
-        },
-        onPermissionRequest: (controller, request) async {
-          return PermissionResponse(
-              resources: request.resources,
-              action: PermissionResponseAction.GRANT);
-        },
-        onLoadStart: (webController, url) {
-          controller.webloadProgress.value = 0;
-        },
-        onLoadStop: (webController, url) async {
-          controller.webloadProgress.value = 0;
-          await webController.injectJavascriptFileFromAsset(
-              assetFilePath: "assets/js/.js");
-        },
-        onReceivedError: (webController, request, error) {
-          controller.webloadProgress.value = 0;
-        },
-        onProgressChanged: (webController, progress) {
-          controller.webloadProgress.value = progress / 100;
-          if (controller.webloadProgress.value >= 1.0) {
+          initialUrlRequest: URLRequest(url: WebUri(controller.shareURL ?? '')),
+          initialSettings: settings,
+          onWebViewCreated: (webController) {
+            controller.webViewController = webController;
+            webController.addJavaScriptHandler(
+                handlerName: "getPageContent",
+                callback: (args) {
+                  logger.i(args[1]);
+                });
+          },
+          onPermissionRequest: (controller, request) async {
+            return PermissionResponse(resources: request.resources, action: PermissionResponseAction.GRANT);
+          },
+          onLoadStart: (webController, url) {
             controller.webloadProgress.value = 0;
-          }
-        },
-      ),
+          },
+          onLoadStop: (webController, url) async {
+            controller.webloadProgress.value = 0;
+            await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/Readability.js");
+            await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/main.js");
+            await webController.evaluateJavascript(source: "parseContent()");
+          },
+          onReceivedError: (webController, request, error) {
+            controller.webloadProgress.value = 0;
+          },
+          onProgressChanged: (webController, progress) {
+            controller.webloadProgress.value = progress / 100;
+            if (controller.webloadProgress.value >= 1.0) {
+              controller.webloadProgress.value = 0;
+            }
+          }),
     );
   }
 
