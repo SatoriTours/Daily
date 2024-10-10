@@ -104,7 +104,10 @@ class DatabaseService {
         value TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )'''
+      )''',
+    ],
+    "03_增加文章截图字段": [
+      '''ALTER TABLE articles ADD COLUMN screenshot_path TEXT;''',
     ],
   });
 }

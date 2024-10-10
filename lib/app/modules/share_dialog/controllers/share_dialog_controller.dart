@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/helper/flutter_inappwebview_screenshot.dart';
 import 'package:daily_satori/app/services/ai_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
@@ -7,7 +8,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 
 class ShareDialogController extends GetxController {
-  String? shareURL = isProduction ? null : 'https://www.163.com/dy/article/JE339SGF051492T3.html?clickfrom=w_lb_1_big';
+  String? shareURL = isProduction ? null : 'https://x.com/triggerdotdev/status/1844045526570021209';
 
   InAppWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();
@@ -16,13 +17,21 @@ class ShareDialogController extends GetxController {
 
   Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
       String publishedTime, String imageUrl) async {
-    logger.i("title => $title, imageUrl => $imageUrl, publishedTime => $publishedTime");
+    logger.i("title => $title");
+    // logger.i("title => $title, imageUrl => $imageUrl, publishedTime => $publishedTime");
+    await captureFullPageScreenshot(webViewController!);
+    if (await ArticleService.instance.articleExists(url)) {
+      Get.snackbar('提示', '网页已存在', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+      Get.close();
+      return;
+    }
 
     final aiTitle = await AiService.instance.translate(title.trim());
     final aiContent = await AiService.instance.summarize(textContent.trim());
 
     saveContentStep.value = 2;
     final imagePath = await HttpService.instance.downloadImage(imageUrl);
+    final screenshotPath = await captureFullPageScreenshot(webViewController!);
 
     await ArticleService.instance.saveArticle({
       'title': title,
@@ -33,6 +42,7 @@ class ShareDialogController extends GetxController {
       'url': url,
       'image_url': imageUrl,
       'image_path': imagePath,
+      'screenshot_path': screenshotPath,
       'pub_date': publishedTime,
       'comment': commentController.text,
     });
@@ -57,24 +67,9 @@ class ShareDialogController extends GetxController {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start, // 文字左对齐
           children: [
-            Obx(() => Text(
-                  saveContentStep.value < 1 ? "1. 获取网页内容..." : "1. 网页内容获取完成",
-                  style: TextStyle(
-                      fontWeight: saveContentStep.value >= 0 ? FontWeight.bold : FontWeight.normal,
-                      color: saveContentStep.value >= 0 ? Colors.blue : Colors.grey), // 根据 saveContentStep 动态改变颜色
-                )),
-            Obx(() => Text(
-                  saveContentStep.value < 2 ? "2. AI分析网页..." : "2. AI分析完成",
-                  style: TextStyle(
-                      fontWeight: saveContentStep.value >= 1 ? FontWeight.bold : FontWeight.normal,
-                      color: saveContentStep.value >= 1 ? Colors.blue : Colors.grey), // 根据 saveContentStep 动态改变颜色
-                )),
-            Obx(() => Text(
-                  saveContentStep.value < 3 ? "3. 保存到app..." : "3. 数据保存成功",
-                  style: TextStyle(
-                      fontWeight: saveContentStep.value >= 2 ? FontWeight.bold : FontWeight.normal,
-                      color: saveContentStep.value >= 2 ? Colors.blue : Colors.grey), // 根据 saveContentStep 动态改变颜色
-                )),
+            Obx(() => _buildStepText(0, '1. 解析网页...', '1. 网页解析完成')),
+            Obx(() => _buildStepText(1, '1. AI分析网页...', '1. AI分析完成')),
+            Obx(() => _buildStepText(2, '3. 保存到app...', '3. 数据保存成功')),
           ],
         ),
       ),
@@ -85,6 +80,15 @@ class ShareDialogController extends GetxController {
         },
         child: Text("确定"),
       ),
+    );
+  }
+
+  Widget _buildStepText(int step, String processingTips, String completedTips) {
+    return Text(
+      saveContentStep.value == step ? processingTips : completedTips,
+      style: TextStyle(
+          fontWeight: saveContentStep.value == step ? FontWeight.bold : FontWeight.normal,
+          color: saveContentStep.value >= step ? Colors.blue : Colors.grey), // 根据 saveContentStep 动态改变颜色
     );
   }
 }

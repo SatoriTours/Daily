@@ -19,7 +19,7 @@ class HttpService {
       return "";
     }
 
-    final imageName = FileService.instance.generateFileName(url);
+    final imageName = FileService.instance.generateFileNameByUrl(url);
     final imagePath = FileService.instance.getImagePath(imageName);
 
     await dio.download(

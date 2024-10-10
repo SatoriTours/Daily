@@ -10,27 +10,27 @@ class FileService {
   static FileService get instance => _instance;
 
   Future<void> init() async {
-    final directory = await getApplicationDocumentsDirectory();
-    final imagesPath = path.join(directory.path, 'images');
-
-    // 创建 images 目录（如果不存在）
-    final imagesDir = Directory(imagesPath);
-    if (!await imagesDir.exists()) {
-      await imagesDir.create(recursive: true);
-    }
-
-    _imagesPath = imagesPath;
+    _imagesBasePath = await _mkdir('images');
+    _screenshotsBasePath = await _mkdir('screenshots');
   }
 
-  late String _imagesPath;
+  late String _imagesBasePath;
+  late String _screenshotsBasePath;
 
-  String get imagesPath => _imagesPath;
+  String get imagesBasePath => _imagesBasePath;
+  String get screenshotsBasePath => _screenshotsBasePath;
 
   String getImagePath(String imageName) {
-    return path.join(_imagesPath, imageName);
+    return path.join(_imagesBasePath, imageName);
   }
 
-  String generateFileName(String url) {
+  String getScreenshotPath() {
+    String timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    String randomValue = Random().nextInt(10000).toString();
+    return path.join(_screenshotsBasePath, "$timestamp-$randomValue.png");
+  }
+
+  String generateFileNameByUrl(String url) {
     // 获取文件后缀名
     String extension = '';
     final RegExp pattern = RegExp(r'\b\w+\.(jpg|jpeg|png|gif|svg|webp)\b', caseSensitive: false);
@@ -47,5 +47,17 @@ class FileService {
 
     // 组合文件名
     return '$timestamp-$randomValue$extension';
+  }
+
+  Future<String> _mkdir(String name) async {
+    final appDir = await getApplicationDocumentsDirectory();
+    final dirPath = path.join(appDir.path, name);
+
+    // 创建 目录（如果不存在）
+    final dir = Directory(dirPath);
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    return dirPath;
   }
 }
