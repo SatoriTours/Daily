@@ -8,7 +8,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 
 class ShareDialogController extends GetxController {
-  String? shareURL = isProduction ? null : 'https://x.com/triggerdotdev/status/1844045526570021209';
+  String? shareURL = isProduction ? null : 'https://m.163.com/news/article/JE4I60T100019K82.html';
 
   InAppWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();
@@ -19,13 +19,12 @@ class ShareDialogController extends GetxController {
       String publishedTime, String imageUrl) async {
     logger.i("title => $title");
     // logger.i("title => $title, imageUrl => $imageUrl, publishedTime => $publishedTime");
-    await captureFullPageScreenshot(webViewController!);
     if (await ArticleService.instance.articleExists(url)) {
       Get.snackbar('提示', '网页已存在', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
       Get.close();
       return;
     }
-
+    saveContentStep.value = 1;
     final aiTitle = await AiService.instance.translate(title.trim());
     final aiContent = await AiService.instance.summarize(textContent.trim());
 
@@ -56,7 +55,6 @@ class ShareDialogController extends GetxController {
     await webViewController?.injectJavascriptFileFromAsset(assetFilePath: "assets/js/Readability.js");
     await webViewController?.injectJavascriptFileFromAsset(assetFilePath: "assets/js/parse_content.js");
     await webViewController?.evaluateJavascript(source: "parseContent()");
-    saveContentStep.value = 1;
   }
 
   void showProcessDialog() {

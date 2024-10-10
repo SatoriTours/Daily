@@ -111,17 +111,18 @@ class ShareDialogView extends GetView<ShareDialogController> {
         initialSettings: settings,
         onWebViewCreated: (webController) {
           controller.webViewController = webController;
+          // parse_content.js 里面的回调, 用于获取网页内容
           webController.addJavaScriptHandler(
               handlerName: "getPageContent",
               callback: (args) {
                 controller.saveArticleInfo(
-                  args[0].toString().trim(),
-                  args[1].toString().trim(),
-                  args[2].toString().trim(),
-                  args[3].toString().trim(),
-                  args[4].toString().trim(),
-                  args[5].toString().trim(),
-                  args[6].toString().trim(),
+                  args[0].toString().trim(), // url
+                  args[1].toString().trim(), // title
+                  args[2].toString().trim(), // excerpt
+                  args[3].toString().trim(), // htmlContent
+                  args[4].toString().trim(), // textContent
+                  args[5].toString().trim(), // publishedTime
+                  args[6].toString().trim(), // imageUrl
                 );
               });
         },
@@ -130,9 +131,11 @@ class ShareDialogView extends GetView<ShareDialogController> {
         },
         onLoadStart: (webController, url) async {
           controller.webLoadProgress.value = 0;
+          webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
         },
         onLoadStop: (webController, url) async {
           controller.webLoadProgress.value = 0;
+          controller.webViewController?.evaluateJavascript(source: "removeAllAdNode()");
         },
         onReceivedError: (webController, request, error) {
           controller.webLoadProgress.value = 0;
@@ -143,9 +146,9 @@ class ShareDialogView extends GetView<ShareDialogController> {
             controller.webLoadProgress.value = 0;
           }
         },
-        // onConsoleMessage: (controller, consoleMessage) {
-        //   logger.d("浏览器日志: ${consoleMessage.message}");
-        // },
+        onConsoleMessage: (controller, consoleMessage) {
+          logger.d("浏览器日志: ${consoleMessage.message}");
+        },
       ),
     );
   }
@@ -186,6 +189,9 @@ class ShareDialogView extends GetView<ShareDialogController> {
             ),
             child: const Text("保存"),
             onPressed: () async {
+              if(!isProduction) {
+                controller.webViewController?.evaluateJavascript(source: "testNode()");
+              }
               controller.showProcessDialog();
               controller.parseWebContent();
             },

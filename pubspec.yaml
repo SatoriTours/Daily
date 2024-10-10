@@ -66,6 +66,7 @@ flutter:
     - assets/js/Readability.js
     - assets/js/parse_content.js
     - assets/js/page_load_event.js
+    - assets/js/common.js
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

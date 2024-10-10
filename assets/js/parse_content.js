@@ -7,6 +7,8 @@ function parseContent() {
         return;
     }
 
+    removeAdNode();
+
     let image = getOgImage();
     if(image == '') {
         image = getMainImage();
