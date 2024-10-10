@@ -17,16 +17,16 @@ Future<String> captureFullPageScreenshot(InAppWebViewController controller) asyn
     final int screenHeightInt = screenHeight;
 
     List<ui.Image> screenshots = [];
-    bool hasHeader = true;
-    for (int i = 0; i < totalHeight; i += screenHeightInt) {
-      if(i != 0 && hasHeader) { //第二屏开始,删除顶部导航栏, 避免截图重复
-        logger.i("删除网页头部 和 广告节点");
-        controller.evaluateJavascript(source: "removeHeaderNode()");
-        hasHeader = false;
-      }
+    var i = 0;
+    while (i < totalHeight) {
       // 滚动到当前位置
       await controller.evaluateJavascript(source: "window.scrollTo(0, $i)");
       await Future.delayed(Duration(milliseconds: 500)); // 等待页面滚动
+      if(i + screenHeightInt > totalHeight) {
+        i = totalHeight;
+      } else {
+        i += screenHeightInt;
+      }
 
       // 截取当前屏幕的截图
       final Uint8List? screenshot = await controller.takeScreenshot();

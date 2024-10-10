@@ -31,6 +31,14 @@ $text
     );
   }
 
+  Future<String> summarizeOneLine(String text) async {
+    // logger.i("[AI总结]: ${getSubstring(text)}");
+    return await sendRequest(
+      '你是一个文章读者, 能总结文章的核心内容',
+      ' 一句话总结一下内容：```$text``` ',
+    );
+  }
+
   Future<String> summarize(String text) async {
     // logger.i("[AI总结]: ${getSubstring(text)}");
     return await sendRequest(

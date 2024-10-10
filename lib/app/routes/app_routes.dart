@@ -6,6 +6,7 @@ abstract class Routes {
   static const HOME = _Paths.HOME;
   static const SHARE_DIALOG = _Paths.SHARE_DIALOG;
   static const SETTINGS = _Paths.SETTINGS;
+  static const ARTICLES = _Paths.ARTICLES;
 }
 
 abstract class _Paths {
@@ -13,4 +14,5 @@ abstract class _Paths {
   static const HOME = '/home';
   static const SHARE_DIALOG = '/share-dialog';
   static const SETTINGS = '/settings';
+  static const ARTICLES = '/articles';
 }

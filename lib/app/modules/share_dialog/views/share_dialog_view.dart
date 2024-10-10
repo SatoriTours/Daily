@@ -192,6 +192,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
                 controller.webViewController?.evaluateJavascript(source: "testNode()");
               }
               await controller.webViewController?.evaluateJavascript(source: "removeAllAdNode()");
+              await controller.webViewController?.evaluateJavascript(source: "removeHeaderNode()");
               controller.showProcessDialog();
               controller.parseWebContent();
             },

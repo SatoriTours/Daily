@@ -8,7 +8,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 
 class ShareDialogController extends GetxController {
-  String? shareURL = isProduction ? null : 'https://m.163.com/news/article/JE4I60T100019K82.html';
+  String? shareURL = isProduction ? null : 'https://x.com/GoJun315/status/1844263512258039996';
 
   InAppWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();
@@ -25,7 +25,10 @@ class ShareDialogController extends GetxController {
       return;
     }
     saveContentStep.value = 1;
-    final aiTitle = await AiService.instance.translate(title.trim());
+    var aiTitle = await AiService.instance.translate(title.trim());
+    if(aiTitle.length >= 50) {
+      aiTitle = await AiService.instance.summarizeOneLine(aiTitle);
+    }
     final aiContent = await AiService.instance.summarize(textContent.trim());
 
     saveContentStep.value = 2;
@@ -42,11 +45,11 @@ class ShareDialogController extends GetxController {
       'image_url': imageUrl,
       'image_path': imagePath,
       'screenshot_path': screenshotPath,
-      'pub_date': publishedTime,
+      'pub_date': DateTime.tryParse(publishedTime),
       'comment': commentController.text,
     });
     saveContentStep.value = 3;
-    // Get.close();
+    Get.close();
     // SystemNavigator.pop();
   }
 

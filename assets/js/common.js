@@ -42,6 +42,7 @@ function removeAdNode(node) {
       node.remove();
       return;
     }
+
   } catch (error) { }
 
 }
