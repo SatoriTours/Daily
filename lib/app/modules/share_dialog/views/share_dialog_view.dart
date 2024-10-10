@@ -135,7 +135,6 @@ class ShareDialogView extends GetView<ShareDialogController> {
         },
         onLoadStop: (webController, url) async {
           controller.webLoadProgress.value = 0;
-          controller.webViewController?.evaluateJavascript(source: "removeAllAdNode()");
         },
         onReceivedError: (webController, request, error) {
           controller.webLoadProgress.value = 0;
@@ -146,9 +145,9 @@ class ShareDialogView extends GetView<ShareDialogController> {
             controller.webLoadProgress.value = 0;
           }
         },
-        onConsoleMessage: (controller, consoleMessage) {
-          logger.d("浏览器日志: ${consoleMessage.message}");
-        },
+        // onConsoleMessage: (controller, consoleMessage) {
+        //   logger.d("浏览器日志: ${consoleMessage.message}");
+        // },
       ),
     );
   }
@@ -192,6 +191,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
               if(!isProduction) {
                 controller.webViewController?.evaluateJavascript(source: "testNode()");
               }
+              await controller.webViewController?.evaluateJavascript(source: "removeAllAdNode()");
               controller.showProcessDialog();
               controller.parseWebContent();
             },

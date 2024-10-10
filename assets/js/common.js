@@ -2,12 +2,14 @@ function removeAllAdNode() {
   const allElements = document.querySelectorAll('*');
 
   allElements.forEach(node => {
-    const regex = /(\bad\b|(?=.*open)(?=.*app))/i;
-    if (regex.test(node.className)) {
-      console.log('命中规则: 该节点的 class 包含 "ad"');
-      node.remove();
-      return;
-    }
+    try {
+        const regex = /(\bad\b|(?=.*open)(?=.*app))/i;
+        if (regex.test(node.className)) {
+          console.log('命中规则: 该节点的 class 包含 "ad"');
+          node.remove();
+          return;
+        }
+    } catch (error) { }
   });
 }
 
@@ -61,6 +63,12 @@ function removeAdNode(node) {
     subtree: true
   });
 })();
+
+// 网页删除 header, 这样截图的时候不会重复这些内容
+function removeHeaderNode() {
+    const headers = document.querySelectorAll('body header');
+    headers.forEach(node => node.remove());
+}
 
 function testNode() {
   //  const ads = document.querySelectorAll('.ADEvent_tag_S3mUa');
