@@ -8,7 +8,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 
 class ShareDialogController extends GetxController {
-  String? shareURL = isProduction ? null : 'https://x.com/shao__meng/status/1844330465874018312';
+  String? shareURL = isProduction ? null : 'https://x.com/dotey/status/1844621109158711361';
 
   InAppWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();

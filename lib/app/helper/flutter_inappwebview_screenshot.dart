@@ -32,7 +32,7 @@ Future<String> captureFullPageScreenshot(
       // 滚动到当前位置
       await controller.evaluateJavascript(
           source: "window.scrollTo(0, $position)");
-      await Future.delayed(Duration(milliseconds: 5000)); // 等待页面滚动
+      await Future.delayed(Duration(milliseconds: 100)); // 等待页面滚动
 
       // 截取当前屏幕的截图
       final Uint8List? screenshot = await controller.takeScreenshot();

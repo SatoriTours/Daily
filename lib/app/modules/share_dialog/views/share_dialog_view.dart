@@ -98,7 +98,9 @@ class ShareDialogView extends GetView<ShareDialogController> {
         mediaPlaybackRequiresUserGesture: false,
         allowsInlineMediaPlayback: true,
         iframeAllow: "camera; microphone",
-        iframeAllowFullscreen: true);
+        iframeAllowFullscreen: true,
+        verticalScrollBarEnabled: false,   // 隐藏垂直滚动条
+    );
 
     return Container(
       decoration: BoxDecoration(
