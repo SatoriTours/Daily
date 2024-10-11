@@ -57,7 +57,8 @@ class ShareDialogView extends GetView<ShareDialogController> {
         IconButton(
           icon: const Icon(Icons.home),
           onPressed: () {
-            controller.webViewController?.loadUrl(urlRequest: URLRequest(url: WebUri(controller.shareURL ?? '')));
+            controller.webViewController?.loadUrl(
+                urlRequest: URLRequest(url: WebUri(controller.shareURL ?? '')));
           },
         ),
         IconButton(
@@ -127,11 +128,14 @@ class ShareDialogView extends GetView<ShareDialogController> {
               });
         },
         onPermissionRequest: (controller, request) async {
-          return PermissionResponse(resources: request.resources, action: PermissionResponseAction.GRANT);
+          return PermissionResponse(
+              resources: request.resources,
+              action: PermissionResponseAction.GRANT);
         },
         onLoadStart: (webController, url) async {
           controller.webLoadProgress.value = 0;
-          webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
+          webController.injectJavascriptFileFromAsset(
+              assetFilePath: "assets/js/common.js");
         },
         onLoadStop: (webController, url) async {
           controller.webLoadProgress.value = 0;
@@ -145,9 +149,9 @@ class ShareDialogView extends GetView<ShareDialogController> {
             controller.webLoadProgress.value = 0;
           }
         },
-        // onConsoleMessage: (controller, consoleMessage) {
-        //   logger.d("浏览器日志: ${consoleMessage.message}");
-        // },
+        onConsoleMessage: (controller, consoleMessage) {
+          logger.d("浏览器日志: ${consoleMessage.message}");
+        },
       ),
     );
   }
@@ -188,7 +192,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
             ),
             child: const Text("保存"),
             onPressed: () async {
-              if(!isProduction) {
+              if (!isProduction) {
                 controller.webViewController?.evaluateJavascript(source: "testNode()");
               }
               await controller.webViewController?.evaluateJavascript(source: "removeAllAdNode()");

@@ -1,4 +1,5 @@
 function removeAllAdNode() {
+  console.log("removeAllAdNode");
   const allElements = document.querySelectorAll('*');
 
   allElements.forEach(node => {
@@ -48,25 +49,29 @@ function removeAdNode(node) {
 }
 
 (function () {
-  const observer = new MutationObserver(mutations => {
-    mutations.forEach(mutation => {
-      mutation.addedNodes.forEach(node => {
-        if (node.nodeType === 1) { // 确保是元素节点
-          removeAdNode(node);
-        }
+  document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
+        mutation.addedNodes.forEach(node => {
+          console.log("监控到新增节点", node.nodeType);
+          if (node.nodeType === 1) { // 确保是元素节点
+            removeAdNode(node);
+          }
+        });
       });
     });
-  });
 
-  // 开始观察整个文档
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true
+    // 开始观察整个文档
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
   });
 })();
 
 // 网页删除 header, 这样截图的时候不会重复这些内容
 function removeHeaderNode() {
+    console.log("removeAllAdNode");
     const headers = document.querySelectorAll('body header');
     headers.forEach(node => node.remove());
 }
