@@ -47,7 +47,7 @@ class ArticleCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              article.title,
+              (article.aiTitle ?? article.title),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 5),
@@ -57,7 +57,7 @@ class ArticleCard extends StatelessWidget {
               Image.asset(article.imagePath!),
             const SizedBox(height: 5),
             Text(
-              '获取时间: ${article.pubDate ?? ""}',
+              '获取时间: ${article.pubDate ?? article.createdAt}',
               style: const TextStyle(color: Colors.grey),
             ),
           ],

@@ -7,12 +7,23 @@ function parseContent() {
         return;
     }
 
-    removeAdNode();
+    let image;
+    const supportedDomains = ['x.com', 'twitter.com'];
+    console.log("网站域名是:", window.location.hostname);
 
-    let image = getOgImage();
-    if(image == '') {
+    if (supportedDomains.some(domain => window.location.hostname.includes(domain))) {
         image = getMainImage();
+        if (image == '') {
+            image = getOgImage();
+        }
+    } else {
+        image = getOgImage();
+        if (image == '') {
+            image = getMainImage();
+        }
     }
+
+    console.log("获取的图片地址是", image);
 
     window.flutter_inappwebview.callHandler(
         "getPageContent",
@@ -46,6 +57,7 @@ function getMainImage() {
     let mainImage = null;
 
     for (let img of images) {
+        console.log("分析图片尺寸", img.naturalWidth, img.naturalHeight);
         if (img.naturalWidth > 500 && img.naturalHeight > 500) { // 根据尺寸过滤
             mainImage = img.src;
             break; // 找到第一个符合条件的图片

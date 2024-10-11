@@ -8,7 +8,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 
 class ShareDialogController extends GetxController {
-  String? shareURL = isProduction ? null : 'https://x.com/dotey/status/1844621109158711361';
+  String? shareURL = isProduction ? null : 'https://x.com/op7418/status/1844707753052504437';
 
   InAppWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();
@@ -17,7 +17,6 @@ class ShareDialogController extends GetxController {
 
   Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
       String publishedTime, String imageUrl) async {
-    logger.i("title => $title");
     // logger.i("title => $title, imageUrl => $imageUrl, publishedTime => $publishedTime");
     if (await ArticleService.instance.articleExists(url)) {
       Get.snackbar('提示', '网页已存在', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
@@ -25,6 +24,7 @@ class ShareDialogController extends GetxController {
       return;
     }
     saveContentStep.value = 1;
+
     var aiTitle = await AiService.instance.translate(title.trim());
     if(aiTitle.length >= 50) {
       aiTitle = await AiService.instance.summarizeOneLine(aiTitle);

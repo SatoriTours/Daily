@@ -13,12 +13,12 @@ class ArticleService {
 
   Future<void> saveArticle(Map<String, dynamic> articleData) async {
     if (await articleExists(articleData['url'])) {
-      logger.i("文章已存在: ${articleData['title']}");
+      logger.i("文章已存在: ${firstLine(articleData['title'])}");
       return; // 如果记录已存在，则不进行插入
     }
 
     await db.insert(_tableName, articleData);
-    logger.i("文章已保存: ${articleData['title']}");
+    logger.i("文章已保存: ${firstLine(articleData['title'])}");
   }
 
   Future<bool> articleExists(String url) async {
