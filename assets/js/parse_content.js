@@ -7,23 +7,13 @@ function parseContent() {
         return;
     }
 
-    let image;
-    const supportedDomains = ['x.com', 'twitter.com'];
-    console.log("网站域名是:", window.location.hostname);
-
-    if (supportedDomains.some(domain => window.location.hostname.includes(domain))) {
-        image = getMainImage();
-        if (image == '') {
-            image = getOgImage();
-        }
-    } else {
-        image = getOgImage();
-        if (image == '') {
-            image = getMainImage();
-        }
+    let image = "";
+    try {
+        image= getPageImage();
+    } catch (error) {
+        console.log("获取图片失败", error);
     }
 
-    console.log("获取的图片地址是", image);
 
     window.flutter_inappwebview.callHandler(
         "getPageContent",
@@ -35,6 +25,21 @@ function parseContent() {
         article.publishedTime,
         image
     )
+}
+
+function getPageImage() {
+    let image = "";
+    const supportedDomains = ['x.com', 'twitter.com', 'apps.apple.com', 'infoq.cn'];
+    const hostDomain = window.location.hostname;
+    console.log("网站域名是:", hostDomain);
+
+    image = getMainImage();
+    if (image == "") {
+        image = getOgImage();
+    }
+
+    console.log("获取的图片地址是", image);
+    return image;
 }
 
 function getOgImage() {
@@ -54,21 +59,29 @@ function getOgImage() {
 
 function getMainImage() {
     const images = document.getElementsByTagName('img');
-    let mainImage = null;
-
+    let imageSrc = '';
+    let imageWidth = 0;
+    let imageHeight = 0;
+    // 一般来说选最大的那张图就是这个网页的代表
     for (let img of images) {
-        console.log("分析图片尺寸", img.naturalWidth, img.naturalHeight);
-        if (img.naturalWidth > 500 && img.naturalHeight > 500) { // 根据尺寸过滤
-            mainImage = img.src;
-            break; // 找到第一个符合条件的图片
+        if (img.src && img.src.endsWith('.gif')) {
+            continue;
+        }
+        if (img.naturalWidth > 300 && img.naturalHeight > 300) {
+            console.log("分析图片尺寸", img.naturalWidth, img.naturalHeight, img.src);
+            if(imageSrc == '' || img.naturalWidth * img.naturalHeight > imageWidth * imageHeight) {
+               imageSrc = img.src;
+               imageWidth = img.naturalWidth;
+               imageHeight = img.naturalHeight;
+            }
         }
     }
 
-    if (mainImage && !mainImage.startsWith('http')) {
+    if (imageSrc && !imageSrc.startsWith('http')) {
         const baseUrl = window.location.origin;
-        mainImage = new URL(mainImage, baseUrl).href; // 合并相对路径和当前网页地址
+        imageSrc = new URL(imageSrc, baseUrl).href; // 合并相对路径和当前网页地址
     }
 
-    console.log(mainImage);
-    return mainImage;
+    console.log(imageSrc);
+    return imageSrc;
 }
