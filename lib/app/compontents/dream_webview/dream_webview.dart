@@ -7,6 +7,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 class DreamWebView extends StatelessWidget {
+  static String translateJSURL = 'https://cdn.staticfile.net/translate.js/3.2.1/translate.js';
+
   final String url;
 
   final void Function(DreamWebViewController controller)? onWebViewCreated;
@@ -30,6 +32,7 @@ class DreamWebView extends StatelessWidget {
       onLoadStart: (webController, url) async {
         logger.i("开始加载网页 $url");
         webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
+        webController.injectJavascriptFileFromUrl(urlFile: WebUri(translateJSURL));
 
         onProgressChanged?.call(0);
         onLoadStart?.call(url);
@@ -59,17 +62,16 @@ class DreamWebView extends StatelessWidget {
     final domain = getTopLevelDomain(url?.host);
     logger.i("处理 $domain 的广告规则");
     if (domain.isNotEmpty && ADBlockService.instance.elementHidingRulesBySite.containsKey(domain)) {
-      int count  = 0;
+      int count = 0;
       Timer.periodic(Duration(seconds: 2), (Timer t) async {
         await removeNodeByCssSelectors(controller, ADBlockService.instance.elementHidingRulesBySite[domain] ?? []);
-        count  += 1;
+        count += 1;
         // 当计数达到 10 次时，取消定时器
         if (count >= 20) {
           t.cancel();
           print('定时器已停止');
         }
       });
-
     }
   }
 
