@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:get/get.dart';
-
 import 'package:daily_satori/app/modules/share_dialog/controllers/share_dialog_controller.dart';
 
 class ShareDialogView extends GetView<ShareDialogController> {

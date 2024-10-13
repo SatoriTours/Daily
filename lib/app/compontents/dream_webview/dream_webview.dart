@@ -7,8 +7,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 class DreamWebView extends StatelessWidget {
-  static String translateJSURL = 'https://cdn.staticfile.net/translate.js/3.2.1/translate.js';
-
   final String url;
 
   final void Function(DreamWebViewController controller)? onWebViewCreated;
@@ -31,7 +29,7 @@ class DreamWebView extends StatelessWidget {
       },
       onLoadStart: (webController, url) async {
         logger.i("开始加载网页 $url");
-        webController.injectJavascriptFileFromUrl(urlFile: WebUri(translateJSURL));
+        webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/translate.js");
         webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
 
         onProgressChanged?.call(0);

@@ -64,6 +64,7 @@ flutter:
   assets:
     - assets/images/cover.jpeg
     - assets/js/Readability.js
+    - assets/js/translate.js
     - assets/js/parse_content.js
     - assets/js/page_load_event.js
     - assets/js/common.js
