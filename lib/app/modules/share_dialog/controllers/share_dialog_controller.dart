@@ -1,16 +1,15 @@
-import 'package:daily_satori/app/helper/flutter_inappwebview_screenshot.dart';
+import 'package:daily_satori/app/compontents/dream_webview/dream_webview_controller.dart';
 import 'package:daily_satori/app/services/ai_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 
 class ShareDialogController extends GetxController {
-  String? shareURL = isProduction ? null : 'https://x.com/op7418/status/1844707753052504437';
+  String? shareURL = isProduction ? null : 'https://www.oschina.net/news/315861/leiming-3-9-released';
 
-  InAppWebViewController? webViewController;
+  DreamWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();
   final webLoadProgress = 0.0.obs;
   final saveContentStep = 0.obs;
@@ -33,7 +32,7 @@ class ShareDialogController extends GetxController {
 
     saveContentStep.value = 2;
     final imagePath = await HttpService.instance.downloadImage(imageUrl);
-    final screenshotPath = await captureFullPageScreenshot(webViewController!);
+    final screenshotPath = await webViewController!.captureFulScreenshot();
 
     await ArticleService.instance.saveArticle({
       'title': title,
@@ -45,7 +44,7 @@ class ShareDialogController extends GetxController {
       'image_url': imageUrl,
       'image_path': imagePath,
       'screenshot_path': screenshotPath,
-      'pub_date': DateTime.tryParse(publishedTime),
+      'pub_date': DateTime.tryParse(publishedTime)?.toUtc().toIso8601String() ?? nowToString(),
       'comment': commentController.text,
     });
     saveContentStep.value = 3;

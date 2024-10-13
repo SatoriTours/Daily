@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:daily_satori/app/services/adblock_service.dart';
 import 'package:daily_satori/app/services/ai_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/database_service.dart';
@@ -40,4 +41,5 @@ Future<void> initServices() async {
   await ArticleService.instance.init();
   await FileService.instance.init();
   await HttpService.instance.init();
+  await ADBlockService.instance.init();
 }

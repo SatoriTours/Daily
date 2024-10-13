@@ -14,7 +14,7 @@ part 'app_routes.dart';
 class AppPages {
   AppPages._();
 
-  static const INITIAL = Routes.ARTICLES;
+  static const INITIAL = Routes.SHARE_DIALOG;
 
   static final routes = [
     GetPage(

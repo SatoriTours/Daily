@@ -5,8 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'dart:io';
 
-Future<String> captureFullPageScreenshot(
-    InAppWebViewController controller) async {
+Future<String> captureFullPageScreenshot(InAppWebViewController controller) async {
   try {
     // 获取网页的高度
     final height = await controller.evaluateJavascript(
@@ -25,13 +24,11 @@ Future<String> captureFullPageScreenshot(
 
     List<ui.Image> screenshots = [];
     for (var i = 0; i < totalPages; i++) {
-      logger
-          .i("页面高度 => $screenHeightInt, totalHeight => $totalHeight, 页数 => $i");
+      logger.i("页面高度 => $screenHeightInt, totalHeight => $totalHeight, 页数 => $i");
 
       int position = i * screenHeightInt;
       // 滚动到当前位置
-      await controller.evaluateJavascript(
-          source: "window.scrollTo(0, $position)");
+      await controller.evaluateJavascript(source: "window.scrollTo(0, $position)");
       await Future.delayed(Duration(milliseconds: 100)); // 等待页面滚动
 
       // 截取当前屏幕的截图
@@ -56,6 +53,9 @@ Future<String> captureFullPageScreenshot(
     logger.i("Error capturing full page screenshot: $e");
     logger.i(stackTrace);
   }
+
+  // 截图完回到第一屏
+  await controller.evaluateJavascript(source: "window.scrollTo(0, 0)");
   return "";
 }
 

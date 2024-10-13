@@ -31,3 +31,20 @@ String getSubstring(String text, {int length = 50}) {
 String firstLine(String text) {
   return text.split('\n').first;
 }
+
+String getTopLevelDomain(String? host) {
+  if (host == null) {
+    return "";
+  }
+
+  // 分割主机名以获取一级域名
+  List<String> parts = host.split('.');
+
+  // 检查域名部分的数量
+  if (parts.length < 2) {
+    return host; // 如果没有足够的部分，返回原始主机名
+  }
+
+  // 返回最后两个部分作为一级域名
+  return '${parts[parts.length - 2]}.${parts[parts.length - 1]}';
+}

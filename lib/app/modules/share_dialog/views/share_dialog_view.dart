@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/compontents/dream_webview/dream_webview.dart';
 import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -57,8 +58,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
         IconButton(
           icon: const Icon(Icons.home),
           onPressed: () {
-            controller.webViewController?.loadUrl(
-                urlRequest: URLRequest(url: WebUri(controller.shareURL ?? '')));
+            controller.webViewController?.loadUrl(controller.shareURL ?? '');
           },
         ),
         IconButton(
@@ -94,12 +94,12 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   Widget _displayWebContent() {
     InAppWebViewSettings settings = InAppWebViewSettings(
-        isInspectable: !isProduction,
-        mediaPlaybackRequiresUserGesture: false,
-        allowsInlineMediaPlayback: true,
-        iframeAllow: "camera; microphone",
-        iframeAllowFullscreen: true,
-        verticalScrollBarEnabled: false,   // 隐藏垂直滚动条
+      isInspectable: !isProduction,
+      mediaPlaybackRequiresUserGesture: false,
+      allowsInlineMediaPlayback: true,
+      iframeAllow: "camera; microphone",
+      iframeAllowFullscreen: true,
+      verticalScrollBarEnabled: false, // 隐藏垂直滚动条
     );
 
     return Container(
@@ -109,9 +109,8 @@ class ShareDialogView extends GetView<ShareDialogController> {
           width: 1,
         ),
       ),
-      child: InAppWebView(
-        initialUrlRequest: URLRequest(url: WebUri(controller.shareURL ?? '')),
-        initialSettings: settings,
+      child: DreamWebView(
+        url: controller.shareURL ?? '',
         onWebViewCreated: (webController) {
           controller.webViewController = webController;
           // parse_content.js 里面的回调, 用于获取网页内容
@@ -128,31 +127,6 @@ class ShareDialogView extends GetView<ShareDialogController> {
                   args[6].toString().trim(), // imageUrl
                 );
               });
-        },
-        onPermissionRequest: (controller, request) async {
-          return PermissionResponse(
-              resources: request.resources,
-              action: PermissionResponseAction.GRANT);
-        },
-        onLoadStart: (webController, url) async {
-          controller.webLoadProgress.value = 0;
-          webController.injectJavascriptFileFromAsset(
-              assetFilePath: "assets/js/common.js");
-        },
-        onLoadStop: (webController, url) async {
-          controller.webLoadProgress.value = 0;
-        },
-        onReceivedError: (webController, request, error) {
-          controller.webLoadProgress.value = 0;
-        },
-        onProgressChanged: (webController, progress) {
-          controller.webLoadProgress.value = progress / 100;
-          if (controller.webLoadProgress.value >= 1.0) {
-            controller.webLoadProgress.value = 0;
-          }
-        },
-        onConsoleMessage: (controller, consoleMessage) {
-          logger.d("浏览器日志: ${consoleMessage.message}");
         },
       ),
     );
@@ -197,8 +171,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
               if (!isProduction) {
                 controller.webViewController?.evaluateJavascript(source: "testNode()");
               }
-              await controller.webViewController?.evaluateJavascript(source: "removeAllAdNode()");
-              await controller.webViewController?.evaluateJavascript(source: "removeHeaderNode()");
+              await controller.webViewController?.evaluateJavascript(source: "removeObstructiveNodes()");
               controller.showProcessDialog();
               controller.parseWebContent();
             },
