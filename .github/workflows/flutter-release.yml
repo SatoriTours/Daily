@@ -23,7 +23,7 @@ jobs:
         run: flutter pub get    
 
       - name: Flutter Build
-        run: flutter build apk --target-platform android-arm
+        run: flutter build apk --target-platform android-arm --release
 
       - name: Run tests
         run: dart test
