@@ -9,9 +9,17 @@ class DreamWebViewController {
     webViewController.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
   }
 
-  void goBack() { webViewController.goBack(); }
-  void goForward() { webViewController.goForward(); }
-  void reload() { webViewController.reload(); }
+  void goBack() {
+    webViewController.goBack();
+  }
+
+  void goForward() {
+    webViewController.goForward();
+  }
+
+  void reload() {
+    webViewController.reload();
+  }
 
   void addJavaScriptHandler({required String handlerName, required void Function(List<dynamic> args) callback}) {
     webViewController.addJavaScriptHandler(handlerName: handlerName, callback: callback);
@@ -27,5 +35,9 @@ class DreamWebViewController {
 
   Future<String> captureFulScreenshot() async {
     return await captureFullPageScreenshot(webViewController);
+  }
+
+  void translatePage() {
+    evaluateJavascript(source: "translate.changeLanguage('chinese_simplified');");
   }
 }

@@ -79,6 +79,12 @@ class ShareDialogView extends GetView<ShareDialogController> {
             controller.webViewController?.reload();
           },
         ),
+        IconButton(
+          icon: const Icon(Icons.translate),
+          onPressed: () {
+            controller.webViewController?.translatePage();
+          },
+        ),
         Expanded(
           child: Obx(() => controller.webLoadProgress.value > 0
               ? LinearProgressIndicator(
@@ -171,7 +177,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
               if (!isProduction) {
                 controller.webViewController?.evaluateJavascript(source: "testNode()");
               }
-              await controller.webViewController?.evaluateJavascript(source: "removeObstructiveNodes()");
+              await controller.webViewController?.evaluateJavascript(source: "initPage()");
               controller.showProcessDialog();
               controller.parseWebContent();
             },

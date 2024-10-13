@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class ShareDialogController extends GetxController {
-  String? shareURL = isProduction ? null : 'https://www.oschina.net/news/315861/leiming-3-9-released';
+  String? shareURL = isProduction ? null : 'https://manual.nssurge.com/overview/configuration.html';
 
   DreamWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();
