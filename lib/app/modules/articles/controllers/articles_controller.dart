@@ -5,7 +5,7 @@ class ArticlesController extends GetxController {
   final List<Article> articles = <Article>[].obs;
 
   Future<void> loadArticles() async {
-    final articleDataList = await ArticleService.instance.db.query('articles');
+    final articleDataList = await ArticleService.instance.db.query('articles', orderBy: 'id DESC');
     articles.assignAll(articleDataList.map((data) => Article.fromMap(data)).toList());
   }
 }

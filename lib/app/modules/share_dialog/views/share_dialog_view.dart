@@ -98,15 +98,6 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   Widget _displayWebContent() {
-    InAppWebViewSettings settings = InAppWebViewSettings(
-      isInspectable: !isProduction,
-      mediaPlaybackRequiresUserGesture: false,
-      allowsInlineMediaPlayback: true,
-      iframeAllow: "camera; microphone",
-      iframeAllowFullscreen: true,
-      verticalScrollBarEnabled: false, // 隐藏垂直滚动条
-    );
-
     return Container(
       decoration: BoxDecoration(
         border: Border.all(

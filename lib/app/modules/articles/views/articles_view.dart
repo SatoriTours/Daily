@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -11,7 +13,7 @@ class ArticlesView extends GetView<ArticlesController> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ArticlesView'),
+        title: const Text('收藏的文章'),
         centerTitle: true,
       ),
       body: Obx(() {
@@ -54,7 +56,17 @@ class ArticleCard extends StatelessWidget {
             Text(article.aiContent ?? article.content),
             const SizedBox(height: 5),
             if (article.imagePath != null && article.imagePath!.isNotEmpty)
-              Image.asset(article.imagePath!),
+              Container(
+                constraints: BoxConstraints(
+                  maxHeight: 500, // 设置最大高度为 500px
+                ),
+                width: double.infinity, // 设置宽度为无限
+                child: Image.file(
+                  File(article.imagePath!),
+                  fit: BoxFit.fitWidth,
+                  alignment: Alignment.topCenter,
+                ),
+              ),
             const SizedBox(height: 5),
             Text(
               '获取时间: ${article.pubDate ?? article.createdAt}',
