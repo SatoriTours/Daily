@@ -65,26 +65,29 @@ $text
     if (content.isEmpty || content.length <= 5) {
       return "";
     }
+    try {
+      content = getSubstring(content, length: 500);
 
-    content = getSubstring(content, length: 500);
-
-    final client = createClient();
-    final res = await client.createChatCompletion(
-      request: CreateChatCompletionRequest(
-        model: ChatCompletionModel.modelId('gpt-4o-mini'),
-        messages: [
-          ChatCompletionMessage.system(
-            content: role.trim(),
-          ),
-          ChatCompletionMessage.user(
-            content: ChatCompletionUserMessageContent.string(content.trim()),
-          ),
-        ],
-        temperature: 0,
-      ),
-    );
-    // logger.d(res.choices);
-    return res.choices.first.message.content ?? '';
+      final client = createClient();
+      final res = await client.createChatCompletion(
+        request: CreateChatCompletionRequest(
+          model: ChatCompletionModel.modelId('gpt-4o-mini'),
+          messages: [
+            ChatCompletionMessage.system(
+              content: role.trim(),
+            ),
+            ChatCompletionMessage.user(
+              content: ChatCompletionUserMessageContent.string(content.trim()),
+            ),
+          ],
+          temperature: 0,
+        ),
+      );
+      return res.choices.first.message.content ?? '';
+    } catch (e) {
+      logger.e("[AI] 请求失败: $e");
+    }
+    return "";
   }
 
   OpenAIClient createClient() {

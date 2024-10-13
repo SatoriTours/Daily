@@ -7,11 +7,10 @@ import 'dart:io';
 
 Future<String> captureFullPageScreenshot(InAppWebViewController controller) async {
   try {
+    await controller.evaluateJavascript(source: "initPage()");
     // 获取网页的高度
-    final height = await controller.evaluateJavascript(
-        source: "document.documentElement.scrollHeight");
-    final screenHeight =
-        await controller.evaluateJavascript(source: "window.innerHeight");
+    final height = await controller.evaluateJavascript(source: "document.documentElement.scrollHeight");
+    final screenHeight = await controller.evaluateJavascript(source: "window.innerHeight");
 
     logger.d("网页高度信息: $height, $screenHeight");
 
@@ -37,8 +36,8 @@ Future<String> captureFullPageScreenshot(InAppWebViewController controller) asyn
         final codec = await ui.instantiateImageCodec(screenshot);
         final frame = await codec.getNextFrame();
         if ((i + 1) * screenHeightInt > totalHeight) {
-          screenshots.add(await cropImageFromHeight(frame.image,
-              ((i + 1) * screenHeightInt - totalHeight) / screenHeightInt));
+          screenshots
+              .add(await cropImageFromHeight(frame.image, ((i + 1) * screenHeightInt - totalHeight) / screenHeightInt));
         } else {
           screenshots.add(frame.image);
         }
@@ -47,23 +46,21 @@ Future<String> captureFullPageScreenshot(InAppWebViewController controller) asyn
       }
     }
 
-    // 将截图拼接在一起
-    return await _saveFullPageScreenshot(screenshots);
+    return await _saveFullPageScreenshot(screenshots); // 将截图拼接在一起
   } catch (e, stackTrace) {
     logger.i("Error capturing full page screenshot: $e");
     logger.i(stackTrace);
+  } finally {
+    await controller.evaluateJavascript(source: "showObstructiveNodes()"); // 把隐藏的影响截图的元素显示出来
+    await controller.evaluateJavascript(source: "window.scrollTo(0, 0)"); // 截图完回到第一屏
   }
 
-  // 截图完回到第一屏
-  await controller.evaluateJavascript(source: "window.scrollTo(0, 0)");
   return "";
 }
 
-Future<ui.Image> cropImageFromHeight(
-    ui.Image image, double startHeightRatio) async {
+Future<ui.Image> cropImageFromHeight(ui.Image image, double startHeightRatio) async {
   int startHeight = (image.height * startHeightRatio).round();
-  logger.i(
-      "开始高度比例是 $startHeightRatio, 实际开始高度是 $startHeight, 图片高度 => ${image.height}");
+  logger.i("开始高度比例是 $startHeightRatio, 实际开始高度是 $startHeight, 图片高度 => ${image.height}");
 
   // 确保开始高度不超过图片高度
   if (startHeight >= image.height) {
@@ -80,16 +77,14 @@ Future<ui.Image> cropImageFromHeight(
   // 在新画布上绘制裁剪后的图像
   canvas.drawImageRect(
     image,
-    Rect.fromLTWH(0, startHeight.toDouble(), image.width.toDouble(),
-        croppedHeight.toDouble()),
+    Rect.fromLTWH(0, startHeight.toDouble(), image.width.toDouble(), croppedHeight.toDouble()),
     Rect.fromLTWH(0, 0, image.width.toDouble(), croppedHeight.toDouble()),
     ui.Paint(),
   );
 
   // 生成新的图像
   final ui.Picture picture = recorder.endRecording();
-  final ui.Image croppedImage =
-      await picture.toImage(image.width, croppedHeight);
+  final ui.Image croppedImage = await picture.toImage(image.width, croppedHeight);
 
   return croppedImage;
 }
@@ -109,8 +104,7 @@ Future<String> _saveFullPageScreenshot(List<ui.Image> screenshots) async {
 Future<ui.Image> _combineImages(List<ui.Image> screenshots) async {
   // 计算总高度
   int totalHeight = screenshots.fold(0, (sum, image) => sum + image.height);
-  int maxWidth = screenshots.fold(
-      0, (max, image) => max > image.width ? max : image.width);
+  int maxWidth = screenshots.fold(0, (max, image) => max > image.width ? max : image.width);
 
   // 创建一个新的空白画布
   final recorder = ui.PictureRecorder();

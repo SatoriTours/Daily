@@ -176,7 +176,6 @@ class ShareDialogView extends GetView<ShareDialogController> {
               if (!isProduction) {
                 controller.webViewController?.evaluateJavascript(source: "testNode()");
               }
-              await controller.webViewController?.evaluateJavascript(source: "initPage()");
               controller.showProcessDialog();
               controller.parseWebContent();
             },

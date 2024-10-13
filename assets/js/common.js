@@ -1,14 +1,14 @@
 function initPage() {
-  removeObstructiveNodes();
+  hideObstructiveNodes();
   adjustPageHeight();
 }
 
-function removeObstructiveNodes() {
-  console.log("开始删除妨碍截图的节点");
+function hideObstructiveNodes() {
+  console.log("开始隐藏妨碍截图的节点");
 
   // 删除 header 节点
   const headers = document.querySelectorAll('body header');
-  headers.forEach(node => node.remove());
+  headers.forEach(node => node.classList.add('tours-statori-daily-hide'));
 
   // 删除 z-index 大于 1 的节点
   const allNodes = document.querySelectorAll('*');
@@ -17,7 +17,7 @@ function removeObstructiveNodes() {
     const zIndex = computedStyle.zIndex;
     if (zIndex > 1) {
       console.log('命中规则: 该节点的 zIndex > 1');
-      node.remove();
+      node.classList.add('tours-statori-daily-hide');
     }
   });
 
@@ -25,7 +25,14 @@ function removeObstructiveNodes() {
   const openNodes = document.querySelectorAll('[class*="open"][class*="app"]');
   openNodes.forEach(node => {
     console.log('命中规则: 该节点含有 "open" 或 "app" class');
-    node.remove();
+    node.classList.add('tours-statori-daily-hide');
+  });
+}
+
+function showObstructiveNodes() {
+  const nodes = document.querySelectorAll('.tours-statori-daily-hide');
+  nodes.forEach(node => {
+    node.classList.remove('tours-statori-daily-hide');
   });
 }
 

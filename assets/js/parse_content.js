@@ -56,7 +56,6 @@ function getOgImage() {
     return ogImage;
 }
 
-
 function getMainImage() {
     const images = document.getElementsByTagName('img');
     let imageSrc = '';

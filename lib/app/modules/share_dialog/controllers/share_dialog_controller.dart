@@ -12,7 +12,6 @@ class ShareDialogController extends GetxController {
   DreamWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();
   final webLoadProgress = 0.0.obs;
-  final saveContentStep = 0.obs;
 
   Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
       String publishedTime, String imageUrl) async {
@@ -22,18 +21,43 @@ class ShareDialogController extends GetxController {
       Get.close();
       return;
     }
-    saveContentStep.value = 1;
 
-    var aiTitle = await AiService.instance.translate(title.trim());
-    if(aiTitle.length >= 50) {
-      aiTitle = await AiService.instance.summarizeOneLine(aiTitle);
+    Future<String> aiTitleTask() async {
+      var aiTitle = await AiService.instance.translate(title.trim());
+      if(aiTitle.length >= 50) {
+        aiTitle = await AiService.instance.summarizeOneLine(aiTitle);
+      }
+      return aiTitle;
     }
-    final aiContent = await AiService.instance.summarize(textContent.trim());
 
-    saveContentStep.value = 2;
-    final imagePath = await HttpService.instance.downloadImage(imageUrl);
-    final screenshotPath = await webViewController!.captureFulScreenshot();
+    Future<String> aiContentTask() async {
+      return await AiService.instance.summarize(textContent.trim());
+    }
 
+    Future<String> imageDownTask() async {
+      return await HttpService.instance.downloadImage(imageUrl);
+    }
+
+    Future<String> screenshotTask() async {
+      return await webViewController!.captureFulScreenshot();
+    }
+
+    List<String> results = await Future.wait([
+      aiTitleTask(),
+      aiContentTask(),
+      imageDownTask(),
+      screenshotTask(),
+    ]);
+
+    String aiTitle = results[0];
+    String aiContent = results[1];
+    String imagePath = results[2];
+    String screenshotPath = results[3];
+    if(imagePath == "") { // 如果网页没有图片, 就用截图代替
+      imagePath = screenshotPath;
+    }
+
+    logger.i("aiTitle => $aiTitle, aiContent => $aiContent, imagePath => $imagePath, screenshotPath => $screenshotPath");
     await ArticleService.instance.saveArticle({
       'title': title,
       'ai_title': aiTitle,
@@ -47,13 +71,11 @@ class ShareDialogController extends GetxController {
       'pub_date': DateTime.tryParse(publishedTime)?.toUtc().toIso8601String() ?? nowToString(),
       'comment': commentController.text,
     });
-    saveContentStep.value = 3;
     Get.close();
     // SystemNavigator.pop();
   }
 
   Future<void> parseWebContent() async {
-    saveContentStep.value = 0;
     await webViewController?.injectJavascriptFileFromAsset(assetFilePath: "assets/js/Readability.js");
     await webViewController?.injectJavascriptFileFromAsset(assetFilePath: "assets/js/parse_content.js");
     await webViewController?.evaluateJavascript(source: "parseContent()");
@@ -66,11 +88,7 @@ class ShareDialogController extends GetxController {
         padding: EdgeInsets.only(left: 10), // 离左边10px
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start, // 文字左对齐
-          children: [
-            Obx(() => _buildStepText(0, '1. 解析网页...', '1. 网页解析完成')),
-            Obx(() => _buildStepText(1, '1. AI分析网页...', '1. AI分析完成')),
-            Obx(() => _buildStepText(2, '3. 保存到app...', '3. 数据保存成功')),
-          ],
+          children: [_buildStepText("正在用AI对网页进行分析...")],
         ),
       ),
       confirm: TextButton(
@@ -83,12 +101,10 @@ class ShareDialogController extends GetxController {
     );
   }
 
-  Widget _buildStepText(int step, String processingTips, String completedTips) {
+  Widget _buildStepText(String tips) {
     return Text(
-      saveContentStep.value == step ? processingTips : completedTips,
-      style: TextStyle(
-          fontWeight: saveContentStep.value == step ? FontWeight.bold : FontWeight.normal,
-          color: saveContentStep.value >= step ? Colors.blue : Colors.grey), // 根据 saveContentStep 动态改变颜色
+      tips,
+      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
     );
   }
 }
