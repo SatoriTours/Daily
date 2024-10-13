@@ -4,6 +4,7 @@ import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 class ShareDialogController extends GetxController {
@@ -72,7 +73,7 @@ class ShareDialogController extends GetxController {
       'comment': commentController.text,
     });
     Get.close();
-    // SystemNavigator.pop();
+    SystemNavigator.pop();
   }
 
   Future<void> parseWebContent() async {
