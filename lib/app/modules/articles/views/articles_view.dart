@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -32,8 +33,12 @@ class ArticlesView extends GetView<ArticlesController> {
           );
         }
         return ListView.builder(
-          itemCount: controller.articles.length,
+          controller: controller.scrollController,
+          itemCount: controller.articles.length + (controller.isLoading.value ? 1 : 0), // 如果正在加载，增加一个加载项
           itemBuilder: (context, index) {
+            if (index == controller.articles.length) {
+              return Center(child: CircularProgressIndicator());
+            }
             final article = controller.articles[index];
             return ArticleCard(article: article);
           },
@@ -59,11 +64,14 @@ class ArticleCard extends StatelessWidget {
           children: [
             Text(
               (article.aiTitle ?? article.title),
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 5),
-            Text(article.aiContent ?? article.content),
-            const SizedBox(height: 5),
+            const SizedBox(height: 15),
+            Text(
+              article.aiContent ?? article.content,
+              style: const TextStyle(fontSize: 16, letterSpacing: 1.2, height: 1.6),
+            ),
+            const SizedBox(height: 15),
             if (article.imagePath != null && article.imagePath!.isNotEmpty)
               Container(
                 constraints: BoxConstraints(
@@ -78,7 +86,7 @@ class ArticleCard extends StatelessWidget {
               ),
             const SizedBox(height: 5),
             Text(
-              '获取时间: ${article.pubDate ?? article.createdAt}',
+              '获取时间: ${formatDateTimeToLocal(article.pubDate ?? article.createdAt)}',
               style: const TextStyle(color: Colors.grey),
             ),
           ],

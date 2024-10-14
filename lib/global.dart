@@ -1,4 +1,5 @@
 import 'package:logger/logger.dart';
+import 'package:intl/intl.dart';
 
 late Logger logger;
 
@@ -47,4 +48,14 @@ String getTopLevelDomain(String? host) {
 
   // 返回最后两个部分作为一级域名
   return '${parts[parts.length - 2]}.${parts[parts.length - 1]}';
+}
+
+String formatDateTimeToLocal(DateTime dateTime) {
+  try {
+    DateTime localDateTime = dateTime.toLocal();
+    return DateFormat('yyyy-MM-dd HH:mm:ss').format(localDateTime);
+  } catch (e) {
+    logger.d("日期格式转换失败 $e");
+  }
+  return "";
 }
