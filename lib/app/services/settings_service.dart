@@ -8,8 +8,9 @@ class SettingsService extends GetxService {
   static final SettingsService _instance = SettingsService._privateConstructor();
   static SettingsService get instance => _instance;
 
-  static String openAITokenKey   = 'openai_token';
+  static String openAITokenKey = 'openai_token';
   static String openAIAddressKey = 'openai_address';
+  static String backupDirKey = 'backup_dir';
 
   Future<void> init() async {
     await reloadSettings();
@@ -20,27 +21,30 @@ class SettingsService extends GetxService {
   final _db = DatabaseService.instance.database;
 
   void saveSetting(String key, String value) async {
-    if(key.isEmpty || value.isEmpty) {
+    if (key.isEmpty || value.isEmpty) {
       return;
     }
     await _db.insert(
-        _tableName, updateTimestamps({'key': key, 'value': value}),
-        conflictAlgorithm: ConflictAlgorithm.replace,
+      _tableName,
+      updateTimestamps({'key': key, 'value': value}),
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
     reloadSettings();
   }
 
   Future<void> saveSettings(Map<String, String> settings) async {
     final batch = _db.batch();
-    for(var setting in settings.entries) {
-      if(setting.key.isEmpty || setting.value.isEmpty) {
+    for (var setting in settings.entries) {
+      if (setting.key.isEmpty || setting.value.isEmpty) {
         continue;
       }
       batch.insert(
-        _tableName, updateTimestamps({'key': setting.key, 'value': setting.value}),
+        _tableName,
+        updateTimestamps({'key': setting.key, 'value': setting.value}),
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
-    };
+    }
+    ;
     await batch.commit();
     reloadSettings();
   }
@@ -48,7 +52,7 @@ class SettingsService extends GetxService {
   Future<void> reloadSettings() async {
     final List<Map<String, dynamic>> maps = await _db.query(_tableName);
     for (var row in maps) {
-      if(row['key'] != null && row['value'] != null) {
+      if (row['key'] != null && row['value'] != null) {
         _settings[row['key']] = row['value'];
       }
     }

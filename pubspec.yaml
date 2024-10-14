@@ -45,6 +45,8 @@ dependencies:
   # 事件处理
   intl: ^0.19.0
   dio: ^5.7.0
+  file_picker: ^8.1.2
+  permission_handler: ^11.3.1
 
   # 分享
   # receive_sharing_intent: ^1.8.0

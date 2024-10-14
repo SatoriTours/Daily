@@ -1,9 +1,9 @@
 import 'dart:io';
 
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
+import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
-import '../controllers/articles_controller.dart';
 
 class ArticlesView extends GetView<ArticlesController> {
   const ArticlesView({super.key});
@@ -15,11 +15,20 @@ class ArticlesView extends GetView<ArticlesController> {
       appBar: AppBar(
         title: const Text('收藏的文章'),
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.settings),
+          onPressed: () {
+            Get.toNamed(Routes.SETTINGS);
+          },
+        ),
       ),
       body: Obx(() {
         if (controller.articles.isEmpty) {
           return const Center(
-            child: CircularProgressIndicator(),
+            child: Text(
+              '还没有收藏内容',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           );
         }
         return ListView.builder(
@@ -37,7 +46,7 @@ class ArticlesView extends GetView<ArticlesController> {
 class ArticleCard extends StatelessWidget {
   final dynamic article;
 
-  const ArticleCard({Key? key, required this.article}) : super(key: key);
+  const ArticleCard({super.key, required this.article});
 
   @override
   Widget build(BuildContext context) {

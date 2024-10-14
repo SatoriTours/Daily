@@ -16,14 +16,14 @@ class HomeView extends GetView<HomeController> {
     platform.setMethodCallHandler((call) async {
       logger.i("接收到原生 android 的消息: ${call.method}");
       if (call.method == 'receiveSharedText') {
-        Get.toNamed(Routes.SHARE_DIALOG, arguments: {'shareURL': call.arguments});
+        Get.offNamed(Routes.SHARE_DIALOG, arguments: {'shareURL': call.arguments});
         // Get.to(() => const ShareDialogView(),
         //     transition: Transition.leftToRight,
         //     arguments: {'shareURL': call.arguments});
       }
     });
 
-    Get.toNamed(Routes.ARTICLES);
+    Get.offNamed(Routes.ARTICLES);
 
     return Center(
       child: Container(

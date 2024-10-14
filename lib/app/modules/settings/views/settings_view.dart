@@ -26,6 +26,7 @@ class SettingsView extends GetView<SettingsController> {
                 _buildOpenAIUrlField(),
                 SizedBox(height: 16.0), // 增加输入框之间的间距
                 _buildOpenAITokenField(),
+                _buildBackupDirSelect(),
                 Spacer(), // 添加间隔以将按钮推到页面底部
                 _buildSaveButton(context),
               ],
@@ -33,6 +34,28 @@ class SettingsView extends GetView<SettingsController> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBackupDirSelect() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller.backupDir,
+            decoration: InputDecoration(
+              labelText: '备份路径',
+            ),
+            readOnly: true, // 设置为只读，防止用户手动输入
+          ),
+        ),
+        IconButton(
+          icon: Icon(Icons.folder_open),
+          onPressed: () async {
+            controller.selectBackupDirectory();
+          },
+        ),
+      ],
     );
   }
 

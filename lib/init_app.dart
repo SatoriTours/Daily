@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:daily_satori/app/services/adblock_service.dart';
 import 'package:daily_satori/app/services/ai_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
+import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:daily_satori/app/services/database_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
@@ -42,4 +43,5 @@ Future<void> initServices() async {
   await FileService.instance.init();
   await HttpService.instance.init();
   await ADBlockService.instance.init();
+  await BackupService.instance.init();
 }
