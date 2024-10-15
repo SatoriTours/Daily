@@ -44,6 +44,7 @@ dependencies:
 
   # 时间处理
   intl: ^0.19.0
+  get_time_ago: ^2.0.0
 
   # 网络处理
   dio: ^5.7.0

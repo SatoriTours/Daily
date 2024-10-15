@@ -5,6 +5,7 @@ import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_time_ago/get_time_ago.dart';
 
 class ArticlesView extends GetView<ArticlesController> {
   const ArticlesView({super.key});
@@ -69,25 +70,52 @@ class ArticleCard extends StatelessWidget {
             const SizedBox(height: 15),
             Text(
               article.aiContent ?? article.content,
+              maxLines: 10,
               style: const TextStyle(fontSize: 16, letterSpacing: 1.2, height: 1.6),
             ),
             const SizedBox(height: 15),
             if (article.imagePath != null && article.imagePath!.isNotEmpty)
               Container(
                 constraints: BoxConstraints(
-                  maxHeight: 500, // 设置最大高度为 500px
+                  maxHeight: 300, // 设置最大高度为 500px
                 ),
                 width: double.infinity, // 设置宽度为无限
-                child: Image.file(
-                  File(article.imagePath!),
-                  fit: BoxFit.fitWidth,
-                  alignment: Alignment.topCenter,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(15), // 设置圆角半径
+                  child: Image.file(
+                    File(article.imagePath!),
+                    fit: BoxFit.fitWidth,
+                    alignment: Alignment.topCenter,
+                  ),
                 ),
               ),
             const SizedBox(height: 5),
-            Text(
-              '获取时间: ${formatDateTimeToLocal(article.pubDate ?? article.createdAt)}',
-              style: const TextStyle(color: Colors.grey),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  getTopLevelDomain(Uri.parse(article.url).host),
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(width: 15),
+                Text(
+                  (GetTimeAgo.parse(article.pubDate ?? article.createdAt)),
+                  style: const TextStyle(color: Colors.grey),
+                ),
+                Spacer(), // 使用 Spacer 使按钮靠右对齐
+                IconButton(
+                  icon: const Icon(Icons.favorite_border),
+                  onPressed: () {
+                    // 收藏按钮的逻辑
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.share),
+                  onPressed: () {
+                    // 分享按钮的逻辑
+                  },
+                ),
+              ],
             ),
           ],
         ),

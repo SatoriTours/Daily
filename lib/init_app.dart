@@ -9,10 +9,12 @@ import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
 import 'package:daily_satori/global.dart';
+import 'package:get_time_ago/get_time_ago.dart';
 import 'package:logger/logger.dart';
 
 Future<void> initApp() async {
   initLogger();
+  initGetTimeAgo();
   await initServices();
 }
 
@@ -32,6 +34,10 @@ void initLogger() {
     printer: SimplePrinter(colors: false),
     output: MyConsoleOutput(),
   );
+}
+
+void initGetTimeAgo() {
+  GetTimeAgo.setDefaultLocale('zh');
 }
 
 Future<void> initServices() async {

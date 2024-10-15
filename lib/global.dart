@@ -1,6 +1,8 @@
 import 'package:logger/logger.dart';
 import 'package:intl/intl.dart';
 
+final String timeLocal = 'zh_CN';
+
 late Logger logger;
 
 bool get isProduction => const bool.fromEnvironment("dart.vm.product");
