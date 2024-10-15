@@ -23,6 +23,14 @@ class ArticlesView extends GetView<ArticlesController> {
             Get.toNamed(Routes.SETTINGS);
           },
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              controller.loadArticles(); // 刷新文章列表
+            },
+          ),
+        ],
       ),
       body: Obx(() {
         if (controller.articles.isEmpty) {

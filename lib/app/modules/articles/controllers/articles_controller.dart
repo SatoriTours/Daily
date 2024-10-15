@@ -24,6 +24,7 @@ class ArticlesController extends GetxController {
   }
 
   Future<void> loadArticles() async {
+    logger.i("重新加载文章");
     final articleDataList = await ArticleService.instance.db.query(
       'articles',
       orderBy: 'id DESC',
