@@ -55,6 +55,9 @@ dependencies:
   # 权限判断
   permission_handler: ^11.3.1
 
+  # 显示Html
+  flutter_widget_from_html: ^0.15.2
+
   # 分享
   # receive_sharing_intent: ^1.8.0
 

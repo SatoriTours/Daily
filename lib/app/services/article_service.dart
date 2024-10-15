@@ -43,6 +43,7 @@ class Article {
   final String url;
   final String? imageUrl;
   final String? imagePath;
+  final String? screenshotPath;
   final int isRead;
   final int isFavorite;
   final DateTime? pubDate;
@@ -61,6 +62,7 @@ class Article {
     required this.url,
     this.imageUrl,
     this.imagePath,
+    this.screenshotPath,
     this.isRead = 0,
     this.isFavorite = 0,
     this.pubDate,
@@ -82,9 +84,10 @@ class Article {
       url: map['url'] as String,
       imageUrl: map['image_url'] as String?,
       imagePath: map['image_path'] as String?,
+      screenshotPath: map['screenshot_path'] as String?,
       isRead: map['is_read'] as int? ?? 0,
       isFavorite: map['is_favorite'] as int? ?? 0,
-      pubDate:  map['pub_date'] != null ? DateTime.tryParse(map['pub_date']) : null,
+      pubDate: map['pub_date'] != null ? DateTime.tryParse(map['pub_date']) : null,
       comment: map['comment'] as String?,
       tagId: map['tag_id'] as int?,
       createdAt: DateTime.parse(map['created_at']),
@@ -103,6 +106,7 @@ class Article {
       'url': url,
       'image_url': imageUrl,
       'image_path': imagePath,
+      'screenshot_path': screenshotPath,
       'is_read': isRead,
       'is_favorite': isFavorite,
       'pub_date': pubDate?.toIso8601String(),

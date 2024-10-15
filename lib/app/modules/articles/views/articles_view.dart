@@ -58,68 +58,97 @@ class ArticleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              (article.aiTitle ?? article.title),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 15),
-            Text(
-              article.aiContent ?? article.content,
-              maxLines: 10,
-              style: const TextStyle(fontSize: 16, letterSpacing: 1.2, height: 1.6),
-            ),
-            const SizedBox(height: 15),
-            if (article.imagePath != null && article.imagePath!.isNotEmpty)
-              Container(
-                constraints: BoxConstraints(
-                  maxHeight: 300, // 设置最大高度为 500px
-                ),
-                width: double.infinity, // 设置宽度为无限
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(15), // 设置圆角半径
-                  child: Image.file(
-                    File(article.imagePath!),
-                    fit: BoxFit.fitWidth,
-                    alignment: Alignment.topCenter,
-                  ),
-                ),
-              ),
-            const SizedBox(height: 5),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: _buildArticle(),
+    );
+  }
+
+  Widget _buildArticle() {
+    return Padding(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () {
+              Get.toNamed(Routes.ARTICLE_DETAIL, arguments: article);
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  getTopLevelDomain(Uri.parse(article.url).host),
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(width: 15),
-                Text(
-                  (GetTimeAgo.parse(article.pubDate ?? article.createdAt)),
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                Spacer(), // 使用 Spacer 使按钮靠右对齐
-                IconButton(
-                  icon: const Icon(Icons.favorite_border),
-                  onPressed: () {
-                    // 收藏按钮的逻辑
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.share),
-                  onPressed: () {
-                    // 分享按钮的逻辑
-                  },
-                ),
+                _buildTitle(),
+                const SizedBox(height: 15),
+                _buildContent(),
+                const SizedBox(height: 15),
+                if (article.imagePath != null && article.imagePath!.isNotEmpty) _buildImage(),
               ],
             ),
-          ],
+          ),
+          const SizedBox(height: 5),
+          _buildActionBar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTitle() {
+    return Text(
+      (article.aiTitle ?? article.title),
+      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+    );
+  }
+
+  Widget _buildContent() {
+    return Text(
+      article.aiContent ?? article.content,
+      maxLines: 10,
+      style: const TextStyle(fontSize: 16, letterSpacing: 1.2, height: 1.6),
+    );
+  }
+
+  Widget _buildImage() {
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: 300, // 设置最大高度为 500px
+      ),
+      width: double.infinity, // 设置宽度为无限
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15), // 设置圆角半径
+        child: Image.file(
+          File(article.imagePath!),
+          fit: BoxFit.fitWidth,
+          alignment: Alignment.topCenter,
         ),
       ),
+    );
+  }
+
+  Widget _buildActionBar() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          getTopLevelDomain(Uri.parse(article.url).host),
+          style: const TextStyle(color: Colors.grey),
+        ),
+        const SizedBox(width: 15),
+        Text(
+          (GetTimeAgo.parse(article.pubDate ?? article.createdAt)),
+          style: const TextStyle(color: Colors.grey),
+        ),
+        Spacer(), // 使用 Spacer 使按钮靠右对齐
+        IconButton(
+          icon: const Icon(Icons.favorite_border),
+          onPressed: () {
+            // 收藏按钮的逻辑
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.share),
+          onPressed: () {
+            // 分享按钮的逻辑
+          },
+        ),
+      ],
     );
   }
 }

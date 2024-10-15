@@ -2,7 +2,6 @@ import 'package:daily_satori/app/compontents/dream_webview/dream_webview.dart';
 import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:get/get.dart';
 import 'package:daily_satori/app/modules/share_dialog/controllers/share_dialog_controller.dart';

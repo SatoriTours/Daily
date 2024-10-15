@@ -1,5 +1,7 @@
 import 'package:get/get.dart';
 
+import '../modules/article_detail/bindings/article_detail_binding.dart';
+import '../modules/article_detail/views/article_detail_view.dart';
 import '../modules/articles/bindings/articles_binding.dart';
 import '../modules/articles/views/articles_view.dart';
 import '../modules/home/bindings/home_binding.dart';
@@ -41,6 +43,12 @@ class AppPages {
       page: () => const ArticlesView(),
       binding: ArticlesBinding(),
       transition: Transition.noTransition,
+    ),
+    GetPage(
+      name: _Paths.ARTICLE_DETAIL,
+      page: () => const ArticleDetailView(),
+      binding: ArticleDetailBinding(),
+      transition: Transition.topLevel,
     ),
   ];
 }

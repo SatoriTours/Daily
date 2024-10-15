@@ -12,8 +12,10 @@ class DreamWebView extends StatelessWidget {
   final void Function(DreamWebViewController controller)? onWebViewCreated;
   final void Function(WebUri? url)? onLoadStart;
   final void Function(double progress)? onProgressChanged;
+  final void Function()? onLoadStop;
 
-  const DreamWebView({super.key, required this.url, this.onLoadStart, this.onProgressChanged, this.onWebViewCreated});
+  const DreamWebView(
+      {super.key, required this.url, this.onLoadStart, this.onProgressChanged, this.onWebViewCreated, this.onLoadStop});
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +41,7 @@ class DreamWebView extends StatelessWidget {
       },
       onLoadStop: (webController, url) async {
         logger.i("网页加载完成 $url");
+        onLoadStop?.call();
         onProgressChanged?.call(0);
       },
       onReceivedError: (webController, request, error) {
@@ -77,7 +80,11 @@ class DreamWebView extends StatelessWidget {
   Future<void> removeNodeByCssSelectors(InAppWebViewController controller, List<String> rules) async {
     for (var rule in rules) {
       // logger.i("执行规则 , $rule");
-      await controller.evaluateJavascript(source: "document.querySelectorAll('$rule').forEach(e => e.remove())");
+      try {
+        await controller.evaluateJavascript(source: "document.querySelectorAll('$rule').forEach(e => e.remove())");
+      } catch (e) {
+        logger.d("执行广告规则出错 $e");
+      }
     }
   }
 
