@@ -13,6 +13,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
   Widget build(BuildContext context) {
     if (Get.arguments?['shareURL'] != null) {
       controller.shareURL = Get.arguments?['shareURL'];
+      logger.i("接收到分享的链接 ${controller.shareURL}");
     }
 
     return Scaffold(
