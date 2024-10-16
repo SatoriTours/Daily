@@ -62,7 +62,7 @@ window.onload = function () {
   try {
     if (translate != null) {
       translate.service.use('client.edge');
-      translate.selectLanguageTag.show = true;
+      translate.selectLanguageTag.show = false;
     } else {
       console.log("加载 translate 失败");
     }

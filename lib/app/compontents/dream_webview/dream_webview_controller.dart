@@ -37,7 +37,7 @@ class DreamWebViewController {
     return await captureFullPageScreenshot(webViewController);
   }
 
-  void translatePage() {
-    evaluateJavascript(source: "translate.changeLanguage('chinese_simplified');");
+  Future<void> translatePage() async {
+    await evaluateJavascript(source: "translate.changeLanguage('chinese_simplified');");
   }
 }

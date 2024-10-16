@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 class ShareDialogController extends GetxController {
-  String? shareURL = isProduction ? null : 'https://manual.nssurge.com/overview/configuration.html';
+  String? shareURL = isProduction ? null : 'https://github.com/jonataslaw/getx';
 
   DreamWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();
@@ -25,7 +25,7 @@ class ShareDialogController extends GetxController {
 
     Future<String> aiTitleTask() async {
       var aiTitle = await AiService.instance.translate(title.trim());
-      if(aiTitle.length >= 50) {
+      if (aiTitle.length >= 50) {
         aiTitle = await AiService.instance.summarizeOneLine(aiTitle);
       }
       return aiTitle;
@@ -54,11 +54,13 @@ class ShareDialogController extends GetxController {
     String aiContent = results[1];
     String imagePath = results[2];
     String screenshotPath = results[3];
-    if(imagePath == "") { // 如果网页没有图片, 就用截图代替
+    if (imagePath == "") {
+      // 如果网页没有图片, 就用截图代替
       imagePath = screenshotPath;
     }
 
-    logger.i("aiTitle => $aiTitle, aiContent => $aiContent, imagePath => $imagePath, screenshotPath => $screenshotPath");
+    logger
+        .i("aiTitle => $aiTitle, aiContent => $aiContent, imagePath => $imagePath, screenshotPath => $screenshotPath");
     await ArticleService.instance.saveArticle({
       'title': title,
       'ai_title': aiTitle,
@@ -73,7 +75,9 @@ class ShareDialogController extends GetxController {
       'comment': commentController.text,
     });
     Get.close();
-    SystemNavigator.pop();
+    if (isProduction) {
+      SystemNavigator.pop();
+    }
   }
 
   Future<void> parseWebContent() async {

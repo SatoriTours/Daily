@@ -31,9 +31,9 @@ class DreamWebView extends StatelessWidget {
       },
       onLoadStart: (webController, url) async {
         logger.i("开始加载网页 $url");
-        webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/translate.js");
-        webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
-        webController.injectCSSFileFromAsset(assetFilePath: "assets/css/common.css");
+        await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/translate.js");
+        await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
+        await webController.injectCSSFileFromAsset(assetFilePath: "assets/css/common.css");
 
         onProgressChanged?.call(0);
         onLoadStart?.call(url);

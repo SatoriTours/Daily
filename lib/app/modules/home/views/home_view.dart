@@ -18,14 +18,10 @@ class HomeView extends StatelessWidget {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Get.offNamed(Routes.SHARE_DIALOG, arguments: {'shareURL': call.arguments});
         });
-
-        // Get.to(() => const ShareDialogView(),
-        //     transition: Transition.leftToRight, arguments: {'shareURL': call.arguments});
       }
     });
     Get.offNamed(Routes.ARTICLES);
-    // Get.offNamed(Routes.SHARE_DIALOG, arguments: {'shareURL': 'https://www.163.com'});
-    // Get.offNamed(Routes.ARTICLES);
+
     return Container();
   }
 }

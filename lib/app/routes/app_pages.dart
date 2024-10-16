@@ -16,7 +16,7 @@ part 'app_routes.dart';
 class AppPages {
   AppPages._();
 
-  static const INITIAL = Routes.HOME;
+  static const INITIAL = Routes.SHARE_DIALOG;
 
   static final routes = [
     GetPage(
@@ -28,7 +28,7 @@ class AppPages {
       name: _Paths.SHARE_DIALOG,
       page: () => const ShareDialogView(),
       binding: ShareDialogBinding(),
-      transition: Transition.noTransition,
+      transition: Transition.downToUp,
     ),
     GetPage(
       name: _Paths.SETTINGS,
