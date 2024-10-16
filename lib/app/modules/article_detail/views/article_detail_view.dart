@@ -1,12 +1,9 @@
 import 'dart:io';
-
 import 'package:daily_satori/app/compontents/dream_webview/dream_webview.dart';
 import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
-
 import 'package:get/get.dart';
-
 import '../controllers/article_detail_controller.dart';
 
 class ArticleDetailView extends GetView<ArticleDetailController> {
@@ -34,6 +31,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
             ),
             Expanded(
               child: TabBarView(
+                physics: NeverScrollableScrollPhysics(),
                 children: [
                   _buildArticleContent(),
                   _buildArticleScreenshot(),
@@ -49,7 +47,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   Widget _buildArticleScreenshot() {
     return SingleChildScrollView(
-      child: Container(
+      child: SizedBox(
         width: double.infinity,
         child: Image.file(
           File(controller.article.screenshotPath ?? ''), // 假设文章对象中有一个 imageUrl 属性
@@ -61,8 +59,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   }
 
   Widget _buildArticleWebview() {
+    controller.isLoading.value = true;
     return Obx(() {
-      // controller.isLoading.value = true;
       return Stack(
         children: [
           DreamWebView(
@@ -98,4 +96,66 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       ),
     );
   }
+
+  final String artilceHtmlCss = """
+<style>
+/* 基本样式 */
+body {
+  font-family: 'Georgia', serif; /* 使用优雅的字体 */
+  line-height: 1.6; /* 增加行高以提高可读性 */
+  margin: 0;
+  padding: 20px;
+  background-color: #f4f4f4; /* 背景颜色 */
+  color: #333; /* 文字颜色 */
+}
+
+/* 文章容器 */
+.article {
+  max-width: 800px; /* 最大宽度 */
+  margin: auto; /* 居中 */
+  padding: 20px;
+  background: white; /* 文章背景 */
+  border-radius: 8px; /* 圆角 */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* 阴影效果 */
+}
+
+/* 标题样式 */
+.article h1, .article h2, .article h3 {
+  color: #2c3e50; /* 深色标题 */
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+/* 段落样式 */
+.article p {
+  margin-bottom: 15px; /* 段落间距 */
+}
+
+/* 图片样式 */
+.article img {
+  max-width: 100%; /* 自适应宽度 */
+  height: auto; /* 保持比例 */
+  border-radius: 5px; /* 圆角 */
+}
+
+/* 引用样式 */
+.article blockquote {
+  border-left: 4px solid #3498db; /* 左侧边框 */
+  padding-left: 15px; /* 内边距 */
+  color: #555; /* 引用文字颜色 */
+  font-style: italic; /* 斜体 */
+  margin: 20px 0; /* 上下间距 */
+}
+
+/* 链接样式 */
+.article a {
+  color: #3498db; /* 链接颜色 */
+  text-decoration: none; /* 去掉下划线 */
+}
+
+.article a:hover {
+  text-decoration: underline; /* 悬停时下划线 */
+}
+</style>
+""";
 }
