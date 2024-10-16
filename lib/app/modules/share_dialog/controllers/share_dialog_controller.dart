@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 class ShareDialogController extends GetxController {
-  String? shareURL = isProduction ? null : 'https://github.com/jonataslaw/getx';
+  String? shareURL = isProduction ? null : 'https://github.com/rails/rails';
 
   DreamWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();
@@ -16,10 +16,11 @@ class ShareDialogController extends GetxController {
 
   Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
       String publishedTime, String imageUrl) async {
-    // logger.i("title => $title, imageUrl => $imageUrl, publishedTime => $publishedTime");
+    logger.i("[saveArticleInfo] title => $title, imageUrl => $imageUrl, publishedTime => $publishedTime");
     if (await ArticleService.instance.articleExists(url)) {
-      Get.snackbar('提示', '网页已存在', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+      logger.i("网页已存在 $url");
       Get.close();
+      Get.snackbar('提示', '网页已存在', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
       return;
     }
 
@@ -59,8 +60,7 @@ class ShareDialogController extends GetxController {
       imagePath = screenshotPath;
     }
 
-    logger
-        .i("aiTitle => $aiTitle, aiContent => $aiContent, imagePath => $imagePath, screenshotPath => $screenshotPath");
+    logger.i("aiTitle => $aiTitle, imagePath => $imagePath, screenshotPath => $screenshotPath");
     await ArticleService.instance.saveArticle({
       'title': title,
       'ai_title': aiTitle,

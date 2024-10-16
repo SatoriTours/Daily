@@ -6,6 +6,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'dart:io';
 
 Future<String> captureFullPageScreenshot(InAppWebViewController controller) async {
+  logger.d("[captureFullPageScreenshot] - 开始获取网页截图");
   try {
     await controller.evaluateJavascript(source: "initPage()");
     // 获取网页的高度
