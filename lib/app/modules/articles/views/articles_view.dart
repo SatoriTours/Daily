@@ -74,19 +74,17 @@ class ArticleCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(10),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GestureDetector(
             onTap: () {
               Get.toNamed(Routes.ARTICLE_DETAIL, arguments: article);
             },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                _buildTitle(),
-                const SizedBox(height: 15),
-                _buildContent(),
-                const SizedBox(height: 15),
+                Expanded(
+                  child: _buildTitle(),
+                ),
+                const SizedBox(width: 15),
                 if (article.imagePath != null && article.imagePath!.isNotEmpty) _buildImage(),
               ],
             ),
@@ -101,7 +99,7 @@ class ArticleCard extends StatelessWidget {
   Widget _buildTitle() {
     return Text(
       (article.aiTitle ?? article.title),
-      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
     );
   }
 
@@ -114,19 +112,12 @@ class ArticleCard extends StatelessWidget {
   }
 
   Widget _buildImage() {
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: 300, // 设置最大高度为 500px
-      ),
-      width: double.infinity, // 设置宽度为无限
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15), // 设置圆角半径
-        child: Image.file(
-          File(article.imagePath!),
-          fit: BoxFit.fitWidth,
-          alignment: Alignment.topCenter,
-        ),
-      ),
+    return Image.file(
+      File(article.imagePath!),
+      width: 100, // 设置宽度为100
+      height: 100, // 设置高度为80
+      fit: BoxFit.fitWidth, // 适应容器
+      alignment: Alignment.center,
     );
   }
 
