@@ -21,22 +21,22 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
         length: 3,
         child: Column(
           children: [
-            TabBar(
-              tabs: const [
-                Tab(text: '文章详情'),
-                Tab(text: '网页截图'),
-                Tab(text: '原始链接'),
-              ],
-            ),
             Expanded(
               child: TabBarView(
                 physics: NeverScrollableScrollPhysics(),
                 children: [
                   _buildArticleContent(),
                   _buildArticleScreenshot(),
-                  _buildArticleWebview(),
+                  _buildArticleWebview(context),
                 ],
               ),
+            ),
+            TabBar(
+              tabs: const [
+                Tab(text: 'AI解读'),
+                Tab(text: '网页截图'),
+                Tab(text: '原始链接'),
+              ],
             ),
           ],
         ),
@@ -57,20 +57,10 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     );
   }
 
-  Widget _buildArticleWebview() {
-    controller.isLoading.value = true;
-    return Obx(() {
-      return Stack(
-        children: [
-          DreamWebView(
-            url: controller.article.url,
-            onLoadStart: (url) => controller.isLoading.value = true,
-            onLoadStop: () => controller.isLoading.value = false,
-          ),
-          if (controller.isLoading.value) Center(child: CircularProgressIndicator()),
-        ],
-      );
-    });
+  Widget _buildArticleWebview(BuildContext context) {
+    return DreamWebView(
+      url: controller.article.url,
+    );
   }
 
   Widget _buildArticleContent() {
