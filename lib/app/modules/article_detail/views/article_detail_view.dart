@@ -77,6 +77,24 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     return SingleChildScrollView(
       child: Column(
         children: [
+          if (controller.article.imagePath != null)
+            GestureDetector(
+              onTap: () {
+                _showFullScreenImage(controller.article.imagePath!); // 处理点击事件，显示全屏图片
+              },
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                width: double.infinity,
+                constraints: BoxConstraints(
+                  maxHeight: 200, // 最大高度为 200
+                ),
+                child: Image.file(
+                  File(controller.article.imagePath!),
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
             child: Text(
@@ -93,6 +111,24 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showFullScreenImage(String imagePath) {
+    Get.dialog(
+      Dialog(
+        backgroundColor: Colors.transparent,
+        child: GestureDetector(
+          onTap: () {
+            Get.back(); // 点击图片关闭对话框
+          },
+          child: Image.file(
+            File(imagePath),
+            fit: BoxFit.contain, // 适应容器
+          ),
+        ),
+      ),
+      barrierDismissible: true, // 点击对话框外部也可以关闭
     );
   }
 }

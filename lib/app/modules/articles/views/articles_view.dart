@@ -116,7 +116,7 @@ class ArticleCard extends StatelessWidget {
       File(article.imagePath!),
       width: 100, // 设置宽度为100
       height: 100, // 设置高度为80
-      fit: BoxFit.fitWidth, // 适应容器
+      fit: BoxFit.scaleDown, // 适应容器
       alignment: Alignment.center,
     );
   }
