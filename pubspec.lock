@@ -5,10 +5,10 @@ packages:
     dependency: "direct main"
     description:
       name: android_intent_plus
-      sha256: "007703c1b2cac7ca98add3336b98cffa4baa11d5133cc463293dba9daa39cdf6"
+      sha256: "38921ec22ebb3b9a7eb678792cf6fab0b6f458b61b9d327688573449c9b47db3"
       url: "https://pub.dev"
     source: hosted
-    version: "5.1.0"
+    version: "5.2.0"
   async:
     dependency: transitive
     description:
@@ -501,10 +501,10 @@ packages:
     dependency: "direct main"
     description:
       name: share_plus
-      sha256: fec12c3c39f01e4df1ec6ad92b6e85503c5ca64ffd6e28d18c9ffe53fcc4cb11
+      sha256: "334fcdf0ef9c0df0e3b428faebcac9568f35c747d59831474b2fc56e156d244e"
       url: "https://pub.dev"
     source: hosted
-    version: "10.0.3"
+    version: "10.1.0"
   share_plus_platform_interface:
     dependency: transitive
     description:
