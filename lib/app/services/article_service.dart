@@ -73,6 +73,27 @@ class ArticleService {
     }
   }
 
+  Future<bool> toggleFavorite(int articleID) async {
+    final article = await getArticleById(articleID);
+    if (article != null) {
+      final newFavoriteStatus = article.isFavorite == 0 ? 1 : 0; // 切换收藏状态
+      final result = await db.update(
+        _tableName,
+        {'is_favorite': newFavoriteStatus},
+        where: 'id = ?',
+        whereArgs: [articleID],
+      );
+
+      if (result > 0) {
+        logger.i(newFavoriteStatus == 1 ? "文章已收藏: $articleID" : "文章已取消收藏: $articleID");
+        return newFavoriteStatus == 1; // 返回是否收藏
+      } else {
+        logger.i("未找到文章以更新收藏状态: $articleID");
+      }
+    }
+    return false; // 如果文章不存在，返回未收藏
+  }
+
   Database get db => DatabaseService.instance.database;
 }
 

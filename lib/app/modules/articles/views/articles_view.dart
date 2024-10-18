@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -136,9 +137,11 @@ class ArticleCard extends StatelessWidget {
         ),
         Spacer(), // 使用 Spacer 使按钮靠右对齐
         IconButton(
-          icon: const Icon(Icons.favorite_border),
-          onPressed: () {
-            // 收藏按钮的逻辑
+          icon: Icon(
+            article.isFavorite == 1 ? Icons.favorite : Icons.favorite_border,
+          ),
+          onPressed: () async {
+            await ArticleService.instance.toggleFavorite(article.id);
           },
         ),
         IconButton(
