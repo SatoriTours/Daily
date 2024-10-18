@@ -66,7 +66,7 @@ $text
       return "";
     }
     try {
-      content = getSubstring(content, length: 500);
+      content = getSubstring(content, length: 1500);
 
       final client = createClient();
       final res = await client.createChatCompletion(

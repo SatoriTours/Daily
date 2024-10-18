@@ -22,7 +22,10 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           IconButton(
             icon: Icon(Icons.refresh), // The delete icon
             onPressed: () {
-              Get.toNamed(Routes.SHARE_DIALOG, arguments: {'shareURL': controller.article.url});
+              Get.toNamed(Routes.SHARE_DIALOG, arguments: {
+                'shareURL': controller.article.url,
+                'update': true,
+              });
             },
           ),
           IconButton(

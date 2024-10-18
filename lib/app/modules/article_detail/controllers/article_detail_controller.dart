@@ -1,4 +1,5 @@
 import 'package:daily_satori/app/services/article_service.dart';
+import 'package:daily_satori/global.dart';
 import 'package:get/get.dart';
 
 class ArticleDetailController extends GetxController {
@@ -6,5 +7,10 @@ class ArticleDetailController extends GetxController {
 
   Future<void> deleteArticle() async {
     await ArticleService.instance.deleteArticle(article.id!);
+  }
+
+  Future<void> refreshArticle() async {
+    logger.i("刷新文章信息");
+    article = await ArticleService.instance.getArticleById(article.id!) ?? article;
   }
 }

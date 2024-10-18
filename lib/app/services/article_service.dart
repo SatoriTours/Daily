@@ -21,6 +21,21 @@ class ArticleService {
     logger.i("文章已保存: ${firstLine(articleData['title'])}");
   }
 
+  Future<void> updateArticle(String url, Map<String, dynamic> newArticleData) async {
+    final result = await db.update(
+      _tableName,
+      newArticleData,
+      where: 'url = ?',
+      whereArgs: [url],
+    );
+
+    if (result > 0) {
+      logger.i("文章已更新: ${firstLine(newArticleData['title'])}");
+    } else {
+      logger.i("未找到文章以更新: $url");
+    }
+  }
+
   Future<bool> articleExists(String url) async {
     final existingArticle = await db.query(
       _tableName,
@@ -41,6 +56,20 @@ class ArticleService {
       logger.i("文章已删除: $articleID");
     } else {
       logger.i("未找到文章以删除: $articleID");
+    }
+  }
+
+  Future<Article?> getArticleById(int articleID) async {
+    final List<Map<String, dynamic>> maps = await db.query(
+      _tableName,
+      where: 'id = ?',
+      whereArgs: [articleID],
+    );
+
+    if (maps.isNotEmpty) {
+      return Article.fromMap(maps.first);
+    } else {
+      return null; // 返回 null 表示未找到文章
     }
   }
 

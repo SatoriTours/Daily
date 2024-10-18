@@ -29,7 +29,7 @@ function parseContent() {
 
 function getPageImage() {
     let image = "";
-    const supportedDomains = ['x.com', 'twitter.com', 'apps.apple.com', 'infoq.cn'];
+    // const supportedDomains = ['x.com', 'twitter.com', 'apps.apple.com', 'infoq.cn'];
     const hostDomain = window.location.hostname;
     console.log("网站域名是:", hostDomain);
 
@@ -57,6 +57,7 @@ function getOgImage() {
 }
 
 function getMainImage() {
+    console.log("开始获取主图");
     const images = document.getElementsByTagName('img');
     let imageSrc = '';
     let imageWidth = 0;
@@ -64,10 +65,11 @@ function getMainImage() {
     // 一般来说选最大的那张图就是这个网页的代表
     for (let img of images) {
         if (img.src && img.src.endsWith('.gif')) {
+            console.log("跳过gif图");
             continue;
         }
-        if (img.naturalWidth > 300 && img.naturalHeight > 300) {
-            console.log("分析图片尺寸", img.naturalWidth, img.naturalHeight, img.src);
+        console.log("分析图片尺寸", img.naturalWidth, img.naturalHeight, img.src);
+        if (img.naturalWidth > 100 && img.naturalHeight > 100) {
             if(imageSrc == '' || img.naturalWidth * img.naturalHeight > imageWidth * imageHeight) {
                imageSrc = img.src;
                imageWidth = img.naturalWidth;
@@ -75,12 +77,10 @@ function getMainImage() {
             }
         }
     }
-
     if (imageSrc && !imageSrc.startsWith('http')) {
         const baseUrl = window.location.origin;
         imageSrc = new URL(imageSrc, baseUrl).href; // 合并相对路径和当前网页地址
     }
-
-    console.log(imageSrc);
+    console.log("分析得到图片", imageSrc);
     return imageSrc;
 }

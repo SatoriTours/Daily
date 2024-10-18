@@ -16,6 +16,11 @@ class ShareDialogView extends GetView<ShareDialogController> {
       logger.i("接收到分享的链接 ${controller.shareURL}");
     }
 
+    if (Get.arguments?['update'] != null) {
+      controller.isUpdate = Get.arguments?['update'];
+      logger.i("收到更新参数 ${controller.isUpdate}");
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text('分享对话框'),

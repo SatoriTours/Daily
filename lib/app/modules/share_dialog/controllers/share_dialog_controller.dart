@@ -1,4 +1,5 @@
 import 'package:daily_satori/app/compontents/dream_webview/dream_webview_controller.dart';
+import 'package:daily_satori/app/modules/article_detail/controllers/article_detail_controller.dart';
 import 'package:daily_satori/app/services/ai_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
@@ -9,6 +10,7 @@ import 'package:get/get.dart';
 
 class ShareDialogController extends GetxController {
   String? shareURL = isProduction ? null : 'https://github.com/rails/rails';
+  bool isUpdate = false;
 
   DreamWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();
@@ -17,10 +19,20 @@ class ShareDialogController extends GetxController {
   Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
       String publishedTime, String imageUrl) async {
     logger.i("[saveArticleInfo] title => $title, imageUrl => $imageUrl, publishedTime => $publishedTime");
-    if (await ArticleService.instance.articleExists(url)) {
-      logger.i("网页已存在 $url");
+
+    bool isArticleExists = await ArticleService.instance.articleExists(url);
+
+    if (isUpdate == false && isArticleExists == true) {
+      logger.i("网页已存在 $url, 无法保存");
       Get.close();
-      Get.snackbar('提示', '网页已存在', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+      Get.snackbar('提示', '网页已存在 $url, 无法保存', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+      return;
+    }
+
+    if (isUpdate == true && isArticleExists == false) {
+      logger.i("网页不存在 $url, 无法更新");
+      Get.close();
+      Get.snackbar('提示', '网页不存在 $url, 无法更新', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
       return;
     }
 
@@ -60,8 +72,7 @@ class ShareDialogController extends GetxController {
       imagePath = screenshotPath;
     }
 
-    logger.i("aiTitle => $aiTitle, imagePath => $imagePath, screenshotPath => $screenshotPath");
-    await ArticleService.instance.saveArticle({
+    var article = {
       'title': title,
       'ai_title': aiTitle,
       'content': textContent,
@@ -73,8 +84,22 @@ class ShareDialogController extends GetxController {
       'screenshot_path': screenshotPath,
       'pub_date': DateTime.tryParse(publishedTime)?.toUtc().toIso8601String() ?? nowToString(),
       'comment': commentController.text,
-    });
+    };
+
+    if (isUpdate) {
+      logger.i("[更新文章] aiTitle => $aiTitle, imagePath => $imagePath, screenshotPath => $screenshotPath");
+      await ArticleService.instance.updateArticle(url, article);
+      ArticleDetailController articleDetailController = Get.find<ArticleDetailController>();
+      articleDetailController.refreshArticle();
+    } else {
+      logger.i("[新增文章] aiTitle => $aiTitle, imagePath => $imagePath, screenshotPath => $screenshotPath");
+      await ArticleService.instance.saveArticle(article);
+    }
+
     Get.close();
+    if (isUpdate) {
+      Get.back();
+    }
     if (isProduction) {
       SystemNavigator.pop();
     }
