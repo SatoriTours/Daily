@@ -7,6 +7,7 @@ import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_time_ago/get_time_ago.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ArticlesView extends GetView<ArticlesController> {
   const ArticlesView({super.key});
@@ -147,7 +148,7 @@ class ArticleCard extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.share),
           onPressed: () {
-            // 分享按钮的逻辑
+            Share.share(article.url);
           },
         ),
       ],
