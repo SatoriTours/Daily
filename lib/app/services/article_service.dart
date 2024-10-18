@@ -30,6 +30,20 @@ class ArticleService {
     return existingArticle.isNotEmpty;
   }
 
+  Future<void> deleteArticle(int articleID) async {
+    final result = await db.delete(
+      _tableName,
+      where: 'id = ?',
+      whereArgs: [articleID],
+    );
+
+    if (result > 0) {
+      logger.i("文章已删除: $articleID");
+    } else {
+      logger.i("未找到文章以删除: $articleID");
+    }
+  }
+
   Database get db => DatabaseService.instance.database;
 }
 

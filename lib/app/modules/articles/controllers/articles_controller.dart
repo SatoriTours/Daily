@@ -23,7 +23,7 @@ class ArticlesController extends GetxController {
     super.onClose();
   }
 
-  Future<void> loadArticles() async {
+  Future<void> reloadArticles() async {
     logger.i("重新加载文章");
     final articleDataList = await ArticleService.instance.db.query(
       'articles',

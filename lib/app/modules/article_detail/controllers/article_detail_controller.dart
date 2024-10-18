@@ -3,4 +3,8 @@ import 'package:get/get.dart';
 
 class ArticleDetailController extends GetxController {
   late Article article;
+
+  Future<void> deleteArticle() async {
+    await ArticleService.instance.deleteArticle(article.id!);
+  }
 }

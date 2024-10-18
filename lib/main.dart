@@ -9,7 +9,6 @@ import 'app/routes/app_pages.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   PlatformInAppWebViewController.debugLoggingSettings.enabled = false;
-  print("开始初始化app");
   await initApp();
 
   runApp(

@@ -11,7 +11,7 @@ class ArticlesView extends GetView<ArticlesController> {
   const ArticlesView({super.key});
   @override
   Widget build(BuildContext context) {
-    controller.loadArticles();
+    controller.reloadArticles();
 
     return Scaffold(
       appBar: AppBar(
@@ -27,7 +27,7 @@ class ArticlesView extends GetView<ArticlesController> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              controller.loadArticles(); // 刷新文章列表
+              controller.reloadArticles(); // 刷新文章列表
             },
           ),
         ],

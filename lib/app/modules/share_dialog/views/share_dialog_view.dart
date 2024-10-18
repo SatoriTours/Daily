@@ -18,8 +18,8 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Center(child: Text('分享对话框')),
-        toolbarHeight: 30, // 调整工具栏高度以减少与body之间的空隙
+        title: Text('分享对话框'),
+        centerTitle: true,
       ),
       body: Container(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

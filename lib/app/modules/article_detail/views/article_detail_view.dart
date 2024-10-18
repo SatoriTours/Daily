@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:daily_satori/app/compontents/dream_webview/dream_webview.dart';
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
+import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -16,6 +18,40 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       appBar: AppBar(
         title: Text(getTopLevelDomain(Uri.parse(controller.article.url).host)),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh), // The delete icon
+            onPressed: () {
+              Get.toNamed(Routes.SHARE_DIALOG, arguments: {'shareURL': controller.article.url});
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.delete), // The delete icon
+            onPressed: () {
+              Get.defaultDialog(
+                id: "confirmDialog",
+                title: "确认删除",
+                middleText: "您确定要删除吗？",
+                confirm: TextButton(
+                  onPressed: () async {
+                    await controller.deleteArticle();
+                    var articlesController = Get.find<ArticlesController>();
+                    await articlesController.reloadArticles();
+                    Get.back();
+                    Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+                  },
+                  child: Text("确认"),
+                ),
+                cancel: TextButton(
+                  onPressed: () {
+                    Navigator.pop(Get.context!);
+                  },
+                  child: Text("取消"),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: DefaultTabController(
         length: 3,
