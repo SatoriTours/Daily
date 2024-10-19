@@ -20,7 +20,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh), // The delete icon
+            icon: Icon(Icons.refresh), // 刷新图标
             onPressed: () {
               Get.toNamed(Routes.SHARE_DIALOG, arguments: {
                 'shareURL': controller.article.url,
@@ -29,29 +29,9 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.delete), // The delete icon
+            icon: Icon(Icons.delete), // 删除图标
             onPressed: () {
-              Get.defaultDialog(
-                id: "confirmDialog",
-                title: "确认删除",
-                middleText: "您确定要删除吗？",
-                confirm: TextButton(
-                  onPressed: () async {
-                    await controller.deleteArticle();
-                    var articlesController = Get.find<ArticlesController>();
-                    await articlesController.reloadArticles();
-                    Get.back();
-                    Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
-                  },
-                  child: Text("确认"),
-                ),
-                cancel: TextButton(
-                  onPressed: () {
-                    Navigator.pop(Get.context!);
-                  },
-                  child: Text("取消"),
-                ),
-              );
+              _showDeleteConfirmationDialog();
             },
           ),
         ],
@@ -79,6 +59,30 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog() {
+    Get.defaultDialog(
+      id: "confirmDialog",
+      title: "确认删除",
+      middleText: "您确定要删除吗？",
+      confirm: TextButton(
+        onPressed: () async {
+          await controller.deleteArticle();
+          var articlesController = Get.find<ArticlesController>();
+          await articlesController.reloadArticles();
+          Get.back();
+          Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+        },
+        child: Text("确认"),
+      ),
+      cancel: TextButton(
+        onPressed: () {
+          Navigator.pop(Get.context!);
+        },
+        child: Text("取消"),
       ),
     );
   }
@@ -145,15 +149,22 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   void _showFullScreenImage(String imagePath) {
     Get.dialog(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        child: GestureDetector(
+      Scaffold(
+        backgroundColor: Colors.black,
+        body: GestureDetector(
           onTap: () {
-            Get.back(); // 点击图片关闭对话框
+            Navigator.pop(Get.context!);
           },
-          child: Image.file(
-            File(imagePath),
-            fit: BoxFit.contain, // 适应容器
+          child: Center(
+            child: Container(
+              height: MediaQuery.of(Get.context!).size.height, // 设置高度为手机屏幕高度
+              child: InteractiveViewer(
+                child: Image.file(
+                  File(imagePath),
+                  fit: BoxFit.contain, // 适应容器
+                ),
+              ),
+            ),
           ),
         ),
       ),
