@@ -55,6 +55,10 @@ dependencies:
   # 权限判断
   permission_handler: ^11.3.1
 
+  # 数据库 orm 框架
+  drift: ^2.21.0
+  drift_flutter: ^0.2.1
+
   # 分享
   # receive_sharing_intent: ^1.8.0
 
@@ -64,6 +68,10 @@ dev_dependencies:
 
   # 代码规范
   flutter_lints: ^5.0.0
+
+  # 数据库 orm 框架
+  drift_dev: ^2.21.0
+  build_runner: ^2.4.13
 
 flutter:
   # 使用 Material Design 设计
