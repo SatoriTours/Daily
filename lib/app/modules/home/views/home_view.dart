@@ -1,9 +1,10 @@
-import 'package:daily_satori/app/routes/app_pages.dart';
-import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:get/get.dart';
+
+import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/global.dart';
 
 class HomeView extends StatelessWidget {
   static const platform = MethodChannel('tours.sator.daily/share');
@@ -16,7 +17,8 @@ class HomeView extends StatelessWidget {
       if (call.method == 'receiveSharedText') {
         logger.i("跳转到: ${Routes.SHARE_DIALOG}, 接收到参数: ${call.arguments}");
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          Get.offNamed(Routes.SHARE_DIALOG, arguments: {'shareURL': call.arguments});
+          Get.offNamed(Routes.SHARE_DIALOG,
+              arguments: {'shareURL': call.arguments});
         });
       }
     });

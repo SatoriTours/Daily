@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
+
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+
 import 'package:daily_satori/app/compontents/dream_webview/dream_webview_controller.dart';
 import 'package:daily_satori/app/services/adblock_service.dart';
 import 'package:daily_satori/global.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 class DreamWebView extends StatelessWidget {
   final String url;
@@ -15,7 +17,12 @@ class DreamWebView extends StatelessWidget {
   final void Function()? onLoadStop;
 
   const DreamWebView(
-      {super.key, required this.url, this.onLoadStart, this.onProgressChanged, this.onWebViewCreated, this.onLoadStop});
+      {super.key,
+      required this.url,
+      this.onLoadStart,
+      this.onProgressChanged,
+      this.onWebViewCreated,
+      this.onLoadStop});
 
   @override
   Widget build(BuildContext context) {
@@ -23,17 +30,23 @@ class DreamWebView extends StatelessWidget {
       initialUrlRequest: URLRequest(url: WebUri(url)),
       initialSettings: _webViewSettings(),
       onWebViewCreated: (webController) {
-        DreamWebViewController controller = DreamWebViewController(webController);
+        DreamWebViewController controller =
+            DreamWebViewController(webController);
         onWebViewCreated?.call(controller);
       },
       onPermissionRequest: (controller, request) async {
-        return PermissionResponse(resources: request.resources, action: PermissionResponseAction.GRANT);
+        return PermissionResponse(
+            resources: request.resources,
+            action: PermissionResponseAction.GRANT);
       },
       onLoadStart: (webController, url) async {
         logger.i("开始加载网页 $url");
-        await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/translate.js");
-        await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
-        await webController.injectCSSFileFromAsset(assetFilePath: "assets/css/common.css");
+        await webController.injectJavascriptFileFromAsset(
+            assetFilePath: "assets/js/translate.js");
+        await webController.injectJavascriptFileFromAsset(
+            assetFilePath: "assets/js/common.js");
+        await webController.injectCSSFileFromAsset(
+            assetFilePath: "assets/css/common.css");
 
         onProgressChanged?.call(0);
         onLoadStart?.call(url);
@@ -63,10 +76,12 @@ class DreamWebView extends StatelessWidget {
     final url = await controller.getUrl();
     final domain = getTopLevelDomain(url?.host);
     logger.i("处理 $domain 的广告规则");
-    if (domain.isNotEmpty && ADBlockService.instance.elementHidingRulesBySite.containsKey(domain)) {
+    if (domain.isNotEmpty &&
+        ADBlockService.instance.elementHidingRulesBySite.containsKey(domain)) {
       int count = 0;
       Timer.periodic(Duration(seconds: 2), (Timer t) async {
-        await removeNodeByCssSelectors(controller, ADBlockService.instance.elementHidingRulesBySite[domain] ?? []);
+        await removeNodeByCssSelectors(controller,
+            ADBlockService.instance.elementHidingRulesBySite[domain] ?? []);
         count += 1;
         // 当计数达到 10 次时，取消定时器
         if (count >= 20) {
@@ -77,11 +92,14 @@ class DreamWebView extends StatelessWidget {
     }
   }
 
-  Future<void> removeNodeByCssSelectors(InAppWebViewController controller, List<String> rules) async {
+  Future<void> removeNodeByCssSelectors(
+      InAppWebViewController controller, List<String> rules) async {
     for (var rule in rules) {
       // logger.i("执行规则 , $rule");
       try {
-        await controller.evaluateJavascript(source: "document.querySelectorAll('$rule').forEach(e => e.remove())");
+        await controller.evaluateJavascript(
+            source:
+                "document.querySelectorAll('$rule').forEach(e => e.remove())");
       } catch (e) {
         logger.d("执行广告规则出错 $e");
       }

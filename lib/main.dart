@@ -1,8 +1,9 @@
-import 'package:daily_satori/init_app.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
+
+import 'package:daily_satori/init_app.dart';
 
 import 'app/routes/app_pages.dart';
 

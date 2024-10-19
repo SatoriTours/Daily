@@ -1,13 +1,15 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
+
+import 'package:get/get.dart';
+import 'package:get_time_ago/get_time_ago.dart';
+import 'package:share_plus/share_plus.dart';
+
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/global.dart';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:get_time_ago/get_time_ago.dart';
-import 'package:share_plus/share_plus.dart';
 
 class ArticlesView extends GetView<ArticlesController> {
   const ArticlesView({super.key});
@@ -45,7 +47,8 @@ class ArticlesView extends GetView<ArticlesController> {
         }
         return ListView.builder(
           controller: controller.scrollController,
-          itemCount: controller.articles.length + (controller.isLoading.value ? 1 : 0), // 如果正在加载，增加一个加载项
+          itemCount: controller.articles.length +
+              (controller.isLoading.value ? 1 : 0), // 如果正在加载，增加一个加载项
           itemBuilder: (context, index) {
             if (index == controller.articles.length) {
               return Center(child: CircularProgressIndicator());
@@ -87,7 +90,8 @@ class ArticleCard extends StatelessWidget {
                   child: _buildTitle(),
                 ),
                 const SizedBox(width: 15),
-                if (article.imagePath != null && article.imagePath!.isNotEmpty) _buildImage(),
+                if (article.imagePath != null && article.imagePath!.isNotEmpty)
+                  _buildImage(),
               ],
             ),
           ),

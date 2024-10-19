@@ -1,10 +1,14 @@
 import 'dart:io';
+
+import 'package:flutter/material.dart';
+
+import 'package:get/get.dart';
+
 import 'package:daily_satori/app/compontents/dream_webview/dream_webview.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/global.dart';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+
 import '../controllers/article_detail_controller.dart';
 
 class ArticleDetailView extends GetView<ArticleDetailController> {
@@ -74,7 +78,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           var articlesController = Get.find<ArticlesController>();
           await articlesController.reloadArticles();
           Get.back();
-          Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+          Get.snackbar("提示", "删除成功",
+              snackPosition: SnackPosition.top, backgroundColor: Colors.green);
         },
         child: Text("确认"),
       ),
@@ -92,7 +97,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       child: SizedBox(
         width: double.infinity,
         child: Image.file(
-          File(controller.article.screenshotPath ?? ''), // 假设文章对象中有一个 imageUrl 属性
+          File(controller.article.screenshotPath ??
+              ''), // 假设文章对象中有一个 imageUrl 属性
           fit: BoxFit.cover,
           alignment: Alignment.topCenter,
         ),
@@ -113,7 +119,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           if (controller.article.imagePath != null)
             GestureDetector(
               onTap: () {
-                _showFullScreenImage(controller.article.imagePath!); // 处理点击事件，显示全屏图片
+                _showFullScreenImage(
+                    controller.article.imagePath!); // 处理点击事件，显示全屏图片
               },
               child: Container(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),

@@ -1,9 +1,11 @@
-import 'package:daily_satori/app/services/settings_service.dart';
-import 'package:daily_satori/global.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
+
+import 'package:daily_satori/app/services/settings_service.dart';
+import 'package:daily_satori/global.dart';
 
 class SettingsController extends GetxController {
   TextEditingController openaiAddress = TextEditingController();
@@ -19,9 +21,12 @@ class SettingsController extends GetxController {
   }
 
   void initData() {
-    openaiAddress.text = SettingsService.instance.getSetting(SettingsService.openAIAddressKey);
-    openaiToken.text = SettingsService.instance.getSetting(SettingsService.openAITokenKey);
-    backupDir.text = SettingsService.instance.getSetting(SettingsService.backupDirKey);
+    openaiAddress.text =
+        SettingsService.instance.getSetting(SettingsService.openAIAddressKey);
+    openaiToken.text =
+        SettingsService.instance.getSetting(SettingsService.openAITokenKey);
+    backupDir.text =
+        SettingsService.instance.getSetting(SettingsService.backupDirKey);
   }
 
   Future<void> selectBackupDirectory() async {
@@ -32,7 +37,8 @@ class SettingsController extends GetxController {
   }
 
   Future<bool> _requestDirectoryPermissions() async {
-    final manageExternalStoragePermission = await Permission.manageExternalStorage.request();
+    final manageExternalStoragePermission =
+        await Permission.manageExternalStorage.request();
 
     return manageExternalStoragePermission.isGranted;
   }

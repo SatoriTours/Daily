@@ -1,10 +1,11 @@
-import 'package:daily_satori/app/compontents/dream_webview/dream_webview.dart';
-import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:get/get.dart';
+
+import 'package:daily_satori/app/compontents/dream_webview/dream_webview.dart';
 import 'package:daily_satori/app/modules/share_dialog/controllers/share_dialog_controller.dart';
+import 'package:daily_satori/global.dart';
 
 class ShareDialogView extends GetView<ShareDialogController> {
   const ShareDialogView({super.key});
@@ -170,7 +171,8 @@ class ShareDialogView extends GetView<ShareDialogController> {
             child: const Text("保存"),
             onPressed: () async {
               if (!isProduction) {
-                controller.webViewController?.evaluateJavascript(source: "testNode()");
+                controller.webViewController
+                    ?.evaluateJavascript(source: "testNode()");
               }
               controller.showProcessDialog();
               controller.parseWebContent();

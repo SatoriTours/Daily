@@ -1,11 +1,13 @@
-import 'package:daily_satori/app/services/database_service.dart';
-import 'package:daily_satori/global.dart';
 import 'package:get/get.dart';
 import 'package:sqflite/sqflite.dart';
 
+import 'package:daily_satori/app/services/database_service.dart';
+import 'package:daily_satori/global.dart';
+
 class SettingsService extends GetxService {
   SettingsService._privateConstructor();
-  static final SettingsService _instance = SettingsService._privateConstructor();
+  static final SettingsService _instance =
+      SettingsService._privateConstructor();
   static SettingsService get instance => _instance;
 
   static String openAITokenKey = 'openai_token';

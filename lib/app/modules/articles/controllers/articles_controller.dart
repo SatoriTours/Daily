@@ -1,8 +1,11 @@
-import 'package:daily_satori/app/services/article_service.dart';
-import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
+
 import 'package:get/get.dart';
 import 'package:sqflite/sqflite.dart';
+
+import 'package:daily_satori/app/models/article.dart';
+import 'package:daily_satori/app/services/article_service.dart';
+import 'package:daily_satori/global.dart';
 
 class ArticlesController extends GetxController {
   static int get pageSize => isProduction ? 20 : 5;
@@ -30,23 +33,28 @@ class ArticlesController extends GetxController {
       orderBy: 'id DESC',
       limit: pageSize,
     );
-    articles.assignAll(articleDataList.map((data) => Article.fromMap(data)).toList());
+    articles.assignAll(
+        articleDataList.map((data) => Article.fromMap(data)).toList());
   }
 
   Future<int> getMaxArticleId() async {
-    final maxIdResult = await ArticleService.instance.db.rawQuery('SELECT MAX(id) FROM articles');
+    final maxIdResult = await ArticleService.instance.db
+        .rawQuery('SELECT MAX(id) FROM articles');
     return Sqflite.firstIntValue(maxIdResult) ?? -1;
   }
 
   Future<int> getMinArticleId() async {
-    final minIdResult = await ArticleService.instance.db.rawQuery('SELECT MIN(id) FROM articles');
+    final minIdResult = await ArticleService.instance.db
+        .rawQuery('SELECT MIN(id) FROM articles');
     return Sqflite.firstIntValue(minIdResult) ?? -1;
   }
 
   void _onScroll() {
-    if (scrollController.position.pixels == scrollController.position.maxScrollExtent) {
+    if (scrollController.position.pixels ==
+        scrollController.position.maxScrollExtent) {
       _loadMoreArticles();
-    } else if (scrollController.position.pixels == scrollController.position.minScrollExtent) {
+    } else if (scrollController.position.pixels ==
+        scrollController.position.minScrollExtent) {
       _loadPreviousArticles();
     }
   }
@@ -70,7 +78,8 @@ class ArticlesController extends GetxController {
         orderBy: 'id ASC',
         limit: pageSize,
       );
-      var newArticles = articleDataList.map((data) => Article.fromMap(data)).toList();
+      var newArticles =
+          articleDataList.map((data) => Article.fromMap(data)).toList();
       articles.insertAll(0, newArticles);
     } catch (e) {
       logger.d("获取 $articleId 之前的 $pageSize 个文章失败, $e");
@@ -98,7 +107,8 @@ class ArticlesController extends GetxController {
         orderBy: 'id DESC',
         limit: pageSize,
       );
-      var newArticles = articleDataList.map((data) => Article.fromMap(data)).toList();
+      var newArticles =
+          articleDataList.map((data) => Article.fromMap(data)).toList();
       articles.addAll(newArticles);
     } catch (e) {
       logger.d("获取 $articleId 之后的 $pageSize 个文章失败, $e");

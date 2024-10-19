@@ -1,7 +1,8 @@
-import 'package:daily_satori/app/services/settings_service.dart';
-import 'package:daily_satori/global.dart';
 import 'package:get/get.dart';
 import 'package:openai_dart/openai_dart.dart';
+
+import 'package:daily_satori/app/services/settings_service.dart';
+import 'package:daily_satori/global.dart';
 
 class AiService extends GetxService {
   AiService._privateConstructor();
@@ -92,8 +93,10 @@ $text
 
   OpenAIClient createClient() {
     return OpenAIClient(
-      apiKey: SettingsService.instance.getSetting(SettingsService.openAITokenKey),
-      baseUrl: SettingsService.instance.getSetting(SettingsService.openAIAddressKey),
+      apiKey:
+          SettingsService.instance.getSetting(SettingsService.openAITokenKey),
+      baseUrl:
+          SettingsService.instance.getSetting(SettingsService.openAIAddressKey),
     );
   }
 }

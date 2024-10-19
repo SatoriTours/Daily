@@ -1,12 +1,14 @@
 import 'dart:collection';
 
-import 'package:daily_satori/global.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
 
+import 'package:daily_satori/global.dart';
+
 class DatabaseService {
   DatabaseService._privateConstructor();
-  static final DatabaseService _instance = DatabaseService._privateConstructor();
+  static final DatabaseService _instance =
+      DatabaseService._privateConstructor();
   static DatabaseService get instance => _instance;
 
   Future<void> init() async {
@@ -61,7 +63,8 @@ class DatabaseService {
     return this;
   }
 
-  final LinkedHashMap<String, List<String>> _migrations = LinkedHashMap<String, List<String>>.from({
+  final LinkedHashMap<String, List<String>> _migrations =
+      LinkedHashMap<String, List<String>>.from({
     "01_初始化数据库": [
       '''CREATE TABLE IF NOT EXISTS articles (
           id INTEGER PRIMARY KEY AUTOINCREMENT,

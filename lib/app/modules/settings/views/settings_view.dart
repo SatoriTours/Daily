@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import 'package:get/get.dart';
+
 import '../controllers/settings_controller.dart';
 
 class SettingsView extends GetView<SettingsController> {
@@ -19,7 +21,8 @@ class SettingsView extends GetView<SettingsController> {
         },
         child: Center(
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0), // 增加输入框间距
+            padding: EdgeInsets.symmetric(
+                horizontal: 32.0, vertical: 16.0), // 增加输入框间距
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
@@ -91,7 +94,9 @@ class SettingsView extends GetView<SettingsController> {
             child: const Text("保存"),
             onPressed: () async {
               await controller.save();
-              Get.snackbar('提示', '设置已保存', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+              Get.snackbar('提示', '设置已保存',
+                  snackPosition: SnackPosition.top,
+                  backgroundColor: Colors.green);
             },
           ),
         ),

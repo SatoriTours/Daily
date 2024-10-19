@@ -1,5 +1,5 @@
-import 'package:logger/logger.dart';
 import 'package:intl/intl.dart';
+import 'package:logger/logger.dart';
 
 final String timeLocal = 'zh_CN';
 
