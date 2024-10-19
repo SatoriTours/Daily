@@ -20,82 +20,87 @@ class ShareDialogController extends GetxController {
       String publishedTime, String imageUrl) async {
     logger.i("[saveArticleInfo] title => $title, imageUrl => $imageUrl, publishedTime => $publishedTime");
 
-    bool isArticleExists = await ArticleService.instance.articleExists(url);
-
-    if (isUpdate == false && isArticleExists == true) {
-      logger.i("网页已存在 $url, 无法保存");
-      Get.close();
-      Get.snackbar('提示', '网页已存在 $url, 无法保存', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
-      return;
-    }
-
-    if (isUpdate == true && isArticleExists == false) {
-      logger.i("网页不存在 $url, 无法更新");
-      Get.close();
-      Get.snackbar('提示', '网页不存在 $url, 无法更新', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
-      return;
-    }
-
-    Future<String> aiTitleTask() async {
-      var aiTitle = await AiService.instance.translate(title.trim());
-      if (aiTitle.length >= 50) {
-        aiTitle = await AiService.instance.summarizeOneLine(aiTitle);
-      }
-      return aiTitle;
-    }
-
-    Future<String> aiContentTask() async {
-      return await AiService.instance.summarize(textContent.trim());
-    }
-
-    Future<String> imageDownTask() async {
-      return await HttpService.instance.downloadImage(imageUrl);
-    }
-
-    Future<String> screenshotTask() async {
-      return await webViewController!.captureFulScreenshot();
-    }
+    if (await _checkArticleExists(url)) return;
 
     List<String> results = await Future.wait([
-      aiTitleTask(),
-      aiContentTask(),
-      imageDownTask(),
-      screenshotTask(),
+      _aiTitleTask(title),
+      _aiContentTask(textContent),
+      _imageDownTask(imageUrl),
+      _screenshotTask(),
     ]);
 
-    String aiTitle = results[0];
-    String aiContent = results[1];
-    String imagePath = results[2];
-    String screenshotPath = results[3];
-    if (imagePath == "") {
-      // 如果网页没有图片, 就用截图代替
-      imagePath = screenshotPath;
-    }
+    String imagePath = results[2].isEmpty ? results[3] : results[2];
+    var article =
+        _createArticleMap(url, title, results[0], textContent, results[1], htmlContent, imagePath, publishedTime);
 
-    var article = {
+    await _saveOrUpdateArticle(url, article);
+    _closeDialog();
+  }
+
+  Future<bool> _checkArticleExists(String url) async {
+    bool isArticleExists = await ArticleService.instance.articleExists(url);
+    if (!isUpdate && isArticleExists) {
+      _showSnackbar('网页已存在 $url, 无法保存');
+      return true;
+    }
+    if (isUpdate && !isArticleExists) {
+      _showSnackbar('网页不存在 $url, 无法更新');
+      return true;
+    }
+    return false;
+  }
+
+  Future<String> _aiTitleTask(String title) async {
+    var aiTitle = await AiService.instance.translate(title.trim());
+    return aiTitle.length >= 50 ? await AiService.instance.summarizeOneLine(aiTitle) : aiTitle;
+  }
+
+  Future<String> _aiContentTask(String textContent) async {
+    return await AiService.instance.summarize(textContent.trim());
+  }
+
+  Future<String> _imageDownTask(String imageUrl) async {
+    return await HttpService.instance.downloadImage(imageUrl);
+  }
+
+  Future<String> _screenshotTask() async {
+    return await webViewController!.captureFulScreenshot();
+  }
+
+  Map<String, dynamic> _createArticleMap(String url, String title, String aiTitle, String textContent, String aiContent,
+      String htmlContent, String imagePath, String publishedTime) {
+    return {
       'title': title,
       'ai_title': aiTitle,
       'content': textContent,
       'ai_content': aiContent,
       'html_content': htmlContent,
       'url': url,
-      'image_url': imageUrl,
+      'image_url': imagePath,
       'image_path': imagePath,
-      'screenshot_path': screenshotPath,
+      'screenshot_path': imagePath,
       'pub_date': DateTime.tryParse(publishedTime)?.toUtc().toIso8601String() ?? nowToString(),
       'comment': commentController.text,
     };
+  }
 
+  Future<void> _saveOrUpdateArticle(String url, Map<String, dynamic> article) async {
     if (isUpdate) {
-      logger.i("[更新文章] aiTitle => $aiTitle, imagePath => $imagePath, screenshotPath => $screenshotPath");
+      logger.i("[更新文章] aiTitle => ${article['ai_title']}, imagePath => ${article['image_path']}");
       await ArticleService.instance.updateArticle(url, article);
-      ArticleDetailController articleDetailController = Get.find<ArticleDetailController>();
-      articleDetailController.refreshArticle();
+      Get.find<ArticleDetailController>().refreshArticle();
     } else {
-      logger.i("[新增文章] aiTitle => $aiTitle, imagePath => $imagePath, screenshotPath => $screenshotPath");
+      logger.i("[新增文章] aiTitle => ${article['ai_title']}, imagePath => ${article['image_path']}");
       await ArticleService.instance.saveArticle(article);
     }
+  }
 
+  void _showSnackbar(String message) {
+    Get.close();
+    Get.snackbar('提示', message, snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+  }
+
+  void _closeDialog() {
     Get.close();
     if (isUpdate) {
       Get.back();
@@ -115,16 +120,16 @@ class ShareDialogController extends GetxController {
     Get.defaultDialog(
       title: "操作提示",
       content: Container(
-        padding: EdgeInsets.only(left: 10), // 离左边10px
+        padding: EdgeInsets.only(left: 10),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, // 文字左对齐
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [_buildStepText("正在用AI对网页进行分析...")],
         ),
       ),
       confirm: TextButton(
         onPressed: () {
           logger.i("关闭对话框");
-          Get.close(); // 关闭对话框
+          Get.close();
         },
         child: Text("确定"),
       ),
