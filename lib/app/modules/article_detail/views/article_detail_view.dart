@@ -156,9 +156,10 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
             Navigator.pop(Get.context!);
           },
           child: Center(
-            child: Container(
+            child: SizedBox(
               height: MediaQuery.of(Get.context!).size.height, // 设置高度为手机屏幕高度
               child: InteractiveViewer(
+                maxScale: 5,
                 child: Image.file(
                   File(imagePath),
                   fit: BoxFit.contain, // 适应容器
