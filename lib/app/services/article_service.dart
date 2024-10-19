@@ -13,19 +13,31 @@ class ArticleService {
 
   AppDatabase get db => DBService.i.db;
 
-  Future<void> saveArticle(ArticlesCompanion article) async {
-    db.into(db.articles).insert(article);
-    logger.i("文章已保存: ${firstLine(article.title.value ?? '')}");
+  Future<Article> saveArticle(ArticlesCompanion article) async {
+    final newArticle = await db.into(db.articles).insertReturning(article);
+    logger.i("文章已保存: ${firstLine(newArticle.title ?? '')}");
+    return newArticle;
   }
 
-  Future<void> updateArticle(ArticlesCompanion article) async {
+  Future<Article?> updateArticle(ArticlesCompanion article) async {
     var result = await (db.update(db.articles)..where((row) => row.url.equals(article.url.value))).write(article);
 
     if (result >= 1) {
       logger.i("文章已更新: ${firstLine(article.title.value ?? '')}");
+      // 返回更新后的 article 对象
+      return await getFirstArticleByUrl(article.url.value);
     } else {
       logger.i("未找到文章以更新: ${article.url}");
+      return null; // 未找到文章，返回 null
     }
+  }
+
+  Future<Article?> getFirstArticleByUrl(String url) async {
+    final articles = await (db.select(db.articles)
+          ..where((row) => row.url.equals(url))
+          ..limit(1))
+        .get();
+    return articles.isNotEmpty ? articles.first : null;
   }
 
   Future<bool> isArticleExists(String url) async {

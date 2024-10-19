@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/services/db_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -19,6 +20,7 @@ class ShareDialogController extends GetxController {
   DreamWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();
   final webLoadProgress = 0.0.obs;
+  AppDatabase get db => DBService.i.db;
 
   Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
       String publishedTime, List<String> imagesUrl) async {
@@ -46,7 +48,12 @@ class ShareDialogController extends GetxController {
       publishedTime: publishedTime,
     );
 
-    await _saveOrUpdateArticle(url, article);
+    final newArticle = await _saveOrUpdateArticle(url, article);
+    if (newArticle != null && imagesUrl.length >= 2) {
+      await Future.wait(imagesUrl.skip(1).map((imageUrl) async {
+        await _downloadAndSaveImage(newArticle.id, imageUrl);
+      }));
+    }
     _closeDialog();
   }
 
@@ -61,6 +68,23 @@ class ShareDialogController extends GetxController {
       return true;
     }
     return false;
+  }
+
+  Future<void> _downloadAndSaveImage(int articleID, String url) async {
+    try {
+      // 下载图片
+      String imagePath = await HttpService.i.downloadImage(url);
+
+      // 更新数据库
+      await db.into(db.articleImages).insert(ArticleImagesCompanion(
+            article: drift.Value(articleID),
+            imageUrl: drift.Value(url),
+            imagePath: drift.Value(imagePath),
+          ));
+      logger.i("图片下载并保存到数据库: $url => imagePath");
+    } catch (e) {
+      logger.e("下载或保存图片失败: $url, 错误: $e");
+    }
   }
 
   Future<String> _aiTitleTask(String title) async {
@@ -106,15 +130,17 @@ class ShareDialogController extends GetxController {
     );
   }
 
-  Future<void> _saveOrUpdateArticle(String url, ArticlesCompanion article) async {
+  Future<Article?> _saveOrUpdateArticle(String url, ArticlesCompanion article) async {
+    final Article? newArticle;
     if (isUpdate) {
       logger.i("[更新文章] aiTitle => ${article.aiTitle}, imagePath => ${article.imagePath}");
-      await ArticleService.i.updateArticle(article);
+      newArticle = await ArticleService.i.updateArticle(article);
       Get.find<ArticleDetailController>().refreshArticle();
     } else {
       logger.i("[新增文章] aiTitle => ${article.aiTitle}, imagePath => ${article.imagePath}");
-      await ArticleService.i.saveArticle(article);
+      newArticle = await ArticleService.i.saveArticle(article);
     }
+    return newArticle;
   }
 
   void _showSnackbar(String message) {

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:daily_satori/app/databases/database.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
@@ -155,12 +156,67 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
               style: const TextStyle(fontSize: 16),
             ),
           ),
+          Container(
+            padding: const EdgeInsets.all(20.0),
+            child: _buildImageList(),
+          ),
         ],
       ),
     );
   }
 
+  Widget _buildImageList() {
+    return SizedBox(
+      height: 200, // 设置图片列表的高度
+      child: FutureBuilder<List<ArticleImage>>(
+        future: controller.getArticleImages(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text("加载图片失败"));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(child: Text("没有图片可显示"));
+          }
+
+          final images = snapshot.data!;
+
+          return ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: images.length,
+            itemBuilder: (context, index) {
+              return GestureDetector(
+                onTap: () {
+                  _showFullScreenImage(images[index].imagePath ?? '');
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Image.file(
+                    File(images[index].imagePath ?? ''), // 假设 ArticleImage 对象有 imagePath 属性
+                    fit: BoxFit.cover,
+                    errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error, color: Colors.red),
+                          Text('File does not exist'),
+                        ],
+                      ); // 显示错误图标和消息
+                    },
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
   void _showFullScreenImage(String imagePath) {
+    if (imagePath.isEmpty) {
+      return;
+    }
     Get.dialog(
       Scaffold(
         backgroundColor: Colors.black,
