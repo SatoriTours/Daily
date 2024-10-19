@@ -176,7 +176,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           } else if (snapshot.hasError) {
             return Center(child: Text("加载图片失败"));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text("没有图片可显示"));
+            return Container();
           }
 
           final images = snapshot.data!;
