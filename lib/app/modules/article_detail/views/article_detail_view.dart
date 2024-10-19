@@ -78,8 +78,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           var articlesController = Get.find<ArticlesController>();
           await articlesController.reloadArticles();
           Get.back();
-          Get.snackbar("提示", "删除成功",
-              snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+          Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
         },
         child: Text("确认"),
       ),
@@ -97,8 +96,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       child: SizedBox(
         width: double.infinity,
         child: Image.file(
-          File(controller.article.screenshotPath ??
-              ''), // 假设文章对象中有一个 imageUrl 属性
+          File(controller.article.screenshotPath ?? ''), // 假设文章对象中有一个 imageUrl 属性
           fit: BoxFit.cover,
           alignment: Alignment.topCenter,
         ),
@@ -116,11 +114,10 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          if (controller.article.imagePath != null)
+          if (controller.article.imagePath?.isNotEmpty ?? false)
             GestureDetector(
               onTap: () {
-                _showFullScreenImage(
-                    controller.article.imagePath!); // 处理点击事件，显示全屏图片
+                _showFullScreenImage(controller.article.imagePath!); // 处理点击事件，显示全屏图片
               },
               child: Container(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -132,6 +129,15 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                   File(controller.article.imagePath!),
                   fit: BoxFit.cover,
                   alignment: Alignment.topCenter,
+                  errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error, color: Colors.red),
+                        Text('File does not exist'),
+                      ],
+                    ); // 显示错误图标和消息
+                  },
                 ),
               ),
             ),
@@ -169,7 +175,16 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                 maxScale: 5,
                 child: Image.file(
                   File(imagePath),
-                  fit: BoxFit.contain, // 适应容器
+                  fit: BoxFit.contain,
+                  errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error, color: Colors.red),
+                        Text('File does not exist'),
+                      ],
+                    ); // 显示错误图标和消息
+                  },
                 ),
               ),
             ),

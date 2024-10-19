@@ -33,9 +33,18 @@ class ShareDialogController extends GetxController {
       _screenshotTask(),
     ]);
 
-    String imagePath = results[2].isEmpty ? results[3] : results[2];
-    var article =
-        _createArticleMap(url, title, results[0], textContent, results[1], htmlContent, imagePath, publishedTime);
+    var article = _createArticleMap(
+      url: url,
+      title: title,
+      aiTitle: results[0],
+      textContent: textContent,
+      aiContent: results[1],
+      htmlContent: htmlContent,
+      imageUrl: imageUrl,
+      imagePath: results[2],
+      screenshotPath: results[3],
+      publishedTime: publishedTime,
+    );
 
     await _saveOrUpdateArticle(url, article);
     _closeDialog();
@@ -71,8 +80,17 @@ class ShareDialogController extends GetxController {
     return await webViewController!.captureFulScreenshot();
   }
 
-  ArticlesCompanion _createArticleMap(String url, String title, String aiTitle, String textContent, String aiContent,
-      String htmlContent, String imagePath, String publishedTime) {
+  ArticlesCompanion _createArticleMap(
+      {required String url,
+      required String title,
+      required String aiTitle,
+      required String textContent,
+      required String aiContent,
+      required String htmlContent,
+      required String imageUrl,
+      required String imagePath,
+      required String screenshotPath,
+      required String publishedTime}) {
     return ArticlesCompanion(
       title: drift.Value(title),
       aiTitle: drift.Value(aiTitle),
@@ -80,9 +98,9 @@ class ShareDialogController extends GetxController {
       aiContent: drift.Value(aiContent),
       htmlContent: drift.Value(htmlContent),
       url: drift.Value(url),
-      imageUrl: drift.Value(imagePath),
+      imageUrl: drift.Value(imageUrl),
       imagePath: drift.Value(imagePath),
-      screenshotPath: drift.Value(imagePath),
+      screenshotPath: drift.Value(screenshotPath),
       pubDate: drift.Value(DateTime.tryParse(publishedTime)?.toUtc() ?? DateTime.now().toUtc()),
       comment: drift.Value(commentController.text),
     );
