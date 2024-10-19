@@ -7,7 +7,7 @@ import 'package:daily_satori/global.dart';
 class AiService extends GetxService {
   AiService._privateConstructor();
   static final AiService _instance = AiService._privateConstructor();
-  static AiService get instance => _instance;
+  static AiService get i => _instance;
 
   Future<void> init() async {}
 
@@ -93,10 +93,8 @@ $text
 
   OpenAIClient createClient() {
     return OpenAIClient(
-      apiKey:
-          SettingsService.instance.getSetting(SettingsService.openAITokenKey),
-      baseUrl:
-          SettingsService.instance.getSetting(SettingsService.openAIAddressKey),
+      apiKey: SettingsService.i.getSetting(SettingsService.openAITokenKey),
+      baseUrl: SettingsService.i.getSetting(SettingsService.openAIAddressKey),
     );
   }
 }

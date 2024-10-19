@@ -54,7 +54,11 @@ function adjustPageHeight() {
   staticElements.forEach(element => {
     const computedStyle = getComputedStyle(element);
     if (computedStyle.position === 'static') {
+      console.log(`获取页面页面的元素,高度为: ${maxHeight}px`);
       const elementHeight = element.offsetHeight;
+      if(isNaN(elementHeight)) {
+        return;
+      }
       maxHeight = Math.max(maxHeight, elementHeight);
     }
   });

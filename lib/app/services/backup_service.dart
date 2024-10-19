@@ -1,9 +1,9 @@
 import 'dart:io';
 
+import 'package:daily_satori/app/databases/database.dart';
 import 'package:path/path.dart' as path;
-import 'package:path/path.dart';
 
-import 'package:daily_satori/app/services/database_service.dart';
+import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
 import 'package:daily_satori/global.dart';
@@ -11,14 +11,13 @@ import 'package:daily_satori/global.dart';
 class BackupService {
   BackupService._privateConstructor();
   static final BackupService _instance = BackupService._privateConstructor();
-  static BackupService get instance => _instance;
+  static BackupService get i => _instance;
 
   Future<void> init() async {
     checkAndBackup();
   }
 
-  String get backupDir =>
-      SettingsService.instance.getSetting(SettingsService.backupDirKey);
+  String get backupDir => SettingsService.i.getSetting(SettingsService.backupDirKey);
   File get backupTimeFile => File(path.join(backupDir, 'backup_time.txt'));
 
   Future<void> checkAndBackup() async {
@@ -29,15 +28,13 @@ class BackupService {
     logger.i("准备备份应用");
 
     DateTime lastBackupTime = await _getLastBackupTime();
-    int backupTimeDifference =
-        DateTime.now().difference(lastBackupTime).inHours;
+    int backupTimeDifference = DateTime.now().difference(lastBackupTime).inHours;
     if (backupTimeDifference >= 6) {
       logger.i("开始备份应用");
       await _performBackup(backupDir);
       await _updateLastBackupTime(DateTime.now());
     } else {
-      logger
-          .i("上次备份时间 $lastBackupTime, 离下次备份还差: ${6 - backupTimeDifference} 小时");
+      logger.i("上次备份时间 $lastBackupTime, 离下次备份还差: ${6 - backupTimeDifference} 小时");
     }
   }
 
@@ -51,22 +48,17 @@ class BackupService {
   }
 
   Future<void> _performBackup(String backupDir) async {
-    String imagesDir = FileService.instance.imagesBasePath;
-    String screenshotsDir = FileService.instance.screenshotsBasePath;
-    String databaseFile = await DatabaseService.instance.dbFilePath();
+    String imagesDir = FileService.i.imagesBasePath;
+    String screenshotsDir = FileService.i.screenshotsBasePath;
+    String databaseFile = DBService.i.dbPath;
 
-    String timestamp = DateTime.now()
-        .toIso8601String()
-        .replaceAll(':', '-')
-        .replaceAll('.', '-');
-    String backupFolder = join(backupDir, 'daily_satori_backup_$timestamp');
+    String timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').replaceAll('.', '-');
+    String backupFolder = path.join(backupDir, 'daily_satori_backup_$timestamp');
     await Directory(backupFolder).create(recursive: true);
 
-    await _copyDirectory(
-        Directory(imagesDir), Directory(join(backupFolder, 'images')));
-    await _copyDirectory(Directory(screenshotsDir),
-        Directory(join(backupFolder, 'screenshots')));
-    await File(databaseFile).copy(join(backupFolder, 'database.db'));
+    await _copyDirectory(Directory(imagesDir), Directory(path.join(backupFolder, 'images')));
+    await _copyDirectory(Directory(screenshotsDir), Directory(path.join(backupFolder, 'screenshots')));
+    await File(databaseFile).copy(path.join(backupFolder, DBService.dbFileName));
     logger.i("完成了文件的备份: $backupFolder");
   }
 
@@ -75,10 +67,9 @@ class BackupService {
       await destination.create(recursive: true);
       await for (var entity in source.list()) {
         if (entity is File) {
-          await entity.copy(join(destination.path, basename(entity.path)));
+          await entity.copy(path.join(destination.path, path.basename(entity.path)));
         } else if (entity is Directory) {
-          await _copyDirectory(
-              entity, Directory(join(destination.path, basename(entity.path))));
+          await _copyDirectory(entity, Directory(path.join(destination.path, path.basename(entity.path))));
         }
       }
     }

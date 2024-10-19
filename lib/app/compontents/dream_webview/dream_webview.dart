@@ -77,11 +77,11 @@ class DreamWebView extends StatelessWidget {
     final domain = getTopLevelDomain(url?.host);
     logger.i("处理 $domain 的广告规则");
     if (domain.isNotEmpty &&
-        ADBlockService.instance.elementHidingRulesBySite.containsKey(domain)) {
+        ADBlockService.i.elementHidingRulesBySite.containsKey(domain)) {
       int count = 0;
       Timer.periodic(Duration(seconds: 2), (Timer t) async {
         await removeNodeByCssSelectors(controller,
-            ADBlockService.instance.elementHidingRulesBySite[domain] ?? []);
+            ADBlockService.i.elementHidingRulesBySite[domain] ?? []);
         count += 1;
         // 当计数达到 10 次时，取消定时器
         if (count >= 20) {

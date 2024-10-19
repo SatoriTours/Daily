@@ -5,7 +5,7 @@ import 'package:daily_satori/app/services/file_service.dart';
 class HttpService {
   HttpService._privateConstructor();
   static final HttpService _instance = HttpService._privateConstructor();
-  static HttpService get instance => _instance;
+  static HttpService get i => _instance;
 
   Future<void> init() async {
     _dio = Dio();
@@ -20,8 +20,8 @@ class HttpService {
       return "";
     }
 
-    final imageName = FileService.instance.generateFileNameByUrl(url);
-    final imagePath = FileService.instance.getImagePath(imageName);
+    final imageName = FileService.i.generateFileNameByUrl(url);
+    final imagePath = FileService.i.getImagePath(imageName);
 
     await dio.download(
       url,

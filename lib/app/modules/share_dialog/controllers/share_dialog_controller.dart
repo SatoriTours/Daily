@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:drift/drift.dart' as drift;
 import 'package:get/get.dart';
 
 import 'package:daily_satori/app/compontents/dream_webview/dream_webview_controller.dart';
+import 'package:daily_satori/app/databases/database.dart';
 import 'package:daily_satori/app/modules/article_detail/controllers/article_detail_controller.dart';
 import 'package:daily_satori/app/services/ai_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
@@ -11,23 +13,16 @@ import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/global.dart';
 
 class ShareDialogController extends GetxController {
-  String? shareURL = isProduction ? null : 'https://github.com/rails/rails';
+  String? shareURL = isProduction ? null : 'https://m.hupu.com/bbs/628444253';
   bool isUpdate = false;
 
   DreamWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();
   final webLoadProgress = 0.0.obs;
 
-  Future<void> saveArticleInfo(
-      String url,
-      String title,
-      String excerpt,
-      String htmlContent,
-      String textContent,
-      String publishedTime,
-      String imageUrl) async {
-    logger.i(
-        "[saveArticleInfo] title => $title, imageUrl => $imageUrl, publishedTime => $publishedTime");
+  Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
+      String publishedTime, String imageUrl) async {
+    logger.i("[saveArticleInfo] title => $title, imageUrl => $imageUrl, publishedTime => $publishedTime");
 
     if (await _checkArticleExists(url)) return;
 
@@ -39,15 +34,15 @@ class ShareDialogController extends GetxController {
     ]);
 
     String imagePath = results[2].isEmpty ? results[3] : results[2];
-    var article = _createArticleMap(url, title, results[0], textContent,
-        results[1], htmlContent, imagePath, publishedTime);
+    var article =
+        _createArticleMap(url, title, results[0], textContent, results[1], htmlContent, imagePath, publishedTime);
 
     await _saveOrUpdateArticle(url, article);
     _closeDialog();
   }
 
   Future<bool> _checkArticleExists(String url) async {
-    bool isArticleExists = await ArticleService.instance.articleExists(url);
+    bool isArticleExists = await ArticleService.i.isArticleExists(url);
     if (!isUpdate && isArticleExists) {
       _showSnackbar('网页已存在 $url, 无法保存');
       return true;
@@ -60,67 +55,53 @@ class ShareDialogController extends GetxController {
   }
 
   Future<String> _aiTitleTask(String title) async {
-    var aiTitle = await AiService.instance.translate(title.trim());
-    return aiTitle.length >= 50
-        ? await AiService.instance.summarizeOneLine(aiTitle)
-        : aiTitle;
+    var aiTitle = await AiService.i.translate(title.trim());
+    return aiTitle.length >= 50 ? await AiService.i.summarizeOneLine(aiTitle) : aiTitle;
   }
 
   Future<String> _aiContentTask(String textContent) async {
-    return await AiService.instance.summarize(textContent.trim());
+    return await AiService.i.summarize(textContent.trim());
   }
 
   Future<String> _imageDownTask(String imageUrl) async {
-    return await HttpService.instance.downloadImage(imageUrl);
+    return await HttpService.i.downloadImage(imageUrl);
   }
 
   Future<String> _screenshotTask() async {
     return await webViewController!.captureFulScreenshot();
   }
 
-  Map<String, dynamic> _createArticleMap(
-      String url,
-      String title,
-      String aiTitle,
-      String textContent,
-      String aiContent,
-      String htmlContent,
-      String imagePath,
-      String publishedTime) {
-    return {
-      'title': title,
-      'ai_title': aiTitle,
-      'content': textContent,
-      'ai_content': aiContent,
-      'html_content': htmlContent,
-      'url': url,
-      'image_url': imagePath,
-      'image_path': imagePath,
-      'screenshot_path': imagePath,
-      'pub_date': DateTime.tryParse(publishedTime)?.toUtc().toIso8601String() ??
-          nowToString(),
-      'comment': commentController.text,
-    };
+  ArticlesCompanion _createArticleMap(String url, String title, String aiTitle, String textContent, String aiContent,
+      String htmlContent, String imagePath, String publishedTime) {
+    return ArticlesCompanion(
+      title: drift.Value(title),
+      aiTitle: drift.Value(aiTitle),
+      content: drift.Value(textContent),
+      aiContent: drift.Value(aiContent),
+      htmlContent: drift.Value(htmlContent),
+      url: drift.Value(url),
+      imageUrl: drift.Value(imagePath),
+      imagePath: drift.Value(imagePath),
+      screenshotPath: drift.Value(imagePath),
+      pubDate: drift.Value(DateTime.tryParse(publishedTime)?.toUtc() ?? DateTime.now().toUtc()),
+      comment: drift.Value(commentController.text),
+    );
   }
 
-  Future<void> _saveOrUpdateArticle(
-      String url, Map<String, dynamic> article) async {
+  Future<void> _saveOrUpdateArticle(String url, ArticlesCompanion article) async {
     if (isUpdate) {
-      logger.i(
-          "[更新文章] aiTitle => ${article['ai_title']}, imagePath => ${article['image_path']}");
-      await ArticleService.instance.updateArticle(url, article);
+      logger.i("[更新文章] aiTitle => ${article.aiTitle}, imagePath => ${article.imagePath}");
+      await ArticleService.i.updateArticle(article);
       Get.find<ArticleDetailController>().refreshArticle();
     } else {
-      logger.i(
-          "[新增文章] aiTitle => ${article['ai_title']}, imagePath => ${article['image_path']}");
-      await ArticleService.instance.saveArticle(article);
+      logger.i("[新增文章] aiTitle => ${article.aiTitle}, imagePath => ${article.imagePath}");
+      await ArticleService.i.saveArticle(article);
     }
   }
 
   void _showSnackbar(String message) {
     Get.close();
-    Get.snackbar('提示', message,
-        snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+    Get.snackbar('提示', message, snackPosition: SnackPosition.top, backgroundColor: Colors.green);
   }
 
   void _closeDialog() {
@@ -134,10 +115,8 @@ class ShareDialogController extends GetxController {
   }
 
   Future<void> parseWebContent() async {
-    await webViewController?.injectJavascriptFileFromAsset(
-        assetFilePath: "assets/js/Readability.js");
-    await webViewController?.injectJavascriptFileFromAsset(
-        assetFilePath: "assets/js/parse_content.js");
+    await webViewController?.injectJavascriptFileFromAsset(assetFilePath: "assets/js/Readability.js");
+    await webViewController?.injectJavascriptFileFromAsset(assetFilePath: "assets/js/parse_content.js");
     await webViewController?.evaluateJavascript(source: "parseContent()");
   }
 

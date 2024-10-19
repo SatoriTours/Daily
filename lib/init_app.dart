@@ -7,7 +7,7 @@ import 'package:daily_satori/app/services/adblock_service.dart';
 import 'package:daily_satori/app/services/ai_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
-import 'package:daily_satori/app/services/database_service.dart';
+import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
@@ -43,12 +43,12 @@ void initGetTimeAgo() {
 
 Future<void> initServices() async {
   logger.i("开始初始化服务");
-  await DatabaseService.instance.init();
-  await SettingsService.instance.init();
-  await AiService.instance.init();
-  await ArticleService.instance.init();
-  await FileService.instance.init();
-  await HttpService.instance.init();
-  await ADBlockService.instance.init();
-  await BackupService.instance.init();
+  await DBService.i.init();
+  await SettingsService.i.init();
+  await AiService.i.init();
+  await ArticleService.i.init();
+  await FileService.i.init();
+  await HttpService.i.init();
+  await ADBlockService.i.init();
+  await BackupService.i.init();
 }

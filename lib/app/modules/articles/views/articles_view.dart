@@ -146,7 +146,7 @@ class ArticleCard extends StatelessWidget {
             article.isFavorite == 1 ? Icons.favorite : Icons.favorite_border,
           ),
           onPressed: () async {
-            await ArticleService.instance.toggleFavorite(article.id);
+            await ArticleService.i.toggleFavorite(article.id);
           },
         ),
         IconButton(

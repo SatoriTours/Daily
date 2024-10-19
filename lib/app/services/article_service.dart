@@ -1,59 +1,45 @@
-import 'package:sqflite/sqflite.dart';
+import 'package:drift/drift.dart';
 
-import 'package:daily_satori/app/models/article.dart';
-import 'package:daily_satori/app/services/database_service.dart';
+import 'package:daily_satori/app/databases/database.dart';
+import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/global.dart';
 
 class ArticleService {
   ArticleService._privateConstructor();
   static final ArticleService _instance = ArticleService._privateConstructor();
-  static ArticleService get instance => _instance;
+  static ArticleService get i => _instance;
 
   Future<void> init() async {}
 
-  final String _tableName = 'articles';
+  AppDatabase get db => DBService.i.db;
 
-  Future<void> saveArticle(Map<String, dynamic> articleData) async {
-    if (await articleExists(articleData['url'])) {
-      logger.i("文章已存在: ${firstLine(articleData['title'])}");
-      return; // 如果记录已存在，则不进行插入
-    }
-
-    await db.insert(_tableName, articleData);
-    logger.i("文章已保存: ${firstLine(articleData['title'])}");
+  Future<void> saveArticle(ArticlesCompanion article) async {
+    db.into(db.articles).insert(article);
+    logger.i("文章已保存: ${firstLine(article.title.value ?? '')}");
   }
 
-  Future<void> updateArticle(
-      String url, Map<String, dynamic> newArticleData) async {
-    final result = await db.update(
-      _tableName,
-      newArticleData,
-      where: 'url = ?',
-      whereArgs: [url],
-    );
+  Future<void> updateArticle(ArticlesCompanion article) async {
+    var result = await (db.update(db.articles)
+          ..where((row) => row.url.equals(article.url.value)))
+        .replace(article);
 
-    if (result > 0) {
-      logger.i("文章已更新: ${firstLine(newArticleData['title'])}");
+    if (result) {
+      logger.i("文章已更新: ${firstLine(article.title.value ?? '')}");
     } else {
-      logger.i("未找到文章以更新: $url");
+      logger.i("未找到文章以更新: ${article.url}");
     }
   }
 
-  Future<bool> articleExists(String url) async {
-    final existingArticle = await db.query(
-      _tableName,
-      where: 'url = ?',
-      whereArgs: [url],
-    );
+  Future<bool> isArticleExists(String url) async {
+    final existingArticle =
+        await (db.select(db.articles)..where((t) => t.url.equals(url))).get();
     return existingArticle.isNotEmpty;
   }
 
   Future<void> deleteArticle(int articleID) async {
-    final result = await db.delete(
-      _tableName,
-      where: 'id = ?',
-      whereArgs: [articleID],
-    );
+    final result = await (db.delete(db.articles)
+          ..where((row) => row.id.equals(articleID)))
+        .go();
 
     if (result > 0) {
       logger.i("文章已删除: $articleID");
@@ -62,42 +48,80 @@ class ArticleService {
     }
   }
 
-  Future<Article?> getArticleById(int articleID) async {
-    final List<Map<String, dynamic>> maps = await db.query(
-      _tableName,
-      where: 'id = ?',
-      whereArgs: [articleID],
-    );
-
-    if (maps.isNotEmpty) {
-      return Article.fromMap(maps.first);
-    } else {
-      return null; // 返回 null 表示未找到文章
-    }
+  Future<Article> getArticleById(int articleID) async {
+    return await (db.select(db.articles)
+          ..where((row) => row.id.equals(articleID)))
+        .getSingle();
   }
 
   Future<bool> toggleFavorite(int articleID) async {
-    final article = await getArticleById(articleID);
-    if (article != null) {
-      final newFavoriteStatus = article.isFavorite == 0 ? 1 : 0; // 切换收藏状态
-      final result = await db.update(
-        _tableName,
-        {'is_favorite': newFavoriteStatus},
-        where: 'id = ?',
-        whereArgs: [articleID],
-      );
+    var article = await getArticleById(articleID);
+    final result = await (db.update(db.articles)
+          ..where((row) => row.id.equals(article.id)))
+        .write(ArticlesCompanion(
+      isFavorite: Value(!article.isFavorite),
+    ));
 
-      if (result > 0) {
-        logger.i(newFavoriteStatus == 1
-            ? "文章已收藏: $articleID"
-            : "文章已取消收藏: $articleID");
-        return newFavoriteStatus == 1; // 返回是否收藏
-      } else {
-        logger.i("未找到文章以更新收藏状态: $articleID");
-      }
+    if (result > 0) {
+      logger
+          .i(!article.isFavorite ? "文章已收藏: $articleID" : "文章已取消收藏: $articleID");
+      return !article.isFavorite;
+    } else {
+      logger.i("未找到文章以更新收藏状态: $articleID");
     }
-    return false; // 如果文章不存在，返回未收藏
+    return false;
   }
 
-  Database get db => DatabaseService.instance.database;
+  Future<int> getMaxArticleID() async {
+    return await (db.select(db.articles)..addColumns([db.articles.id.max()]))
+        .get()
+        .then((rows) {
+      return rows.isNotEmpty ? rows.first.id : -1;
+    });
+  }
+
+  Future<int> getMinArticleID() async {
+    return await (db.select(db.articles)..addColumns([db.articles.id.min()]))
+        .get()
+        .then((rows) {
+      return rows.isNotEmpty ? rows.first.id : -1;
+    });
+  }
+
+  Future<List<Article>> getArticlesGreaterThanId(int articleID,
+      {int limit = 20}) async {
+    final articleDataList = await (db.select(db.articles)
+          ..where((row) => row.id.isBiggerThanValue(articleID))
+          ..orderBy([
+            (row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)
+          ])
+          ..limit(limit))
+        .get();
+
+    return articleDataList;
+  }
+
+  Future<List<Article>> getArticlesLessThanId(int articleID,
+      {int limit = 20}) async {
+    final articleDataList = await (db.select(db.articles)
+          ..where((row) => row.id.isSmallerThanValue(articleID))
+          ..orderBy([
+            (row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)
+          ])
+          ..limit(limit))
+        .get();
+
+    return articleDataList;
+  }
+
+  Future<List<Article>> getArticles({int limit = 20}) async {
+    final articleDataList = await (db.select(db.articles)
+          ..orderBy([
+            (row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)
+          ])
+          ..limit(limit))
+        .get();
+
+    return articleDataList;
+  }
 }

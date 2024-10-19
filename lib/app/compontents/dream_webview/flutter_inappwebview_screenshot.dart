@@ -105,7 +105,7 @@ Future<ui.Image> cropImageFromHeight(
 }
 
 Future<String> _saveFullPageScreenshot(List<ui.Image> screenshots) async {
-  final filePath = FileService.instance.getScreenshotPath();
+  final filePath = FileService.i.getScreenshotPath();
   final file = File(filePath);
 
   // 创建一个空白的画布

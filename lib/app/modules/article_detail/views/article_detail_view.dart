@@ -138,7 +138,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
             child: Text(
-              (controller.article.aiTitle ?? controller.article.title),
+              (controller.article.aiTitle ?? controller.article.title) ?? '',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),

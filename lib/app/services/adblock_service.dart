@@ -11,7 +11,7 @@ import 'package:daily_satori/global.dart';
 class ADBlockService {
   ADBlockService._privateConstructor();
   static final ADBlockService _instance = ADBlockService._privateConstructor();
-  static ADBlockService get instance => _instance;
+  static ADBlockService get i => _instance;
 
   Future<void> init() async {
     await _parseRulesContent();

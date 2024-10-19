@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 class FileService {
   FileService._privateConstructor();
   static final FileService _instance = FileService._privateConstructor();
-  static FileService get instance => _instance;
+  static FileService get i => _instance;
 
   Future<void> init() async {
     _imagesBasePath = await _mkdir('images');
