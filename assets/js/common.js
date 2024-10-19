@@ -52,9 +52,9 @@ function adjustPageHeight() {
   let maxHeight = 0;
 
   staticElements.forEach(element => {
-    // const computedStyle = getComputedStyle(element);
-    if (element.style.position === 'static') {
-      console.log(`获取页面页面的元素,高度为: ${maxHeight}px`);
+    const computedStyle = getComputedStyle(element);
+    if (computedStyle.position === 'static') {
+      // console.log(`获取页面页面的元素,高度为: ${maxHeight}px`);
       const elementHeight = element.offsetHeight;
       if(isNaN(elementHeight)) {
         return;

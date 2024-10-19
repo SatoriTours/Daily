@@ -22,6 +22,10 @@ class DreamWebViewController {
     webViewController.reload();
   }
 
+  Future<int> getContentHeight() async {
+    return (await webViewController.getContentHeight()) ?? 0;
+  }
+
   Future<void> scrollTo({required int x, required int y}) async {
     await webViewController.scrollTo(x: x, y: y);
   }

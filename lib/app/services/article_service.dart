@@ -19,11 +19,9 @@ class ArticleService {
   }
 
   Future<void> updateArticle(ArticlesCompanion article) async {
-    var result = await (db.update(db.articles)
-          ..where((row) => row.url.equals(article.url.value)))
-        .replace(article);
+    var result = await (db.update(db.articles)..where((row) => row.url.equals(article.url.value))).write(article);
 
-    if (result) {
+    if (result >= 1) {
       logger.i("文章已更新: ${firstLine(article.title.value ?? '')}");
     } else {
       logger.i("未找到文章以更新: ${article.url}");
@@ -31,15 +29,12 @@ class ArticleService {
   }
 
   Future<bool> isArticleExists(String url) async {
-    final existingArticle =
-        await (db.select(db.articles)..where((t) => t.url.equals(url))).get();
+    final existingArticle = await (db.select(db.articles)..where((t) => t.url.equals(url))).get();
     return existingArticle.isNotEmpty;
   }
 
   Future<void> deleteArticle(int articleID) async {
-    final result = await (db.delete(db.articles)
-          ..where((row) => row.id.equals(articleID)))
-        .go();
+    final result = await (db.delete(db.articles)..where((row) => row.id.equals(articleID))).go();
 
     if (result > 0) {
       logger.i("文章已删除: $articleID");
@@ -49,22 +44,17 @@ class ArticleService {
   }
 
   Future<Article> getArticleById(int articleID) async {
-    return await (db.select(db.articles)
-          ..where((row) => row.id.equals(articleID)))
-        .getSingle();
+    return await (db.select(db.articles)..where((row) => row.id.equals(articleID))).getSingle();
   }
 
   Future<bool> toggleFavorite(int articleID) async {
     var article = await getArticleById(articleID);
-    final result = await (db.update(db.articles)
-          ..where((row) => row.id.equals(article.id)))
-        .write(ArticlesCompanion(
+    final result = await (db.update(db.articles)..where((row) => row.id.equals(article.id))).write(ArticlesCompanion(
       isFavorite: Value(!article.isFavorite),
     ));
 
     if (result > 0) {
-      logger
-          .i(!article.isFavorite ? "文章已收藏: $articleID" : "文章已取消收藏: $articleID");
+      logger.i(!article.isFavorite ? "文章已收藏: $articleID" : "文章已取消收藏: $articleID");
       return !article.isFavorite;
     } else {
       logger.i("未找到文章以更新收藏状态: $articleID");
@@ -73,41 +63,31 @@ class ArticleService {
   }
 
   Future<int> getMaxArticleID() async {
-    return await (db.select(db.articles)..addColumns([db.articles.id.max()]))
-        .get()
-        .then((rows) {
+    return await (db.select(db.articles)..addColumns([db.articles.id.max()])).get().then((rows) {
       return rows.isNotEmpty ? rows.first.id : -1;
     });
   }
 
   Future<int> getMinArticleID() async {
-    return await (db.select(db.articles)..addColumns([db.articles.id.min()]))
-        .get()
-        .then((rows) {
+    return await (db.select(db.articles)..addColumns([db.articles.id.min()])).get().then((rows) {
       return rows.isNotEmpty ? rows.first.id : -1;
     });
   }
 
-  Future<List<Article>> getArticlesGreaterThanId(int articleID,
-      {int limit = 20}) async {
+  Future<List<Article>> getArticlesGreaterThanId(int articleID, {int limit = 20}) async {
     final articleDataList = await (db.select(db.articles)
           ..where((row) => row.id.isBiggerThanValue(articleID))
-          ..orderBy([
-            (row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)
-          ])
+          ..orderBy([(row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)])
           ..limit(limit))
         .get();
 
     return articleDataList;
   }
 
-  Future<List<Article>> getArticlesLessThanId(int articleID,
-      {int limit = 20}) async {
+  Future<List<Article>> getArticlesLessThanId(int articleID, {int limit = 20}) async {
     final articleDataList = await (db.select(db.articles)
           ..where((row) => row.id.isSmallerThanValue(articleID))
-          ..orderBy([
-            (row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)
-          ])
+          ..orderBy([(row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)])
           ..limit(limit))
         .get();
 
@@ -116,9 +96,7 @@ class ArticleService {
 
   Future<List<Article>> getArticles({int limit = 20}) async {
     final articleDataList = await (db.select(db.articles)
-          ..orderBy([
-            (row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)
-          ])
+          ..orderBy([(row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)])
           ..limit(limit))
         .get();
 
