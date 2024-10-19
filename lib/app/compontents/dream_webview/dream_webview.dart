@@ -33,13 +33,17 @@ class DreamWebView extends StatelessWidget {
       },
       onLoadStart: (webController, url) async {
         logger.i("开始加载网页 $url");
-        await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/translate.js");
-        await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
-        await webController.injectCSSFileFromAsset(assetFilePath: "assets/css/common.css");
+        try {
+          await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/translate.js");
+          await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
+          await webController.injectCSSFileFromAsset(assetFilePath: "assets/css/common.css");
+          removeADNodes(webController);
+        } catch (e) {
+          logger.e("加载资源时出错: $e");
+        }
 
         onProgressChanged?.call(0);
         onLoadStart?.call(url);
-        removeADNodes(webController);
       },
       onLoadStop: (webController, url) async {
         logger.i("网页加载完成 $url");

@@ -116,9 +116,12 @@ class ShareDialogView extends GetView<ShareDialogController> {
         onWebViewCreated: (webController) {
           controller.webViewController = webController;
           // parse_content.js 里面的回调, 用于获取网页内容
+
           webController.addJavaScriptHandler(
               handlerName: "getPageContent",
               callback: (args) {
+                List<String> images = List.from(args[6]);
+
                 controller.saveArticleInfo(
                   args[0].toString().trim(), // url
                   args[1].toString().trim(), // title
@@ -126,7 +129,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
                   args[3].toString().trim(), // htmlContent
                   args[4].toString().trim(), // textContent
                   args[5].toString().trim(), // publishedTime
-                  args[6].toString().trim(), // imageUrl
+                  images, // imagesUrl
                 );
               });
         },

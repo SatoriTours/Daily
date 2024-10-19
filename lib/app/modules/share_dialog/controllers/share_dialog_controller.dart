@@ -21,15 +21,15 @@ class ShareDialogController extends GetxController {
   final webLoadProgress = 0.0.obs;
 
   Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
-      String publishedTime, String imageUrl) async {
-    logger.i("[saveArticleInfo] title => $title, imageUrl => $imageUrl, publishedTime => $publishedTime");
+      String publishedTime, List<String> imagesUrl) async {
+    logger.i("[saveArticleInfo] title => $title, imagesUrl => $imagesUrl, publishedTime => $publishedTime");
 
     if (await _checkArticleExists(url)) return;
 
     List<String> results = await Future.wait([
       _aiTitleTask(title),
       _aiContentTask(textContent),
-      _imageDownTask(imageUrl),
+      _imageDownTask(imagesUrl.first),
       _screenshotTask(),
     ]);
 
@@ -40,7 +40,7 @@ class ShareDialogController extends GetxController {
       textContent: textContent,
       aiContent: results[1],
       htmlContent: htmlContent,
-      imageUrl: imageUrl,
+      imageUrl: imagesUrl.first,
       imagePath: results[2],
       screenshotPath: results[3],
       publishedTime: publishedTime,
