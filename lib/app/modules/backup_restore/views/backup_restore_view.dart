@@ -70,7 +70,7 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
                 middleText: "点击确定, 重启应用",
                 onConfirm: () {
                   // 关闭应用并重新启动
-                  // exit(0);
+                  exit(0);
                 },
                 onCancel: () {
                   // 关闭对话框
