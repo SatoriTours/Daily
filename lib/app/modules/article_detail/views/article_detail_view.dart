@@ -75,7 +75,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
         onPressed: () async {
           await controller.deleteArticle();
           var articlesController = Get.find<ArticlesController>();
-          await articlesController.reloadArticles(); // TODO: 这个地方改成从列表中删除, 而不是直接刷新
+          articlesController.removeArticleByIdFromList(controller.article.id);
           Get.back();
           Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
         },

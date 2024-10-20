@@ -6,23 +6,36 @@ import 'package:daily_satori/app/databases/database.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/global.dart';
 
-class ArticlesController extends GetxController {
+class ArticlesController extends GetxController with WidgetsBindingObserver {
   static int get pageSize => isProduction ? 20 : 5;
 
   final List<Article> articles = <Article>[].obs;
   ScrollController scrollController = ScrollController();
   var isLoading = false.obs; // 加载状态
+  DateTime lastRefreshTime = DateTime.now();
 
   @override
   void onInit() {
     super.onInit();
     scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void onClose() {
     scrollController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.onClose();
+  }
+
+  @override
+  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (state == AppLifecycleState.resumed) {
+      logger.i("App is back from background");
+      if (scrollController.position.pixels <= 30 || DateTime.now().difference(lastRefreshTime).inMinutes >= 60) {
+        reloadArticles();
+      }
+    }
   }
 
   void removeArticleByIdFromList(int id) {
@@ -41,6 +54,7 @@ class ArticlesController extends GetxController {
 
   Future<void> reloadArticles() async {
     logger.i("重新加载文章");
+    lastRefreshTime = DateTime.now();
     final newArticles = await ArticleService.i.getArticles();
     articles.assignAll(newArticles);
   }
