@@ -120,7 +120,7 @@ class ShareDialogController extends GetxController {
       required String publishedTime}) {
     return ArticlesCompanion(
       title: drift.Value(title),
-      aiTitle: drift.Value(aiTitle + '[test6]'),
+      aiTitle: drift.Value(aiTitle),
       content: drift.Value(textContent),
       aiContent: drift.Value(aiContent),
       htmlContent: drift.Value(htmlContent),
