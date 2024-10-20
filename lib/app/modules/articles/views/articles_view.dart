@@ -49,16 +49,21 @@ class ArticlesView extends GetView<ArticlesController> {
             ),
           );
         }
-        return ListView.builder(
-          controller: controller.scrollController,
-          itemCount: controller.articles.length + (controller.isLoading.value ? 1 : 0), // 如果正在加载，增加一个加载项
-          itemBuilder: (context, index) {
-            if (index == controller.articles.length) {
-              return Center(child: CircularProgressIndicator());
-            }
-            final article = controller.articles[index];
-            return ArticleCard(article: article);
+        return RefreshIndicator(
+          onRefresh: () async {
+            await controller.reloadArticles(); // 下拉刷新时重新加载文章
           },
+          child: ListView.builder(
+            controller: controller.scrollController,
+            itemCount: controller.articles.length + (controller.isLoading.value ? 1 : 0), // 如果正在加载，增加一个加载项
+            itemBuilder: (context, index) {
+              if (index == controller.articles.length) {
+                return Center(child: CircularProgressIndicator());
+              }
+              final article = controller.articles[index];
+              return ArticleCard(article: article);
+            },
+          ),
         );
       }),
     );
