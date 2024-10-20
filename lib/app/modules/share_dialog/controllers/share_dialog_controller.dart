@@ -157,8 +157,7 @@ class ShareDialogController extends GetxController {
     Get.close();
     if (isUpdate) {
       Get.offAllNamed(Routes.ARTICLES);
-    }
-    if (isProduction) {
+    } else if (isProduction) {
       SystemNavigator.pop();
     }
   }
