@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
-import 'package:daily_satori/app/databases/database.dart';
 import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
@@ -21,7 +20,7 @@ class BackupService {
   String get backupDir => SettingsService.i.getSetting(SettingsService.backupDirKey);
   File get backupTimeFile => File(path.join(backupDir, 'backup_time.txt'));
 
-  Future<void> checkAndBackup() async {
+  Future<void> checkAndBackup({bool immediateBackup = false}) async {
     if (backupDir.isEmpty) {
       return; // 如果备份目录为空，不启动备份功能
     }
@@ -30,7 +29,7 @@ class BackupService {
 
     DateTime lastBackupTime = await _getLastBackupTime();
     int backupTimeDifference = DateTime.now().difference(lastBackupTime).inHours;
-    if (backupTimeDifference >= 6) {
+    if (backupTimeDifference >= 6 || immediateBackup) {
       logger.i("开始备份应用");
       await _performBackup(backupDir);
       await _updateLastBackupTime(DateTime.now());

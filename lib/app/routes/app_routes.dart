@@ -8,6 +8,7 @@ abstract class Routes {
   static const SETTINGS = _Paths.SETTINGS;
   static const ARTICLES = _Paths.ARTICLES;
   static const ARTICLE_DETAIL = _Paths.ARTICLE_DETAIL;
+  static const BACKUP_RESTORE = _Paths.BACKUP_RESTORE;
 }
 
 abstract class _Paths {
@@ -17,4 +18,5 @@ abstract class _Paths {
   static const SETTINGS = '/settings';
   static const ARTICLES = '/articles';
   static const ARTICLE_DETAIL = '/article-detail';
+  static const BACKUP_RESTORE = '/backup-restore';
 }

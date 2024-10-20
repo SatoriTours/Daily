@@ -1,3 +1,5 @@
+import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
@@ -21,14 +23,14 @@ class SettingsView extends GetView<SettingsController> {
         },
         child: Center(
           child: Padding(
-            padding: EdgeInsets.symmetric(
-                horizontal: 32.0, vertical: 16.0), // 增加输入框间距
+            padding: EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0), // 增加输入框间距
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 _buildOpenAIUrlField(),
                 SizedBox(height: 16.0), // 增加输入框之间的间距
                 _buildOpenAITokenField(),
+                SizedBox(height: 16.0),
                 _buildBackupDirSelect(),
                 Spacer(), // 添加间隔以将按钮推到页面底部
                 _buildSaveButton(context),
@@ -56,6 +58,19 @@ class SettingsView extends GetView<SettingsController> {
           icon: Icon(Icons.folder_open),
           onPressed: () async {
             controller.selectBackupDirectory();
+          },
+        ),
+        IconButton(
+          icon: Icon(Icons.backup_table_outlined),
+          onPressed: () async {
+            await BackupService.i.checkAndBackup(immediateBackup: true);
+            Get.snackbar("提示", "备份成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+          },
+        ),
+        IconButton(
+          icon: Icon(Icons.restore_rounded),
+          onPressed: () async {
+            Get.toNamed(Routes.BACKUP_RESTORE);
           },
         ),
       ],
@@ -94,9 +109,7 @@ class SettingsView extends GetView<SettingsController> {
             child: const Text("保存"),
             onPressed: () async {
               await controller.save();
-              Get.snackbar('提示', '设置已保存',
-                  snackPosition: SnackPosition.top,
-                  backgroundColor: Colors.green);
+              Get.snackbar('提示', '设置已保存', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
             },
           ),
         ),
