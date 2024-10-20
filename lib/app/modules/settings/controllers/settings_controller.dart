@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
+
 import 'package:daily_satori/app/services/settings_service.dart';
 
 class SettingsController extends GetxController {
@@ -20,8 +21,10 @@ class SettingsController extends GetxController {
   }
 
   void initData() {
-    openaiAddress.text = SettingsService.i.getSetting(SettingsService.openAIAddressKey);
-    openaiToken.text = SettingsService.i.getSetting(SettingsService.openAITokenKey);
+    openaiAddress.text =
+        SettingsService.i.getSetting(SettingsService.openAIAddressKey);
+    openaiToken.text =
+        SettingsService.i.getSetting(SettingsService.openAITokenKey);
     backupDir.text = SettingsService.i.getSetting(SettingsService.backupDirKey);
   }
 
@@ -32,7 +35,8 @@ class SettingsController extends GetxController {
   }
 
   Future<bool> _requestDirectoryPermissions() async {
-    final manageExternalStoragePermission = await Permission.manageExternalStorage.request();
+    final manageExternalStoragePermission =
+        await Permission.manageExternalStorage.request();
 
     return manageExternalStoragePermission.isGranted;
   }

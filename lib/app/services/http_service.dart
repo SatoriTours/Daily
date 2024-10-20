@@ -1,3 +1,4 @@
+import 'package:daily_satori/global.dart';
 import 'package:dio/dio.dart';
 
 import 'package:daily_satori/app/services/file_service.dart';
@@ -8,6 +9,7 @@ class HttpService {
   static HttpService get i => _instance;
 
   Future<void> init() async {
+    logger.i("[初始化服务] HttpService");
     _dio = Dio();
   }
 

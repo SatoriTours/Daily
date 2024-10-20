@@ -17,8 +17,6 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   @override
   Widget build(BuildContext context) {
-    controller.article = Get.arguments;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(getTopLevelDomain(Uri.parse(controller.article.url).host)),

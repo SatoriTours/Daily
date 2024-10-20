@@ -1,8 +1,8 @@
 import 'dart:io';
 
-import 'package:daily_satori/app/databases/database.dart';
 import 'package:path/path.dart' as path;
 
+import 'package:daily_satori/app/databases/database.dart';
 import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
@@ -14,6 +14,7 @@ class BackupService {
   static BackupService get i => _instance;
 
   Future<void> init() async {
+    logger.i("[初始化服务] BackupService");
     checkAndBackup();
   }
 

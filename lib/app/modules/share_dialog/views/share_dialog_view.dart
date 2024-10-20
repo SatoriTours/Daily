@@ -174,7 +174,8 @@ class ShareDialogView extends GetView<ShareDialogController> {
             child: const Text("保存"),
             onPressed: () async {
               if (!isProduction) {
-                controller.webViewController?.evaluateJavascript(source: "testNode()");
+                controller.webViewController
+                    ?.evaluateJavascript(source: "testNode()");
               }
               controller.showProcessDialog();
               controller.parseWebContent();

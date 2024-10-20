@@ -9,7 +9,9 @@ class AiService extends GetxService {
   static final AiService _instance = AiService._privateConstructor();
   static AiService get i => _instance;
 
-  Future<void> init() async {}
+  Future<void> init() async {
+    logger.i("[初始化服务] AiService");
+  }
 
   Future<String> translate(String text) async {
     if (isChinese(text)) {

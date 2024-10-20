@@ -34,16 +34,21 @@ class DreamWebViewController {
     await webViewController.scrollTo(x: x, y: y);
   }
 
-  void addJavaScriptHandler({required String handlerName, required void Function(List<dynamic> args) callback}) {
-    webViewController.addJavaScriptHandler(handlerName: handlerName, callback: callback);
+  void addJavaScriptHandler(
+      {required String handlerName,
+      required void Function(List<dynamic> args) callback}) {
+    webViewController.addJavaScriptHandler(
+        handlerName: handlerName, callback: callback);
   }
 
   Future<dynamic> evaluateJavascript({required String source}) async {
     return await webViewController.evaluateJavascript(source: source);
   }
 
-  Future<void> injectJavascriptFileFromAsset({required String assetFilePath}) async {
-    await webViewController.injectJavascriptFileFromAsset(assetFilePath: assetFilePath);
+  Future<void> injectJavascriptFileFromAsset(
+      {required String assetFilePath}) async {
+    await webViewController.injectJavascriptFileFromAsset(
+        assetFilePath: assetFilePath);
   }
 
   Future<String> captureFulScreenshot() async {
@@ -51,6 +56,7 @@ class DreamWebViewController {
   }
 
   Future<void> translatePage() async {
-    await evaluateJavascript(source: "translate.changeLanguage('chinese_simplified');");
+    await evaluateJavascript(
+        source: "translate.changeLanguage('chinese_simplified');");
   }
 }

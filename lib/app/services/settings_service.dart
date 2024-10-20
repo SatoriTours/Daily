@@ -1,3 +1,4 @@
+import 'package:daily_satori/global.dart';
 import 'package:get/get.dart';
 
 import 'package:daily_satori/app/databases/database.dart';
@@ -13,6 +14,7 @@ class SettingsService extends GetxService {
   static String backupDirKey = 'backup_dir';
 
   Future<void> init() async {
+    logger.i("[初始化服务] SettingsService");
     await reloadSettings();
   }
 

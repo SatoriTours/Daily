@@ -9,7 +9,9 @@ class ArticleService {
   static final ArticleService _instance = ArticleService._privateConstructor();
   static ArticleService get i => _instance;
 
-  Future<void> init() async {}
+  Future<void> init() async {
+    logger.i("[初始化服务] ArticleService");
+  }
 
   AppDatabase get db => DBService.i.db;
 

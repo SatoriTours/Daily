@@ -1,3 +1,4 @@
+import 'package:daily_satori/global.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
@@ -11,6 +12,7 @@ class DBService {
   static String get dbFileName => '${AppDatabase.dbFile}.sqlite';
 
   Future<void> init() async {
+    logger.i("[初始化服务] DBService");
     await _initDatabase();
   }
 

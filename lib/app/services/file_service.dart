@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:daily_satori/global.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -11,6 +12,7 @@ class FileService {
   static FileService get i => _instance;
 
   Future<void> init() async {
+    logger.i("[初始化服务] FileService");
     _imagesBasePath = await _mkdir('images');
     _screenshotsBasePath = await _mkdir('screenshots');
   }
@@ -34,8 +36,7 @@ class FileService {
   String generateFileNameByUrl(String url) {
     // 获取文件后缀名
     String extension = '';
-    final RegExp pattern =
-        RegExp(r'\b\w+\.(jpg|jpeg|png|gif|svg|webp)\b', caseSensitive: false);
+    final RegExp pattern = RegExp(r'\b\w+\.(jpg|jpeg|png|gif|svg|webp)\b', caseSensitive: false);
     final match = pattern.firstMatch(url.toLowerCase());
     if (match != null) {
       extension = '.${match.group(0)!.split('.').last}'; // 返回格式名

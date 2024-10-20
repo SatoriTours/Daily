@@ -14,21 +14,20 @@ class ADBlockService {
   static ADBlockService get i => _instance;
 
   Future<void> init() async {
+    logger.i("[初始化服务] ADBlockService");
     await _parseRulesContent();
     logger.i('处理adblock规则完成');
     _downloadRules();
   }
 
   // final String _easylistUrl = 'https://easylist.to/easylist/easylist.txt';
-  final String _easylistUrl =
-      'https://easylist-downloads.adblockplus.org/v3/full/easylistchina+easylist.txt';
+  final String _easylistUrl = 'https://easylist-downloads.adblockplus.org/v3/full/easylistchina+easylist.txt';
   final String _localEasylistFile = 'assets/easylistchina+easylist.txt';
   final List<String> _elementHidingRules = [];
   final Map<String, List<String>> _elementHidingRulesBySite = {};
 
   List<String> get elementHidingRules => _elementHidingRules;
-  Map<String, List<String>> get elementHidingRulesBySite =>
-      _elementHidingRulesBySite;
+  Map<String, List<String>> get elementHidingRulesBySite => _elementHidingRulesBySite;
 
   Future<void> _downloadRules() async {
     final easylistPath = await _getEasylistPath();

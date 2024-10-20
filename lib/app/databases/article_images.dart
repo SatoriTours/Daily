@@ -1,5 +1,6 @@
-import 'package:daily_satori/app/databases/articles.dart';
 import 'package:drift/drift.dart';
+
+import 'package:daily_satori/app/databases/articles.dart';
 
 class ArticleImages extends Table {
   IntColumn get id => integer().autoIncrement()();

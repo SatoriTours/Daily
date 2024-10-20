@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/article_service.dart';
+import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/global.dart';
 
 class ArticlesView extends GetView<ArticlesController> {
@@ -19,7 +20,10 @@ class ArticlesView extends GetView<ArticlesController> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('收藏的文章'),
+        title: Text(
+          '收藏的文章',
+          style: MyFontStyle.appBarTitleStyle,
+        ),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.settings),
@@ -47,8 +51,7 @@ class ArticlesView extends GetView<ArticlesController> {
         }
         return ListView.builder(
           controller: controller.scrollController,
-          itemCount: controller.articles.length +
-              (controller.isLoading.value ? 1 : 0), // 如果正在加载，增加一个加载项
+          itemCount: controller.articles.length + (controller.isLoading.value ? 1 : 0), // 如果正在加载，增加一个加载项
           itemBuilder: (context, index) {
             if (index == controller.articles.length) {
               return Center(child: CircularProgressIndicator());
@@ -90,8 +93,7 @@ class ArticleCard extends StatelessWidget {
                   child: _buildTitle(),
                 ),
                 const SizedBox(width: 15),
-                if (article.imagePath != null && article.imagePath!.isNotEmpty)
-                  _buildImage(),
+                if (article.imagePath != null && article.imagePath!.isNotEmpty) _buildImage(),
               ],
             ),
           ),
@@ -105,7 +107,7 @@ class ArticleCard extends StatelessWidget {
   Widget _buildTitle() {
     return Text(
       (article.aiTitle ?? article.title),
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      style: MyFontStyle.listTitleStyle,
     );
   }
 
@@ -113,7 +115,7 @@ class ArticleCard extends StatelessWidget {
     return Text(
       article.aiContent ?? article.content,
       maxLines: 10,
-      style: const TextStyle(fontSize: 16, letterSpacing: 1.2, height: 1.6),
+      style: MyFontStyle.bodyStyle,
     );
   }
 

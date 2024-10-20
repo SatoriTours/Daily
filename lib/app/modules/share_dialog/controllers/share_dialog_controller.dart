@@ -1,4 +1,5 @@
-import 'package:daily_satori/app/services/db_service.dart';
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
+import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -10,6 +11,7 @@ import 'package:daily_satori/app/databases/database.dart';
 import 'package:daily_satori/app/modules/article_detail/controllers/article_detail_controller.dart';
 import 'package:daily_satori/app/services/ai_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
+import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/global.dart';
 
@@ -50,6 +52,7 @@ class ShareDialogController extends GetxController {
 
     final newArticle = await _saveOrUpdateArticle(url, article);
     if (newArticle != null && imagesUrl.length >= 2) {
+      await db.articleImages.deleteWhere((tbl) => tbl.article.equals(newArticle.id));
       await Future.wait(imagesUrl.skip(1).map((imageUrl) async {
         await _downloadAndSaveImage(newArticle.id, imageUrl);
       }));
@@ -117,7 +120,7 @@ class ShareDialogController extends GetxController {
       required String publishedTime}) {
     return ArticlesCompanion(
       title: drift.Value(title),
-      aiTitle: drift.Value(aiTitle),
+      aiTitle: drift.Value(aiTitle + '[test6]'),
       content: drift.Value(textContent),
       aiContent: drift.Value(aiContent),
       htmlContent: drift.Value(htmlContent),
@@ -135,7 +138,9 @@ class ShareDialogController extends GetxController {
     if (isUpdate) {
       logger.i("[更新文章] aiTitle => ${article.aiTitle}, imagePath => ${article.imagePath}");
       newArticle = await ArticleService.i.updateArticle(article);
-      Get.find<ArticleDetailController>().refreshArticle();
+      if (newArticle != null) {
+        Get.find<ArticlesController>().updateArticleFromList(newArticle);
+      }
     } else {
       logger.i("[新增文章] aiTitle => ${article.aiTitle}, imagePath => ${article.imagePath}");
       newArticle = await ArticleService.i.saveArticle(article);
@@ -151,7 +156,7 @@ class ShareDialogController extends GetxController {
   void _closeDialog() {
     Get.close();
     if (isUpdate) {
-      Get.back();
+      Get.offAllNamed(Routes.ARTICLES);
     }
     if (isProduction) {
       SystemNavigator.pop();

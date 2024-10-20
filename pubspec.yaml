@@ -59,6 +59,9 @@ dependencies:
   drift: ^2.21.0
   drift_flutter: ^0.2.1
 
+  # 引入 google 字体
+  google_fonts: ^6.2.1
+
   # 分享
   # receive_sharing_intent: ^1.8.0
 
@@ -87,7 +90,7 @@ flutter:
     - assets/js/common.js
     - assets/css/common.css
     - assets/easylistchina+easylist.txt
-
+    - assets/fonts/google/
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

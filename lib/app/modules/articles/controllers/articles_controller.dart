@@ -25,6 +25,20 @@ class ArticlesController extends GetxController {
     super.onClose();
   }
 
+  void removeArticleByIdFromList(int id) {
+    articles.removeWhere((article) => article.id == id);
+  }
+
+  void updateArticleFromList(Article updatedArticle) {
+    int index = articles.indexWhere((article) => article.id == updatedArticle.id);
+    if (index != -1) {
+      articles[index] = updatedArticle; // 更新文章
+      logger.i("文章已更新: ${updatedArticle.title}");
+    } else {
+      logger.i("未找到要更新的文章: ${updatedArticle.id}");
+    }
+  }
+
   Future<void> reloadArticles() async {
     logger.i("重新加载文章");
     final newArticles = await ArticleService.i.getArticles();
@@ -32,11 +46,9 @@ class ArticlesController extends GetxController {
   }
 
   void _onScroll() {
-    if (scrollController.position.pixels ==
-        scrollController.position.maxScrollExtent) {
+    if (scrollController.position.pixels == scrollController.position.maxScrollExtent) {
       _loadMoreArticles();
-    } else if (scrollController.position.pixels ==
-        scrollController.position.minScrollExtent) {
+    } else if (scrollController.position.pixels == scrollController.position.minScrollExtent) {
       _loadPreviousArticles();
     }
   }
@@ -45,8 +57,7 @@ class ArticlesController extends GetxController {
     int articleID = articles.first.id;
     isLoading.value = true;
     logger.i("获取 $articleID 之前的 $pageSize 个文章");
-    final newArticles = await ArticleService.i
-        .getArticlesGreaterThanId(articleID, limit: pageSize);
+    final newArticles = await ArticleService.i.getArticlesGreaterThanId(articleID, limit: pageSize);
     articles.insertAll(0, newArticles);
     isLoading.value = false;
   }
@@ -55,8 +66,7 @@ class ArticlesController extends GetxController {
     int articleID = articles.last.id;
     isLoading.value = true;
     logger.i("获取 $articleID 之后的 $pageSize 个文章");
-    final newArticles = await ArticleService.i
-        .getArticlesLessThanId(articleID, limit: pageSize);
+    final newArticles = await ArticleService.i.getArticlesLessThanId(articleID, limit: pageSize);
     articles.addAll(newArticles);
     isLoading.value = false;
   }
