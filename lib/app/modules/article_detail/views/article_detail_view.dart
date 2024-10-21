@@ -129,13 +129,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                   fit: BoxFit.cover,
                   alignment: Alignment.topCenter,
                   errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error, color: Colors.red),
-                        Text('File does not exist'),
-                      ],
-                    ); // 显示错误图标和消息
+                    return Container(); // 不显示任何内容
                   },
                 ),
               ),
