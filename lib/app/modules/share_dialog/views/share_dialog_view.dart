@@ -23,17 +23,12 @@ class ShareDialogView extends GetView<ShareDialogController> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('分享对话框'),
-        centerTitle: true,
-      ),
+      appBar: _buildAppBar(),
       body: Container(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 10),
-            _displaySharedLink(),
             Expanded(child: _displayWebContent()),
             const SizedBox(height: 10),
             _buildCommentTextfield(),
@@ -45,27 +40,17 @@ class ShareDialogView extends GetView<ShareDialogController> {
     );
   }
 
-  Widget _title() {
-    return const Center(
-      child: Text(
-        '保存文章',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-        ),
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.home),
+        onPressed: () {
+          controller.webViewController?.loadUrl(controller.shareURL ?? '');
+        },
       ),
-    );
-  }
-
-  Widget _displaySharedLink() {
-    return Row(
-      children: [
-        IconButton(
-          icon: const Icon(Icons.home),
-          onPressed: () {
-            controller.webViewController?.loadUrl(controller.shareURL ?? '');
-          },
-        ),
+      title: _displaySharedLink(),
+      centerTitle: true,
+      actions: [
         IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -90,16 +75,19 @@ class ShareDialogView extends GetView<ShareDialogController> {
             controller.webViewController?.translatePage();
           },
         ),
-        Expanded(
-          child: Obx(() => controller.webLoadProgress.value > 0
-              ? LinearProgressIndicator(
-                  value: controller.webLoadProgress.value,
-                  backgroundColor: Colors.grey[200],
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-                )
-              : const SizedBox.shrink()),
-        ),
       ],
+    );
+  }
+
+  Widget _displaySharedLink() {
+    return Container(
+      child: Obx(() => controller.webLoadProgress.value > 0
+          ? LinearProgressIndicator(
+              value: controller.webLoadProgress.value,
+              backgroundColor: Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+            )
+          : const SizedBox.shrink()),
     );
   }
 
@@ -118,20 +106,21 @@ class ShareDialogView extends GetView<ShareDialogController> {
           // parse_content.js 里面的回调, 用于获取网页内容
 
           webController.addJavaScriptHandler(
-              handlerName: "getPageContent",
-              callback: (args) {
-                List<String> images = List.from(args[6]);
+            handlerName: "getPageContent",
+            callback: (args) {
+              List<String> images = List.from(args[6]);
 
-                controller.saveArticleInfo(
-                  args[0].toString().trim(), // url
-                  args[1].toString().trim(), // title
-                  args[2].toString().trim(), // excerpt
-                  args[3].toString().trim(), // htmlContent
-                  args[4].toString().trim(), // textContent
-                  args[5].toString().trim(), // publishedTime
-                  images, // imagesUrl
-                );
-              });
+              controller.saveArticleInfo(
+                args[0].toString().trim(), // url
+                args[1].toString().trim(), // title
+                args[2].toString().trim(), // excerpt
+                args[3].toString().trim(), // htmlContent
+                args[4].toString().trim(), // textContent
+                args[5].toString().trim(), // publishedTime
+                images, // imagesUrl
+              );
+            },
+          );
         },
       ),
     );
@@ -174,8 +163,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
             child: const Text("保存"),
             onPressed: () async {
               if (!isProduction) {
-                controller.webViewController
-                    ?.evaluateJavascript(source: "testNode()");
+                controller.webViewController?.evaluateJavascript(source: "testNode()");
               }
               controller.showProcessDialog();
               controller.parseWebContent();
