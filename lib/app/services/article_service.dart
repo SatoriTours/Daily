@@ -76,17 +76,17 @@ class ArticleService {
     return false;
   }
 
-  Future<int> getMaxArticleID() async {
-    return await (db.select(db.articles)..addColumns([db.articles.id.max()])).get().then((rows) {
-      return rows.isNotEmpty ? rows.first.id : -1;
-    });
-  }
+  // Future<int> getMaxArticleID() async {
+  //   return await (db.select(db.articles)..addColumns([db.articles.id.max()])).get().then((rows) {
+  //     return rows.isNotEmpty ? rows.first.id : -1;
+  //   });
+  // }
 
-  Future<int> getMinArticleID() async {
-    return await (db.select(db.articles)..addColumns([db.articles.id.min()])).get().then((rows) {
-      return rows.isNotEmpty ? rows.first.id : -1;
-    });
-  }
+  // Future<int> getMinArticleID() async {
+  //   return await (db.select(db.articles)..addColumns([db.articles.id.min()])).get().then((rows) {
+  //     return rows.isNotEmpty ? rows.first.id : -1;
+  //   });
+  // }
 
   Future<List<Article>> getArticlesGreaterThanId(int articleID, {int limit = 20}) async {
     final articleDataList = await (db.select(db.articles)
@@ -108,11 +108,10 @@ class ArticleService {
     return articleDataList;
   }
 
-  Future<List<Article>> getArticles({int limit = 20}) async {
-    final articleDataList = await (db.select(db.articles)
-          ..orderBy([(row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)])
-          ..limit(limit))
-        .get();
+  SimpleSelectStatement<$ArticlesTable, Article> getArticles({int limit = 20}) {
+    final articleDataList = (db.select(db.articles)
+      ..orderBy([(row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)])
+      ..limit(limit));
 
     return articleDataList;
   }

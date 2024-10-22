@@ -33,9 +33,9 @@ class ArticlesView extends GetView<ArticlesController> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.search),
             onPressed: () {
-              controller.reloadArticles(); // 刷新文章列表
+              controller.enableSearch.value = !controller.enableSearch.value;
             },
           ),
         ],
@@ -49,23 +49,52 @@ class ArticlesView extends GetView<ArticlesController> {
             ),
           );
         }
-        return RefreshIndicator(
-          onRefresh: () async {
-            await controller.reloadArticles(); // 下拉刷新时重新加载文章
-          },
-          child: ListView.builder(
-            controller: controller.scrollController,
-            itemCount: controller.articles.length + (controller.isLoading.value ? 1 : 0), // 如果正在加载，增加一个加载项
-            itemBuilder: (context, index) {
-              if (index == controller.articles.length) {
-                return Center(child: CircularProgressIndicator());
-              }
-              final article = controller.articles[index];
-              return ArticleCard(article: article);
-            },
-          ),
+        return Column(
+          children: [
+            if (controller.enableSearch.value) _buildSearchTextField(),
+            Expanded(child: _buildArticlesList()),
+          ],
         );
       }),
+    );
+  }
+
+  Widget _buildSearchTextField() {
+    return AnimatedSlide(
+      offset: controller.enableSearch.value ? Offset(0, 0) : Offset(0, -1),
+      duration: const Duration(milliseconds: 300),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+        child: TextField(
+          controller: controller.searchController,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(),
+            hintText: '搜索文章',
+          ),
+          onSubmitted: (value) {
+            controller.searchArticles();
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArticlesList() {
+    return RefreshIndicator(
+      onRefresh: () async {
+        await controller.reloadArticles(); // 下拉刷新时重新加载文章
+      },
+      child: ListView.builder(
+        controller: controller.scrollController,
+        itemCount: controller.articles.length + (controller.isLoading.value ? 1 : 0), // 如果正在加载，增加一个加载项
+        itemBuilder: (context, index) {
+          if (index == controller.articles.length) {
+            return Center(child: CircularProgressIndicator());
+          }
+          final article = controller.articles[index];
+          return ArticleCard(article: article);
+        },
+      ),
     );
   }
 }

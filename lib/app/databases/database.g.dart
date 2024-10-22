@@ -731,9 +731,7 @@ class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
   @override
   late final GeneratedColumn<String> key = GeneratedColumn<String>(
       'key', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: true,
-      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _valueMeta = const VerificationMeta('value');
   @override
   late final GeneratedColumn<String> value = GeneratedColumn<String>(

@@ -1,5 +1,5 @@
+import 'package:daily_satori/app/databases/articles.dart';
 import 'package:flutter/material.dart';
-
 import 'package:get/get.dart';
 
 import 'package:daily_satori/app/databases/database.dart';
@@ -8,11 +8,15 @@ import 'package:daily_satori/global.dart';
 
 class ArticlesController extends GetxController with WidgetsBindingObserver {
   static int get pageSize => isProduction ? 20 : 5;
+  ScrollController scrollController = ScrollController();
+  DateTime lastRefreshTime = DateTime.now(); // 用来记录最后一次更新的时间, 当应用从后台回到前台的时候, 判断是否需要刷新
+  TextEditingController searchController = TextEditingController();
 
   final List<Article> articles = <Article>[].obs;
-  ScrollController scrollController = ScrollController();
-  var isLoading = false.obs; // 加载状态
-  DateTime lastRefreshTime = DateTime.now();
+  var isLoading = false.obs;
+  var enableSearch = false.obs;
+
+  String _searchText = '';
 
   @override
   void onInit() {
@@ -55,8 +59,18 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
   Future<void> reloadArticles() async {
     logger.i("重新加载文章");
     lastRefreshTime = DateTime.now();
-    final newArticles = await ArticleService.i.getArticles();
-    articles.assignAll(newArticles);
+    var select = ArticleService.i.getArticles();
+    if (enableSearch.value) {
+      // select.where((u) => u.title.like("%${searchController.text}%"));
+    }
+    articles.assignAll(await select.get());
+  }
+
+  Future<void> searchArticles() async {
+    if (searchController.text.isNotEmpty) {
+      _searchText = searchController.text;
+      reloadArticles();
+    }
   }
 
   void _onScroll() {
