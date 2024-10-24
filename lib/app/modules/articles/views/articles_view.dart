@@ -160,6 +160,10 @@ class ArticleCard extends StatelessWidget {
       height: 100, // 设置高度为80
       fit: BoxFit.scaleDown, // 适应容器
       alignment: Alignment.center,
+      errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+        // 图片加载错误, 就什么都不显示
+        return SizedBox.shrink();
+      },
     );
   }
 
