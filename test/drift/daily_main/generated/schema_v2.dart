@@ -612,9 +612,7 @@ class Settings extends Table with TableInfo<Settings, SettingsData> {
   Settings(this.attachedDatabase, [this._alias]);
   late final GeneratedColumn<String> key = GeneratedColumn<String>(
       'key', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: true,
-      defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'));
+      type: DriftSqlType.string, requiredDuringInsert: true);
   late final GeneratedColumn<String> value = GeneratedColumn<String>(
       'value', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);

@@ -88,30 +88,34 @@ class ArticleService {
   //   });
   // }
 
-  Future<List<Article>> getArticlesGreaterThanId(int articleID, {int limit = 20}) async {
-    final articleDataList = await (db.select(db.articles)
-          ..where((row) => row.id.isBiggerThanValue(articleID))
-          ..orderBy([(row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)])
-          ..limit(limit))
-        .get();
+  SimpleSelectStatement<$ArticlesTable, Article> getArticlesGreaterThanId(int articleID, {int limit = 20}) {
+    final articleDataList = db.select(db.articles);
+
+    articleDataList
+      ..where((t) => t.id.isBiggerThanValue(articleID))
+      ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)])
+      ..limit(limit);
 
     return articleDataList;
   }
 
-  Future<List<Article>> getArticlesLessThanId(int articleID, {int limit = 20}) async {
-    final articleDataList = await (db.select(db.articles)
-          ..where((row) => row.id.isSmallerThanValue(articleID))
-          ..orderBy([(row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)])
-          ..limit(limit))
-        .get();
+  SimpleSelectStatement<$ArticlesTable, Article> getArticlesLessThanId(int articleID, {int limit = 20}) {
+    final articleDataList = db.select(db.articles);
+
+    articleDataList
+      ..where((t) => t.id.isSmallerThanValue(articleID))
+      ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)])
+      ..limit(limit);
 
     return articleDataList;
   }
 
   SimpleSelectStatement<$ArticlesTable, Article> getArticles({int limit = 20}) {
-    final articleDataList = (db.select(db.articles)
-      ..orderBy([(row) => OrderingTerm(expression: row.id, mode: OrderingMode.desc)])
-      ..limit(limit));
+    final articleDataList = db.select(db.articles);
+
+    articleDataList
+      ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)])
+      ..limit(limit);
 
     return articleDataList;
   }

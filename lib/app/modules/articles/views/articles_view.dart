@@ -35,7 +35,7 @@ class ArticlesView extends GetView<ArticlesController> {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
-              controller.enableSearch.value = !controller.enableSearch.value;
+              controller.toggleSearchState();
             },
           ),
         ],
@@ -173,7 +173,7 @@ class ArticleCard extends StatelessWidget {
         ),
         const SizedBox(width: 15),
         Text(
-          (GetTimeAgo.parse(article.pubDate ?? article.createdAt)),
+          (GetTimeAgo.parse(article.createdAt)),
           style: const TextStyle(color: Colors.grey),
         ),
         Spacer(), // 使用 Spacer 使按钮靠右对齐

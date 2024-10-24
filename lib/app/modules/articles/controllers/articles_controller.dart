@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/databases/articles.dart';
+import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -59,17 +59,35 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
   Future<void> reloadArticles() async {
     logger.i("重新加载文章");
     lastRefreshTime = DateTime.now();
-    var select = ArticleService.i.getArticles();
-    if (enableSearch.value) {
-      // select.where((u) => u.title.like("%${searchController.text}%"));
-    }
-    articles.assignAll(await select.get());
+    final newArticles = ArticleService.i.getArticles();
+    addSearchExpression(newArticles);
+    articles.assignAll(await newArticles.get());
   }
 
   Future<void> searchArticles() async {
-    if (searchController.text.isNotEmpty) {
-      _searchText = searchController.text;
+    _searchText = searchController.text.trim();
+    reloadArticles();
+  }
+
+  void toggleSearchState() {
+    enableSearch.value = !enableSearch.value;
+    if (!enableSearch.value) {
+      _searchText = '';
+      searchController.text = ''; // 清掉输入框里面的内容
       reloadArticles();
+    }
+  }
+
+  void addSearchExpression(SimpleSelectStatement<$ArticlesTable, Article> select) {
+    if (enableSearch.value && _searchText.isNotEmpty) {
+      final searchExpression = "%$_searchText%";
+      // 使用 where 条件的时候,头文件需要包含 import 'package:drift/drift.dart'; 不然会报错找不到 like 方法
+      select.where((t) {
+        return t.title.like(searchExpression) |
+            t.aiTitle.like(searchExpression) |
+            t.content.like(searchExpression) |
+            t.aiContent.like(searchExpression);
+      });
     }
   }
 
@@ -85,8 +103,9 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
     int articleID = articles.first.id;
     isLoading.value = true;
     logger.i("获取 $articleID 之前的 $pageSize 个文章");
-    final newArticles = await ArticleService.i.getArticlesGreaterThanId(articleID, limit: pageSize);
-    articles.insertAll(0, newArticles);
+    final newArticles = ArticleService.i.getArticlesGreaterThanId(articleID, limit: pageSize);
+    addSearchExpression(newArticles);
+    articles.insertAll(0, await newArticles.get());
     isLoading.value = false;
   }
 
@@ -94,8 +113,9 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
     int articleID = articles.last.id;
     isLoading.value = true;
     logger.i("获取 $articleID 之后的 $pageSize 个文章");
-    final newArticles = await ArticleService.i.getArticlesLessThanId(articleID, limit: pageSize);
-    articles.addAll(newArticles);
+    final newArticles = ArticleService.i.getArticlesLessThanId(articleID, limit: pageSize);
+    addSearchExpression(newArticles);
+    articles.addAll(await newArticles.get());
     isLoading.value = false;
   }
 }
