@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:daily_satori/app/databases/database.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:get/get.dart';
 
@@ -9,6 +10,7 @@ import 'package:daily_satori/app/compontents/dream_webview/dream_webview.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/global.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../controllers/article_detail_controller.dart';
 
@@ -21,23 +23,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       appBar: AppBar(
         title: Text(getTopLevelDomain(Uri.parse(controller.article.url).host)),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh), // 刷新图标
-            onPressed: () {
-              Get.toNamed(Routes.SHARE_DIALOG, arguments: {
-                'shareURL': controller.article.url,
-                'update': true,
-              });
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.delete), // 删除图标
-            onPressed: () {
-              _showDeleteConfirmationDialog();
-            },
-          ),
-        ],
+        actions: [_buildAppBarActions()],
       ),
       body: DefaultTabController(
         length: 3,
@@ -86,6 +72,49 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           Navigator.pop(Get.context!);
         },
         child: Text("取消"),
+      ),
+    );
+  }
+
+  Widget _buildAppBarActions() {
+    return PopupMenuButton<int>(
+      icon: Icon(Icons.more_horiz), // 弹出菜单图标
+      offset: Offset(0, 50), // 设置弹出菜单的位置，向下偏移50个像素
+      padding: EdgeInsets.all(0),
+      itemBuilder: (context) => [
+        _buildPopupMenuIteam(1, "刷新", Icons.refresh),
+        _buildPopupMenuIteam(2, "删除", Icons.delete),
+        _buildPopupMenuIteam(3, "复制链接", Icons.copy),
+        _buildPopupMenuIteam(4, "分享截图", Icons.share),
+      ],
+      onSelected: (value) {
+        if (value == 1) {
+          Get.toNamed(Routes.SHARE_DIALOG, arguments: {
+            'shareURL': controller.article.url,
+            'update': true,
+          });
+        } else if (value == 2) {
+          _showDeleteConfirmationDialog();
+        } else if (value == 3) {
+          Clipboard.setData(ClipboardData(text: controller.article.url));
+          successNotice("链接已复制到剪贴板");
+        } else if (value == 4) {
+          controller.shareScreenshots();
+        }
+      },
+    );
+  }
+
+  PopupMenuItem<int> _buildPopupMenuIteam(int index, String title, IconData icon) {
+    return PopupMenuItem<int>(
+      value: index,
+      padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
+      child: Row(
+        children: [
+          Icon(icon), // 添加删除图标
+          SizedBox(width: 8), // 添加间距
+          Text(title),
+        ],
       ),
     );
   }
