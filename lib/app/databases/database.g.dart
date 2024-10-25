@@ -1332,18 +1332,324 @@ class ArticleImagesCompanion extends UpdateCompanion<ArticleImage> {
   }
 }
 
+class $ArticleScreenshootsTable extends ArticleScreenshoots
+    with TableInfo<$ArticleScreenshootsTable, ArticleScreenshoot> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ArticleScreenshootsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _articleMeta =
+      const VerificationMeta('article');
+  @override
+  late final GeneratedColumn<int> article = GeneratedColumn<int>(
+      'article', aliasedName, true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES articles (id)'));
+  static const VerificationMeta _imagePathMeta =
+      const VerificationMeta('imagePath');
+  @override
+  late final GeneratedColumn<String> imagePath = GeneratedColumn<String>(
+      'image_path', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, article, imagePath, updatedAt, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'article_screenshoots';
+  @override
+  VerificationContext validateIntegrity(Insertable<ArticleScreenshoot> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('article')) {
+      context.handle(_articleMeta,
+          article.isAcceptableOrUnknown(data['article']!, _articleMeta));
+    }
+    if (data.containsKey('image_path')) {
+      context.handle(_imagePathMeta,
+          imagePath.isAcceptableOrUnknown(data['image_path']!, _imagePathMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ArticleScreenshoot map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ArticleScreenshoot(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      article: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}article']),
+      imagePath: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}image_path']),
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $ArticleScreenshootsTable createAlias(String alias) {
+    return $ArticleScreenshootsTable(attachedDatabase, alias);
+  }
+}
+
+class ArticleScreenshoot extends DataClass
+    implements Insertable<ArticleScreenshoot> {
+  final int id;
+  final int? article;
+  final String? imagePath;
+  final DateTime updatedAt;
+  final DateTime createdAt;
+  const ArticleScreenshoot(
+      {required this.id,
+      this.article,
+      this.imagePath,
+      required this.updatedAt,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || article != null) {
+      map['article'] = Variable<int>(article);
+    }
+    if (!nullToAbsent || imagePath != null) {
+      map['image_path'] = Variable<String>(imagePath);
+    }
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  ArticleScreenshootsCompanion toCompanion(bool nullToAbsent) {
+    return ArticleScreenshootsCompanion(
+      id: Value(id),
+      article: article == null && nullToAbsent
+          ? const Value.absent()
+          : Value(article),
+      imagePath: imagePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(imagePath),
+      updatedAt: Value(updatedAt),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ArticleScreenshoot.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ArticleScreenshoot(
+      id: serializer.fromJson<int>(json['id']),
+      article: serializer.fromJson<int?>(json['article']),
+      imagePath: serializer.fromJson<String?>(json['imagePath']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'article': serializer.toJson<int?>(article),
+      'imagePath': serializer.toJson<String?>(imagePath),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  ArticleScreenshoot copyWith(
+          {int? id,
+          Value<int?> article = const Value.absent(),
+          Value<String?> imagePath = const Value.absent(),
+          DateTime? updatedAt,
+          DateTime? createdAt}) =>
+      ArticleScreenshoot(
+        id: id ?? this.id,
+        article: article.present ? article.value : this.article,
+        imagePath: imagePath.present ? imagePath.value : this.imagePath,
+        updatedAt: updatedAt ?? this.updatedAt,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  ArticleScreenshoot copyWithCompanion(ArticleScreenshootsCompanion data) {
+    return ArticleScreenshoot(
+      id: data.id.present ? data.id.value : this.id,
+      article: data.article.present ? data.article.value : this.article,
+      imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ArticleScreenshoot(')
+          ..write('id: $id, ')
+          ..write('article: $article, ')
+          ..write('imagePath: $imagePath, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, article, imagePath, updatedAt, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ArticleScreenshoot &&
+          other.id == this.id &&
+          other.article == this.article &&
+          other.imagePath == this.imagePath &&
+          other.updatedAt == this.updatedAt &&
+          other.createdAt == this.createdAt);
+}
+
+class ArticleScreenshootsCompanion extends UpdateCompanion<ArticleScreenshoot> {
+  final Value<int> id;
+  final Value<int?> article;
+  final Value<String?> imagePath;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime> createdAt;
+  const ArticleScreenshootsCompanion({
+    this.id = const Value.absent(),
+    this.article = const Value.absent(),
+    this.imagePath = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  ArticleScreenshootsCompanion.insert({
+    this.id = const Value.absent(),
+    this.article = const Value.absent(),
+    this.imagePath = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  static Insertable<ArticleScreenshoot> custom({
+    Expression<int>? id,
+    Expression<int>? article,
+    Expression<String>? imagePath,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (article != null) 'article': article,
+      if (imagePath != null) 'image_path': imagePath,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  ArticleScreenshootsCompanion copyWith(
+      {Value<int>? id,
+      Value<int?>? article,
+      Value<String?>? imagePath,
+      Value<DateTime>? updatedAt,
+      Value<DateTime>? createdAt}) {
+    return ArticleScreenshootsCompanion(
+      id: id ?? this.id,
+      article: article ?? this.article,
+      imagePath: imagePath ?? this.imagePath,
+      updatedAt: updatedAt ?? this.updatedAt,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (article.present) {
+      map['article'] = Variable<int>(article.value);
+    }
+    if (imagePath.present) {
+      map['image_path'] = Variable<String>(imagePath.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ArticleScreenshootsCompanion(')
+          ..write('id: $id, ')
+          ..write('article: $article, ')
+          ..write('imagePath: $imagePath, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $ArticlesTable articles = $ArticlesTable(this);
   late final $SettingsTable settings = $SettingsTable(this);
   late final $ArticleImagesTable articleImages = $ArticleImagesTable(this);
+  late final $ArticleScreenshootsTable articleScreenshoots =
+      $ArticleScreenshootsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [articles, settings, articleImages];
+      [articles, settings, articleImages, articleScreenshoots];
 }
 
 typedef $$ArticlesTableCreateCompanionBuilder = ArticlesCompanion Function({
@@ -1396,6 +1702,24 @@ final class $$ArticlesTableReferences
         .filter((f) => f.article.id($_item.id));
 
     final cache = $_typedResult.readTableOrNull(_articleImagesRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$ArticleScreenshootsTable,
+      List<ArticleScreenshoot>> _articleScreenshootsRefsTable(
+          _$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(db.articleScreenshoots,
+          aliasName: $_aliasNameGenerator(
+              db.articles.id, db.articleScreenshoots.article));
+
+  $$ArticleScreenshootsTableProcessedTableManager get articleScreenshootsRefs {
+    final manager =
+        $$ArticleScreenshootsTableTableManager($_db, $_db.articleScreenshoots)
+            .filter((f) => f.article.id($_item.id));
+
+    final cache =
+        $_typedResult.readTableOrNull(_articleScreenshootsRefsTable($_db));
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
@@ -1469,6 +1793,27 @@ class $$ArticlesTableFilterComposer
             $$ArticleImagesTableFilterComposer(
               $db: $db,
               $table: $db.articleImages,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> articleScreenshootsRefs(
+      Expression<bool> Function($$ArticleScreenshootsTableFilterComposer f) f) {
+    final $$ArticleScreenshootsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.articleScreenshoots,
+        getReferencedColumn: (t) => t.article,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ArticleScreenshootsTableFilterComposer(
+              $db: $db,
+              $table: $db.articleScreenshoots,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -1608,6 +1953,29 @@ class $$ArticlesTableAnnotationComposer
             ));
     return f(composer);
   }
+
+  Expression<T> articleScreenshootsRefs<T extends Object>(
+      Expression<T> Function($$ArticleScreenshootsTableAnnotationComposer a)
+          f) {
+    final $$ArticleScreenshootsTableAnnotationComposer composer =
+        $composerBuilder(
+            composer: this,
+            getCurrentColumn: (t) => t.id,
+            referencedTable: $db.articleScreenshoots,
+            getReferencedColumn: (t) => t.article,
+            builder: (joinBuilder,
+                    {$addJoinBuilderToRootComposer,
+                    $removeJoinBuilderFromRootComposer}) =>
+                $$ArticleScreenshootsTableAnnotationComposer(
+                  $db: $db,
+                  $table: $db.articleScreenshoots,
+                  $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                  joinBuilder: joinBuilder,
+                  $removeJoinBuilderFromRootComposer:
+                      $removeJoinBuilderFromRootComposer,
+                ));
+    return f(composer);
+  }
 }
 
 class $$ArticlesTableTableManager extends RootTableManager<
@@ -1621,7 +1989,8 @@ class $$ArticlesTableTableManager extends RootTableManager<
     $$ArticlesTableUpdateCompanionBuilder,
     (Article, $$ArticlesTableReferences),
     Article,
-    PrefetchHooks Function({bool articleImagesRefs})> {
+    PrefetchHooks Function(
+        {bool articleImagesRefs, bool articleScreenshootsRefs})> {
   $$ArticlesTableTableManager(_$AppDatabase db, $ArticlesTable table)
       : super(TableManagerState(
           db: db,
@@ -1704,11 +2073,13 @@ class $$ArticlesTableTableManager extends RootTableManager<
               .map((e) =>
                   (e.readTable(table), $$ArticlesTableReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({articleImagesRefs = false}) {
+          prefetchHooksCallback: (
+              {articleImagesRefs = false, articleScreenshootsRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
-                if (articleImagesRefs) db.articleImages
+                if (articleImagesRefs) db.articleImages,
+                if (articleScreenshootsRefs) db.articleScreenshoots
               ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
@@ -1721,6 +2092,18 @@ class $$ArticlesTableTableManager extends RootTableManager<
                         managerFromTypedResult: (p0) =>
                             $$ArticlesTableReferences(db, table, p0)
                                 .articleImagesRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.article == item.id),
+                        typedResults: items),
+                  if (articleScreenshootsRefs)
+                    await $_getPrefetchedData(
+                        currentTable: table,
+                        referencedTable: $$ArticlesTableReferences
+                            ._articleScreenshootsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$ArticlesTableReferences(db, table, p0)
+                                .articleScreenshootsRefs,
                         referencedItemsForCurrentItem: (item,
                                 referencedItems) =>
                             referencedItems.where((e) => e.article == item.id),
@@ -1743,7 +2126,8 @@ typedef $$ArticlesTableProcessedTableManager = ProcessedTableManager<
     $$ArticlesTableUpdateCompanionBuilder,
     (Article, $$ArticlesTableReferences),
     Article,
-    PrefetchHooks Function({bool articleImagesRefs})>;
+    PrefetchHooks Function(
+        {bool articleImagesRefs, bool articleScreenshootsRefs})>;
 typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   required String key,
   required String value,
@@ -2178,6 +2562,279 @@ typedef $$ArticleImagesTableProcessedTableManager = ProcessedTableManager<
     (ArticleImage, $$ArticleImagesTableReferences),
     ArticleImage,
     PrefetchHooks Function({bool article})>;
+typedef $$ArticleScreenshootsTableCreateCompanionBuilder
+    = ArticleScreenshootsCompanion Function({
+  Value<int> id,
+  Value<int?> article,
+  Value<String?> imagePath,
+  Value<DateTime> updatedAt,
+  Value<DateTime> createdAt,
+});
+typedef $$ArticleScreenshootsTableUpdateCompanionBuilder
+    = ArticleScreenshootsCompanion Function({
+  Value<int> id,
+  Value<int?> article,
+  Value<String?> imagePath,
+  Value<DateTime> updatedAt,
+  Value<DateTime> createdAt,
+});
+
+final class $$ArticleScreenshootsTableReferences extends BaseReferences<
+    _$AppDatabase, $ArticleScreenshootsTable, ArticleScreenshoot> {
+  $$ArticleScreenshootsTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
+
+  static $ArticlesTable _articleTable(_$AppDatabase db) =>
+      db.articles.createAlias(
+          $_aliasNameGenerator(db.articleScreenshoots.article, db.articles.id));
+
+  $$ArticlesTableProcessedTableManager? get article {
+    if ($_item.article == null) return null;
+    final manager = $$ArticlesTableTableManager($_db, $_db.articles)
+        .filter((f) => f.id($_item.article!));
+    final item = $_typedResult.readTableOrNull(_articleTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$ArticleScreenshootsTableFilterComposer
+    extends Composer<_$AppDatabase, $ArticleScreenshootsTable> {
+  $$ArticleScreenshootsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get imagePath => $composableBuilder(
+      column: $table.imagePath, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  $$ArticlesTableFilterComposer get article {
+    final $$ArticlesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.article,
+        referencedTable: $db.articles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ArticlesTableFilterComposer(
+              $db: $db,
+              $table: $db.articles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ArticleScreenshootsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ArticleScreenshootsTable> {
+  $$ArticleScreenshootsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get imagePath => $composableBuilder(
+      column: $table.imagePath, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  $$ArticlesTableOrderingComposer get article {
+    final $$ArticlesTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.article,
+        referencedTable: $db.articles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ArticlesTableOrderingComposer(
+              $db: $db,
+              $table: $db.articles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ArticleScreenshootsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ArticleScreenshootsTable> {
+  $$ArticleScreenshootsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get imagePath =>
+      $composableBuilder(column: $table.imagePath, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$ArticlesTableAnnotationComposer get article {
+    final $$ArticlesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.article,
+        referencedTable: $db.articles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ArticlesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.articles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ArticleScreenshootsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ArticleScreenshootsTable,
+    ArticleScreenshoot,
+    $$ArticleScreenshootsTableFilterComposer,
+    $$ArticleScreenshootsTableOrderingComposer,
+    $$ArticleScreenshootsTableAnnotationComposer,
+    $$ArticleScreenshootsTableCreateCompanionBuilder,
+    $$ArticleScreenshootsTableUpdateCompanionBuilder,
+    (ArticleScreenshoot, $$ArticleScreenshootsTableReferences),
+    ArticleScreenshoot,
+    PrefetchHooks Function({bool article})> {
+  $$ArticleScreenshootsTableTableManager(
+      _$AppDatabase db, $ArticleScreenshootsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ArticleScreenshootsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ArticleScreenshootsTableOrderingComposer(
+                  $db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ArticleScreenshootsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int?> article = const Value.absent(),
+            Value<String?> imagePath = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              ArticleScreenshootsCompanion(
+            id: id,
+            article: article,
+            imagePath: imagePath,
+            updatedAt: updatedAt,
+            createdAt: createdAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int?> article = const Value.absent(),
+            Value<String?> imagePath = const Value.absent(),
+            Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+          }) =>
+              ArticleScreenshootsCompanion.insert(
+            id: id,
+            article: article,
+            imagePath: imagePath,
+            updatedAt: updatedAt,
+            createdAt: createdAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$ArticleScreenshootsTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({article = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (article) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.article,
+                    referencedTable:
+                        $$ArticleScreenshootsTableReferences._articleTable(db),
+                    referencedColumn: $$ArticleScreenshootsTableReferences
+                        ._articleTable(db)
+                        .id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$ArticleScreenshootsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ArticleScreenshootsTable,
+    ArticleScreenshoot,
+    $$ArticleScreenshootsTableFilterComposer,
+    $$ArticleScreenshootsTableOrderingComposer,
+    $$ArticleScreenshootsTableAnnotationComposer,
+    $$ArticleScreenshootsTableCreateCompanionBuilder,
+    $$ArticleScreenshootsTableUpdateCompanionBuilder,
+    (ArticleScreenshoot, $$ArticleScreenshootsTableReferences),
+    ArticleScreenshoot,
+    PrefetchHooks Function({bool article})>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2188,4 +2845,6 @@ class $AppDatabaseManager {
       $$SettingsTableTableManager(_db, _db.settings);
   $$ArticleImagesTableTableManager get articleImages =>
       $$ArticleImagesTableTableManager(_db, _db.articleImages);
+  $$ArticleScreenshootsTableTableManager get articleScreenshoots =>
+      $$ArticleScreenshootsTableTableManager(_db, _db.articleScreenshoots);
 }

@@ -202,8 +202,111 @@ i1.GeneratedColumn<int> _column_17(String aliasedName) =>
         type: i1.DriftSqlType.int,
         defaultConstraints:
             i1.GeneratedColumn.constraintIsAlways('REFERENCES articles (id)'));
+
+final class Schema3 extends i0.VersionedSchema {
+  Schema3({required super.database}) : super(version: 3);
+  @override
+  late final List<i1.DatabaseSchemaEntity> entities = [
+    articles,
+    settings,
+    articleImages,
+    articleScreenshoots,
+  ];
+  late final Shape0 articles = Shape0(
+      source: i0.VersionedTable(
+        entityName: 'articles',
+        withoutRowId: false,
+        isStrict: false,
+        tableConstraints: [],
+        columns: [
+          _column_0,
+          _column_1,
+          _column_2,
+          _column_3,
+          _column_4,
+          _column_5,
+          _column_6,
+          _column_7,
+          _column_8,
+          _column_9,
+          _column_10,
+          _column_11,
+          _column_12,
+          _column_13,
+          _column_14,
+        ],
+        attachedDatabase: database,
+      ),
+      alias: null);
+  late final Shape1 settings = Shape1(
+      source: i0.VersionedTable(
+        entityName: 'settings',
+        withoutRowId: false,
+        isStrict: false,
+        tableConstraints: [
+          'PRIMARY KEY("key")',
+        ],
+        columns: [
+          _column_15,
+          _column_16,
+          _column_13,
+          _column_14,
+        ],
+        attachedDatabase: database,
+      ),
+      alias: null);
+  late final Shape2 articleImages = Shape2(
+      source: i0.VersionedTable(
+        entityName: 'article_images',
+        withoutRowId: false,
+        isStrict: false,
+        tableConstraints: [],
+        columns: [
+          _column_0,
+          _column_17,
+          _column_7,
+          _column_8,
+          _column_13,
+          _column_14,
+        ],
+        attachedDatabase: database,
+      ),
+      alias: null);
+  late final Shape3 articleScreenshoots = Shape3(
+      source: i0.VersionedTable(
+        entityName: 'article_screenshoots',
+        withoutRowId: false,
+        isStrict: false,
+        tableConstraints: [],
+        columns: [
+          _column_0,
+          _column_17,
+          _column_8,
+          _column_13,
+          _column_14,
+        ],
+        attachedDatabase: database,
+      ),
+      alias: null);
+}
+
+class Shape3 extends i0.VersionedTable {
+  Shape3({required super.source, required super.alias}) : super.aliased();
+  i1.GeneratedColumn<int> get id =>
+      columnsByName['id']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<int> get article =>
+      columnsByName['article']! as i1.GeneratedColumn<int>;
+  i1.GeneratedColumn<String> get imagePath =>
+      columnsByName['image_path']! as i1.GeneratedColumn<String>;
+  i1.GeneratedColumn<DateTime> get updatedAt =>
+      columnsByName['updated_at']! as i1.GeneratedColumn<DateTime>;
+  i1.GeneratedColumn<DateTime> get createdAt =>
+      columnsByName['created_at']! as i1.GeneratedColumn<DateTime>;
+}
+
 i0.MigrationStepWithVersion migrationSteps({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
+  required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
 }) {
   return (currentVersion, database) async {
     switch (currentVersion) {
@@ -212,6 +315,11 @@ i0.MigrationStepWithVersion migrationSteps({
         final migrator = i1.Migrator(database, schema);
         await from1To2(migrator, schema);
         return 2;
+      case 2:
+        final schema = Schema3(database: database);
+        final migrator = i1.Migrator(database, schema);
+        await from2To3(migrator, schema);
+        return 3;
       default:
         throw ArgumentError.value('Unknown migration from $currentVersion');
     }
@@ -220,8 +328,10 @@ i0.MigrationStepWithVersion migrationSteps({
 
 i1.OnUpgrade stepByStep({
   required Future<void> Function(i1.Migrator m, Schema2 schema) from1To2,
+  required Future<void> Function(i1.Migrator m, Schema3 schema) from2To3,
 }) =>
     i0.VersionedSchema.stepByStepHelper(
         step: migrationSteps(
       from1To2: from1To2,
+      from2To3: from2To3,
     ));

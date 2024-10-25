@@ -91,16 +91,59 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   }
 
   Widget _buildArticleScreenshot() {
-    return SingleChildScrollView(
-      child: SizedBox(
-        width: double.infinity,
-        child: Image.file(
-          File(controller.article.screenshotPath ?? ''), // 假设文章对象中有一个 imageUrl 属性
-          fit: BoxFit.cover,
-          alignment: Alignment.topCenter,
+    final screenshotPath = controller.article.screenshotPath;
+    if (screenshotPath != null && screenshotPath.isNotEmpty) {
+      return SingleChildScrollView(
+        child: SizedBox(
+          width: double.infinity,
+          child: Image.file(
+            File(controller.article.screenshotPath!),
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      return FutureBuilder<List<ArticleScreenshoot>>(
+        future: controller.getArticleScreenshoots(), // 获取图片列表
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text("加载图片失败"));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(child: Text("没有截图可显示"));
+          }
+
+          final screenshots = snapshot.data!;
+
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width, // 设置宽度占满全屏
+              child: ListView.builder(
+                itemCount: screenshots.length,
+                itemBuilder: (context, index) {
+                  return Image.file(
+                    File(screenshots[index].imagePath ?? ''),
+                    fit: BoxFit.cover,
+                    errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error, color: Colors.red),
+                          Text('文件不存在'),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      );
+    }
   }
 
   Widget _buildArticleWebview(BuildContext context) {

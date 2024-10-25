@@ -29,7 +29,7 @@ class ShareDialogController extends GetxController {
 
     if (await _checkArticleExists(url)) return;
 
-    List<String> results = await Future.wait([
+    List<dynamic> results = await Future.wait([
       _aiTitleTask(title),
       _aiContentTask(textContent),
       _imageDownTask(imagesUrl.first),
@@ -39,23 +39,40 @@ class ShareDialogController extends GetxController {
     var article = _createArticleMap(
       url: url,
       title: title,
-      aiTitle: results[0],
+      aiTitle: results[0].toString(),
       textContent: textContent,
-      aiContent: results[1],
+      aiContent: results[1].toString(),
       htmlContent: htmlContent,
       imageUrl: imagesUrl.first,
-      imagePath: results[2],
-      screenshotPath: results[3],
+      imagePath: results[2].toString(),
+      // screenshotPath: results[3],
       publishedTime: publishedTime,
     );
 
     final newArticle = await _saveOrUpdateArticle(url, article);
+
+    // 保存文章的图片
     if (newArticle != null && imagesUrl.length >= 2) {
       await db.articleImages.deleteWhere((tbl) => tbl.article.equals(newArticle.id));
       await Future.wait(imagesUrl.skip(1).map((imageUrl) async {
         await _downloadAndSaveImage(newArticle.id, imageUrl);
       }));
+      logger.i("网页相关图片保存完成 ${newArticle.id}");
     }
+
+    // 保存文章的截图
+    List<String> screenshotPaths = List.from(results[3]);
+    if (newArticle != null && screenshotPaths.isNotEmpty) {
+      await db.articleScreenshoots.deleteWhere((tbl) => tbl.article.equals(newArticle.id));
+      await Future.wait(screenshotPaths.map((imagePath) async {
+        await db.into(db.articleScreenshoots).insert(ArticleScreenshootsCompanion(
+              article: drift.Value(newArticle.id),
+              imagePath: drift.Value(imagePath),
+            ));
+      }));
+      logger.i("网页截图保存完成 ${newArticle.id}");
+    }
+
     _closeDialog();
   }
 
@@ -102,7 +119,7 @@ class ShareDialogController extends GetxController {
     return await HttpService.i.downloadImage(imageUrl);
   }
 
-  Future<String> _screenshotTask() async {
+  Future<List<String>> _screenshotTask() async {
     return await webViewController!.captureFulScreenshot();
   }
 
@@ -115,7 +132,7 @@ class ShareDialogController extends GetxController {
       required String htmlContent,
       required String imageUrl,
       required String imagePath,
-      required String screenshotPath,
+      // required String screenshotPath,
       required String publishedTime}) {
     return ArticlesCompanion(
       title: drift.Value(title),
@@ -126,7 +143,7 @@ class ShareDialogController extends GetxController {
       url: drift.Value(url),
       imageUrl: drift.Value(imageUrl),
       imagePath: drift.Value(imagePath),
-      screenshotPath: drift.Value(screenshotPath),
+      screenshotPath: drift.Value(''), // 清空screenshotPath, 使用新的表存储的多张图
       pubDate: drift.Value(DateTime.tryParse(publishedTime)?.toUtc() ?? DateTime.now().toUtc()),
       comment: drift.Value(commentController.text),
     );
