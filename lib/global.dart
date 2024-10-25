@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 
@@ -60,4 +62,8 @@ String formatDateTimeToLocal(DateTime dateTime) {
     logger.d("日期格式转换失败 $e");
   }
   return "";
+}
+
+void successNotice(String content, {String title = '提示'}) {
+  Get.snackbar(title, content, snackPosition: SnackPosition.top, backgroundColor: Colors.green);
 }

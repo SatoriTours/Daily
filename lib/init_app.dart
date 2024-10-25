@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:daily_satori/app/services/freedisk_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -59,12 +60,20 @@ void initGetTimeAgo() {
 Future<void> initServices() async {
   logger.i("开始初始化服务");
 
-  await DBService.i.init();
-  await SettingsService.i.init();
-  await AiService.i.init();
-  await ArticleService.i.init();
-  await FileService.i.init();
-  await HttpService.i.init();
-  await ADBlockService.i.init();
-  await BackupService.i.init();
+  // 基础的需要先初始化的任务
+  await DBService.i.init(); // 初始化数据库
+  await SettingsService.i.init(); // 从数据库里面加载配置
+  await FileService.i.init(); // 初始化文件目录服务
+
+  // 可以并行执行的初始化任务
+  await Future.wait([
+    AiService.i.init(),
+    ArticleService.i.init(),
+    HttpService.i.init(),
+    ADBlockService.i.init(),
+    FreeDiskService.i.init(),
+  ]);
+
+  // 不用等待处理完成的服务, 可以在后台执行
+  BackupService.i.init();
 }

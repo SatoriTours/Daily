@@ -26,5 +26,6 @@ class DBService {
     final directory = await getApplicationDocumentsDirectory();
     _dbPath = path.join(directory.path, dbFileName);
     _database = AppDatabase();
+    await _database.customStatement('PRAGMA foreign_keys=ON'); // 等待数据库初始化完成
   }
 }

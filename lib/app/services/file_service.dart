@@ -13,15 +13,18 @@ class FileService {
 
   Future<void> init() async {
     logger.i("[初始化服务] FileService");
-    _imagesBasePath = await _mkdir('images');
-    _screenshotsBasePath = await _mkdir('screenshots');
+    _appPath = (await getApplicationDocumentsDirectory()).path;
+    _imagesBasePath = await mkdir('images');
+    _screenshotsBasePath = await mkdir('screenshots');
   }
 
   late String _imagesBasePath;
   late String _screenshotsBasePath;
+  late String _appPath;
 
   String get imagesBasePath => _imagesBasePath;
   String get screenshotsBasePath => _screenshotsBasePath;
+  String get appPath => _appPath;
 
   String getImagePath(String imageName) {
     return path.join(_imagesBasePath, imageName);
@@ -52,9 +55,8 @@ class FileService {
     return '$timestamp-$randomValue$extension';
   }
 
-  Future<String> _mkdir(String name) async {
-    final appDir = await getApplicationDocumentsDirectory();
-    final dirPath = path.join(appDir.path, name);
+  Future<String> mkdir(String name) async {
+    final dirPath = path.join(appPath, name);
 
     // 创建 目录（如果不存在）
     final dir = Directory(dirPath);

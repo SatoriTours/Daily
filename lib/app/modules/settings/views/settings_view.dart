@@ -1,5 +1,7 @@
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
+import 'package:daily_satori/app/services/freedisk_service.dart';
+import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
@@ -32,6 +34,9 @@ class SettingsView extends GetView<SettingsController> {
                 _buildOpenAITokenField(),
                 SizedBox(height: 16.0),
                 _buildBackupDirSelect(),
+                _buildBackupAction(),
+                _buildBackupAndRestoreActions(),
+                _buildFreeSpaceAction(),
                 Spacer(), // 添加间隔以将按钮推到页面底部
                 _buildSaveButton(context),
               ],
@@ -54,25 +59,59 @@ class SettingsView extends GetView<SettingsController> {
             readOnly: true, // 设置为只读，防止用户手动输入
           ),
         ),
-        IconButton(
+      ],
+    );
+  }
+
+  Widget _buildBackupAction() {
+    return Row(
+      children: [
+        Spacer(),
+        TextButton.icon(
           icon: Icon(Icons.folder_open),
+          label: Text("选择备份路径"),
           onPressed: () async {
             controller.selectBackupDirectory();
           },
         ),
-        IconButton(
+      ],
+    );
+  }
+
+  Widget _buildBackupAndRestoreActions() {
+    return Row(
+      children: [
+        TextButton.icon(
           icon: Icon(Icons.backup_table_outlined),
+          label: Text("立即备份"),
           onPressed: () async {
             await BackupService.i.checkAndBackup(immediateBackup: true);
-            Get.snackbar("提示", "备份成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+            successNotice("备份成功");
           },
         ),
-        IconButton(
+        TextButton.icon(
           icon: Icon(Icons.restore_rounded),
+          label: Text("备份恢复"),
           onPressed: () async {
             Get.toNamed(Routes.BACKUP_RESTORE);
           },
         ),
+      ],
+    );
+  }
+
+  Widget _buildFreeSpaceAction() {
+    return Row(
+      children: [
+        TextButton.icon(
+          icon: Icon(Icons.cleaning_services),
+          label: Text("清除空间"),
+          onPressed: () async {
+            await FreeDiskService.i.clean();
+            successNotice("清除空间成功");
+          },
+        ),
+        Spacer(),
       ],
     );
   }
@@ -109,7 +148,7 @@ class SettingsView extends GetView<SettingsController> {
             child: const Text("保存"),
             onPressed: () async {
               await controller.save();
-              Get.snackbar('提示', '设置已保存', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+              successNotice('设置已保存');
             },
           ),
         ),
