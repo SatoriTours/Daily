@@ -104,7 +104,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
         ),
       );
     } else {
-      return FutureBuilder<List<ArticleScreenshoot>>(
+      return FutureBuilder<List<ArticleScreenshot>>(
         future: controller.getArticleScreenshoots(), // 获取图片列表
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

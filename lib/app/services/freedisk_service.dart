@@ -19,7 +19,7 @@ class FreeDiskService {
   Future<void> clean() async {
     // 查询 ArticleImages 和 ArticleScreenshoots 里的图片
     final images = await (db.select(db.articleImages)).get();
-    final screenshots = await (db.select(db.articleScreenshoots)).get();
+    final screenshots = await (db.select(db.articleScreenshots)).get();
     final articles = await (db.select(db.articles)).get();
 
     List<String?> imageFiles = images.map((i) => i.imagePath).toList() + articles.map((i) => i.imagePath).toList();

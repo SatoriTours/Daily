@@ -2,7 +2,7 @@ import 'package:drift/drift.dart';
 
 import 'package:daily_satori/app/databases/articles.dart';
 
-class ArticleScreenshoots extends Table {
+class ArticleScreenshots extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get article => integer().nullable().references(Articles, #id)();
 

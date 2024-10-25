@@ -1332,12 +1332,12 @@ class ArticleImagesCompanion extends UpdateCompanion<ArticleImage> {
   }
 }
 
-class $ArticleScreenshootsTable extends ArticleScreenshoots
-    with TableInfo<$ArticleScreenshootsTable, ArticleScreenshoot> {
+class $ArticleScreenshotsTable extends ArticleScreenshots
+    with TableInfo<$ArticleScreenshotsTable, ArticleScreenshot> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $ArticleScreenshootsTable(this.attachedDatabase, [this._alias]);
+  $ArticleScreenshotsTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -1385,9 +1385,9 @@ class $ArticleScreenshootsTable extends ArticleScreenshoots
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'article_screenshoots';
+  static const String $name = 'article_screenshots';
   @override
-  VerificationContext validateIntegrity(Insertable<ArticleScreenshoot> instance,
+  VerificationContext validateIntegrity(Insertable<ArticleScreenshot> instance,
       {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
@@ -1416,9 +1416,9 @@ class $ArticleScreenshootsTable extends ArticleScreenshoots
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  ArticleScreenshoot map(Map<String, dynamic> data, {String? tablePrefix}) {
+  ArticleScreenshot map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return ArticleScreenshoot(
+    return ArticleScreenshot(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       article: attachedDatabase.typeMapping
@@ -1433,19 +1433,19 @@ class $ArticleScreenshootsTable extends ArticleScreenshoots
   }
 
   @override
-  $ArticleScreenshootsTable createAlias(String alias) {
-    return $ArticleScreenshootsTable(attachedDatabase, alias);
+  $ArticleScreenshotsTable createAlias(String alias) {
+    return $ArticleScreenshotsTable(attachedDatabase, alias);
   }
 }
 
-class ArticleScreenshoot extends DataClass
-    implements Insertable<ArticleScreenshoot> {
+class ArticleScreenshot extends DataClass
+    implements Insertable<ArticleScreenshot> {
   final int id;
   final int? article;
   final String? imagePath;
   final DateTime updatedAt;
   final DateTime createdAt;
-  const ArticleScreenshoot(
+  const ArticleScreenshot(
       {required this.id,
       this.article,
       this.imagePath,
@@ -1466,8 +1466,8 @@ class ArticleScreenshoot extends DataClass
     return map;
   }
 
-  ArticleScreenshootsCompanion toCompanion(bool nullToAbsent) {
-    return ArticleScreenshootsCompanion(
+  ArticleScreenshotsCompanion toCompanion(bool nullToAbsent) {
+    return ArticleScreenshotsCompanion(
       id: Value(id),
       article: article == null && nullToAbsent
           ? const Value.absent()
@@ -1480,10 +1480,10 @@ class ArticleScreenshoot extends DataClass
     );
   }
 
-  factory ArticleScreenshoot.fromJson(Map<String, dynamic> json,
+  factory ArticleScreenshot.fromJson(Map<String, dynamic> json,
       {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return ArticleScreenshoot(
+    return ArticleScreenshot(
       id: serializer.fromJson<int>(json['id']),
       article: serializer.fromJson<int?>(json['article']),
       imagePath: serializer.fromJson<String?>(json['imagePath']),
@@ -1503,21 +1503,21 @@ class ArticleScreenshoot extends DataClass
     };
   }
 
-  ArticleScreenshoot copyWith(
+  ArticleScreenshot copyWith(
           {int? id,
           Value<int?> article = const Value.absent(),
           Value<String?> imagePath = const Value.absent(),
           DateTime? updatedAt,
           DateTime? createdAt}) =>
-      ArticleScreenshoot(
+      ArticleScreenshot(
         id: id ?? this.id,
         article: article.present ? article.value : this.article,
         imagePath: imagePath.present ? imagePath.value : this.imagePath,
         updatedAt: updatedAt ?? this.updatedAt,
         createdAt: createdAt ?? this.createdAt,
       );
-  ArticleScreenshoot copyWithCompanion(ArticleScreenshootsCompanion data) {
-    return ArticleScreenshoot(
+  ArticleScreenshot copyWithCompanion(ArticleScreenshotsCompanion data) {
+    return ArticleScreenshot(
       id: data.id.present ? data.id.value : this.id,
       article: data.article.present ? data.article.value : this.article,
       imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
@@ -1528,7 +1528,7 @@ class ArticleScreenshoot extends DataClass
 
   @override
   String toString() {
-    return (StringBuffer('ArticleScreenshoot(')
+    return (StringBuffer('ArticleScreenshot(')
           ..write('id: $id, ')
           ..write('article: $article, ')
           ..write('imagePath: $imagePath, ')
@@ -1543,7 +1543,7 @@ class ArticleScreenshoot extends DataClass
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is ArticleScreenshoot &&
+      (other is ArticleScreenshot &&
           other.id == this.id &&
           other.article == this.article &&
           other.imagePath == this.imagePath &&
@@ -1551,27 +1551,27 @@ class ArticleScreenshoot extends DataClass
           other.createdAt == this.createdAt);
 }
 
-class ArticleScreenshootsCompanion extends UpdateCompanion<ArticleScreenshoot> {
+class ArticleScreenshotsCompanion extends UpdateCompanion<ArticleScreenshot> {
   final Value<int> id;
   final Value<int?> article;
   final Value<String?> imagePath;
   final Value<DateTime> updatedAt;
   final Value<DateTime> createdAt;
-  const ArticleScreenshootsCompanion({
+  const ArticleScreenshotsCompanion({
     this.id = const Value.absent(),
     this.article = const Value.absent(),
     this.imagePath = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
-  ArticleScreenshootsCompanion.insert({
+  ArticleScreenshotsCompanion.insert({
     this.id = const Value.absent(),
     this.article = const Value.absent(),
     this.imagePath = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
-  static Insertable<ArticleScreenshoot> custom({
+  static Insertable<ArticleScreenshot> custom({
     Expression<int>? id,
     Expression<int>? article,
     Expression<String>? imagePath,
@@ -1587,13 +1587,13 @@ class ArticleScreenshootsCompanion extends UpdateCompanion<ArticleScreenshoot> {
     });
   }
 
-  ArticleScreenshootsCompanion copyWith(
+  ArticleScreenshotsCompanion copyWith(
       {Value<int>? id,
       Value<int?>? article,
       Value<String?>? imagePath,
       Value<DateTime>? updatedAt,
       Value<DateTime>? createdAt}) {
-    return ArticleScreenshootsCompanion(
+    return ArticleScreenshotsCompanion(
       id: id ?? this.id,
       article: article ?? this.article,
       imagePath: imagePath ?? this.imagePath,
@@ -1625,7 +1625,7 @@ class ArticleScreenshootsCompanion extends UpdateCompanion<ArticleScreenshoot> {
 
   @override
   String toString() {
-    return (StringBuffer('ArticleScreenshootsCompanion(')
+    return (StringBuffer('ArticleScreenshotsCompanion(')
           ..write('id: $id, ')
           ..write('article: $article, ')
           ..write('imagePath: $imagePath, ')
@@ -1642,14 +1642,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ArticlesTable articles = $ArticlesTable(this);
   late final $SettingsTable settings = $SettingsTable(this);
   late final $ArticleImagesTable articleImages = $ArticleImagesTable(this);
-  late final $ArticleScreenshootsTable articleScreenshoots =
-      $ArticleScreenshootsTable(this);
+  late final $ArticleScreenshotsTable articleScreenshots =
+      $ArticleScreenshotsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [articles, settings, articleImages, articleScreenshoots];
+      [articles, settings, articleImages, articleScreenshots];
 }
 
 typedef $$ArticlesTableCreateCompanionBuilder = ArticlesCompanion Function({
@@ -1706,20 +1706,19 @@ final class $$ArticlesTableReferences
         manager.$state.copyWith(prefetchedData: cache));
   }
 
-  static MultiTypedResultKey<$ArticleScreenshootsTable,
-      List<ArticleScreenshoot>> _articleScreenshootsRefsTable(
-          _$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(db.articleScreenshoots,
-          aliasName: $_aliasNameGenerator(
-              db.articles.id, db.articleScreenshoots.article));
+  static MultiTypedResultKey<$ArticleScreenshotsTable, List<ArticleScreenshot>>
+      _articleScreenshotsRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.articleScreenshots,
+              aliasName: $_aliasNameGenerator(
+                  db.articles.id, db.articleScreenshots.article));
 
-  $$ArticleScreenshootsTableProcessedTableManager get articleScreenshootsRefs {
+  $$ArticleScreenshotsTableProcessedTableManager get articleScreenshotsRefs {
     final manager =
-        $$ArticleScreenshootsTableTableManager($_db, $_db.articleScreenshoots)
+        $$ArticleScreenshotsTableTableManager($_db, $_db.articleScreenshots)
             .filter((f) => f.article.id($_item.id));
 
     final cache =
-        $_typedResult.readTableOrNull(_articleScreenshootsRefsTable($_db));
+        $_typedResult.readTableOrNull(_articleScreenshotsRefsTable($_db));
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
@@ -1801,19 +1800,19 @@ class $$ArticlesTableFilterComposer
     return f(composer);
   }
 
-  Expression<bool> articleScreenshootsRefs(
-      Expression<bool> Function($$ArticleScreenshootsTableFilterComposer f) f) {
-    final $$ArticleScreenshootsTableFilterComposer composer = $composerBuilder(
+  Expression<bool> articleScreenshotsRefs(
+      Expression<bool> Function($$ArticleScreenshotsTableFilterComposer f) f) {
+    final $$ArticleScreenshotsTableFilterComposer composer = $composerBuilder(
         composer: this,
         getCurrentColumn: (t) => t.id,
-        referencedTable: $db.articleScreenshoots,
+        referencedTable: $db.articleScreenshots,
         getReferencedColumn: (t) => t.article,
         builder: (joinBuilder,
                 {$addJoinBuilderToRootComposer,
                 $removeJoinBuilderFromRootComposer}) =>
-            $$ArticleScreenshootsTableFilterComposer(
+            $$ArticleScreenshotsTableFilterComposer(
               $db: $db,
-              $table: $db.articleScreenshoots,
+              $table: $db.articleScreenshots,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -1954,21 +1953,20 @@ class $$ArticlesTableAnnotationComposer
     return f(composer);
   }
 
-  Expression<T> articleScreenshootsRefs<T extends Object>(
-      Expression<T> Function($$ArticleScreenshootsTableAnnotationComposer a)
-          f) {
-    final $$ArticleScreenshootsTableAnnotationComposer composer =
+  Expression<T> articleScreenshotsRefs<T extends Object>(
+      Expression<T> Function($$ArticleScreenshotsTableAnnotationComposer a) f) {
+    final $$ArticleScreenshotsTableAnnotationComposer composer =
         $composerBuilder(
             composer: this,
             getCurrentColumn: (t) => t.id,
-            referencedTable: $db.articleScreenshoots,
+            referencedTable: $db.articleScreenshots,
             getReferencedColumn: (t) => t.article,
             builder: (joinBuilder,
                     {$addJoinBuilderToRootComposer,
                     $removeJoinBuilderFromRootComposer}) =>
-                $$ArticleScreenshootsTableAnnotationComposer(
+                $$ArticleScreenshotsTableAnnotationComposer(
                   $db: $db,
-                  $table: $db.articleScreenshoots,
+                  $table: $db.articleScreenshots,
                   $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
                   joinBuilder: joinBuilder,
                   $removeJoinBuilderFromRootComposer:
@@ -1990,7 +1988,7 @@ class $$ArticlesTableTableManager extends RootTableManager<
     (Article, $$ArticlesTableReferences),
     Article,
     PrefetchHooks Function(
-        {bool articleImagesRefs, bool articleScreenshootsRefs})> {
+        {bool articleImagesRefs, bool articleScreenshotsRefs})> {
   $$ArticlesTableTableManager(_$AppDatabase db, $ArticlesTable table)
       : super(TableManagerState(
           db: db,
@@ -2074,12 +2072,12 @@ class $$ArticlesTableTableManager extends RootTableManager<
                   (e.readTable(table), $$ArticlesTableReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: (
-              {articleImagesRefs = false, articleScreenshootsRefs = false}) {
+              {articleImagesRefs = false, articleScreenshotsRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
                 if (articleImagesRefs) db.articleImages,
-                if (articleScreenshootsRefs) db.articleScreenshoots
+                if (articleScreenshotsRefs) db.articleScreenshots
               ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
@@ -2096,14 +2094,14 @@ class $$ArticlesTableTableManager extends RootTableManager<
                                 referencedItems) =>
                             referencedItems.where((e) => e.article == item.id),
                         typedResults: items),
-                  if (articleScreenshootsRefs)
+                  if (articleScreenshotsRefs)
                     await $_getPrefetchedData(
                         currentTable: table,
                         referencedTable: $$ArticlesTableReferences
-                            ._articleScreenshootsRefsTable(db),
+                            ._articleScreenshotsRefsTable(db),
                         managerFromTypedResult: (p0) =>
                             $$ArticlesTableReferences(db, table, p0)
-                                .articleScreenshootsRefs,
+                                .articleScreenshotsRefs,
                         referencedItemsForCurrentItem: (item,
                                 referencedItems) =>
                             referencedItems.where((e) => e.article == item.id),
@@ -2127,7 +2125,7 @@ typedef $$ArticlesTableProcessedTableManager = ProcessedTableManager<
     (Article, $$ArticlesTableReferences),
     Article,
     PrefetchHooks Function(
-        {bool articleImagesRefs, bool articleScreenshootsRefs})>;
+        {bool articleImagesRefs, bool articleScreenshotsRefs})>;
 typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   required String key,
   required String value,
@@ -2562,16 +2560,16 @@ typedef $$ArticleImagesTableProcessedTableManager = ProcessedTableManager<
     (ArticleImage, $$ArticleImagesTableReferences),
     ArticleImage,
     PrefetchHooks Function({bool article})>;
-typedef $$ArticleScreenshootsTableCreateCompanionBuilder
-    = ArticleScreenshootsCompanion Function({
+typedef $$ArticleScreenshotsTableCreateCompanionBuilder
+    = ArticleScreenshotsCompanion Function({
   Value<int> id,
   Value<int?> article,
   Value<String?> imagePath,
   Value<DateTime> updatedAt,
   Value<DateTime> createdAt,
 });
-typedef $$ArticleScreenshootsTableUpdateCompanionBuilder
-    = ArticleScreenshootsCompanion Function({
+typedef $$ArticleScreenshotsTableUpdateCompanionBuilder
+    = ArticleScreenshotsCompanion Function({
   Value<int> id,
   Value<int?> article,
   Value<String?> imagePath,
@@ -2579,14 +2577,14 @@ typedef $$ArticleScreenshootsTableUpdateCompanionBuilder
   Value<DateTime> createdAt,
 });
 
-final class $$ArticleScreenshootsTableReferences extends BaseReferences<
-    _$AppDatabase, $ArticleScreenshootsTable, ArticleScreenshoot> {
-  $$ArticleScreenshootsTableReferences(
+final class $$ArticleScreenshotsTableReferences extends BaseReferences<
+    _$AppDatabase, $ArticleScreenshotsTable, ArticleScreenshot> {
+  $$ArticleScreenshotsTableReferences(
       super.$_db, super.$_table, super.$_typedResult);
 
   static $ArticlesTable _articleTable(_$AppDatabase db) =>
       db.articles.createAlias(
-          $_aliasNameGenerator(db.articleScreenshoots.article, db.articles.id));
+          $_aliasNameGenerator(db.articleScreenshots.article, db.articles.id));
 
   $$ArticlesTableProcessedTableManager? get article {
     if ($_item.article == null) return null;
@@ -2599,9 +2597,9 @@ final class $$ArticleScreenshootsTableReferences extends BaseReferences<
   }
 }
 
-class $$ArticleScreenshootsTableFilterComposer
-    extends Composer<_$AppDatabase, $ArticleScreenshootsTable> {
-  $$ArticleScreenshootsTableFilterComposer({
+class $$ArticleScreenshotsTableFilterComposer
+    extends Composer<_$AppDatabase, $ArticleScreenshotsTable> {
+  $$ArticleScreenshotsTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -2641,9 +2639,9 @@ class $$ArticleScreenshootsTableFilterComposer
   }
 }
 
-class $$ArticleScreenshootsTableOrderingComposer
-    extends Composer<_$AppDatabase, $ArticleScreenshootsTable> {
-  $$ArticleScreenshootsTableOrderingComposer({
+class $$ArticleScreenshotsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ArticleScreenshotsTable> {
+  $$ArticleScreenshotsTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -2683,9 +2681,9 @@ class $$ArticleScreenshootsTableOrderingComposer
   }
 }
 
-class $$ArticleScreenshootsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $ArticleScreenshootsTable> {
-  $$ArticleScreenshootsTableAnnotationComposer({
+class $$ArticleScreenshotsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ArticleScreenshotsTable> {
+  $$ArticleScreenshotsTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -2725,30 +2723,29 @@ class $$ArticleScreenshootsTableAnnotationComposer
   }
 }
 
-class $$ArticleScreenshootsTableTableManager extends RootTableManager<
+class $$ArticleScreenshotsTableTableManager extends RootTableManager<
     _$AppDatabase,
-    $ArticleScreenshootsTable,
-    ArticleScreenshoot,
-    $$ArticleScreenshootsTableFilterComposer,
-    $$ArticleScreenshootsTableOrderingComposer,
-    $$ArticleScreenshootsTableAnnotationComposer,
-    $$ArticleScreenshootsTableCreateCompanionBuilder,
-    $$ArticleScreenshootsTableUpdateCompanionBuilder,
-    (ArticleScreenshoot, $$ArticleScreenshootsTableReferences),
-    ArticleScreenshoot,
+    $ArticleScreenshotsTable,
+    ArticleScreenshot,
+    $$ArticleScreenshotsTableFilterComposer,
+    $$ArticleScreenshotsTableOrderingComposer,
+    $$ArticleScreenshotsTableAnnotationComposer,
+    $$ArticleScreenshotsTableCreateCompanionBuilder,
+    $$ArticleScreenshotsTableUpdateCompanionBuilder,
+    (ArticleScreenshot, $$ArticleScreenshotsTableReferences),
+    ArticleScreenshot,
     PrefetchHooks Function({bool article})> {
-  $$ArticleScreenshootsTableTableManager(
-      _$AppDatabase db, $ArticleScreenshootsTable table)
+  $$ArticleScreenshotsTableTableManager(
+      _$AppDatabase db, $ArticleScreenshotsTable table)
       : super(TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$ArticleScreenshootsTableFilterComposer($db: db, $table: table),
+              $$ArticleScreenshotsTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$ArticleScreenshootsTableOrderingComposer(
-                  $db: db, $table: table),
+              $$ArticleScreenshotsTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$ArticleScreenshootsTableAnnotationComposer(
+              $$ArticleScreenshotsTableAnnotationComposer(
                   $db: db, $table: table),
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -2757,7 +2754,7 @@ class $$ArticleScreenshootsTableTableManager extends RootTableManager<
             Value<DateTime> updatedAt = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
           }) =>
-              ArticleScreenshootsCompanion(
+              ArticleScreenshotsCompanion(
             id: id,
             article: article,
             imagePath: imagePath,
@@ -2771,7 +2768,7 @@ class $$ArticleScreenshootsTableTableManager extends RootTableManager<
             Value<DateTime> updatedAt = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
           }) =>
-              ArticleScreenshootsCompanion.insert(
+              ArticleScreenshotsCompanion.insert(
             id: id,
             article: article,
             imagePath: imagePath,
@@ -2781,7 +2778,7 @@ class $$ArticleScreenshootsTableTableManager extends RootTableManager<
           withReferenceMapper: (p0) => p0
               .map((e) => (
                     e.readTable(table),
-                    $$ArticleScreenshootsTableReferences(db, table, e)
+                    $$ArticleScreenshotsTableReferences(db, table, e)
                   ))
               .toList(),
           prefetchHooksCallback: ({article = false}) {
@@ -2806,8 +2803,8 @@ class $$ArticleScreenshootsTableTableManager extends RootTableManager<
                     currentTable: table,
                     currentColumn: table.article,
                     referencedTable:
-                        $$ArticleScreenshootsTableReferences._articleTable(db),
-                    referencedColumn: $$ArticleScreenshootsTableReferences
+                        $$ArticleScreenshotsTableReferences._articleTable(db),
+                    referencedColumn: $$ArticleScreenshotsTableReferences
                         ._articleTable(db)
                         .id,
                   ) as T;
@@ -2823,17 +2820,17 @@ class $$ArticleScreenshootsTableTableManager extends RootTableManager<
         ));
 }
 
-typedef $$ArticleScreenshootsTableProcessedTableManager = ProcessedTableManager<
+typedef $$ArticleScreenshotsTableProcessedTableManager = ProcessedTableManager<
     _$AppDatabase,
-    $ArticleScreenshootsTable,
-    ArticleScreenshoot,
-    $$ArticleScreenshootsTableFilterComposer,
-    $$ArticleScreenshootsTableOrderingComposer,
-    $$ArticleScreenshootsTableAnnotationComposer,
-    $$ArticleScreenshootsTableCreateCompanionBuilder,
-    $$ArticleScreenshootsTableUpdateCompanionBuilder,
-    (ArticleScreenshoot, $$ArticleScreenshootsTableReferences),
-    ArticleScreenshoot,
+    $ArticleScreenshotsTable,
+    ArticleScreenshot,
+    $$ArticleScreenshotsTableFilterComposer,
+    $$ArticleScreenshotsTableOrderingComposer,
+    $$ArticleScreenshotsTableAnnotationComposer,
+    $$ArticleScreenshotsTableCreateCompanionBuilder,
+    $$ArticleScreenshotsTableUpdateCompanionBuilder,
+    (ArticleScreenshot, $$ArticleScreenshotsTableReferences),
+    ArticleScreenshot,
     PrefetchHooks Function({bool article})>;
 
 class $AppDatabaseManager {
@@ -2845,6 +2842,6 @@ class $AppDatabaseManager {
       $$SettingsTableTableManager(_db, _db.settings);
   $$ArticleImagesTableTableManager get articleImages =>
       $$ArticleImagesTableTableManager(_db, _db.articleImages);
-  $$ArticleScreenshootsTableTableManager get articleScreenshoots =>
-      $$ArticleScreenshootsTableTableManager(_db, _db.articleScreenshoots);
+  $$ArticleScreenshotsTableTableManager get articleScreenshots =>
+      $$ArticleScreenshotsTableTableManager(_db, _db.articleScreenshots);
 }

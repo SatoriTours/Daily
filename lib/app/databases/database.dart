@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/databases/article_screenshoots.dart';
+import 'package:daily_satori/app/databases/article_screenshots.dart';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
@@ -9,14 +9,14 @@ import 'package:daily_satori/app/databases/settings.dart';
 
 part 'database.g.dart'; // 生成的代码文件
 
-@DriftDatabase(tables: [Articles, Settings, ArticleImages, ArticleScreenshoots])
+@DriftDatabase(tables: [Articles, Settings, ArticleImages, ArticleScreenshots])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   static String dbFile = 'daily_satori.db';
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   static QueryExecutor _openConnection() {
     // driftDatabase from package:drift_flutter stores the database in
@@ -31,6 +31,8 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(schema.articleImages);
       }, from2To3: (Migrator m, Schema3 schema) async {
         await m.createTable(schema.articleScreenshoots);
+      }, from3To4: (Migrator m, Schema4 schema) async {
+        await m.renameTable(schema.articleScreenshots, 'article_screenshoots');
       }),
     );
   }

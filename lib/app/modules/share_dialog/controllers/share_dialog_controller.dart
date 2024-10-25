@@ -63,9 +63,9 @@ class ShareDialogController extends GetxController {
     // 保存文章的截图
     List<String> screenshotPaths = List.from(results[3]);
     if (newArticle != null && screenshotPaths.isNotEmpty) {
-      await db.articleScreenshoots.deleteWhere((tbl) => tbl.article.equals(newArticle.id));
+      await db.articleScreenshots.deleteWhere((tbl) => tbl.article.equals(newArticle.id));
       await Future.wait(screenshotPaths.map((imagePath) async {
-        await db.into(db.articleScreenshoots).insert(ArticleScreenshootsCompanion(
+        await db.into(db.articleScreenshots).insert(ArticleScreenshotsCompanion(
               article: drift.Value(newArticle.id),
               imagePath: drift.Value(imagePath),
             ));

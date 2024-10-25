@@ -24,9 +24,8 @@ class ArticleDetailController extends GetxController {
     return images;
   }
 
-  Future<List<ArticleScreenshoot>> getArticleScreenshoots() async {
-    final screenshoots =
-        await (db.select(db.articleScreenshoots)..where((row) => row.article.equals(article.id))).get();
-    return screenshoots;
+  Future<List<ArticleScreenshot>> getArticleScreenshoots() async {
+    final screenshots = await (db.select(db.articleScreenshots)..where((row) => row.article.equals(article.id))).get();
+    return screenshots;
   }
 }
