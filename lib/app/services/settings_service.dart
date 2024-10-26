@@ -21,11 +21,15 @@ class SettingsService extends GetxService {
   late final Map<String, String> _settings = <String, String>{};
   final _db = DBService.i.db;
 
-  void saveSetting(String key, String value) async {
+  bool containsKey(String key) {
+    return _settings.containsKey(key);
+  }
+
+  Future<void> saveSetting(String key, String value) async {
     if (key.isEmpty || value.isEmpty) {
       return;
     }
-
+    logger.i("[更新Settings] key => $key, value => $value");
     SettingsCompanion.insert(key: key, value: value);
     await reloadSettings();
   }
@@ -48,5 +52,19 @@ class SettingsService extends GetxService {
 
   String getSetting(String key, {defaultValue = ''}) {
     return _settings[key] ?? defaultValue;
+  }
+
+  Set getKeys() {
+    return _settings.keys.toSet();
+  }
+
+  Future<void> remove(String key) async {
+    await (_db.delete(_db.settings)..where((t) => t.key.equals(key))).go();
+    await reloadSettings();
+  }
+
+  Future<void> removeAll() async {
+    await (_db.delete(_db.settings)).go();
+    await reloadSettings();
   }
 }

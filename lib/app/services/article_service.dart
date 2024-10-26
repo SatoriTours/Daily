@@ -18,6 +18,7 @@ class ArticleService {
   Future<Article> saveArticle(ArticlesCompanion article) async {
     final newArticle = await db.into(db.articles).insertReturning(article);
     logger.i("文章已保存: ${firstLine(newArticle.title ?? '')}");
+
     return newArticle;
   }
 

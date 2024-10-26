@@ -1,8 +1,11 @@
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:daily_satori/app/services/freedisk_service.dart';
+import 'package:daily_satori/app/services/settings_service.dart';
+import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 
 import 'package:get/get.dart';
 
@@ -17,30 +20,23 @@ class SettingsView extends GetView<SettingsController> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('配置页'),
+        titleTextStyle: MyFontStyle.appBarTitleStyle,
         centerTitle: true,
       ),
       body: GestureDetector(
         onTap: () {
           FocusScope.of(context).unfocus(); // 点击空白处去掉输入框焦点
         },
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0), // 增加输入框间距
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                _buildOpenAIUrlField(),
-                SizedBox(height: 16.0), // 增加输入框之间的间距
-                _buildOpenAITokenField(),
-                SizedBox(height: 16.0),
-                _buildBackupDirSelect(),
-                _buildBackupAction(),
-                _buildBackupAndRestoreActions(),
-                _buildFreeSpaceAction(),
-                Spacer(), // 添加间隔以将按钮推到页面底部
-                _buildSaveButton(context),
-              ],
-            ),
+        child: Padding(
+          padding: EdgeInsets.only(left: 5),
+          child: Column(
+            children: [
+              _buildOpenAIGroup(),
+              _buildBackupDirSelect(),
+              _buildFreeSpaceAction(),
+              Spacer(), // 添加间隔以将按钮推到页面底部
+              // _buildSaveButton(context),
+            ],
           ),
         ),
       ),
@@ -48,51 +44,32 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   Widget _buildBackupDirSelect() {
-    return Row(
+    return SettingsGroup(
+      title: '备份',
+      titleTextStyle: MyFontStyle.settingGroupTitle,
       children: [
-        Expanded(
-          child: TextField(
-            controller: controller.backupDir,
-            decoration: InputDecoration(
-              labelText: '备份路径',
-            ),
-            readOnly: true, // 设置为只读，防止用户手动输入
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBackupAction() {
-    return Row(
-      children: [
-        Spacer(),
-        TextButton.icon(
-          icon: Icon(Icons.folder_open),
-          label: Text("选择备份路径"),
-          onPressed: () async {
+        SimpleSettingsTile(
+          title: '选择备份路径',
+          leading: Icon(Icons.folder_open_outlined),
+          showDivider: false,
+          onTap: () {
             controller.selectBackupDirectory();
           },
         ),
-      ],
-    );
-  }
-
-  Widget _buildBackupAndRestoreActions() {
-    return Row(
-      children: [
-        TextButton.icon(
-          icon: Icon(Icons.backup_table_outlined),
-          label: Text("立即备份"),
-          onPressed: () async {
+        SimpleSettingsTile(
+          title: '立即备份',
+          leading: Icon(Icons.backup_table_outlined),
+          showDivider: false,
+          onTap: () async {
             await BackupService.i.checkAndBackup(immediateBackup: true);
             successNotice("备份成功");
           },
         ),
-        TextButton.icon(
-          icon: Icon(Icons.restore_rounded),
-          label: Text("备份恢复"),
-          onPressed: () async {
+        SimpleSettingsTile(
+          title: '从备份恢复',
+          leading: Icon(Icons.restore_rounded),
+          showDivider: false,
+          onTap: () {
             Get.toNamed(Routes.BACKUP_RESTORE);
           },
         ),
@@ -101,56 +78,35 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   Widget _buildFreeSpaceAction() {
-    return Row(
+    return SettingsGroup(
+      title: '清理应用',
+      titleTextStyle: MyFontStyle.settingGroupTitle,
       children: [
-        TextButton.icon(
-          icon: Icon(Icons.cleaning_services),
-          label: Text("清除空间"),
-          onPressed: () async {
+        SimpleSettingsTile(
+          title: '从备份恢复',
+          leading: Icon(Icons.restore_rounded),
+          showDivider: false,
+          onTap: () async {
             await FreeDiskService.i.clean();
             successNotice("清除空间成功");
           },
         ),
-        Spacer(),
       ],
     );
   }
 
-  Widget _buildOpenAIUrlField() {
-    return TextField(
-      controller: controller.openaiAddress,
-      decoration: InputDecoration(
-        labelText: 'openai 地址',
-      ),
-    );
-  }
-
-  Widget _buildOpenAITokenField() {
-    return TextField(
-      controller: controller.openaiToken,
-      decoration: InputDecoration(
-        labelText: 'openai token',
-      ),
-    );
-  }
-
-  Widget _buildSaveButton(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildOpenAIGroup() {
+    return SettingsGroup(
+      title: 'OpenAI',
+      titleTextStyle: MyFontStyle.settingGroupTitle,
       children: [
-        SizedBox(
-          width: MediaQuery.of(context).size.width / 2, // 设置宽度为页面的一半
-          child: TextButton(
-            style: TextButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text("保存"),
-            onPressed: () async {
-              await controller.save();
-              successNotice('设置已保存');
-            },
-          ),
+        TextInputSettingsTile(
+          settingKey: SettingsService.openAIAddressKey,
+          title: 'OpenAI 地址',
+        ),
+        TextInputSettingsTile(
+          settingKey: SettingsService.openAITokenKey,
+          title: 'OpenAI token',
         ),
       ],
     );

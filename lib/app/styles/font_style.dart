@@ -9,7 +9,6 @@ class MyFontStyle {
   static get appBarTitleStyle {
     return GoogleFonts.lato(
       fontSize: 20,
-      fontWeight: FontWeight.bold,
       height: _height,
       letterSpacing: _letterSpacing,
     );
@@ -39,6 +38,16 @@ class MyFontStyle {
       fontWeight: FontWeight.w500,
       height: _height,
       letterSpacing: _letterSpacing,
+    );
+  }
+
+  static get settingGroupTitle {
+    return GoogleFonts.lato(
+      fontSize: 20,
+      fontWeight: FontWeight.w500,
+      height: _height,
+      letterSpacing: _letterSpacing,
+      color: Colors.blue,
     );
   }
 }

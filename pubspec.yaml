@@ -62,6 +62,9 @@ dependencies:
   # 引入 google 字体
   google_fonts: ^6.2.1
 
+  # 设置界面
+  flutter_settings_screens: ^0.3.4
+
   # 分享
   # receive_sharing_intent: ^1.8.0
 
