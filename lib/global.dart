@@ -68,6 +68,10 @@ void successNotice(String content, {String title = '提示'}) {
   Get.snackbar(title, content, snackPosition: SnackPosition.top, backgroundColor: Colors.green);
 }
 
+void errorNotice(String content, {String title = '错误'}) {
+  Get.snackbar(title, content, snackPosition: SnackPosition.top, backgroundColor: Colors.red);
+}
+
 void showFullScreenLoading() {
   Get.dialog(
     PopScope(
