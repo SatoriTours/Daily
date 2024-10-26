@@ -83,8 +83,10 @@ class SettingsView extends GetView<SettingsController> {
           leading: Icon(Icons.cleaning_services),
           showDivider: false,
           onTap: () async {
+            showFullScreenLoading();
             await FreeDiskService.i.clean();
-            successNotice("清除空间成功");
+            Get.close();
+            successNotice("清除重复图片完成");
           },
         ),
       ],
