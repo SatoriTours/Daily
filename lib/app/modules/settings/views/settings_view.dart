@@ -16,7 +16,6 @@ class SettingsView extends GetView<SettingsController> {
 
   @override
   Widget build(BuildContext context) {
-    controller.initData();
     return Scaffold(
       appBar: AppBar(
         title: const Text('配置页'),

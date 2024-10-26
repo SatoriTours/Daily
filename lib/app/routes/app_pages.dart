@@ -56,7 +56,7 @@ class AppPages {
       name: _Paths.BACKUP_RESTORE,
       page: () => const BackupRestoreView(),
       binding: BackupRestoreBinding(),
-      transition: Transition.leftToRight,
+      transition: Transition.rightToLeft,
     ),
   ];
 }
