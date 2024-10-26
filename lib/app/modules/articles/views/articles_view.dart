@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:daily_satori/app/databases/database.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
@@ -99,8 +100,8 @@ class ArticlesView extends GetView<ArticlesController> {
   }
 }
 
-class ArticleCard extends StatelessWidget {
-  final dynamic article;
+class ArticleCard extends GetView<ArticlesController> {
+  final Article article;
 
   const ArticleCard({super.key, required this.article});
 
@@ -140,16 +141,8 @@ class ArticleCard extends StatelessWidget {
 
   Widget _buildTitle() {
     return Text(
-      (article.aiTitle ?? article.title),
+      (article.aiTitle ?? article.title ?? ''),
       style: MyFontStyle.listTitleStyle,
-    );
-  }
-
-  Widget _buildContent() {
-    return Text(
-      article.aiContent ?? article.content,
-      maxLines: 10,
-      style: MyFontStyle.bodyStyle,
     );
   }
 
@@ -183,16 +176,17 @@ class ArticleCard extends StatelessWidget {
         Spacer(), // 使用 Spacer 使按钮靠右对齐
         IconButton(
           icon: Icon(
-            article.isFavorite == 1 ? Icons.favorite : Icons.favorite_border,
+            article.isFavorite ? Icons.favorite : Icons.favorite_border,
           ),
           onPressed: () async {
             await ArticleService.i.toggleFavorite(article.id);
+            await controller.updateArticleInListFromDB(article.id);
           },
         ),
         IconButton(
           icon: const Icon(Icons.share),
           onPressed: () {
-            Share.share(article.url);
+            Share.share(article.url, subject: article.aiTitle ?? article.title);
           },
         ),
       ],

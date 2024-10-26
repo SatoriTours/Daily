@@ -155,7 +155,7 @@ class ShareDialogController extends GetxController {
       logger.i("[更新文章] aiTitle => ${article.aiTitle}, imagePath => ${article.imagePath}");
       newArticle = await ArticleService.i.updateArticle(article);
       if (newArticle != null) {
-        Get.find<ArticlesController>().updateArticleFromList(newArticle);
+        Get.find<ArticlesController>().updateArticleInList(newArticle);
       }
     } else {
       logger.i("[新增文章] aiTitle => ${article.aiTitle}, imagePath => ${article.imagePath}");
