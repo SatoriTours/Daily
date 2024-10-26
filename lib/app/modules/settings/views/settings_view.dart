@@ -23,19 +23,14 @@ class SettingsView extends GetView<SettingsController> {
         titleTextStyle: MyFontStyle.appBarTitleStyle,
         centerTitle: true,
       ),
-      body: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus(); // 点击空白处去掉输入框焦点
-        },
-        child: Padding(
-          padding: EdgeInsets.only(left: 5),
+      body: Padding(
+        padding: EdgeInsets.only(left: 5),
+        child: SingleChildScrollView(
           child: Column(
             children: [
               _buildOpenAIGroup(),
               _buildBackupDirSelect(),
               _buildFreeSpaceAction(),
-              Spacer(), // 添加间隔以将按钮推到页面底部
-              // _buildSaveButton(context),
             ],
           ),
         ),
