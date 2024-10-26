@@ -22,7 +22,7 @@ class ArticlesView extends GetView<ArticlesController> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '收藏的文章',
+          '文章',
           style: MyFontStyle.appBarTitleStyle,
         ),
         centerTitle: true,
