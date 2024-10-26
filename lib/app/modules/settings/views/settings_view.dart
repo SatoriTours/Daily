@@ -78,8 +78,8 @@ class SettingsView extends GetView<SettingsController> {
       titleTextStyle: MyFontStyle.settingGroupTitle,
       children: [
         SimpleSettingsTile(
-          title: '从备份恢复',
-          leading: Icon(Icons.restore_rounded),
+          title: '清除重复的图片',
+          leading: Icon(Icons.cleaning_services),
           showDivider: false,
           onTap: () async {
             await FreeDiskService.i.clean();
@@ -98,10 +98,12 @@ class SettingsView extends GetView<SettingsController> {
         TextInputSettingsTile(
           settingKey: SettingsService.openAIAddressKey,
           title: 'OpenAI 地址',
+          helperText: '例如: https://api.openai.com/v1/',
         ),
         TextInputSettingsTile(
           settingKey: SettingsService.openAITokenKey,
           title: 'OpenAI token',
+          helperText: '输入OpenAI token',
         ),
       ],
     );
