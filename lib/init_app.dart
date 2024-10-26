@@ -46,7 +46,7 @@ class MyConsoleOutput extends LogOutput {
 
 void initLogger() {
   if (isProduction) {
-    Logger.level = Level.error;
+    Logger.level = Level.info;
   }
 
   logger = Logger(

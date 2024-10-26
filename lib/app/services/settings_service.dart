@@ -1,6 +1,6 @@
 import 'package:daily_satori/global.dart';
 import 'package:get/get.dart';
-
+import 'package:drift/drift.dart' as drift;
 import 'package:daily_satori/app/databases/database.dart';
 import 'package:daily_satori/app/services/db_service.dart';
 
@@ -30,7 +30,13 @@ class SettingsService extends GetxService {
       return;
     }
     logger.i("[更新Settings] key => $key, value => $value");
-    SettingsCompanion.insert(key: key, value: value);
+    _db.into(_db.settings).insertReturning(
+          SettingsCompanion(
+            key: drift.Value(key),
+            value: drift.Value(value),
+          ),
+        );
+    // SettingsCompanion.insert(key: key, value: value);
     await reloadSettings();
   }
 

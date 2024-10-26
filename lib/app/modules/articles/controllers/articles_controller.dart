@@ -34,7 +34,7 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
 
   @override
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed && scrollController.hasClients) {
       logger.i("App is back from background");
       if (scrollController.position.pixels <= 30 || DateTime.now().difference(lastRefreshTime).inMinutes >= 60) {
         reloadArticles();
