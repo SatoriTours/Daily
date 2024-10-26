@@ -67,3 +67,14 @@ String formatDateTimeToLocal(DateTime dateTime) {
 void successNotice(String content, {String title = '提示'}) {
   Get.snackbar(title, content, snackPosition: SnackPosition.top, backgroundColor: Colors.green);
 }
+
+void showFullScreenLoading() {
+  Get.dialog(
+    PopScope(
+      child: Center(
+        child: CircularProgressIndicator(),
+      ),
+    ),
+    barrierDismissible: false, // 点击外部区域不关闭对话框
+  );
+}

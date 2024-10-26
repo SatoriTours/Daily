@@ -56,7 +56,9 @@ class SettingsView extends GetView<SettingsController> {
           leading: Icon(Icons.backup_table_outlined),
           showDivider: false,
           onTap: () async {
+            showFullScreenLoading();
             await BackupService.i.checkAndBackup(immediateBackup: true);
+            Get.close();
             successNotice("备份成功");
           },
         ),
