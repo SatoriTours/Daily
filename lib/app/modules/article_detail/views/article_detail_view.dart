@@ -188,7 +188,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           if ((controller.article.imagePath?.isNotEmpty ?? false) && !controller.article.imagePath!.endsWith('.svg'))
             GestureDetector(
               onTap: () {
-                _showFullScreenImage(controller.article.imagePath!); // 处理点击事件，显示全屏图片
+                _showFullScreenImage([controller.article.imagePath!]); // 处理点击事件，显示全屏图片
               },
               child: Container(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -245,6 +245,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           }
 
           final images = snapshot.data!;
+          final imagePaths = images.map((i) => i.imagePath).toList();
 
           return ListView.builder(
             scrollDirection: Axis.horizontal,
@@ -252,7 +253,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
             itemBuilder: (context, index) {
               return GestureDetector(
                 onTap: () {
-                  _showFullScreenImage(images[index].imagePath ?? '');
+                  _showFullScreenImage(imagePaths);
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
@@ -260,13 +261,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                     File(images[index].imagePath ?? ''), // 假设 ArticleImage 对象有 imagePath 属性
                     fit: BoxFit.cover,
                     errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
-                      return Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.error, color: Colors.red),
-                          Text('File does not exist'),
-                        ],
-                      ); // 显示错误图标和消息
+                      logger.i("加载路径错误 ${controller.article.imagePath}");
+                      return SizedBox.shrink(); // 隐藏整个 Container 显示错误图标和消息
                     },
                   ),
                 ),
@@ -278,37 +274,36 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     );
   }
 
-  void _showFullScreenImage(String imagePath) {
-    if (imagePath.isEmpty) {
-      return;
-    }
+  void _showFullScreenImage(List<String?> imagePaths) {
     Get.dialog(
       Scaffold(
         backgroundColor: Colors.black,
         body: GestureDetector(
           onTap: () {
-            Navigator.pop(Get.context!);
+            Get.close();
           },
-          child: Center(
-            child: SizedBox(
-              height: MediaQuery.of(Get.context!).size.height, // 设置高度为手机屏幕高度
-              child: InteractiveViewer(
-                maxScale: 5,
-                child: Image.file(
-                  File(imagePath),
-                  fit: BoxFit.contain,
-                  errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error, color: Colors.red),
-                        Text('File does not exist'),
-                      ],
-                    ); // 显示错误图标和消息
-                  },
+          child: PageView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: imagePaths.length,
+            itemBuilder: (context, index) {
+              return Center(
+                child: SizedBox(
+                  width: MediaQuery.of(Get.context!).size.width,
+                  height: MediaQuery.of(Get.context!).size.height,
+                  child: InteractiveViewer(
+                    maxScale: 5,
+                    child: Image.file(
+                      File(imagePaths[index] ?? ''), // 使用 imagePaths 中的路径
+                      fit: BoxFit.contain,
+                      errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                        logger.i("加载路径错误 ${controller.article.imagePath}");
+                        return SizedBox.shrink(); // 隐藏整个 Container 显示错误图标和消息
+                      },
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
