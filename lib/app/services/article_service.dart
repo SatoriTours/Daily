@@ -50,6 +50,8 @@ class ArticleService {
 
   Future<void> deleteArticle(int articleID) async {
     // 删除的时候,要把相关的图片文件都删除
+    await (db.delete(db.articleImages)..where((row) => row.article.equals(articleID))).go();
+    await (db.delete(db.articleScreenshots)..where((row) => row.article.equals(articleID))).go();
     final result = await (db.delete(db.articles)..where((row) => row.id.equals(articleID))).go();
 
     if (result > 0) {

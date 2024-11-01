@@ -30,12 +30,17 @@ class SettingsService extends GetxService {
       return;
     }
     logger.i("[更新Settings] key => $key, value => $value");
-    _db.into(_db.settings).insertReturning(
-          SettingsCompanion(
-            key: drift.Value(key),
-            value: drift.Value(value),
-          ),
-        );
+    try {
+      await _db.into(_db.settings).insertOnConflictUpdate(
+            SettingsCompanion(
+              key: drift.Value(key),
+              value: drift.Value(value),
+            ),
+          );
+    } catch (e) {
+      logger.i("[更新Settings失败] key => $key, value => $value, $e");
+    }
+
     // SettingsCompanion.insert(key: key, value: value);
     await reloadSettings();
   }

@@ -1,6 +1,32 @@
 function parseContent() {
     const documentClone = document.cloneNode(true);
-    const article = new Readability(documentClone).parse();
+    let title = '';
+    let excerpt = '';
+    let content = '';
+    let textContent = '';
+    let publishedTime = '';
+
+    try{
+        // 避免如下的错误, 所以只能捕获异常来处理
+        // [Satori] [D]  浏览器日志: This document requires 'TrustedScript' assignment. An HTMLScriptElement was directly modified and will not be executed.
+        // [Satori] [D]  浏览器日志: This document requires 'TrustedScript' assignment. This script element was modified without use of TrustedScript assignment.
+        // [Satori] [D]  浏览器日志: This document requires 'TrustedScript' assignment. An HTMLScriptElement was directly modified and will not be executed.
+        // [Satori] [D]  浏览器日志: This document requires 'TrustedScript' assignment. This script element was modified without use of TrustedScript assignment.
+        // [Satori] [D]  浏览器日志: This document requires 'TrustedHTML' assignment.
+        const article = new Readability(documentClone).parse();
+        console.log("使用 Readability 解析网页成功");
+        title = article.title;
+        excerpt = article.excerpt;
+        content = article.content;
+        textContent = article.textContent;
+        publishedTime = article.publishedTime;
+    } catch (error) {
+        console.log("Readability解析文章失败, 直接获取网页原始内容", error);
+        title = document.title;
+        content = document.documentElement.innerHTML;
+        textContent = document.body.textContent;
+    }
+
 
     if (window.flutter_inappwebview == null) {
         console.log("flutter 组件没有加载成功")
@@ -18,11 +44,11 @@ function parseContent() {
     window.flutter_inappwebview.callHandler(
         "getPageContent",
         window.location.href, // 获取当前网页的URL
-        article.title,
-        article.excerpt,
-        article.content,
-        article.textContent,
-        article.publishedTime,
+        title,
+        excerpt,
+        content,
+        textContent,
+        publishedTime,
         images
     )
 }
