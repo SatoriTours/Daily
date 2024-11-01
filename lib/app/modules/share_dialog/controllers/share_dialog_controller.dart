@@ -15,7 +15,7 @@ import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/global.dart';
 
 class ShareDialogController extends GetxController {
-  String? shareURL = isProduction ? null : 'https://youtu.be/3P4EZGp0l1w?si=_DIZp2HJI3gSUo45';
+  String? shareURL = isProduction ? null : 'https://1024.day/d/3072';
   bool isUpdate = false;
 
   DreamWebViewController? webViewController;

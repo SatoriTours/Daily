@@ -25,11 +25,16 @@ class HttpService {
     final imageName = FileService.i.generateFileNameByUrl(url);
     final imagePath = FileService.i.getImagePath(imageName);
 
-    await dio.download(
-      url,
-      imagePath,
-    );
+    try {
+      await dio.download(
+        url,
+        imagePath,
+      );
+      return imagePath;
+    } catch (e) {
+      logger.i("下载文件失败, $e");
+    }
 
-    return imagePath;
+    return '';
   }
 }
