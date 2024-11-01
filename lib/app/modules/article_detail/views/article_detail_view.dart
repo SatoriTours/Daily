@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:daily_satori/app/databases/database.dart';
+import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -201,7 +202,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                   alignment: Alignment.topCenter,
                   errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
                     logger.i("加载路径错误 ${controller.article.imagePath}");
-                    return Container(); // 不显示任何内容
+                    return SizedBox.shrink(); // 隐藏整个 Container
                   },
                 ),
               ),
@@ -210,14 +211,14 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
             child: Text(
               (controller.article.aiTitle ?? controller.article.title) ?? '',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: MyFontStyle.articleTitleStyle,
             ),
           ),
           Container(
             padding: const EdgeInsets.all(20.0),
             child: Text(
               (controller.article.aiContent ?? ''),
-              style: const TextStyle(fontSize: 16),
+              style: MyFontStyle.articleBodyStyle,
             ),
           ),
           Container(
