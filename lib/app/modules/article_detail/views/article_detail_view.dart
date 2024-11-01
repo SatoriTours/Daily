@@ -10,7 +10,6 @@ import 'package:daily_satori/app/compontents/dream_webview/dream_webview.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/global.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../controllers/article_detail_controller.dart';
 
@@ -185,7 +184,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          if (controller.article.imagePath?.isNotEmpty ?? false)
+          if ((controller.article.imagePath?.isNotEmpty ?? false) && !controller.article.imagePath!.endsWith('.svg'))
             GestureDetector(
               onTap: () {
                 _showFullScreenImage(controller.article.imagePath!); // 处理点击事件，显示全屏图片
@@ -201,6 +200,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                   fit: BoxFit.cover,
                   alignment: Alignment.topCenter,
                   errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                    logger.i("加载路径错误 ${controller.article.imagePath}");
                     return Container(); // 不显示任何内容
                   },
                 ),
