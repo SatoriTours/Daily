@@ -16,15 +16,22 @@ class FileService {
     _appPath = (await getApplicationDocumentsDirectory()).path;
     _imagesBasePath = await mkdir('images');
     _screenshotsBasePath = await mkdir('screenshots');
+    _downloadsPath = await mkdir('downloads');
   }
 
   late String _imagesBasePath;
   late String _screenshotsBasePath;
+  late String _downloadsPath;
   late String _appPath;
 
   String get imagesBasePath => _imagesBasePath;
   String get screenshotsBasePath => _screenshotsBasePath;
+  String get downloadsPath => _downloadsPath;
   String get appPath => _appPath;
+
+  String getDownloadPath(String fileName) {
+    return path.join(_downloadsPath, fileName);
+  }
 
   String getImagePath(String imageName) {
     return path.join(_imagesBasePath, imageName);

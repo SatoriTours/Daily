@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -23,6 +24,12 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
     super.onInit();
     scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addObserver(this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppUpgradeService.i.checkAndDownloadInbackend();
+    });
+
+    reloadArticles();
   }
 
   @override

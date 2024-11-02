@@ -1,6 +1,7 @@
 import 'dart:developer';
 
 import 'package:daily_satori/app/helpers/sqlite_settings_provider.dart';
+import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/freedisk_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -81,6 +82,8 @@ Future<void> initServices() async {
     ADBlockService.i.init(),
     FreeDiskService.i.init(),
   ]);
+
+  AppUpgradeService.i.init(); // 检查是否有新版本可以安装
 
   // 不用等待处理完成的服务, 可以在后台执行
   BackupService.i.init();

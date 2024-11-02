@@ -17,8 +17,6 @@ class ArticlesView extends GetView<ArticlesController> {
   const ArticlesView({super.key});
   @override
   Widget build(BuildContext context) {
-    controller.reloadArticles();
-
     return Scaffold(
       appBar: AppBar(
         title: Text(

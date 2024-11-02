@@ -17,11 +17,11 @@ class HomeView extends StatelessWidget {
       if (call.method == 'receiveSharedText') {
         logger.i("跳转到: ${Routes.SHARE_DIALOG}, 接收到参数: ${call.arguments}");
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          Get.offNamed(Routes.SHARE_DIALOG,
-              arguments: {'shareURL': call.arguments});
+          Get.offNamed(Routes.SHARE_DIALOG, arguments: {'shareURL': call.arguments});
         });
       }
     });
+
     Get.offNamed(Routes.ARTICLES);
 
     return Container();

@@ -30,6 +30,9 @@ class ADBlockService {
   Map<String, List<String>> get elementHidingRulesBySite => _elementHidingRulesBySite;
 
   Future<void> _downloadRules() async {
+    if (!isProduction) {
+      return;
+    }
     final easylistPath = await _getEasylistPath();
     try {
       final response = await Dio().download(_easylistUrl, easylistPath);

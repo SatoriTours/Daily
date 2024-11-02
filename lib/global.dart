@@ -72,13 +72,47 @@ void errorNotice(String content, {String title = '错误'}) {
   Get.snackbar(title, content, snackPosition: SnackPosition.top, backgroundColor: Colors.red);
 }
 
-void showFullScreenLoading() {
+void showFullScreenLoading({String title = ''}) {
   Get.dialog(
     PopScope(
       child: Center(
-        child: CircularProgressIndicator(),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            if (title.isNotEmpty) SizedBox(height: 20),
+            if (title.isNotEmpty) Text(title, style: TextStyle(fontSize: 20)),
+          ],
+        ),
       ),
     ),
     barrierDismissible: false, // 点击外部区域不关闭对话框
   );
+}
+
+Future<bool> showConfirmationDialog(String title, String message,
+    {String okText = '同意', String cancelText = '取消'}) async {
+  return await Get.dialog<bool>(
+        AlertDialog(
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () {
+                logger.d("[showConfirmationDialog] $cancelText");
+                Get.close(result: false);
+              },
+              child: Text(cancelText),
+            ),
+            TextButton(
+              onPressed: () {
+                logger.d("[showConfirmationDialog] $okText");
+                Get.close(result: true);
+              },
+              child: Text(okText),
+            ),
+          ],
+        ),
+      ) ??
+      false; // 默认为false
 }

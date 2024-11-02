@@ -25,16 +25,38 @@ class HttpService {
     final imageName = FileService.i.generateFileNameByUrl(url);
     final imagePath = FileService.i.getImagePath(imageName);
 
-    try {
-      await dio.download(
-        url,
-        imagePath,
-      );
+    if (await _downloadFile(url, imagePath)) {
       return imagePath;
-    } catch (e) {
-      logger.i("下载文件失败, $e");
     }
 
     return '';
+  }
+
+  Future<String> downloadFile(String url) async {
+    if (url.isEmpty) {
+      return "";
+    }
+
+    String fileName = url.split('/').last;
+    String filePath = FileService.i.getDownloadPath(fileName);
+
+    if (await _downloadFile(url, filePath)) {
+      return filePath;
+    }
+
+    return '';
+  }
+
+  Future<bool> _downloadFile(String url, String savePath) async {
+    try {
+      await dio.download(
+        url,
+        savePath,
+      );
+      return true;
+    } catch (e) {
+      logger.i("下载文件失败, $e");
+    }
+    return false;
   }
 }

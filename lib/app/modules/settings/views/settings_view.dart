@@ -1,4 +1,5 @@
 import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:daily_satori/app/services/freedisk_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
@@ -30,6 +31,7 @@ class SettingsView extends GetView<SettingsController> {
               _buildOpenAIGroup(),
               _buildBackupDirSelect(),
               _buildFreeSpaceAction(),
+              _buildUpgradeAction(),
             ],
           ),
         ),
@@ -87,6 +89,23 @@ class SettingsView extends GetView<SettingsController> {
             await FreeDiskService.i.clean();
             Get.close();
             successNotice("清除重复图片完成");
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUpgradeAction() {
+    return SettingsGroup(
+      title: '关于应用',
+      titleTextStyle: MyFontStyle.settingGroupTitle,
+      children: [
+        SimpleSettingsTile(
+          title: '更新应用',
+          leading: Icon(Icons.download),
+          showDivider: false,
+          onTap: () {
+            AppUpgradeService.i.checkAndDownload();
           },
         ),
       ],
