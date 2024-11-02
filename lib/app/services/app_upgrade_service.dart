@@ -3,6 +3,7 @@ import 'package:daily_satori/global.dart';
 import 'package:get/get.dart';
 import 'package:open_file/open_file.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class AppUpgradeService {
   AppUpgradeService._privateConstructor();
@@ -39,6 +40,15 @@ class AppUpgradeService {
     }
   }
 
+  Future<void> _requestPermission() async {
+    var status = await Permission.requestInstallPackages.status;
+
+    if (status.isDenied) {
+      // 权限被拒绝，您可以引导用户去设置页面手动开启权限
+      await Permission.requestInstallPackages.request();
+    }
+  }
+
   Future<bool> check() async {
     await _getCurrentVersion();
     await _getLatestVersionFromGithub();
@@ -47,15 +57,28 @@ class AppUpgradeService {
   }
 
   Future<void> downAndInstallApp() async {
-    // if (needUpgrade && isProduction) {
-    if (needUpgrade &&
-        await showConfirmationDialog('检测到新版本', '当前版本 [$_version], 最新版本 [$_githubLatestVersion]\n请确认是否下载更新')) {
-      String appFilePath = await HttpService.i.downloadFile(_downloadURL);
-      logger.i("下载文件到 $appFilePath");
-      if (appFilePath.isNotEmpty) {
-        showFullScreenLoading(title: '开始更新: 从 $_version 更新到 $_githubLatestVersion');
-        await OpenFile.open(appFilePath);
-      }
+    if (needUpgrade && isProduction) {
+      // if (needUpgrade) {
+      await showConfirmationDialog(
+        '检测到新版本',
+        '当前版本 [$_version], 最新版本 [$_githubLatestVersion]\n请确认是否下载更新',
+        onConfirmed: () async {
+          await _requestPermission();
+          showFullScreenLoading();
+          try {
+            String appFilePath = await HttpService.i.downloadFile(_downloadURL);
+            logger.i("下载文件到 $appFilePath");
+            if (appFilePath.isNotEmpty) {
+              final result = await OpenFile.open(appFilePath);
+              logger.i("打开文件结果 ${result.type} ${result.message}");
+            }
+          } catch (e) {
+            logger.e("下载或打开文件时发生错误: $e");
+            errorNotice("下载或打开文件时发生错误，请稍后重试。");
+          }
+          Get.close();
+        },
+      );
     }
   }
 

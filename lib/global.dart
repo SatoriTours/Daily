@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -72,47 +73,45 @@ void errorNotice(String content, {String title = '错误'}) {
   Get.snackbar(title, content, snackPosition: SnackPosition.top, backgroundColor: Colors.red);
 }
 
-void showFullScreenLoading({String title = ''}) {
+void showFullScreenLoading() {
   Get.dialog(
     PopScope(
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            if (title.isNotEmpty) SizedBox(height: 20),
-            if (title.isNotEmpty) Text(title, style: TextStyle(fontSize: 20)),
-          ],
-        ),
+        child: CircularProgressIndicator(),
       ),
     ),
     barrierDismissible: false, // 点击外部区域不关闭对话框
   );
 }
 
-Future<bool> showConfirmationDialog(String title, String message,
-    {String okText = '同意', String cancelText = '取消'}) async {
-  return await Get.dialog<bool>(
-        AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                logger.d("[showConfirmationDialog] $cancelText");
-                Get.close(result: false);
-              },
-              child: Text(cancelText),
-            ),
-            TextButton(
-              onPressed: () {
-                logger.d("[showConfirmationDialog] $okText");
-                Get.close(result: true);
-              },
-              child: Text(okText),
-            ),
-          ],
+Future<void> showConfirmationDialog(
+  String title,
+  String message, {
+  String confirmText = '同意',
+  String cancelText = '取消',
+  Function()? onConfirmed,
+  Function()? onCanceled,
+}) async {
+  await Get.dialog<bool>(
+    AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Get.close();
+            onCanceled?.call();
+          },
+          child: Text(cancelText),
         ),
-      ) ??
-      false; // 默认为false
+        TextButton(
+          onPressed: () {
+            Get.close();
+            onConfirmed?.call();
+          },
+          child: Text(confirmText),
+        ),
+      ],
+    ),
+  );
 }

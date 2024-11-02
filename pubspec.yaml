@@ -4,7 +4,7 @@ description: "Daily Satori Tours"
 publish_to: 'none'
 
 
-version: 1.0.3
+version: 1.0.6
 
 environment:
   sdk: ^3.5.1
@@ -64,8 +64,13 @@ dependencies:
 
   # 设置界面
   flutter_settings_screens: ^0.3.4
+
+  # 获取软件包信息
   package_info_plus: ^8.1.0
+
+  # 打开文件
   open_file: ^3.5.9
+
 
   # 分享
   # receive_sharing_intent: ^1.8.0
