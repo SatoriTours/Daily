@@ -1,32 +1,48 @@
-name: Flutter CI
+name: Build Android APK
 
 on:
-  workflow_dispatch:
   push:
-    tags:
-      - v*
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4.4.0
+      # 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 设置 Java 环境
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
         with:
-          distribution: 'adopt'
-          java-version: '21'
+          java-version: '11'
 
-      - uses: subosito/flutter-action@v2.14.0
-          
-      - name: Flutter Install dependencies
-        run: flutter pub get    
-
-      - name: Flutter Build
-        run: flutter build apk --target-platform android-arm --release
-
-      - name: Release apk
-        uses: ncipollo/release-action@v1.14.0
+      # 设置 Flutter 环境
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
         with:
-          artifacts: "build/app/outputs/apk/release/*.apk"
-          token: $
+          flutter-version: "3.24.4" # 指定 Flutter 版本
+          channel: 'stable'
+          cache: true
+
+      # 获取依赖
+      - name: Get dependencies
+        run: flutter pub get
+
+      # 构建 APK
+      - name: Build APK
+        run: flutter build apk --release
+
+      # 上传构建的 APK 到 GitHub Artifacts
+      - name: Upload APK
+        uses: actions/upload-artifact@v2
+        with:
+          name: 开发版
+          path: build/app/outputs/apk/release/app-release.apk
