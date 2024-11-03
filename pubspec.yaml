@@ -4,7 +4,7 @@ description: "Daily Satori Tours"
 publish_to: 'none'
 
 
-version: 1.1.0
+version: 1.1.1
 
 environment:
   sdk: ^3.5.1
@@ -40,7 +40,7 @@ dependencies:
   flutter_inappwebview: ^6.1.4
 
   # AI 调用库
-  openai_dart: ^0.4.2
+  openai_dart: ^0.4.4
 
   # 时间处理
   intl: ^0.19.0
