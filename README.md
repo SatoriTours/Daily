@@ -12,7 +12,7 @@ app的愿景是能成为帮助个人学习和修炼的助手, 目前仅支持文
 
 ## 功能截图
 
-<p float="left">
+<p style="display: flex; justify-content: space-around;">
   <div>
     <img src="docs/images/网页收藏.jpg" width="200" alt="网页收藏" />
     <p>网页收藏</p>
