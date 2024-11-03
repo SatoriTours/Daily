@@ -1,4 +1,3 @@
-import 'package:daily_satori/app/modules/article_detail/views/article_detail_view.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
