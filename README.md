@@ -12,17 +12,12 @@ app的愿景是能成为帮助个人学习和修炼的助手, 目前仅支持文
 
 ## 功能截图
 
-![网页收藏](docs/images/网页收藏.jpg)
-网页收藏
-
-![文章列表](docs/images/文章列表.jpg)
-文章列表
-
-![AI解读](docs/images/AI解读.jpg)
-AI解读
-
-![网页截图](docs/images/网页截图.jpg)
-网页截图
+<p float="left">
+  <img src="docs/images/网页收藏.jpg" width="200" alt="网页收藏" />
+  <img src="docs/images/文章列表.jpg" width="200" alt="文章列表" />
+  <img src="docs/images/AI解读.jpg" width="200" alt="AI解读" />
+  <img src="docs/images/网页截图.jpg" width="200" alt="网页截图" />
+</p>
 
 ## 下载和安装
 
