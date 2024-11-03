@@ -9,6 +9,7 @@ abstract class Routes {
   static const ARTICLES = _Paths.ARTICLES;
   static const ARTICLE_DETAIL = _Paths.ARTICLE_DETAIL;
   static const BACKUP_RESTORE = _Paths.BACKUP_RESTORE;
+  static const LEFT_BAR = _Paths.LEFT_BAR;
 }
 
 abstract class _Paths {
@@ -19,4 +20,5 @@ abstract class _Paths {
   static const ARTICLES = '/articles';
   static const ARTICLE_DETAIL = '/article-detail';
   static const BACKUP_RESTORE = '/backup-restore';
+  static const LEFT_BAR = '/left-bar';
 }

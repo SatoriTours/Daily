@@ -8,6 +8,8 @@ import '../modules/backup_restore/bindings/backup_restore_binding.dart';
 import '../modules/backup_restore/views/backup_restore_view.dart';
 import '../modules/home/bindings/home_binding.dart';
 import '../modules/home/views/home_view.dart';
+import '../modules/left_bar/bindings/left_bar_binding.dart';
+import '../modules/left_bar/views/left_bar_view.dart';
 import '../modules/settings/bindings/settings_binding.dart';
 import '../modules/settings/views/settings_view.dart';
 import '../modules/share_dialog/bindings/share_dialog_binding.dart';
@@ -58,6 +60,14 @@ class AppPages {
       page: () => const BackupRestoreView(),
       binding: BackupRestoreBinding(),
       transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: _Paths.LEFT_BAR,
+      page: () => const LeftBarView(),
+      binding: LeftBarBinding(),
+      transition: Transition.leftToRight,
+      transitionDuration: Duration(milliseconds: 200),
+      reverseTransitionDuration: Duration(milliseconds: 200),
     ),
   ];
 }
