@@ -16,19 +16,19 @@ app的愿景是能成为帮助个人学习和修炼的助手, 目前仅支持文
   <tr>
     <td style="text-align: center;">
       <img src="docs/images/网页收藏.jpg" width="200" alt="网页收藏" />
-      <p>网页收藏</p>
+      <p style="margin-top: 10px;">网页收藏</p>
     </td>
     <td style="text-align: center;">
       <img src="docs/images/文章列表.jpg" width="200" alt="文章列表" />
-      <p>文章列表</p>
+      <p style="margin-top: 10px;">文章列表</p>
     </td>
     <td style="text-align: center;">
       <img src="docs/images/AI解读.jpg" width="200" alt="AI解读" />
-      <p>AI解读</p>
+      <p style="margin-top: 10px;">AI解读</p>
     </td>
     <td style="text-align: center;">
       <img src="docs/images/网页截图.jpg" width="200" alt="网页截图" />
-      <p>网页截图</p>
+      <p style="margin-top: 10px;">网页截图</p>
     </td>
   </tr>
 </table>
