@@ -55,6 +55,11 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
     }
   }
 
+  void toggleOnlyFavorite(bool value) {
+    _onlyFavorite = value;
+    reloadArticles(); // 重新加载文章以应用过滤条件
+  }
+
   // -------------------------part 专用的变量-------------------------------
 
   // part 'clipboard.part.dart';
@@ -62,6 +67,7 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
 
   // part 'part.filter.dart';
   String _searchText = '';
+  bool _onlyFavorite = false;
 
   // part 'part.article_load.dart';
   final int _pageSize = 20;

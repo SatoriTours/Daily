@@ -7,6 +7,7 @@ extension PartArticleLoad on ArticlesController {
     final newArticles = ArticleService.i.getArticles();
     _addFilterExpression(newArticles);
     articles.assignAll(await newArticles.get());
+    scrollController.jumpTo(0);
   }
 
   Future<void> _loadPreviousArticles() async {

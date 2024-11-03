@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/modules/article_detail/views/article_detail_view.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import '../controllers/left_bar_controller.dart';
 
 class LeftBarView extends GetView<LeftBarController> {
   const LeftBarView({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -32,6 +34,7 @@ class LeftBarView extends GetView<LeftBarController> {
           icon: const Icon(Icons.article_outlined),
           label: const Text('全部'),
           onPressed: () {
+            controller.articlesController.toggleOnlyFavorite(false);
             Get.back();
           },
         ),
@@ -39,8 +42,8 @@ class LeftBarView extends GetView<LeftBarController> {
           icon: const Icon(Icons.favorite),
           label: const Text('收藏'),
           onPressed: () {
-            // 点击后跳转到收藏的文章
-            // 在此处添加跳转逻辑
+            controller.articlesController.toggleOnlyFavorite(true);
+            Get.back();
           },
         ),
         ElevatedButton.icon(

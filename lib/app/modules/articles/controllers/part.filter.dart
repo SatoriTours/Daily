@@ -4,6 +4,11 @@ extension PartFilter on ArticlesController {
   // 处理所有的过滤条件
   void _addFilterExpression(SimpleSelectStatement<$ArticlesTable, Article> select) {
     _addSearchExpression(select);
+    _addFavoriteExpression(select);
+  }
+
+  void _addFavoriteExpression(SimpleSelectStatement<$ArticlesTable, Article> select) {
+    if (_onlyFavorite) select.where((t) => t.isFavorite.equals(true));
   }
 
   // 处理搜索的条件
