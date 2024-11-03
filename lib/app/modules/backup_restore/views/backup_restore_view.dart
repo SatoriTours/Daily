@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
@@ -64,18 +65,20 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
             onPressed: () async {
               await controller.restoreBackup();
               Get.snackbar('提示', '文件已还原', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
-              Get.defaultDialog(
-                title: "重启应用",
-                middleText: "点击确定, 重启应用",
-                onConfirm: () {
-                  // 关闭应用并重新启动
-                  exit(0);
-                },
-                onCancel: () {
-                  // 关闭对话框
-                  Navigator.pop(Get.context!);
-                },
-              );
+              if (isProduction) {
+                Get.defaultDialog(
+                  title: "重启应用",
+                  middleText: "点击确定, 重启应用",
+                  onConfirm: () {
+                    // 关闭应用并重新启动
+                    exit(0);
+                  },
+                  onCancel: () {
+                    // 关闭对话框
+                    Navigator.pop(Get.context!);
+                  },
+                );
+              }
             },
           ),
         ),

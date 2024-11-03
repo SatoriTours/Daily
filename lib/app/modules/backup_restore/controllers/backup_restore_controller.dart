@@ -65,16 +65,19 @@ class BackupRestoreController extends GetxController {
 
     // 拷贝 images
     if (await imagesDir.exists()) {
+      logger.i("恢复备份 images 目录");
       await _copyDirectory(imagesDir, Directory(path.join(appDocDir, 'images')));
     }
 
     // 拷贝 screenshots
     if (await screenshotsDir.exists()) {
+      logger.i("恢复备份 screenshots 目录");
       await _copyDirectory(screenshotsDir, Directory(path.join(appDocDir, 'screenshots')));
     }
 
     // 拷贝数据库文件
     if (await databaseFile.exists()) {
+      logger.i("恢复备份 数据库文件");
       await databaseFile.copy(path.join(appDocDir, DBService.dbFileName));
     }
 
