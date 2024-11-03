@@ -1,5 +1,5 @@
-import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
@@ -27,11 +27,11 @@ bool isChinese(String text) {
   return RegExp(r'[\u4e00-\u9fa5]').hasMatch(text);
 }
 
-String getSubstring(String text, {int length = 50}) {
+String getSubstring(String text, {int length = 50, String suffix = ''}) {
   if (length < 0) {
     throw ArgumentError('length不能为负数');
   }
-  return text.length > length ? text.substring(0, length) : text;
+  return text.length > length ? text.substring(0, length) + suffix : text;
 }
 
 String firstLine(String text) {
@@ -114,4 +114,13 @@ Future<void> showConfirmationDialog(
       ],
     ),
   );
+}
+
+Future<String> getClipboardText() async {
+  ClipboardData? data = await Clipboard.getData(Clipboard.kTextPlain);
+  return data?.text ?? '';
+}
+
+Future<void> setClipboardText(String text) async {
+  await Clipboard.setData(ClipboardData(text: text));
 }

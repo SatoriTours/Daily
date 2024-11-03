@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +31,7 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
     });
 
     reloadArticles();
+    checkClipboardText();
   }
 
   @override
@@ -46,6 +48,7 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
       if (scrollController.position.pixels <= 30 || DateTime.now().difference(lastRefreshTime).inMinutes >= 60) {
         reloadArticles();
       }
+      checkClipboardText(); // 检查剪切板里面是否有http开头的链接, 如果是的就确认是否保存
     }
   }
 
@@ -135,5 +138,25 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
     addSearchExpression(newArticles);
     articles.addAll(await newArticles.get());
     isLoading.value = false;
+  }
+
+  String _clipboardText = '';
+  void checkClipboardText() {
+    logger.i("[checkClipboardText] 检查剪切板里面是否包含http开头的链接");
+    getClipboardText().then((String url) {
+      logger.i("[checkClipboardText] 读取剪切板内容 $url");
+      if (url.startsWith('http') && url != _clipboardText) {
+        showConfirmationDialog(
+          '是否保存',
+          '获取到剪切板链接:\n${getSubstring(url, length: 30, suffix: '...')}\n\n请确认是否保存?',
+          onConfirmed: () async {
+            await setClipboardText('');
+            Get.toNamed(Routes.SHARE_DIALOG, arguments: {'shareURL': url});
+            _clipboardText = url;
+          },
+          onCanceled: () => _clipboardText = url,
+        );
+      }
+    });
   }
 }
