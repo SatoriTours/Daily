@@ -32,8 +32,7 @@ class LeftBarView extends GetView<LeftBarController> {
           icon: const Icon(Icons.article_outlined),
           label: const Text('全部'),
           onPressed: () {
-            // 点击后跳转到全部文章
-            Get.toNamed(Routes.ARTICLES);
+            Get.back();
           },
         ),
         ElevatedButton.icon(
@@ -47,10 +46,7 @@ class LeftBarView extends GetView<LeftBarController> {
         ElevatedButton.icon(
           icon: const Icon(Icons.settings),
           label: const Text('设置'),
-          onPressed: () {
-            // 点击后跳转到设置
-            Get.toNamed(Routes.SETTINGS);
-          },
+          onPressed: () => Get.toNamed(Routes.SETTINGS),
         ),
       ],
     );
