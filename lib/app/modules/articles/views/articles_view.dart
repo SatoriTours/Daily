@@ -25,9 +25,9 @@ class ArticlesView extends GetView<ArticlesController> {
         ),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.settings),
+          icon: const Icon(Icons.menu),
           onPressed: () {
-            Get.toNamed(Routes.SETTINGS);
+            Get.toNamed(Routes.LEFT_BAR);
           },
         ),
         actions: [

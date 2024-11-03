@@ -8,81 +8,37 @@ import 'package:daily_satori/app/databases/database.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/global.dart';
 
+part 'part.clipboard.dart';
+part 'part.article_load.dart';
+part 'part.event.dart';
+part 'part.update_list.dart';
+part 'part.filter.dart';
+
 class ArticlesController extends GetxController with WidgetsBindingObserver {
-  static int get pageSize => isProduction ? 20 : 5;
   ScrollController scrollController = ScrollController();
   DateTime lastRefreshTime = DateTime.now(); // 用来记录最后一次更新的时间, 当应用从后台回到前台的时候, 判断是否需要刷新
   TextEditingController searchController = TextEditingController();
 
+  // 监听变化, 重绘页面的变量
   final List<Article> articles = <Article>[].obs;
   var isLoading = false.obs;
   var enableSearch = false.obs;
 
-  String _searchText = '';
-
   @override
   void onInit() {
     super.onInit();
-    scrollController.addListener(_onScroll);
-    WidgetsBinding.instance.addObserver(this);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      AppUpgradeService.i.checkAndDownloadInbackend();
-    });
-
-    reloadArticles();
-    checkClipboardText();
+    _onInit();
   }
 
   @override
   void onClose() {
-    scrollController.dispose();
-    WidgetsBinding.instance.removeObserver(this);
+    _onClose();
     super.onClose();
   }
 
   @override
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
-    if (state == AppLifecycleState.resumed && scrollController.hasClients) {
-      logger.i("App is back from background");
-      if (scrollController.position.pixels <= 30 || DateTime.now().difference(lastRefreshTime).inMinutes >= 60) {
-        reloadArticles();
-      }
-      checkClipboardText(); // 检查剪切板里面是否有http开头的链接, 如果是的就确认是否保存
-    }
-  }
-
-  void removeArticleByIdFromList(int id) {
-    articles.removeWhere((article) => article.id == id);
-  }
-
-  void updateArticleInList(Article updatedArticle) {
-    int index = articles.indexWhere((article) => article.id == updatedArticle.id);
-    if (index != -1) {
-      articles[index] = updatedArticle; // 更新文章
-      logger.i("文章已更新: ${updatedArticle.title}");
-    } else {
-      logger.i("未找到要更新的文章: ${updatedArticle.id}");
-    }
-  }
-
-  Future<void> updateArticleInListFromDB(int articleID) async {
-    int index = articles.indexWhere((article) => article.id == articleID);
-    if (index != -1) {
-      final newArticle = await ArticleService.i.getArticleById(articleID);
-      articles[index] = newArticle; // 更新文章
-      logger.i("文章已更新: $articleID");
-    } else {
-      logger.i("未找到要更新的文章: $articleID");
-    }
-  }
-
-  Future<void> reloadArticles() async {
-    logger.i("重新加载文章");
-    lastRefreshTime = DateTime.now();
-    final newArticles = ArticleService.i.getArticles();
-    addSearchExpression(newArticles);
-    articles.assignAll(await newArticles.get());
+    await _didChangeAppLifecycleState(state);
   }
 
   Future<void> searchArticles() async {
@@ -99,64 +55,20 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  void addSearchExpression(SimpleSelectStatement<$ArticlesTable, Article> select) {
-    if (enableSearch.value && _searchText.isNotEmpty) {
-      final searchExpression = "%$_searchText%";
-      // 使用 where 条件的时候,头文件需要包含 import 'package:drift/drift.dart'; 不然会报错找不到 like 方法
-      select.where((t) {
-        return t.title.like(searchExpression) |
-            t.aiTitle.like(searchExpression) |
-            t.content.like(searchExpression) |
-            t.aiContent.like(searchExpression);
-      });
-    }
+  void toggleOnlyFavorite(bool value) {
+    _onlyFavorite = value;
+    reloadArticles(); // 重新加载文章以应用过滤条件
   }
 
-  void _onScroll() {
-    if (scrollController.position.pixels == scrollController.position.maxScrollExtent) {
-      _loadMoreArticles();
-    } else if (scrollController.position.pixels == scrollController.position.minScrollExtent) {
-      _loadPreviousArticles();
-    }
-  }
+  // -------------------------part 专用的变量-------------------------------
 
-  Future<void> _loadPreviousArticles() async {
-    int articleID = articles.first.id;
-    isLoading.value = true;
-    logger.i("获取 $articleID 之前的 $pageSize 个文章");
-    final newArticles = ArticleService.i.getArticlesGreaterThanId(articleID, limit: pageSize);
-    addSearchExpression(newArticles);
-    articles.insertAll(0, await newArticles.get());
-    isLoading.value = false;
-  }
+  // part 'clipboard.part.dart';
+  String _clipboardText = ''; // 用户缓存剪切板里面的http链接内容,避免重复提醒
 
-  Future<void> _loadMoreArticles() async {
-    int articleID = articles.last.id;
-    isLoading.value = true;
-    logger.i("获取 $articleID 之后的 $pageSize 个文章");
-    final newArticles = ArticleService.i.getArticlesLessThanId(articleID, limit: pageSize);
-    addSearchExpression(newArticles);
-    articles.addAll(await newArticles.get());
-    isLoading.value = false;
-  }
+  // part 'part.filter.dart';
+  String _searchText = '';
+  bool _onlyFavorite = false;
 
-  String _clipboardText = '';
-  void checkClipboardText() {
-    logger.i("[checkClipboardText] 检查剪切板里面是否包含http开头的链接");
-    getClipboardText().then((String url) {
-      logger.i("[checkClipboardText] 读取剪切板内容 $url");
-      if (url.startsWith('http') && url != _clipboardText) {
-        showConfirmationDialog(
-          '是否保存',
-          '获取到剪切板链接:\n${getSubstring(url, length: 30, suffix: '...')}\n\n请确认是否保存?',
-          onConfirmed: () async {
-            await setClipboardText('');
-            Get.toNamed(Routes.SHARE_DIALOG, arguments: {'shareURL': url});
-            _clipboardText = url;
-          },
-          onCanceled: () => _clipboardText = url,
-        );
-      }
-    });
-  }
+  // part 'part.article_load.dart';
+  final int _pageSize = 20;
 }
