@@ -54,7 +54,7 @@ jobs:
           keyStorePassword: ${{ secrets.KEY_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}  # 可选
         env:
-          buildToolsVersion: '35.0.2' 
+          BUILD_TOOLS_VERSION: '35.0.2' 
 
       - name: Create Release
         id: create_release
