@@ -36,26 +36,14 @@ jobs:
 
       # 构建 APK
       - name: Build APK
-        # env:
-        #   KEY_JKS: ${{ secrets.KEY_JKS }}  # 从 GitHub Secrets 中获取密钥
-        #   KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        #   ALIAS_PASSWORD: ${{ secrets.ALIAS_PASSWORD }}
-        run: flutter build apk --release
-
-      - name: Install Build Tools
-        run: sdkmanager "build-tools;35.0.2"
-        
-      - name: Sign APK
-        uses: r0adkll/sign-android-release@v1
-        id: sign_app
-        with:
-          releaseDirectory: build/app/outputs/apk/release
-          signingKeyBase64: ${{ secrets.KEY_JKS }}
-          alias: ${{ secrets.ALIAS_PASSWORD }}
-          keyStorePassword: ${{ secrets.KEY_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}  # 可选
         env:
-          BUILD_TOOLS_VERSION: '35.0.2' 
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_JKS: ${{ secrets.KEY_JKS }}  # 从 GitHub Secrets 中获取密钥
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        run: |
+          echo $KEY_JKS | base64 --decode > ./android/app/release-key.jks
+          flutter build apk --release
 
       - name: Create Release
         id: create_release
