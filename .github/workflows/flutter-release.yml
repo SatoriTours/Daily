@@ -37,9 +37,10 @@ jobs:
       # 构建 APK
       - name: Build APK
         env:
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_JKS: ${{ secrets.KEY_JKS }}  # 从 GitHub Secrets 中获取密钥
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          ALIAS_PASSWORD: ${{ secrets.ALIAS_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
         run: |
           echo $KEY_JKS | base64 --decode > ./android/app/release-key.jks
           flutter build apk --release
