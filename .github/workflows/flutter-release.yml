@@ -53,6 +53,7 @@ jobs:
           alias: ${{ secrets.ALIAS_PASSWORD }}
           keyStorePassword: ${{ secrets.KEY_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}  # 可选
+          buildToolsVersion: '35.0.2' 
 
       - name: Create Release
         id: create_release
