@@ -2,12 +2,13 @@ part of 'share_dialog_controller.dart';
 
 extension PartArticle on ShareDialogController {
   Future<bool> _checkArticleExists(String url) async {
-    bool isArticleExists = await ArticleService.i.isArticleExists(url);
-    if (!isUpdate && isArticleExists) {
-      _showSnackbar('网页已存在 $url, 无法保存');
-      return true;
+    if (!isUpdate) {
+      if (await ArticleService.i.isArticleExists(url)) {
+        _showSnackbar('网页已存在 $url');
+        return true;
+      }
     }
-    if (isUpdate && !isArticleExists) {
+    if (isUpdate && articleID <= 0) {
       _showSnackbar('网页不存在 $url, 无法更新');
       return true;
     }
@@ -44,7 +45,7 @@ extension PartArticle on ShareDialogController {
     final Article? newArticle;
     if (isUpdate) {
       logger.i("[更新文章] aiTitle => ${article.aiTitle}, imagePath => ${article.imagePath}");
-      newArticle = await ArticleService.i.updateArticle(article);
+      newArticle = await ArticleService.i.updateArticle(articleID, article);
       if (newArticle != null) {
         Get.find<ArticlesController>().updateArticleInList(newArticle);
       }

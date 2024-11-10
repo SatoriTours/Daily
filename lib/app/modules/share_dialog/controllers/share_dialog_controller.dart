@@ -1,5 +1,6 @@
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -22,6 +23,7 @@ part 'part.screenshot.dart';
 class ShareDialogController extends GetxController {
   String? shareURL = isProduction ? null : 'https://1024.day/d/3072';
   bool isUpdate = false;
+  int articleID = -1;
 
   DreamWebViewController? webViewController;
   TextEditingController commentController = TextEditingController();

@@ -28,5 +28,7 @@ extension PartTags on ShareDialogController {
           articleId: drift.Value(article.id),
           tagId: drift.Value(tagId),
         )));
+
+    TagsService.i.reload();
   }
 }

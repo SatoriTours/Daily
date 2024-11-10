@@ -14,6 +14,7 @@ class TagsService {
   Future<void> init() async {
     logger.i("[初始化服务] TagsService");
     await reload();
+    // if (!isProduction) await clearAllTags();
   }
 
   Future<void> reload() async {
@@ -21,8 +22,8 @@ class TagsService {
     logger.i("[加载所有标签] ${_tags.length}");
   }
 
-  String getTagsString() {
-    return _tags.map((tag) => tag.title).join(',');
+  List<String> getStringTags() {
+    return _tags.map((tag) => tag.title).where((title) => title != null).map((title) => title!).toList();
   }
 
   Future<void> clearAllTags() async {
