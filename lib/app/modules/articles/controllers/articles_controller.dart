@@ -58,7 +58,7 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
   }
 
   void toggleOnlyFavorite(bool value) {
-    _onlyFavorite = value;
+    _onlyFavorite.value = value;
     reloadArticles();
   }
 
@@ -71,9 +71,16 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
 
   void showAllArticles() {
     _tagID = -1;
-    _onlyFavorite = false;
+    _onlyFavorite.value = false;
     tagName.value = '';
     reloadArticles();
+  }
+
+  String appBarTitle() {
+    var title = '文章';
+    if (_onlyFavorite.value) title = '收藏的文章';
+    if (tagName.value.isNotEmpty) title = "$title - ${tagName.value}";
+    return title;
   }
 
   final _db = DBService.i.db;
@@ -85,7 +92,7 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
 
   // part 'part.filter.dart';
   String _searchText = '';
-  bool _onlyFavorite = false;
+  final _onlyFavorite = false.obs;
   int _tagID = -1;
 
   // part 'part.article_load.dart';

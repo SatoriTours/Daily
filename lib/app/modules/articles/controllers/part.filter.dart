@@ -15,7 +15,7 @@ extension PartFilter on ArticlesController {
   }
 
   void _addFavoriteExpression(SimpleSelectStatement<$ArticlesTable, Article> select) {
-    if (_onlyFavorite) select.where((t) => t.isFavorite.equals(true));
+    if (_onlyFavorite.value) select.where((t) => t.isFavorite.equals(true));
   }
 
   // 处理搜索的条件

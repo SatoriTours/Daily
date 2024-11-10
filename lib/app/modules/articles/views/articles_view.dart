@@ -20,7 +20,7 @@ class ArticlesView extends GetView<ArticlesController> {
     return Scaffold(
       appBar: AppBar(
         title: Obx(() => Text(
-              controller.tagName.value.isEmpty ? '文章' : '文章 - ${controller.tagName.value}',
+              controller.appBarTitle(),
               style: MyFontStyle.appBarTitleStyle,
             )),
         centerTitle: true,
