@@ -19,10 +19,10 @@ class ArticlesView extends GetView<ArticlesController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          '文章',
-          style: MyFontStyle.appBarTitleStyle,
-        ),
+        title: Obx(() => Text(
+              controller.tagName.value.isEmpty ? '文章' : '文章 - ${controller.tagName.value}',
+              style: MyFontStyle.appBarTitleStyle,
+            )),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.menu),

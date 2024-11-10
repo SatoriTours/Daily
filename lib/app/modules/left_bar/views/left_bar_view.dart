@@ -1,4 +1,3 @@
-import 'package:daily_satori/app/modules/share_dialog/controllers/share_dialog_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
@@ -62,7 +61,7 @@ class LeftBarView extends GetView<LeftBarController> {
         final tag = controller.tags[index];
         return InkWell(
           onTap: () {
-            controller.articlesController.showArticleByTagID(tag.id);
+            controller.articlesController.showArticleByTagID(tag.id, tag.title ?? '');
             Get.back();
           },
           child: Padding(

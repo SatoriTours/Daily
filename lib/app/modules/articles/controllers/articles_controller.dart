@@ -22,8 +22,9 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
 
   // 监听变化, 重绘页面的变量
   final List<Article> articles = <Article>[].obs;
-  var isLoading = false.obs;
-  var enableSearch = false.obs;
+  final isLoading = false.obs;
+  final enableSearch = false.obs;
+  final tagName = ''.obs;
 
   @override
   void onInit() {
@@ -61,15 +62,17 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
     reloadArticles();
   }
 
-  void showArticleByTagID(int tagID) {
+  void showArticleByTagID(int tagID, String tagName) {
     logger.i('设置标签ID: $tagID');
     _tagID = tagID;
+    this.tagName.value = tagName;
     reloadArticles();
   }
 
   void showAllArticles() {
     _tagID = -1;
     _onlyFavorite = false;
+    tagName.value = '';
     reloadArticles();
   }
 
