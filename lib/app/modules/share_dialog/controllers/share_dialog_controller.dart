@@ -14,6 +14,7 @@ import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/global.dart';
 
+part 'part.article.dart';
 part 'part.tags.dart';
 part 'part.images.dart';
 part 'part.screenshot.dart';
@@ -29,7 +30,8 @@ class ShareDialogController extends GetxController {
 
   Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
       String publishedTime, List<String> imageUrls) async {
-    logger.i("[saveArticleInfo] title => $title, imagesUrl => $imageUrls, publishedTime => $publishedTime");
+    logger.i(
+        "[saveArticleInfo] title => ${getSubstring(title)}, imagesUrl => $imageUrls, publishedTime => $publishedTime");
 
     if (await _checkArticleExists(url)) return;
 
@@ -56,37 +58,10 @@ class ShareDialogController extends GetxController {
     final newArticle = await _saveOrUpdateArticle(url, article);
 
     _saveTags(newArticle, results[1].$2);
-
-    // 保存文章的图片
     _saveImages(newArticle, imageUrls);
-
-    // 保存文章的截图
-    List<String> screenshotPaths = List.from(results[3]);
-    if (newArticle != null && screenshotPaths.isNotEmpty) {
-      await db.articleScreenshots.deleteWhere((tbl) => tbl.article.equals(newArticle.id));
-      await Future.wait(screenshotPaths.map((imagePath) async {
-        await db.into(db.articleScreenshots).insert(ArticleScreenshotsCompanion(
-              article: drift.Value(newArticle.id),
-              imagePath: drift.Value(imagePath),
-            ));
-      }));
-      logger.i("网页截图保存完成 ${newArticle.id}");
-    }
+    _saveScreenshots(newArticle, List.from(results[3]));
 
     _closeDialog();
-  }
-
-  Future<bool> _checkArticleExists(String url) async {
-    bool isArticleExists = await ArticleService.i.isArticleExists(url);
-    if (!isUpdate && isArticleExists) {
-      _showSnackbar('网页已存在 $url, 无法保存');
-      return true;
-    }
-    if (isUpdate && !isArticleExists) {
-      _showSnackbar('网页不存在 $url, 无法更新');
-      return true;
-    }
-    return false;
   }
 
   Future<String> _aiTitleTask(String title) async {
@@ -100,47 +75,6 @@ class ShareDialogController extends GetxController {
 
   Future<List<String>> _screenshotTask() async {
     return await webViewController!.captureFulScreenshot();
-  }
-
-  ArticlesCompanion _createArticleMap(
-      {required String url,
-      required String title,
-      required String aiTitle,
-      required String textContent,
-      required String aiContent,
-      required String htmlContent,
-      required String imageUrl,
-      required String imagePath,
-      // required String screenshotPath,
-      required String publishedTime}) {
-    return ArticlesCompanion(
-      title: drift.Value(title),
-      aiTitle: drift.Value(aiTitle),
-      content: drift.Value(textContent),
-      aiContent: drift.Value(aiContent),
-      htmlContent: drift.Value(htmlContent),
-      url: drift.Value(url),
-      imageUrl: drift.Value(imageUrl),
-      imagePath: drift.Value(imagePath),
-      screenshotPath: drift.Value(''), // 清空screenshotPath, 使用新的表存储的多张图
-      pubDate: drift.Value(DateTime.tryParse(publishedTime)?.toUtc() ?? DateTime.now().toUtc()),
-      comment: drift.Value(commentController.text),
-    );
-  }
-
-  Future<Article?> _saveOrUpdateArticle(String url, ArticlesCompanion article) async {
-    final Article? newArticle;
-    if (isUpdate) {
-      logger.i("[更新文章] aiTitle => ${article.aiTitle}, imagePath => ${article.imagePath}");
-      newArticle = await ArticleService.i.updateArticle(article);
-      if (newArticle != null) {
-        Get.find<ArticlesController>().updateArticleInList(newArticle);
-      }
-    } else {
-      logger.i("[新增文章] aiTitle => ${article.aiTitle}, imagePath => ${article.imagePath}");
-      newArticle = await ArticleService.i.saveArticle(article);
-    }
-    return newArticle;
   }
 
   void _showSnackbar(String message) {

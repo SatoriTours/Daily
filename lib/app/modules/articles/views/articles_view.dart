@@ -168,7 +168,7 @@ class ArticleCard extends GetView<ArticlesController> {
         ),
         const SizedBox(width: 15),
         Text(
-          (GetTimeAgo.parse(article.createdAt)),
+          (GetTimeAgo.parse(article.createdAt, pattern: 'yy年MM月dd日')),
           style: const TextStyle(color: Colors.grey),
         ),
         Spacer(), // 使用 Spacer 使按钮靠右对齐

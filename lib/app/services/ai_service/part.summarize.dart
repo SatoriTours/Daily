@@ -11,7 +11,8 @@ extension PartSummarize on AiService {
   }
 
   Future<(String, List<String>)> summarize(String text) async {
-    logger.i("[AI总结]: ${getSubstring(text)}");
+    // logger.i("[AI总结]: ${getSubstring(text)}");
+    logger.i("[AI总结] 现有标签是: ${TagsService.i.getTagsString()}");
 
     final res = await _sendRequest(
       '你是一个文章读者, 能用中文总结文章的核心内容以及符合的标签',
@@ -21,7 +22,9 @@ extension PartSummarize on AiService {
 
     final json = jsonDecode(res?.choices.first.message.content ?? '');
     final summary = json['summary'] as String;
-    final tags = json['tags'] as List<String>;
+    final tags = (json['tags'] as List<dynamic>).map((e) => e.toString()).toList();
+
+    logger.i("[AI总结] summary => ${getSubstring(summary)}, tags => $tags");
 
     return (summary, tags);
   }
@@ -61,8 +64,8 @@ ${TagsService.i.getTagsString()}
 1. 提取文章的主要观点和关键信息, 一定用中文输出.
 2. 确保总结简洁明了, 直接给结果，不要给其他任何的解释.
 3. 保持原文的意思，不要添加个人观点.
-4. 请注意```, 不包括 ```, 内的内容是附加信息，翻译时要保持其完整性.
-5. 尽量匹配给定的标签,如果都匹配不上,请给出新的合理标签,并且新增标签数量不超过2个.
-6. 每个标签的名字不超过5个字.
+4. 请注意```, 文章内容不包括 ```, 翻译时要保持其完整性.
+5. 根据已有标签匹配出文章合适的标签,只要意思相近就用给定的标签,而不要新增.
+6. 如果都匹配不上,请给出新的合理标签,并且新增标签数量不超过2个,每个标签的长度不超过5个字.
 ''';
 }

@@ -13,7 +13,7 @@ extension PartImages on ShareDialogController {
   Future<void> _downloadAndSaveImage(int articleID, String url) async {
     try {
       // 下载图片
-      String imagePath = await HttpService.i.downloadImage(url);
+      String imagePath = await _imageDownTask(url);
 
       // 更新数据库
       await db.into(db.articleImages).insert(ArticleImagesCompanion(

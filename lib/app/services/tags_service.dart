@@ -13,15 +13,21 @@ class TagsService {
 
   Future<void> init() async {
     logger.i("[初始化服务] TagsService");
-    await _loadAllTags();
+    await reload();
   }
 
-  Future<void> _loadAllTags() async {
+  Future<void> reload() async {
     _tags = await _db.tags.select().get();
     logger.i("[加载所有标签] ${_tags.length}");
   }
 
   String getTagsString() {
     return _tags.map((tag) => tag.title).join(',');
+  }
+
+  Future<void> clearAllTags() async {
+    await _db.articleTags.deleteAll();
+    await _db.tags.deleteAll();
+    logger.i("[清除所有标签] 完成");
   }
 }
