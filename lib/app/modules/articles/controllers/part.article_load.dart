@@ -15,10 +15,7 @@ extension PartArticleLoad on ArticlesController {
     isLoading.value = true;
     logger.i("获取 $articleID 之前的 $_pageSize 个文章");
     final newArticles = _addFilterExpression();
-    newArticles
-      ..where((t) => t.id.isBiggerThanValue(articleID))
-      ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)])
-      ..limit(_pageSize);
+    newArticles.where((t) => t.id.isBiggerThanValue(articleID));
 
     articles.insertAll(0, await _getArticles(newArticles));
     isLoading.value = false;
@@ -29,10 +26,7 @@ extension PartArticleLoad on ArticlesController {
     isLoading.value = true;
     logger.i("获取 $articleID 之后的 $_pageSize 个文章");
     final newArticles = _addFilterExpression();
-    newArticles
-      ..where((t) => t.id.isSmallerThanValue(articleID))
-      ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)])
-      ..limit(_pageSize);
+    newArticles.where((t) => t.id.isSmallerThanValue(articleID));
 
     articles.addAll(await _getArticles(newArticles));
     isLoading.value = false;
