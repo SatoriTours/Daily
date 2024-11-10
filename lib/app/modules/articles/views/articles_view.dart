@@ -19,10 +19,10 @@ class ArticlesView extends GetView<ArticlesController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          '文章',
-          style: MyFontStyle.appBarTitleStyle,
-        ),
+        title: Obx(() => Text(
+              controller.appBarTitle(),
+              style: MyFontStyle.appBarTitleStyle,
+            )),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.menu),
@@ -168,7 +168,7 @@ class ArticleCard extends GetView<ArticlesController> {
         ),
         const SizedBox(width: 15),
         Text(
-          (GetTimeAgo.parse(article.createdAt)),
+          (GetTimeAgo.parse(article.createdAt, pattern: 'yy年MM月dd日')),
           style: const TextStyle(color: Colors.grey),
         ),
         Spacer(), // 使用 Spacer 使按钮靠右对齐

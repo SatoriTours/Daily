@@ -90,6 +90,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       onSelected: (value) {
         if (value == 1) {
           Get.toNamed(Routes.SHARE_DIALOG, arguments: {
+            'articleID': controller.article.id,
             'shareURL': controller.article.url,
             'update': true,
           });

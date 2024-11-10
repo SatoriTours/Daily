@@ -22,13 +22,13 @@ class ArticleService {
     return newArticle;
   }
 
-  Future<Article?> updateArticle(ArticlesCompanion article) async {
-    var result = await (db.update(db.articles)..where((row) => row.url.equals(article.url.value))).write(article);
+  Future<Article?> updateArticle(int articleID, ArticlesCompanion article) async {
+    var result = await (db.update(db.articles)..where((row) => row.id.equals(articleID))).write(article);
 
     if (result >= 1) {
       logger.i("文章已更新: ${firstLine(article.title.value ?? '')}");
       // 返回更新后的 article 对象
-      return await getFirstArticleByUrl(article.url.value);
+      return await getArticleById(articleID);
     } else {
       logger.i("未找到文章以更新: ${article.url}");
       return null; // 未找到文章，返回 null
