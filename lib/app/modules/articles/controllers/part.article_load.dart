@@ -4,9 +4,9 @@ extension PartArticleLoad on ArticlesController {
   Future<void> reloadArticles() async {
     logger.i("重新加载文章");
     lastRefreshTime = DateTime.now();
-    final newArticles = ArticleService.i.getArticles();
-    _addFilterExpression(newArticles);
-    articles.assignAll(await newArticles.get());
+    final newArticles = _addFilterExpression();
+
+    articles.assignAll(await _getArticles(newArticles));
     if (scrollController.hasClients) scrollController.jumpTo(0);
   }
 
@@ -14,9 +14,13 @@ extension PartArticleLoad on ArticlesController {
     int articleID = articles.first.id;
     isLoading.value = true;
     logger.i("获取 $articleID 之前的 $_pageSize 个文章");
-    final newArticles = ArticleService.i.getArticlesGreaterThanId(articleID, limit: _pageSize);
-    _addFilterExpression(newArticles);
-    articles.insertAll(0, await newArticles.get());
+    final newArticles = _addFilterExpression();
+    newArticles
+      ..where((t) => t.id.isBiggerThanValue(articleID))
+      ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)])
+      ..limit(_pageSize);
+
+    articles.insertAll(0, await _getArticles(newArticles));
     isLoading.value = false;
   }
 
@@ -24,9 +28,13 @@ extension PartArticleLoad on ArticlesController {
     int articleID = articles.last.id;
     isLoading.value = true;
     logger.i("获取 $articleID 之后的 $_pageSize 个文章");
-    final newArticles = ArticleService.i.getArticlesLessThanId(articleID, limit: _pageSize);
-    _addFilterExpression(newArticles);
-    articles.addAll(await newArticles.get());
+    final newArticles = _addFilterExpression();
+    newArticles
+      ..where((t) => t.id.isSmallerThanValue(articleID))
+      ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)])
+      ..limit(_pageSize);
+
+    articles.addAll(await _getArticles(newArticles));
     isLoading.value = false;
   }
 }

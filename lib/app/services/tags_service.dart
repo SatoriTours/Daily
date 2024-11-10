@@ -11,6 +11,8 @@ class TagsService {
   final _db = DBService.i.db;
   late List<Tag> _tags;
 
+  List<Tag> get tags => _tags;
+
   Future<void> init() async {
     logger.i("[初始化服务] TagsService");
     await reload();

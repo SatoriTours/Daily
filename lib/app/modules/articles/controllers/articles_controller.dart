@@ -1,5 +1,6 @@
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
+import 'package:daily_satori/app/services/db_service.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -57,8 +58,22 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
 
   void toggleOnlyFavorite(bool value) {
     _onlyFavorite = value;
-    reloadArticles(); // 重新加载文章以应用过滤条件
+    reloadArticles();
   }
+
+  void showArticleByTagID(int tagID) {
+    logger.i('设置标签ID: $tagID');
+    _tagID = tagID;
+    reloadArticles();
+  }
+
+  void showAllArticles() {
+    _tagID = -1;
+    _onlyFavorite = false;
+    reloadArticles();
+  }
+
+  final _db = DBService.i.db;
 
   // -------------------------part 专用的变量-------------------------------
 
@@ -68,6 +83,7 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
   // part 'part.filter.dart';
   String _searchText = '';
   bool _onlyFavorite = false;
+  int _tagID = -1;
 
   // part 'part.article_load.dart';
   final int _pageSize = 20;

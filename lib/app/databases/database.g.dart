@@ -1713,6 +1713,10 @@ class $TagsTable extends Tags with TableInfo<$TagsTable, Tag> {
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+        {title},
+      ];
+  @override
   Tag map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return Tag(
@@ -1940,12 +1944,18 @@ class $ArticleTagsTable extends ArticleTags
   @override
   late final GeneratedColumn<int> articleId = GeneratedColumn<int>(
       'article_id', aliasedName, false,
-      type: DriftSqlType.int, requiredDuringInsert: true);
+      type: DriftSqlType.int,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES articles (id)'));
   static const VerificationMeta _tagIdMeta = const VerificationMeta('tagId');
   @override
   late final GeneratedColumn<int> tagId = GeneratedColumn<int>(
       'tag_id', aliasedName, false,
-      type: DriftSqlType.int, requiredDuringInsert: true);
+      type: DriftSqlType.int,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES tags (id)'));
   static const VerificationMeta _updatedAtMeta =
       const VerificationMeta('updatedAt');
   @override
@@ -2298,6 +2308,21 @@ final class $$ArticlesTableReferences
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
+
+  static MultiTypedResultKey<$ArticleTagsTable, List<ArticleTag>>
+      _articleTagsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+          db.articleTags,
+          aliasName:
+              $_aliasNameGenerator(db.articles.id, db.articleTags.articleId));
+
+  $$ArticleTagsTableProcessedTableManager get articleTagsRefs {
+    final manager = $$ArticleTagsTableTableManager($_db, $_db.articleTags)
+        .filter((f) => f.articleId.id($_item.id));
+
+    final cache = $_typedResult.readTableOrNull(_articleTagsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
 }
 
 class $$ArticlesTableFilterComposer
@@ -2389,6 +2414,27 @@ class $$ArticlesTableFilterComposer
             $$ArticleScreenshotsTableFilterComposer(
               $db: $db,
               $table: $db.articleScreenshots,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> articleTagsRefs(
+      Expression<bool> Function($$ArticleTagsTableFilterComposer f) f) {
+    final $$ArticleTagsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.articleTags,
+        getReferencedColumn: (t) => t.articleId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ArticleTagsTableFilterComposer(
+              $db: $db,
+              $table: $db.articleTags,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -2550,6 +2596,27 @@ class $$ArticlesTableAnnotationComposer
                 ));
     return f(composer);
   }
+
+  Expression<T> articleTagsRefs<T extends Object>(
+      Expression<T> Function($$ArticleTagsTableAnnotationComposer a) f) {
+    final $$ArticleTagsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.articleTags,
+        getReferencedColumn: (t) => t.articleId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ArticleTagsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.articleTags,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$ArticlesTableTableManager extends RootTableManager<
@@ -2564,7 +2631,9 @@ class $$ArticlesTableTableManager extends RootTableManager<
     (Article, $$ArticlesTableReferences),
     Article,
     PrefetchHooks Function(
-        {bool articleImagesRefs, bool articleScreenshotsRefs})> {
+        {bool articleImagesRefs,
+        bool articleScreenshotsRefs,
+        bool articleTagsRefs})> {
   $$ArticlesTableTableManager(_$AppDatabase db, $ArticlesTable table)
       : super(TableManagerState(
           db: db,
@@ -2648,12 +2717,15 @@ class $$ArticlesTableTableManager extends RootTableManager<
                   (e.readTable(table), $$ArticlesTableReferences(db, table, e)))
               .toList(),
           prefetchHooksCallback: (
-              {articleImagesRefs = false, articleScreenshotsRefs = false}) {
+              {articleImagesRefs = false,
+              articleScreenshotsRefs = false,
+              articleTagsRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
                 if (articleImagesRefs) db.articleImages,
-                if (articleScreenshotsRefs) db.articleScreenshots
+                if (articleScreenshotsRefs) db.articleScreenshots,
+                if (articleTagsRefs) db.articleTags
               ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
@@ -2681,6 +2753,18 @@ class $$ArticlesTableTableManager extends RootTableManager<
                         referencedItemsForCurrentItem: (item,
                                 referencedItems) =>
                             referencedItems.where((e) => e.article == item.id),
+                        typedResults: items),
+                  if (articleTagsRefs)
+                    await $_getPrefetchedData(
+                        currentTable: table,
+                        referencedTable:
+                            $$ArticlesTableReferences._articleTagsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$ArticlesTableReferences(db, table, p0)
+                                .articleTagsRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.articleId == item.id),
                         typedResults: items)
                 ];
               },
@@ -2701,7 +2785,9 @@ typedef $$ArticlesTableProcessedTableManager = ProcessedTableManager<
     (Article, $$ArticlesTableReferences),
     Article,
     PrefetchHooks Function(
-        {bool articleImagesRefs, bool articleScreenshotsRefs})>;
+        {bool articleImagesRefs,
+        bool articleScreenshotsRefs,
+        bool articleTagsRefs})>;
 typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
   required String key,
   required String value,
@@ -3423,6 +3509,25 @@ typedef $$TagsTableUpdateCompanionBuilder = TagsCompanion Function({
   Value<DateTime> createdAt,
 });
 
+final class $$TagsTableReferences
+    extends BaseReferences<_$AppDatabase, $TagsTable, Tag> {
+  $$TagsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$ArticleTagsTable, List<ArticleTag>>
+      _articleTagsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+          db.articleTags,
+          aliasName: $_aliasNameGenerator(db.tags.id, db.articleTags.tagId));
+
+  $$ArticleTagsTableProcessedTableManager get articleTagsRefs {
+    final manager = $$ArticleTagsTableTableManager($_db, $_db.articleTags)
+        .filter((f) => f.tagId.id($_item.id));
+
+    final cache = $_typedResult.readTableOrNull(_articleTagsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+}
+
 class $$TagsTableFilterComposer extends Composer<_$AppDatabase, $TagsTable> {
   $$TagsTableFilterComposer({
     required super.$db,
@@ -3445,6 +3550,27 @@ class $$TagsTableFilterComposer extends Composer<_$AppDatabase, $TagsTable> {
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  Expression<bool> articleTagsRefs(
+      Expression<bool> Function($$ArticleTagsTableFilterComposer f) f) {
+    final $$ArticleTagsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.articleTags,
+        getReferencedColumn: (t) => t.tagId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ArticleTagsTableFilterComposer(
+              $db: $db,
+              $table: $db.articleTags,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$TagsTableOrderingComposer extends Composer<_$AppDatabase, $TagsTable> {
@@ -3494,6 +3620,27 @@ class $$TagsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  Expression<T> articleTagsRefs<T extends Object>(
+      Expression<T> Function($$ArticleTagsTableAnnotationComposer a) f) {
+    final $$ArticleTagsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.articleTags,
+        getReferencedColumn: (t) => t.tagId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ArticleTagsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.articleTags,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$TagsTableTableManager extends RootTableManager<
@@ -3505,9 +3652,9 @@ class $$TagsTableTableManager extends RootTableManager<
     $$TagsTableAnnotationComposer,
     $$TagsTableCreateCompanionBuilder,
     $$TagsTableUpdateCompanionBuilder,
-    (Tag, BaseReferences<_$AppDatabase, $TagsTable, Tag>),
+    (Tag, $$TagsTableReferences),
     Tag,
-    PrefetchHooks Function()> {
+    PrefetchHooks Function({bool articleTagsRefs})> {
   $$TagsTableTableManager(_$AppDatabase db, $TagsTable table)
       : super(TableManagerState(
           db: db,
@@ -3547,9 +3694,32 @@ class $$TagsTableTableManager extends RootTableManager<
             createdAt: createdAt,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map((e) =>
+                  (e.readTable(table), $$TagsTableReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({articleTagsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (articleTagsRefs) db.articleTags],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (articleTagsRefs)
+                    await $_getPrefetchedData(
+                        currentTable: table,
+                        referencedTable:
+                            $$TagsTableReferences._articleTagsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$TagsTableReferences(db, table, p0)
+                                .articleTagsRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.tagId == item.id),
+                        typedResults: items)
+                ];
+              },
+            );
+          },
         ));
 }
 
@@ -3562,9 +3732,9 @@ typedef $$TagsTableProcessedTableManager = ProcessedTableManager<
     $$TagsTableAnnotationComposer,
     $$TagsTableCreateCompanionBuilder,
     $$TagsTableUpdateCompanionBuilder,
-    (Tag, BaseReferences<_$AppDatabase, $TagsTable, Tag>),
+    (Tag, $$TagsTableReferences),
     Tag,
-    PrefetchHooks Function()>;
+    PrefetchHooks Function({bool articleTagsRefs})>;
 typedef $$ArticleTagsTableCreateCompanionBuilder = ArticleTagsCompanion
     Function({
   required int articleId,
@@ -3582,6 +3752,38 @@ typedef $$ArticleTagsTableUpdateCompanionBuilder = ArticleTagsCompanion
   Value<int> rowid,
 });
 
+final class $$ArticleTagsTableReferences
+    extends BaseReferences<_$AppDatabase, $ArticleTagsTable, ArticleTag> {
+  $$ArticleTagsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $ArticlesTable _articleIdTable(_$AppDatabase db) =>
+      db.articles.createAlias(
+          $_aliasNameGenerator(db.articleTags.articleId, db.articles.id));
+
+  $$ArticlesTableProcessedTableManager? get articleId {
+    if ($_item.articleId == null) return null;
+    final manager = $$ArticlesTableTableManager($_db, $_db.articles)
+        .filter((f) => f.id($_item.articleId!));
+    final item = $_typedResult.readTableOrNull(_articleIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $TagsTable _tagIdTable(_$AppDatabase db) => db.tags
+      .createAlias($_aliasNameGenerator(db.articleTags.tagId, db.tags.id));
+
+  $$TagsTableProcessedTableManager? get tagId {
+    if ($_item.tagId == null) return null;
+    final manager = $$TagsTableTableManager($_db, $_db.tags)
+        .filter((f) => f.id($_item.tagId!));
+    final item = $_typedResult.readTableOrNull(_tagIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
 class $$ArticleTagsTableFilterComposer
     extends Composer<_$AppDatabase, $ArticleTagsTable> {
   $$ArticleTagsTableFilterComposer({
@@ -3591,17 +3793,51 @@ class $$ArticleTagsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get articleId => $composableBuilder(
-      column: $table.articleId, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<int> get tagId => $composableBuilder(
-      column: $table.tagId, builder: (column) => ColumnFilters(column));
-
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  $$ArticlesTableFilterComposer get articleId {
+    final $$ArticlesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.articleId,
+        referencedTable: $db.articles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ArticlesTableFilterComposer(
+              $db: $db,
+              $table: $db.articles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$TagsTableFilterComposer get tagId {
+    final $$TagsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.tagId,
+        referencedTable: $db.tags,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$TagsTableFilterComposer(
+              $db: $db,
+              $table: $db.tags,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$ArticleTagsTableOrderingComposer
@@ -3613,17 +3849,51 @@ class $$ArticleTagsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get articleId => $composableBuilder(
-      column: $table.articleId, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<int> get tagId => $composableBuilder(
-      column: $table.tagId, builder: (column) => ColumnOrderings(column));
-
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  $$ArticlesTableOrderingComposer get articleId {
+    final $$ArticlesTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.articleId,
+        referencedTable: $db.articles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ArticlesTableOrderingComposer(
+              $db: $db,
+              $table: $db.articles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$TagsTableOrderingComposer get tagId {
+    final $$TagsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.tagId,
+        referencedTable: $db.tags,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$TagsTableOrderingComposer(
+              $db: $db,
+              $table: $db.tags,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$ArticleTagsTableAnnotationComposer
@@ -3635,17 +3905,51 @@ class $$ArticleTagsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get articleId =>
-      $composableBuilder(column: $table.articleId, builder: (column) => column);
-
-  GeneratedColumn<int> get tagId =>
-      $composableBuilder(column: $table.tagId, builder: (column) => column);
-
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$ArticlesTableAnnotationComposer get articleId {
+    final $$ArticlesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.articleId,
+        referencedTable: $db.articles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ArticlesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.articles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$TagsTableAnnotationComposer get tagId {
+    final $$TagsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.tagId,
+        referencedTable: $db.tags,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$TagsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.tags,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
 }
 
 class $$ArticleTagsTableTableManager extends RootTableManager<
@@ -3657,9 +3961,9 @@ class $$ArticleTagsTableTableManager extends RootTableManager<
     $$ArticleTagsTableAnnotationComposer,
     $$ArticleTagsTableCreateCompanionBuilder,
     $$ArticleTagsTableUpdateCompanionBuilder,
-    (ArticleTag, BaseReferences<_$AppDatabase, $ArticleTagsTable, ArticleTag>),
+    (ArticleTag, $$ArticleTagsTableReferences),
     ArticleTag,
-    PrefetchHooks Function()> {
+    PrefetchHooks Function({bool articleId, bool tagId})> {
   $$ArticleTagsTableTableManager(_$AppDatabase db, $ArticleTagsTable table)
       : super(TableManagerState(
           db: db,
@@ -3699,9 +4003,56 @@ class $$ArticleTagsTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map((e) => (
+                    e.readTable(table),
+                    $$ArticleTagsTableReferences(db, table, e)
+                  ))
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({articleId = false, tagId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (articleId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.articleId,
+                    referencedTable:
+                        $$ArticleTagsTableReferences._articleIdTable(db),
+                    referencedColumn:
+                        $$ArticleTagsTableReferences._articleIdTable(db).id,
+                  ) as T;
+                }
+                if (tagId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.tagId,
+                    referencedTable:
+                        $$ArticleTagsTableReferences._tagIdTable(db),
+                    referencedColumn:
+                        $$ArticleTagsTableReferences._tagIdTable(db).id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
         ));
 }
 
@@ -3714,9 +4065,9 @@ typedef $$ArticleTagsTableProcessedTableManager = ProcessedTableManager<
     $$ArticleTagsTableAnnotationComposer,
     $$ArticleTagsTableCreateCompanionBuilder,
     $$ArticleTagsTableUpdateCompanionBuilder,
-    (ArticleTag, BaseReferences<_$AppDatabase, $ArticleTagsTable, ArticleTag>),
+    (ArticleTag, $$ArticleTagsTableReferences),
     ArticleTag,
-    PrefetchHooks Function()>;
+    PrefetchHooks Function({bool articleId, bool tagId})>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;

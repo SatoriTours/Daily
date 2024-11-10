@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/databases/articles.dart';
 import 'package:drift/drift.dart';
 
 class Tags extends Table {
@@ -16,8 +17,8 @@ class Tags extends Table {
 }
 
 class ArticleTags extends Table {
-  IntColumn get articleId => integer()();
-  IntColumn get tagId => integer()();
+  IntColumn get articleId => integer().references(Articles, #id)();
+  IntColumn get tagId => integer().references(Tags, #id)();
 
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();

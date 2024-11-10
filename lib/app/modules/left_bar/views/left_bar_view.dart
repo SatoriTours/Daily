@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/modules/share_dialog/controllers/share_dialog_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
@@ -33,7 +34,7 @@ class LeftBarView extends GetView<LeftBarController> {
           icon: const Icon(Icons.article_outlined),
           label: const Text('全部'),
           onPressed: () {
-            controller.articlesController.toggleOnlyFavorite(false);
+            controller.articlesController.showAllArticles();
             Get.back();
           },
         ),
@@ -59,17 +60,23 @@ class LeftBarView extends GetView<LeftBarController> {
       itemCount: controller.tags.length,
       itemBuilder: (context, index) {
         final tag = controller.tags[index];
-        return Padding(
-          padding: EdgeInsets.fromLTRB(20, 10, 20, 0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(Icons.local_offer, size: 18),
-              SizedBox(width: 10),
-              Text(tag, style: MyFontStyle.tagsListContent),
-              Spacer(),
-              Text('10', style: MyFontStyle.tagsListContent),
-            ],
+        return InkWell(
+          onTap: () {
+            controller.articlesController.showArticleByTagID(tag.id);
+            Get.back();
+          },
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(40, 10, 20, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(Icons.local_offer, size: 18),
+                SizedBox(width: 10),
+                Text(tag.title ?? '', style: MyFontStyle.tagsListContent),
+                // Spacer(),
+                // Text('10', style: MyFontStyle.tagsListContent),
+              ],
+            ),
           ),
         );
       },
