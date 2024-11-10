@@ -8,11 +8,15 @@ import 'package:get/get.dart';
 
 import 'package:daily_satori/app/compontents/dream_webview/dream_webview_controller.dart';
 import 'package:daily_satori/app/databases/database.dart';
-import 'package:daily_satori/app/services/ai_service.dart';
+import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/global.dart';
+
+part 'part.tags.dart';
+part 'part.images.dart';
+part 'part.screenshot.dart';
 
 class ShareDialogController extends GetxController {
   String? shareURL = isProduction ? null : 'https://1024.day/d/3072';
@@ -24,15 +28,15 @@ class ShareDialogController extends GetxController {
   AppDatabase get db => DBService.i.db;
 
   Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
-      String publishedTime, List<String> imagesUrl) async {
-    logger.i("[saveArticleInfo] title => $title, imagesUrl => $imagesUrl, publishedTime => $publishedTime");
+      String publishedTime, List<String> imageUrls) async {
+    logger.i("[saveArticleInfo] title => $title, imagesUrl => $imageUrls, publishedTime => $publishedTime");
 
     if (await _checkArticleExists(url)) return;
 
     List<dynamic> results = await Future.wait([
       _aiTitleTask(title),
       _aiContentTask(textContent),
-      _imageDownTask(imagesUrl.first),
+      _imageDownTask(imageUrls.first),
       _screenshotTask(),
     ]);
 
@@ -41,9 +45,9 @@ class ShareDialogController extends GetxController {
       title: title,
       aiTitle: results[0].toString(),
       textContent: textContent,
-      aiContent: results[1].toString(),
+      aiContent: results[1].$1,
       htmlContent: htmlContent,
-      imageUrl: imagesUrl.first,
+      imageUrl: imageUrls.first,
       imagePath: results[2].toString(),
       // screenshotPath: results[3],
       publishedTime: publishedTime,
@@ -51,14 +55,10 @@ class ShareDialogController extends GetxController {
 
     final newArticle = await _saveOrUpdateArticle(url, article);
 
+    _saveTags(newArticle, results[1].$2);
+
     // 保存文章的图片
-    if (newArticle != null && imagesUrl.length >= 2) {
-      await db.articleImages.deleteWhere((tbl) => tbl.article.equals(newArticle.id));
-      await Future.wait(imagesUrl.skip(1).map((imageUrl) async {
-        await _downloadAndSaveImage(newArticle.id, imageUrl);
-      }));
-      logger.i("网页相关图片保存完成 ${newArticle.id}");
-    }
+    _saveImages(newArticle, imageUrls);
 
     // 保存文章的截图
     List<String> screenshotPaths = List.from(results[3]);
@@ -89,34 +89,13 @@ class ShareDialogController extends GetxController {
     return false;
   }
 
-  Future<void> _downloadAndSaveImage(int articleID, String url) async {
-    try {
-      // 下载图片
-      String imagePath = await HttpService.i.downloadImage(url);
-
-      // 更新数据库
-      await db.into(db.articleImages).insert(ArticleImagesCompanion(
-            article: drift.Value(articleID),
-            imageUrl: drift.Value(url),
-            imagePath: drift.Value(imagePath),
-          ));
-      logger.i("图片下载并保存到数据库: $url => imagePath");
-    } catch (e) {
-      logger.e("下载或保存图片失败: $url, 错误: $e");
-    }
-  }
-
   Future<String> _aiTitleTask(String title) async {
     var aiTitle = await AiService.i.translate(title.trim());
     return aiTitle.length >= 50 ? await AiService.i.summarizeOneLine(aiTitle) : aiTitle;
   }
 
-  Future<String> _aiContentTask(String textContent) async {
+  Future<(String, List<String>)> _aiContentTask(String textContent) async {
     return await AiService.i.summarize(textContent.trim());
-  }
-
-  Future<String> _imageDownTask(String imageUrl) async {
-    return await HttpService.i.downloadImage(imageUrl);
   }
 
   Future<List<String>> _screenshotTask() async {
