@@ -1,10 +1,9 @@
 import 'package:daily_satori/global.dart';
-import 'package:get/get.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:daily_satori/app/databases/database.dart';
 import 'package:daily_satori/app/services/db_service.dart';
 
-class SettingsService extends GetxService {
+class SettingsService {
   SettingsService._privateConstructor();
   static final SettingsService _instance = SettingsService._privateConstructor();
   static SettingsService get i => _instance;

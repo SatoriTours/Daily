@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:daily_satori/app/helpers/sqlite_settings_provider.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/freedisk_service.dart';
+import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
@@ -12,7 +13,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:logger/logger.dart';
 
 import 'package:daily_satori/app/services/adblock_service.dart';
-import 'package:daily_satori/app/services/ai_service.dart';
+import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:daily_satori/app/services/db_service.dart';
@@ -73,6 +74,7 @@ Future<void> initServices() async {
   await SettingsService.i.init(); // 从数据库里面加载配置
   await initSettings();
   await FileService.i.init(); // 初始化文件目录服务
+  await TagsService.i.init(); // 初始化标签服务
 
   // 可以并行执行的初始化任务
   await Future.wait([

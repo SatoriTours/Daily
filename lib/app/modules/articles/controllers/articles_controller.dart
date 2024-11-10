@@ -1,5 +1,6 @@
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
+import 'package:daily_satori/app/services/db_service.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -21,8 +22,9 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
 
   // 监听变化, 重绘页面的变量
   final List<Article> articles = <Article>[].obs;
-  var isLoading = false.obs;
-  var enableSearch = false.obs;
+  final isLoading = false.obs;
+  final enableSearch = false.obs;
+  final tagName = ''.obs;
 
   @override
   void onInit() {
@@ -56,9 +58,32 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
   }
 
   void toggleOnlyFavorite(bool value) {
-    _onlyFavorite = value;
-    reloadArticles(); // 重新加载文章以应用过滤条件
+    _onlyFavorite.value = value;
+    reloadArticles();
   }
+
+  void showArticleByTagID(int tagID, String tagName) {
+    logger.i('设置标签ID: $tagID');
+    _tagID = tagID;
+    this.tagName.value = tagName;
+    reloadArticles();
+  }
+
+  void showAllArticles() {
+    _tagID = -1;
+    _onlyFavorite.value = false;
+    tagName.value = '';
+    reloadArticles();
+  }
+
+  String appBarTitle() {
+    var title = '文章';
+    if (_onlyFavorite.value) title = '收藏的文章';
+    if (tagName.value.isNotEmpty) title = "$title - ${tagName.value}";
+    return title;
+  }
+
+  final _db = DBService.i.db;
 
   // -------------------------part 专用的变量-------------------------------
 
@@ -67,7 +92,8 @@ class ArticlesController extends GetxController with WidgetsBindingObserver {
 
   // part 'part.filter.dart';
   String _searchText = '';
-  bool _onlyFavorite = false;
+  final _onlyFavorite = false.obs;
+  int _tagID = -1;
 
   // part 'part.article_load.dart';
   final int _pageSize = 20;

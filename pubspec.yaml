@@ -71,6 +71,9 @@ dependencies:
   # 打开文件
   open_file: ^3.5.9
 
+  # 堆栈信息
+  stack_trace: ^1.11.1
+
 
   # 分享
   # receive_sharing_intent: ^1.8.0
