@@ -1,6 +1,7 @@
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/db_service.dart';
+import 'package:daily_satori/app/helpers/my_base_controller.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -15,7 +16,7 @@ part 'part.event.dart';
 part 'part.update_list.dart';
 part 'part.filter.dart';
 
-class ArticlesController extends GetxController with WidgetsBindingObserver {
+class ArticlesController extends MyBaseController with WidgetsBindingObserver {
   ScrollController scrollController = ScrollController();
   DateTime lastRefreshTime = DateTime.now(); // 用来记录最后一次更新的时间, 当应用从后台回到前台的时候, 判断是否需要刷新
   TextEditingController searchController = TextEditingController();

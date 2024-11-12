@@ -37,6 +37,13 @@ class ArticlesView extends GetView<ArticlesController> {
               controller.toggleSearchState();
             },
           ),
+          if (!isProduction)
+            IconButton(
+              icon: const Icon(Icons.bug_report),
+              onPressed: () {
+                throw Exception('测试错误 sentry');
+              },
+            ),
         ],
       ),
       body: Obx(() {

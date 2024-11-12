@@ -21,28 +21,24 @@ import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
 import 'package:daily_satori/global.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 Future<void> initApp() async {
-  await initFonts();
   initLogger();
+  await initFonts();
   initGetTimeAgo();
   await initServices();
-}
-
-Future<void> initFonts() async {
-  if (isProduction) {
-    GoogleFonts.config.allowRuntimeFetching = false;
-    LicenseRegistry.addLicense(() async* {
-      final license = await rootBundle.loadString('assets/fonts/google/OFL.txt');
-      yield LicenseEntryWithLineBreaks(['assets/fonts/google'], license);
-    });
-  }
 }
 
 class MyConsoleOutput extends LogOutput {
   @override
   void output(OutputEvent event) {
-    log(event.lines.join("\n"), name: "Satori");
+    final logString = event.lines.join("\n");
+    if (isProduction) {
+      Sentry.captureMessage(logString);
+    } else {
+      log(logString, name: "Satori");
+    }
   }
 }
 
@@ -55,6 +51,16 @@ void initLogger() {
     printer: SimplePrinter(colors: false),
     output: MyConsoleOutput(),
   );
+}
+
+Future<void> initFonts() async {
+  if (isProduction) {
+    GoogleFonts.config.allowRuntimeFetching = false;
+    LicenseRegistry.addLicense(() async* {
+      final license = await rootBundle.loadString('assets/fonts/google/OFL.txt');
+      yield LicenseEntryWithLineBreaks(['assets/fonts/google'], license);
+    });
+  }
 }
 
 void initGetTimeAgo() {
@@ -89,4 +95,8 @@ Future<void> initServices() async {
 
   // 不用等待处理完成的服务, 可以在后台执行
   BackupService.i.init();
+}
+
+Future<void> clearApp() async {
+  await DBService.i.clear();
 }

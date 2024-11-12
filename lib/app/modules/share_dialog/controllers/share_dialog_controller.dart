@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/helpers/my_base_controller.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/tags_service.dart';
@@ -20,7 +21,7 @@ part 'part.tags.dart';
 part 'part.images.dart';
 part 'part.screenshot.dart';
 
-class ShareDialogController extends GetxController {
+class ShareDialogController extends MyBaseController {
   String? shareURL = isProduction ? null : 'https://1024.day/d/3072';
   bool isUpdate = false;
   int articleID = -1;

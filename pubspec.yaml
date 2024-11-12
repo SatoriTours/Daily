@@ -74,6 +74,10 @@ dependencies:
   # 堆栈信息
   stack_trace: ^1.11.1
 
+  # 错误监控
+  sentry_flutter: ^8.10.1
+  sentry_drift: ^8.10.1
+  sentry_dio: ^8.10.1
 
   # 分享
   # receive_sharing_intent: ^1.8.0

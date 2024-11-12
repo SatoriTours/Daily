@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:daily_satori/app/helpers/my_base_controller.dart';
 import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
 import 'package:daily_satori/global.dart';
@@ -8,7 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
-class BackupRestoreController extends GetxController {
+class BackupRestoreController extends MyBaseController {
   var selectedBackupIndex = 0.obs;
   var backupList = <String>[].obs;
 
