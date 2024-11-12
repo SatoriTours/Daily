@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/helpers/my_base_controller.dart';
 import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:drift/drift.dart';
@@ -7,7 +8,7 @@ import 'package:daily_satori/app/databases/database.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:share_plus/share_plus.dart';
 
-class ArticleDetailController extends GetxController {
+class ArticleDetailController extends MyBaseController {
   AppDatabase get db => DBService.i.db;
 
   late Article article;
