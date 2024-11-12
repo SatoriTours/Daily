@@ -4,11 +4,9 @@ extension PartArticleLoad on ArticlesController {
   Future<void> reloadArticles() async {
     logger.i("重新加载文章");
     lastRefreshTime = DateTime.now();
-    final tr = DBService.i.startTransaction('ArticlesController', 'reloadArticles');
     final newArticles = _addFilterExpression();
 
     articles.assignAll(await _getArticles(newArticles));
-    DBService.i.stopTransaction(tr);
     if (scrollController.hasClients) scrollController.jumpTo(0);
   }
 
