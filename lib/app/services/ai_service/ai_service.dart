@@ -18,7 +18,7 @@ class AiService {
 
   Future<void> init() async {
     logger.i("[初始化服务] AiService");
-    _client = _createClient();
+    reloadClient();
   }
 
   Future<CreateChatCompletionResponse?> _sendRequest(String role, String content,
@@ -49,6 +49,12 @@ class AiService {
       logger.e("[AI] 请求失败: $e");
     }
     return null;
+  }
+
+  void reloadClient() {
+    final apiKey = SettingsService.i.getSetting(SettingsService.openAITokenKey);
+    final baseUrl = SettingsService.i.getSetting(SettingsService.openAIAddressKey);
+    if (apiKey.isNotEmpty && baseUrl.isNotEmpty) _createClient();
   }
 
   OpenAIClient _createClient() {

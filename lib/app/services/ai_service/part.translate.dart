@@ -2,6 +2,7 @@ part of 'ai_service.dart';
 
 extension PartTranslate on AiService {
   Future<String> translate(String text) async {
+    if (!SettingsService.i.aiEnabled()) return text;
     if (isChinese(text)) {
       return text;
     }

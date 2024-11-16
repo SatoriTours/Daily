@@ -32,12 +32,13 @@ class DreamWebView extends StatelessWidget {
         return PermissionResponse(resources: request.resources, action: PermissionResponseAction.GRANT);
       },
       onLoadStart: (webController, url) async {
+        if (!context.mounted) return;
         logger.i("开始加载网页 $url");
         try {
           await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/translate.js");
           await webController.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
           await webController.injectCSSFileFromAsset(assetFilePath: "assets/css/common.css");
-          removeADNodes(webController);
+          removeADNodes(webController, context);
         } catch (e) {
           logger.e("加载资源时出错: $e");
         }
@@ -46,6 +47,7 @@ class DreamWebView extends StatelessWidget {
         onLoadStart?.call(url);
       },
       onLoadStop: (webController, url) async {
+        if (!context.mounted) return;
         logger.i("网页加载完成 $url");
         onLoadStop?.call();
         onProgressChanged?.call(0);
@@ -64,7 +66,7 @@ class DreamWebView extends StatelessWidget {
     );
   }
 
-  Future<void> removeADNodes(InAppWebViewController controller) async {
+  Future<void> removeADNodes(InAppWebViewController controller, BuildContext context) async {
     // await removeNodeByCssSelectors(controller, ADBlockService.instance.elementHidingRules);
     final url = await controller.getUrl();
     final domain = getTopLevelDomain(url?.host);
@@ -72,9 +74,14 @@ class DreamWebView extends StatelessWidget {
     if (domain.isNotEmpty && ADBlockService.i.elementHidingRulesBySite.containsKey(domain)) {
       int count = 0;
       Timer.periodic(Duration(seconds: 2), (Timer t) async {
-        await removeNodeByCssSelectors(controller, ADBlockService.i.elementHidingRulesBySite[domain] ?? []);
+        if (context.mounted) {
+          await removeNodeByCssSelectors(controller, ADBlockService.i.elementHidingRulesBySite[domain] ?? []);
+        } else {
+          t.cancel();
+        }
+
         count += 1;
-        // 当计数达到 10 次时，取消定时器
+        // 当计数达到 20 次时，取消定时器
         if (count >= 20) {
           t.cancel();
           print('定时器已停止');

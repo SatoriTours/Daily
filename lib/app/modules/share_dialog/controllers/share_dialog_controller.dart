@@ -1,6 +1,7 @@
 import 'package:daily_satori/app/helpers/my_base_controller.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/services/settings_service.dart';
 import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

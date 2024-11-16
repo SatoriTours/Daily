@@ -9,13 +9,17 @@ function hideObstructiveNodes() {
   const hostDomain = window.location.hostname;
   // 删除 z-index 大于 1 的节点
   const allNodes = document.querySelectorAll('*');
+  let hideNodeZIndex = 1;
+  if(['twitter.com', 'x.com'].includes(hostDomain)) {
+    hideNodeZIndex = 2;
+  }
+  if(['www.oschina.net'].includes(hostDomain)) {
+    hideNodeZIndex = 3;
+  }
   allNodes.forEach(node => {
     const computedStyle = getComputedStyle(node);
     const zIndex = computedStyle.zIndex;
-    let hideNodeZIndex = 1;
-    if(['twitter.com', 'x.com'].includes(hostDomain)) {
-      hideNodeZIndex = 2;
-    }
+
     if (zIndex >= hideNodeZIndex) {
       console.log('命中规则: 该节点的 zIndex >= ', hideNodeZIndex);
       node.classList.add('tours-statori-daily-hide');

@@ -2,6 +2,7 @@ part of 'ai_service.dart';
 
 extension PartSummarize on AiService {
   Future<String> summarizeOneLine(String text) async {
+    if (!SettingsService.i.aiEnabled()) return text;
     // logger.i("[AI总结]: ${getSubstring(text)}");
     final res = await _sendRequest(
       '你是一个文章读者, 能总结文章的核心内容',
@@ -11,6 +12,7 @@ extension PartSummarize on AiService {
   }
 
   Future<(String, List<String>)> summarize(String text) async {
+    if (!SettingsService.i.aiEnabled()) return (text, <String>[]);
     // logger.i("[AI总结]: ${getSubstring(text)}");
     // logger.i("[AI总结] 现有标签是: [${TagsService.i.getTagsString()}]");
 

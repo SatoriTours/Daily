@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:daily_satori/app/databases/database.dart';
@@ -19,6 +20,12 @@ class SettingsService {
 
   late final Map<String, String> _settings = <String, String>{};
   final _db = DBService.i.db;
+
+  bool aiEnabled() {
+    final apiKey = getSetting(SettingsService.openAITokenKey);
+    final baseUrl = getSetting(SettingsService.openAIAddressKey);
+    return apiKey.isNotEmpty && baseUrl.isNotEmpty;
+  }
 
   bool containsKey(String key) {
     return _settings.containsKey(key);
@@ -58,6 +65,7 @@ class SettingsService {
     for (var row in rows) {
       _settings[row.key] = row.value;
     }
+    AiService.i.reloadClient();
   }
 
   String getSetting(String key, {defaultValue = ''}) {

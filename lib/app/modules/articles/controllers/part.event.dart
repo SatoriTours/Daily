@@ -15,10 +15,12 @@ extension PartEvent on ArticlesController {
   }
 
   Future<void> _didChangeAppLifecycleState(AppLifecycleState state) async {
-    if (state == AppLifecycleState.resumed && scrollController.hasClients) {
+    if (state == AppLifecycleState.resumed) {
       logger.i("App is back from background");
-      if (scrollController.position.pixels <= 30 || DateTime.now().difference(lastRefreshTime).inMinutes >= 60) {
-        reloadArticles();
+      if (scrollController.hasClients) {
+        if (scrollController.position.pixels <= 30 || DateTime.now().difference(lastRefreshTime).inMinutes >= 60) {
+          reloadArticles();
+        }
       }
       checkClipboardText(); // 检查剪切板里面是否有http开头的链接, 如果是的就确认是否保存
     }
