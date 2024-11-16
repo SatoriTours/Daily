@@ -14,7 +14,7 @@ class AiService {
   static final AiService _instance = AiService._privateConstructor();
   static AiService get i => _instance;
 
-  late OpenAIClient _client;
+  OpenAIClient? _client;
 
   Future<void> init() async {
     logger.i("[初始化服务] AiService");
@@ -26,10 +26,14 @@ class AiService {
     if (content.isEmpty || content.length <= 5) {
       return null;
     }
+    if (_client == null) {
+      logger.i("[AiService] AI 未启用");
+      return null;
+    }
     try {
       content = getSubstring(content, length: 5000);
 
-      final res = await _client.createChatCompletion(
+      final res = await _client!.createChatCompletion(
         request: CreateChatCompletionRequest(
           model: ChatCompletionModel.modelId('gpt-4o-mini'),
           messages: [
@@ -52,9 +56,7 @@ class AiService {
   }
 
   void reloadClient() {
-    final apiKey = SettingsService.i.getSetting(SettingsService.openAITokenKey);
-    final baseUrl = SettingsService.i.getSetting(SettingsService.openAIAddressKey);
-    if (apiKey.isNotEmpty && baseUrl.isNotEmpty) _createClient();
+    if (SettingsService.i.aiEnabled()) _client = _createClient();
   }
 
   OpenAIClient _createClient() {

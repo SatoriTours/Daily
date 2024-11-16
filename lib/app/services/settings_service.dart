@@ -24,7 +24,9 @@ class SettingsService {
   bool aiEnabled() {
     final apiKey = getSetting(SettingsService.openAITokenKey);
     final baseUrl = getSetting(SettingsService.openAIAddressKey);
-    return apiKey.isNotEmpty && baseUrl.isNotEmpty;
+    final isEnabled = apiKey.isNotEmpty && baseUrl.isNotEmpty;
+    logger.i("[AI] 是否启用: $isEnabled");
+    return isEnabled;
   }
 
   bool containsKey(String key) {
