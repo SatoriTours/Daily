@@ -126,7 +126,12 @@ Future<void> setClipboardText(String text) async {
 }
 
 String getUrlFromText(String text) {
-  String url = RegExp(r'https?://[a-zA-Z0-9/\.]+').firstMatch(text)?.group(0) ?? '';
+  final urlPattern = RegExp(
+    r'https?:\/\/[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&\/=]*)',
+    caseSensitive: false,
+  );
+
+  String url = urlPattern.firstMatch(text)?.group(0) ?? '';
   if (url.startsWith('http://')) {
     url = url.replaceFirst('http://', 'https://');
     logger.i("[checkClipboardText] 将 http 链接替换为 https: $url");
