@@ -5,7 +5,7 @@ extension PartSummarize on AiService {
     if (!SettingsService.i.aiEnabled()) return text;
     // logger.i("[AI总结]: ${getSubstring(text)}");
     final res = await _sendRequest(
-      '你是一个文章读者, 能总结文章的核心内容,保持原文的意思，而不是使用“文章提到”或类似的表达方式，一定不要添加个人观点',
+      '你是一个文章读者, 总结一个能表达文章核心内容并且能吸引别人阅读的标题,保持原文的意思，注意:不使用“文章提到”或类似的表达方式，一定不要添加个人观点, 标题不要加入引号等特殊字符',
       ' 一句话总结一下内容：```$text``` ',
     );
     return res?.choices.first.message.content ?? '';
