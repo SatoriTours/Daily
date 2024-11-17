@@ -169,5 +169,4 @@ $text
       'IBM Cloud',
     ],
   };
-  static final String _tagsString = _commonTags.values.map((e) => e.join(', ')).join('\n');
 }
