@@ -5,7 +5,7 @@ extension PartSummarize on AiService {
     if (!SettingsService.i.aiEnabled()) return text;
     // logger.i("[AI总结]: ${getSubstring(text)}");
     final res = await _sendRequest(
-      '你是一个文章读者, 能总结文章的核心内容',
+      '你是一个文章读者, 能总结文章的核心内容,保持原文的意思，而不是使用“文章提到”或类似的表达方式，一定不要添加个人观点',
       ' 一句话总结一下内容：```$text``` ',
     );
     return res?.choices.first.message.content ?? '';
@@ -66,18 +66,16 @@ extension PartSummarize on AiService {
 ```
 $text
 ```
-
-已有的tag是: ${(_commonTags + TagsService.i.getStringTags()).join(',')}
-
 注意事项：
-1. 提取文章的主要观点和关键信息, 一定用中文输出.
-2. 确保总结简洁明了, 直接给结果，不要给其他任何的解释.
-3. 保持原文的意思，不要添加个人观点.
-4. 请注意```, 文章内容不包括 ```, 翻译时要保持其完整性.
-5. 从上面给定的已有tag中,选出最能表达文章核心含义的3个tag,这是强制要求,不要自己创造.
+a. 用简洁的语言总结文章的主要内容，确保涵盖关键观点和主题,一定用中文输出.
+b. 保持原文的意思，而不是使用“文章提到”或类似的表达方式，一定不要添加个人观点.
+c. 请注意文章内容不包括 ```, 翻译时要保持其完整性.
+d. 根据文章的内容，给出三个最合适的标签，确保这些标签能够准确反映文章的核心内容。例如，如果文章是关于职场技能提升，可以使用标签如 `#时间管理`、`#职业发展`、`#效率提升`.
+e. 一定只能给出3个最合适的tag,不要多也不要少.这是强制要求.
 ''';
 
   // 使用AI, 提示语：根据总结和分析，一般文章有哪些常用的tag， 要求：每个tag长度不超过5，而且tag之间的含义不能太相似，列出50个。用dart的数组返回
+  // 已有的tag是: ${(_commonTags + TagsService.i.getStringTags()).join(',')}
   static final List<String> _commonTags = [
     // 技术与科学
     'AI', // 人工智能

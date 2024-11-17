@@ -108,6 +108,11 @@ function getMainImage() {
                 continue;
             }
 
+            if (src.includes('avatar')) {
+                console.log("跳过包含 avatar 的图片", src);
+                continue;
+            }
+
             if (!src.startsWith('http')) {
                 const baseUrl = window.location.origin;
                 src = new URL(src, baseUrl).href; // 合并相对路径和当前网页地址
