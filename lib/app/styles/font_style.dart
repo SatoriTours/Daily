@@ -3,8 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 class MyFontStyle {
   // 定义静态字体样式
-  static const double _height = 1.8;
-  static const double _letterSpacing = 1.6;
+  static const double _height = 1.6;
+  static const double _letterSpacing = 1.5;
 
   static final appBarTitleStyle = GoogleFonts.lato(
     fontSize: 20,
@@ -31,6 +31,14 @@ class MyFontStyle {
     fontWeight: FontWeight.w500,
     height: _height,
     letterSpacing: _letterSpacing,
+  );
+
+  static final commentStyle = GoogleFonts.lato(
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    height: _height,
+    letterSpacing: _letterSpacing,
+    color: Colors.grey[700],
   );
 
   static final tagStyle = GoogleFonts.lato(

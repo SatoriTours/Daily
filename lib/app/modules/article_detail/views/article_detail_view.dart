@@ -223,7 +223,6 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
               style: MyFontStyle.articleBodyStyle,
             ),
           ),
-          _buildDivider(),
           if (controller.article.comment?.isNotEmpty ?? false) _buildComment(),
           Container(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
@@ -257,11 +256,11 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   Widget _buildComment() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
       alignment: Alignment.centerLeft,
       child: Text(
         "我的备注：${controller.article.comment ?? ''}",
-        style: MyFontStyle.articleBodyStyle,
+        style: MyFontStyle.commentStyle,
       ),
     );
   }

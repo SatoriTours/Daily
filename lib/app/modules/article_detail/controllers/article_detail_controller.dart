@@ -34,6 +34,9 @@ class ArticleDetailController extends MyBaseController {
 
   Future<List<ArticleImage>> getArticleImages() async {
     final images = await (db.select(db.articleImages)..where((row) => row.article.equals(article.id))).get();
+    if (images.isNotEmpty) {
+      images.removeAt(0);
+    }
     return images;
   }
 
