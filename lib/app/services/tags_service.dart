@@ -31,6 +31,7 @@ class TagsService {
   Future<void> clearAllTags() async {
     await _db.articleTags.deleteAll();
     await _db.tags.deleteAll();
+    await reload();
     logger.i("[清除所有标签] 完成");
   }
 }

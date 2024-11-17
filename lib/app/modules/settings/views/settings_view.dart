@@ -3,6 +3,7 @@ import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:daily_satori/app/services/freedisk_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
+import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
@@ -89,6 +90,17 @@ class SettingsView extends GetView<SettingsController> {
             await FreeDiskService.i.clean();
             Get.close();
             successNotice("清除重复图片完成");
+          },
+        ),
+        SimpleSettingsTile(
+          title: '清空所有标签',
+          leading: Icon(Icons.clean_hands),
+          showDivider: false,
+          onTap: () async {
+            showFullScreenLoading();
+            await TagsService.i.clearAllTags();
+            Get.offNamed(Routes.ARTICLES);
+            successNotice("清除标签完成");
           },
         ),
       ],

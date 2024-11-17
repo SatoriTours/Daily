@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:openai_dart/openai_dart.dart';
 
 import 'package:daily_satori/app/services/settings_service.dart';

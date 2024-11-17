@@ -12,11 +12,20 @@ class ArticleDetailController extends MyBaseController {
   AppDatabase get db => DBService.i.db;
 
   late Article article;
+  final tags = ''.obs;
 
   @override
   void onInit() {
     super.onInit();
     article = Get.arguments;
+    loadTags();
+  }
+
+  Future<void> loadTags() async {
+    final results = db.select(db.tags).join([innerJoin(db.articleTags, db.articleTags.tagId.equalsExp(db.tags.id))])
+      ..where(db.articleTags.articleId.equals(article.id));
+
+    tags.value = (await results.get()).map((e) => "#${e.readTable(db.tags).title}").join(', ');
   }
 
   Future<void> deleteArticle() async {

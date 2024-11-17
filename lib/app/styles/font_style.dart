@@ -33,6 +33,14 @@ class MyFontStyle {
     letterSpacing: _letterSpacing,
   );
 
+  static final tagStyle = GoogleFonts.lato(
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    height: _height,
+    letterSpacing: _letterSpacing,
+    color: Colors.blue[700],
+  );
+
   static final settingGroupTitle = GoogleFonts.lato(
     fontSize: 20,
     fontWeight: FontWeight.w500,

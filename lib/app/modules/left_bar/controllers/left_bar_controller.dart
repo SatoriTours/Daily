@@ -12,6 +12,6 @@ class LeftBarController extends MyBaseController {
   @override
   void onInit() {
     super.onInit();
-    tags.addAll(TagsService.i.tags);
+    tags.assignAll(TagsService.i.tags);
   }
 }

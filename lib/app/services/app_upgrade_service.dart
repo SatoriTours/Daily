@@ -88,13 +88,16 @@ class AppUpgradeService {
   }
 
   Future<void> _getLatestVersionFromGithub() async {
-    final response = await HttpService.i.dio.get(_githubReleaseAPI);
-    if (response.statusCode == 200) {
-      _githubLatestVersion = response.data['tag_name'] as String;
-      _downloadURL = response.data['assets'][0]['browser_download_url'] as String;
-    } else {
-      logger.e("无法获取最新版本, 状态码: ${response.statusCode}");
-      throw Exception("无法获取最新版本");
+    try {
+      final response = await HttpService.i.dio.get(_githubReleaseAPI);
+      if (response.statusCode == 200) {
+        _githubLatestVersion = response.data['tag_name'] as String;
+        _downloadURL = response.data['assets'][0]['browser_download_url'] as String;
+      } else {
+        logger.e("无法获取最新版本, 状态码: ${response.statusCode}");
+      }
+    } catch (e) {
+      logger.e("获取最新版本时发生错误: $e");
     }
   }
 }

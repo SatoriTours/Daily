@@ -192,7 +192,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                 _showFullScreenImage([controller.article.imagePath!]); // 处理点击事件，显示全屏图片
               },
               child: Container(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 5, 20, 0),
                 width: double.infinity,
                 constraints: BoxConstraints(
                   maxHeight: 200, // 最大高度为 200
@@ -209,24 +209,59 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
               ),
             ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
             child: Text(
               (controller.article.aiTitle ?? controller.article.title) ?? '',
               style: MyFontStyle.articleTitleStyle,
             ),
           ),
+          Obx(() => _buildTags()),
           Container(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
             child: Text(
               (controller.article.aiContent ?? ''),
               style: MyFontStyle.articleBodyStyle,
             ),
           ),
+          _buildDivider(),
+          if (controller.article.comment?.isNotEmpty ?? false) _buildComment(),
           Container(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
             child: _buildImageList(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTags() {
+    return controller.tags.value.isNotEmpty
+        ? Container(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+            alignment: Alignment.centerLeft,
+            child: Text(controller.tags.value, style: MyFontStyle.tagStyle),
+          )
+        : Container();
+  }
+
+  Widget _buildDivider() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+      child: Divider(
+        height: 1,
+        thickness: 1,
+        color: Colors.grey[300],
+      ),
+    );
+  }
+
+  Widget _buildComment() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      alignment: Alignment.centerLeft,
+      child: Text(
+        "我的备注：${controller.article.comment ?? ''}",
+        style: MyFontStyle.articleBodyStyle,
       ),
     );
   }
@@ -257,7 +292,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                   _showFullScreenImage(imagePaths);
                 },
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.only(right: 8.0),
                   child: Image.file(
                     File(images[index].imagePath ?? ''), // 假设 ArticleImage 对象有 imagePath 属性
                     fit: BoxFit.cover,
