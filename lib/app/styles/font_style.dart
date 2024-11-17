@@ -14,14 +14,14 @@ class MyFontStyle {
 
   static final listTitleStyle = GoogleFonts.lato(
     fontSize: 16,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.bold,
     height: _height,
     letterSpacing: _letterSpacing,
   );
 
   static final articleTitleStyle = GoogleFonts.lato(
     fontSize: 18,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.bold,
     height: _height,
     letterSpacing: _letterSpacing,
   );
@@ -58,8 +58,9 @@ class MyFontStyle {
   );
 
   static final tagsListContent = GoogleFonts.lato(
-    fontSize: 18,
-    fontWeight: FontWeight.w500,
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
     letterSpacing: _letterSpacing,
+    height: _height,
   );
 }

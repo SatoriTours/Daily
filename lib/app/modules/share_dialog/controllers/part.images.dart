@@ -9,6 +9,7 @@ extension PartImages on ShareDialogController {
   }
 
   Future<void> _saveImages(Article? article, List<ImageDownloadResult> results) async {
+    logger.i("[ShareDialogController] 开始保存图片: $results");
     if (article == null || results.isEmpty) return;
     await db.articleImages.deleteWhere((tbl) => tbl.article.equals(article.id));
     for (var result in results) {

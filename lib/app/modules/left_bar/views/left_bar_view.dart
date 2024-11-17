@@ -11,6 +11,14 @@ class LeftBarView extends GetView<LeftBarController> {
 
   @override
   Widget build(BuildContext context) {
+    return GetX<LeftBarController>(
+        initState: (_) => controller.refreshData(),
+        builder: (_) {
+          return _buildPage();
+        });
+  }
+
+  Widget _buildPage() {
     return Scaffold(
       appBar: AppBar(
         title: Text('Daily Satori'),

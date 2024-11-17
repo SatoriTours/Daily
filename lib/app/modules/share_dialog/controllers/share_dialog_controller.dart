@@ -39,10 +39,26 @@ class ShareDialogController extends MyBaseController {
     if (await _checkArticleExists(url)) return;
 
     List<dynamic> results = await Future.wait([
-      _aiTitleTask(title),
-      _aiContentTask(textContent),
-      _downloadImages(imageUrls),
-      _screenshotTask(),
+      _aiTitleTask(title).catchError((e) {
+        logger.e("[AI标题] 失败: $e");
+        return '';
+      }),
+      _aiContentTask(textContent).catchError((e) {
+        logger.e("[AI内容] 失败: $e");
+        return '';
+      }),
+      _downloadImages(imageUrls).catchError((e) {
+        logger.e("[下载图片] 失败: $e");
+        return <ImageDownloadResult>[];
+      }),
+      _screenshotTask().catchError((e) {
+        logger.e("[截图] 失败: $e");
+        return <String>[];
+      }),
+      _tagsTask(textContent).catchError((e) {
+        logger.e("[AI标签] 失败: $e");
+        return <String>[];
+      }),
     ]);
 
     var article = _createArticleMap(
@@ -51,7 +67,7 @@ class ShareDialogController extends MyBaseController {
       title: title,
       aiTitle: results[0].toString(),
       textContent: textContent,
-      aiContent: results[1].$1,
+      aiContent: results[1],
       htmlContent: htmlContent,
       imageUrl: results[2].first?.imageUrl,
       imagePath: results[2].first?.imagePath,
@@ -60,10 +76,11 @@ class ShareDialogController extends MyBaseController {
     );
 
     final newArticle = await _saveOrUpdateArticle(url, article);
-
-    _saveTags(newArticle, results[1].$2);
-    _saveImages(newArticle, results[2]);
-    _saveScreenshots(newArticle, List.from(results[3]));
+    await Future.wait([
+      _saveTags(newArticle, results[4]).catchError((e) => logger.e("[保存标签] 失败: $e")),
+      _saveImages(newArticle, results[2]).catchError((e) => logger.e("[保存图片] 失败: $e")),
+      _saveScreenshots(newArticle, List.from(results[3])).catchError((e) => logger.e("[保存截图] 失败: $e")),
+    ]);
 
     _closeDialog();
   }
@@ -73,8 +90,12 @@ class ShareDialogController extends MyBaseController {
     return aiTitle.length >= 50 ? await AiService.i.summarizeOneLine(aiTitle) : aiTitle;
   }
 
-  Future<(String, List<String>)> _aiContentTask(String textContent) async {
+  Future<String> _aiContentTask(String textContent) async {
     return await AiService.i.summarize(textContent.trim());
+  }
+
+  Future<List<String>> _tagsTask(String textContent) async {
+    return await AiService.i.getTags(textContent.trim());
   }
 
   Future<List<String>> _screenshotTask() async {

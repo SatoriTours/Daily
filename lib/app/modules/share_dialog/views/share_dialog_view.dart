@@ -24,7 +24,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
     if (Get.arguments?['articleID'] != null) {
       controller.articleID = Get.arguments?['articleID'];
-      logger.i("收到文章ID参数 $controller.articleID");
+      logger.i("收到文章ID参数 ${controller.articleID}");
     }
 
     return Scaffold(

@@ -43,13 +43,13 @@ class AiService {
               content: ChatCompletionUserMessageContent.string(content.trim()),
             ),
           ],
-          temperature: 0,
+          temperature: 0.5,
           responseFormat: responseFormat,
         ),
       );
       return res;
     } catch (e) {
-      logger.e("[AI] 请求失败: $e");
+      logger.e("[AI] 请求失败: ${e.toString()}");
     }
     return null;
   }
