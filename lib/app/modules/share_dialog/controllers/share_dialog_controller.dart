@@ -35,7 +35,7 @@ class ShareDialogController extends MyBaseController {
   Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
       String publishedTime, List<String> imageUrls) async {
     logger.i(
-        "[saveArticleInfo] title => ${getSubstring(title)}, imagesUrl => $imageUrls, publishedTime => $publishedTime");
+        "[saveArticleInfo] title => ${getSubstring(title)}, url => $url, imagesUrl => $imageUrls, publishedTime => $publishedTime");
 
     if (await _checkArticleExists(url)) return;
 
@@ -47,7 +47,8 @@ class ShareDialogController extends MyBaseController {
     ]);
 
     var article = _createArticleMap(
-      url: url,
+      // url: url,
+      url: shareURL ?? url,
       title: title,
       aiTitle: results[0].toString(),
       textContent: textContent,
@@ -92,6 +93,8 @@ class ShareDialogController extends MyBaseController {
       Get.offAllNamed(Routes.ARTICLES);
     } else if (isProduction) {
       SystemNavigator.pop();
+    } else {
+      Get.offAllNamed(Routes.ARTICLES); // 非生产环境, 返回文章列表页
     }
   }
 

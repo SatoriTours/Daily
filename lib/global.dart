@@ -124,3 +124,12 @@ Future<String> getClipboardText() async {
 Future<void> setClipboardText(String text) async {
   await Clipboard.setData(ClipboardData(text: text));
 }
+
+String getUrlFromText(String text) {
+  String url = RegExp(r'https?://[a-zA-Z0-9/\.]+').firstMatch(text)?.group(0) ?? '';
+  if (url.startsWith('http://')) {
+    url = url.replaceFirst('http://', 'https://');
+    logger.i("[checkClipboardText] 将 http 链接替换为 https: $url");
+  }
+  return url;
+}

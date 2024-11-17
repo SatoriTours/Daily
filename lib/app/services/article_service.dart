@@ -15,11 +15,16 @@ class ArticleService {
 
   AppDatabase get db => DBService.i.db;
 
-  Future<Article> saveArticle(ArticlesCompanion article) async {
-    final newArticle = await db.into(db.articles).insertReturning(article);
-    logger.i("文章已保存: ${firstLine(newArticle.title ?? '')}");
+  Future<Article?> saveArticle(ArticlesCompanion article) async {
+    try {
+      final newArticle = await db.into(db.articles).insertReturningOrNull(article);
+      logger.i("文章已保存: ${firstLine(newArticle?.title ?? '')}");
 
-    return newArticle;
+      return newArticle;
+    } catch (e) {
+      logger.e("[保存文章失败] $e");
+      return null;
+    }
   }
 
   Future<Article?> updateArticle(int articleID, ArticlesCompanion article) async {

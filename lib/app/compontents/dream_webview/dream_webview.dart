@@ -63,6 +63,14 @@ class DreamWebView extends StatelessWidget {
           logger.d("浏览器日志: ${consoleMessage.message}");
         }
       },
+      shouldOverrideUrlLoading: (controller, navigationAction) async {
+        var uri = navigationAction.request.url!;
+        if (uri.scheme == "http" || uri.scheme == "https") {
+          return NavigationActionPolicy.ALLOW; // 允许加载 HTTP 和 HTTPS 请求
+        } else {
+          return NavigationActionPolicy.CANCEL; // 拦截其他请求
+        }
+      },
     );
   }
 
