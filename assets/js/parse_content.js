@@ -59,8 +59,9 @@ function getPageImage() {
     console.log("网站域名是:", hostDomain);
 
     let images = getMainImage();
-    if (images.length <= 0) {
-        images = [getOgImage()];
+    let ogImage = getOgImage();
+    if (ogImage != '') {
+        images.push(ogImage);
     }
 
     console.log("获取的图片地址是", images);
@@ -77,6 +78,21 @@ function getOgImage() {
             break;
         }
     }
+    if (ogImage.includes('logo')) {
+        console.log("跳过包含 logo 的图片", ogImage);
+        ogImage = '';
+    }
+
+    if (ogImage.includes('avatar')) {
+        console.log("跳过包含 avatar 的图片", ogImage);
+        ogImage = '';
+    }
+
+    if (ogImage.includes('icon')) {
+        console.log("跳过包含 icon 的图片", ogImage);
+        ogImage = '';
+    }
+
     console.log("og:image:", ogImage);
     return ogImage;
 }
@@ -111,6 +127,11 @@ function getMainImage() {
             if (src.includes('avatar')) {
                 console.log("跳过包含 avatar 的图片", src);
                 continue;
+            }
+
+            // 替换 twitter 图片的 name 参数, 使用大图
+            if (src.match(/https:\/\/pbs\.twimg\.com\/media\/.*\?format=\w+&name=\w+/)) {
+                src = src.replace(/name=\w+/, 'name=large');
             }
 
             if (!src.startsWith('http')) {

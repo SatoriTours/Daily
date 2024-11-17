@@ -41,7 +41,7 @@ class ShareDialogController extends MyBaseController {
     List<dynamic> results = await Future.wait([
       _aiTitleTask(title),
       _aiContentTask(textContent),
-      _imageDownTask(imageUrls.first),
+      _downloadImages(imageUrls),
       _screenshotTask(),
     ]);
 
@@ -53,8 +53,8 @@ class ShareDialogController extends MyBaseController {
       textContent: textContent,
       aiContent: results[1].$1,
       htmlContent: htmlContent,
-      imageUrl: imageUrls.first,
-      imagePath: results[2].toString(),
+      imageUrl: results[2].first?.imageUrl,
+      imagePath: results[2].first?.imagePath,
       // screenshotPath: results[3],
       publishedTime: publishedTime,
     );
@@ -62,7 +62,7 @@ class ShareDialogController extends MyBaseController {
     final newArticle = await _saveOrUpdateArticle(url, article);
 
     _saveTags(newArticle, results[1].$2);
-    _saveImages(newArticle, imageUrls);
+    _saveImages(newArticle, results[2]);
     _saveScreenshots(newArticle, List.from(results[3]));
 
     _closeDialog();

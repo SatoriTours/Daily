@@ -51,10 +51,14 @@ class HttpService {
 
   Future<bool> _downloadFile(String url, String savePath) async {
     try {
-      await dio.download(
+      final response = await dio.download(
         url,
         savePath,
       );
+      if (response.headers.value('content-type')?.contains('svg') == true) {
+        logger.i("下载文件失败, 文件类型为svg");
+        return false;
+      }
       return true;
     } catch (e) {
       logger.i("下载文件失败, $e");
