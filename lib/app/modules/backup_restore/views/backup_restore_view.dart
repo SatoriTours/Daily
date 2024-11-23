@@ -63,9 +63,14 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
             ),
             child: const Text("还原"),
             onPressed: () async {
-              await controller.restoreBackup();
-              Get.snackbar('提示', '文件已还原', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
-              if (isProduction) {
+              final result = await controller.restoreBackup();
+              if (result) {
+                Get.snackbar('提示', '文件已还原', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+              } else {
+                Get.snackbar('提示', '文件不存在, 无法恢复', snackPosition: SnackPosition.top, backgroundColor: Colors.red);
+              }
+
+              if (isProduction && result) {
                 Get.defaultDialog(
                   title: "重启应用",
                   middleText: "点击确定, 重启应用",

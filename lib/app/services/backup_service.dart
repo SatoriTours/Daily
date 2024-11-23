@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter_archive/flutter_archive.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:daily_satori/app/services/db_service.dart';
@@ -56,10 +57,33 @@ class BackupService {
     String backupFolder = path.join(backupDir, 'daily_satori_backup_$timestamp');
     await Directory(backupFolder).create(recursive: true);
 
-    await _copyDirectory(Directory(imagesDir), Directory(path.join(backupFolder, 'images')));
-    await _copyDirectory(Directory(screenshotsDir), Directory(path.join(backupFolder, 'screenshots')));
+    // await _copyDirectory(Directory(imagesDir), Directory(path.join(backupFolder, 'images')));
+    // await _copyDirectory(Directory(screenshotsDir), Directory(path.join(backupFolder, 'screenshots')));
+    await _compressDirectory(imagesDir, path.join(backupFolder, 'images.zip'));
+    await _compressDirectory(screenshotsDir, path.join(backupFolder, 'screenshots.zip'));
     await File(databaseFile).copy(path.join(backupFolder, DBService.dbFileName));
     logger.i("完成了文件的备份: $backupFolder");
+  }
+
+  Future<void> _compressDirectory(String sourceDir, String targetPath) async {
+    try {
+      final sourceDirectory = Directory(sourceDir);
+      final targetFile = File(targetPath);
+
+      if (await sourceDirectory.exists()) {
+        await ZipFile.createFromDirectory(
+          sourceDir: sourceDirectory,
+          zipFile: targetFile,
+          recurseSubDirs: true,
+        );
+        logger.i("成功压缩目录 $sourceDir 到 $targetPath");
+      } else {
+        logger.w("源目录不存在: $sourceDir");
+      }
+    } catch (e) {
+      logger.e("压缩目录时出错: $e");
+      rethrow;
+    }
   }
 
   Future<void> _copyDirectory(Directory source, Directory destination) async {

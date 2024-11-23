@@ -4,6 +4,7 @@ import 'package:daily_satori/app/helpers/my_base_controller.dart';
 import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
 import 'package:daily_satori/global.dart';
+import 'package:flutter_archive/flutter_archive.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
@@ -50,13 +51,13 @@ class BackupRestoreController extends MyBaseController {
     return DateFormat('yyyy年MM月dd日 HH:mm:ss').format(dateTime);
   }
 
-  Future<void> restoreBackup() async {
+  Future<bool> restoreBackup() async {
     String backupName = backupList[selectedBackupIndex.value];
     String backupDir = SettingsService.i.getSetting(SettingsService.backupDirKey);
     String backupFolder = path.join(backupDir, 'daily_satori_backup_$backupName');
 
-    final imagesDir = Directory(path.join(backupFolder, 'images'));
-    final screenshotsDir = Directory(path.join(backupFolder, 'screenshots'));
+    final imagesFile = File(path.join(backupFolder, 'images.zip'));
+    final screenshotsFile = File(path.join(backupFolder, 'screenshots.zip'));
     final databaseFile = File(path.join(backupFolder, DBService.dbFileName));
 
     // 应用程序文档目录
@@ -64,37 +65,19 @@ class BackupRestoreController extends MyBaseController {
     // String appDocDir = path.join(directory.path, "backup_store");
     String appDocDir = (await getApplicationDocumentsDirectory()).path;
 
-    // 拷贝 images
-    if (await imagesDir.exists()) {
+    if (await imagesFile.exists() && await screenshotsFile.exists() && await databaseFile.exists()) {
       logger.i("恢复备份 images 目录");
-      await _copyDirectory(imagesDir, Directory(path.join(appDocDir, 'images')));
-    }
-
-    // 拷贝 screenshots
-    if (await screenshotsDir.exists()) {
+      await ZipFile.extractToDirectory(zipFile: imagesFile, destinationDir: Directory(path.join(appDocDir, 'images')));
       logger.i("恢复备份 screenshots 目录");
-      await _copyDirectory(screenshotsDir, Directory(path.join(appDocDir, 'screenshots')));
-    }
-
-    // 拷贝数据库文件
-    if (await databaseFile.exists()) {
-      logger.i("恢复备份 数据库文件");
+      await ZipFile.extractToDirectory(
+          zipFile: screenshotsFile, destinationDir: Directory(path.join(appDocDir, 'screenshots')));
+      logger.i("恢复备份数据库文件");
       await databaseFile.copy(path.join(appDocDir, DBService.dbFileName));
-    }
-
-    logger.i("恢复备份完成: $backupFolder => $appDocDir");
-  }
-
-  Future<void> _copyDirectory(Directory source, Directory destination) async {
-    if (await source.exists()) {
-      await destination.create(recursive: true);
-      await for (var entity in source.list()) {
-        if (entity is File) {
-          await entity.copy(path.join(destination.path, path.basename(entity.path)));
-        } else if (entity is Directory) {
-          await _copyDirectory(entity, Directory(path.join(destination.path, path.basename(entity.path))));
-        }
-      }
+      logger.i("恢复备份完成: $backupFolder => $appDocDir");
+      return true;
+    } else {
+      logger.e("备份文件不存在, 无法恢复");
+      return false;
     }
   }
 }

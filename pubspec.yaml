@@ -79,6 +79,9 @@ dependencies:
   sentry_drift: ^8.10.1
   sentry_dio: ^8.10.1
 
+  # 压缩文件
+  flutter_archive: ^6.0.3
+
   # 分享
   # receive_sharing_intent: ^1.8.0
 
