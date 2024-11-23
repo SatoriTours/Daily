@@ -63,4 +63,12 @@ class MyFontStyle {
     letterSpacing: _letterSpacing,
     height: _height,
   );
+
+  static final loadingTipsStyle = GoogleFonts.lato(
+      fontSize: 18,
+      fontWeight: FontWeight.w500,
+      height: _height,
+      letterSpacing: _letterSpacing,
+      color: Colors.grey[600],
+      decoration: TextDecoration.none);
 }

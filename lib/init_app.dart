@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:daily_satori/app/helpers/sqlite_settings_provider.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/freedisk_service.dart';
+import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -77,6 +78,7 @@ Future<void> initServices() async {
 
   // 基础的需要先初始化的任务
   await DBService.i.init(); // 初始化数据库
+  await ObjectboxService.i.init(); // 初始化数据库
   await SettingsService.i.init(); // 从数据库里面加载配置
   await initSettings();
   await FileService.i.init(); // 初始化文件目录服务

@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -73,11 +74,18 @@ void errorNotice(String content, {String title = '错误'}) {
   Get.snackbar(title, content, snackPosition: SnackPosition.top, backgroundColor: Colors.red);
 }
 
-void showFullScreenLoading() {
+void showFullScreenLoading({String tips = ''}) {
   Get.dialog(
     PopScope(
       child: Center(
-        child: CircularProgressIndicator(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(tips, style: MyFontStyle.loadingTipsStyle),
+          ],
+        ),
       ),
     ),
     barrierDismissible: false, // 点击外部区域不关闭对话框

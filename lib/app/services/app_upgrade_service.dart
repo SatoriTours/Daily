@@ -25,9 +25,9 @@ class AppUpgradeService {
 
   Future<void> checkAndDownload() async {
     showFullScreenLoading();
-    if (await AppUpgradeService.i.check()) {
+    if (await check()) {
       Get.close();
-      await AppUpgradeService.i.downAndInstallApp();
+      await _downAndInstallApp();
     } else {
       Get.close();
       successNotice('没有新版本');
@@ -35,8 +35,8 @@ class AppUpgradeService {
   }
 
   Future<void> checkAndDownloadInbackend() async {
-    if (await AppUpgradeService.i.check()) {
-      await AppUpgradeService.i.downAndInstallApp();
+    if (await check()) {
+      await _downAndInstallApp();
     }
   }
 
@@ -50,13 +50,18 @@ class AppUpgradeService {
   }
 
   Future<bool> check() async {
-    await _getCurrentVersion();
-    await _getLatestVersionFromGithub();
-    logger.i("version => $_version, github version => $_githubLatestVersion, $needUpgrade, $_downloadURL");
-    return needUpgrade;
+    try {
+      await _getCurrentVersion();
+      await _getLatestVersionFromGithub();
+      logger.i("version => $_version, github version => $_githubLatestVersion, $needUpgrade, $_downloadURL");
+      return needUpgrade;
+    } catch (e) {
+      logger.i("获取版本信息错误 $e");
+    }
+    return false;
   }
 
-  Future<void> downAndInstallApp() async {
+  Future<void> _downAndInstallApp() async {
     if (needUpgrade && isProduction) {
       // if (needUpgrade) {
       await showConfirmationDialog(
@@ -88,16 +93,13 @@ class AppUpgradeService {
   }
 
   Future<void> _getLatestVersionFromGithub() async {
-    try {
-      final response = await HttpService.i.dio.get(_githubReleaseAPI);
-      if (response.statusCode == 200) {
-        _githubLatestVersion = response.data['tag_name'] as String;
-        _downloadURL = response.data['assets'][0]['browser_download_url'] as String;
-      } else {
-        logger.e("无法获取最新版本, 状态码: ${response.statusCode}");
-      }
-    } catch (e) {
-      logger.e("获取最新版本时发生错误: $e");
+    final response = await HttpService.i.dio.get(_githubReleaseAPI);
+    if (response.statusCode == 200) {
+      _githubLatestVersion = response.data['tag_name'] as String;
+      _downloadURL = response.data['assets'][0]['browser_download_url'] as String;
+    } else {
+      logger.e("无法获取最新版本, 状态码: ${response.statusCode}");
+      throw Exception('无法获取最新版本, 状态码: ${response.statusCode}');
     }
   }
 }

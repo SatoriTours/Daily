@@ -81,6 +81,8 @@ dependencies:
 
   # 压缩文件
   flutter_archive: ^6.0.3
+  objectbox: ^4.0.3
+  objectbox_flutter_libs: any
 
   # 分享
   # receive_sharing_intent: ^1.8.0
@@ -95,6 +97,7 @@ dev_dependencies:
   # 数据库 orm 框架
   drift_dev: ^2.21.0
   build_runner: ^2.4.13
+  objectbox_generator: any
 
 flutter:
   # 使用 Material Design 设计
