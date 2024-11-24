@@ -20,15 +20,30 @@ class ObjectboxService {
   Store get store => _store;
 
   late Database _sqliteDB;
+  late Admin _admin;
+
+  Box<T> box<T>() => _store.box<T>();
 
   Future<void> init() async {
     logger.i("[初始化服务] ObjectboxService");
     final docsDir = await getApplicationDocumentsDirectory();
     _store = await openStore(directory: path.join(docsDir.path, dbFileName));
-    if (!isProduction) _clear();
+    // if (!isProduction) _clear();
     if (shouldMigrateFromSQLite()) {
       _sqliteDB = await openDatabase(path.join(docsDir.path, 'daily_satori.db.sqlite'));
     }
+    if (Admin.isAvailable() && !isProduction) {
+      // Keep a reference until no longer needed or manually closed.
+      _admin = Admin(store, bindUri: 'http://0.0.0.0:9000');
+    }
+  }
+
+  void dispose() {
+    _store.close();
+    if (shouldMigrateFromSQLite()) {
+      _sqliteDB.close();
+    }
+    _admin.close();
   }
 
   void _clear() {
@@ -47,11 +62,11 @@ class ObjectboxService {
   Future<void> migrateFromSQLite() async {
     logger.i("[数据迁移] 开始从SQLite迁移数据到ObjectBox");
     // if (!isProduction) await Future.delayed(Duration(seconds: 10));
-    final articleBox = _store.box<Article>();
-    final tagBox = _store.box<Tag>();
-    final imageBox = _store.box<Image>();
-    final screenshotBox = _store.box<Screenshot>();
-    final settingBox = _store.box<Setting>();
+    final articleBox = box<Article>();
+    final tagBox = box<Tag>();
+    final imageBox = box<Image>();
+    final screenshotBox = box<Screenshot>();
+    final settingBox = box<Setting>();
 
     // 从SQLite获取所有文章
     final articles = await _sqliteDB.query('articles');
@@ -92,15 +107,24 @@ class ObjectboxService {
           whereArgs: [tagRelation['tag_id']],
         );
 
-        if (tag.isNotEmpty) {
-          final newTag = Tag(
-            name: tag.first['name'] as String?,
-            icon: tag.first['icon'] as String?,
-          );
-          final tagId = tagBox.put(newTag);
-          newArticle.tags.add(newTag);
+        final tagName = tag.first['title'] as String? ?? '';
+
+        if (tagName.isNotEmpty) {
+          // 检查标签是否已存在
+          final existingTag = tagBox.query(Tag_.name.equals(tagName)).build().findFirst();
+          if (existingTag != null) {
+            newArticle.tags.add(existingTag);
+          } else {
+            final newTag = Tag(
+              name: tagName,
+            );
+            tagBox.put(newTag);
+            newArticle.tags.add(newTag);
+          }
         }
       }
+
+      articleBox.put(newArticle);
 
       // 处理图片
       final images = await _sqliteDB.query(
@@ -109,10 +133,10 @@ class ObjectboxService {
         whereArgs: [article['id']],
       );
 
-      logger.i("开始导入 ${images.length} 张图片");
+      // logger.i("开始导入 ${images.length} 张图片");
 
-      final imageUrl = article['imageUrl'] as String? ?? '';
-      final imagePath = article['imagePath'] as String? ?? '';
+      final imageUrl = article['image_url'] as String? ?? '';
+      final imagePath = article['image_path'] as String? ?? '';
       if (imageUrl.isNotEmpty && imagePath.isNotEmpty) {
         final newImage = Image(
           url: imageUrl,
@@ -124,8 +148,8 @@ class ObjectboxService {
 
       for (final img in images) {
         final newImage = Image(
-          url: img['url'] as String?,
-          path: img['path'] as String?,
+          url: img['image_url'] as String?,
+          path: img['image_path'] as String?,
         );
         newImage.article.target = newArticle;
         imageBox.put(newImage);
@@ -138,12 +162,11 @@ class ObjectboxService {
         whereArgs: [article['id']],
       );
 
-      logger.i("开始导入 ${images.length} 张截图");
+      // logger.i("开始导入 ${screenshots.length} 张截图");
 
       for (final screenshot in screenshots) {
         final newScreenshot = Screenshot(
-          url: screenshot['url'] as String?,
-          path: screenshot['path'] as String?,
+          path: screenshot['image_path'] as String?,
         );
         newScreenshot.article.target = newArticle;
         screenshotBox.put(newScreenshot);

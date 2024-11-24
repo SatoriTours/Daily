@@ -5,10 +5,9 @@ import 'package:objectbox/objectbox.dart';
 class Screenshot {
   @Id()
   int id = 0;
-  String? url;
   String? path;
 
   final article = ToOne<Article>();
 
-  Screenshot({this.id = 0, this.url, this.path});
+  Screenshot({this.id = 0, this.path});
 }

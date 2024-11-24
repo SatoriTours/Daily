@@ -1,6 +1,6 @@
 import 'dart:developer';
 
-import 'package:daily_satori/app/helpers/sqlite_settings_provider.dart';
+import 'package:daily_satori/app/helpers/settings_provider.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/freedisk_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
@@ -17,7 +17,6 @@ import 'package:daily_satori/app/services/adblock_service.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
-import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
@@ -77,7 +76,6 @@ Future<void> initServices() async {
   logger.i("开始初始化服务");
 
   // 基础的需要先初始化的任务
-  await DBService.i.init(); // 初始化数据库
   await ObjectboxService.i.init(); // 初始化数据库
   await SettingsService.i.init(); // 从数据库里面加载配置
   await initSettings();
@@ -100,5 +98,5 @@ Future<void> initServices() async {
 }
 
 Future<void> clearApp() async {
-  await DBService.i.clear();
+  ObjectboxService.i.dispose();
 }

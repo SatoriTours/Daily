@@ -19,8 +19,10 @@ extension PartUpdateList on ArticlesController {
     int index = articles.indexWhere((article) => article.id == articleID);
     if (index != -1) {
       final newArticle = await ArticleService.i.getArticleById(articleID);
-      articles[index] = newArticle; // 更新文章
-      logger.i("文章已更新: $articleID");
+      if (newArticle != null) {
+        articles[index] = newArticle;
+        logger.i("文章已更新: $articleID");
+      }
     } else {
       logger.i("未找到要更新的文章: $articleID");
     }

@@ -5,9 +5,12 @@ import 'package:objectbox/objectbox.dart';
 class Tag {
   @Id()
   int id = 0;
+
+  @Unique()
   String? name;
   String? icon;
 
+  @Backlink()
   final articles = ToMany<Article>();
 
   Tag({this.id = 0, this.name, this.icon});

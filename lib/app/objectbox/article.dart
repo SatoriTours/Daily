@@ -13,6 +13,8 @@ class Article {
   String? content;
   String? aiContent;
   String? htmlContent;
+
+  @Unique()
   String? url;
   bool isFavorite = false;
   String? comment;
@@ -32,7 +34,6 @@ class Article {
   @Backlink()
   final screenshots = ToMany<Screenshot>();
 
-  @Backlink('articles')
   final tags = ToMany<Tag>();
 
   Article({

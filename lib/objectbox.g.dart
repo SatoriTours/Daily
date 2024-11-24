@@ -63,7 +63,8 @@ final _entities = <obx_int.ModelEntity>[
             id: const obx_int.IdUid(7, 4895738475505904017),
             name: 'url',
             type: 9,
-            flags: 0),
+            flags: 2080,
+            indexId: const obx_int.IdUid(4, 5900042734245125509)),
         obx_int.ModelProperty(
             id: const obx_int.IdUid(8, 4500975140834464592),
             name: 'isFavorite',
@@ -90,13 +91,16 @@ final _entities = <obx_int.ModelEntity>[
             type: 10,
             flags: 0)
       ],
-      relations: <obx_int.ModelRelation>[],
+      relations: <obx_int.ModelRelation>[
+        obx_int.ModelRelation(
+            id: const obx_int.IdUid(4, 6883695399629113204),
+            name: 'tags',
+            targetId: const obx_int.IdUid(4, 4010830939855844436))
+      ],
       backlinks: <obx_int.ModelBacklink>[
         obx_int.ModelBacklink(name: 'images', srcEntity: 'Image', srcField: ''),
         obx_int.ModelBacklink(
-            name: 'screenshots', srcEntity: 'Screenshot', srcField: ''),
-        obx_int.ModelBacklink(
-            name: 'tags', srcEntity: 'Tag', srcField: 'articles')
+            name: 'screenshots', srcEntity: 'Screenshot', srcField: '')
       ]),
   obx_int.ModelEntity(
       id: const obx_int.IdUid(2, 424537266143031752),
@@ -141,11 +145,6 @@ final _entities = <obx_int.ModelEntity>[
             type: 6,
             flags: 1),
         obx_int.ModelProperty(
-            id: const obx_int.IdUid(2, 6112857799928721251),
-            name: 'url',
-            type: 9,
-            flags: 0),
-        obx_int.ModelProperty(
             id: const obx_int.IdUid(3, 3987560395608201477),
             name: 'path',
             type: 9,
@@ -175,20 +174,19 @@ final _entities = <obx_int.ModelEntity>[
             id: const obx_int.IdUid(2, 3154326798013673890),
             name: 'name',
             type: 9,
-            flags: 0),
+            flags: 2080,
+            indexId: const obx_int.IdUid(5, 5582228043341448759)),
         obx_int.ModelProperty(
             id: const obx_int.IdUid(3, 685644473537562706),
             name: 'icon',
             type: 9,
             flags: 0)
       ],
-      relations: <obx_int.ModelRelation>[
-        obx_int.ModelRelation(
-            id: const obx_int.IdUid(2, 2860519894126837285),
-            name: 'articles',
-            targetId: const obx_int.IdUid(1, 4903589311666536386))
-      ],
-      backlinks: <obx_int.ModelBacklink>[]),
+      relations: <obx_int.ModelRelation>[],
+      backlinks: <obx_int.ModelBacklink>[
+        obx_int.ModelBacklink(
+            name: 'articles', srcEntity: 'Article', srcField: '')
+      ]),
   obx_int.ModelEntity(
       id: const obx_int.IdUid(5, 5883101161320296494),
       name: 'Setting',
@@ -252,13 +250,17 @@ obx_int.ModelDefinition getObjectBoxModel() {
   final model = obx_int.ModelInfo(
       entities: _entities,
       lastEntityId: const obx_int.IdUid(5, 5883101161320296494),
-      lastIndexId: const obx_int.IdUid(3, 357593586412620124),
-      lastRelationId: const obx_int.IdUid(2, 2860519894126837285),
+      lastIndexId: const obx_int.IdUid(5, 5582228043341448759),
+      lastRelationId: const obx_int.IdUid(4, 6883695399629113204),
       lastSequenceId: const obx_int.IdUid(0, 0),
       retiredEntityUids: const [],
       retiredIndexUids: const [],
-      retiredPropertyUids: const [],
-      retiredRelationUids: const [4899483606642247262],
+      retiredPropertyUids: const [6112857799928721251],
+      retiredRelationUids: const [
+        4899483606642247262,
+        6893224121746435434,
+        2860519894126837285
+      ],
       modelVersion: 5,
       modelVersionParserMinimum: 5,
       version: 1);
@@ -268,13 +270,13 @@ obx_int.ModelDefinition getObjectBoxModel() {
         model: _entities[0],
         toOneRelations: (Article object) => [],
         toManyRelations: (Article object) => {
+              obx_int.RelInfo<Article>.toMany(4, object.id): object.tags,
               obx_int.RelInfo<Image>.toOneBacklink(
                       4, object.id, (Image srcObject) => srcObject.article):
                   object.images,
               obx_int.RelInfo<Screenshot>.toOneBacklink(4, object.id,
                       (Screenshot srcObject) => srcObject.article):
-                  object.screenshots,
-              obx_int.RelInfo<Tag>.toManyBacklink(2, object.id): object.tags
+                  object.screenshots
             },
         getId: (Article object) => object.id,
         setId: (Article object, int id) {
@@ -363,6 +365,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
               pubDate: pubDateParam,
               updatedAt: updatedAtParam,
               createdAt: createdAtParam);
+          obx_int.InternalToManyAccess.setRelInfo<Article>(object.tags, store,
+              obx_int.RelInfo<Article>.toMany(4, object.id));
           obx_int.InternalToManyAccess.setRelInfo<Article>(
               object.images,
               store,
@@ -373,8 +377,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
               store,
               obx_int.RelInfo<Screenshot>.toOneBacklink(
                   4, object.id, (Screenshot srcObject) => srcObject.article));
-          obx_int.InternalToManyAccess.setRelInfo<Article>(object.tags, store,
-              obx_int.RelInfo<Tag>.toManyBacklink(2, object.id));
           return object;
         }),
     Image: obx_int.EntityDefinition<Image>(
@@ -422,13 +424,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
           object.id = id;
         },
         objectToFB: (Screenshot object, fb.Builder fbb) {
-          final urlOffset =
-              object.url == null ? null : fbb.writeString(object.url!);
           final pathOffset =
               object.path == null ? null : fbb.writeString(object.path!);
           fbb.startTable(5);
           fbb.addInt64(0, object.id);
-          fbb.addOffset(1, urlOffset);
           fbb.addOffset(2, pathOffset);
           fbb.addInt64(3, object.article.targetId);
           fbb.finish(fbb.endTable());
@@ -439,12 +438,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
           final rootOffset = buffer.derefObject(0);
           final idParam =
               const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
-          final urlParam = const fb.StringReader(asciiOptimization: true)
-              .vTableGetNullable(buffer, rootOffset, 6);
           final pathParam = const fb.StringReader(asciiOptimization: true)
               .vTableGetNullable(buffer, rootOffset, 8);
-          final object =
-              Screenshot(id: idParam, url: urlParam, path: pathParam);
+          final object = Screenshot(id: idParam, path: pathParam);
           object.article.targetId =
               const fb.Int64Reader().vTableGet(buffer, rootOffset, 10, 0);
           object.article.attach(store);
@@ -453,8 +449,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
     Tag: obx_int.EntityDefinition<Tag>(
         model: _entities[3],
         toOneRelations: (Tag object) => [],
-        toManyRelations: (Tag object) =>
-            {obx_int.RelInfo<Tag>.toMany(2, object.id): object.articles},
+        toManyRelations: (Tag object) => {
+              obx_int.RelInfo<Article>.toManyBacklink(4, object.id):
+                  object.articles
+            },
         getId: (Tag object) => object.id,
         setId: (Tag object, int id) {
           object.id = id;
@@ -482,7 +480,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
               .vTableGetNullable(buffer, rootOffset, 8);
           final object = Tag(id: idParam, name: nameParam, icon: iconParam);
           obx_int.InternalToManyAccess.setRelInfo<Tag>(object.articles, store,
-              obx_int.RelInfo<Tag>.toMany(2, object.id));
+              obx_int.RelInfo<Article>.toManyBacklink(4, object.id));
           return object;
         }),
     Setting: obx_int.EntityDefinition<Setting>(
@@ -573,6 +571,10 @@ class Article_ {
   static final createdAt =
       obx.QueryDateProperty<Article>(_entities[0].properties[11]);
 
+  /// see [Article.tags]
+  static final tags =
+      obx.QueryRelationToMany<Article, Tag>(_entities[0].relations[0]);
+
   /// see [Article.images]
   static final images = obx.QueryBacklinkToMany<Image, Article>(Image_.article);
 
@@ -604,17 +606,13 @@ class Screenshot_ {
   static final id =
       obx.QueryIntegerProperty<Screenshot>(_entities[2].properties[0]);
 
-  /// See [Screenshot.url].
-  static final url =
-      obx.QueryStringProperty<Screenshot>(_entities[2].properties[1]);
-
   /// See [Screenshot.path].
   static final path =
-      obx.QueryStringProperty<Screenshot>(_entities[2].properties[2]);
+      obx.QueryStringProperty<Screenshot>(_entities[2].properties[1]);
 
   /// See [Screenshot.article].
   static final article =
-      obx.QueryRelationToOne<Screenshot, Article>(_entities[2].properties[3]);
+      obx.QueryRelationToOne<Screenshot, Article>(_entities[2].properties[2]);
 }
 
 /// [Tag] entity fields to define ObjectBox queries.
@@ -627,10 +625,6 @@ class Tag_ {
 
   /// See [Tag.icon].
   static final icon = obx.QueryStringProperty<Tag>(_entities[3].properties[2]);
-
-  /// see [Tag.articles]
-  static final articles =
-      obx.QueryRelationToMany<Tag, Article>(_entities[3].relations[0]);
 }
 
 /// [Setting] entity fields to define ObjectBox queries.

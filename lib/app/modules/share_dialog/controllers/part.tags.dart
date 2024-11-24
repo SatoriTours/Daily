@@ -4,31 +4,27 @@ extension PartTags on ShareDialogController {
   Future<void> _saveTags(Article? article, List<String> tags) async {
     logger.i("[ShareDialogController] 开始保存标签: $tags");
     if (article == null) return;
-    // 先删除文章所有标签
-    await db.articleTags.deleteWhere((tbl) => tbl.articleId.equals(article.id));
+
+    // 清除文章现有标签
+    article.tags.removeWhere((tag) => true);
 
     // 获取或创建标签
-    final tagIds = await Future.wait(tags.map((tagTitle) async {
+    for (var tagTitle in tags) {
       // 查找已存在的标签
-      final existingTags = await (db.select(db.tags)..where((t) => t.title.equals(tagTitle))).get();
-
-      if (existingTags.isNotEmpty) {
-        return existingTags.first.id;
-      }
+      var tag = tagBox.query(Tag_.name.equals(tagTitle)).build().findFirst();
 
       // 如果标签不存在,创建新标签
-      final newTag = await db.into(db.tags).insertReturning(TagsCompanion(
-            title: drift.Value(tagTitle),
-          ));
+      if (tag == null) {
+        tag = Tag(name: tagTitle);
+        tagBox.put(tag);
+      }
 
-      return newTag.id;
-    }));
+      // 添加标签到文章
+      article.tags.add(tag);
+    }
 
-    // 保存文章标签
-    await db.articleTags.insertAll(tagIds.map((tagId) => ArticleTagsCompanion(
-          articleId: drift.Value(article.id),
-          tagId: drift.Value(tagId),
-        )));
+    // 保存文章
+    articleBox.put(article);
 
     TagsService.i.reload();
     logger.i("[ShareDialogController] 标签保存完成 ${article.id}");

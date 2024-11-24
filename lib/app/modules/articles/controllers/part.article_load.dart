@@ -4,9 +4,9 @@ extension PartArticleLoad on ArticlesController {
   Future<void> reloadArticles() async {
     logger.i("重新加载文章");
     lastRefreshTime = DateTime.now();
-    final newArticles = _addFilterExpression();
+    final newArticles = _queryByFilter();
 
-    articles.assignAll(await _getArticles(newArticles));
+    articles.assignAll(newArticles);
     if (scrollController.hasClients) scrollController.jumpTo(0);
   }
 
@@ -14,10 +14,9 @@ extension PartArticleLoad on ArticlesController {
     int articleID = articles.first.id;
     isLoading.value = true;
     logger.i("获取 $articleID 之前的 $_pageSize 个文章");
-    final newArticles = _addFilterExpression();
-    newArticles.where((t) => t.id.isBiggerThanValue(articleID));
+    final newArticles = _queryByFilter(Article_.id.greaterThan(articleID));
 
-    articles.insertAll(0, await _getArticles(newArticles));
+    articles.insertAll(0, newArticles);
     isLoading.value = false;
   }
 
@@ -25,10 +24,9 @@ extension PartArticleLoad on ArticlesController {
     int articleID = articles.last.id;
     isLoading.value = true;
     logger.i("获取 $articleID 之后的 $_pageSize 个文章");
-    final newArticles = _addFilterExpression();
-    newArticles.where((t) => t.id.isSmallerThanValue(articleID));
+    final newArticles = _queryByFilter(Article_.id.lessThan(articleID));
 
-    articles.addAll(await _getArticles(newArticles));
+    articles.addAll(newArticles);
     isLoading.value = false;
   }
 }
