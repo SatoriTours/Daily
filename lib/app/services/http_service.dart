@@ -11,7 +11,11 @@ class HttpService {
 
   Future<void> init() async {
     logger.i("[初始化服务] HttpService");
-    _dio = Dio();
+    _dio = Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 3),
+      receiveTimeout: const Duration(seconds: 3),
+      sendTimeout: const Duration(seconds: 3),
+    ));
     dio.addSentry();
   }
 

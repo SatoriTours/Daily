@@ -5,7 +5,9 @@ extension PartUpdateList on ArticlesController {
     articles.removeWhere((article) => article.id == id);
   }
 
-  void updateArticleInList(Article updatedArticle) {
+  void updateArticleInList(int articleID) {
+    final updatedArticle = articleBox.get(articleID);
+    if (updatedArticle == null) return;
     int index = articles.indexWhere((article) => article.id == updatedArticle.id);
     if (index != -1) {
       articles[index] = updatedArticle; // 更新文章

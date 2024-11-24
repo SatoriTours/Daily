@@ -27,7 +27,7 @@ part 'part.screenshot.dart';
 class ShareDialogController extends MyBaseController {
   String? shareURL = isProduction ? null : 'https://1024.day/d/3072';
   bool isUpdate = false;
-  int articleID = -1;
+  int articleID = 0;
 
   DreamWebViewController? webViewController;
   material.TextEditingController commentController = material.TextEditingController();
@@ -36,7 +36,7 @@ class ShareDialogController extends MyBaseController {
   final articleBox = ObjectboxService.i.box<Article>();
   final tagBox = ObjectboxService.i.box<Tag>();
   final imageBox = ObjectboxService.i.box<Image>();
-
+  final screenshotBox = ObjectboxService.i.box<Screenshot>();
   Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
       String publishedTime, List<String> imageUrls) async {
     logger.i(
@@ -68,8 +68,7 @@ class ShareDialogController extends MyBaseController {
     ]);
 
     var article = _createArticle(
-      // url: url,
-      url: shareURL ?? url,
+      url: url,
       title: title,
       aiTitle: results[0].toString(),
       textContent: textContent,
@@ -78,12 +77,16 @@ class ShareDialogController extends MyBaseController {
       publishedTime: publishedTime,
     );
 
-    final newArticle = await _saveOrUpdateArticle(url, article);
+    final newArticle = await _saveOrUpdateArticle(article);
     await Future.wait([
       _saveTags(newArticle, results[4]).catchError((e) => logger.e("[保存标签] 失败: $e")),
       _saveImages(newArticle, results[2]).catchError((e) => logger.e("[保存图片] 失败: $e")),
       _saveScreenshots(newArticle, List.from(results[3])).catchError((e) => logger.e("[保存截图] 失败: $e")),
     ]);
+
+    if (isUpdate) {
+      Get.find<ArticlesController>().updateArticleInList(newArticle.id);
+    }
 
     _closeDialog();
   }

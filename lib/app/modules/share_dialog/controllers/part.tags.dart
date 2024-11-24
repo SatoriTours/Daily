@@ -1,9 +1,8 @@
 part of 'share_dialog_controller.dart';
 
 extension PartTags on ShareDialogController {
-  Future<void> _saveTags(Article? article, List<String> tags) async {
+  Future<void> _saveTags(Article article, List<String> tags) async {
     logger.i("[ShareDialogController] 开始保存标签: $tags");
-    if (article == null) return;
 
     // 清除文章现有标签
     article.tags.removeWhere((tag) => true);

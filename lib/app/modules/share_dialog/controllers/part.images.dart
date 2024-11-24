@@ -8,9 +8,8 @@ extension PartImages on ShareDialogController {
     return imageResults.where((result) => result.imagePath.isNotEmpty).toList();
   }
 
-  Future<void> _saveImages(Article? article, List<ImageDownloadResult> results) async {
-    logger.i("[ShareDialogController] 开始保存图片: $results");
-    if (article == null || results.isEmpty) return;
+  Future<void> _saveImages(Article article, List<ImageDownloadResult> results) async {
+    logger.i("[ShareDialogController] 开始保存图片: ${results.length}");
     article.images.removeWhere((image) => true);
     for (var result in results) {
       await _saveDownloadImage(article.id, result);
@@ -22,7 +21,8 @@ extension PartImages on ShareDialogController {
     final article = await ArticleService.i.getArticleById(articleID);
     try {
       final image = Image(url: result.imageUrl, path: result.imagePath);
-      article?.images.add(image);
+      image.article.target = article;
+      imageBox.put(image);
       logger.i("保存到数据库: ${result.imageUrl} => ${result.imagePath}");
     } catch (e) {
       logger.e("保存图片失败: ${result.imagePath}, 错误: $e");

@@ -19,7 +19,6 @@ class ObjectboxService {
   late final Store _store;
   Store get store => _store;
 
-  late Database _sqliteDB;
   late Admin _admin;
 
   Box<T> box<T>() => _store.box<T>();
@@ -29,9 +28,6 @@ class ObjectboxService {
     final docsDir = await getApplicationDocumentsDirectory();
     _store = await openStore(directory: path.join(docsDir.path, dbFileName));
     // if (!isProduction) _clear();
-    if (shouldMigrateFromSQLite()) {
-      _sqliteDB = await openDatabase(path.join(docsDir.path, 'daily_satori.db.sqlite'));
-    }
     if (Admin.isAvailable() && !isProduction) {
       // Keep a reference until no longer needed or manually closed.
       _admin = Admin(store, bindUri: 'http://0.0.0.0:9000');
@@ -40,9 +36,6 @@ class ObjectboxService {
 
   void dispose() {
     _store.close();
-    if (shouldMigrateFromSQLite()) {
-      _sqliteDB.close();
-    }
     _admin.close();
   }
 
@@ -62,6 +55,8 @@ class ObjectboxService {
   Future<void> migrateFromSQLite() async {
     logger.i("[数据迁移] 开始从SQLite迁移数据到ObjectBox");
     // if (!isProduction) await Future.delayed(Duration(seconds: 10));
+    final docsDir = await getApplicationDocumentsDirectory();
+    Database sqliteDB = await openDatabase(path.join(docsDir.path, 'daily_satori.db.sqlite'));
     final articleBox = box<Article>();
     final tagBox = box<Tag>();
     final imageBox = box<Image>();
@@ -69,7 +64,7 @@ class ObjectboxService {
     final settingBox = box<Setting>();
 
     // 从SQLite获取所有文章
-    final articles = await _sqliteDB.query('articles');
+    final articles = await sqliteDB.query('articles');
     logger.i("开始导入 ${articles.length} 篇文章");
 
     // 遍历并转换每篇文章
@@ -83,25 +78,29 @@ class ObjectboxService {
         url: article['url'] as String?,
         isFavorite: (article['is_favorite'] as int?) == 1,
         comment: article['comment'] as String?,
-        pubDate: article['pub_date'] != null ? DateTime.fromMillisecondsSinceEpoch(article['pub_date'] as int) : null,
-        updatedAt:
-            article['updated_at'] != null ? DateTime.fromMillisecondsSinceEpoch(article['updated_at'] as int) : null,
-        createdAt:
-            article['created_at'] != null ? DateTime.fromMillisecondsSinceEpoch(article['created_at'] as int) : null,
+        pubDate: article['pub_date'] != null
+            ? DateTime.fromMillisecondsSinceEpoch((article['pub_date'] as int) * 1000)
+            : null,
+        updatedAt: article['updated_at'] != null
+            ? DateTime.fromMillisecondsSinceEpoch((article['updated_at'] as int) * 1000)
+            : null,
+        createdAt: article['created_at'] != null
+            ? DateTime.fromMillisecondsSinceEpoch((article['created_at'] as int) * 1000)
+            : null,
       );
 
       // 保存文章
       final articleId = articleBox.put(newArticle);
 
       // 处理标签
-      final tags = await _sqliteDB.query(
+      final tags = await sqliteDB.query(
         'article_tags',
         where: 'article_id = ?',
         whereArgs: [article['id']],
       );
 
       for (final tagRelation in tags) {
-        final tag = await _sqliteDB.query(
+        final tag = await sqliteDB.query(
           'tags',
           where: 'id = ?',
           whereArgs: [tagRelation['tag_id']],
@@ -127,7 +126,7 @@ class ObjectboxService {
       articleBox.put(newArticle);
 
       // 处理图片
-      final images = await _sqliteDB.query(
+      final images = await sqliteDB.query(
         'article_images',
         where: 'article = ?',
         whereArgs: [article['id']],
@@ -156,7 +155,7 @@ class ObjectboxService {
       }
 
       // 处理截图
-      final screenshots = await _sqliteDB.query(
+      final screenshots = await sqliteDB.query(
         'article_screenshots',
         where: 'article = ?',
         whereArgs: [article['id']],
@@ -174,7 +173,7 @@ class ObjectboxService {
     }
 
     // 处理设置
-    final settings = await _sqliteDB.query('settings');
+    final settings = await sqliteDB.query('settings');
     logger.i("开始导入 ${settings.length} 条设置");
 
     for (final setting in settings) {

@@ -37,18 +37,9 @@ extension PartArticle on ShareDialogController {
     );
   }
 
-  Future<Article?> _saveOrUpdateArticle(String url, Article article) async {
-    final Article? newArticle;
-    if (isUpdate) {
-      logger.i("[更新文章] aiTitle => ${article.aiTitle}");
-      newArticle = await ArticleService.i.updateArticle(articleID, article);
-      if (newArticle != null) {
-        Get.find<ArticlesController>().updateArticleInList(newArticle);
-      }
-    } else {
-      logger.i("[新增文章] aiTitle => ${article.aiTitle}");
-      newArticle = await ArticleService.i.saveArticle(article);
-    }
-    return newArticle;
+  Future<Article> _saveOrUpdateArticle(Article article) async {
+    article.id = articleID;
+    articleBox.put(article);
+    return article;
   }
 }
