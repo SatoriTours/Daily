@@ -1,9 +1,9 @@
 import 'dart:io';
 
+import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:flutter_archive/flutter_archive.dart';
 import 'package:path/path.dart' as path;
 
-import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
 import 'package:daily_satori/global.dart';
@@ -30,12 +30,15 @@ class BackupService {
 
     DateTime lastBackupTime = await _getLastBackupTime();
     int backupTimeDifference = DateTime.now().difference(lastBackupTime).inHours;
-    if (backupTimeDifference >= 6 || immediateBackup) {
+    // 根据环境设置不同的备份间隔
+    int backupInterval = isProduction ? 6 : 24;
+    if (backupTimeDifference >= backupInterval || immediateBackup) {
       logger.i("开始备份应用");
       await _performBackup(backupDir);
       await _updateLastBackupTime(DateTime.now());
     } else {
-      logger.i("上次备份时间 $lastBackupTime, 离下次备份还差: ${6 - backupTimeDifference} 小时");
+      logger
+          .i("上次备份时间 $lastBackupTime, 备份间隔为 $backupInterval 小时, 离下次备份还差: ${backupInterval - backupTimeDifference} 小时");
     }
   }
 
@@ -51,7 +54,7 @@ class BackupService {
   Future<void> _performBackup(String backupDir) async {
     String imagesDir = FileService.i.imagesBasePath;
     String screenshotsDir = FileService.i.screenshotsBasePath;
-    String databaseFile = DBService.i.dbPath;
+    String databaseDir = FileService.i.dbPath;
 
     String timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').replaceAll('.', '-');
     String backupFolder = path.join(backupDir, 'daily_satori_backup_$timestamp');
@@ -61,7 +64,7 @@ class BackupService {
     // await _copyDirectory(Directory(screenshotsDir), Directory(path.join(backupFolder, 'screenshots')));
     await _compressDirectory(imagesDir, path.join(backupFolder, 'images.zip'));
     await _compressDirectory(screenshotsDir, path.join(backupFolder, 'screenshots.zip'));
-    await File(databaseFile).copy(path.join(backupFolder, DBService.dbFileName));
+    await _compressDirectory(databaseDir, path.join(backupFolder, 'objectbox.zip'));
     logger.i("完成了文件的备份: $backupFolder");
   }
 

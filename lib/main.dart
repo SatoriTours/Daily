@@ -46,7 +46,7 @@ Future<void> main() async {
           navigatorObservers: [SentryNavigatorObserver()],
         ),
       );
-      await clearApp();
+      // await clearApp();
     },
   );
 }

@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:daily_satori/app/databases/database.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -21,7 +20,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(getTopLevelDomain(Uri.parse(controller.article.url).host)),
+        title: Text(getTopLevelDomain(Uri.parse(controller.article.url ?? '').host)),
         centerTitle: true,
         actions: [_buildAppBarActions()],
       ),
@@ -34,7 +33,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                 physics: NeverScrollableScrollPhysics(),
                 children: [
                   _buildArticleContent(),
-                  _buildArticleScreenshot(),
+                  _buildArticleScreenshot(context),
                   _buildArticleWebview(context),
                 ],
               ),
@@ -97,7 +96,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
         } else if (value == 2) {
           _showDeleteConfirmationDialog();
         } else if (value == 3) {
-          Clipboard.setData(ClipboardData(text: controller.article.url));
+          Clipboard.setData(ClipboardData(text: controller.article.url ?? ''));
           successNotice("链接已复制到剪贴板");
         } else if (value == 4) {
           controller.shareScreenshots();
@@ -120,76 +119,52 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     );
   }
 
-  Widget _buildArticleScreenshot() {
-    final screenshotPath = controller.article.screenshotPath;
-    if (screenshotPath != null && screenshotPath.isNotEmpty) {
-      return SingleChildScrollView(
-        child: SizedBox(
-          width: double.infinity,
-          child: Image.file(
-            File(controller.article.screenshotPath!),
-            fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
-          ),
+  Widget _buildArticleScreenshot(BuildContext context) {
+    final screenshots = controller.getArticleScreenshots();
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width, // 设置宽度占满全屏
+        child: ListView.builder(
+          itemCount: screenshots.length,
+          itemBuilder: (context, index) {
+            return Image.file(
+              File(screenshots[index]),
+              fit: BoxFit.cover,
+              errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error, color: Colors.red),
+                    Text('文件不存在'),
+                  ],
+                );
+              },
+            );
+          },
         ),
-      );
-    } else {
-      return FutureBuilder<List<ArticleScreenshot>>(
-        future: controller.getArticleScreenshoots(), // 获取图片列表
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text("加载图片失败"));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text("没有截图可显示"));
-          }
-
-          final screenshots = snapshot.data!;
-
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: MediaQuery.of(context).size.width, // 设置宽度占满全屏
-              child: ListView.builder(
-                itemCount: screenshots.length,
-                itemBuilder: (context, index) {
-                  return Image.file(
-                    File(screenshots[index].imagePath ?? ''),
-                    fit: BoxFit.cover,
-                    errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
-                      return Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.error, color: Colors.red),
-                          Text('文件不存在'),
-                        ],
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          );
-        },
-      );
-    }
+      ),
+    );
   }
 
   Widget _buildArticleWebview(BuildContext context) {
     return DreamWebView(
-      url: controller.article.url,
+      url: controller.article.url ?? '',
     );
   }
 
   Widget _buildArticleContent() {
+    // final imagePath = controller.article.images.first.path;
+    final article = controller.article;
+    final imagePath = article.images.isEmpty ? '' : (article.images.first.path ?? '');
+
     return SingleChildScrollView(
       child: Column(
         children: [
-          if ((controller.article.imagePath?.isNotEmpty ?? false) && !controller.article.imagePath!.endsWith('.svg'))
+          if ((imagePath.isNotEmpty) && !imagePath.endsWith('.svg'))
             GestureDetector(
               onTap: () {
-                _showFullScreenImage([controller.article.imagePath!]); // 处理点击事件，显示全屏图片
+                _showFullScreenImage([imagePath]); // 处理点击事件，显示全屏图片
               },
               child: Container(
                 padding: const EdgeInsets.fromLTRB(20, 5, 20, 0),
@@ -198,11 +173,11 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                   maxHeight: 200, // 最大高度为 200
                 ),
                 child: Image.file(
-                  File(controller.article.imagePath!),
+                  File(imagePath),
                   fit: BoxFit.cover,
                   alignment: Alignment.topCenter,
                   errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
-                    logger.i("加载路径错误 ${controller.article.imagePath}");
+                    logger.i("加载路径错误 $imagePath");
                     return SizedBox.shrink(); // 隐藏整个 Container
                   },
                 ),
@@ -266,50 +241,35 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   }
 
   Widget _buildImageList() {
+    final images = controller.getArticleImages();
     return SizedBox(
       height: 200, // 设置图片列表的高度
-      child: FutureBuilder<List<ArticleImage>>(
-        future: controller.getArticleImages(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text("加载图片失败"));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Container();
-          }
-
-          final images = snapshot.data!;
-          final imagePaths = images.map((i) => i.imagePath).toList();
-
-          return ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: images.length,
-            itemBuilder: (context, index) {
-              return GestureDetector(
-                onTap: () {
-                  _showFullScreenImage(imagePaths);
-                },
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: Image.file(
-                    File(images[index].imagePath ?? ''), // 假设 ArticleImage 对象有 imagePath 属性
-                    fit: BoxFit.cover,
-                    errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
-                      logger.i("加载路径错误 ${controller.article.imagePath}");
-                      return SizedBox.shrink(); // 隐藏整个 Container 显示错误图标和消息
-                    },
-                  ),
-                ),
-              );
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: images.length,
+        itemBuilder: (context, index) {
+          return GestureDetector(
+            onTap: () {
+              _showFullScreenImage(images);
             },
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Image.file(
+                File(images[index]), // 假设 ArticleImage 对象有 imagePath 属性
+                fit: BoxFit.cover,
+                errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                  logger.i("加载路径错误 ${images[index]}");
+                  return SizedBox.shrink(); // 隐藏整个 Container 显示错误图标和消息
+                },
+              ),
+            ),
           );
         },
       ),
     );
   }
 
-  void _showFullScreenImage(List<String?> imagePaths) {
+  void _showFullScreenImage(List<String> imagePaths) {
     Get.dialog(
       Scaffold(
         backgroundColor: Colors.black,
@@ -328,10 +288,10 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                   child: InteractiveViewer(
                     maxScale: 5,
                     child: Image.file(
-                      File(imagePaths[index] ?? ''), // 使用 imagePaths 中的路径
+                      File(imagePaths[index]), // 使用 imagePaths 中的路径
                       fit: BoxFit.contain,
                       errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
-                        logger.i("加载路径错误 ${controller.article.imagePath}");
+                        logger.i("加载路径错误 ${imagePaths[index]}");
                         return SizedBox.shrink(); // 隐藏整个 Container 显示错误图标和消息
                       },
                     ),

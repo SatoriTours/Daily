@@ -1,12 +1,13 @@
+import 'package:daily_satori/app/objectbox/article.dart';
+import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
-import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/app/helpers/my_base_controller.dart';
-import 'package:drift/drift.dart';
+import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/objectbox.g.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import 'package:daily_satori/app/databases/database.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/global.dart';
 
@@ -26,6 +27,9 @@ class ArticlesController extends MyBaseController with WidgetsBindingObserver {
   final isLoading = false.obs;
   final enableSearch = false.obs;
   final tagName = ''.obs;
+
+  final articleBox = ObjectboxService.i.box<Article>();
+  final tagBox = ObjectboxService.i.box<Tag>();
 
   @override
   void onInit() {
@@ -83,9 +87,6 @@ class ArticlesController extends MyBaseController with WidgetsBindingObserver {
     if (tagName.value.isNotEmpty) title = "$title - ${tagName.value}";
     return title;
   }
-
-  final _db = DBService.i.db;
-
   // -------------------------part 专用的变量-------------------------------
 
   // part 'clipboard.part.dart';

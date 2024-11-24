@@ -11,11 +11,7 @@ class LeftBarView extends GetView<LeftBarController> {
 
   @override
   Widget build(BuildContext context) {
-    return GetX<LeftBarController>(
-        initState: (_) => controller.refreshData(),
-        builder: (_) {
-          return _buildPage();
-        });
+    return _buildPage();
   }
 
   Widget _buildPage() {
@@ -69,7 +65,7 @@ class LeftBarView extends GetView<LeftBarController> {
         final tag = controller.tags[index];
         return InkWell(
           onTap: () {
-            controller.articlesController.showArticleByTagID(tag.id, tag.title ?? '');
+            controller.articlesController.showArticleByTagID(tag.id, tag.name ?? '');
             Get.back();
           },
           child: Padding(
@@ -79,7 +75,7 @@ class LeftBarView extends GetView<LeftBarController> {
               children: [
                 Icon(Icons.local_offer, size: 18),
                 SizedBox(width: 10),
-                Text(tag.title ?? '', style: MyFontStyle.tagsListContent),
+                Text(tag.name ?? '', style: MyFontStyle.tagsListContent),
                 // Spacer(),
                 // Text('10', style: MyFontStyle.tagsListContent),
               ],

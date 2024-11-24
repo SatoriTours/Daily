@@ -1,7 +1,7 @@
-import 'package:drift/drift.dart';
+import 'package:daily_satori/app/objectbox/article.dart';
+import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/objectbox.g.dart';
 
-import 'package:daily_satori/app/databases/database.dart';
-import 'package:daily_satori/app/services/db_service.dart';
 import 'package:daily_satori/global.dart';
 
 class ArticleService {
@@ -13,125 +13,100 @@ class ArticleService {
     logger.i("[初始化服务] ArticleService");
   }
 
-  AppDatabase get db => DBService.i.db;
+  final articleBox = ObjectboxService.i.box<Article>();
 
-  Future<Article?> saveArticle(ArticlesCompanion article) async {
+  Future<Article?> saveArticle(Article article) async {
     try {
-      final newArticle = await db.into(db.articles).insertReturningOrNull(article);
-      logger.i("文章已保存: ${firstLine(newArticle?.title ?? '')}");
-
-      return newArticle;
+      article.id = articleBox.put(article);
+      logger.i("文章已保存: ${firstLine(article.title ?? '')}");
+      return article;
     } catch (e) {
       logger.e("[保存文章失败] $e");
       return null;
     }
   }
 
-  Future<Article?> updateArticle(int articleID, ArticlesCompanion article) async {
-    var result = await (db.update(db.articles)..where((row) => row.id.equals(articleID))).write(article);
-
-    if (result >= 1) {
-      logger.i("文章已更新: ${firstLine(article.title.value ?? '')}");
-      // 返回更新后的 article 对象
-      return await getArticleById(articleID);
-    } else {
+  Future<Article?> updateArticle(int articleID, Article article) async {
+    final existing = articleBox.get(articleID);
+    if (existing == null) {
       logger.i("未找到文章以更新: ${article.url}");
-      return null; // 未找到文章，返回 null
+      return null;
     }
+
+    article.id = articleID;
+    article.id = articleBox.put(article);
+    logger.i("文章已更新: ${firstLine(article.title ?? '')}");
+    return article;
   }
 
   Future<Article?> getFirstArticleByUrl(String url) async {
-    final articles = await (db.select(db.articles)
-          ..where((row) => row.url.equals(url))
-          ..limit(1))
-        .get();
-    return articles.isNotEmpty ? articles.first : null;
+    final query = articleBox.query(Article_.url.equals(url));
+    return query.build().findFirst();
   }
 
   Future<bool> isArticleExists(String url) async {
-    final existingArticle = await (db.select(db.articles)..where((t) => t.url.equals(url))).get();
-    return existingArticle.isNotEmpty;
+    final query = articleBox.query(Article_.url.equals(url)).build();
+    final existingArticle = query.findFirst();
+    return existingArticle != null;
   }
 
   Future<void> deleteArticle(int articleID) async {
-    // 删除的时候,要把相关的图片文件都删除, 还有和tag的关系
-    try {
-      await (db.delete(db.articleImages)..where((row) => row.article.equals(articleID))).go();
-      await (db.delete(db.articleScreenshots)..where((row) => row.article.equals(articleID))).go();
-      await (db.delete(db.articleTags)..where((row) => row.articleId.equals(articleID))).go();
-    } catch (e) {
-      logger.e("[删除文章关联的内容失败] $e");
-    }
-
-    final result = await (db.delete(db.articles)..where((row) => row.id.equals(articleID))).go();
-
-    if (result > 0) {
-      logger.i("文章已删除: $articleID");
-    } else {
+    final article = articleBox.get(articleID);
+    if (article == null) {
       logger.i("未找到文章以删除: $articleID");
+      return;
     }
+
+    // 删除文章和关联的标签
+    article.tags.clear();
+    article.images.clear();
+    article.screenshots.clear();
+    articleBox.remove(articleID);
+    logger.i("文章已删除: $articleID");
   }
 
-  Future<Article> getArticleById(int articleID) async {
-    return await (db.select(db.articles)..where((row) => row.id.equals(articleID))).getSingle();
+  Future<Article?> getArticleById(int articleID) async {
+    return articleBox.get(articleID);
   }
 
   Future<bool> toggleFavorite(int articleID) async {
-    var article = await getArticleById(articleID);
-    final result = await (db.update(db.articles)..where((row) => row.id.equals(article.id))).write(ArticlesCompanion(
-      isFavorite: Value(!article.isFavorite),
-    ));
-
-    if (result > 0) {
-      logger.i(!article.isFavorite ? "文章已收藏: $articleID" : "文章已取消收藏: $articleID");
-      return !article.isFavorite;
-    } else {
+    final article = await getArticleById(articleID);
+    if (article == null) {
       logger.i("未找到文章以更新收藏状态: $articleID");
+      return false;
     }
-    return false;
+
+    article.isFavorite = !article.isFavorite;
+    articleBox.put(article);
+
+    logger.i(article.isFavorite ? "文章已收藏: $articleID" : "文章已取消收藏: $articleID");
+    return article.isFavorite;
   }
 
-  // Future<int> getMaxArticleID() async {
-  //   return await (db.select(db.articles)..addColumns([db.articles.id.max()])).get().then((rows) {
-  //     return rows.isNotEmpty ? rows.first.id : -1;
-  //   });
-  // }
+  List<Article> getArticlesGreaterThanId(int articleID, {int limit = 20}) {
+    final query =
+        articleBox.query(Article_.id.greaterThan(articleID)).order(Article_.id, flags: Order.descending).build();
 
-  // Future<int> getMinArticleID() async {
-  //   return await (db.select(db.articles)..addColumns([db.articles.id.min()])).get().then((rows) {
-  //     return rows.isNotEmpty ? rows.first.id : -1;
-  //   });
-  // }
+    query.limit = limit;
 
-  SimpleSelectStatement<$ArticlesTable, Article> getArticlesGreaterThanId(int articleID, {int limit = 20}) {
-    final articleDataList = db.select(db.articles);
-
-    articleDataList
-      ..where((t) => t.id.isBiggerThanValue(articleID))
-      ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)])
-      ..limit(limit);
-
-    return articleDataList;
+    final articles = query.find();
+    return articles;
   }
 
-  SimpleSelectStatement<$ArticlesTable, Article> getArticlesLessThanId(int articleID, {int limit = 20}) {
-    final articleDataList = db.select(db.articles);
+  List<Article> getArticlesLessThanId(int articleID, {int limit = 20}) {
+    final query = articleBox.query(Article_.id.lessThan(articleID)).order(Article_.id, flags: Order.descending).build();
 
-    articleDataList
-      ..where((t) => t.id.isSmallerThanValue(articleID))
-      ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)])
-      ..limit(limit);
+    query.limit = limit;
 
-    return articleDataList;
+    final articles = query.find();
+    return articles;
   }
 
-  SimpleSelectStatement<$ArticlesTable, Article> getArticles({int limit = 20}) {
-    final articleDataList = db.select(db.articles);
+  List<Article> getArticles({int limit = 20}) {
+    final query = articleBox.query().order(Article_.id, flags: Order.descending).build();
 
-    articleDataList
-      ..orderBy([(t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc)])
-      ..limit(limit);
-
-    return articleDataList;
+    query.limit = limit;
+    final articles = query.find();
+    return articles;
   }
 }

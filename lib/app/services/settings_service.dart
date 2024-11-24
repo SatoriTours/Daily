@@ -1,8 +1,8 @@
+import 'package:daily_satori/app/objectbox/setting.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
+import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/global.dart';
-import 'package:drift/drift.dart' as drift;
-import 'package:daily_satori/app/databases/database.dart';
-import 'package:daily_satori/app/services/db_service.dart';
+import 'package:daily_satori/objectbox.g.dart';
 
 class SettingsService {
   SettingsService._privateConstructor();
@@ -19,7 +19,7 @@ class SettingsService {
   }
 
   late final Map<String, String> _settings = <String, String>{};
-  final _db = DBService.i.db;
+  final settingBox = ObjectboxService.i.box<Setting>();
 
   bool aiEnabled() {
     final apiKey = getSetting(SettingsService.openAITokenKey);
@@ -38,34 +38,64 @@ class SettingsService {
       return;
     }
     logger.i("[更新Settings] key => $key, value => $value");
-    try {
-      await _db.into(_db.settings).insertOnConflictUpdate(
-            SettingsCompanion(
-              key: drift.Value(key),
-              value: drift.Value(value),
-            ),
-          );
-    } catch (e) {
-      logger.i("[更新Settings失败] key => $key, value => $value, $e");
+    final existing = settingBox.query(Setting_.key.equals(key)).build().findFirst();
+    if (existing != null) {
+      // 如果存在，更新值
+      existing.value = value;
+      settingBox.put(existing);
+    } else {
+      // 如果不存在，创建新的设置
+      settingBox.put(Setting(key: key, value: value));
     }
 
-    // SettingsCompanion.insert(key: key, value: value);
     await reloadSettings();
   }
 
   Future<void> saveSettings(Map<String, String> settings) async {
-    var settingsCompanions = settings.keys.map((key) => SettingsCompanion.insert(key: key, value: settings[key]!));
-    await _db.batch((batch) {
-      batch.insertAllOnConflictUpdate(_db.settings, settingsCompanions);
-    });
+    if (settings.isEmpty) return;
+
+    try {
+      // 1. 获取所有需要更新的 key 对应的现有设置
+      final keys = settings.keys.toList();
+      final query = settingBox.query(Setting_.key.oneOf(keys)).build();
+      final existingSettings = query.find();
+      query.close();
+
+      // 2. 将现有设置转换为 Map，方便查找
+      final existingMap = {for (var setting in existingSettings) setting.key: setting};
+
+      // 3. 准备要更新的设置列表
+      final settingsToUpdate = <Setting>[];
+
+      // 4. 遍历需要保存的设置
+      settings.forEach((key, value) {
+        if (existingMap.containsKey(key)) {
+          // 更新现有设置
+          existingMap[key]!.value = value;
+          settingsToUpdate.add(existingMap[key]!);
+        } else {
+          // 创建新设置
+          settingsToUpdate.add(Setting(key: key, value: value));
+        }
+      });
+
+      // 5. 批量保存所有设置
+      settingBox.putMany(settingsToUpdate);
+
+      logger.i("[批量更新Settings] 更新 ${settingsToUpdate.length} 条设置");
+    } catch (e) {
+      logger.e("[批量更新Settings失败] $e");
+    }
 
     await reloadSettings();
   }
 
   Future<void> reloadSettings() async {
-    final rows = await _db.select(_db.settings).get();
-    for (var row in rows) {
-      _settings[row.key] = row.value;
+    final settings = settingBox.getAll();
+    for (var setting in settings) {
+      if (setting.key != null) {
+        _settings[setting.key!] = setting.value ?? '';
+      }
     }
     AiService.i.reloadClient();
   }
@@ -79,12 +109,15 @@ class SettingsService {
   }
 
   Future<void> remove(String key) async {
-    await (_db.delete(_db.settings)..where((t) => t.key.equals(key))).go();
+    final existing = settingBox.query(Setting_.key.equals(key)).build().findFirst();
+    if (existing != null) {
+      settingBox.remove(existing.id);
+    }
     await reloadSettings();
   }
 
   Future<void> removeAll() async {
-    await (_db.delete(_db.settings)).go();
+    settingBox.removeAll();
     await reloadSettings();
   }
 }

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:daily_satori/app/databases/database.dart';
+import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
@@ -119,6 +119,9 @@ class ArticleCard extends GetView<ArticlesController> {
   }
 
   Widget _buildArticle() {
+    // final imagePath = article.images.first.path ?? '';
+    final imagePath = article.images.isEmpty ? '' : (article.images.first.path ?? '');
+
     return Padding(
       padding: const EdgeInsets.all(10),
       child: Column(
@@ -133,7 +136,7 @@ class ArticleCard extends GetView<ArticlesController> {
                   child: _buildTitle(),
                 ),
                 const SizedBox(width: 15),
-                if (article.imagePath != null && article.imagePath!.isNotEmpty) _buildImage(),
+                if (imagePath.isNotEmpty) _buildImage(imagePath),
               ],
             ),
           ),
@@ -151,9 +154,9 @@ class ArticleCard extends GetView<ArticlesController> {
     );
   }
 
-  Widget _buildImage() {
+  Widget _buildImage(String imagePath) {
     return Image.file(
-      File(article.imagePath!),
+      File(imagePath),
       width: 100, // 设置宽度为100
       height: 100, // 设置高度为80
       fit: BoxFit.scaleDown, // 适应容器
@@ -170,14 +173,15 @@ class ArticleCard extends GetView<ArticlesController> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          getTopLevelDomain(Uri.parse(article.url).host),
+          getTopLevelDomain(Uri.parse(article.url ?? '').host),
           style: const TextStyle(color: Colors.grey),
         ),
         const SizedBox(width: 15),
-        Text(
-          (GetTimeAgo.parse(article.createdAt, pattern: 'yy年MM月dd日')),
-          style: const TextStyle(color: Colors.grey),
-        ),
+        if (article.createdAt != null)
+          Text(
+            (GetTimeAgo.parse(article.createdAt!, pattern: 'yy年MM月dd日')),
+            style: const TextStyle(color: Colors.grey),
+          ),
         Spacer(), // 使用 Spacer 使按钮靠右对齐
         IconButton(
           icon: Icon(
@@ -191,7 +195,7 @@ class ArticleCard extends GetView<ArticlesController> {
         IconButton(
           icon: const Icon(Icons.share),
           onPressed: () {
-            Share.share(article.url, subject: article.aiTitle ?? article.title);
+            Share.share(article.url ?? '', subject: article.aiTitle ?? article.title ?? '');
           },
         ),
       ],

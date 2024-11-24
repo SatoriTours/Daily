@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:daily_satori/app/helpers/my_base_controller.dart';
-import 'package:daily_satori/app/services/db_service.dart';
+import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/settings_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:flutter_archive/flutter_archive.dart';
@@ -58,7 +58,7 @@ class BackupRestoreController extends MyBaseController {
 
     final imagesFile = File(path.join(backupFolder, 'images.zip'));
     final screenshotsFile = File(path.join(backupFolder, 'screenshots.zip'));
-    final databaseFile = File(path.join(backupFolder, DBService.dbFileName));
+    final databaseFile = File(path.join(backupFolder, 'objectbox.zip'));
 
     // 应用程序文档目录
     // final directory = await getApplicationDocumentsDirectory();
@@ -72,7 +72,8 @@ class BackupRestoreController extends MyBaseController {
       await ZipFile.extractToDirectory(
           zipFile: screenshotsFile, destinationDir: Directory(path.join(appDocDir, 'screenshots')));
       logger.i("恢复备份数据库文件");
-      await databaseFile.copy(path.join(appDocDir, DBService.dbFileName));
+      await ZipFile.extractToDirectory(
+          zipFile: databaseFile, destinationDir: Directory(path.join(appDocDir, ObjectboxService.dbDir)));
       logger.i("恢复备份完成: $backupFolder => $appDocDir");
       return true;
     } else {
