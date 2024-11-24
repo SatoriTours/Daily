@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
@@ -27,6 +28,7 @@ class FileService {
   String get imagesBasePath => _imagesBasePath;
   String get screenshotsBasePath => _screenshotsBasePath;
   String get downloadsPath => _downloadsPath;
+  String get dbPath => path.join(_appPath, ObjectboxService.dbDir);
   String get appPath => _appPath;
 
   String getDownloadPath(String fileName) {

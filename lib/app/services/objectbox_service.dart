@@ -14,7 +14,7 @@ class ObjectboxService {
   static final ObjectboxService _instance = ObjectboxService._privateConstructor();
   static ObjectboxService get i => _instance;
 
-  static const dbFileName = 'obx-daily';
+  static const dbDir = 'obx-daily';
 
   late final Store _store;
   Store get store => _store;
@@ -26,7 +26,7 @@ class ObjectboxService {
   Future<void> init() async {
     logger.i("[初始化服务] ObjectboxService");
     final docsDir = await getApplicationDocumentsDirectory();
-    _store = await openStore(directory: path.join(docsDir.path, dbFileName));
+    _store = await openStore(directory: path.join(docsDir.path, dbDir));
     // if (!isProduction) _clear();
     if (Admin.isAvailable() && !isProduction) {
       // Keep a reference until no longer needed or manually closed.

@@ -58,7 +58,7 @@ class BackupRestoreController extends MyBaseController {
 
     final imagesFile = File(path.join(backupFolder, 'images.zip'));
     final screenshotsFile = File(path.join(backupFolder, 'screenshots.zip'));
-    final databaseFile = File(path.join(backupFolder, ObjectboxService.dbFileName));
+    final databaseFile = File(path.join(backupFolder, 'objectbox.zip'));
 
     // 应用程序文档目录
     // final directory = await getApplicationDocumentsDirectory();
@@ -72,7 +72,8 @@ class BackupRestoreController extends MyBaseController {
       await ZipFile.extractToDirectory(
           zipFile: screenshotsFile, destinationDir: Directory(path.join(appDocDir, 'screenshots')));
       logger.i("恢复备份数据库文件");
-      await databaseFile.copy(path.join(appDocDir, ObjectboxService.dbFileName));
+      await ZipFile.extractToDirectory(
+          zipFile: databaseFile, destinationDir: Directory(path.join(appDocDir, ObjectboxService.dbDir)));
       logger.i("恢复备份完成: $backupFolder => $appDocDir");
       return true;
     } else {
