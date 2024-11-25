@@ -1,13 +1,16 @@
 import 'dart:developer';
 
 import 'package:daily_satori/app/helpers/settings_provider.dart';
+import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/freedisk_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/services/share_receive_service.dart';
 import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:get/get.dart';
 
 import 'package:get_time_ago/get_time_ago.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -95,6 +98,12 @@ Future<void> initServices() async {
 
   // 不用等待处理完成的服务, 可以在后台执行
   BackupService.i.init();
+}
+
+// 应用加载好之后执行
+void onAppReady() {
+  ShareReceiveService.i.init();
+  ObjectboxService.i.checkAndMigrateFromSQLite();
 }
 
 Future<void> clearApp() async {

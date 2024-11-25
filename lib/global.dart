@@ -74,7 +74,7 @@ void errorNotice(String content, {String title = '错误'}) {
   Get.snackbar(title, content, snackPosition: SnackPosition.top, backgroundColor: Colors.red);
 }
 
-void showFullScreenLoading({String tips = ''}) {
+void showFullScreenLoading({String tips = '', Color barrierColor = Colors.transparent}) {
   Get.dialog(
     PopScope(
       child: Center(
@@ -89,6 +89,7 @@ void showFullScreenLoading({String tips = ''}) {
       ),
     ),
     barrierDismissible: false, // 点击外部区域不关闭对话框
+    barrierColor: barrierColor,
   );
 }
 

@@ -1,10 +1,14 @@
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/objectbox/setting.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
+import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/global.dart';
 import 'package:daily_satori/objectbox.g.dart';
+import 'package:flutter/material.dart' as material;
+import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:sqflite/sqflite.dart';
@@ -44,6 +48,17 @@ class ObjectboxService {
     _store.box<Tag>().removeAll();
     _store.box<Image>().removeAll();
     _store.box<Screenshot>().removeAll();
+  }
+
+  Future<void> checkAndMigrateFromSQLite() async {
+    if (ObjectboxService.i.shouldMigrateFromSQLite()) {
+      showFullScreenLoading(tips: '数据迁移中', barrierColor: material.Colors.black);
+      await ObjectboxService.i.migrateFromSQLite();
+      Get.close();
+      if (Get.currentRoute == Routes.ARTICLES) {
+        Get.find<ArticlesController>().reloadArticles();
+      }
+    }
   }
 
   bool shouldMigrateFromSQLite() {

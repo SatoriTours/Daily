@@ -44,6 +44,7 @@ Future<void> main() async {
           initialRoute: AppPages.INITIAL,
           getPages: AppPages.routes,
           navigatorObservers: [SentryNavigatorObserver()],
+          onReady: onAppReady,
         ),
       );
       // await clearApp();
