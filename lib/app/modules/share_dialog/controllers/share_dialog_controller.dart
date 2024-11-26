@@ -25,6 +25,8 @@ part 'part.images.dart';
 part 'part.screenshot.dart';
 
 class ShareDialogController extends MyBaseController {
+  static const platform = MethodChannel('android/back/desktop');
+
   String? shareURL = isProduction ? null : 'https://1024.day/d/3072';
   bool isUpdate = false;
   int articleID = 0;
@@ -37,6 +39,7 @@ class ShareDialogController extends MyBaseController {
   final tagBox = ObjectboxService.i.box<Tag>();
   final imageBox = ObjectboxService.i.box<Image>();
   final screenshotBox = ObjectboxService.i.box<Screenshot>();
+
   Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
       String publishedTime, List<String> imageUrls) async {
     logger.i(
@@ -84,11 +87,9 @@ class ShareDialogController extends MyBaseController {
       _saveScreenshots(newArticle, List.from(results[3])).catchError((e) => logger.e("[保存截图] 失败: $e")),
     ]);
 
-    if (isUpdate) {
-      Get.find<ArticlesController>().updateArticleInList(newArticle.id);
-    }
+    Get.find<ArticlesController>().updateArticleInList(newArticle.id);
 
-    _closeDialog();
+    saveCompleted();
   }
 
   Future<String> _aiTitleTask(String title) async {
@@ -113,14 +114,30 @@ class ShareDialogController extends MyBaseController {
     Get.snackbar('提示', message, snackPosition: SnackPosition.top, backgroundColor: material.Colors.green);
   }
 
-  void _closeDialog() {
+  void saveCompleted() {
     Get.close();
     if (isUpdate) {
       Get.offAllNamed(Routes.ARTICLES);
-    } else if (isProduction) {
-      SystemNavigator.pop();
     } else {
-      Get.offAllNamed(Routes.ARTICLES); // 非生产环境, 返回文章列表页
+      _backToPreviousApp();
+    }
+  }
+
+  void clickChannelBtn() {
+    if (isUpdate) {
+      Get.back();
+    } else {
+      _backToPreviousApp();
+    }
+  }
+
+  Future<void> _backToPreviousApp() async {
+    try {
+      Get.back();
+      await platform.invokeMethod('backDesktop');
+    } on PlatformException catch (e) {
+      logger.e("通信失败: ${e.toString()}");
+      await SystemNavigator.pop();
     }
   }
 

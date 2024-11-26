@@ -26,7 +26,11 @@ class ShareReceiveService {
         if (url.isNotEmpty) {
           // 如果数据库没有迁移, 则跳转到分享收藏页面
           if (!ObjectboxService.i.shouldMigrateFromSQLite()) {
-            Get.offNamed(Routes.SHARE_DIALOG, arguments: {'shareURL': url});
+            Get.toNamed(Routes.SHARE_DIALOG, arguments: {
+              'articleID': 0,
+              'shareURL': url,
+              'update': false,
+            });
           }
         }
       }

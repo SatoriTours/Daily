@@ -153,9 +153,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
               foregroundColor: Colors.white,
             ),
             child: const Text("取消"),
-            onPressed: () {
-              SystemNavigator.pop();
-            },
+            onPressed: () => controller.clickChannelBtn(),
           ),
         ),
         const SizedBox(width: 10),
