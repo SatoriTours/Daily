@@ -9,6 +9,7 @@ import 'package:daily_satori/app/services/freedisk_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/services/sentry_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/share_receive_service.dart';
 import 'package:daily_satori/app/services/tags_service.dart';
@@ -44,6 +45,7 @@ Future<void> _initBasicServices() async {
 Future<void> _initParallelServices() async {
   // 可以并行执行的初始化任务
   await Future.wait([
+    SentryService.i.init(), // 初始化Sentry服务
     TagsService.i.init(), // 初始化标签服务
     FontService.i.init(), // 初始化字体
     AiService.i.init(), // 初始化AI服务
