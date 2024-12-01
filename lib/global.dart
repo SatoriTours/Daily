@@ -1,9 +1,11 @@
-import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/styles/font_style.dart';
 
 final String timeLocal = 'zh_CN';
 
@@ -65,14 +67,17 @@ String formatDateTimeToLocal(DateTime dateTime) {
 }
 
 void successNotice(String content, {String title = '提示'}) {
-  Get.snackbar(title, content, snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+  Get.snackbar(title, content,
+      snackPosition: SnackPosition.top, backgroundColor: Colors.green);
 }
 
 void errorNotice(String content, {String title = '错误'}) {
-  Get.snackbar(title, content, snackPosition: SnackPosition.top, backgroundColor: Colors.red);
+  Get.snackbar(title, content,
+      snackPosition: SnackPosition.top, backgroundColor: Colors.red);
 }
 
-void showFullScreenLoading({String tips = '', Color barrierColor = Colors.transparent}) {
+void showFullScreenLoading(
+    {String tips = '', Color barrierColor = Colors.transparent}) {
   Get.dialog(
     PopScope(
       child: Center(

@@ -1,5 +1,6 @@
-import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:objectbox/objectbox.dart';
+
+import 'package:daily_satori/app/objectbox/article.dart';
 
 @Entity()
 class Image {

@@ -1,8 +1,9 @@
 import 'dart:developer';
 
-import 'package:daily_satori/global.dart';
 import 'package:logger/logger.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+
+import 'package:daily_satori/global.dart';
 
 late Logger logger;
 

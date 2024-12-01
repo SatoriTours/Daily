@@ -1,5 +1,6 @@
-import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+
+import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 
 class SettingProvider extends CacheProvider {
   final _service = SettingService.i;

@@ -30,7 +30,8 @@ extension PartArticle on ShareDialogController {
       aiContent: aiContent,
       htmlContent: htmlContent,
       url: url,
-      pubDate: DateTime.tryParse(publishedTime)?.toUtc() ?? DateTime.now().toUtc(),
+      pubDate:
+          DateTime.tryParse(publishedTime)?.toUtc() ?? DateTime.now().toUtc(),
       createdAt: DateTime.now().toUtc(),
       updatedAt: DateTime.now().toUtc(),
       comment: commentController.text,

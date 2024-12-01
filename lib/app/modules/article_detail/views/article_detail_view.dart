@@ -1,13 +1,17 @@
 import 'dart:io';
-import 'package:daily_satori/app/styles/font_style.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
+
 import 'package:get/get.dart';
+
 import 'package:daily_satori/app/compontents/dream_webview/dream_webview.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/global.dart';
+
 import '../controllers/article_detail_controller.dart';
 
 class ArticleDetailView extends GetView<ArticleDetailController> {
@@ -17,7 +21,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(getTopLevelDomain(Uri.parse(controller.article.url ?? '').host)),
+        title: Text(
+            getTopLevelDomain(Uri.parse(controller.article.url ?? '').host)),
         centerTitle: true,
         actions: [_buildAppBarActions()],
       ),
@@ -59,7 +64,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           var articlesController = Get.find<ArticlesController>();
           articlesController.removeArticleByIdFromList(controller.article.id);
           Get.back();
-          Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+          Get.snackbar("提示", "删除成功",
+              snackPosition: SnackPosition.top, backgroundColor: Colors.green);
         },
         child: Text("确认"),
       ),
@@ -102,7 +108,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     );
   }
 
-  PopupMenuItem<int> _buildPopupMenuIteam(int index, String title, IconData icon) {
+  PopupMenuItem<int> _buildPopupMenuIteam(
+      int index, String title, IconData icon) {
     return PopupMenuItem<int>(
       value: index,
       padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
@@ -128,7 +135,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
             return Image.file(
               File(screenshots[index]),
               fit: BoxFit.cover,
-              errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+              errorBuilder:
+                  (BuildContext context, Object error, StackTrace? stackTrace) {
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -153,7 +161,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   Widget _buildArticleContent() {
     // final imagePath = controller.article.images.first.path;
     final article = controller.article;
-    final imagePath = article.images.isEmpty ? '' : (article.images.first.path ?? '');
+    final imagePath =
+        article.images.isEmpty ? '' : (article.images.first.path ?? '');
 
     return SingleChildScrollView(
       child: Column(
@@ -173,7 +182,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                   File(imagePath),
                   fit: BoxFit.cover,
                   alignment: Alignment.topCenter,
-                  errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                  errorBuilder: (BuildContext context, Object error,
+                      StackTrace? stackTrace) {
                     logger.i("加载路径错误 $imagePath");
                     return SizedBox.shrink(); // 隐藏整个 Container
                   },
@@ -254,7 +264,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
               child: Image.file(
                 File(images[index]), // 假设 ArticleImage 对象有 imagePath 属性
                 fit: BoxFit.cover,
-                errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                errorBuilder: (BuildContext context, Object error,
+                    StackTrace? stackTrace) {
                   logger.i("加载路径错误 ${images[index]}");
                   return SizedBox.shrink(); // 隐藏整个 Container 显示错误图标和消息
                 },
@@ -287,7 +298,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                     child: Image.file(
                       File(imagePaths[index]), // 使用 imagePaths 中的路径
                       fit: BoxFit.contain,
-                      errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+                      errorBuilder: (BuildContext context, Object error,
+                          StackTrace? stackTrace) {
                         logger.i("加载路径错误 ${imagePaths[index]}");
                         return SizedBox.shrink(); // 隐藏整个 Container 显示错误图标和消息
                       },

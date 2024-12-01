@@ -1,10 +1,13 @@
 import 'dart:io';
+
 import 'package:flutter/services.dart';
+
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-import 'package:daily_satori/global.dart';
+
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/global.dart';
 
 class ADBlockService {
   ADBlockService._privateConstructor();
@@ -19,13 +22,15 @@ class ADBlockService {
   }
 
   // final String _easylistUrl = 'https://easylist.to/easylist/easylist.txt';
-  final String _easylistUrl = 'https://easylist-downloads.adblockplus.org/v3/full/easylistchina+easylist.txt';
+  final String _easylistUrl =
+      'https://easylist-downloads.adblockplus.org/v3/full/easylistchina+easylist.txt';
   final String _localEasylistFile = 'assets/easylistchina+easylist.txt';
   final List<String> _elementHidingRules = [];
   final Map<String, List<String>> _elementHidingRulesBySite = {};
 
   List<String> get elementHidingRules => _elementHidingRules;
-  Map<String, List<String>> get elementHidingRulesBySite => _elementHidingRulesBySite;
+  Map<String, List<String>> get elementHidingRulesBySite =>
+      _elementHidingRulesBySite;
 
   Future<void> _downloadRules() async {
     if (!isProduction) {

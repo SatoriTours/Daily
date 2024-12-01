@@ -1,8 +1,11 @@
 import 'dart:convert';
+
 import 'package:openai_dart/openai_dart.dart';
-import 'package:daily_satori/app/services/setting_service/setting_service.dart';
+
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/global.dart';
+
 part 'part.translate.dart';
 part 'part.summarize.dart';
 
@@ -18,7 +21,8 @@ class AiService {
     reloadClient();
   }
 
-  Future<CreateChatCompletionResponse?> _sendRequest(String role, String content,
+  Future<CreateChatCompletionResponse?> _sendRequest(
+      String role, String content,
       {ResponseFormat? responseFormat}) async {
     if (content.isEmpty || content.length <= 5) {
       return null;

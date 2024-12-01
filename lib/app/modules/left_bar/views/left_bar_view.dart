@@ -1,8 +1,9 @@
-import 'package:daily_satori/app/routes/app_pages.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
+
+import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/styles/font_style.dart';
 
 import '../controllers/left_bar_controller.dart';
 
@@ -65,7 +66,8 @@ class LeftBarView extends GetView<LeftBarController> {
         final tag = controller.tags[index];
         return InkWell(
           onTap: () {
-            controller.articlesController.showArticleByTagID(tag.id, tag.name ?? '');
+            controller.articlesController
+                .showArticleByTagID(tag.id, tag.name ?? '');
             Get.back();
           },
           child: Padding(

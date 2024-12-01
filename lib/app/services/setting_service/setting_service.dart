@@ -1,10 +1,11 @@
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+
 import 'package:daily_satori/app/objectbox/setting.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_provider.dart';
 import 'package:daily_satori/objectbox.g.dart';
-import 'package:flutter_settings_screens/flutter_settings_screens.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
 
 class SettingService {
   SettingService._privateConstructor();
@@ -41,7 +42,8 @@ class SettingService {
       return;
     }
     logger.i("[更新Settings] key => $key, value => $value");
-    final existing = settingBox.query(Setting_.key.equals(key)).build().findFirst();
+    final existing =
+        settingBox.query(Setting_.key.equals(key)).build().findFirst();
     if (existing != null) {
       // 如果存在，更新值
       existing.value = value;
@@ -65,7 +67,9 @@ class SettingService {
       query.close();
 
       // 2. 将现有设置转换为 Map，方便查找
-      final existingMap = {for (var setting in existingSettings) setting.key: setting};
+      final existingMap = {
+        for (var setting in existingSettings) setting.key: setting
+      };
 
       // 3. 准备要更新的设置列表
       final settingsToUpdate = <Setting>[];
@@ -112,7 +116,8 @@ class SettingService {
   }
 
   Future<void> remove(String key) async {
-    final existing = settingBox.query(Setting_.key.equals(key)).build().findFirst();
+    final existing =
+        settingBox.query(Setting_.key.equals(key)).build().findFirst();
     if (existing != null) {
       settingBox.remove(existing.id);
     }

@@ -1,3 +1,10 @@
+import 'package:flutter/material.dart' as material;
+
+import 'package:get/get.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
+
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
@@ -5,18 +12,14 @@ import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/objectbox/setting.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:daily_satori/objectbox.g.dart';
-import 'package:flutter/material.dart' as material;
-import 'package:get/get.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
-import 'package:sqflite/sqflite.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
 
 class ObjectboxService {
   ObjectboxService._privateConstructor();
-  static final ObjectboxService _instance = ObjectboxService._privateConstructor();
+  static final ObjectboxService _instance =
+      ObjectboxService._privateConstructor();
   static ObjectboxService get i => _instance;
 
   static const dbDir = 'obx-daily';
@@ -72,7 +75,8 @@ class ObjectboxService {
     logger.i("[数据迁移] 开始从SQLite迁移数据到ObjectBox");
     // if (!isProduction) await Future.delayed(Duration(seconds: 10));
     final docsDir = await getApplicationDocumentsDirectory();
-    Database sqliteDB = await openDatabase(path.join(docsDir.path, 'daily_satori.db.sqlite'));
+    Database sqliteDB =
+        await openDatabase(path.join(docsDir.path, 'daily_satori.db.sqlite'));
     final articleBox = box<Article>();
     final tagBox = box<Tag>();
     final imageBox = box<Image>();
@@ -95,13 +99,16 @@ class ObjectboxService {
         isFavorite: (article['is_favorite'] as int?) == 1,
         comment: article['comment'] as String?,
         pubDate: article['pub_date'] != null
-            ? DateTime.fromMillisecondsSinceEpoch((article['pub_date'] as int) * 1000)
+            ? DateTime.fromMillisecondsSinceEpoch(
+                (article['pub_date'] as int) * 1000)
             : null,
         updatedAt: article['updated_at'] != null
-            ? DateTime.fromMillisecondsSinceEpoch((article['updated_at'] as int) * 1000)
+            ? DateTime.fromMillisecondsSinceEpoch(
+                (article['updated_at'] as int) * 1000)
             : null,
         createdAt: article['created_at'] != null
-            ? DateTime.fromMillisecondsSinceEpoch((article['created_at'] as int) * 1000)
+            ? DateTime.fromMillisecondsSinceEpoch(
+                (article['created_at'] as int) * 1000)
             : null,
       );
 
@@ -126,7 +133,8 @@ class ObjectboxService {
 
         if (tagName.isNotEmpty) {
           // 检查标签是否已存在
-          final existingTag = tagBox.query(Tag_.name.equals(tagName)).build().findFirst();
+          final existingTag =
+              tagBox.query(Tag_.name.equals(tagName)).build().findFirst();
           if (existingTag != null) {
             newArticle.tags.add(existingTag);
           } else {
@@ -198,7 +206,10 @@ class ObjectboxService {
         value: setting['value'] as String?,
       );
       logger.i('导入key ${newSetting.key}');
-      final existingSetting = settingBox.query(Setting_.key.equals(newSetting.key ?? '')).build().findFirst();
+      final existingSetting = settingBox
+          .query(Setting_.key.equals(newSetting.key ?? ''))
+          .build()
+          .findFirst();
       if (existingSetting == null) {
         settingBox.put(newSetting);
       }

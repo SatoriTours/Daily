@@ -1,3 +1,8 @@
+import 'package:flutter/material.dart';
+
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:get/get.dart';
+
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
@@ -6,10 +11,6 @@ import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/global.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_settings_screens/flutter_settings_screens.dart';
-
-import 'package:get/get.dart';
 
 import '../controllers/settings_controller.dart';
 

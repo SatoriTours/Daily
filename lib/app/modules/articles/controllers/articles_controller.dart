@@ -1,15 +1,18 @@
+import 'package:flutter/material.dart';
+
+import 'package:get/get.dart';
+
+import 'package:daily_satori/app/helpers/my_base_controller.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
-import 'package:daily_satori/app/helpers/my_base_controller.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
-import 'package:daily_satori/objectbox.g.dart';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/global.dart';
+import 'package:daily_satori/objectbox.g.dart';
+
 part 'part.clipboard.dart';
 part 'part.article_load.dart';
 part 'part.event.dart';
@@ -18,7 +21,8 @@ part 'part.filter.dart';
 
 class ArticlesController extends MyBaseController with WidgetsBindingObserver {
   ScrollController scrollController = ScrollController();
-  DateTime lastRefreshTime = DateTime.now(); // 用来记录最后一次更新的时间, 当应用从后台回到前台的时候, 判断是否需要刷新
+  DateTime lastRefreshTime =
+      DateTime.now(); // 用来记录最后一次更新的时间, 当应用从后台回到前台的时候, 判断是否需要刷新
   TextEditingController searchController = TextEditingController();
 
   // 监听变化, 重绘页面的变量

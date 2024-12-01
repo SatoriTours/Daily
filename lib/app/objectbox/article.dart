@@ -1,7 +1,8 @@
+import 'package:objectbox/objectbox.dart';
+
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
-import 'package:objectbox/objectbox.dart';
 
 @Entity()
 class Article {

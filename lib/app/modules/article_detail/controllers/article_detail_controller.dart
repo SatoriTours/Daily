@@ -1,12 +1,13 @@
+import 'package:get/get.dart';
+import 'package:share_plus/share_plus.dart';
+
 import 'package:daily_satori/app/helpers/my_base_controller.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
+import 'package:daily_satori/app/services/article_service.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/global.dart';
-import 'package:get/get.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/article_service.dart';
-import 'package:share_plus/share_plus.dart';
 
 class ArticleDetailController extends MyBaseController {
   late Article article;
@@ -44,7 +45,8 @@ class ArticleDetailController extends MyBaseController {
 
   List<String> getArticleScreenshots() {
     final screenshots = article.screenshots
-        .where((screenshot) => screenshot.path != null && screenshot.path!.isNotEmpty)
+        .where((screenshot) =>
+            screenshot.path != null && screenshot.path!.isNotEmpty)
         .map((screenshot) => screenshot.path!)
         .toList();
     return screenshots;

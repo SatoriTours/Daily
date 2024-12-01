@@ -13,7 +13,8 @@ extension PartFilter on ArticlesController {
 
     // 组合所有非空条件
     for (var condition in conditions) {
-      finalCondition = finalCondition == null ? condition : finalCondition & condition;
+      finalCondition =
+          finalCondition == null ? condition : finalCondition & condition;
     }
 
     final query = articleBox.query(finalCondition);

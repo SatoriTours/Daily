@@ -1,23 +1,24 @@
-import 'package:daily_satori/app/services/app_upgrade_service.dart';
-import 'package:daily_satori/app/services/font_service.dart';
-import 'package:daily_satori/app/services/freedisk_service.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
-import 'package:daily_satori/app/services/share_receive_service.dart';
-import 'package:daily_satori/app/services/tags_service.dart';
-import 'package:daily_satori/app/services/time_service.dart';
 import 'package:daily_satori/app/services/adblock_service.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
+import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
+import 'package:daily_satori/app/services/font_service.dart';
+import 'package:daily_satori/app/services/freedisk_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
+import 'package:daily_satori/app/services/share_receive_service.dart';
+import 'package:daily_satori/app/services/tags_service.dart';
+import 'package:daily_satori/app/services/time_service.dart';
 
 // 应用加载好前执行
 Future<void> initApp() async {
   await _initBasicServices();
-  await initServices();
+  await _initParallelServices();
+  _initNonBlockingServices();
 }
 
 // 应用准备好之后执行(主要是UI准备好)
@@ -40,7 +41,7 @@ Future<void> _initBasicServices() async {
   await FileService.i.init(); // 初始化文件目录服务
 }
 
-Future<void> initServices() async {
+Future<void> _initParallelServices() async {
   // 可以并行执行的初始化任务
   await Future.wait([
     TagsService.i.init(), // 初始化标签服务
@@ -51,9 +52,10 @@ Future<void> initServices() async {
     ADBlockService.i.init(), // 初始化广告拦截服务
     FreeDiskService.i.init(), // 初始化磁盘服务
   ]);
+}
 
+// 初始化不需要等待的服务
+void _initNonBlockingServices() {
   AppUpgradeService.i.init(); // 检查是否有新版本可以安装
-
-  // 不用等待处理完成的服务, 可以在后台执行
-  BackupService.i.init();
+  BackupService.i.init(); // 备份服务
 }

@@ -8,7 +8,8 @@ extension PartUpdateList on ArticlesController {
   void updateArticleInList(int articleID) {
     final updatedArticle = articleBox.get(articleID);
     if (updatedArticle == null) return;
-    int index = articles.indexWhere((article) => article.id == updatedArticle.id);
+    int index =
+        articles.indexWhere((article) => article.id == updatedArticle.id);
     if (index != -1) {
       articles[index] = updatedArticle; // 更新文章
       logger.i("文章已更新: ${updatedArticle.title}");

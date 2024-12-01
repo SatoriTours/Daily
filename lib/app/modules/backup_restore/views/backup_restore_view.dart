@@ -1,9 +1,10 @@
 import 'dart:io';
 
-import 'package:daily_satori/global.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
+
+import 'package:daily_satori/global.dart';
 
 import '../controllers/backup_restore_controller.dart';
 
@@ -26,14 +27,18 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
                       itemCount: controller.backupList.length,
                       itemBuilder: (context, index) {
                         return Obx(() {
-                          bool isSelected = controller.selectedBackupIndex.value == index; // 判断是否被选中
+                          bool isSelected =
+                              controller.selectedBackupIndex.value ==
+                                  index; // 判断是否被选中
                           return ListTile(
                             title: Center(
                                 child: Text(
                                     '${index + 1}. 备份时间: ${controller.getBackupTime(controller.backupList[index])}')),
-                            tileColor: isSelected ? Colors.blue : null, // 设置选中背景色为蓝色
+                            tileColor:
+                                isSelected ? Colors.blue : null, // 设置选中背景色为蓝色
                             onTap: () {
-                              controller.selectedBackupIndex.value = index; // 设置选中的索引
+                              controller.selectedBackupIndex.value =
+                                  index; // 设置选中的索引
                             },
                           );
                         });
@@ -65,9 +70,13 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
             onPressed: () async {
               final result = await controller.restoreBackup();
               if (result) {
-                Get.snackbar('提示', '文件已还原', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+                Get.snackbar('提示', '文件已还原',
+                    snackPosition: SnackPosition.top,
+                    backgroundColor: Colors.green);
               } else {
-                Get.snackbar('提示', '文件不存在, 无法恢复', snackPosition: SnackPosition.top, backgroundColor: Colors.red);
+                Get.snackbar('提示', '文件不存在, 无法恢复',
+                    snackPosition: SnackPosition.top,
+                    backgroundColor: Colors.red);
               }
 
               if (isProduction && result) {

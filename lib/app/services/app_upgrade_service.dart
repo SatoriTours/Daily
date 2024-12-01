@@ -1,17 +1,20 @@
-import 'package:daily_satori/app/services/http_service.dart';
-import 'package:daily_satori/global.dart';
 import 'package:get/get.dart';
 import 'package:open_file/open_file.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+
+import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/global.dart';
 
 class AppUpgradeService {
   AppUpgradeService._privateConstructor();
-  static final AppUpgradeService _instance = AppUpgradeService._privateConstructor();
+  static final AppUpgradeService _instance =
+      AppUpgradeService._privateConstructor();
   static AppUpgradeService get i => _instance;
 
-  static const String _githubReleaseAPI = 'https://api.github.com/repos/SatoriTours/Daily/releases/latest';
+  static const String _githubReleaseAPI =
+      'https://api.github.com/repos/SatoriTours/Daily/releases/latest';
 
   late String _version;
   late String _githubLatestVersion;
@@ -54,7 +57,8 @@ class AppUpgradeService {
     try {
       await _getCurrentVersion();
       await _getLatestVersionFromGithub();
-      logger.i("version => $_version, github version => $_githubLatestVersion, $needUpgrade, $_downloadURL");
+      logger.i(
+          "version => $_version, github version => $_githubLatestVersion, $needUpgrade, $_downloadURL");
       return needUpgrade;
     } catch (e) {
       logger.i("获取版本信息错误 $e");
@@ -97,7 +101,8 @@ class AppUpgradeService {
     final response = await HttpService.i.dio.get(_githubReleaseAPI);
     if (response.statusCode == 200) {
       _githubLatestVersion = response.data['tag_name'] as String;
-      _downloadURL = response.data['assets'][0]['browser_download_url'] as String;
+      _downloadURL =
+          response.data['assets'][0]['browser_download_url'] as String;
     } else {
       logger.e("无法获取最新版本, 状态码: ${response.statusCode}");
       throw Exception('无法获取最新版本, 状态码: ${response.statusCode}');

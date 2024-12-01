@@ -1,14 +1,17 @@
 import 'dart:io';
+
+import 'package:path/path.dart';
+
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/services/file_service.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:path/path.dart';
+import 'package:daily_satori/app/services/objectbox_service.dart';
 
 class FreeDiskService {
   FreeDiskService._privateConstructor();
-  static final FreeDiskService _instance = FreeDiskService._privateConstructor();
+  static final FreeDiskService _instance =
+      FreeDiskService._privateConstructor();
   static FreeDiskService get i => _instance;
 
   Future<void> init() async {
@@ -60,7 +63,8 @@ class FreeDiskService {
     await _removeDir(FileService.i.screenshotsBasePath);
 
     await Directory(imagesBakPath).rename(FileService.i.imagesBasePath);
-    await Directory(screenshotsBakPath).rename(FileService.i.screenshotsBasePath);
+    await Directory(screenshotsBakPath)
+        .rename(FileService.i.screenshotsBasePath);
   }
 
   Future<void> _removeDir(String path) async {

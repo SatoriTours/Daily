@@ -18,7 +18,8 @@ extension PartEvent on ArticlesController {
     if (state == AppLifecycleState.resumed) {
       logger.i("App is back from background");
       if (scrollController.hasClients) {
-        if (scrollController.position.pixels <= 30 || DateTime.now().difference(lastRefreshTime).inMinutes >= 60) {
+        if (scrollController.position.pixels <= 30 ||
+            DateTime.now().difference(lastRefreshTime).inMinutes >= 60) {
           reloadArticles();
         }
       }
@@ -27,9 +28,11 @@ extension PartEvent on ArticlesController {
   }
 
   void _onScroll() {
-    if (scrollController.position.pixels == scrollController.position.maxScrollExtent) {
+    if (scrollController.position.pixels ==
+        scrollController.position.maxScrollExtent) {
       _loadMoreArticles();
-    } else if (scrollController.position.pixels == scrollController.position.minScrollExtent) {
+    } else if (scrollController.position.pixels ==
+        scrollController.position.minScrollExtent) {
       _loadPreviousArticles();
     }
   }

@@ -1,13 +1,16 @@
-import 'package:daily_satori/app/routes/app_pages.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/global.dart';
 import 'package:flutter/services.dart';
+
 import 'package:get/get.dart';
+
+import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/global.dart';
 
 class ShareReceiveService {
   ShareReceiveService._privateConstructor();
-  static final ShareReceiveService _instance = ShareReceiveService._privateConstructor();
+  static final ShareReceiveService _instance =
+      ShareReceiveService._privateConstructor();
   static ShareReceiveService get i => _instance;
 
   static const platform = MethodChannel('tours.sator.daily/share');

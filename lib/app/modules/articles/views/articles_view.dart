@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
@@ -8,6 +7,7 @@ import 'package:get_time_ago/get_time_ago.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
+import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
@@ -92,7 +92,8 @@ class ArticlesView extends GetView<ArticlesController> {
       },
       child: ListView.builder(
         controller: controller.scrollController,
-        itemCount: controller.articles.length + (controller.isLoading.value ? 1 : 0), // 如果正在加载，增加一个加载项
+        itemCount: controller.articles.length +
+            (controller.isLoading.value ? 1 : 0), // 如果正在加载，增加一个加载项
         itemBuilder: (context, index) {
           if (index == controller.articles.length) {
             return Center(child: CircularProgressIndicator());
@@ -120,7 +121,8 @@ class ArticleCard extends GetView<ArticlesController> {
 
   Widget _buildArticle() {
     // final imagePath = article.images.first.path ?? '';
-    final imagePath = article.images.isEmpty ? '' : (article.images.first.path ?? '');
+    final imagePath =
+        article.images.isEmpty ? '' : (article.images.first.path ?? '');
 
     return Padding(
       padding: const EdgeInsets.all(10),
@@ -161,7 +163,8 @@ class ArticleCard extends GetView<ArticlesController> {
       height: 100, // 设置高度为80
       fit: BoxFit.scaleDown, // 适应容器
       alignment: Alignment.center,
-      errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+      errorBuilder:
+          (BuildContext context, Object error, StackTrace? stackTrace) {
         // 图片加载错误, 就什么都不显示
         return SizedBox.shrink();
       },
@@ -195,7 +198,8 @@ class ArticleCard extends GetView<ArticlesController> {
         IconButton(
           icon: const Icon(Icons.share),
           onPressed: () {
-            Share.share(article.url ?? '', subject: article.aiTitle ?? article.title ?? '');
+            Share.share(article.url ?? '',
+                subject: article.aiTitle ?? article.title ?? '');
           },
         ),
       ],
