@@ -2,7 +2,7 @@ import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:daily_satori/app/services/freedisk_service.dart';
-import 'package:daily_satori/app/services/settings_service.dart';
+import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/global.dart';
@@ -130,12 +130,12 @@ class SettingsView extends GetView<SettingsController> {
       titleTextStyle: MyFontStyle.settingGroupTitle,
       children: [
         TextInputSettingsTile(
-          settingKey: SettingsService.openAIAddressKey,
+          settingKey: SettingService.openAIAddressKey,
           title: 'OpenAI 地址',
           helperText: '例如: https://api.openai.com/v1/',
         ),
         TextInputSettingsTile(
-          settingKey: SettingsService.openAITokenKey,
+          settingKey: SettingService.openAITokenKey,
           title: 'OpenAI token',
           helperText: '输入OpenAI token',
         ),

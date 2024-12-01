@@ -10,9 +10,8 @@ import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 import 'package:flutter/material.dart' as material;
 import 'package:flutter/services.dart';
-
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:get/get.dart';
-
 import 'package:daily_satori/app/compontents/dream_webview/dream_webview_controller.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';

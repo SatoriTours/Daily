@@ -1,11 +1,9 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
-
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-
 import 'package:daily_satori/app/services/file_service.dart';
-import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 
 Future<List<String>> captureFullPageScreenshot(InAppWebViewController controller) async {
   logger.d("[captureFullPageScreenshot] - 开始获取网页截图");

@@ -1,10 +1,8 @@
 import 'dart:convert';
-
 import 'package:openai_dart/openai_dart.dart';
-
-import 'package:daily_satori/app/services/settings_service.dart';
+import 'package:daily_satori/app/services/setting_service/setting_service.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/global.dart';
-
 part 'part.translate.dart';
 part 'part.summarize.dart';
 
@@ -55,13 +53,13 @@ class AiService {
   }
 
   void reloadClient() {
-    if (SettingsService.i.aiEnabled()) _client = _createClient();
+    if (SettingService.i.aiEnabled()) _client = _createClient();
   }
 
   OpenAIClient _createClient() {
     return OpenAIClient(
-      apiKey: SettingsService.i.getSetting(SettingsService.openAITokenKey),
-      baseUrl: SettingsService.i.getSetting(SettingsService.openAIAddressKey),
+      apiKey: SettingService.i.getSetting(SettingService.openAITokenKey),
+      baseUrl: SettingService.i.getSetting(SettingService.openAIAddressKey),
     );
   }
 }

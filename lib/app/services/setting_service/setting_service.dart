@@ -1,13 +1,15 @@
 import 'package:daily_satori/app/objectbox/setting.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
-import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/services/setting_service/setting_provider.dart';
 import 'package:daily_satori/objectbox.g.dart';
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 
-class SettingsService {
-  SettingsService._privateConstructor();
-  static final SettingsService _instance = SettingsService._privateConstructor();
-  static SettingsService get i => _instance;
+class SettingService {
+  SettingService._privateConstructor();
+  static final SettingService _instance = SettingService._privateConstructor();
+  static SettingService get i => _instance;
 
   static String openAITokenKey = 'openai_token';
   static String openAIAddressKey = 'openai_address';
@@ -16,14 +18,15 @@ class SettingsService {
   Future<void> init() async {
     logger.i("[初始化服务] SettingsService");
     await reloadSettings();
+    await Settings.init(cacheProvider: SettingProvider());
   }
 
   late final Map<String, String> _settings = <String, String>{};
   final settingBox = ObjectboxService.i.box<Setting>();
 
   bool aiEnabled() {
-    final apiKey = getSetting(SettingsService.openAITokenKey);
-    final baseUrl = getSetting(SettingsService.openAIAddressKey);
+    final apiKey = getSetting(SettingService.openAITokenKey);
+    final baseUrl = getSetting(SettingService.openAIAddressKey);
     final isEnabled = apiKey.isNotEmpty && baseUrl.isNotEmpty;
     logger.i("[AI] 是否启用: $isEnabled");
     return isEnabled;

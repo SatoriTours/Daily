@@ -2,7 +2,7 @@ part of 'ai_service.dart';
 
 extension PartSummarize on AiService {
   Future<String> summarizeOneLine(String text) async {
-    if (!SettingsService.i.aiEnabled()) return text;
+    if (!SettingService.i.aiEnabled()) return text;
     // logger.i("[AI总结]: ${getSubstring(text)}");
     final res = await _sendRequest(
       '你是一个文章读者, 总结一个能表达文章核心内容并且能吸引别人阅读的标题,保持原文的意思，注意:不使用“文章提到”或类似的表达方式，一定不要添加个人观点, 标题不要加入引号等特殊字符',
@@ -12,7 +12,7 @@ extension PartSummarize on AiService {
   }
 
   Future<String> summarize(String text) async {
-    if (!SettingsService.i.aiEnabled()) return text;
+    if (!SettingService.i.aiEnabled()) return text;
     // logger.i("[AI总结]: ${getSubstring(text)}");
     // logger.i("[AI总结] 现有标签是: [${TagsService.i.getTagsString()}]");
 
@@ -29,7 +29,7 @@ extension PartSummarize on AiService {
   }
 
   Future<List<String>> getTags(String text) async {
-    if (!SettingsService.i.aiEnabled()) return <String>[];
+    if (!SettingService.i.aiEnabled()) return <String>[];
     final res = await _sendRequest(
       '你是一个智能助手',
       _tagsPrompt(text),

@@ -7,10 +7,9 @@ import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/global.dart';
-
 part 'part.clipboard.dart';
 part 'part.article_load.dart';
 part 'part.event.dart';

@@ -1,10 +1,9 @@
 import 'dart:io';
-import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
-import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:path/path.dart';
 
 class FreeDiskService {

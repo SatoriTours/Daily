@@ -1,11 +1,9 @@
 import 'dart:io';
-
-import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter_archive/flutter_archive.dart';
 import 'package:path/path.dart' as path;
-
 import 'package:daily_satori/app/services/file_service.dart';
-import 'package:daily_satori/app/services/settings_service.dart';
+import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/global.dart';
 
 class BackupService {
@@ -18,7 +16,7 @@ class BackupService {
     checkAndBackup();
   }
 
-  String get backupDir => SettingsService.i.getSetting(SettingsService.backupDirKey);
+  String get backupDir => SettingService.i.getSetting(SettingService.backupDirKey);
   File get backupTimeFile => File(path.join(backupDir, 'backup_time.txt'));
 
   Future<void> checkAndBackup({bool immediateBackup = false}) async {

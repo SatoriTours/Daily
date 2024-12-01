@@ -1,9 +1,8 @@
 import 'dart:io';
-
 import 'package:daily_satori/app/helpers/my_base_controller.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
-import 'package:daily_satori/app/services/settings_service.dart';
-import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/services/setting_service/setting_service.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter_archive/flutter_archive.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -23,7 +22,7 @@ class BackupRestoreController extends MyBaseController {
   Future<void> reloadBackupList() async {
     backupList.clear();
     logger.i("开始加载备份列表");
-    String backupDir = SettingsService.i.getSetting(SettingsService.backupDirKey);
+    String backupDir = SettingService.i.getSetting(SettingService.backupDirKey);
     final directory = Directory(backupDir);
 
     if (await directory.exists()) {
@@ -53,7 +52,7 @@ class BackupRestoreController extends MyBaseController {
 
   Future<bool> restoreBackup() async {
     String backupName = backupList[selectedBackupIndex.value];
-    String backupDir = SettingsService.i.getSetting(SettingsService.backupDirKey);
+    String backupDir = SettingService.i.getSetting(SettingService.backupDirKey);
     String backupFolder = path.join(backupDir, 'daily_satori_backup_$backupName');
 
     final imagesFile = File(path.join(backupFolder, 'images.zip'));

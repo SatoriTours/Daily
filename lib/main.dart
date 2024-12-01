@@ -18,36 +18,31 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   PlatformInAppWebViewController.debugLoggingSettings.enabled = false;
 
-  await SentryFlutter.init(
-    (options) {
-      if (isProduction) {
-        options.dsn = 'https://204472c2f3a84b3139b9ea446f5ddd94@o4508285752901632.ingest.us.sentry.io/4508285950296064';
-      } else {
-        options.dsn = 'https://7f7fae079723dfbd9f6b86402c40f900@o4508285752901632.ingest.us.sentry.io/4508285754277888';
-      }
+  await initApp();
+  await SentryFlutter.init(_optionsConfiguration, appRunner: _dailyAppRunner);
+}
 
-      // Set tracesSampleRate to 1.0 to capture 100% of transactions for tracing.
-      // We recommend adjusting this value in production.
-      options.tracesSampleRate = 1.0;
-      // The sampling rate for profiling is relative to tracesSampleRate
-      // Setting to 1.0 will profile 100% of sampled transactions:
-      options.profilesSampleRate = 1.0;
-    },
-    appRunner: () async {
-      await initApp();
-      runApp(
-        GetMaterialApp(
-          title: "Daily Satori",
-          theme: MyTheme.light,
-          darkTheme: MyTheme.dark,
-          themeMode: ThemeMode.system,
-          initialRoute: AppPages.INITIAL,
-          getPages: AppPages.routes,
-          navigatorObservers: [SentryNavigatorObserver()],
-          onReady: onAppReady,
-        ),
-      );
-      // await clearApp();
-    },
+void _optionsConfiguration(options) {
+  if (isProduction) {
+    options.dsn = 'https://204472c2f3a84b3139b9ea446f5ddd94@o4508285752901632.ingest.us.sentry.io/4508285950296064';
+  } else {
+    options.dsn = 'https://7f7fae079723dfbd9f6b86402c40f900@o4508285752901632.ingest.us.sentry.io/4508285754277888';
+  }
+  options.tracesSampleRate = 1.0; // 将 tracesSampleRate 设置为 1.0 以捕获 100% 的追踪事务。
+  options.profilesSampleRate = 1.0; // 性能分析采样率是相对于 tracesSampleRate 的设置为 1.0 将对 100% 的采样事务进行性能分析:
+}
+
+void _dailyAppRunner() {
+  runApp(
+    GetMaterialApp(
+      title: "Daily Satori",
+      theme: MyTheme.light,
+      darkTheme: MyTheme.dark,
+      themeMode: ThemeMode.system,
+      initialRoute: AppPages.INITIAL,
+      getPages: AppPages.routes,
+      navigatorObservers: [SentryNavigatorObserver()],
+      onReady: onAppReady,
+    ),
   );
 }

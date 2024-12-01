@@ -1,8 +1,8 @@
-import 'package:daily_satori/app/services/settings_service.dart';
+import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 
-class SqliteProvider extends CacheProvider {
-  final _service = SettingsService.i;
+class SettingProvider extends CacheProvider {
+  final _service = SettingService.i;
 
   String _value(String key) {
     return _service.getSetting(key);

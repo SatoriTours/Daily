@@ -1,8 +1,7 @@
 import 'dart:io';
 import 'dart:math';
-
 import 'package:daily_satori/app/services/objectbox_service.dart';
-import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';

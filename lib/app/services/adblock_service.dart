@@ -1,12 +1,10 @@
 import 'dart:io';
-
 import 'package:flutter/services.dart';
-
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-
 import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 
 class ADBlockService {
   ADBlockService._privateConstructor();

@@ -1,4 +1,4 @@
-import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:dio/dio.dart';
 
 import 'package:daily_satori/app/services/file_service.dart';
