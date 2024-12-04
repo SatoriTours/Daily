@@ -11,131 +11,143 @@ import 'package:daily_satori/global.dart';
 
 class DreamWebView extends StatelessWidget {
   final String url;
-
   final void Function(DreamWebViewController controller)? onWebViewCreated;
   final void Function(WebUri? url)? onLoadStart;
   final void Function(double progress)? onProgressChanged;
   final void Function()? onLoadStop;
 
-  const DreamWebView(
-      {super.key,
-      required this.url,
-      this.onLoadStart,
-      this.onProgressChanged,
-      this.onWebViewCreated,
-      this.onLoadStop});
+  const DreamWebView({
+    super.key,
+    required this.url,
+    this.onWebViewCreated,
+    this.onLoadStart,
+    this.onProgressChanged,
+    this.onLoadStop,
+  });
 
   @override
   Widget build(BuildContext context) {
     return InAppWebView(
       initialUrlRequest: URLRequest(url: WebUri(url)),
-      initialSettings: _webViewSettings(),
-      onWebViewCreated: (webController) {
-        DreamWebViewController controller =
-            DreamWebViewController(webController);
-        onWebViewCreated?.call(controller);
-      },
-      onPermissionRequest: (controller, request) async {
-        return PermissionResponse(
-            resources: request.resources,
-            action: PermissionResponseAction.GRANT);
-      },
-      onLoadStart: (webController, url) async {
-        if (!context.mounted) return;
-        logger.i("开始加载网页 $url");
-        try {
-          await webController.injectJavascriptFileFromAsset(
-              assetFilePath: "assets/js/translate.js");
-          await webController.injectJavascriptFileFromAsset(
-              assetFilePath: "assets/js/common.js");
-          await webController.injectCSSFileFromAsset(
-              assetFilePath: "assets/css/common.css");
-          removeADNodes(webController, context);
-        } catch (e) {
-          logger.e("加载资源时出错: $e");
-        }
-
-        onProgressChanged?.call(0);
-        onLoadStart?.call(url);
-      },
-      onLoadStop: (webController, url) async {
-        if (!context.mounted) return;
-        logger.i("网页加载完成 $url");
-        onLoadStop?.call();
-        onProgressChanged?.call(0);
-      },
-      onReceivedError: (webController, request, error) {
-        onProgressChanged?.call(0);
-      },
-      onProgressChanged: (webController, progress) {
-        onProgressChanged?.call(progress / 100);
-      },
-      onConsoleMessage: (controller, consoleMessage) {
-        if (!isProduction) {
-          logger.d("浏览器日志: ${consoleMessage.message}");
-        }
-      },
-      shouldOverrideUrlLoading: (controller, navigationAction) async {
-        var uri = navigationAction.request.url!;
-        if (uri.scheme == "http" || uri.scheme == "https") {
-          return NavigationActionPolicy.ALLOW; // 允许加载 HTTP 和 HTTPS 请求
-        } else {
-          return NavigationActionPolicy.CANCEL; // 拦截其他请求
-        }
-      },
+      initialSettings: _getWebViewSettings(),
+      onWebViewCreated: _handleWebViewCreated,
+      onPermissionRequest: _handlePermissionRequest,
+      onLoadStart: (controller, url) => _handleLoadStart(context, controller, url),
+      onLoadStop: (controller, url) => _handleLoadStop(context, url),
+      onReceivedError: _handleError,
+      onProgressChanged: _handleProgressChanged,
+      onConsoleMessage: _handleConsoleMessage,
+      shouldOverrideUrlLoading: _handleUrlLoading,
     );
   }
 
-  Future<void> removeADNodes(
-      InAppWebViewController controller, BuildContext context) async {
-    // await removeNodeByCssSelectors(controller, ADBlockService.instance.elementHidingRules);
-    final url = await controller.getUrl();
-    final domain = getTopLevelDomain(url?.host);
-    logger.i("处理 $domain 的广告规则");
-    if (domain.isNotEmpty &&
-        ADBlockService.i.elementHidingRulesBySite.containsKey(domain)) {
-      int count = 0;
-      Timer.periodic(Duration(seconds: 2), (Timer t) async {
-        if (context.mounted) {
-          await removeNodeByCssSelectors(controller,
-              ADBlockService.i.elementHidingRulesBySite[domain] ?? []);
-        } else {
-          t.cancel();
-        }
+  void _handleWebViewCreated(InAppWebViewController webController) {
+    final controller = DreamWebViewController(webController);
+    onWebViewCreated?.call(controller);
+  }
 
-        count += 1;
-        // 当计数达到 20 次时，取消定时器
-        if (count >= 20) {
-          t.cancel();
-          print('定时器已停止');
-        }
-      });
+  Future<PermissionResponse> _handlePermissionRequest(
+      InAppWebViewController controller, PermissionRequest request) async {
+    return PermissionResponse(resources: request.resources, action: PermissionResponseAction.GRANT);
+  }
+
+  Future<void> _handleLoadStart(BuildContext context, InAppWebViewController controller, WebUri? url) async {
+    if (!context.mounted) return;
+
+    logger.i("开始加载网页 $url");
+
+    try {
+      await _injectResources(controller);
+      await _handleAdBlocking(controller, context);
+    } catch (e) {
+      logger.e("加载资源时出错: $e");
+    }
+
+    onProgressChanged?.call(0);
+    onLoadStart?.call(url);
+  }
+
+  Future<void> _injectResources(InAppWebViewController controller) async {
+    await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/translate.js");
+    await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
+    await controller.injectCSSFileFromAsset(assetFilePath: "assets/css/common.css");
+  }
+
+  Future<void> _handleLoadStop(BuildContext context, WebUri? url) async {
+    if (!context.mounted) return;
+    logger.i("网页加载完成 $url");
+    onLoadStop?.call();
+    onProgressChanged?.call(0);
+  }
+
+  void _handleError(InAppWebViewController controller, WebResourceRequest request, WebResourceError error) {
+    onProgressChanged?.call(0);
+  }
+
+  void _handleProgressChanged(InAppWebViewController controller, int progress) {
+    onProgressChanged?.call(progress / 100);
+  }
+
+  void _handleConsoleMessage(InAppWebViewController controller, ConsoleMessage message) {
+    if (!isProduction) {
+      logger.d("浏览器日志: ${message.message}");
     }
   }
 
-  Future<void> removeNodeByCssSelectors(
-      InAppWebViewController controller, List<String> rules) async {
-    for (var rule in rules) {
-      // logger.i("执行规则 , $rule");
+  Future<NavigationActionPolicy> _handleUrlLoading(InAppWebViewController controller, NavigationAction action) async {
+    final uri = action.request.url!;
+    return (uri.scheme == "http" || uri.scheme == "https")
+        ? NavigationActionPolicy.ALLOW
+        : NavigationActionPolicy.CANCEL;
+  }
+
+  Future<void> _handleAdBlocking(InAppWebViewController controller, BuildContext context) async {
+    final url = await controller.getUrl();
+    final domain = getTopLevelDomain(url?.host);
+
+    logger.i("处理 $domain 的广告规则");
+
+    if (domain.isEmpty || !ADBlockService.i.elementHidingRulesBySite.containsKey(domain)) {
+      return;
+    }
+
+    int count = 0;
+    Timer.periodic(const Duration(seconds: 2), (timer) async {
+      if (!context.mounted) {
+        timer.cancel();
+        return;
+      }
+
+      await _removeAdNodes(controller, domain);
+
+      count++;
+      if (count >= 20) {
+        timer.cancel();
+        logger.d('广告过滤定时器已停止');
+      }
+    });
+  }
+
+  Future<void> _removeAdNodes(InAppWebViewController controller, String domain) async {
+    final rules = ADBlockService.i.elementHidingRulesBySite[domain] ?? [];
+    for (final rule in rules) {
       try {
-        await controller.evaluateJavascript(
-            source:
-                "document.querySelectorAll('$rule').forEach(e => e.remove())");
+        await controller.evaluateJavascript(source: "document.querySelectorAll('$rule').forEach(e => e.remove())");
       } catch (e) {
         logger.d("执行广告规则出错 $e");
       }
     }
   }
 
-  InAppWebViewSettings _webViewSettings() {
+  InAppWebViewSettings _getWebViewSettings() {
     return InAppWebViewSettings(
       isInspectable: !isProduction,
       mediaPlaybackRequiresUserGesture: false,
       allowsInlineMediaPlayback: true,
       iframeAllow: "camera; microphone",
       iframeAllowFullscreen: true,
-      verticalScrollBarEnabled: false, // 隐藏垂直滚动条
-      horizontalScrollBarEnabled: false, // 隐藏横向滚动条
+      verticalScrollBarEnabled: false,
+      horizontalScrollBarEnabled: false,
     );
   }
 }

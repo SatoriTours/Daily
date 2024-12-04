@@ -8,141 +8,150 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 
-Future<List<String>> captureFullPageScreenshot(
-    InAppWebViewController controller) async {
+Future<List<String>> captureFullPageScreenshot(InAppWebViewController controller) async {
   logger.d("[captureFullPageScreenshot] - 开始获取网页截图");
+
   try {
-    await controller.evaluateJavascript(source: "initPage()");
-    // 获取网页的高度
-    final height = await controller.evaluateJavascript(
-        source: "document.documentElement.scrollHeight");
-    final screenHeight =
-        await controller.evaluateJavascript(source: "window.innerHeight");
-
-    logger.d("网页高度信息: $height, $screenHeight");
-
-    final int totalHeight = height;
-    final int screenHeightInt = screenHeight;
-
-    // 计算总页数
-    final int totalPages = (totalHeight / screenHeightInt).ceil();
-    logger.d("总页数: $totalPages");
-
-    List<ui.Image> screenshots = [];
-    for (var i = 0; i < totalPages; i++) {
-      logger
-          .i("页面高度 => $screenHeightInt, totalHeight => $totalHeight, 页数 => $i");
-
-      int position = i * screenHeightInt;
-      // 滚动到当前位置
-      await controller.evaluateJavascript(
-          source: "window.scrollTo(0, $position)");
-      await Future.delayed(Duration(milliseconds: 100)); // 等待页面滚动
-
-      // 截取当前屏幕的截图
-      final Uint8List? screenshot = await controller.takeScreenshot();
-      if (screenshot != null) {
-        final codec = await ui.instantiateImageCodec(screenshot);
-        final frame = await codec.getNextFrame();
-        if ((i + 1) * screenHeightInt > totalHeight) {
-          screenshots.add(await cropImageFromHeight(frame.image,
-              ((i + 1) * screenHeightInt - totalHeight) / screenHeightInt));
-        } else {
-          screenshots.add(frame.image);
-        }
-      } else {
-        logger.i("Failed to capture screenshot at position $i");
-      }
-    }
-
-    return await _saveFullPageScreenshot(screenshots); // 将截图拼接在一起
+    await _initializeWebPage(controller);
+    final pageInfo = await _getPageDimensions(controller);
+    final screenshots = await _captureScreenshots(controller, pageInfo);
+    return await _saveFullPageScreenshot(screenshots);
   } catch (e, stackTrace) {
-    logger.i("Error capturing full page screenshot: $e");
-    logger.i(stackTrace);
+    logger.e("截取网页截图时出错: $e");
+    logger.e(stackTrace);
+    return [];
   } finally {
-    await controller.evaluateJavascript(
-        source: "showObstructiveNodes()"); // 把隐藏的影响截图的元素显示出来
-    await controller.evaluateJavascript(
-        source: "window.scrollTo(0, 0)"); // 截图完回到第一屏
+    await _cleanupWebPage(controller);
   }
-
-  return [];
 }
 
-Future<ui.Image> cropImageFromHeight(
-    ui.Image image, double startHeightRatio) async {
-  int startHeight = (image.height * startHeightRatio).round();
-  logger.i(
-      "开始高度比例是 $startHeightRatio, 实际开始高度是 $startHeight, 图片高度 => ${image.height}");
+Future<void> _initializeWebPage(InAppWebViewController controller) async {
+  await controller.evaluateJavascript(source: "initPage()");
+}
 
-  // 确保开始高度不超过图片高度
+Future<({int totalHeight, int screenHeight, int totalPages})> _getPageDimensions(
+    InAppWebViewController controller) async {
+  final height = (await controller.evaluateJavascript(source: "document.documentElement.scrollHeight")) as int;
+  final screenHeight = (await controller.evaluateJavascript(source: "window.innerHeight")) as int;
+
+  final totalPages = (height / screenHeight).ceil();
+  logger.d("总页数: $totalPages");
+
+  return (
+    totalHeight: height,
+    screenHeight: screenHeight,
+    totalPages: totalPages,
+  );
+}
+
+Future<List<ui.Image>> _captureScreenshots(
+    InAppWebViewController controller, ({int totalHeight, int screenHeight, int totalPages}) pageInfo) async {
+  List<ui.Image> screenshots = [];
+
+  for (var i = 0; i < pageInfo.totalPages; i++) {
+    final position = i * pageInfo.screenHeight;
+    logger.i("正在截取第${i + 1}页: 位置=$position");
+
+    await _scrollToPosition(controller, position);
+    final screenshot = await _captureScreenshot(controller);
+
+    if (screenshot != null) {
+      final processedImage = await _processScreenshot(
+        screenshot,
+        i,
+        pageInfo.screenHeight,
+        pageInfo.totalHeight,
+      );
+      screenshots.add(processedImage);
+    }
+  }
+
+  return screenshots;
+}
+
+Future<void> _scrollToPosition(InAppWebViewController controller, int position) async {
+  await controller.evaluateJavascript(source: "window.scrollTo(0, $position)");
+  await Future.delayed(const Duration(milliseconds: 100));
+}
+
+Future<Uint8List?> _captureScreenshot(InAppWebViewController controller) async {
+  return await controller.takeScreenshot();
+}
+
+Future<ui.Image> _processScreenshot(Uint8List screenshot, int pageIndex, int screenHeight, int totalHeight) async {
+  final codec = await ui.instantiateImageCodec(screenshot);
+  final frame = await codec.getNextFrame();
+
+  final isLastPage = (pageIndex + 1) * screenHeight > totalHeight;
+  if (isLastPage) {
+    final heightRatio = ((pageIndex + 1) * screenHeight - totalHeight) / screenHeight;
+    return await cropImageFromHeight(frame.image, heightRatio);
+  }
+
+  return frame.image;
+}
+
+Future<ui.Image> cropImageFromHeight(ui.Image image, double startHeightRatio) async {
+  final startHeight = (image.height * startHeightRatio).round();
+  logger.i("裁剪图片: 开始高度比例=$startHeightRatio, 实际开始高度=$startHeight, 原图高度=${image.height}");
+
   if (startHeight >= image.height) {
     throw ArgumentError('开始高度不能大于或等于图片高度');
   }
 
-  // 计算裁剪后的高度
-  final int croppedHeight = image.height - startHeight;
+  final croppedHeight = image.height - startHeight;
+  final recorder = ui.PictureRecorder();
+  final canvas = ui.Canvas(recorder);
 
-  // 创建一个新的画布
-  final ui.PictureRecorder recorder = ui.PictureRecorder();
-  final ui.Canvas canvas = ui.Canvas(recorder);
-
-  // 在新画布上绘制裁剪后的图像
   canvas.drawImageRect(
     image,
-    Rect.fromLTWH(0, startHeight.toDouble(), image.width.toDouble(),
-        croppedHeight.toDouble()),
+    Rect.fromLTWH(0, startHeight.toDouble(), image.width.toDouble(), croppedHeight.toDouble()),
     Rect.fromLTWH(0, 0, image.width.toDouble(), croppedHeight.toDouble()),
     ui.Paint(),
   );
 
-  // 生成新的图像
-  final ui.Picture picture = recorder.endRecording();
-  final ui.Image croppedImage =
-      await picture.toImage(image.width, croppedHeight);
-
-  return croppedImage;
+  return await recorder.endRecording().toImage(image.width, croppedHeight);
 }
 
 Future<List<String>> _saveFullPageScreenshot(List<ui.Image> screenshots) async {
   List<String> filePaths = [];
+  final batchSize = 10;
 
-  for (int i = 0; i < screenshots.length; i += 10) {
-    int end = (i + 10 > screenshots.length) ? screenshots.length : i + 10;
-    final List<ui.Image> batch = screenshots.sublist(i, end);
+  for (int i = 0; i < screenshots.length; i += batchSize) {
+    final end = (i + batchSize > screenshots.length) ? screenshots.length : i + batchSize;
+    final batch = screenshots.sublist(i, end);
 
     final filePath = FileService.i.getScreenshotPath();
     final file = File(filePath);
 
-    // 创建一个空白的画布
-    final image = await _combineImages(batch);
-    final pngBytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    final combinedImage = await _combineImages(batch);
+    final pngBytes = await combinedImage.toByteData(format: ui.ImageByteFormat.png);
     await file.writeAsBytes(pngBytes!.buffer.asUint8List());
+
     filePaths.add(filePath);
-    print("Full page screenshot saved to: $filePath");
+    logger.i("保存截图批次 ${i ~/ batchSize + 1}: $filePath");
   }
 
   return filePaths;
 }
 
 Future<ui.Image> _combineImages(List<ui.Image> screenshots) async {
-  // 计算总高度
-  int totalHeight = screenshots.fold(0, (sum, image) => sum + image.height);
-  int maxWidth = screenshots.fold(
-      0, (max, image) => max > image.width ? max : image.width);
+  final totalHeight = screenshots.fold(0, (sum, image) => sum + image.height);
+  final maxWidth = screenshots.fold(0, (max, image) => max > image.width ? max : image.width);
 
-  // 创建一个新的空白画布
   final recorder = ui.PictureRecorder();
   final canvas = ui.Canvas(recorder);
 
-  // 将每个截图绘制到画布上
-  int offset = 0;
-  for (var image in screenshots) {
+  var offset = 0;
+  for (final image in screenshots) {
     canvas.drawImage(image, Offset(0, offset.toDouble()), ui.Paint());
     offset += image.height;
   }
 
-  final picture = recorder.endRecording();
-  final combinedImage = await picture.toImage(maxWidth, totalHeight);
-  return combinedImage;
+  return await recorder.endRecording().toImage(maxWidth, totalHeight);
+}
+
+Future<void> _cleanupWebPage(InAppWebViewController controller) async {
+  await controller.evaluateJavascript(source: "showObstructiveNodes()");
+  await controller.evaluateJavascript(source: "window.scrollTo(0, 0)");
 }

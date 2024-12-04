@@ -5,19 +5,23 @@ import 'package:daily_satori/global.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 class ArticleService {
-  ArticleService._privateConstructor();
-  static final ArticleService _instance = ArticleService._privateConstructor();
+  // 单例模式
+  ArticleService._();
+  static final ArticleService _instance = ArticleService._();
   static ArticleService get i => _instance;
 
+  // 数据库实例
+  final _articleBox = ObjectboxService.i.box<Article>();
+
+  // 初始化服务
   Future<void> init() async {
     logger.i("[初始化服务] ArticleService");
   }
 
-  final articleBox = ObjectboxService.i.box<Article>();
-
+  // 保存文章
   Future<Article?> saveArticle(Article article) async {
     try {
-      article.id = articleBox.put(article);
+      article.id = _articleBox.put(article);
       logger.i("文章已保存: ${firstLine(article.title ?? '')}");
       return article;
     } catch (e) {
@@ -26,49 +30,52 @@ class ArticleService {
     }
   }
 
+  // 更新文章
   Future<Article?> updateArticle(int articleID, Article article) async {
-    final existing = articleBox.get(articleID);
+    final existing = _articleBox.get(articleID);
     if (existing == null) {
       logger.i("未找到文章以更新: ${article.url}");
       return null;
     }
 
     article.id = articleID;
-    article.id = articleBox.put(article);
+    article.id = _articleBox.put(article);
     logger.i("文章已更新: ${firstLine(article.title ?? '')}");
     return article;
   }
 
+  // 根据URL获取第一篇文章
   Future<Article?> getFirstArticleByUrl(String url) async {
-    final query = articleBox.query(Article_.url.equals(url));
-    return query.build().findFirst();
+    return _articleBox.query(Article_.url.equals(url)).build().findFirst();
   }
 
+  // 检查文章是否存在
   Future<bool> isArticleExists(String url) async {
-    final query = articleBox.query(Article_.url.equals(url)).build();
-    final existingArticle = query.findFirst();
-    return existingArticle != null;
+    return await getFirstArticleByUrl(url) != null;
   }
 
+  // 删除文章
   Future<void> deleteArticle(int articleID) async {
-    final article = articleBox.get(articleID);
+    final article = _articleBox.get(articleID);
     if (article == null) {
       logger.i("未找到文章以删除: $articleID");
       return;
     }
 
-    // 删除文章和关联的标签
+    // 清理关联数据
     article.tags.clear();
     article.images.clear();
     article.screenshots.clear();
-    articleBox.remove(articleID);
+    _articleBox.remove(articleID);
     logger.i("文章已删除: $articleID");
   }
 
+  // 根据ID获取文章
   Future<Article?> getArticleById(int articleID) async {
-    return articleBox.get(articleID);
+    return _articleBox.get(articleID);
   }
 
+  // 切换收藏状态
   Future<bool> toggleFavorite(int articleID) async {
     final article = await getArticleById(articleID);
     if (article == null) {
@@ -77,36 +84,15 @@ class ArticleService {
     }
 
     article.isFavorite = !article.isFavorite;
-    articleBox.put(article);
+    _articleBox.put(article);
 
-    logger.i(article.isFavorite ? "文章已收藏: $articleID" : "文章已取消收藏: $articleID");
+    final status = article.isFavorite ? "已收藏" : "已取消收藏";
+    logger.i("文章$status: $articleID");
     return article.isFavorite;
   }
 
-  List<Article> getArticlesGreaterThanId(int articleID, {int limit = 20}) {
-    final query =
-        articleBox.query(Article_.id.greaterThan(articleID)).order(Article_.id, flags: Order.descending).build();
-
-    query.limit = limit;
-
-    final articles = query.find();
-    return articles;
-  }
-
-  List<Article> getArticlesLessThanId(int articleID, {int limit = 20}) {
-    final query = articleBox.query(Article_.id.lessThan(articleID)).order(Article_.id, flags: Order.descending).build();
-
-    query.limit = limit;
-
-    final articles = query.find();
-    return articles;
-  }
-
+  // 获取所有文章
   List<Article> getArticles({int limit = 20}) {
-    final query = articleBox.query().order(Article_.id, flags: Order.descending).build();
-
-    query.limit = limit;
-    final articles = query.find();
-    return articles;
+    return (_articleBox.query().order(Article_.id, flags: Order.descending).build()..limit = limit).find();
   }
 }

@@ -51,18 +51,19 @@ class AppUpgradeService {
   }
 
   // 请求安装权限
-  Future<void> _requestInstallPermission() async {
+  Future<bool> _requestInstallPermission() async {
     final status = await Permission.requestInstallPackages.status;
     if (status.isDenied) {
-      await Permission.requestInstallPackages.request();
+      final result = await Permission.requestInstallPackages.request();
+      return result.isGranted;
     }
+    return true;
   }
 
   // 检查版本
   Future<bool> check() async {
     try {
       await Future.wait([_getCurrentVersion(), _getLatestVersionFromGithub()]);
-
       logger.i("当前版本: $_currentVersion, 最新版本: $_latestVersion, 需要更新: $needUpgrade");
       return needUpgrade;
     } catch (e) {
@@ -79,9 +80,12 @@ class AppUpgradeService {
       '检测到新版本',
       '当前版本 [$_currentVersion], 最新版本 [$_latestVersion]\n请确认是否下载更新',
       onConfirmed: () async {
-        await _requestInstallPermission();
-        showFullScreenLoading();
+        if (!await _requestInstallPermission()) {
+          errorNotice('需要安装权限才能继续');
+          return;
+        }
 
+        showFullScreenLoading();
         try {
           final appFilePath = await HttpService.i.downloadFile(_downloadURL);
           logger.i("下载文件到: $appFilePath");
@@ -108,12 +112,18 @@ class AppUpgradeService {
 
   // 从Github获取最新版本信息
   Future<void> _getLatestVersionFromGithub() async {
-    final response = await HttpService.i.dio.get(_githubReleaseAPI);
-    if (response.statusCode == 200) {
-      _latestVersion = response.data['tag_name'] as String;
-      _downloadURL = response.data['assets'][0]['browser_download_url'] as String;
-    } else {
-      throw Exception('获取最新版本失败: ${response.statusCode}');
+    try {
+      final response = await HttpService.i.dio.get(_githubReleaseAPI);
+      if (response.statusCode == 200) {
+        final data = response.data;
+        _latestVersion = data['tag_name'] as String;
+        _downloadURL = data['assets'][0]['browser_download_url'] as String;
+      } else {
+        throw Exception('获取版本信息失败: ${response.statusCode}');
+      }
+    } catch (e) {
+      logger.e("获取Github版本信息失败: $e");
+      rethrow;
     }
   }
 }

@@ -8,36 +8,51 @@ import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/global.dart';
 
 class ShareReceiveService {
-  ShareReceiveService._privateConstructor();
-  static final ShareReceiveService _instance =
-      ShareReceiveService._privateConstructor();
+  // 单例模式
+  ShareReceiveService._();
+  static final ShareReceiveService _instance = ShareReceiveService._();
   static ShareReceiveService get i => _instance;
 
-  static const platform = MethodChannel('tours.sator.daily/share');
+  // 定义与原生平台通信的通道
+  static const _platform = MethodChannel('tours.sator.daily/share');
 
+  /// 初始化服务
   Future<void> init() async {
     logger.i("[初始化服务] ShareReceiveService");
-    registerShareReceiveEvent();
+    _registerShareReceiveHandler();
   }
 
-  void registerShareReceiveEvent() {
-    platform.setMethodCallHandler((call) async {
-      logger.i("接收到原生 android 的消息: ${call.method}");
+  /// 注册分享接收处理器
+  void _registerShareReceiveHandler() {
+    _platform.setMethodCallHandler(_handleMethodCall);
+  }
 
-      if (call.method == 'receiveSharedText') {
-        logger.i("跳转到: ${Routes.SHARE_DIALOG}, 接收到参数: ${call.arguments}");
-        final url = getUrlFromText(call.arguments);
-        if (url.isNotEmpty) {
-          // 如果数据库没有迁移, 则跳转到分享收藏页面
-          if (!ObjectboxService.i.shouldMigrateFromSQLite()) {
-            Get.toNamed(Routes.SHARE_DIALOG, arguments: {
-              'articleID': 0,
-              'shareURL': url,
-              'update': false,
-            });
-          }
-        }
-      }
-    });
+  /// 处理来自原生平台的方法调用
+  Future<void> _handleMethodCall(MethodCall call) async {
+    logger.i("接收到原生平台消息: ${call.method}");
+
+    if (call.method == 'receiveSharedText') {
+      await _handleSharedText(call.arguments);
+    }
+  }
+
+  /// 处理分享的文本内容
+  Future<void> _handleSharedText(String sharedText) async {
+    logger.i("处理分享内容, 参数: $sharedText");
+
+    final url = getUrlFromText(sharedText);
+    if (url.isEmpty) return;
+
+    // 确保数据库未处于迁移状态
+    if (!ObjectboxService.i.shouldMigrateFromSQLite()) {
+      await Get.toNamed(
+        Routes.SHARE_DIALOG,
+        arguments: {
+          'articleID': 0,
+          'shareURL': url,
+          'update': false,
+        },
+      );
+    }
   }
 }

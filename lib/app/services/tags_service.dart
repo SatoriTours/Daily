@@ -3,30 +3,39 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 
 class TagsService {
-  TagsService._privateConstructor();
-  static final TagsService _instance = TagsService._privateConstructor();
+  // 单例模式
+  TagsService._();
+  static final TagsService _instance = TagsService._();
   static TagsService get i => _instance;
 
+  // 标签数据
   late List<Tag> _tags;
-
-  final tagBox = ObjectboxService.i.box<Tag>();
-
   List<Tag> get tags => _tags;
 
+  // ObjectBox 标签盒子
+  final _tagBox = ObjectboxService.i.box<Tag>();
+
+  /// 初始化服务
   Future<void> init() async {
     logger.i("[初始化服务] TagsService");
-    await reload();
-    // if (!isProduction) await clearAllTags();
+    await _loadTags();
   }
 
+  /// 重新加载所有标签
   Future<void> reload() async {
-    _tags = tagBox.getAll();
-    logger.i("[加载所有标签] ${_tags.length}");
+    await _loadTags();
   }
 
+  /// 加载标签数据
+  Future<void> _loadTags() async {
+    _tags = _tagBox.getAll();
+    logger.i("[加载标签] 共加载 ${_tags.length} 个标签");
+  }
+
+  /// 清空所有标签
   Future<void> clearAllTags() async {
-    tagBox.removeAll();
-    await reload();
-    logger.i("[清除所有标签] 完成");
+    _tagBox.removeAll();
+    await _loadTags();
+    logger.i("[清空标签] 已清空所有标签");
   }
 }

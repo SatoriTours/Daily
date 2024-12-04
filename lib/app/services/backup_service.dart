@@ -9,73 +9,70 @@ import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/global.dart';
 
 class BackupService {
-  BackupService._privateConstructor();
-  static final BackupService _instance = BackupService._privateConstructor();
+  // 单例模式
+  BackupService._();
+  static final BackupService _instance = BackupService._();
   static BackupService get i => _instance;
 
+  // 常量定义
+  static const int _productionBackupInterval = 6;
+  static const int _developmentBackupInterval = 24;
+
+  // Getters
+  String get backupDir => SettingService.i.getSetting(SettingService.backupDirKey);
+  File get backupTimeFile => File(path.join(backupDir, 'backup_time.txt'));
+  int get _backupInterval => isProduction ? _productionBackupInterval : _developmentBackupInterval;
+
+  // 初始化服务
   Future<void> init() async {
     logger.i("[初始化服务] BackupService");
-    checkAndBackup();
+    await checkAndBackup();
   }
 
-  String get backupDir =>
-      SettingService.i.getSetting(SettingService.backupDirKey);
-  File get backupTimeFile => File(path.join(backupDir, 'backup_time.txt'));
-
+  // 检查并执行备份
   Future<void> checkAndBackup({bool immediateBackup = false}) async {
-    if (backupDir.isEmpty) {
-      return; // 如果备份目录为空，不启动备份功能
-    }
+    if (backupDir.isEmpty) return;
 
     logger.i("准备备份应用");
+    final lastBackupTime = await _getLastBackupTime();
+    final backupTimeDifference = DateTime.now().difference(lastBackupTime).inHours;
 
-    DateTime lastBackupTime = await _getLastBackupTime();
-    int backupTimeDifference =
-        DateTime.now().difference(lastBackupTime).inHours;
-    // 根据环境设置不同的备份间隔
-    int backupInterval = isProduction ? 6 : 24;
-    if (backupTimeDifference >= backupInterval || immediateBackup) {
+    if (backupTimeDifference >= _backupInterval || immediateBackup) {
       logger.i("开始备份应用");
-      await _performBackup(backupDir);
+      await _performBackup();
       await _updateLastBackupTime(DateTime.now());
     } else {
-      logger.i(
-          "上次备份时间 $lastBackupTime, 备份间隔为 $backupInterval 小时, 离下次备份还差: ${backupInterval - backupTimeDifference} 小时");
+      final remainingHours = _backupInterval - backupTimeDifference;
+      logger.i("上次备份时间 $lastBackupTime, 备份间隔为 $_backupInterval 小时, 离下次备份还差: $remainingHours 小时");
     }
   }
 
+  // 获取上次备份时间
   Future<DateTime> _getLastBackupTime() async {
-    final file = backupTimeFile;
-    if (await file.exists()) {
-      String content = await file.readAsString();
+    if (await backupTimeFile.exists()) {
+      final content = await backupTimeFile.readAsString();
       return DateTime.parse(content);
     }
-    return DateTime.fromMillisecondsSinceEpoch(0); // 如果没有记录，返回一个很早的时间
+    return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
-  Future<void> _performBackup(String backupDir) async {
-    String imagesDir = FileService.i.imagesBasePath;
-    String screenshotsDir = FileService.i.screenshotsBasePath;
-    String databaseDir = FileService.i.dbPath;
-
-    String timestamp = DateTime.now()
-        .toIso8601String()
-        .replaceAll(':', '-')
-        .replaceAll('.', '-');
-    String backupFolder =
-        path.join(backupDir, 'daily_satori_backup_$timestamp');
+  // 执行备份
+  Future<void> _performBackup() async {
+    final timestamp = DateTime.now().toIso8601String().replaceAll(RegExp('[:.]+'), '-');
+    final backupFolder = path.join(backupDir, 'daily_satori_backup_$timestamp');
     await Directory(backupFolder).create(recursive: true);
 
-    // await _copyDirectory(Directory(imagesDir), Directory(path.join(backupFolder, 'images')));
-    // await _copyDirectory(Directory(screenshotsDir), Directory(path.join(backupFolder, 'screenshots')));
-    await _compressDirectory(imagesDir, path.join(backupFolder, 'images.zip'));
-    await _compressDirectory(
-        screenshotsDir, path.join(backupFolder, 'screenshots.zip'));
-    await _compressDirectory(
-        databaseDir, path.join(backupFolder, 'objectbox.zip'));
+    final backupTasks = [
+      _compressDirectory(FileService.i.imagesBasePath, path.join(backupFolder, 'images.zip')),
+      _compressDirectory(FileService.i.screenshotsBasePath, path.join(backupFolder, 'screenshots.zip')),
+      _compressDirectory(FileService.i.dbPath, path.join(backupFolder, 'objectbox.zip')),
+    ];
+
+    await Future.wait(backupTasks);
     logger.i("完成了文件的备份: $backupFolder");
   }
 
+  // 压缩目录
   Future<void> _compressDirectory(String sourceDir, String targetPath) async {
     try {
       final sourceDirectory = Directory(sourceDir);
@@ -97,25 +94,8 @@ class BackupService {
     }
   }
 
-  Future<void> _copyDirectory(Directory source, Directory destination) async {
-    if (await source.exists()) {
-      await destination.create(recursive: true);
-      await for (var entity in source.list()) {
-        if (entity is File) {
-          await entity
-              .copy(path.join(destination.path, path.basename(entity.path)));
-        } else if (entity is Directory) {
-          await _copyDirectory(
-              entity,
-              Directory(
-                  path.join(destination.path, path.basename(entity.path))));
-        }
-      }
-    }
-  }
-
+  // 更新备份时间
   Future<void> _updateLastBackupTime(DateTime time) async {
-    final file = backupTimeFile;
-    await file.writeAsString(time.toIso8601String());
+    await backupTimeFile.writeAsString(time.toIso8601String());
   }
 }
