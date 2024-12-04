@@ -7,95 +7,86 @@ import 'package:intl/intl.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 
+/// 本地化时间设置
 final String timeLocal = 'zh_CN';
 
+/// 是否为生产环境
 bool get isProduction => const bool.fromEnvironment("dart.vm.product");
 
-String nowToString() {
-  return DateTime.now().toIso8601String();
-}
+/// 获取当前时间的ISO 8601格式字符串
+String nowToString() => DateTime.now().toIso8601String();
 
+/// 更新数据的时间戳
 Map<String, String?> updateTimestamps(Map<String, String?> data) {
-  String currentTime = nowToString();
+  final currentTime = nowToString();
   data['updated_at'] = currentTime;
-  if (!data.containsKey('created_at') || data['created_at'] == null) {
-    data['created_at'] = currentTime;
-  }
+  data['created_at'] ??= currentTime;
   return data;
 }
 
-bool isChinese(String text) {
-  return RegExp(r'[\u4e00-\u9fa5]').hasMatch(text);
-}
+/// 检查文本是否包含中文字符
+bool isChinese(String text) => RegExp(r'[\u4e00-\u9fa5]').hasMatch(text);
 
+/// 获取文本的子串,可指定长度和后缀
 String getSubstring(String text, {int length = 50, String suffix = ''}) {
-  if (length < 0) {
-    throw ArgumentError('length不能为负数');
-  }
-  return text.length > length ? text.substring(0, length) + suffix : text;
+  if (length < 0) throw ArgumentError('length不能为负数');
+  return text.length > length ? '${text.substring(0, length)}$suffix' : text;
 }
 
-String firstLine(String text) {
-  return text.split('\n').first;
-}
+/// 获取文本的第一行
+String firstLine(String text) => text.split('\n').first;
 
+/// 从主机名获取顶级域名
 String getTopLevelDomain(String? host) {
-  if (host == null) {
-    return "";
-  }
+  if (host == null) return '';
 
-  // 分割主机名以获取一级域名
-  List<String> parts = host.split('.');
+  final parts = host.split('.');
+  if (parts.length < 2) return host;
 
-  // 检查域名部分的数量
-  if (parts.length < 2) {
-    return host; // 如果没有足够的部分，返回原始主机名
-  }
-
-  // 返回最后两个部分作为一级域名
-  return '${parts[parts.length - 2]}.${parts[parts.length - 1]}';
+  return '${parts[parts.length - 2]}.${parts.last}';
 }
 
+/// 格式化日期时间为本地格式
 String formatDateTimeToLocal(DateTime dateTime) {
   try {
-    DateTime localDateTime = dateTime.toLocal();
-    return DateFormat('yyyy-MM-dd HH:mm:ss').format(localDateTime);
+    return DateFormat('yyyy-MM-dd HH:mm:ss').format(dateTime.toLocal());
   } catch (e) {
     logger.d("日期格式转换失败 $e");
+    return '';
   }
-  return "";
 }
 
+/// 显示成功提示
 void successNotice(String content, {String title = '提示'}) {
-  Get.snackbar(title, content,
-      snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+  Get.snackbar(title, content, snackPosition: SnackPosition.top, backgroundColor: Colors.green);
 }
 
+/// 显示错误提示
 void errorNotice(String content, {String title = '错误'}) {
-  Get.snackbar(title, content,
-      snackPosition: SnackPosition.top, backgroundColor: Colors.red);
+  Get.snackbar(title, content, snackPosition: SnackPosition.top, backgroundColor: Colors.red);
 }
 
-void showFullScreenLoading(
-    {String tips = '', Color barrierColor = Colors.transparent}) {
+/// 显示全屏加载提示
+void showFullScreenLoading({String tips = '', Color barrierColor = Colors.transparent}) {
   Get.dialog(
     PopScope(
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
             Text(tips, style: MyFontStyle.loadingTipsStyle),
           ],
         ),
       ),
     ),
-    barrierDismissible: false, // 点击外部区域不关闭对话框
+    barrierDismissible: false,
     barrierColor: barrierColor,
   );
 }
 
+/// 显示确认对话框
 Future<void> showConfirmationDialog(
   String title,
   String message, {
@@ -128,25 +119,29 @@ Future<void> showConfirmationDialog(
   );
 }
 
+/// 获取剪贴板文本
 Future<String> getClipboardText() async {
-  ClipboardData? data = await Clipboard.getData(Clipboard.kTextPlain);
+  final data = await Clipboard.getData(Clipboard.kTextPlain);
   return data?.text ?? '';
 }
 
+/// 设置剪贴板文本
 Future<void> setClipboardText(String text) async {
   await Clipboard.setData(ClipboardData(text: text));
 }
 
+/// 从文本中提取URL
 String getUrlFromText(String text) {
   final urlPattern = RegExp(
     r'https?:\/\/[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&\/=]*)',
     caseSensitive: false,
   );
 
-  String url = urlPattern.firstMatch(text)?.group(0) ?? '';
+  final url = urlPattern.firstMatch(text)?.group(0) ?? '';
   if (url.startsWith('http://')) {
-    url = url.replaceFirst('http://', 'https://');
-    logger.i("[checkClipboardText] 将 http 链接替换为 https: $url");
+    final httpsUrl = url.replaceFirst('http://', 'https://');
+    logger.i("[checkClipboardText] 将 http 链接替换为 https: $httpsUrl");
+    return httpsUrl;
   }
   return url;
 }

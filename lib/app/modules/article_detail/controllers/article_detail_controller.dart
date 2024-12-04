@@ -3,18 +3,16 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:daily_satori/app/helpers/my_base_controller.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
-import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/global.dart';
 
 class ArticleDetailController extends MyBaseController {
+  /// 当前文章对象
   late Article article;
-  final tags = ''.obs;
 
-  final articleBox = ObjectboxService.i.box<Article>();
-  final tagBox = ObjectboxService.i.box<Tag>();
+  /// 文章标签字符串,以逗号分隔
+  final tags = ''.obs;
 
   @override
   void onInit() {
@@ -23,45 +21,47 @@ class ArticleDetailController extends MyBaseController {
     loadTags();
   }
 
+  /// 加载并格式化文章标签
   Future<void> loadTags() async {
-    final tagList = article.tags.map((tag) => "#${tag.name}").toList();
-    tags.value = tagList.join(', ');
+    tags.value = article.tags.map((tag) => "#${tag.name}").join(', ');
   }
 
+  /// 删除当前文章
   Future<void> deleteArticle() async {
     await ArticleService.i.deleteArticle(article.id);
   }
 
+  /// 获取文章内容图片列表(不含主图)
   List<String> getArticleImages() {
-    final images = article.images
-        .where((image) => image.path != null && image.path!.isNotEmpty)
-        .map((image) => image.path!)
-        .toList();
+    final images = _getValidImagePaths(article.images);
     if (images.isNotEmpty) {
-      images.removeAt(0); // 移除第一张图片,因为它是主图
+      images.removeAt(0); // 移除主图
     }
     return images;
   }
 
+  /// 获取文章截图列表
   List<String> getArticleScreenshots() {
-    final screenshots = article.screenshots
-        .where((screenshot) =>
-            screenshot.path != null && screenshot.path!.isNotEmpty)
-        .map((screenshot) => screenshot.path!)
-        .toList();
-    return screenshots;
+    return _getValidImagePaths(article.screenshots);
   }
 
-  Future<void> shareScreenshots() async {
-    List<XFile> files;
-    final screenshots = getArticleScreenshots();
+  /// 获取有效的图片路径列表
+  List<String> _getValidImagePaths(List<dynamic> items) {
+    return items
+        .where((item) => item.path != null && item.path!.isNotEmpty)
+        .map((item) => item.path! as String)
+        .toList();
+  }
 
+  /// 分享文章截图
+  Future<void> shareScreenshots() async {
+    final screenshots = getArticleScreenshots();
     if (screenshots.isEmpty) {
       successNotice("没有网页截图可以分享");
       return;
     }
 
-    files = screenshots.map((path) => XFile(path)).toList();
+    final files = screenshots.map((path) => XFile(path)).toList();
     final result = await Share.shareXFiles(files, text: '网页截图');
 
     if (result.status == ShareResultStatus.success) {

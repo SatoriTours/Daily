@@ -1,53 +1,57 @@
 part of 'articles_controller.dart';
 
 extension PartFilter on ArticlesController {
-  // 处理所有的过滤条件
-  List<Article> _queryByFilter([Condition<Article>? condition]) {
-    Condition<Article>? finalCondition;
+  /// 根据条件查询文章列表
+  List<Article> _queryByFilter([Condition<Article>? additionalCondition]) {
+    final query = articleBox.query(_buildFinalCondition(additionalCondition));
+    _applyTagFilter(query);
+    _applySorting(query);
 
+    return _executeQuery(query);
+  }
+
+  /// 构建最终的查询条件
+  Condition<Article>? _buildFinalCondition(Condition<Article>? additionalCondition) {
     final conditions = [
-      _favoriteCondition(),
-      _searchCondition(),
-      condition,
+      _buildFavoriteCondition(),
+      _buildSearchCondition(),
+      additionalCondition,
     ].whereType<Condition<Article>>();
 
-    // 组合所有非空条件
-    for (var condition in conditions) {
-      finalCondition =
-          finalCondition == null ? condition : finalCondition & condition;
-    }
-
-    final query = articleBox.query(finalCondition);
-    _tagFilter(query);
-
-    // 按ID倒序排序
-    query.order(Article_.id, flags: Order.descending);
-
-    return (query.build()..limit = _pageSize).find();
+    return conditions.fold<Condition<Article>?>(
+        null, (finalCondition, condition) => finalCondition == null ? condition : finalCondition & condition);
   }
 
-  Condition<Article>? _favoriteCondition() {
-    if (_onlyFavorite.value) {
-      return Article_.isFavorite.equals(true);
-    }
-    return null;
+  /// 构建收藏过滤条件
+  Condition<Article>? _buildFavoriteCondition() {
+    return _onlyFavorite.value ? Article_.isFavorite.equals(true) : null;
   }
 
-  // 处理搜索的条件
-  Condition<Article>? _searchCondition() {
-    if (enableSearch.value && _searchText.isNotEmpty) {
-      return Article_.title.contains(_searchText) |
-          Article_.aiTitle.contains(_searchText) |
-          Article_.content.contains(_searchText) |
-          Article_.aiContent.contains(_searchText);
-    }
-    return null;
+  /// 构建搜索过滤条件
+  Condition<Article>? _buildSearchCondition() {
+    if (!enableSearch.value || _searchText.isEmpty) return null;
+
+    return Article_.title.contains(_searchText) |
+        Article_.aiTitle.contains(_searchText) |
+        Article_.content.contains(_searchText) |
+        Article_.aiContent.contains(_searchText);
   }
 
-  void _tagFilter(QueryBuilder<Article> query) async {
-    logger.i("搜索标签ID: $_tagID");
+  /// 应用标签过滤
+  void _applyTagFilter(QueryBuilder<Article> query) {
     if (_tagID > 0) {
+      logger.i('应用标签过滤: $_tagID');
       query.linkMany(Article_.tags, Tag_.id.equals(_tagID));
     }
+  }
+
+  /// 应用排序规则
+  void _applySorting(QueryBuilder<Article> query) {
+    query.order(Article_.id, flags: Order.descending);
+  }
+
+  /// 执行查询并返回结果
+  List<Article> _executeQuery(QueryBuilder<Article> query) {
+    return (query.build()..limit = _pageSize).find();
   }
 }

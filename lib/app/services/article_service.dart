@@ -84,10 +84,8 @@ class ArticleService {
   }
 
   List<Article> getArticlesGreaterThanId(int articleID, {int limit = 20}) {
-    final query = articleBox
-        .query(Article_.id.greaterThan(articleID))
-        .order(Article_.id, flags: Order.descending)
-        .build();
+    final query =
+        articleBox.query(Article_.id.greaterThan(articleID)).order(Article_.id, flags: Order.descending).build();
 
     query.limit = limit;
 
@@ -96,10 +94,7 @@ class ArticleService {
   }
 
   List<Article> getArticlesLessThanId(int articleID, {int limit = 20}) {
-    final query = articleBox
-        .query(Article_.id.lessThan(articleID))
-        .order(Article_.id, flags: Order.descending)
-        .build();
+    final query = articleBox.query(Article_.id.lessThan(articleID)).order(Article_.id, flags: Order.descending).build();
 
     query.limit = limit;
 
@@ -108,8 +103,7 @@ class ArticleService {
   }
 
   List<Article> getArticles({int limit = 20}) {
-    final query =
-        articleBox.query().order(Article_.id, flags: Order.descending).build();
+    final query = articleBox.query().order(Article_.id, flags: Order.descending).build();
 
     query.limit = limit;
     final articles = query.find();

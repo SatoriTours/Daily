@@ -20,197 +20,162 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-            getTopLevelDomain(Uri.parse(controller.article.url ?? '').host)),
-        centerTitle: true,
-        actions: [_buildAppBarActions()],
-      ),
-      body: DefaultTabController(
-        length: 3,
-        child: Column(
-          children: [
-            Expanded(
-              child: TabBarView(
-                physics: NeverScrollableScrollPhysics(),
-                children: [
-                  _buildArticleContent(),
-                  _buildArticleScreenshot(context),
-                  _buildArticleWebview(context),
-                ],
-              ),
-            ),
-            TabBar(
-              tabs: const [
-                Tab(text: 'AI解读'),
-                Tab(text: '网页截图'),
-                Tab(text: '原始链接'),
-              ],
-            ),
-          ],
-        ),
-      ),
+      appBar: _buildAppBar(),
+      body: _buildBody(),
     );
   }
 
-  void _showDeleteConfirmationDialog() {
-    Get.defaultDialog(
-      id: "confirmDialog",
-      title: "确认删除",
-      middleText: "您确定要删除吗？",
-      confirm: TextButton(
-        onPressed: () async {
-          await controller.deleteArticle();
-          var articlesController = Get.find<ArticlesController>();
-          articlesController.removeArticleByIdFromList(controller.article.id);
-          Get.back();
-          Get.snackbar("提示", "删除成功",
-              snackPosition: SnackPosition.top, backgroundColor: Colors.green);
-        },
-        child: Text("确认"),
-      ),
-      cancel: TextButton(
-        onPressed: () {
-          Navigator.pop(Get.context!);
-        },
-        child: Text("取消"),
-      ),
+  // AppBar 相关
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Text(getTopLevelDomain(Uri.parse(controller.article.url ?? '').host)),
+      centerTitle: true,
+      actions: [_buildAppBarActions()],
     );
   }
 
   Widget _buildAppBarActions() {
     return PopupMenuButton<int>(
-      icon: Icon(Icons.more_horiz), // 弹出菜单图标
-      offset: Offset(0, 50), // 设置弹出菜单的位置，向下偏移50个像素
-      padding: EdgeInsets.all(0),
-      itemBuilder: (context) => [
-        _buildPopupMenuIteam(1, "刷新", Icons.refresh),
-        _buildPopupMenuIteam(2, "删除", Icons.delete),
-        _buildPopupMenuIteam(3, "复制链接", Icons.copy),
-        _buildPopupMenuIteam(4, "分享截图", Icons.share),
-      ],
-      onSelected: (value) {
-        if (value == 1) {
-          Get.toNamed(Routes.SHARE_DIALOG, arguments: {
-            'articleID': controller.article.id,
-            'shareURL': controller.article.url,
-            'update': true,
-          });
-        } else if (value == 2) {
-          _showDeleteConfirmationDialog();
-        } else if (value == 3) {
-          Clipboard.setData(ClipboardData(text: controller.article.url ?? ''));
-          successNotice("链接已复制到剪贴板");
-        } else if (value == 4) {
-          controller.shareScreenshots();
-        }
-      },
+      icon: Icon(Icons.more_horiz),
+      offset: Offset(0, 50),
+      padding: EdgeInsets.zero,
+      itemBuilder: _buildPopupMenuItems,
+      onSelected: _handleMenuSelection,
     );
   }
 
-  PopupMenuItem<int> _buildPopupMenuIteam(
-      int index, String title, IconData icon) {
+  List<PopupMenuItem<int>> _buildPopupMenuItems(BuildContext context) {
+    final menuItems = [
+      (1, "刷新", Icons.refresh),
+      (2, "删除", Icons.delete),
+      (3, "复制链接", Icons.copy),
+      (4, "分享截图", Icons.share),
+    ];
+
+    return menuItems.map((item) => _buildPopupMenuItem(item.$1, item.$2, item.$3)).toList();
+  }
+
+  PopupMenuItem<int> _buildPopupMenuItem(int value, String title, IconData icon) {
     return PopupMenuItem<int>(
-      value: index,
-      padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
+      value: value,
+      padding: EdgeInsets.symmetric(horizontal: 10),
       child: Row(
         children: [
-          Icon(icon), // 添加删除图标
-          SizedBox(width: 8), // 添加间距
+          Icon(icon),
+          SizedBox(width: 8),
           Text(title),
         ],
       ),
     );
   }
 
-  Widget _buildArticleScreenshot(BuildContext context) {
-    final screenshots = controller.getArticleScreenshots();
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SizedBox(
-        width: MediaQuery.of(context).size.width, // 设置宽度占满全屏
-        child: ListView.builder(
-          itemCount: screenshots.length,
-          itemBuilder: (context, index) {
-            return Image.file(
-              File(screenshots[index]),
-              fit: BoxFit.cover,
-              errorBuilder:
-                  (BuildContext context, Object error, StackTrace? stackTrace) {
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error, color: Colors.red),
-                    Text('文件不存在'),
-                  ],
-                );
-              },
-            );
-          },
-        ),
+  void _handleMenuSelection(int value) {
+    switch (value) {
+      case 1:
+        Get.toNamed(Routes.SHARE_DIALOG, arguments: {
+          'articleID': controller.article.id,
+          'shareURL': controller.article.url,
+          'update': true,
+        });
+        break;
+      case 2:
+        _showDeleteConfirmationDialog();
+        break;
+      case 3:
+        Clipboard.setData(ClipboardData(text: controller.article.url ?? ''));
+        successNotice("链接已复制到剪贴板");
+        break;
+      case 4:
+        controller.shareScreenshots();
+        break;
+    }
+  }
+
+  // 主体内容
+  Widget _buildBody() {
+    return DefaultTabController(
+      length: 3,
+      child: Column(
+        children: [
+          Expanded(child: _buildTabBarView()),
+          _buildTabBar(),
+        ],
       ),
     );
   }
 
-  Widget _buildArticleWebview(BuildContext context) {
-    return DreamWebView(
-      url: controller.article.url ?? '',
+  Widget _buildTabBarView() {
+    return TabBarView(
+      physics: NeverScrollableScrollPhysics(),
+      children: [
+        _buildArticleContent(),
+        _buildArticleScreenshot(),
+        _buildArticleWebview(),
+      ],
     );
   }
 
+  Widget _buildTabBar() {
+    return TabBar(
+      tabs: const [
+        Tab(text: 'AI解读'),
+        Tab(text: '网页截图'),
+        Tab(text: '原始链接'),
+      ],
+    );
+  }
+
+  // 文章内容相关
   Widget _buildArticleContent() {
-    // final imagePath = controller.article.images.first.path;
     final article = controller.article;
-    final imagePath =
-        article.images.isEmpty ? '' : (article.images.first.path ?? '');
+    final imagePath = article.images.isEmpty ? '' : (article.images.first.path ?? '');
 
     return SingleChildScrollView(
       child: Column(
         children: [
-          if ((imagePath.isNotEmpty) && !imagePath.endsWith('.svg'))
-            GestureDetector(
-              onTap: () {
-                _showFullScreenImage([imagePath]); // 处理点击事件，显示全屏图片
-              },
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(20, 5, 20, 0),
-                width: double.infinity,
-                constraints: BoxConstraints(
-                  maxHeight: 200, // 最大高度为 200
-                ),
-                child: Image.file(
-                  File(imagePath),
-                  fit: BoxFit.cover,
-                  alignment: Alignment.topCenter,
-                  errorBuilder: (BuildContext context, Object error,
-                      StackTrace? stackTrace) {
-                    logger.i("加载路径错误 $imagePath");
-                    return SizedBox.shrink(); // 隐藏整个 Container
-                  },
-                ),
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-            child: Text(
-              (controller.article.aiTitle ?? controller.article.title) ?? '',
-              style: MyFontStyle.articleTitleStyle,
-            ),
-          ),
+          if (_shouldShowHeaderImage(imagePath)) _buildHeaderImage(imagePath),
+          _buildTitle(),
           Obx(() => _buildTags()),
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-            child: Text(
-              (controller.article.aiContent ?? ''),
-              style: MyFontStyle.articleBodyStyle,
-            ),
-          ),
-          if (controller.article.comment?.isNotEmpty ?? false) _buildComment(),
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-            child: _buildImageList(),
-          ),
+          _buildContent(),
+          if (article.comment?.isNotEmpty ?? false) _buildComment(),
+          _buildImageGallery(),
         ],
+      ),
+    );
+  }
+
+  bool _shouldShowHeaderImage(String imagePath) {
+    return imagePath.isNotEmpty && !imagePath.endsWith('.svg');
+  }
+
+  Widget _buildHeaderImage(String imagePath) {
+    return GestureDetector(
+      onTap: () => _showFullScreenImage([imagePath]),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 5, 20, 0),
+        width: double.infinity,
+        constraints: BoxConstraints(maxHeight: 200),
+        child: _buildImageWithError(imagePath, BoxFit.cover),
+      ),
+    );
+  }
+
+  Widget _buildTitle() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+      child: Text(
+        (controller.article.aiTitle ?? controller.article.title) ?? '',
+        style: MyFontStyle.articleTitleStyle,
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+      child: Text(
+        controller.article.aiContent ?? '',
+        style: MyFontStyle.articleBodyStyle,
       ),
     );
   }
@@ -222,57 +187,94 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
             alignment: Alignment.centerLeft,
             child: Text(controller.tags.value, style: MyFontStyle.tagStyle),
           )
-        : Container();
-  }
-
-  Widget _buildDivider() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-      child: Divider(
-        height: 1,
-        thickness: 1,
-        color: Colors.grey[300],
-      ),
-    );
+        : SizedBox.shrink();
   }
 
   Widget _buildComment() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       alignment: Alignment.centerLeft,
       child: Text(
-        "我的备注：${controller.article.comment ?? ''}",
+        "我的备注：${controller.article.comment}",
         style: MyFontStyle.commentStyle,
       ),
     );
   }
 
+  Widget _buildImageGallery() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      height: 200,
+      child: _buildImageList(),
+    );
+  }
+
+  // 截图和网页视图
+  Widget _buildArticleScreenshot() {
+    final screenshots = controller.getArticleScreenshots();
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: Get.width,
+        child: ListView.builder(
+          itemCount: screenshots.length,
+          itemBuilder: (_, index) => _buildImageWithError(screenshots[index], BoxFit.cover),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArticleWebview() {
+    return DreamWebView(url: controller.article.url ?? '');
+  }
+
+  // 通用组件
+  Widget _buildImageWithError(String path, BoxFit fit) {
+    return Image.file(
+      File(path),
+      fit: fit,
+      alignment: Alignment.topCenter,
+      errorBuilder: (_, error, __) {
+        logger.i("加载路径错误 $path");
+        return SizedBox.shrink();
+      },
+    );
+  }
+
   Widget _buildImageList() {
     final images = controller.getArticleImages();
-    return SizedBox(
-      height: 200, // 设置图片列表的高度
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: images.length,
-        itemBuilder: (context, index) {
-          return GestureDetector(
-            onTap: () {
-              _showFullScreenImage(images);
-            },
-            child: Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: Image.file(
-                File(images[index]), // 假设 ArticleImage 对象有 imagePath 属性
-                fit: BoxFit.cover,
-                errorBuilder: (BuildContext context, Object error,
-                    StackTrace? stackTrace) {
-                  logger.i("加载路径错误 ${images[index]}");
-                  return SizedBox.shrink(); // 隐藏整个 Container 显示错误图标和消息
-                },
-              ),
-            ),
-          );
+    return ListView.builder(
+      scrollDirection: Axis.horizontal,
+      itemCount: images.length,
+      itemBuilder: (context, index) {
+        return GestureDetector(
+          onTap: () => _showFullScreenImage(images),
+          child: Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: _buildImageWithError(images[index], BoxFit.cover),
+          ),
+        );
+      },
+    );
+  }
+
+  // 对话框
+  void _showDeleteConfirmationDialog() {
+    Get.defaultDialog(
+      title: "确认删除",
+      middleText: "您确定要删除吗？",
+      confirm: TextButton(
+        onPressed: () async {
+          await controller.deleteArticle();
+          Get.find<ArticlesController>().removeArticleByIdFromList(controller.article.id);
+          Get.back();
+          Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
         },
+        child: Text("确认"),
+      ),
+      cancel: TextButton(
+        onPressed: () => Get.back(),
+        child: Text("取消"),
       ),
     );
   }
@@ -282,36 +284,23 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       Scaffold(
         backgroundColor: Colors.black,
         body: GestureDetector(
-          onTap: () {
-            Get.close();
-          },
+          onTap: () => Get.back(),
           child: PageView.builder(
-            scrollDirection: Axis.horizontal,
             itemCount: imagePaths.length,
-            itemBuilder: (context, index) {
-              return Center(
-                child: SizedBox(
-                  width: MediaQuery.of(Get.context!).size.width,
-                  height: MediaQuery.of(Get.context!).size.height,
-                  child: InteractiveViewer(
-                    maxScale: 5,
-                    child: Image.file(
-                      File(imagePaths[index]), // 使用 imagePaths 中的路径
-                      fit: BoxFit.contain,
-                      errorBuilder: (BuildContext context, Object error,
-                          StackTrace? stackTrace) {
-                        logger.i("加载路径错误 ${imagePaths[index]}");
-                        return SizedBox.shrink(); // 隐藏整个 Container 显示错误图标和消息
-                      },
-                    ),
-                  ),
+            itemBuilder: (_, index) => Center(
+              child: SizedBox(
+                width: Get.width,
+                height: Get.height,
+                child: InteractiveViewer(
+                  maxScale: 5,
+                  child: _buildImageWithError(imagePaths[index], BoxFit.contain),
                 ),
-              );
-            },
+              ),
+            ),
           ),
         ),
       ),
-      barrierDismissible: true, // 点击对话框外部也可以关闭
+      barrierDismissible: true,
     );
   }
 }

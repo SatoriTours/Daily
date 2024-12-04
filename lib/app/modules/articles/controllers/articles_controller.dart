@@ -20,20 +20,29 @@ part 'part.update_list.dart';
 part 'part.filter.dart';
 
 class ArticlesController extends MyBaseController with WidgetsBindingObserver {
-  ScrollController scrollController = ScrollController();
-  DateTime lastRefreshTime =
-      DateTime.now(); // 用来记录最后一次更新的时间, 当应用从后台回到前台的时候, 判断是否需要刷新
-  TextEditingController searchController = TextEditingController();
+  // UI 控制器
+  final scrollController = ScrollController();
+  final searchController = TextEditingController();
 
-  // 监听变化, 重绘页面的变量
-  final List<Article> articles = <Article>[].obs;
+  // 可观察状态
+  final articles = <Article>[].obs;
   final isLoading = false.obs;
   final enableSearch = false.obs;
   final tagName = ''.obs;
+  final _onlyFavorite = false.obs;
 
+  // 数据源
   final articleBox = ObjectboxService.i.box<Article>();
   final tagBox = ObjectboxService.i.box<Tag>();
 
+  // 内部状态
+  DateTime lastRefreshTime = DateTime.now(); // 记录最后更新时间,用于后台恢复时判断是否需要刷新
+  String _clipboardText = ''; // 缓存剪切板链接,避免重复提醒
+  String _searchText = '';
+  int _tagID = -1;
+  final int _pageSize = 20;
+
+  // 生命周期方法
   @override
   void onInit() {
     super.onInit();
@@ -51,6 +60,7 @@ class ArticlesController extends MyBaseController with WidgetsBindingObserver {
     await _didChangeAppLifecycleState(state);
   }
 
+  // 搜索相关方法
   Future<void> searchArticles() async {
     _searchText = searchController.text.trim();
     reloadArticles();
@@ -59,12 +69,17 @@ class ArticlesController extends MyBaseController with WidgetsBindingObserver {
   void toggleSearchState() {
     enableSearch.value = !enableSearch.value;
     if (!enableSearch.value) {
-      _searchText = '';
-      searchController.text = ''; // 清掉输入框里面的内容
-      reloadArticles();
+      _clearSearch();
     }
   }
 
+  void _clearSearch() {
+    _searchText = '';
+    searchController.text = '';
+    reloadArticles();
+  }
+
+  // 筛选相关方法
   void toggleOnlyFavorite(bool value) {
     _onlyFavorite.value = value;
     reloadArticles();
@@ -78,28 +93,21 @@ class ArticlesController extends MyBaseController with WidgetsBindingObserver {
   }
 
   void showAllArticles() {
-    _tagID = -1;
-    _onlyFavorite.value = false;
-    tagName.value = '';
+    _resetFilters();
     reloadArticles();
   }
 
+  void _resetFilters() {
+    _tagID = -1;
+    _onlyFavorite.value = false;
+    tagName.value = '';
+  }
+
+  // UI 辅助方法
   String appBarTitle() {
     var title = '文章';
     if (_onlyFavorite.value) title = '收藏的文章';
     if (tagName.value.isNotEmpty) title = "$title - ${tagName.value}";
     return title;
   }
-  // -------------------------part 专用的变量-------------------------------
-
-  // part 'clipboard.part.dart';
-  String _clipboardText = ''; // 用户缓存剪切板里面的http链接内容,避免重复提醒
-
-  // part 'part.filter.dart';
-  String _searchText = '';
-  final _onlyFavorite = false.obs;
-  int _tagID = -1;
-
-  // part 'part.article_load.dart';
-  final int _pageSize = 20;
 }

@@ -1,32 +1,49 @@
 part of 'articles_controller.dart';
 
 extension PartArticleLoad on ArticlesController {
+  /// 重新加载文章列表
   Future<void> reloadArticles() async {
-    logger.i("重新加载文章");
+    logger.i('重新加载文章列表');
     lastRefreshTime = DateTime.now();
+
     final newArticles = _queryByFilter();
-
     articles.assignAll(newArticles);
-    if (scrollController.hasClients) scrollController.jumpTo(0);
+
+    // 滚动到顶部
+    if (scrollController.hasClients) {
+      scrollController.jumpTo(0);
+    }
   }
 
+  /// 加载更早的文章
   Future<void> _loadPreviousArticles() async {
-    int articleID = articles.first.id;
-    isLoading.value = true;
-    logger.i("获取 $articleID 之前的 $_pageSize 个文章");
-    final newArticles = _queryByFilter(Article_.id.greaterThan(articleID));
+    if (articles.isEmpty) return;
 
-    articles.insertAll(0, newArticles);
-    isLoading.value = false;
+    isLoading.value = true;
+    try {
+      final articleID = articles.first.id;
+      logger.i('加载ID:$articleID之前的$_pageSize篇文章');
+
+      final newArticles = _queryByFilter(Article_.id.greaterThan(articleID));
+      articles.insertAll(0, newArticles);
+    } finally {
+      isLoading.value = false;
+    }
   }
 
+  /// 加载更多文章
   Future<void> _loadMoreArticles() async {
-    int articleID = articles.last.id;
-    isLoading.value = true;
-    logger.i("获取 $articleID 之后的 $_pageSize 个文章");
-    final newArticles = _queryByFilter(Article_.id.lessThan(articleID));
+    if (articles.isEmpty) return;
 
-    articles.addAll(newArticles);
-    isLoading.value = false;
+    isLoading.value = true;
+    try {
+      final articleID = articles.last.id;
+      logger.i('加载ID:$articleID之后的$_pageSize篇文章');
+
+      final newArticles = _queryByFilter(Article_.id.lessThan(articleID));
+      articles.addAll(newArticles);
+    } finally {
+      isLoading.value = false;
+    }
   }
 }

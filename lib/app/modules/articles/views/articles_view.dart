@@ -194,7 +194,7 @@ class ArticleCard extends GetView<ArticlesController> {
       icon: Icon(article.isFavorite ? Icons.favorite : Icons.favorite_border),
       onPressed: () async {
         await ArticleService.i.toggleFavorite(article.id);
-        await controller.updateArticleInListFromDB(article.id);
+        controller.updateArticleInList(article.id);
       },
     );
   }

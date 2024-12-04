@@ -10,105 +10,118 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/global.dart';
 
 class ADBlockService {
-  ADBlockService._privateConstructor();
-  static final ADBlockService _instance = ADBlockService._privateConstructor();
+  // 单例模式
+  ADBlockService._();
+  static final ADBlockService _instance = ADBlockService._();
   static ADBlockService get i => _instance;
 
-  Future<void> init() async {
-    logger.i("[初始化服务] ADBlockService");
-    await _parseRulesContent();
-    logger.i('处理adblock规则完成');
-    _downloadRules();
-  }
+  // 常量定义
+  static const String _easylistUrl = 'https://easylist-downloads.adblockplus.org/v3/full/easylistchina+easylist.txt';
+  static const String _localEasylistFile = 'assets/easylistchina+easylist.txt';
 
-  // final String _easylistUrl = 'https://easylist.to/easylist/easylist.txt';
-  final String _easylistUrl =
-      'https://easylist-downloads.adblockplus.org/v3/full/easylistchina+easylist.txt';
-  final String _localEasylistFile = 'assets/easylistchina+easylist.txt';
+  // 规则存储
   final List<String> _elementHidingRules = [];
   final Map<String, List<String>> _elementHidingRulesBySite = {};
 
+  // Getters
   List<String> get elementHidingRules => _elementHidingRules;
-  Map<String, List<String>> get elementHidingRulesBySite =>
-      _elementHidingRulesBySite;
+  Map<String, List<String>> get elementHidingRulesBySite => _elementHidingRulesBySite;
 
-  Future<void> _downloadRules() async {
-    if (!isProduction) {
-      return;
+  // 初始化服务
+  Future<void> init() async {
+    logger.i("[初始化服务] ADBlockService");
+    await _initRules();
+    logger.i('处理adblock规则完成');
+  }
+
+  // 初始化规则
+  Future<void> _initRules() async {
+    await _parseRulesContent();
+    if (isProduction) {
+      _downloadLatestRules();
     }
+  }
+
+  // 下载最新规则
+  Future<void> _downloadLatestRules() async {
     final easylistPath = await _getEasylistPath();
     try {
       final response = await Dio().download(_easylistUrl, easylistPath);
       if (response.statusCode == 200) {
         logger.i('下载adblock规则文件到: $easylistPath');
       } else {
-        logger.i('下载adblock规则失败: ${response.statusCode}');
+        logger.w('下载adblock规则失败: ${response.statusCode}');
       }
     } catch (e) {
-      logger.i('下载adblock规则失败: $e');
+      logger.e('下载adblock规则失败: $e');
     }
   }
 
+  // 解析规则内容
   Future<void> _parseRulesContent() async {
-    String content = await _getRulesContent();
-    List<String> lines = content.split('\n');
-    String rulesType = '';
-    for (String line in lines) {
-      if (line.startsWith('!-----') && rulesType.isNotEmpty) {
-        rulesType = '';
+    final content = await _getRulesContent();
+    final lines = content.split('\n');
+
+    var currentRuleType = '';
+
+    for (final line in lines) {
+      if (line.startsWith('!-----')) {
+        currentRuleType = _determineRuleType(line);
         continue;
       }
-      if (line.startsWith('!-----') && rulesType.isEmpty) {
-        if (line.contains("General element hiding rules")) {
-          rulesType = 'elementHidingRules';
-        } else if (line.contains("Specific element hiding rules")) {
-          rulesType = 'elementHidingRulesBySite';
-        }
-        continue;
-      }
-      if (rulesType == 'elementHidingRules') {
+
+      if (currentRuleType.isEmpty) continue;
+
+      _processRule(currentRuleType, line);
+    }
+  }
+
+  // 确定规则类型
+  String _determineRuleType(String line) {
+    if (line.contains("General element hiding rules")) {
+      return 'elementHidingRules';
+    } else if (line.contains("Specific element hiding rules")) {
+      return 'elementHidingRulesBySite';
+    }
+    return '';
+  }
+
+  // 处理单条规则
+  void _processRule(String ruleType, String line) {
+    switch (ruleType) {
+      case 'elementHidingRules':
         if (line.startsWith("##")) {
           _elementHidingRules.add(line.replaceFirst("##", '').trim());
         }
-        continue;
-      }
-      if (rulesType == 'elementHidingRulesBySite') {
-        final info = line.split("##");
-        if (info.length == 2) {
-          final site = info[0].trim(), rule = info[1].trim();
-          if (_elementHidingRulesBySite.containsKey(site)) {
-            _elementHidingRulesBySite[site]!.add(rule);
-          } else {
-            _elementHidingRulesBySite[site] = [rule];
-          }
+        break;
+      case 'elementHidingRulesBySite':
+        final parts = line.split("##");
+        if (parts.length == 2) {
+          final site = parts[0].trim();
+          final rule = parts[1].trim();
+          _elementHidingRulesBySite.putIfAbsent(site, () => []).add(rule);
         }
-        continue;
-      }
-      // logger.i('处理规则: $line');
+        break;
     }
   }
 
+  // 获取规则文件路径
   Future<String> _getEasylistPath() async {
-    return path.join(await _getCacheDirectory(), 'easylist.txt');
+    final cacheDir = await getTemporaryDirectory();
+    return path.join(cacheDir.path, 'easylist.txt');
   }
 
-  Future<String> _getCacheDirectory() async {
-    final directory = await getTemporaryDirectory();
-    return directory.path;
-  }
-
+  // 获取规则内容
   Future<String> _getRulesContent() async {
     final easylistPath = await _getEasylistPath();
     final file = File(easylistPath);
 
-    String rulesContent;
     if (await file.exists()) {
-      rulesContent = await file.readAsString();
       logger.i('成功读取规则文件: $easylistPath');
-    } else {
-      rulesContent = await rootBundle.loadString(_localEasylistFile);
-      logger.i('规则文件不存在, 使用本地文件: $_localEasylistFile');
+      return file.readAsString();
     }
-    return rulesContent;
+
+    logger.i('规则文件不存在, 使用本地文件: $_localEasylistFile');
+    return rootBundle.loadString(_localEasylistFile);
   }
 }
