@@ -15,71 +15,71 @@ import 'package:daily_satori/global.dart';
 
 class ArticlesView extends GetView<ArticlesController> {
   const ArticlesView({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Obx(() => Text(
-              controller.appBarTitle(),
-              style: MyFontStyle.appBarTitleStyle,
-            )),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {
-            Get.toNamed(Routes.LEFT_BAR);
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              controller.toggleSearchState();
-            },
-          ),
-          // if (!isProduction)
-          //   IconButton(
-          //     icon: const Icon(Icons.bug_report),
-          //     onPressed: () {
-          //       throw Exception('测试错误 sentry');
-          //     },
-          //   ),
-        ],
+      appBar: _buildAppBar(),
+      body: _buildBody(),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Obx(() => Text(
+            controller.appBarTitle(),
+            style: MyFontStyle.appBarTitleStyle,
+          )),
+      centerTitle: true,
+      leading: IconButton(
+        icon: const Icon(Icons.menu),
+        onPressed: () => Get.toNamed(Routes.LEFT_BAR),
       ),
-      body: Obx(() {
-        if (controller.articles.isEmpty) {
-          return const Center(
-            child: Text(
-              '还没有收藏内容',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-          );
-        }
-        return Column(
-          children: [
-            if (controller.enableSearch.value) _buildSearchTextField(),
-            Expanded(child: _buildArticlesList()),
-          ],
-        );
-      }),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.search),
+          onPressed: controller.toggleSearchState,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBody() {
+    return Obx(() {
+      if (controller.articles.isEmpty) {
+        return _buildEmptyView();
+      }
+      return Column(
+        children: [
+          if (controller.enableSearch.value) _buildSearchTextField(),
+          Expanded(child: _buildArticlesList()),
+        ],
+      );
+    });
+  }
+
+  Widget _buildEmptyView() {
+    return const Center(
+      child: Text(
+        '还没有收藏内容',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
     );
   }
 
   Widget _buildSearchTextField() {
     return AnimatedSlide(
-      offset: controller.enableSearch.value ? Offset(0, 0) : Offset(0, -1),
+      offset: Offset(0, controller.enableSearch.value ? 0 : -1),
       duration: const Duration(milliseconds: 300),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         child: TextField(
           controller: controller.searchController,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             border: OutlineInputBorder(),
             hintText: '搜索文章',
           ),
-          onSubmitted: (value) {
-            controller.searchArticles();
-          },
+          onSubmitted: (_) => controller.searchArticles(),
         ),
       ),
     );
@@ -87,22 +87,24 @@ class ArticlesView extends GetView<ArticlesController> {
 
   Widget _buildArticlesList() {
     return RefreshIndicator(
-      onRefresh: () async {
-        await controller.reloadArticles(); // 下拉刷新时重新加载文章
-      },
+      onRefresh: controller.reloadArticles,
       child: ListView.builder(
         controller: controller.scrollController,
-        itemCount: controller.articles.length +
-            (controller.isLoading.value ? 1 : 0), // 如果正在加载，增加一个加载项
-        itemBuilder: (context, index) {
-          if (index == controller.articles.length) {
-            return Center(child: CircularProgressIndicator());
-          }
-          final article = controller.articles[index];
-          return ArticleCard(article: article);
-        },
+        itemCount: _calculateItemCount(),
+        itemBuilder: _buildListItem,
       ),
     );
+  }
+
+  int _calculateItemCount() {
+    return controller.articles.length + (controller.isLoading.value ? 1 : 0);
+  }
+
+  Widget _buildListItem(BuildContext context, int index) {
+    if (index == controller.articles.length) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return ArticleCard(article: controller.articles[index]);
   }
 }
 
@@ -115,35 +117,31 @@ class ArticleCard extends GetView<ArticlesController> {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-      child: _buildArticle(),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          children: [
+            _buildArticleContent(),
+            const SizedBox(height: 5),
+            _buildActionBar(),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildArticle() {
-    // final imagePath = article.images.first.path ?? '';
-    final imagePath =
-        article.images.isEmpty ? '' : (article.images.first.path ?? '');
+  Widget _buildArticleContent() {
+    final imagePath = article.images.isEmpty ? '' : article.images.first.path ?? '';
 
-    return Padding(
-      padding: const EdgeInsets.all(10),
-      child: Column(
+    return GestureDetector(
+      onTap: () => Get.toNamed(Routes.ARTICLE_DETAIL, arguments: article),
+      child: Row(
         children: [
-          GestureDetector(
-            onTap: () {
-              Get.toNamed(Routes.ARTICLE_DETAIL, arguments: article);
-            },
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildTitle(),
-                ),
-                const SizedBox(width: 15),
-                if (imagePath.isNotEmpty) _buildImage(imagePath),
-              ],
-            ),
-          ),
-          const SizedBox(height: 5),
-          _buildActionBar(),
+          Expanded(child: _buildTitle()),
+          if (imagePath.isNotEmpty) ...[
+            const SizedBox(width: 15),
+            _buildImage(imagePath),
+          ],
         ],
       ),
     );
@@ -151,58 +149,65 @@ class ArticleCard extends GetView<ArticlesController> {
 
   Widget _buildTitle() {
     return Text(
-      (article.aiTitle ?? article.title ?? ''),
+      article.aiTitle ?? article.title ?? '',
       style: MyFontStyle.listTitleStyle,
     );
   }
 
-  Widget _buildImage(String imagePath) {
-    return Image.file(
-      File(imagePath),
-      width: 100, // 设置宽度为100
-      height: 100, // 设置高度为80
-      fit: BoxFit.scaleDown, // 适应容器
-      alignment: Alignment.center,
-      errorBuilder:
-          (BuildContext context, Object error, StackTrace? stackTrace) {
-        // 图片加载错误, 就什么都不显示
-        return SizedBox.shrink();
-      },
+  Widget _buildImage(String path) {
+    return SizedBox(
+      width: 100,
+      height: 100,
+      child: Image.file(
+        File(path),
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.center,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      ),
     );
   }
 
   Widget _buildActionBar() {
+    final url = Uri.parse(article.url ?? '');
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          getTopLevelDomain(Uri.parse(article.url ?? '').host),
+          getTopLevelDomain(url.host),
           style: const TextStyle(color: Colors.grey),
         ),
         const SizedBox(width: 15),
         if (article.createdAt != null)
           Text(
-            (GetTimeAgo.parse(article.createdAt!, pattern: 'yy年MM月dd日')),
+            GetTimeAgo.parse(article.createdAt!, pattern: 'yy年MM月dd日'),
             style: const TextStyle(color: Colors.grey),
           ),
-        Spacer(), // 使用 Spacer 使按钮靠右对齐
-        IconButton(
-          icon: Icon(
-            article.isFavorite ? Icons.favorite : Icons.favorite_border,
-          ),
-          onPressed: () async {
-            await ArticleService.i.toggleFavorite(article.id);
-            await controller.updateArticleInListFromDB(article.id);
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.share),
-          onPressed: () {
-            Share.share(article.url ?? '',
-                subject: article.aiTitle ?? article.title ?? '');
-          },
-        ),
+        const Spacer(),
+        _buildFavoriteButton(),
+        _buildShareButton(),
       ],
+    );
+  }
+
+  Widget _buildFavoriteButton() {
+    return IconButton(
+      icon: Icon(article.isFavorite ? Icons.favorite : Icons.favorite_border),
+      onPressed: () async {
+        await ArticleService.i.toggleFavorite(article.id);
+        await controller.updateArticleInListFromDB(article.id);
+      },
+    );
+  }
+
+  Widget _buildShareButton() {
+    return IconButton(
+      icon: const Icon(Icons.share),
+      onPressed: () {
+        Share.share(
+          article.url ?? '',
+          subject: article.aiTitle ?? article.title ?? '',
+        );
+      },
     );
   }
 }

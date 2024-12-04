@@ -10,8 +10,6 @@ import 'package:daily_satori/init_app.dart';
 import 'app/routes/app_pages.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
   await initApp();
   await SentryService.i.runApp(_dailyAppRunner);
 }

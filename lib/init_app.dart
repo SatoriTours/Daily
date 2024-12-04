@@ -4,6 +4,7 @@ import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
+import 'package:daily_satori/app/services/flutter_service.dart';
 import 'package:daily_satori/app/services/font_service.dart';
 import 'package:daily_satori/app/services/freedisk_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
@@ -36,6 +37,7 @@ Future<void> clearApp() async {
 // 初始化基础的服务，所有服务都需要依赖这些基础服务
 Future<void> _initBasicServices() async {
   await LoggerService.i.init(); // 初始化日志
+  await FlutterService.i.init(); // 初始化Flutter
   await TimeService.i.init(); // 初始化时间
   await ObjectboxService.i.init(); // 初始化数据库
   await SettingService.i.init(); // 从数据库里面加载配置
