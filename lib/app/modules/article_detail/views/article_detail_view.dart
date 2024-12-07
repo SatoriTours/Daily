@@ -284,6 +284,17 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   void _showFullScreenImage(List<String> imagePaths, [int initialIndex = 0]) {
     Get.dialog(
       Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          actions: [
+            IconButton(
+              icon: Icon(Icons.close, color: Colors.white),
+              onPressed: () => Get.close(),
+            ),
+          ],
+        ),
         backgroundColor: Colors.black,
         body: PhotoViewGallery.builder(
           scrollDirection: Axis.horizontal,
@@ -294,7 +305,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
               imageProvider: FileImage(File(imagePaths[index])),
               initialScale: PhotoViewComputedScale.contained,
               minScale: PhotoViewComputedScale.contained,
-              maxScale: PhotoViewComputedScale.covered * 2.0,
+              maxScale: PhotoViewComputedScale.covered * 5.0,
               errorBuilder: (context, error, stackTrace) {
                 logger.i("加载路径错误 ${imagePaths[index]}");
                 return SizedBox.shrink();
