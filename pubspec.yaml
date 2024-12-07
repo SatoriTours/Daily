@@ -79,6 +79,7 @@ dependencies:
   flutter_archive: ^6.0.3
   objectbox: ^4.0.3
   objectbox_flutter_libs: any
+  photo_view: ^0.15.0
 
   # 分享
   # receive_sharing_intent: ^1.8.0

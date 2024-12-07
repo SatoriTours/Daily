@@ -11,6 +11,8 @@ import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/global.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart';
 
 import '../controllers/article_detail_controller.dart';
 
@@ -248,7 +250,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       itemCount: images.length,
       itemBuilder: (context, index) {
         return GestureDetector(
-          onTap: () => _showFullScreenImage(images),
+          onTap: () => _showFullScreenImage(images, index),
           child: Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: _buildImageWithError(images[index], BoxFit.cover),
@@ -279,25 +281,26 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     );
   }
 
-  void _showFullScreenImage(List<String> imagePaths) {
+  void _showFullScreenImage(List<String> imagePaths, [int initialIndex = 0]) {
     Get.dialog(
       Scaffold(
         backgroundColor: Colors.black,
-        body: GestureDetector(
-          onTap: () => Get.back(),
-          child: PageView.builder(
-            itemCount: imagePaths.length,
-            itemBuilder: (_, index) => Center(
-              child: SizedBox(
-                width: Get.width,
-                height: Get.height,
-                child: InteractiveViewer(
-                  maxScale: 5,
-                  child: _buildImageWithError(imagePaths[index], BoxFit.contain),
-                ),
-              ),
-            ),
-          ),
+        body: PhotoViewGallery.builder(
+          scrollDirection: Axis.horizontal,
+          pageController: PageController(initialPage: initialIndex),
+          itemCount: imagePaths.length,
+          builder: (context, index) {
+            return PhotoViewGalleryPageOptions(
+              imageProvider: FileImage(File(imagePaths[index])),
+              initialScale: PhotoViewComputedScale.contained,
+              minScale: PhotoViewComputedScale.contained,
+              maxScale: PhotoViewComputedScale.covered * 2.0,
+              errorBuilder: (context, error, stackTrace) {
+                logger.i("加载路径错误 ${imagePaths[index]}");
+                return SizedBox.shrink();
+              },
+            );
+          },
         ),
       ),
       barrierDismissible: true,
