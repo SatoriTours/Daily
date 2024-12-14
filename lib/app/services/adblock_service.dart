@@ -22,11 +22,14 @@ class ADBlockService {
   // 规则存储
   final List<String> _elementHidingRules = [];
   final Map<String, List<String>> _elementHidingRulesBySite = {};
+  final List<String> _urlRules = [];
+  // final List<String> _domainRules = [];
 
   // Getters
   List<String> get elementHidingRules => _elementHidingRules;
   Map<String, List<String>> get elementHidingRulesBySite => _elementHidingRulesBySite;
-
+  List<String> get urlRules => _urlRules;
+  // List<String> get domainRules => _domainRules;
   // 初始化服务
   Future<void> init() async {
     logger.i("[初始化服务] ADBlockService");
@@ -78,30 +81,46 @@ class ADBlockService {
 
   // 确定规则类型
   String _determineRuleType(String line) {
-    if (line.contains("General element hiding rules")) {
-      return 'elementHidingRules';
-    } else if (line.contains("Specific element hiding rules")) {
+    if (line.contains("Specific element hiding rules")) {
       return 'elementHidingRulesBySite';
+    } else if (line.contains("General advert blocking filters")) {
+      return 'urlRules';
     }
-    return '';
+    return 'default';
   }
 
   // 处理单条规则
   void _processRule(String ruleType, String line) {
     switch (ruleType) {
-      case 'elementHidingRules':
+      case 'elementHidingRulesBySite':
+        _addSiteRules(line);
+        break;
+      case 'urlRules':
+        _urlRules.add(line.trim());
+        break;
+      case 'default':
         if (line.startsWith("##")) {
           _elementHidingRules.add(line.replaceFirst("##", '').trim());
+        } else if (line.startsWith("||")) {
+          final match = RegExp(r'\|\|([^\^$]+)').firstMatch(line);
+          if (match != null) {
+            _urlRules.add(match.group(1)!);
+          }
+        } else if (line.startsWith("~")) {
+          _elementHidingRules.add(line.split("##").last.trim());
+        } else {
+          _urlRules.add(line.trim());
         }
         break;
-      case 'elementHidingRulesBySite':
-        final parts = line.split("##");
-        if (parts.length == 2) {
-          final site = parts[0].trim();
-          final rule = parts[1].trim();
-          _elementHidingRulesBySite.putIfAbsent(site, () => []).add(rule);
-        }
-        break;
+    }
+  }
+
+  void _addSiteRules(String line) {
+    final parts = line.split("##");
+    if (parts.length == 2) {
+      final site = parts[0].trim();
+      final rule = parts[1].trim();
+      _elementHidingRulesBySite.putIfAbsent(site, () => []).add(rule);
     }
   }
 

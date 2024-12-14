@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
 
@@ -38,6 +39,7 @@ class DreamWebView extends StatelessWidget {
       onProgressChanged: _handleProgressChanged,
       onConsoleMessage: _handleConsoleMessage,
       shouldOverrideUrlLoading: _handleUrlLoading,
+      // shouldInterceptRequest: _handleShouldInterceptRequest,
     );
   }
 
@@ -57,8 +59,10 @@ class DreamWebView extends StatelessWidget {
     logger.i("开始加载网页 $url");
 
     try {
-      await _injectResources(controller);
-      await _handleAdBlocking(controller, context);
+      await Future.wait([
+        _injectResources(controller),
+        _injectCssRules(controller),
+      ]);
     } catch (e) {
       logger.e("加载资源时出错: $e");
     }
@@ -71,6 +75,27 @@ class DreamWebView extends StatelessWidget {
     await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/translate.js");
     await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
     await controller.injectCSSFileFromAsset(assetFilePath: "assets/css/common.css");
+  }
+
+  // DOM 元素隐藏规则
+  Future<void> _injectCssRules(InAppWebViewController controller) async {
+    // 批量注入 CSS 规则
+    final url = await controller.getUrl();
+    final domain = getTopLevelDomain(url?.host);
+
+    final StringBuffer css = StringBuffer();
+    for (final rule in ADBlockService.i.elementHidingRules) {
+      css.writeln('$rule { display: none !important; }');
+    }
+
+    final rules = ADBlockService.i.elementHidingRulesBySite[domain] ?? [];
+    for (final rule in rules) {
+      css.writeln('$rule { display: none !important; }');
+    }
+
+    final cssRules = css.toString();
+    logger.i("注入 CSS广告屏蔽规则");
+    await controller.injectCSSCode(source: cssRules);
   }
 
   Future<void> _handleLoadStop(BuildContext context, WebUri? url) async {
@@ -137,6 +162,21 @@ class DreamWebView extends StatelessWidget {
         logger.d("执行广告规则出错 $e");
       }
     }
+  }
+
+  Future<WebResourceResponse?> _handleShouldInterceptRequest(
+      InAppWebViewController controller, WebResourceRequest request) async {
+    final url = request.url.toString();
+    // final domain = getTopLevelDomain(url.host);
+
+    // logger.d("准备拦截广告请求: $url");
+    final isAd = ADBlockService.i.urlRules.any((rule) => url.contains(rule));
+
+    if (isAd) {
+      logger.d("开始拦截广告请求: $url");
+      return WebResourceResponse(data: Uint8List(0));
+    }
+    return null;
   }
 
   InAppWebViewSettings _getWebViewSettings() {
