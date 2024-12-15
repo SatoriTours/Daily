@@ -26,7 +26,7 @@ jobs:
       - name: Install Flutter
         uses: subosito/flutter-action@v2.14.0
         with:
-          flutter-version: "3.24.4"
+          flutter-version: "3.27.0"
           channel: 'stable'
           cache: true
 
@@ -54,7 +54,7 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
-  
+
       - name: Upload Release Asset
         id: upload_release_asset
         uses: actions/upload-release-asset@v1
@@ -63,5 +63,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: build/app/outputs/apk/release/app-release.apk
-          asset_name: daily-satori.apk 
+          asset_name: daily-satori.apk
           asset_content_type: application/vnd.android.package-archive
