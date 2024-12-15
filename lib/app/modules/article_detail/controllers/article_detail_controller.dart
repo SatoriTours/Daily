@@ -68,4 +68,10 @@ class ArticleDetailController extends MyBaseController {
       logger.i("分享网页截图成功");
     }
   }
+
+  /// 删除文章图片
+  Future<void> deleteImage(String imagePath) async {
+    article.images.removeWhere((image) => image.path == imagePath);
+    await ArticleService.i.updateArticle(article.id, article);
+  }
 }

@@ -293,6 +293,28 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
               icon: Icon(Icons.close, color: Colors.white),
               onPressed: () => Get.close(),
             ),
+            IconButton(
+              icon: Icon(Icons.delete, color: Colors.white),
+              onPressed: () {
+                Get.defaultDialog(
+                  title: "确认删除",
+                  middleText: "确定要删除这张图片吗?",
+                  confirm: TextButton(
+                    onPressed: () async {
+                      await controller.deleteImage(imagePaths[initialIndex]);
+                      Get.back();
+                      Get.back();
+                      Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+                    },
+                    child: Text("确认"),
+                  ),
+                  cancel: TextButton(
+                    onPressed: () => Get.back(),
+                    child: Text("取消"),
+                  ),
+                );
+              },
+            ),
           ],
         ),
         backgroundColor: Colors.black,
