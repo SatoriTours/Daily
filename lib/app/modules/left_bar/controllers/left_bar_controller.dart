@@ -9,4 +9,6 @@ class LeftBarController extends MyBaseController {
   ArticlesController get articlesController => Get.find<ArticlesController>();
 
   List<Tag> get tags => TagsService.i.tags;
+
+  final isTagsExpanded = true.obs;
 }

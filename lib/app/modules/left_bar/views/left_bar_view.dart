@@ -60,31 +60,48 @@ class LeftBarView extends GetView<LeftBarController> {
   }
 
   Widget _buildTagsList() {
-    return ListView.builder(
-      itemCount: controller.tags.length,
-      itemBuilder: (context, index) {
-        final tag = controller.tags[index];
-        return InkWell(
-          onTap: () {
-            controller.articlesController
-                .showArticleByTagID(tag.id, tag.name ?? '');
-            Get.back();
-          },
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(40, 10, 20, 0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Icon(Icons.local_offer, size: 18),
-                SizedBox(width: 10),
-                Text(tag.name ?? '', style: MyFontStyle.tagsListContent),
-                // Spacer(),
-                // Text('10', style: MyFontStyle.tagsListContent),
-              ],
-            ),
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(10, 0, 10, 0),
+          child: ListTile(
+            onTap: () => controller.isTagsExpanded.toggle(),
+            leading: Icon(Icons.local_offer_outlined),
+            title: Text('分类', style: TextStyle(fontSize: 16)),
+            trailing: Obx(() => AnimatedRotation(
+                  turns: controller.isTagsExpanded.value ? 0.5 : 0,
+                  duration: Duration(milliseconds: 200),
+                  child: Icon(Icons.keyboard_arrow_down),
+                )),
+            contentPadding: EdgeInsets.symmetric(horizontal: 20),
           ),
-        );
-      },
+        ),
+        Obx(() => AnimatedCrossFade(
+              firstChild: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
+                child: Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: controller.tags.map((tag) {
+                    return InkWell(
+                      onTap: () {
+                        controller.articlesController.showArticleByTagID(tag.id, tag.name ?? '');
+                        Get.back();
+                      },
+                      child: Chip(
+                        avatar: Icon(Icons.local_offer, size: 16),
+                        label: Text(tag.name ?? '', style: MyFontStyle.tagsListContent),
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              secondChild: SizedBox.shrink(),
+              crossFadeState: controller.isTagsExpanded.value ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+              duration: Duration(milliseconds: 200),
+            )),
+      ],
     );
   }
 }
