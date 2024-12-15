@@ -39,7 +39,7 @@ class DreamWebView extends StatelessWidget {
       onProgressChanged: _handleProgressChanged,
       onConsoleMessage: _handleConsoleMessage,
       shouldOverrideUrlLoading: _handleUrlLoading,
-      // shouldInterceptRequest: _handleShouldInterceptRequest,
+      shouldInterceptRequest: _handleShouldInterceptRequest,
     );
   }
 
@@ -84,11 +84,11 @@ class DreamWebView extends StatelessWidget {
     final domain = getTopLevelDomain(url?.host);
 
     final StringBuffer css = StringBuffer();
-    for (final rule in ADBlockService.i.elementHidingRules) {
+    for (final rule in ADBlockService.i.cssRules) {
       css.writeln('$rule { display: none !important; }');
     }
 
-    final rules = ADBlockService.i.elementHidingRulesBySite[domain] ?? [];
+    final rules = ADBlockService.i.domainCssRules[domain] ?? [];
     for (final rule in rules) {
       css.writeln('$rule { display: none !important; }');
     }
@@ -126,56 +126,34 @@ class DreamWebView extends StatelessWidget {
         : NavigationActionPolicy.CANCEL;
   }
 
-  Future<void> _handleAdBlocking(InAppWebViewController controller, BuildContext context) async {
-    final url = await controller.getUrl();
-    final domain = getTopLevelDomain(url?.host);
-
-    logger.i("处理 $domain 的广告规则");
-
-    if (domain.isEmpty || !ADBlockService.i.elementHidingRulesBySite.containsKey(domain)) {
-      return;
-    }
-
-    int count = 0;
-    Timer.periodic(const Duration(seconds: 2), (timer) async {
-      if (!context.mounted) {
-        timer.cancel();
-        return;
-      }
-
-      await _removeAdNodes(controller, domain);
-
-      count++;
-      if (count >= 20) {
-        timer.cancel();
-        logger.d('广告过滤定时器已停止');
-      }
-    });
-  }
-
-  Future<void> _removeAdNodes(InAppWebViewController controller, String domain) async {
-    final rules = ADBlockService.i.elementHidingRulesBySite[domain] ?? [];
-    for (final rule in rules) {
-      try {
-        await controller.evaluateJavascript(source: "document.querySelectorAll('$rule').forEach(e => e.remove())");
-      } catch (e) {
-        logger.d("执行广告规则出错 $e");
-      }
-    }
-  }
-
   Future<WebResourceResponse?> _handleShouldInterceptRequest(
       InAppWebViewController controller, WebResourceRequest request) async {
-    final url = request.url.toString();
+    final url = request.url.toString().replaceFirst(RegExp(r'^https?://'), '');
     // final domain = getTopLevelDomain(url.host);
 
     // logger.d("准备拦截广告请求: $url");
-    final isAd = ADBlockService.i.urlRules.any((rule) => url.contains(rule));
+    var rule = ADBlockService.i.exactNetworkRules.firstWhere((rule) => url == rule, orElse: () => '');
 
-    if (isAd) {
-      logger.d("开始拦截广告请求: $url");
+    if (rule.isNotEmpty) {
+      logger.d("[广告拦截-完全匹配] => 开始拦截广告请求: $url => $rule");
       return WebResourceResponse(data: Uint8List(0));
     }
+
+    rule = ADBlockService.i.containsNetworkRules.firstWhere((rule) => url.contains(rule), orElse: () => '');
+
+    if (rule.isNotEmpty) {
+      logger.d("[广告拦截-部分匹配] => 开始拦截广告请求: $url => $rule");
+      return WebResourceResponse(data: Uint8List(0));
+    }
+
+    RegExp? regexRule =
+        ADBlockService.i.regexNetworkRules.firstWhere((rule) => rule.hasMatch(url), orElse: () => RegExp(''));
+
+    if (regexRule.pattern.isNotEmpty) {
+      logger.d("[广告拦截-正则匹配] => 开始拦截广告请求: $url => ${regexRule.pattern}");
+      return WebResourceResponse(data: Uint8List(0));
+    }
+
     return null;
   }
 
