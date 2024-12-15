@@ -37,7 +37,7 @@ dependencies:
   share_plus: ^10.1.0
 
   # 浏览器
-  flutter_inappwebview: ^6.1.4
+  flutter_inappwebview: ^6.2.0-beta.2
 
   # AI 调用库
   openai_dart: ^0.4.4

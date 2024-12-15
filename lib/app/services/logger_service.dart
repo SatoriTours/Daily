@@ -15,7 +15,7 @@ class LoggerService {
 
   Future<void> init() async {
     log("[Satori] [初始化服务] LoggerService");
-    PlatformInAppWebViewController.debugLoggingSettings.enabled = false;
+    PlatformInAppWebViewController.debugLoggingSettings.enabled = !isProduction;
     if (isProduction) {
       Logger.level = Level.info;
     }

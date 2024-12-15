@@ -28,7 +28,7 @@ part 'part.screenshot.dart';
 class ShareDialogController extends MyBaseController {
   static const platform = MethodChannel('android/back/desktop');
 
-  String? shareURL = isProduction ? null : 'https://m.weibo.cn/status/5107163670777620?jumpfrom=weibocom&s=09';
+  String? shareURL = isProduction ? null : 'https://x.com/435hz/status/1868127842279842221';
   bool isUpdate = false;
   int articleID = 0;
 

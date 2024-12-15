@@ -62,6 +62,7 @@ class DreamWebView extends StatelessWidget {
       await Future.wait([
         _injectResources(controller),
         _injectCssRules(controller),
+        _injectTwitterCssRules(controller),
       ]);
     } catch (e) {
       logger.e("加载资源时出错: $e");
@@ -75,6 +76,23 @@ class DreamWebView extends StatelessWidget {
     await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/translate.js");
     await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
     await controller.injectCSSFileFromAsset(assetFilePath: "assets/css/common.css");
+  }
+
+  // 注入 Twitter 样式规则, 解决 r-qlhcfr 样式设置 font-size=0.001px导致的显示问题, chrome等浏览器会隐藏显示这部分内容，但是 InAppWebview 不会隐藏从而导致url 显示一个很小的http://出来
+  Future<void> _injectTwitterCssRules(InAppWebViewController controller) async {
+    final url = await controller.getUrl();
+    final host = url?.host ?? '';
+
+    if (host.contains('twitter.com') || host.contains('x.com')) {
+      logger.i("注入 Twitter 样式规则");
+      const cssRule = '''
+        a span.r-qlhcfr {
+          display: none !important;
+        }
+      ''';
+      // 也可以使用 font-size: inherit !important; 样式，把字体大小设置为正常，但是这样会导致 url 显示 http:// 出来, 和默认chrome浏览器显示效果不一致
+      await controller.injectCSSCode(source: cssRule);
+    }
   }
 
   // DOM 元素隐藏规则
