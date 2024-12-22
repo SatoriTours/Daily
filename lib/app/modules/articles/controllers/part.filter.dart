@@ -34,7 +34,8 @@ extension PartFilter on ArticlesController {
     return Article_.title.contains(_searchText) |
         Article_.aiTitle.contains(_searchText) |
         Article_.content.contains(_searchText) |
-        Article_.aiContent.contains(_searchText);
+        Article_.aiContent.contains(_searchText) |
+        Article_.comment.contains(_searchText);
   }
 
   /// 应用标签过滤

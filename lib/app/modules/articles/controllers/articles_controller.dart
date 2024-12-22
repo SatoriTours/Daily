@@ -7,7 +7,6 @@ import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
-import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/global.dart';
