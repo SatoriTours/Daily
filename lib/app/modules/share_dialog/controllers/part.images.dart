@@ -1,26 +1,24 @@
 part of 'share_dialog_controller.dart';
 
 extension PartImages on ShareDialogController {
-  Future<List<ImageDownloadResult>> _downloadImages(
-      List<String> imageUrls) async {
+  Future<List<ImageDownloadResult>> _downloadImages(List<String> imageUrls) async {
     final imageResults = await Future.wait(imageUrls.map((imageUrl) async {
       return ImageDownloadResult(imageUrl, await _imageDownTask(imageUrl));
     }));
     return imageResults.where((result) => result.imagePath.isNotEmpty).toList();
   }
 
-  Future<void> _saveImages(
-      Article article, List<ImageDownloadResult> results) async {
+  Future<void> _saveImages(Article article, List<ImageDownloadResult> results) async {
     logger.i("[ShareDialogController] 开始保存图片: ${results.length}");
     article.images.removeWhere((image) => true);
+    articleBox.put(article);
     for (var result in results) {
       await _saveDownloadImage(article.id, result);
     }
     logger.i("网页相关图片保存完成 ${article.id}");
   }
 
-  Future<void> _saveDownloadImage(
-      int articleID, ImageDownloadResult result) async {
+  Future<void> _saveDownloadImage(int articleID, ImageDownloadResult result) async {
     final article = await ArticleService.i.getArticleById(articleID);
     try {
       final image = Image(url: result.imageUrl, path: result.imagePath);

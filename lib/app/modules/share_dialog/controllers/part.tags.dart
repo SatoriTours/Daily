@@ -6,7 +6,7 @@ extension PartTags on ShareDialogController {
 
     // 清除文章现有标签
     article.tags.removeWhere((tag) => true);
-
+    articleBox.put(article);
     // 获取或创建标签
     for (var tagTitle in tags) {
       // 查找已存在的标签

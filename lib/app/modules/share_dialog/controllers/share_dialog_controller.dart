@@ -112,7 +112,7 @@ class ShareDialogController extends MyBaseController {
 
   void _showSnackbar(String message) {
     Get.close();
-    Get.snackbar('提示', message, snackPosition: SnackPosition.top, backgroundColor: material.Colors.green);
+    successNotice(message);
   }
 
   void saveCompleted() {
