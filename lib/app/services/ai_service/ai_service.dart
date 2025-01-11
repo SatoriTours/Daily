@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:openai_dart/openai_dart.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
@@ -15,15 +13,15 @@ class AiService {
   static AiService get i => _instance;
 
   OpenAIClient? _client;
+  var _model = ChatCompletionModel.modelId('gpt-4o-mini');
 
   Future<void> init() async {
     logger.i("[初始化服务] AiService");
     reloadClient();
   }
 
-  Future<CreateChatCompletionResponse?> _sendRequest(
-      String role, String content,
-      {ResponseFormat? responseFormat}) async {
+  Future<CreateChatCompletionResponse?> _sendRequest(String role, String content,
+      {ResponseFormat responseFormat = const ResponseFormat.text()}) async {
     if (content.isEmpty || content.length <= 5) {
       return null;
     }
@@ -36,7 +34,8 @@ class AiService {
 
       final res = await _client!.createChatCompletion(
         request: CreateChatCompletionRequest(
-          model: ChatCompletionModel.modelId('gpt-4o-mini'),
+          // model: ChatCompletionModel.modelId('gpt-4o-mini'),
+          model: _model,
           messages: [
             ChatCompletionMessage.system(
               content: role.trim(),
@@ -61,6 +60,13 @@ class AiService {
   }
 
   OpenAIClient _createClient() {
+    var baseUrl = SettingService.i.getSetting(SettingService.openAIAddressKey);
+    if (baseUrl.contains('deepseek')) {
+      _model = ChatCompletionModel.modelId('deepseek-chat');
+    } else {
+      _model = ChatCompletionModel.modelId('gpt-4o-mini');
+    }
+
     return OpenAIClient(
       apiKey: SettingService.i.getSetting(SettingService.openAITokenKey),
       baseUrl: SettingService.i.getSetting(SettingService.openAIAddressKey),
