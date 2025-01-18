@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:openai_dart/openai_dart.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';

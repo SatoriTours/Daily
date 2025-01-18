@@ -55,7 +55,7 @@ class ShareDialogController extends MyBaseController {
       }),
       _aiContentTask(textContent).catchError((e) {
         logger.e("[AI内容] 失败: $e");
-        return '';
+        return ('', const <String>[]);
       }),
       _downloadImages(imageUrls).catchError((e) {
         logger.e("[下载图片] 失败: $e");
@@ -65,25 +65,24 @@ class ShareDialogController extends MyBaseController {
         logger.e("[截图] 失败: $e");
         return <String>[];
       }),
-      _tagsTask(textContent).catchError((e) {
-        logger.e("[AI标签] 失败: $e");
-        return <String>[];
-      }),
     ]);
+
+    final String summary = results[1].$1;
+    final List<String> tags = results[1].$2;
 
     var article = _createArticle(
       url: url,
       title: title,
       aiTitle: results[0].toString(),
       textContent: textContent,
-      aiContent: results[1],
+      aiContent: summary,
       htmlContent: htmlContent,
       publishedTime: publishedTime,
     );
 
     final newArticle = await _saveOrUpdateArticle(article);
     await Future.wait([
-      _saveTags(newArticle, results[4]).catchError((e) => logger.e("[保存标签] 失败: $e")),
+      _saveTags(newArticle, tags).catchError((e) => logger.e("[保存标签] 失败: $e")),
       _saveImages(newArticle, results[2]).catchError((e) => logger.e("[保存图片] 失败: $e")),
       _saveScreenshots(newArticle, List.from(results[3])).catchError((e) => logger.e("[保存截图] 失败: $e")),
     ]);
@@ -98,12 +97,8 @@ class ShareDialogController extends MyBaseController {
     return aiTitle.length >= 50 ? await AiService.i.summarizeOneLine(aiTitle) : aiTitle;
   }
 
-  Future<String> _aiContentTask(String textContent) async {
+  Future<(String, List<String>)> _aiContentTask(String textContent) async {
     return await AiService.i.summarize(textContent.trim());
-  }
-
-  Future<List<String>> _tagsTask(String textContent) async {
-    return await AiService.i.getTags(textContent.trim());
   }
 
   Future<List<String>> _screenshotTask() async {

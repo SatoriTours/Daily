@@ -4,10 +4,11 @@ description: "Daily Satori Tours"
 publish_to: 'none'
 
 
-version: 1.8.0
+version: 1.8.1
 
 environment:
-  sdk: ^3.6.0
+  sdk: ^3.6.1
+  flutter: ^3.27.2
 
 dependencies:
   flutter:

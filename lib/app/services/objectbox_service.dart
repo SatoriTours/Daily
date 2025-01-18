@@ -43,6 +43,7 @@ class ObjectboxService {
 
     // 开发环境启用 Admin
     if (!isProduction && Admin.isAvailable()) {
+      logger.i("[服务ObjectboxService] 启用 Admin, 地址: http://0.0.0.0:9000");
       _admin = Admin(store, bindUri: 'http://0.0.0.0:9000');
     }
   }

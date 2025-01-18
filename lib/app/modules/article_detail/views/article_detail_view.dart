@@ -175,9 +175,12 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   Widget _buildContent() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-      child: Text(
-        controller.article.aiContent ?? '',
-        style: MyFontStyle.articleBodyStyle,
+      child: SizedBox(
+        width: double.infinity,
+        child: Text(
+          controller.article.aiContent ?? '',
+          style: MyFontStyle.articleBodyStyle,
+        ),
       ),
     );
   }
