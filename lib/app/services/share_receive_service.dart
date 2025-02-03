@@ -44,7 +44,7 @@ class ShareReceiveService {
     if (url.isEmpty) return;
 
     // 确保数据库未处于迁移状态
-    if (!ObjectboxService.i.shouldMigrateFromSQLite()) {
+    if (!(await ObjectboxService.i.shouldMigrateFromSQLite())) {
       await Get.toNamed(
         Routes.SHARE_DIALOG,
         arguments: {

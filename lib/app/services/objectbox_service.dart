@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' as material;
+import 'dart:io';
 
 import 'package:get/get.dart';
 import 'package:path/path.dart' as path;
@@ -64,7 +65,7 @@ class ObjectboxService {
 
   /// 检查并执行 SQLite 数据迁移
   Future<void> checkAndMigrateFromSQLite() async {
-    if (shouldMigrateFromSQLite()) {
+    if (await shouldMigrateFromSQLite()) {
       showFullScreenLoading(tips: '数据迁移中', barrierColor: material.Colors.black);
       await migrateFromSQLite();
       Get.close();
@@ -77,9 +78,9 @@ class ObjectboxService {
   }
 
   /// 检查是否需要迁移数据
-  bool shouldMigrateFromSQLite() {
+  Future<bool> shouldMigrateFromSQLite() async {
     logger.i("[检查迁移] 检查是否需要从SQLite迁移数据");
-    return _store.box<Article>().count() == 0;
+    return _store.box<Article>().count() == 0 && (await isSQLiteDatabaseExists());
   }
 
   /// 从 SQLite 迁移数据到 ObjectBox
@@ -261,5 +262,18 @@ class ObjectboxService {
         settingBox.put(newSetting);
       }
     }
+  }
+
+  /// 检查SQLite数据库文件是否存在
+  Future<bool> isSQLiteDatabaseExists() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final dbPath = path.join(docsDir.path, 'daily_satori.db.sqlite');
+    return File(dbPath).exists();
+  }
+
+  /// 获取SQLite数据库文件路径
+  Future<String> getSQLiteDatabasePath() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    return path.join(docsDir.path, 'daily_satori.db.sqlite');
   }
 }
