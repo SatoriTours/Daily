@@ -14,15 +14,25 @@ class SettingService {
 
   static String openAITokenKey = 'openai_token';
   static String openAIAddressKey = 'openai_address';
+  static String aiModelKey = 'ai_model';
   static String backupDirKey = 'backup_dir';
+  static String pluginKey = 'plugin_url';
+
+  // 配置的初始值
+  static Map<String, String> defaultSettings = {
+    openAITokenKey: '',
+    openAIAddressKey: 'https://api.openai.com/v1',
+    aiModelKey: 'deepseek-v3',
+    backupDirKey: '',
+    pluginKey: 'https://raw.githubusercontent.com/SatoriTours/plugin/refs/heads/main',
+  };
 
   Future<void> init() async {
     logger.i("[初始化服务] SettingsService");
-    await reloadSettings();
+    _initDefaultSettings();
     await Settings.init(cacheProvider: SettingProvider());
   }
 
-  late final Map<String, String> _settings = <String, String>{};
   final settingBox = ObjectboxService.i.box<Setting>();
 
   bool aiEnabled() {
@@ -33,8 +43,21 @@ class SettingService {
     return isEnabled;
   }
 
+  // 初始化默认配置到数据库
+  Future<void> _initDefaultSettings() async {
+    for (var entry in defaultSettings.entries) {
+      final key = entry.key;
+      final value = entry.value;
+      final existing = settingBox.query(Setting_.key.equals(key)).build().findFirst();
+      if (existing == null && value.isNotEmpty) {
+        settingBox.put(Setting(key: key, value: value));
+      }
+    }
+  }
+
   bool containsKey(String key) {
-    return _settings.containsKey(key);
+    final existing = settingBox.query(Setting_.key.equals(key)).build().findFirst();
+    return existing != null;
   }
 
   Future<void> saveSetting(String key, String value) async {
@@ -42,8 +65,7 @@ class SettingService {
       return;
     }
     logger.i("[更新Settings] key => $key, value => $value");
-    final existing =
-        settingBox.query(Setting_.key.equals(key)).build().findFirst();
+    final existing = settingBox.query(Setting_.key.equals(key)).build().findFirst();
     if (existing != null) {
       // 如果存在，更新值
       existing.value = value;
@@ -52,8 +74,6 @@ class SettingService {
       // 如果不存在，创建新的设置
       settingBox.put(Setting(key: key, value: value));
     }
-
-    await reloadSettings();
   }
 
   Future<void> saveSettings(Map<String, String> settings) async {
@@ -67,9 +87,7 @@ class SettingService {
       query.close();
 
       // 2. 将现有设置转换为 Map，方便查找
-      final existingMap = {
-        for (var setting in existingSettings) setting.key: setting
-      };
+      final existingMap = {for (var setting in existingSettings) setting.key: setting};
 
       // 3. 准备要更新的设置列表
       final settingsToUpdate = <Setting>[];
@@ -93,39 +111,26 @@ class SettingService {
     } catch (e) {
       logger.e("[批量更新Settings失败] $e");
     }
-
-    await reloadSettings();
-  }
-
-  Future<void> reloadSettings() async {
-    final settings = settingBox.getAll();
-    for (var setting in settings) {
-      if (setting.key != null) {
-        _settings[setting.key!] = setting.value ?? '';
-      }
-    }
-    AiService.i.reloadClient();
   }
 
   String getSetting(String key, {defaultValue = ''}) {
-    return _settings[key] ?? defaultValue;
+    final setting = settingBox.query(Setting_.key.equals(key)).build().findFirst();
+    return setting?.value ?? defaultValue;
   }
 
   Set getKeys() {
-    return _settings.keys.toSet();
+    final settings = settingBox.getAll();
+    return settings.where((s) => s.key != null).map((s) => s.key!).toSet();
   }
 
   Future<void> remove(String key) async {
-    final existing =
-        settingBox.query(Setting_.key.equals(key)).build().findFirst();
+    final existing = settingBox.query(Setting_.key.equals(key)).build().findFirst();
     if (existing != null) {
       settingBox.remove(existing.id);
     }
-    await reloadSettings();
   }
 
   Future<void> removeAll() async {
     settingBox.removeAll();
-    await reloadSettings();
   }
 }

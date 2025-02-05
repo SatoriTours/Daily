@@ -5,8 +5,14 @@ extension PartSummarize on AiService {
     if (!SettingService.i.aiEnabled()) return text;
     // logger.i("[AI总结]: ${getSubstring(text)}");
     final res = await _sendRequest(
-      '你是一个文章读者, 总结一个能表达文章核心内容并且能吸引别人阅读的标题,保持原文的意思，注意:不使用"文章提到"或类似的表达方式，一定不要添加个人观点, 标题不要加入引号等特殊字符',
-      ' 一句话总结一下内容：```$text``` ',
+      _renderTemplate(
+        PluginService.i.getSummarizeOneLineRole(),
+        {'text': text},
+      ),
+      _renderTemplate(
+        PluginService.i.getSummarizeOneLinePrompt(),
+        {'text': text},
+      ),
     );
     return res?.choices.first.message.content ?? '';
   }
@@ -31,26 +37,21 @@ extension PartSummarize on AiService {
 
     String summary = '';
     if (text.length <= 300) {
-      summary = json.summary;
+      summary = json.summary.trim();
     } else {
-      summary = '''
-概述:
-
-${json.summary}
-
-关键内容:
-
-${formatNumberedList(json.keyContents)}
-
-关键案例:
-
-${formatNumberedList(json.cases)}
-    ''';
+      summary = _renderTemplate(
+        PluginService.i.getLongSummaryResult(),
+        {
+          'summary': json.summary,
+          'keyContents': formatNumberedList(json.keyContents),
+          'cases': formatNumberedList(json.cases),
+        },
+      ).trim();
     }
 
     List<String> tags = json.tags;
 
-    logger.i("[AI总结] AI分析后是: summary => ${getSubstring(summary)}");
+    logger.i("[AI总结] AI分析后是: summary => ${getSubstring(summary)}, tags => $tags");
 
     return (summary, tags);
   }
@@ -63,45 +64,17 @@ ${formatNumberedList(json.cases)}
     }).join('\n');
   }
 
-  static final String _shortSummarizeSystemPrompt = '''
-用户将给出一段文章, 你将根据文章的内容, 按照如下要求并使用json格式输出。
+  static get _shortSummarizeSystemPrompt => _renderTemplate(
+        PluginService.i.getShortSummaryRole(),
+        {'commonTags': _commonTags.join(',')},
+      );
 
-总结要求：
-1. 输出内容为纯文本,不包含任何markdown或其他排版格式.
-2. 不要以"文章主要介绍"或类似的表达方式，直接输出内容就可以.
-3. summary不超100字以内.
-6. tags 从 ${_commonTags.join(',')} 中选择最合适的标签, 最多3个。
-7. 所有的内容使用中文输出.
+  static get _longSummarizeSystemPrompt => _renderTemplate(
+        PluginService.i.getLongSummaryRole(),
+        {'commonTags': _commonTags.join(',')},
+      );
 
-EXAMPLE JSON OUTPUT:
-{
-    "summary": "文章的核心内容",
-    "tags": ["标签1"]
-}
-''';
-
-  static final String _longSummarizeSystemPrompt = '''
-用户将给出一段文章, 你将根据文章的内容, 按照如下要求并使用json格式输出。
-
-总结要求：
-1. 输出内容为纯文本,不包含任何markdown或其他排版格式.
-2. 不要以"文章主要介绍"或类似的表达方式，直接输出内容就可以.
-3. summary不超100字以内.
-4. key_content 是文章中最关键要表达的内容, 总结的详细一点,最多5个.
-5. case 是文章最关键的案例或数据, 总结的详细一点,最多3个.
-6. tags 从 ${_commonTags.join(',')} 中选择最合适的标签, 最多3个。
-7. 所有的内容使用中文输出.
-
-EXAMPLE JSON OUTPUT:
-{
-    "summary": "核心内容",
-    "key_contents": ["关键内容1"],
-    "cases": ["关键案例1"]
-    "tags": ["标签1"]
-}
-''';
-
-  static final List<String> _commonTags = ['软件', '硬件', '生活', '效率', '新闻', '工具', '成长', '设计', '健康', 'AI', '互联网', '云计算'];
+  static get _commonTags => PluginService.i.getCommonTags().split(',');
 }
 
 class AiSummaryResult {
@@ -124,5 +97,14 @@ class AiSummaryResult {
       cases: List<String>.from(json['cases'] ?? []),
       tags: List<String>.from(json['tags']),
     );
+  }
+}
+
+String _renderTemplate(String template, Map<String, String> context) {
+  try {
+    return Template(syntax: [MustacheExpressionSyntax()], value: template).process(context: context);
+  } catch (e) {
+    logger.i("[模板渲染] 渲染失败: $e, template => ||$template||, context => ||$context||");
+    return template;
   }
 }

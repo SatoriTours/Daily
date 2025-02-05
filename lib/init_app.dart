@@ -10,6 +10,7 @@ import 'package:daily_satori/app/services/freedisk_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:daily_satori/app/services/sentry_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/share_receive_service.dart';
@@ -42,6 +43,7 @@ Future<void> _initBasicServices() async {
   await ObjectboxService.i.init(); // 初始化数据库
   await SettingService.i.init(); // 从数据库里面加载配置
   await FileService.i.init(); // 初始化文件目录服务
+  await HttpService.i.init(); // 初始化HTTP服务
 }
 
 Future<void> _initParallelServices() async {
@@ -52,7 +54,6 @@ Future<void> _initParallelServices() async {
     FontService.i.init(), // 初始化字体
     AiService.i.init(), // 初始化AI服务
     ArticleService.i.init(), // 初始化文章服务
-    HttpService.i.init(), // 初始化HTTP服务
     ADBlockService.i.init(), // 初始化广告拦截服务
     FreeDiskService.i.init(), // 初始化磁盘服务
   ]);
@@ -62,4 +63,5 @@ Future<void> _initParallelServices() async {
 void _initNonBlockingServices() {
   AppUpgradeService.i.init(); // 检查是否有新版本可以安装
   BackupService.i.init(); // 备份服务
+  PluginService.i.init(); // 初始化插件服务, 用来更新插件
 }

@@ -71,4 +71,17 @@ class HttpService {
       return false;
     }
   }
+
+  /// 获取文本内容
+  /// [url] 请求URL
+  /// 返回文本内容,失败返回空字符串
+  Future<String> getTextContent(String url) async {
+    try {
+      final response = await dio.get(url);
+      return response.data.toString();
+    } catch (e) {
+      logger.i("获取文本内容失败: $url => $e");
+      return '';
+    }
+  }
 }

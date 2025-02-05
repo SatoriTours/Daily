@@ -1,10 +1,12 @@
 import 'dart:convert';
 
+import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:openai_dart/openai_dart.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/global.dart';
+import 'package:template_expressions/template_expressions.dart';
 
 part 'part.translate.dart';
 part 'part.summarize.dart';
@@ -14,12 +16,10 @@ class AiService {
   static final AiService _instance = AiService._privateConstructor();
   static AiService get i => _instance;
 
-  OpenAIClient? _client;
   var _model = ChatCompletionModel.modelId('gpt-4o-mini');
 
   Future<void> init() async {
     logger.i("[初始化服务] AiService");
-    reloadClient();
   }
 
   Future<CreateChatCompletionResponse?> _sendRequest(String role, String content,
@@ -27,16 +27,12 @@ class AiService {
     if (content.isEmpty || content.length <= 5) {
       return null;
     }
-    if (_client == null) {
-      logger.i("[AiService] AI 未启用");
-      return null;
-    }
+    final client = _createClient();
     try {
       content = getSubstring(content, length: 5000);
 
-      final res = await _client!.createChatCompletion(
+      final res = await client.createChatCompletion(
         request: CreateChatCompletionRequest(
-          // model: ChatCompletionModel.modelId('gpt-4o-mini'),
           model: _model,
           messages: [
             ChatCompletionMessage.system(
@@ -52,22 +48,14 @@ class AiService {
       );
       return res;
     } catch (e) {
-      logger.e("[AI] 请求失败: ${e.toString()}");
+      logger.e("[AI] 请求失败: ${client.baseUrl} ${e.toString()}");
     }
     return null;
   }
 
-  void reloadClient() {
-    if (SettingService.i.aiEnabled()) _client = _createClient();
-  }
-
   OpenAIClient _createClient() {
-    var baseUrl = SettingService.i.getSetting(SettingService.openAIAddressKey);
-    if (baseUrl.contains('deepseek')) {
-      _model = ChatCompletionModel.modelId('deepseek-chat');
-    } else {
-      _model = ChatCompletionModel.modelId('gpt-4o-mini');
-    }
+    var modelName = SettingService.i.getSetting(SettingService.aiModelKey);
+    _model = ChatCompletionModel.modelId(modelName);
 
     return OpenAIClient(
       apiKey: SettingService.i.getSetting(SettingService.openAITokenKey),

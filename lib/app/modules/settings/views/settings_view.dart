@@ -31,6 +31,7 @@ class SettingsView extends GetView<SettingsController> {
           child: Column(
             children: [
               _buildOpenAIGroup(),
+              _buildPluginGroup(),
               _buildBackupDirSelect(),
               _buildFreeSpaceAction(),
               _buildUpgradeAction(),
@@ -38,6 +39,20 @@ class SettingsView extends GetView<SettingsController> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPluginGroup() {
+    return SettingsGroup(
+      title: '插件地址',
+      titleTextStyle: MyFontStyle.settingGroupTitle,
+      children: [
+        TextInputSettingsTile(
+          settingKey: SettingService.pluginKey,
+          title: '插件地址',
+          helperText: '例如 https://github.com/SatoriTours/plugin/blob/main',
+        ),
+      ],
     );
   }
 
@@ -132,13 +147,18 @@ class SettingsView extends GetView<SettingsController> {
       children: [
         TextInputSettingsTile(
           settingKey: SettingService.openAIAddressKey,
-          title: 'OpenAI 地址',
+          title: 'OpenAI or DeepSeek 地址',
           helperText: '例如: https://api.openai.com/v1/',
         ),
         TextInputSettingsTile(
           settingKey: SettingService.openAITokenKey,
-          title: 'OpenAI token',
-          helperText: '输入OpenAI token',
+          title: 'OpenAI or DeepSeek token',
+          helperText: '输入OpenAI or DeepSeek token',
+        ),
+        TextInputSettingsTile(
+          settingKey: SettingService.aiModelKey,
+          title: '模型名',
+          helperText: '例如 deepseek-v3 或者 gpt-4o-mini',
         ),
       ],
     );
