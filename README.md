@@ -20,3 +20,7 @@ app的愿景是能成为帮助个人学习和修炼的助手, 目前仅支持文
 
 1. 可以在 [这里下载最新版本](https://github.com/SatoriTours/Daily/releases/latest).
 2. APP里面也会自动检测和更新, 或者到设置里面手动点击更新.
+
+## 扩展功能
+
+1. 使用服务器的地址来托管配置, 具体支持的配置请参考 [这里](https://github.com/SatoriTours/plugin).

@@ -50,7 +50,7 @@ class SettingsView extends GetView<SettingsController> {
         TextInputSettingsTile(
           settingKey: SettingService.pluginKey,
           title: '插件地址',
-          helperText: '例如 https://github.com/SatoriTours/plugin/blob/main',
+          helperText: '例如 https://raw.githubusercontent.com/SatoriTours/plugin/refs/heads/main',
         ),
       ],
     );
