@@ -1,7 +1,6 @@
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 
 import 'package:daily_satori/app/objectbox/setting.dart';
-import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_provider.dart';
@@ -17,6 +16,7 @@ class SettingService {
   static String aiModelKey = 'ai_model';
   static String backupDirKey = 'backup_dir';
   static String pluginKey = 'plugin_url';
+  static String webServerPasswordKey = 'web_server_password';
 
   // 配置的初始值
   static Map<String, String> defaultSettings = {
@@ -25,6 +25,7 @@ class SettingService {
     aiModelKey: 'deepseek-v3',
     backupDirKey: '',
     pluginKey: 'https://raw.githubusercontent.com/SatoriTours/plugin/refs/heads/main',
+    webServerPasswordKey: 'gja0dNVk',
   };
 
   Future<void> init() async {

@@ -16,6 +16,7 @@ import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/share_receive_service.dart';
 import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:daily_satori/app/services/time_service.dart';
+import 'package:daily_satori/app/services/web_service/web_service.dart';
 
 // 应用加载好前执行
 Future<void> initApp() async {
@@ -64,4 +65,5 @@ void _initNonBlockingServices() {
   AppUpgradeService.i.init(); // 检查是否有新版本可以安装
   BackupService.i.init(); // 备份服务
   PluginService.i.init(); // 初始化插件服务, 用来更新插件
+  WebService.i.init(); // 初始化Web服务
 }

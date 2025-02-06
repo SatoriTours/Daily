@@ -4,86 +4,71 @@ import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:path/path.dart' as path;
 
 class PluginService {
+  // 私有构造函数，确保外部无法直接创建实例
   PluginService._();
 
   static final PluginService _instance = PluginService._();
   static PluginService get i => _instance;
 
+  // 初始化插件服务，日志记录并更新所有插件配置
   Future<void> init() async {
     logger.i("[初始化服务] PluginService");
-    updateAllPlugins();
+    await _updateAllPlugins();
   }
 
-  String getTranslateRole() {
-    return getPluginContentByKey('translate_role');
-  }
+  // 公有方法：获取各插件的内容
+  String getTranslateRole() => _getPluginContent('translate_role');
 
-  String getTranslatePrompt() {
-    return getPluginContentByKey('translate_prompt');
-  }
+  String getTranslatePrompt() => _getPluginContent('translate_prompt');
 
-  String getSummarizeOneLineRole() {
-    return getPluginContentByKey('summarize_oneline_role');
-  }
+  String getSummarizeOneLineRole() => _getPluginContent('summarize_oneline_role');
 
-  String getSummarizeOneLinePrompt() {
-    return getPluginContentByKey('summarize_oneline_prompt');
-  }
+  String getSummarizeOneLinePrompt() => _getPluginContent('summarize_oneline_prompt');
 
-  String getLongSummaryRole() {
-    return getPluginContentByKey('long_summary_role');
-  }
+  String getLongSummaryRole() => _getPluginContent('long_summary_role');
 
-  String getShortSummaryRole() {
-    return getPluginContentByKey('short_summary_role');
-  }
+  String getShortSummaryRole() => _getPluginContent('short_summary_role');
 
-  String getLongSummaryResult() {
-    return getPluginContentByKey('long_summary_result');
-  }
+  String getLongSummaryResult() => _getPluginContent('long_summary_result');
 
-  String getCommonTags() {
-    return getPluginContentByKey('common_tags');
-  }
+  String getCommonTags() => _getPluginContent('common_tags');
 
-  String getPluginContentByKey(String key) {
-    var content = SettingService.i.getSetting(_pluginKey(key));
-
-    // 如果没有则返回本地内容
+  // 内部方法：根据键名获取插件内容；若未设置则返回默认本地内容
+  String _getPluginContent(String key) {
+    String content = SettingService.i.getSetting(_pluginKey(key));
     if (content.isEmpty) {
       content = _localPlugins[key] ?? '';
     }
     return content;
   }
 
-  Future<void> updateAllPlugins() async {
+  // 内部方法：更新所有插件配置
+  Future<void> _updateAllPlugins() async {
+    final String baseUrl = SettingService.i.getSetting(SettingService.pluginKey);
     for (final key in _localPlugins.keys) {
-      final url = path.join(SettingService.i.getSetting(SettingService.pluginKey), key);
-      await updatePlugin(key, url);
+      final String url = path.join(baseUrl, key);
+      await _updatePlugin(key, url);
     }
   }
 
-  Future<void> updatePlugin(String key, String url) async {
-    final response = await HttpService.i.getTextContent(url);
-    final content = response.trim();
+  // 内部方法：更新单个插件配置
+  Future<void> _updatePlugin(String key, String url) async {
+    final String response = await HttpService.i.getTextContent(url);
+    final String content = response.trim();
     if (content.isNotEmpty) {
-      // 保存到 ObjectBox
       await SettingService.i.saveSetting(_pluginKey(key), content);
-
       logger.i('插件 $key 更新成功');
     }
   }
 
-  String _pluginKey(String key) {
-    return 'plugin_$key';
-  }
+  // 内部辅助方法：构造在 SettingService 中存储插件内容的键名
+  String _pluginKey(String key) => 'plugin_$key';
 
+  // 默认的本地插件配置
   final Map<String, String> _localPlugins = {
     'translate_role': '你是一个翻译助手, 能够将任何文本翻译成中文',
     'translate_prompt': '''
-请将以下文本翻译成中文：
-```
-{{text}}
+请将以下文本翻译成中文：{{text}}
 ```
 注意事项：
 1. 保持原文的意思和语气。
@@ -110,7 +95,7 @@ EXAMPLE JSON OUTPUT:
 {
     "summary": "核心内容",
     "key_contents": ["关键内容1"],
-    "cases": ["关键案例1"]
+    "cases": ["关键案例1"],
     "tags": ["标签1"]
 }
 ''',
@@ -142,7 +127,7 @@ EXAMPLE JSON OUTPUT:
 关键案例:
 
 {{cases}}
-    ''',
+''',
     'common_tags': '软件,硬件,生活,效率,新闻,工具,成长,设计,健康,AI,互联网,云计算',
   };
 }

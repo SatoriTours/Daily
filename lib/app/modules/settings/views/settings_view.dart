@@ -32,6 +32,7 @@ class SettingsView extends GetView<SettingsController> {
             children: [
               _buildOpenAIGroup(),
               _buildPluginGroup(),
+              _buildWebServerGroup(),
               _buildBackupDirSelect(),
               _buildFreeSpaceAction(),
               _buildUpgradeAction(),
@@ -39,6 +40,27 @@ class SettingsView extends GetView<SettingsController> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildWebServerGroup() {
+    return SettingsGroup(
+      title: 'Web 服务器',
+      titleTextStyle: MyFontStyle.settingGroupTitle,
+      children: [
+        TextInputSettingsTile(
+          settingKey: SettingService.webServerPasswordKey,
+          title: 'Web 服务器密码',
+          helperText: '用于web访问的时候鉴权',
+        ),
+        Obx(
+          () => SimpleSettingsTile(
+            title: 'Web 服务器地址',
+            subtitle: controller.webServiceAddress.value,
+            enabled: false,
+          ),
+        ),
+      ],
     );
   }
 

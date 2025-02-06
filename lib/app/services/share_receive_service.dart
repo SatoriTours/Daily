@@ -51,6 +51,7 @@ class ShareReceiveService {
           'articleID': 0,
           'shareURL': url,
           'update': false,
+          'needBackToApp': true,
         },
       );
     }

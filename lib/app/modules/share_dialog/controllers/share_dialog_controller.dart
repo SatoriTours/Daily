@@ -30,6 +30,7 @@ class ShareDialogController extends MyBaseController {
 
   String? shareURL = isProduction ? null : 'https://x.com/435hz/status/1868127842279842221';
   bool isUpdate = false;
+  bool needBackToApp = false; // 是否需要返回分享过来的应用
   int articleID = 0;
 
   DreamWebViewController? webViewController;
@@ -110,9 +111,12 @@ class ShareDialogController extends MyBaseController {
     successNotice(message);
   }
 
-  void saveCompleted() {
+  Future<void> saveCompleted() async {
     Get.close();
-    if (isUpdate) {
+    if (!needBackToApp) {
+      if (!isUpdate) {
+        await Get.find<ArticlesController>().reloadArticles();
+      }
       Get.offAllNamed(Routes.ARTICLES);
     } else {
       _backToPreviousApp();
@@ -120,7 +124,7 @@ class ShareDialogController extends MyBaseController {
   }
 
   void clickChannelBtn() {
-    if (isUpdate) {
+    if (!needBackToApp) {
       Get.back();
     } else {
       _backToPreviousApp();

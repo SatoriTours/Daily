@@ -27,6 +27,11 @@ class ShareDialogView extends GetView<ShareDialogController> {
       logger.i("收到文章ID参数 ${controller.articleID}");
     }
 
+    if (Get.arguments?['needBackToApp'] != null) {
+      controller.needBackToApp = Get.arguments?['needBackToApp'];
+      logger.i("收到返回应用参数 ${controller.needBackToApp}");
+    }
+
     return Scaffold(
       appBar: _buildAppBar(),
       body: Container(
@@ -166,8 +171,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
             child: const Text("保存"),
             onPressed: () async {
               if (!isProduction) {
-                controller.webViewController
-                    ?.evaluateJavascript(source: "testNode()");
+                controller.webViewController?.evaluateJavascript(source: "testNode()");
               }
               controller.showProcessDialog();
               controller.parseWebContent();
