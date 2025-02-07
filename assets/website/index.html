@@ -12,42 +12,33 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: #f0f8ff; /* 淡蓝色背景 */
-            background-image: url('https://images.unsplash.com/photo-1507842214779-84ffb2f84cb7?q=80&w=2094&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'); /* 添加背景图片 */
-            background-size: cover; /* 覆盖整个区域 */
-            background-blend-mode: overlay; /* 叠加模式，使颜色和图片融合 */
-            font-family: 'Arial', sans-serif; /* 更改字体 */
-            color: #333; /* 更改文字颜色 */
+            background-color: #f0f8ff;
+            background-image: url('https://images.unsplash.com/photo-1507842214779-84ffb2f84cb7?q=80&w=2094&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+            background-size: cover;
+            background-blend-mode: overlay;
+            font-family: 'Arial', sans-serif;
+            color: #333;
         }
 
         form {
             width: 500px;
             padding: 30px;
             border-radius: 15px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-            background-color: rgba(255, 255, 255, 0.85); /* 表单背景透明度 */
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            background-color: rgba(255, 255, 255, 0.85);
         }
 
         #app-info {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 1.5rem;
         }
 
         .form-label {
-            font-weight: 600;
-            color: #555;
+            font-weight: 500;
         }
 
         .btn-primary {
             width: 100%;
-            background-color: #007bff;
-            border-color: #007bff;
-            transition: background-color 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            background-color: #0056b3;
-            border-color: #0056b3;
         }
 
         #message {
@@ -58,20 +49,14 @@
             text-align: center;
             z-index: 1000;
             display: none;
-            opacity: 0;
-            transform: translateY(-100%);
-            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
         }
 
         #message.show {
             display: block;
-            transform: translateY(0);
-            opacity: 1;
         }
 
         #message.hide {
-            transform: translateY(-100%);
-            opacity: 0;
+            display: none;
         }
     </style>
 </head>
