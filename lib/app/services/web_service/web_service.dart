@@ -11,6 +11,7 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf_static/shelf_static.dart';
 import 'package:path/path.dart' as path;
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class WebService {
   WebService._();
@@ -27,26 +28,33 @@ class WebService {
   }
 
   Future<String> getAppAddress() async {
-    String ipAddress = 'localhost';
-    try {
-      final interfaces = await NetworkInterface.list();
-      for (var interface in interfaces) {
-        if (interface.name == 'en0' || interface.name == 'eth0' || interface.name == 'wlan0') {
-          for (var address in interface.addresses) {
-            if (address.type == InternetAddressType.IPv4) {
-              ipAddress = address.address;
+    final connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult.contains(ConnectivityResult.wifi)) {
+      String ipAddress = 'localhost';
+      try {
+        final interfaces = await NetworkInterface.list();
+        for (var interface in interfaces) {
+          if (interface.name == 'en0' || interface.name == 'eth0' || interface.name == 'wlan0') {
+            for (var address in interface.addresses) {
+              if (address.type == InternetAddressType.IPv4) {
+                ipAddress = address.address;
+                break;
+              }
+            }
+            if (ipAddress != 'localhost') {
               break;
             }
           }
-          if (ipAddress != 'localhost') {
-            break;
-          }
         }
+      } catch (e) {
+        logger.e('获取IP地址失败: $e');
       }
-    } catch (e) {
-      logger.e('获取IP地址失败: $e');
+      return 'http://$ipAddress:8888';
+    } else if (connectivityResult.contains(ConnectivityResult.mobile)) {
+      return '5G网络暂不支持';
+    } else {
+      return '没有网络，无法访问';
     }
-    return 'http://$ipAddress:8888';
   }
 
   Future<void> _startServer() async {
