@@ -90,6 +90,9 @@ dependencies:
   shelf_router: ^1.1.4
   shelf_static: ^1.1.3
 
+  # web socket 框架
+  web_socket_channel: ^3.0.2
+
   # 网络连接
   connectivity_plus: ^6.1.2
 

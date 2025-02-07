@@ -13,9 +13,6 @@
             align-items: center;
             min-height: 100vh;
             background-color: #f0f8ff;
-            background-image: url('https://images.unsplash.com/photo-1507842214779-84ffb2f84cb7?q=80&w=2094&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
-            background-size: cover;
-            background-blend-mode: overlay;
             font-family: 'Arial', sans-serif;
             color: #333;
         }
@@ -135,7 +132,13 @@
             var password = document.getElementById('password').value;
             var messageDiv = document.getElementById('message');
 
-            fetch('/api/v1/articles', {
+            let basePath = window.location.pathname;
+            if (basePath.endsWith('/')) {
+                basePath = basePath.slice(0, -1);
+            }
+            const apiUrl = basePath + '/api/v1/articles';
+
+            fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -144,6 +147,7 @@
             })
             .then(response => response.json())
             .then(data => {
+                console.log(data);
                 messageDiv.textContent = data.msg;
 
                 if (data.code === 0) {
@@ -157,14 +161,7 @@
 
                 timeoutId = setTimeout(function() {
                     messageDiv.classList.remove('show');
-                    messageDiv.classList.add('hide');
-                    setTimeout(() => {
-                        messageDiv.style.display = 'none';
-                        messageDiv.className = 'alert';
-                        messageDiv.textContent = '';
-                        messageDiv.classList.remove('hide');
-                        document.getElementById('url').value = '';
-                    }, 300); // 等待动画完成后隐藏
+                    document.getElementById('url').value = '';
                 }, 3000);
             })
             .catch(error => {
@@ -175,14 +172,7 @@
 
                 timeoutId = setTimeout(function() {
                     messageDiv.classList.remove('show');
-                    messageDiv.classList.add('hide');
-                    setTimeout(() => {
-                        messageDiv.style.display = 'none';
-                        messageDiv.className = 'alert';
-                        messageDiv.textContent = '';
-                         messageDiv.classList.remove('hide');
-                        document.getElementById('url').value = '';
-                    }, 300); // 等待动画完成后隐藏
+                    document.getElementById('url').value = '';
                 }, 3000);
             });
         });
