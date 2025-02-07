@@ -62,4 +62,13 @@ class AiService {
       baseUrl: SettingService.i.getSetting(SettingService.openAIAddressKey),
     );
   }
+
+  String _renderTemplate(String template, Map<String, String> context) {
+    try {
+      return Template(syntax: [MustacheExpressionSyntax()], value: template).process(context: context);
+    } catch (e) {
+      logger.i("[模板渲染] 渲染失败: $e, template => ||$template||, context => ||$context||");
+      return template;
+    }
+  }
 }

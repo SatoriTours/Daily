@@ -65,7 +65,7 @@ class SettingService {
     if (key.isEmpty || value.isEmpty) {
       return;
     }
-    logger.i("[更新Settings] key => $key, value => $value");
+    // logger.i("[更新Settings] key => $key, value => $value");
     final existing = settingBox.query(Setting_.key.equals(key)).build().findFirst();
     if (existing != null) {
       // 如果存在，更新值

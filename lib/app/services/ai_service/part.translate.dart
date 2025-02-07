@@ -14,8 +14,12 @@ extension PartTranslate on AiService {
     return res?.choices.first.message.content ?? '';
   }
 
-  String _translateRole(String text) =>
-      Template(value: PluginService.i.getTranslateRole()).evaluate(context: {'text': text});
-  String _translatePrompt(String text) =>
-      Template(value: PluginService.i.getTranslatePrompt()).evaluate(context: {'text': text});
+  String _translateRole(String text) => _renderTemplate(
+        PluginService.i.getTranslateRole(),
+        {'text': text},
+      );
+  String _translatePrompt(String text) => _renderTemplate(
+        PluginService.i.getTranslatePrompt(),
+        {'text': text},
+      );
 }

@@ -64,17 +64,17 @@ extension PartSummarize on AiService {
     }).join('\n');
   }
 
-  static get _shortSummarizeSystemPrompt => _renderTemplate(
+  String get _shortSummarizeSystemPrompt => _renderTemplate(
         PluginService.i.getShortSummaryRole(),
         {'commonTags': _commonTags.join(',')},
       );
 
-  static get _longSummarizeSystemPrompt => _renderTemplate(
+  String get _longSummarizeSystemPrompt => _renderTemplate(
         PluginService.i.getLongSummaryRole(),
         {'commonTags': _commonTags.join(',')},
       );
 
-  static get _commonTags => PluginService.i.getCommonTags().split(',');
+  List<String> get _commonTags => PluginService.i.getCommonTags().split(',');
 }
 
 class AiSummaryResult {
@@ -97,14 +97,5 @@ class AiSummaryResult {
       cases: List<String>.from(json['cases'] ?? []),
       tags: List<String>.from(json['tags']),
     );
-  }
-}
-
-String _renderTemplate(String template, Map<String, String> context) {
-  try {
-    return Template(syntax: [MustacheExpressionSyntax()], value: template).process(context: context);
-  } catch (e) {
-    logger.i("[模板渲染] 渲染失败: $e, template => ||$template||, context => ||$context||");
-    return template;
   }
 }

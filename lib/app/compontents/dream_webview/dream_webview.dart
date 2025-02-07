@@ -132,9 +132,9 @@ class DreamWebView extends StatelessWidget {
   }
 
   void _handleConsoleMessage(InAppWebViewController controller, ConsoleMessage message) {
-    if (!isProduction) {
-      logger.d("浏览器日志: ${message.message}");
-    }
+    // if (!isProduction) {
+    //   logger.d("浏览器日志: ${message.message}");
+    // }
   }
 
   Future<NavigationActionPolicy> _handleUrlLoading(InAppWebViewController controller, NavigationAction action) async {

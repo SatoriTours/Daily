@@ -50,7 +50,7 @@ Future<List<ui.Image>> _captureScreenshots(
 
   for (var i = 0; i < pageInfo.totalPages; i++) {
     final position = i * pageInfo.screenHeight;
-    logger.i("正在截取第${i + 1}页: 位置=$position");
+    // logger.i("正在截取第${i + 1}页: 位置=$position");
 
     await _scrollToPosition(controller, position);
     final screenshot = await _captureScreenshot(controller);
