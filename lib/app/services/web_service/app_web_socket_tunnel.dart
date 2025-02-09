@@ -9,9 +9,9 @@ import 'package:get/get.dart' as getx;
 
 class AppWebSocketTunnel {
   WebSocketChannel? _channel;
-  final String _webSocketUrl = SettingService.i.getSetting(SettingService.webSocketUrlKey);
   final String _httpForwardUrl = 'http://127.0.0.1:8888';
   final Dio _dio = Dio();
+  String get _webSocketUrl => SettingService.i.getSetting(SettingService.webSocketUrlKey);
   String get _deviceId => SettingService.i.getSetting(SettingService.deviceIdKey);
 
   // 重连机制相关参数
@@ -33,7 +33,7 @@ class AppWebSocketTunnel {
 
     _isConnecting = true;
     try {
-      logger.i('尝试连接 WebSocket, 重试次数: $_retryCount');
+      logger.i('尝试连接 WebSocket, 重试次数: $_retryCount, 地址: $_webSocketUrl');
       _channel = WebSocketChannel.connect(Uri.parse(_webSocketUrl));
 
       _channel!.stream.listen(
