@@ -19,7 +19,7 @@ class SettingService {
   static String pluginKey = 'plugin_url';
   static String webServerPasswordKey = 'web_server_password';
   static String deviceIdKey = 'device_id';
-
+  static String webSocketUrlKey = 'web_socket_url';
   // 配置的初始值
   static Map<String, String> defaultSettings = {
     openAITokenKey: '',
@@ -29,6 +29,7 @@ class SettingService {
     pluginKey: 'https://raw.githubusercontent.com/SatoriTours/plugin/refs/heads/main',
     webServerPasswordKey: AppUtil.generateRandomPassword(),
     deviceIdKey: AppUtil.generateDeviceId(),
+    webSocketUrlKey: 'ws://10.0.2.2:3000/ws',
   };
 
   Future<void> init() async {

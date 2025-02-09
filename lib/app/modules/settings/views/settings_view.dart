@@ -48,17 +48,26 @@ class SettingsView extends GetView<SettingsController> {
       title: 'Web 服务器',
       titleTextStyle: MyFontStyle.settingGroupTitle,
       children: [
+        Obx(
+          () => SimpleSettingsTile(
+            title: '可访问的 Web 服务器地址',
+            subtitle: controller.webServiceAddress.value,
+            enabled: true,
+            showDivider: false,
+            onTap: () {
+              controller.copyWebServiceAddress();
+            },
+          ),
+        ),
         TextInputSettingsTile(
           settingKey: SettingService.webServerPasswordKey,
           title: 'Web 服务器密码',
           helperText: '用于web访问的时候鉴权',
         ),
-        Obx(
-          () => SimpleSettingsTile(
-            title: 'Web 服务器地址',
-            subtitle: controller.webServiceAddress.value,
-            enabled: false,
-          ),
+        TextInputSettingsTile(
+          settingKey: SettingService.webSocketUrlKey,
+          title: '连接的 WebSocket 地址',
+          helperText: '例如 ws://10.0.2.2:3000/ws',
         ),
       ],
     );

@@ -69,7 +69,7 @@ dependencies:
   open_file: ^3.5.9
 
   # 堆栈信息
-  stack_trace: ^1.11.1
+  stack_trace: ^1.12.0
 
   # 错误监控
   sentry_flutter: ^8.10.1

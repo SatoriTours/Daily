@@ -16,7 +16,7 @@ class WebService {
   Future<void> init() async {
     logger.i("[初始化服务] WebService");
     await _httpServer.start();
-    await _webSocketTunnel.connect();
+    await _webSocketTunnel.startConnect();
   }
 
   Future<String> getAppAddress() async {

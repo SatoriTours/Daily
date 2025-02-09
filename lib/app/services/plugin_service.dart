@@ -57,7 +57,7 @@ class PluginService {
     final String content = response.trim();
     if (content.isNotEmpty) {
       await SettingService.i.saveSetting(_pluginKey(key), content);
-      logger.i('插件 $key 更新成功');
+      // logger.i('插件 $key 更新成功');
     }
   }
 
