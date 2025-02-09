@@ -5,6 +5,8 @@ import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:dio/dio.dart';
 
+import 'package:get/get.dart' as getx;
+
 class AppWebSocketTunnel {
   WebSocketChannel? _channel;
   final String _webSocketUrl = SettingService.i.getSetting(SettingService.webSocketUrlKey);
@@ -18,6 +20,9 @@ class AppWebSocketTunnel {
   int _fibonacciPrevious = 0;
   final int _maxDelay = 100;
   bool _isConnecting = false;
+
+  /// 连接状态
+  getx.RxBool isConnected = false.obs;
 
   /// 连接 WebSocket
   Future<void> startConnect() async {
@@ -40,9 +45,11 @@ class AppWebSocketTunnel {
       await _sendDeviceId(); // 连接成功后发送设备ID
       logger.i('WebSocket 已连接至 $_webSocketUrl, 设备ID: $_deviceId');
       _resetRetryState(); // 连接成功，重置重试状态
+      isConnected.value = true; // 连接成功
     } catch (e) {
       logger.e('连接 WebSocket 失败: $e');
       _reconnect();
+      isConnected.value = false; // 连接失败
     } finally {
       _isConnecting = false;
     }
@@ -56,6 +63,7 @@ class AppWebSocketTunnel {
   /// 处理错误
   void _handleError(dynamic error) {
     logger.e('WebSocket 发生错误: $error');
+    isConnected.value = false;
     _reconnect();
   }
 
@@ -63,6 +71,7 @@ class AppWebSocketTunnel {
   void _handleDone() {
     logger.i('WebSocket 连接已关闭.');
     _isConnecting = false;
+    isConnected.value = false;
     _reconnect();
   }
 
@@ -140,10 +149,11 @@ class AppWebSocketTunnel {
       final responseData = {
         "http_code": response.statusCode,
         "Content-Type": response.headers['content-type']?.first ?? '',
-        "body": response.data.toString(), // 使用 response.data
+        "body": response.toString(), // 服务器有可能返回的是json对象，所以这里使用toString，而不能使用response.data.toString()
       };
 
       final responseJson = jsonEncode(responseData);
+      logger.i('转发消息成功: $responseJson');
       _channel?.sink.add(responseJson);
     } else {
       logger.e('转发消息失败. 状态码: ${response.statusCode}, body: ${response.data}');
@@ -166,5 +176,6 @@ class AppWebSocketTunnel {
     _channel?.sink.close();
     logger.i('WebSocket 已断开.');
     _resetRetryState();
+    isConnected.value = false;
   }
 }

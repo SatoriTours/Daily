@@ -13,6 +13,9 @@ class WebService {
 
   final _httpServer = AppHttpServer();
   final _webSocketTunnel = AppWebSocketTunnel();
+
+  AppWebSocketTunnel get webSocketTunnel => _webSocketTunnel;
+
   Future<void> init() async {
     logger.i("[初始化服务] WebService");
     await _httpServer.start();

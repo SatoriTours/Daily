@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:daily_satori/app/services/web_service/web_service.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
@@ -40,6 +41,19 @@ class ArticlesView extends GetView<ArticlesController> {
           icon: const Icon(Icons.search),
           onPressed: controller.toggleSearchState,
         ),
+        Obx(() {
+          if (WebService.i.webSocketTunnel.isConnected.value) {
+            return IconButton(
+              icon: const Icon(
+                Icons.circle,
+                color: Colors.green,
+              ),
+              onPressed: () {},
+            );
+          } else {
+            return const SizedBox.shrink();
+          }
+        }),
       ],
     );
   }
