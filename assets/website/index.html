@@ -120,6 +120,12 @@
             this.querySelector('i').classList.toggle('fa-eye-slash');
         });
 
+        // 监听密码输入框内容变化
+        document.getElementById('password').addEventListener('input', function() {
+            const password = this.value;
+            setCookie('web_server_password', password, 30); // 保存密码到 cookie，有效期7天
+        });
+
 
         document.getElementById('articleForm').addEventListener('submit', function(event) {
             event.preventDefault();

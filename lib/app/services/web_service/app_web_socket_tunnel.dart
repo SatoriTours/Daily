@@ -32,9 +32,11 @@ class AppWebSocketTunnel {
     }
 
     _isConnecting = true;
+    final webSocketUrl = _webSocketUrl;
+    final deviceId = _deviceId;
     try {
-      logger.i('尝试连接 WebSocket, 重试次数: $_retryCount, 地址: $_webSocketUrl');
-      _channel = WebSocketChannel.connect(Uri.parse(_webSocketUrl));
+      logger.i('尝试连接 WebSocket, 重试次数: $_retryCount, 地址: $webSocketUrl');
+      _channel = WebSocketChannel.connect(Uri.parse(webSocketUrl));
 
       _channel!.stream.listen(
         _handleMessage,
@@ -43,7 +45,7 @@ class AppWebSocketTunnel {
       );
       await _channel!.ready;
       await _sendDeviceId(); // 连接成功后发送设备ID
-      logger.i('WebSocket 已连接至 $_webSocketUrl, 设备ID: $_deviceId');
+      logger.i('WebSocket 已连接至 $webSocketUrl, 设备ID: $deviceId');
       _resetRetryState(); // 连接成功，重置重试状态
       isConnected.value = true; // 连接成功
     } catch (e) {
