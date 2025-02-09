@@ -15,7 +15,7 @@ Future<List<String>> captureFullPageScreenshot(InAppWebViewController controller
     await _initializeWebPage(controller);
     final pageInfo = await _getPageDimensions(controller);
     final screenshots = await _captureScreenshots(controller, pageInfo);
-    return await _saveFullPageScreenshot(screenshots);
+    return await _saveScreenshotsAsFiles(screenshots);
   } catch (e, stackTrace) {
     logger.e("截取网页截图时出错: $e");
     logger.e(stackTrace);
@@ -113,42 +113,22 @@ Future<ui.Image> cropImageFromHeight(ui.Image image, double startHeightRatio) as
   return await recorder.endRecording().toImage(image.width, croppedHeight);
 }
 
-Future<List<String>> _saveFullPageScreenshot(List<ui.Image> screenshots) async {
+Future<List<String>> _saveScreenshotsAsFiles(List<ui.Image> screenshots) async {
   List<String> filePaths = [];
-  final batchSize = 10;
 
-  for (int i = 0; i < screenshots.length; i += batchSize) {
-    final end = (i + batchSize > screenshots.length) ? screenshots.length : i + batchSize;
-    final batch = screenshots.sublist(i, end);
-
+  for (int i = 0; i < screenshots.length; i++) {
+    final image = screenshots[i];
     final filePath = FileService.i.getScreenshotPath();
     final file = File(filePath);
 
-    final combinedImage = await _combineImages(batch);
-    final pngBytes = await combinedImage.toByteData(format: ui.ImageByteFormat.png);
+    final pngBytes = await image.toByteData(format: ui.ImageByteFormat.png);
     await file.writeAsBytes(pngBytes!.buffer.asUint8List());
 
     filePaths.add(filePath);
-    logger.i("保存截图批次 ${i ~/ batchSize + 1}: $filePath");
+    logger.i("保存截图 ${i + 1}/${screenshots.length}: $filePath");
   }
 
   return filePaths;
-}
-
-Future<ui.Image> _combineImages(List<ui.Image> screenshots) async {
-  final totalHeight = screenshots.fold(0, (sum, image) => sum + image.height);
-  final maxWidth = screenshots.fold(0, (max, image) => max > image.width ? max : image.width);
-
-  final recorder = ui.PictureRecorder();
-  final canvas = ui.Canvas(recorder);
-
-  var offset = 0;
-  for (final image in screenshots) {
-    canvas.drawImage(image, Offset(0, offset.toDouble()), ui.Paint());
-    offset += image.height;
-  }
-
-  return await recorder.endRecording().toImage(maxWidth, totalHeight);
 }
 
 Future<void> _cleanupWebPage(InAppWebViewController controller) async {
