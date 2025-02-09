@@ -57,6 +57,13 @@ class AppWebSocketTunnel {
     }
   }
 
+  String getWebAccessUrl() {
+    final uri = Uri.parse(_webSocketUrl);
+    final port = uri.port;
+    final host = uri.host;
+    return 'http://$host:$port/mobile/$_deviceId';
+  }
+
   /// 处理接收到的消息
   void _handleMessage(dynamic message) {
     _forwardMessage(message.toString());

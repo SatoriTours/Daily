@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/services/web_service/web_service.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
@@ -50,12 +51,23 @@ class SettingsView extends GetView<SettingsController> {
       children: [
         Obx(
           () => SimpleSettingsTile(
-            title: '可访问的 Web 服务器地址',
+            title: '局域网访问地址  (点击复制)',
             subtitle: controller.webServiceAddress.value,
             enabled: true,
             showDivider: false,
             onTap: () {
               controller.copyWebServiceAddress();
+            },
+          ),
+        ),
+        Obx(
+          () => SimpleSettingsTile(
+            title: '公网访问地址  (点击复制)',
+            subtitle: controller.webAccessUrl.value,
+            enabled: true,
+            showDivider: false,
+            onTap: () {
+              controller.copyWebAccessUrl();
             },
           ),
         ),
@@ -66,7 +78,7 @@ class SettingsView extends GetView<SettingsController> {
         ),
         TextInputSettingsTile(
           settingKey: SettingService.webSocketUrlKey,
-          title: '连接的 WebSocket 地址',
+          title: '编辑 WebSocket 代理地址',
           helperText: '例如 ws://10.0.2.2:3000/ws',
         ),
       ],

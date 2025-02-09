@@ -9,15 +9,21 @@ import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 
 class SettingsController extends GetxController {
   final webServiceAddress = ''.obs;
+  final webAccessUrl = ''.obs;
 
   @override
   void onInit() {
     super.onInit();
     _updateWebServerAddress();
+    _updateWebAccessUrl();
   }
 
   void _updateWebServerAddress() async {
     webServiceAddress.value = await WebService.i.getAppAddress();
+  }
+
+  void _updateWebAccessUrl() {
+    webAccessUrl.value = WebService.i.webSocketTunnel.getWebAccessUrl();
   }
 
   Future<void> selectBackupDirectory() async {
@@ -40,5 +46,9 @@ class SettingsController extends GetxController {
 
   void copyWebServiceAddress() {
     Clipboard.setData(ClipboardData(text: webServiceAddress.value));
+  }
+
+  void copyWebAccessUrl() {
+    Clipboard.setData(ClipboardData(text: webAccessUrl.value));
   }
 }
