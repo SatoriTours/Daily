@@ -66,7 +66,10 @@ class AppWebSocketTunnel {
 
   /// 处理接收到的消息
   void _handleMessage(dynamic message) {
-    _forwardMessage(message.toString());
+    final messageMap = jsonDecode(message);
+    final messageID = messageMap['message_id'] as String? ?? '';
+    final data = messageMap['data'] as String? ?? '';
+    _forwardMessage(messageID.toString(), data);
   }
 
   /// 处理错误
@@ -127,9 +130,9 @@ class AppWebSocketTunnel {
   }
 
   /// 转发消息
-  Future<void> _forwardMessage(String message) async {
+  Future<void> _forwardMessage(String messageID, String data) async {
     try {
-      final messageMap = jsonDecode(message);
+      final messageMap = jsonDecode(data);
       final requestPath = messageMap['path'] as String? ?? '';
       final headers = (messageMap['headers'] as Map?)?.cast<String, String>() ?? {};
       final body = messageMap['body'] as String? ?? '';
@@ -144,7 +147,7 @@ class AppWebSocketTunnel {
         options: Options(method: method, headers: headers),
       );
 
-      await _processResponse(response, forwardUrl);
+      await _processResponse(response, forwardUrl, messageID);
     } catch (e) {
       logger.e('解析消息或转发失败: $e');
       _sendError('解析消息或转发失败');
@@ -152,16 +155,22 @@ class AppWebSocketTunnel {
   }
 
   /// 处理转发后的响应
-  Future<void> _processResponse(Response response, String forwardUrl) async {
+  Future<void> _processResponse(Response response, String forwardUrl, String messageID) async {
     if (response.statusCode == 200) {
       logger.i('消息已成功转发至 $forwardUrl');
+
       final responseData = {
         "http_code": response.statusCode,
-        "Content-Type": response.headers['content-type']?.first ?? '',
+        "content-type": response.headers['content-type']?.first ?? '',
         "body": response.toString(), // 服务器有可能返回的是json对象，所以这里使用toString，而不能使用response.data.toString()
       };
 
-      final responseJson = jsonEncode(responseData);
+      final reponse = {
+        "message_id": messageID,
+        "data": jsonEncode(responseData),
+      };
+
+      final responseJson = jsonEncode(reponse);
       logger.i('转发消息成功: $responseJson');
       _channel?.sink.add(responseJson);
     } else {
