@@ -246,14 +246,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.0"
-  drift:
-    dependency: transitive
-    description:
-      name: drift
-      sha256: ab4d0e7aa1793829b1dd8e72d71bbf0b53bf4ff84b184045d1ab71b0832e632e
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.25.0"
   encrypt:
     dependency: transitive
     description:
@@ -1014,38 +1006,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.28.0"
-  sentry:
-    dependency: transitive
-    description:
-      name: sentry
-      sha256: "41a3c8e61d5194f5e12adf469fc430d7fa76a373fde6b11280f7df05c24e19e2"
-      url: "https://pub.dev"
-    source: hosted
-    version: "8.13.0"
-  sentry_dio:
-    dependency: "direct main"
-    description:
-      name: sentry_dio
-      sha256: "6e0b43cdd1cae4db1eac1c56181544a80df7215ffd7b6ca347042cc423b09d94"
-      url: "https://pub.dev"
-    source: hosted
-    version: "8.13.0"
-  sentry_drift:
-    dependency: "direct main"
-    description:
-      name: sentry_drift
-      sha256: "2176bc5da44d93b8e92615c69a7b82c848bfe178068263ebcd92db8f3d4ef2e9"
-      url: "https://pub.dev"
-    source: hosted
-    version: "8.13.0"
-  sentry_flutter:
-    dependency: "direct main"
-    description:
-      name: sentry_flutter
-      sha256: "86ba98250bfc55cf3a9908afa46a851a46706e8338413d062daa5705ce016d05"
-      url: "https://pub.dev"
-    source: hosted
-    version: "8.13.0"
   share_plus:
     dependency: "direct main"
     description:
@@ -1219,14 +1179,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.0"
-  sqlite3:
-    dependency: transitive
-    description:
-      name: sqlite3
-      sha256: decd58236d7c59e01ae81b34ebd158e6a1b61e0ae5397fc428736eb91ab82808
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.7.3"
   stack_trace:
     dependency: "direct main"
     description:

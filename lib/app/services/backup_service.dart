@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter_archive/flutter_archive.dart';
 import 'package:path/path.dart' as path;
@@ -39,12 +40,17 @@ class BackupService {
 
     if (backupTimeDifference >= _backupInterval || immediateBackup) {
       logger.i("开始备份应用");
-      await _performBackup();
-      await _updateLastBackupTime(DateTime.now());
+      // 使用Isolate执行备份
+      Isolate.run(() => _startBackup());
     } else {
       final remainingHours = _backupInterval - backupTimeDifference;
       logger.i("上次备份时间 $lastBackupTime, 备份间隔为 $_backupInterval 小时, 离下次备份还差: $remainingHours 小时");
     }
+  }
+
+  Future<void> _startBackup() async {
+    await _performBackup();
+    await _updateLastBackupTime(DateTime.now());
   }
 
   // 获取上次备份时间

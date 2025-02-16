@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:sentry_dio/sentry_dio.dart';
 
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
@@ -24,7 +23,6 @@ class HttpService {
       receiveTimeout: _timeoutDuration,
       sendTimeout: _timeoutDuration,
     ));
-    dio.addSentry();
   }
 
   /// 下载图片

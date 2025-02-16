@@ -2,7 +2,6 @@ import 'dart:developer';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:logger/logger.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'package:daily_satori/global.dart';
 
@@ -32,7 +31,6 @@ class _MyConsoleOutput extends LogOutput {
   void output(OutputEvent event) {
     final logString = event.lines.join("\n");
     if (isProduction) {
-      Sentry.captureMessage(logString);
     } else {
       log(logString, name: "Satori");
     }
