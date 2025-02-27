@@ -41,7 +41,7 @@ class BackupService {
     if (backupTimeDifference >= _backupInterval || immediateBackup) {
       logger.i("开始备份应用");
       // 使用Isolate执行备份
-      Isolate.run(() => _startBackup());
+      await Isolate.run(() async => await _startBackup());
     } else {
       final remainingHours = _backupInterval - backupTimeDifference;
       logger.i("上次备份时间 $lastBackupTime, 备份间隔为 $_backupInterval 小时, 离下次备份还差: $remainingHours 小时");
