@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_archive/flutter_archive.dart';
 import 'package:path/path.dart' as path;
 
@@ -41,7 +42,7 @@ class BackupService {
     if (backupTimeDifference >= _backupInterval || immediateBackup) {
       logger.i("开始备份应用");
       // 使用Isolate执行备份
-      await Isolate.run(() async => await _startBackup());
+      await _startBackup();
     } else {
       final remainingHours = _backupInterval - backupTimeDifference;
       logger.i("上次备份时间 $lastBackupTime, 备份间隔为 $_backupInterval 小时, 离下次备份还差: $remainingHours 小时");
@@ -82,14 +83,19 @@ class BackupService {
   Future<void> _compressDirectory(String sourceDir, String targetPath) async {
     try {
       final sourceDirectory = Directory(sourceDir);
-      final targetFile = File(targetPath);
 
       if (await sourceDirectory.exists()) {
-        await ZipFile.createFromDirectory(
-          sourceDir: sourceDirectory,
-          zipFile: targetFile,
-          recurseSubDirs: true,
-        );
+        // 使用 Isolate 执行压缩任务
+        final rootIsolateToken = RootIsolateToken.instance!;
+        await Isolate.run(() async {
+          BackgroundIsolateBinaryMessenger.ensureInitialized(rootIsolateToken);
+          final targetFile = File(targetPath);
+          await ZipFile.createFromDirectory(
+            sourceDir: sourceDirectory,
+            zipFile: targetFile,
+            recurseSubDirs: true,
+          );
+        });
         logger.i("成功压缩目录 $sourceDir 到 $targetPath");
       } else {
         logger.w("源目录不存在: $sourceDir");
