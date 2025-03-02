@@ -103,9 +103,9 @@ class ArticlesView extends GetView<ArticlesController> {
           decoration: InputDecoration(
             hintText: '搜索文章',
             hintStyle: TextStyle(fontSize: 14, color: AppColors.textSecondary(context)),
-            prefixIcon: const Icon(Icons.search, size: 20),
+            prefixIcon: Icon(Icons.search, size: 20, color: AppColors.textSecondary(context)),
             suffixIcon: IconButton(
-              icon: const Icon(Icons.clear, size: 18),
+              icon: Icon(Icons.clear, size: 18, color: AppColors.textSecondary(context)),
               onPressed: () {
                 controller.searchController.clear();
                 controller.searchArticles();

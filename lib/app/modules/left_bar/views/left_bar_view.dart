@@ -120,6 +120,8 @@ class LeftBarView extends GetView<LeftBarController> {
   }
 
   Widget _buildTagsList(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -138,30 +140,23 @@ class LeftBarView extends GetView<LeftBarController> {
                 child: Container(
                   height: 32,
                   decoration: BoxDecoration(
-                    color:
-                        Theme.of(context).brightness == Brightness.dark
-                            ? AppColors.cardBackgroundDark.withOpacity(0.7)
-                            : Colors.grey.withOpacity(0.1),
+                    color: isDark ? AppColors.cardBackground(context).withOpacity(0.5) : Colors.grey.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: isDark ? AppColors.divider(context) : Colors.transparent, width: 0.5),
                   ),
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 10),
-                      Icon(Icons.search, size: 16, color: AppColors.textSecondary(context)),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: '搜索分类',
-                            hintStyle: TextStyle(fontSize: 13, color: AppColors.textSecondary(context)),
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                          ),
-                          style: TextStyle(fontSize: 13, color: AppColors.textPrimary(context)),
-                        ),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: '搜索分类',
+                      hintStyle: TextStyle(fontSize: 13, color: AppColors.textSecondary(context)),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.fromLTRB(0, 8, 16, 8),
+                      prefixIcon: Padding(
+                        padding: const EdgeInsets.only(left: 12, right: 8),
+                        child: Icon(Icons.search, size: 16, color: AppColors.textSecondary(context)),
                       ),
-                    ],
+                    ),
+                    style: TextStyle(fontSize: 13, color: AppColors.textPrimary(context)),
                   ),
                 ),
               ),
