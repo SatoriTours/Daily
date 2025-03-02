@@ -42,6 +42,9 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       icon: Icon(Icons.more_horiz, color: AppColors.textPrimary(context)),
       offset: const Offset(0, 50),
       padding: EdgeInsets.zero,
+      color: AppColors.cardBackground(context),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       itemBuilder: (context) => _buildPopupMenuItems(context),
       onSelected: _handleMenuSelection,
     );
