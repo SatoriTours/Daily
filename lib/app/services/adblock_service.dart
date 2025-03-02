@@ -109,7 +109,12 @@ class ADBlockService {
         final regExp = RegExp(pattern);
         isException ? _regexExceptionRules.add(regExp) : _regexNetworkRules.add(regExp);
       } catch (e) {
-        logger.e('解析正则表达式规则失败 $pattern => $e');
+        // 目前还有如下格式需要去兼容
+        // [Satori] [E]  解析正则表达式规则失败 /^https\?:\/\/..*bit(ly)\?\.(com => FormatException: Unterminated group /^https\?:\/\/..*bit(ly)\?\.(com
+        // [Satori] [E]  解析正则表达式规则失败 /^https\?:\/\/..*\.(com => FormatException: Unterminated group /^https\?:\/\/..*\.(com
+        // [Satori] [E]  解析正则表达式规则失败 /^https\?:\/\/..*\.(club => FormatException: Unterminated group /^https\?:\/\/..*\.(club
+        // [Satori] [E]  解析正则表达式规则失败 /^https\?:\/\/..*\/..*(sw[0-9a-z._-]{1,6} => FormatException: Unterminated group /^https\?:\/\/..*\/..*(sw[0-9a-z._-]{1,6}
+        // logger.e('解析正则表达式规则失败 $pattern => $e');
       }
     } else {
       if (isExactMatch) {
@@ -169,8 +174,10 @@ class ADBlockService {
     final file = File(filePath);
 
     if (await file.exists()) {
+      logger.i('广告规则文件使用网络更新版本');
       return file.readAsString();
     }
+    logger.i('广告规则文件使用本地版本');
     return rootBundle.loadString(_localEasylistFile);
   }
 
