@@ -28,9 +28,21 @@ class MyFontStyle {
       fontWeight: fontWeight,
       height: height ?? _height,
       letterSpacing: letterSpacing ?? _letterSpacing,
-      color: color ?? AppColors.textPrimary,
+      color: color,
       decoration: decoration,
     );
+  }
+
+  // 获取当前主题下的文本样式
+  static TextStyle getThemedStyle(BuildContext context, TextStyle baseStyle, {Color? lightColor, Color? darkColor}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    Color? textColor;
+
+    if (lightColor != null || darkColor != null) {
+      textColor = isDark ? (darkColor ?? AppColors.textPrimaryDark) : (lightColor ?? AppColors.textPrimaryLight);
+    }
+
+    return baseStyle.copyWith(color: textColor);
   }
 
   // 标题相关样式
@@ -41,44 +53,120 @@ class MyFontStyle {
     letterSpacing: 0.8,
   );
 
+  // 添加一个新的方法来获取适合当前主题的AppBar标题样式
+  static TextStyle appBarTitleStyleThemed(BuildContext context) {
+    return _createBaseStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white, letterSpacing: 0.8);
+  }
+
+  // 添加一个新的方法来获取适合当前主题的标题样式
+  static TextStyle headerTitleStyleThemed(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 在暗黑模式下使用更柔和的颜色
+    final color = isDark ? AppColors.textPrimaryDark : AppColors.primaryLight;
+
+    return _createBaseStyle(fontSize: 20, fontWeight: FontWeight.bold, height: 1.3, color: color);
+  }
+
   static final articleTitleStyle = _createBaseStyle(fontSize: 20, fontWeight: FontWeight.bold, height: 1.3);
+
+  static TextStyle articleTitleStyleThemed(BuildContext context) {
+    return getThemedStyle(
+      context,
+      articleTitleStyle,
+      lightColor: AppColors.textPrimaryLight,
+      darkColor: AppColors.textPrimaryDark,
+    );
+  }
 
   static final listTitleStyle = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.4);
 
-  static final settingGroupTitle = _createBaseStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.w600,
-    color: AppColors.primary,
-    letterSpacing: 0.8,
-  );
+  static TextStyle listTitleStyleThemed(BuildContext context) {
+    return getThemedStyle(
+      context,
+      listTitleStyle,
+      lightColor: AppColors.textPrimaryLight,
+      darkColor: AppColors.textPrimaryDark,
+    );
+  }
+
+  static final settingGroupTitle = _createBaseStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 0.8);
+
+  static TextStyle settingGroupTitleThemed(BuildContext context) {
+    return getThemedStyle(
+      context,
+      settingGroupTitle,
+      lightColor: AppColors.primaryLight,
+      darkColor: AppColors.primaryDark,
+    );
+  }
 
   // 内容相关样式
   static final articleBodyStyle = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.normal, height: 1.6);
 
-  static final commentStyle = _createBaseStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.normal,
-    color: AppColors.textSecondary,
-  );
+  static TextStyle articleBodyStyleThemed(BuildContext context) {
+    return getThemedStyle(
+      context,
+      articleBodyStyle,
+      lightColor: AppColors.textPrimaryLight,
+      darkColor: AppColors.textPrimaryDark,
+    );
+  }
 
-  static final tagStyle = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.primary);
+  static final commentStyle = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.normal);
+
+  static TextStyle commentStyleThemed(BuildContext context) {
+    return getThemedStyle(
+      context,
+      commentStyle,
+      lightColor: AppColors.textSecondaryLight,
+      darkColor: AppColors.textSecondaryDark,
+    );
+  }
+
+  static final tagStyle = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w500);
+
+  static TextStyle tagStyleThemed(BuildContext context) {
+    return getThemedStyle(context, tagStyle, lightColor: AppColors.primaryLight, darkColor: AppColors.primaryDark);
+  }
 
   static final tagsListContent = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w500);
+
+  static TextStyle tagsListContentThemed(BuildContext context) {
+    return getThemedStyle(
+      context,
+      tagsListContent,
+      lightColor: AppColors.textPrimaryLight,
+      darkColor: AppColors.textPrimaryDark,
+    );
+  }
 
   // 功能性文本样式
   static final loadingTipsStyle = _createBaseStyle(
     fontSize: 16,
     fontWeight: FontWeight.w500,
-    color: AppColors.textSecondary,
     decoration: TextDecoration.none,
   );
 
+  static TextStyle loadingTipsStyleThemed(BuildContext context) {
+    return getThemedStyle(
+      context,
+      loadingTipsStyle,
+      lightColor: AppColors.textSecondaryLight,
+      darkColor: AppColors.textSecondaryDark,
+    );
+  }
+
   // 新增样式
-  static final cardSubtitleStyle = _createBaseStyle(
-    fontSize: 13,
-    fontWeight: FontWeight.normal,
-    color: AppColors.textSecondary,
-  );
+  static final cardSubtitleStyle = _createBaseStyle(fontSize: 13, fontWeight: FontWeight.normal);
+
+  static TextStyle cardSubtitleStyleThemed(BuildContext context) {
+    return getThemedStyle(
+      context,
+      cardSubtitleStyle,
+      lightColor: AppColors.textSecondaryLight,
+      darkColor: AppColors.textSecondaryDark,
+    );
+  }
 
   static final buttonTextStyle = _createBaseStyle(
     fontSize: 15,
@@ -87,13 +175,26 @@ class MyFontStyle {
     letterSpacing: 0.8,
   );
 
-  static final chipTextStyle = _createBaseStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.primary);
+  static final chipTextStyle = _createBaseStyle(fontSize: 13, fontWeight: FontWeight.w500);
+
+  static TextStyle chipTextStyleThemed(BuildContext context) {
+    return getThemedStyle(context, chipTextStyle, lightColor: AppColors.primaryLight, darkColor: AppColors.primaryDark);
+  }
 
   static final tabLabelStyle = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.8);
 
-  static final emptyStateStyle = _createBaseStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.w500,
-    color: AppColors.textSecondary,
-  );
+  static TextStyle tabLabelStyleThemed(BuildContext context) {
+    return getThemedStyle(context, tabLabelStyle, lightColor: AppColors.primaryLight, darkColor: AppColors.primaryDark);
+  }
+
+  static final emptyStateStyle = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w500);
+
+  static TextStyle emptyStateStyleThemed(BuildContext context) {
+    return getThemedStyle(
+      context,
+      emptyStateStyle,
+      lightColor: AppColors.textSecondaryLight,
+      darkColor: AppColors.textSecondaryDark,
+    );
+  }
 }

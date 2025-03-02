@@ -15,7 +15,13 @@ class CustomDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Divider(height: height, thickness: 1, color: AppColors.divider, indent: indent, endIndent: endIndent);
+    return Divider(
+      height: height,
+      thickness: 1,
+      color: AppColors.divider(context),
+      indent: indent,
+      endIndent: endIndent,
+    );
   }
 }
 
@@ -36,12 +42,12 @@ class EmptyStateWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 64, color: AppColors.textSecondary.withOpacity(0.5)),
+            Icon(icon, size: 64, color: AppColors.textSecondary(context).withOpacity(0.5)),
             const SizedBox(height: 16),
-            Text(title, style: MyFontStyle.emptyStateStyle, textAlign: TextAlign.center),
+            Text(title, style: MyFontStyle.emptyStateStyleThemed(context), textAlign: TextAlign.center),
             if (subtitle != null) ...[
               const SizedBox(height: 8),
-              Text(subtitle!, style: MyFontStyle.cardSubtitleStyle, textAlign: TextAlign.center),
+              Text(subtitle!, style: MyFontStyle.cardSubtitleStyleThemed(context), textAlign: TextAlign.center),
             ],
             if (action != null) ...[const SizedBox(height: 24), action!],
           ],
@@ -62,11 +68,11 @@ class CustomChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = isSelected ? AppColors.primary : AppColors.primary.withOpacity(0.1);
+    final backgroundColor = isSelected ? AppColors.primary(context) : AppColors.primary(context).withOpacity(0.1);
 
-    final textColor = isSelected ? Colors.white : AppColors.primary;
+    final textColor = isSelected ? Colors.white : AppColors.primary(context);
 
-    final iconColor = isSelected ? Colors.white : AppColors.primary;
+    final iconColor = isSelected ? Colors.white : AppColors.primary(context);
 
     return InkWell(
       onTap: onTap,
@@ -96,6 +102,7 @@ class CustomCard extends StatelessWidget {
     return Card(
       elevation: elevation,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: AppColors.cardBackground(context),
       child:
           onTap != null ? InkWell(onTap: onTap, borderRadius: BorderRadius.circular(12), child: cardChild) : cardChild,
     );
@@ -114,8 +121,11 @@ class LoadingIndicator extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary)),
-          if (message != null) ...[const SizedBox(height: 16), Text(message!, style: MyFontStyle.loadingTipsStyle)],
+          CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary(context))),
+          if (message != null) ...[
+            const SizedBox(height: 16),
+            Text(message!, style: MyFontStyle.loadingTipsStyleThemed(context)),
+          ],
         ],
       ),
     );
@@ -143,11 +153,12 @@ class CustomButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final buttonStyle =
         isPrimary
-            ? ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white)
+            ? ElevatedButton.styleFrom(backgroundColor: AppColors.primary(context), foregroundColor: Colors.white)
             : ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.primary,
-              side: BorderSide(color: AppColors.primary),
+              backgroundColor:
+                  Theme.of(context).brightness == Brightness.dark ? AppColors.cardBackground(context) : Colors.white,
+              foregroundColor: AppColors.primary(context),
+              side: BorderSide(color: AppColors.primary(context)),
             );
 
     final buttonChild = Row(

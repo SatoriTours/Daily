@@ -13,144 +13,208 @@ class LeftBarView extends GetView<LeftBarController> {
 
   @override
   Widget build(BuildContext context) {
-    return _buildPage();
+    return _buildPage(context);
   }
 
-  Widget _buildPage() {
+  Widget _buildPage(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Daily Satori'), centerTitle: true),
       body: Column(
         children: [
-          _buildHeader(),
-          const SizedBox(height: 16),
-          _buildActions(),
-          const SizedBox(height: 16),
-          Divider(color: AppColors.divider),
-          Expanded(child: _buildTagsList()),
+          _buildHeader(context),
+          const SizedBox(height: 8),
+          _buildActions(context),
+          const SizedBox(height: 8),
+          Divider(color: AppColors.divider(context)),
+          Expanded(child: _buildTagsList(context)),
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('欢迎使用 Daily Satori', style: MyFontStyle.articleTitleStyle),
-          const SizedBox(height: 8),
-          Text('您的个人阅读助手', style: MyFontStyle.cardSubtitleStyle),
+          Text('欢迎使用 Daily Satori', style: MyFontStyle.headerTitleStyleThemed(context)),
+          const SizedBox(height: 4),
+          Text('您的个人阅读助手', style: MyFontStyle.cardSubtitleStyleThemed(context)),
         ],
       ),
     );
   }
 
-  Widget _buildActions() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+  Widget _buildActions(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark ? AppColors.cardBackgroundDark : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))],
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildActionButton(
-            icon: Icons.article_outlined,
-            label: '全部',
-            onPressed: () {
-              controller.articlesController.showAllArticles();
-              Get.back();
-            },
+          Expanded(
+            child: _buildActionButton(
+              context,
+              icon: Icons.article_outlined,
+              label: '全部',
+              onPressed: () {
+                controller.articlesController.showAllArticles();
+                Get.back();
+              },
+            ),
           ),
-          _buildActionButton(
-            icon: Icons.favorite,
-            label: '收藏',
-            onPressed: () {
-              controller.articlesController.toggleOnlyFavorite(true);
-              Get.back();
-            },
+          Container(width: 1, height: 30, color: AppColors.divider(context)),
+          Expanded(
+            child: _buildActionButton(
+              context,
+              icon: Icons.favorite,
+              label: '收藏',
+              onPressed: () {
+                controller.articlesController.toggleOnlyFavorite(true);
+                Get.back();
+              },
+            ),
           ),
-          _buildActionButton(icon: Icons.settings, label: '设置', onPressed: () => Get.toNamed(Routes.SETTINGS)),
+          Container(width: 1, height: 30, color: AppColors.divider(context)),
+          Expanded(
+            child: _buildActionButton(
+              context,
+              icon: Icons.settings,
+              label: '设置',
+              onPressed: () => Get.toNamed(Routes.SETTINGS),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildActionButton({required IconData icon, required String label, required VoidCallback onPressed}) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [Icon(icon, size: 24), const SizedBox(height: 4), Text(label, style: MyFontStyle.buttonTextStyle)],
-      ),
-    );
-  }
-
-  Widget _buildTagsList() {
-    return Column(children: [_buildTagsHeader(), Expanded(child: _buildTagsContent())]);
-  }
-
-  Widget _buildTagsHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: InkWell(
-        onTap: () => controller.isTagsExpanded.toggle(),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Icon(Icons.local_offer_outlined, color: AppColors.primary),
-              const SizedBox(width: 16),
-              Text('分类', style: MyFontStyle.listTitleStyle),
-              const Spacer(),
-              Obx(
-                () => AnimatedRotation(
-                  turns: controller.isTagsExpanded.value ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 200),
-                  child: Icon(Icons.keyboard_arrow_down, color: AppColors.primary),
-                ),
-              ),
-            ],
-          ),
+  Widget _buildActionButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: AppColors.primary(context)),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textPrimary(context)),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildTagsContent() {
-    return Obx(
-      () => AnimatedCrossFade(
-        firstChild: _buildTagsGrid(),
-        secondChild: const SizedBox.shrink(),
-        crossFadeState: controller.isTagsExpanded.value ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-        duration: const Duration(milliseconds: 300),
-      ),
+  Widget _buildTagsList(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            children: [
+              Icon(Icons.category, size: 18, color: AppColors.primary(context)),
+              const SizedBox(width: 8),
+              Text(
+                '分类',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary(context)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color:
+                        Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.cardBackgroundDark.withOpacity(0.7)
+                            : Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 10),
+                      Icon(Icons.search, size: 16, color: AppColors.textSecondary(context)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: '搜索分类',
+                            hintStyle: TextStyle(fontSize: 13, color: AppColors.textSecondary(context)),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                          style: TextStyle(fontSize: 13, color: AppColors.textPrimary(context)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: 0),
+            children: [...controller.tags.map((tag) => _buildTagItem(context, tag)).toList()],
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildTagsGrid() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Wrap(spacing: 12, runSpacing: 12, children: controller.tags.map((tag) => _buildTagChip(tag)).toList()),
-    );
-  }
+  Widget _buildTagItem(BuildContext context, tag) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-  Widget _buildTagChip(tag) {
-    return InkWell(
-      onTap: () {
-        controller.articlesController.showArticleByTagID(tag.id, tag.name ?? '');
-        Get.back();
-      },
-      child: Chip(
-        avatar: Icon(Icons.local_offer, size: 16, color: AppColors.primary),
-        label: Text(tag.name ?? '', style: MyFontStyle.chipTextStyle),
-        backgroundColor: AppColors.primary.withOpacity(0.1),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      ),
+    return Column(
+      children: [
+        InkWell(
+          onTap: () {
+            controller.articlesController.showArticleByTagID(tag.id, tag.name ?? '');
+            Get.back();
+          },
+          hoverColor: AppColors.primary(context).withOpacity(0.05),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(Icons.label_outline, size: 16, color: AppColors.primary(context)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    tag.name ?? '',
+                    style: TextStyle(fontSize: 14, color: AppColors.textPrimary(context)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 16, color: AppColors.textSecondary(context)),
+              ],
+            ),
+          ),
+        ),
+        Divider(
+          height: 1,
+          thickness: 0.5,
+          indent: 44,
+          endIndent: 0,
+          color: AppColors.divider(context).withOpacity(0.5),
+        ),
+      ],
     );
   }
 }

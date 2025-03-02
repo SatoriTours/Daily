@@ -21,10 +21,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(),
-      body: _buildBody(),
-    );
+    return Scaffold(appBar: _buildAppBar(), body: _buildBody());
   }
 
   // AppBar 相关
@@ -61,24 +58,17 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     return PopupMenuItem<int>(
       value: value,
       padding: EdgeInsets.symmetric(horizontal: 10),
-      child: Row(
-        children: [
-          Icon(icon),
-          SizedBox(width: 8),
-          Text(title),
-        ],
-      ),
+      child: Row(children: [Icon(icon), SizedBox(width: 8), Text(title)]),
     );
   }
 
   void _handleMenuSelection(int value) {
     switch (value) {
       case 1:
-        Get.toNamed(Routes.SHARE_DIALOG, arguments: {
-          'articleID': controller.article.id,
-          'shareURL': controller.article.url,
-          'update': true,
-        });
+        Get.toNamed(
+          Routes.SHARE_DIALOG,
+          arguments: {'articleID': controller.article.id, 'shareURL': controller.article.url, 'update': true},
+        );
         break;
       case 2:
         _showDeleteConfirmationDialog();
@@ -97,34 +87,19 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   Widget _buildBody() {
     return DefaultTabController(
       length: 3,
-      child: Column(
-        children: [
-          Expanded(child: _buildTabBarView()),
-          _buildTabBar(),
-        ],
-      ),
+      child: Column(children: [Expanded(child: _buildTabBarView()), _buildTabBar()]),
     );
   }
 
   Widget _buildTabBarView() {
     return TabBarView(
       physics: NeverScrollableScrollPhysics(),
-      children: [
-        _buildArticleContent(),
-        _buildArticleScreenshot(),
-        _buildArticleWebview(),
-      ],
+      children: [_buildArticleContent(), _buildArticleScreenshot(), _buildArticleWebview()],
     );
   }
 
   Widget _buildTabBar() {
-    return TabBar(
-      tabs: const [
-        Tab(text: 'AI解读'),
-        Tab(text: '网页截图'),
-        Tab(text: '原始链接'),
-      ],
-    );
+    return TabBar(tabs: const [Tab(text: 'AI解读'), Tab(text: '网页截图'), Tab(text: '原始链接')]);
   }
 
   // 文章内容相关
@@ -167,7 +142,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
       child: Text(
         (controller.article.aiTitle ?? controller.article.title) ?? '',
-        style: MyFontStyle.articleTitleStyle,
+        style: MyFontStyle.headerTitleStyleThemed(Get.context!),
       ),
     );
   }
@@ -177,10 +152,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
       child: SizedBox(
         width: double.infinity,
-        child: Text(
-          controller.article.aiContent ?? '',
-          style: MyFontStyle.articleBodyStyle,
-        ),
+        child: Text(controller.article.aiContent ?? '', style: MyFontStyle.articleBodyStyle),
       ),
     );
   }
@@ -188,10 +160,10 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   Widget _buildTags() {
     return controller.tags.value.isNotEmpty
         ? Container(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-            alignment: Alignment.centerLeft,
-            child: Text(controller.tags.value, style: MyFontStyle.tagStyle),
-          )
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          alignment: Alignment.centerLeft,
+          child: Text(controller.tags.value, style: MyFontStyle.tagStyle),
+        )
         : SizedBox.shrink();
   }
 
@@ -199,19 +171,12 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       alignment: Alignment.centerLeft,
-      child: Text(
-        "我的备注：${controller.article.comment}",
-        style: MyFontStyle.commentStyle,
-      ),
+      child: Text("我的备注：${controller.article.comment}", style: MyFontStyle.commentStyle),
     );
   }
 
   Widget _buildImageGallery() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-      height: 200,
-      child: _buildImageList(),
-    );
+    return Container(padding: const EdgeInsets.fromLTRB(20, 10, 20, 0), height: 200, child: _buildImageList());
   }
 
   // 截图和网页视图
@@ -277,10 +242,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
         },
         child: Text("确认"),
       ),
-      cancel: TextButton(
-        onPressed: () => Get.back(),
-        child: Text("取消"),
-      ),
+      cancel: TextButton(onPressed: () => Get.back(), child: Text("取消")),
     );
   }
 
@@ -292,10 +254,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           elevation: 0,
           automaticallyImplyLeading: false,
           actions: [
-            IconButton(
-              icon: Icon(Icons.close, color: Colors.white),
-              onPressed: () => Get.close(),
-            ),
+            IconButton(icon: Icon(Icons.close, color: Colors.white), onPressed: () => Get.close()),
             IconButton(
               icon: Icon(Icons.delete, color: Colors.white),
               onPressed: () {
@@ -311,10 +270,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                     },
                     child: Text("确认"),
                   ),
-                  cancel: TextButton(
-                    onPressed: () => Get.back(),
-                    child: Text("取消"),
-                  ),
+                  cancel: TextButton(onPressed: () => Get.back(), child: Text("取消")),
                 );
               },
             ),

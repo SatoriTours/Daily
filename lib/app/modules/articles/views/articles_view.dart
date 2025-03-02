@@ -20,12 +20,12 @@ class ArticlesView extends GetView<ArticlesController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(appBar: _buildAppBar(), body: _buildBody());
+    return Scaffold(appBar: _buildAppBar(context), body: _buildBody(context));
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      title: Obx(() => Text(controller.appBarTitle(), style: MyFontStyle.appBarTitleStyle)),
+      title: Obx(() => Text(controller.appBarTitle(), style: MyFontStyle.appBarTitleStyleThemed(context))),
       centerTitle: true,
       leading: IconButton(icon: const Icon(Icons.menu), onPressed: () => Get.toNamed(Routes.LEFT_BAR)),
       actions: [
@@ -41,33 +41,36 @@ class ArticlesView extends GetView<ArticlesController> {
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(BuildContext context) {
     return Obx(() {
       if (controller.articles.isEmpty) {
-        return _buildEmptyView();
+        return _buildEmptyView(context);
       }
       return Column(
-        children: [if (controller.enableSearch.value) _buildSearchTextField(), Expanded(child: _buildArticlesList())],
+        children: [
+          if (controller.enableSearch.value) _buildSearchTextField(context),
+          Expanded(child: _buildArticlesList(context)),
+        ],
       );
     });
   }
 
-  Widget _buildEmptyView() {
+  Widget _buildEmptyView(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.article_outlined, size: 64, color: AppColors.textSecondary.withOpacity(0.5)),
+          Icon(Icons.article_outlined, size: 64, color: AppColors.textSecondary(context).withOpacity(0.5)),
           const SizedBox(height: 16),
-          Text('还没有收藏内容', style: MyFontStyle.emptyStateStyle),
+          Text('还没有收藏内容', style: MyFontStyle.emptyStateStyleThemed(context)),
           const SizedBox(height: 8),
-          Text('您可以通过分享功能添加新文章', style: MyFontStyle.cardSubtitleStyle),
+          Text('您可以通过分享功能添加新文章', style: MyFontStyle.cardSubtitleStyleThemed(context)),
         ],
       ),
     );
   }
 
-  Widget _buildSearchTextField() {
+  Widget _buildSearchTextField(BuildContext context) {
     return AnimatedSlide(
       offset: Offset(0, controller.enableSearch.value ? 0 : -1),
       duration: const Duration(milliseconds: 300),
@@ -92,14 +95,14 @@ class ArticlesView extends GetView<ArticlesController> {
     );
   }
 
-  Widget _buildArticlesList() {
+  Widget _buildArticlesList(BuildContext context) {
     return RefreshIndicator(
       onRefresh: controller.reloadArticles,
-      color: AppColors.primary,
+      color: AppColors.primary(context),
       child: ListView.builder(
         controller: controller.scrollController,
         itemCount: _calculateItemCount(),
-        itemBuilder: _buildListItem,
+        itemBuilder: (context, index) => _buildListItem(context, index),
         padding: const EdgeInsets.only(bottom: 16),
       ),
     );
@@ -133,11 +136,11 @@ class ArticleCard extends GetView<ArticlesController> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildArticleContent(),
+              _buildArticleContent(context),
               const SizedBox(height: 12),
-              Divider(color: AppColors.divider),
+              Divider(color: AppColors.divider(context)),
               const SizedBox(height: 4),
-              _buildActionBar(),
+              _buildActionBar(context),
             ],
           ),
         ),
@@ -145,28 +148,28 @@ class ArticleCard extends GetView<ArticlesController> {
     );
   }
 
-  Widget _buildArticleContent() {
+  Widget _buildArticleContent(BuildContext context) {
     final imagePath = article.images.isEmpty ? '' : article.images.first.path ?? '';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_buildTitle()])),
-        if (imagePath.isNotEmpty) ...[const SizedBox(width: 16), _buildImage(imagePath)],
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_buildTitle(context)])),
+        if (imagePath.isNotEmpty) ...[const SizedBox(width: 16), _buildImage(context, imagePath)],
       ],
     );
   }
 
-  Widget _buildTitle() {
+  Widget _buildTitle(BuildContext context) {
     return Text(
       article.aiTitle ?? article.title ?? '',
-      style: MyFontStyle.listTitleStyle,
+      style: MyFontStyle.listTitleStyleThemed(context),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
     );
   }
 
-  Widget _buildImage(String path) {
+  Widget _buildImage(BuildContext context, String path) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: SizedBox(
@@ -179,40 +182,43 @@ class ArticleCard extends GetView<ArticlesController> {
               (_, __, ___) => Container(
                 width: 80,
                 height: 80,
-                color: AppColors.divider,
-                child: Icon(Icons.image_not_supported, color: AppColors.textSecondary),
+                color: AppColors.divider(context),
+                child: Icon(Icons.image_not_supported, color: AppColors.textSecondary(context)),
               ),
         ),
       ),
     );
   }
 
-  Widget _buildActionBar() {
+  Widget _buildActionBar(BuildContext context) {
     final url = Uri.parse(article.url ?? '');
 
     return Row(
       children: [
-        Icon(Icons.public, size: 16, color: AppColors.textSecondary),
+        Icon(Icons.public, size: 16, color: AppColors.textSecondary(context)),
         const SizedBox(width: 4),
-        Text(getTopLevelDomain(url.host), style: MyFontStyle.cardSubtitleStyle),
+        Text(getTopLevelDomain(url.host), style: MyFontStyle.cardSubtitleStyleThemed(context)),
         const SizedBox(width: 16),
         if (article.createdAt != null) ...[
-          Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
+          Icon(Icons.access_time, size: 16, color: AppColors.textSecondary(context)),
           const SizedBox(width: 4),
-          Text(GetTimeAgo.parse(article.createdAt!, pattern: 'yy年MM月dd日'), style: MyFontStyle.cardSubtitleStyle),
+          Text(
+            GetTimeAgo.parse(article.createdAt!, pattern: 'yy年MM月dd日'),
+            style: MyFontStyle.cardSubtitleStyleThemed(context),
+          ),
         ],
         const Spacer(),
-        _buildFavoriteButton(),
-        _buildShareButton(),
+        _buildFavoriteButton(context),
+        _buildShareButton(context),
       ],
     );
   }
 
-  Widget _buildFavoriteButton() {
+  Widget _buildFavoriteButton(BuildContext context) {
     return IconButton(
       icon: Icon(
         article.isFavorite ? Icons.favorite : Icons.favorite_border,
-        color: article.isFavorite ? AppColors.error : AppColors.textSecondary,
+        color: article.isFavorite ? AppColors.error(context) : AppColors.textSecondary(context),
       ),
       onPressed: () async {
         await ArticleService.i.toggleFavorite(article.id);
@@ -221,9 +227,9 @@ class ArticleCard extends GetView<ArticlesController> {
     );
   }
 
-  Widget _buildShareButton() {
+  Widget _buildShareButton(BuildContext context) {
     return IconButton(
-      icon: Icon(Icons.share, color: AppColors.textSecondary),
+      icon: Icon(Icons.share, color: AppColors.textSecondary(context)),
       onPressed: () {
         Share.share(article.url ?? '', subject: article.aiTitle ?? article.title ?? '');
       },
