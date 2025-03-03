@@ -25,7 +25,7 @@ class SettingsView extends GetView<SettingsController> {
     return Scaffold(
       appBar: AppBar(title: const Text('设置'), centerTitle: true, elevation: 0),
       body: Container(
-        color: colorScheme.background,
+        color: colorScheme.surface,
         child: SingleChildScrollView(
           child: Column(
             children: [
@@ -76,7 +76,13 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   Widget _buildFooter(BuildContext context) {
-    return Center(child: Text('版本 1.0.0', style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context))));
+    return FutureBuilder<String>(
+      future: getAppVersion(),
+      builder: (context, snapshot) {
+        final version = snapshot.hasData ? '版本 ${snapshot.data}' : '版本 获取中...';
+        return Center(child: Text(version, style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context))));
+      },
+    );
   }
 
   Widget _buildSettingsCard(BuildContext context, Widget child) {

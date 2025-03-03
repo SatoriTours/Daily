@@ -106,8 +106,7 @@ class AppUpgradeService {
 
   // 获取当前版本号
   Future<void> _getCurrentVersion() async {
-    final packageInfo = await PackageInfo.fromPlatform();
-    _currentVersion = "v${packageInfo.version}";
+    _currentVersion = await getAppVersion();
   }
 
   // 从Github获取最新版本信息

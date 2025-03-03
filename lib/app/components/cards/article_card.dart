@@ -4,11 +4,9 @@ import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
 import 'package:get_time_ago/get_time_ago.dart';
-import 'package:share_plus/share_plus.dart';
 
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
-import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/component_style.dart';
 import 'package:daily_satori/global.dart';
@@ -24,9 +22,6 @@ class ArticleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppTheme.getTheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
-
     return Card(
       margin: EdgeInsets.zero,
       elevation: 1,

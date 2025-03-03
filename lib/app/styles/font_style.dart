@@ -57,16 +57,16 @@ class MyFontStyle {
   // Headline 样式
   static final headlineLarge = _createBaseStyle(fontSize: 32, fontWeight: FontWeight.w600, height: 1.25);
   static final headlineMedium = _createBaseStyle(fontSize: 28, fontWeight: FontWeight.w600, height: 1.29);
-  static final headlineSmall = _createBaseStyle(fontSize: 24, fontWeight: FontWeight.w600, height: 1.33);
+  static final headlineSmall = _createBaseStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 1.33);
 
   // Title 样式
-  static final titleLarge = _createBaseStyle(fontSize: 22, fontWeight: FontWeight.w600, height: 1.27);
+  static final titleLarge = _createBaseStyle(fontSize: 18, fontWeight: FontWeight.w600, height: 1.27);
   static final titleMedium = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.5);
   static final titleSmall = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.43);
 
   // Body 样式
   static final bodyLarge = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.5);
-  static final bodyMedium = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.43);
+  static final bodyMedium = _createBaseStyle(fontSize: 15, fontWeight: FontWeight.w400, height: 1.47);
   static final bodySmall = _createBaseStyle(fontSize: 12, fontWeight: FontWeight.w400, height: 1.33);
 
   // Label 样式

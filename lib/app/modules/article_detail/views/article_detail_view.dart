@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:daily_satori/app/components/dream_webview/dream_webview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -144,7 +143,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(controller.article.title ?? '', style: textTheme.headlineSmall),
+          Text(controller.article.aiTitle ?? '', style: textTheme.headlineSmall),
           const SizedBox(height: 16),
           Text(controller.article.aiContent ?? '', style: textTheme.bodyMedium),
           if (controller.tags.value.isNotEmpty) ...[
@@ -307,10 +306,6 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
         ],
       ),
     );
-  }
-
-  Widget _buildArticleWebview() {
-    return DreamWebView(url: controller.article.url ?? '');
   }
 
   // 通用组件

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
@@ -16,6 +17,18 @@ bool get isProduction => const bool.fromEnvironment("dart.vm.product");
 
 /// 获取当前时间的ISO 8601格式字符串
 String nowToString() => DateTime.now().toIso8601String();
+
+/// 获取当前应用版本信息
+Future<String> getAppVersion() async {
+  try {
+    final packageInfo = await PackageInfo.fromPlatform();
+    return 'v${packageInfo.version}';
+    // return 'v${packageInfo.version} (${packageInfo.buildNumber})';
+  } catch (e) {
+    logger.e("获取应用版本失败: $e");
+    return '未知版本';
+  }
+}
 
 /// 更新数据的时间戳
 Map<String, String?> updateTimestamps(Map<String, String?> data) {
