@@ -106,8 +106,8 @@ class ArticleCard extends GetView<ArticlesController> {
   }
 
   Widget _buildArticleContent(BuildContext context) {
-    final imagePath = article.images.isEmpty ? '' : article.images.first.path ?? '';
-    final hasImage = imagePath.isNotEmpty;
+    final hasImage = controller.hasArticleHeaderImage(article);
+    final imagePath = controller.getArticleHeaderImagePath(article);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -10,6 +10,7 @@ import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/helpers/article_helper.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 part 'part.clipboard.dart';
@@ -108,5 +109,15 @@ class ArticlesController extends MyBaseController with WidgetsBindingObserver {
     if (_onlyFavorite.value) title = '收藏的文章';
     if (tagName.value.isNotEmpty) title = "$title - ${tagName.value}";
     return title;
+  }
+
+  /// 获取文章主图路径
+  String getArticleHeaderImagePath(Article article) {
+    return ArticleHelper.getArticleHeaderImagePath(article);
+  }
+
+  /// 检查文章是否有主图
+  bool hasArticleHeaderImage(Article article) {
+    return ArticleHelper.hasArticleHeaderImage(article);
   }
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:daily_satori/app/styles/colors.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/styles/dimensions.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
 
 /// 组件样式类
 /// 提供应用中各种组件的样式定义
@@ -278,6 +280,97 @@ class ComponentStyle {
     return BoxDecoration(
       borderRadius: BorderRadius.circular(8),
       border: Border.all(color: AppColors.divider(context), width: 0.5),
+    );
+  }
+
+  // 文章详情页样式
+  /// 文章标题容器样式
+  static Padding articleTitleContainer(BuildContext context, Widget child) {
+    return Padding(
+      padding: Dimensions.paddingPage.copyWith(bottom: Dimensions.spacingS, top: Dimensions.spacingM),
+      child: child,
+    );
+  }
+
+  /// 文章内容容器样式
+  static Padding articleContentContainer(BuildContext context, Widget child) {
+    return Padding(padding: Dimensions.paddingHorizontalL.copyWith(bottom: Dimensions.spacingM), child: child);
+  }
+
+  /// 文章标签容器样式
+  static Padding articleTagsContainer(BuildContext context, Widget child) {
+    return Padding(padding: Dimensions.paddingHorizontalL.copyWith(bottom: Dimensions.spacingM), child: child);
+  }
+
+  /// 文章图片样式
+  static BoxDecoration articleImageDecoration(BuildContext context) {
+    return BoxDecoration(
+      color: AppTheme.getColorScheme(context).surfaceVariant,
+      borderRadius: BorderRadius.circular(Dimensions.radiusM),
+    );
+  }
+
+  /// 文章标签样式
+  static Chip articleTag(BuildContext context, String label) {
+    final colorScheme = AppTheme.getColorScheme(context);
+    return Chip(
+      label: Text(
+        label,
+        style: AppTheme.getTextTheme(context).labelSmall?.copyWith(color: colorScheme.onPrimaryContainer),
+      ),
+      backgroundColor: colorScheme.primaryContainer,
+      padding: Dimensions.paddingHorizontalS,
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  // 设置页样式
+  /// 设置项容器样式
+  static Container settingsItemContainer(BuildContext context, Widget child) {
+    final colorScheme = AppTheme.getColorScheme(context);
+    return Container(
+      padding: Dimensions.paddingListItem,
+      margin: EdgeInsets.symmetric(vertical: Dimensions.spacingXs),
+      decoration: BoxDecoration(color: colorScheme.surface, borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+      child: child,
+    );
+  }
+
+  /// 设置分组标题样式
+  static Padding settingsSectionTitle(BuildContext context, String title) {
+    final textTheme = AppTheme.getTextTheme(context);
+    final colorScheme = AppTheme.getColorScheme(context);
+
+    return Padding(
+      padding: EdgeInsets.only(left: Dimensions.spacingM, top: Dimensions.spacingL, bottom: Dimensions.spacingS),
+      child: Text(
+        title,
+        style: textTheme.titleSmall?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  // 首页样式
+  /// 首页卡片容器样式
+  static Container homeCardContainer(BuildContext context, Widget child) {
+    final colorScheme = AppTheme.getColorScheme(context);
+
+    return Container(
+      margin: Dimensions.marginCard,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(Dimensions.radiusM),
+        boxShadow: [BoxShadow(color: colorScheme.shadow.withOpacity(0.1), blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      child: child,
+    );
+  }
+
+  /// 首页头部样式
+  static Padding homeHeaderContainer(BuildContext context, Widget child) {
+    return Padding(
+      padding: Dimensions.paddingHorizontalL.copyWith(top: Dimensions.spacingM, bottom: Dimensions.spacingS),
+      child: child,
     );
   }
 }

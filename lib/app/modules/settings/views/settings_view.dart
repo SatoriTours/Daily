@@ -11,7 +11,11 @@ import 'package:daily_satori/app/services/freedisk_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/styles/app_styles.dart';
+import 'package:daily_satori/app/styles/component_style.dart';
+import 'package:daily_satori/app/styles/dimensions.dart';
+import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/utils/utils.dart';
 
 import '../controllers/settings_controller.dart';
 
@@ -30,16 +34,16 @@ class SettingsView extends GetView<SettingsController> {
           child: Column(
             children: [
               _buildHeader(context),
-              const SizedBox(height: 8),
+              Dimensions.verticalSpacerS,
               _buildOpenAIGroup(context),
               _buildPluginGroup(context),
               _buildWebServerGroup(context),
               _buildBackupDirSelect(context),
               _buildFreeSpaceAction(context),
               _buildUpgradeAction(context),
-              const SizedBox(height: 24),
+              Dimensions.verticalSpacerL,
               _buildFooter(context),
-              const SizedBox(height: 24),
+              Dimensions.verticalSpacerL,
             ],
           ),
         ),
@@ -48,26 +52,26 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
+    return ComponentStyle.settingsItemContainer(
+      context,
+      Row(
         children: [
           Container(
             width: 60,
             height: 60,
-            decoration: BoxDecoration(color: AppColors.primary(context), borderRadius: BorderRadius.circular(15)),
-            child: const Icon(Icons.settings, color: Colors.white, size: 30),
+            decoration: BoxDecoration(
+              color: AppColors.primary(context),
+              borderRadius: BorderRadius.circular(Dimensions.radiusM),
+            ),
+            child: Icon(Icons.settings, color: AppTheme.getColorScheme(context).onPrimary, size: Dimensions.iconSizeL),
           ),
-          const SizedBox(width: 16),
+          Dimensions.horizontalSpacerM,
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Daily Satori',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary(context)),
-              ),
-              const SizedBox(height: 4),
-              Text('个性化您的阅读体验', style: TextStyle(fontSize: 14, color: AppColors.textSecondary(context))),
+              Text('Daily Satori', style: MyFontStyle.listTitleStyleThemed(context)),
+              Dimensions.verticalSpacerXs,
+              Text('个性化您的阅读体验', style: MyFontStyle.cardSubtitleStyleThemed(context)),
             ],
           ),
         ],
@@ -77,24 +81,16 @@ class SettingsView extends GetView<SettingsController> {
 
   Widget _buildFooter(BuildContext context) {
     return FutureBuilder<String>(
-      future: getAppVersion(),
+      future: AppInfoUtils.getVersion(),
       builder: (context, snapshot) {
         final version = snapshot.hasData ? '版本 ${snapshot.data}' : '版本 获取中...';
-        return Center(child: Text(version, style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context))));
+        return Center(child: Text(version, style: MyFontStyle.cardSubtitleStyleThemed(context)));
       },
     );
   }
 
   Widget _buildSettingsCard(BuildContext context, Widget child) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark ? AppColors.cardBackgroundDark : Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))],
-      ),
-      child: child,
-    );
+    return Container(margin: Dimensions.marginCard, decoration: AppStyles.cardDecoration(context), child: child);
   }
 
   Widget _buildWebServerGroup(BuildContext context) {
@@ -102,15 +98,15 @@ class SettingsView extends GetView<SettingsController> {
       context,
       SettingsGroup(
         title: 'Web 服务器',
-        titleTextStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary(context)),
+        titleTextStyle: MyFontStyle.settingGroupTitleThemed(context),
         subtitle: '配置Web访问相关设置',
-        subtitleTextStyle: TextStyle(fontSize: 12, color: AppColors.textSecondary(context)),
+        subtitleTextStyle: MyFontStyle.cardSubtitleStyleThemed(context),
         children: [
           Obx(
             () => SimpleSettingsTile(
               title: '局域网访问地址',
               subtitle: controller.webServiceAddress.value,
-              leading: Icon(Icons.lan, color: AppColors.primary(context)),
+              leading: Icon(Icons.lan, color: AppColors.primary(context), size: Dimensions.iconSizeM),
               enabled: true,
               showDivider: true,
               onTap: () {
@@ -122,7 +118,7 @@ class SettingsView extends GetView<SettingsController> {
             () => SimpleSettingsTile(
               title: '公网访问地址',
               subtitle: controller.webAccessUrl.value,
-              leading: Icon(Icons.public, color: AppColors.primary(context)),
+              leading: Icon(Icons.public, color: AppColors.primary(context), size: Dimensions.iconSizeM),
               enabled: true,
               showDivider: true,
               onTap: () {
@@ -150,9 +146,9 @@ class SettingsView extends GetView<SettingsController> {
       context,
       SettingsGroup(
         title: '插件',
-        titleTextStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary(context)),
+        titleTextStyle: MyFontStyle.settingGroupTitleThemed(context),
         subtitle: '配置插件相关设置',
-        subtitleTextStyle: TextStyle(fontSize: 12, color: AppColors.textSecondary(context)),
+        subtitleTextStyle: MyFontStyle.cardSubtitleStyleThemed(context),
         children: [
           TextInputSettingsTile(
             settingKey: SettingService.pluginKey,
@@ -169,14 +165,14 @@ class SettingsView extends GetView<SettingsController> {
       context,
       SettingsGroup(
         title: '备份与恢复',
-        titleTextStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary(context)),
+        titleTextStyle: MyFontStyle.settingGroupTitleThemed(context),
         subtitle: '管理您的数据备份',
-        subtitleTextStyle: TextStyle(fontSize: 12, color: AppColors.textSecondary(context)),
+        subtitleTextStyle: MyFontStyle.cardSubtitleStyleThemed(context),
         children: [
           SimpleSettingsTile(
             title: '选择备份路径',
             subtitle: '设置数据备份的存储位置',
-            leading: Icon(Icons.folder_open_outlined, color: AppColors.primary(context)),
+            leading: Icon(Icons.folder_open_outlined, color: AppColors.primary(context), size: Dimensions.iconSizeM),
             showDivider: true,
             onTap: () {
               controller.selectBackupDirectory();
@@ -185,19 +181,23 @@ class SettingsView extends GetView<SettingsController> {
           SimpleSettingsTile(
             title: '立即备份',
             subtitle: '创建当前数据的备份',
-            leading: Icon(Icons.backup_table_outlined, color: AppColors.primary(context)),
+            leading: Icon(
+              Icons.backup_table_outlined,
+              color: AppTheme.getColorScheme(context).primary,
+              size: Dimensions.iconSizeM,
+            ),
             showDivider: true,
             onTap: () async {
-              showFullScreenLoading();
+              UIUtils.showLoading();
               await BackupService.i.checkAndBackup(immediateBackup: true);
               Get.close();
-              successNotice("备份成功");
+              UIUtils.showSuccess("备份成功");
             },
           ),
           SimpleSettingsTile(
             title: '从备份恢复',
             subtitle: '从之前的备份中恢复数据',
-            leading: Icon(Icons.restore_rounded, color: AppColors.primary(context)),
+            leading: Icon(Icons.restore_rounded, color: AppColors.primary(context), size: Dimensions.iconSizeM),
             showDivider: false,
             onTap: () {
               Get.toNamed(Routes.BACKUP_RESTORE);
@@ -213,32 +213,40 @@ class SettingsView extends GetView<SettingsController> {
       context,
       SettingsGroup(
         title: '清理与维护',
-        titleTextStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary(context)),
+        titleTextStyle: MyFontStyle.settingGroupTitleThemed(context),
         subtitle: '优化应用性能和存储空间',
-        subtitleTextStyle: TextStyle(fontSize: 12, color: AppColors.textSecondary(context)),
+        subtitleTextStyle: MyFontStyle.cardSubtitleStyleThemed(context),
         children: [
           SimpleSettingsTile(
             title: '清除重复的图片',
             subtitle: '删除重复的图片文件以节省空间',
-            leading: Icon(Icons.cleaning_services, color: AppColors.primary(context)),
+            leading: Icon(
+              Icons.cleaning_services,
+              color: AppTheme.getColorScheme(context).primary,
+              size: Dimensions.iconSizeM,
+            ),
             showDivider: true,
             onTap: () async {
-              showFullScreenLoading();
+              UIUtils.showLoading();
               await FreeDiskService.i.clean();
               Get.close();
-              successNotice("清除重复图片完成");
+              UIUtils.showSuccess("清除重复图片完成");
             },
           ),
           SimpleSettingsTile(
             title: '清空所有标签',
             subtitle: '删除所有已创建的标签',
-            leading: Icon(Icons.clean_hands, color: AppColors.primary(context)),
+            leading: Icon(
+              Icons.clean_hands,
+              color: AppTheme.getColorScheme(context).primary,
+              size: Dimensions.iconSizeM,
+            ),
             showDivider: false,
             onTap: () async {
-              showFullScreenLoading();
+              UIUtils.showLoading();
               await TagsService.i.clearAllTags();
               Get.offNamed(Routes.ARTICLES);
-              successNotice("清除标签完成");
+              UIUtils.showSuccess("清除标签完成");
             },
           ),
         ],
@@ -251,14 +259,14 @@ class SettingsView extends GetView<SettingsController> {
       context,
       SettingsGroup(
         title: '关于应用',
-        titleTextStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary(context)),
+        titleTextStyle: MyFontStyle.settingGroupTitleThemed(context),
         subtitle: '应用信息与更新',
-        subtitleTextStyle: TextStyle(fontSize: 12, color: AppColors.textSecondary(context)),
+        subtitleTextStyle: MyFontStyle.cardSubtitleStyleThemed(context),
         children: [
           SimpleSettingsTile(
             title: '检查更新',
             subtitle: '获取最新版本的应用',
-            leading: Icon(Icons.system_update, color: AppColors.primary(context)),
+            leading: Icon(Icons.system_update, color: AppColors.primary(context), size: Dimensions.iconSizeM),
             showDivider: false,
             onTap: () {
               AppUpgradeService.i.checkAndDownload();
@@ -274,9 +282,9 @@ class SettingsView extends GetView<SettingsController> {
       context,
       SettingsGroup(
         title: 'AI 设置',
-        titleTextStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary(context)),
+        titleTextStyle: MyFontStyle.settingGroupTitleThemed(context),
         subtitle: '配置AI相关功能',
-        subtitleTextStyle: TextStyle(fontSize: 12, color: AppColors.textSecondary(context)),
+        subtitleTextStyle: MyFontStyle.cardSubtitleStyleThemed(context),
         children: [
           TextInputSettingsTile(
             settingKey: SettingService.openAIAddressKey,

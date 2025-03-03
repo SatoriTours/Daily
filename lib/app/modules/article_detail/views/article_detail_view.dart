@@ -9,10 +9,11 @@ import 'package:daily_satori/app/modules/articles/controllers/articles_controlle
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/styles/colors.dart';
 import 'package:daily_satori/global.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/components/dream_webview/dream_webview.dart';
 
 import '../controllers/article_detail_controller.dart';
 
@@ -47,7 +48,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       padding: EdgeInsets.zero,
       color: colorScheme.surface,
       elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
       itemBuilder: (context) => _buildPopupMenuItems(context),
       onSelected: _handleMenuSelection,
     );
@@ -70,11 +71,11 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
     return PopupMenuItem<int>(
       value: value,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: Dimensions.paddingHorizontalM,
       child: Row(
         children: [
-          Icon(icon, size: 20, color: colorScheme.onSurface),
-          const SizedBox(width: 12),
+          Icon(icon, size: Dimensions.iconSizeS, color: colorScheme.onSurface),
+          Dimensions.horizontalSpacerS,
           Text(title, style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
         ],
       ),
@@ -113,7 +114,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   Widget _buildTabBarView(BuildContext context) {
     return TabBarView(
       physics: const NeverScrollableScrollPhysics(),
-      children: [_buildSummaryTab(context), _buildArticleContent(context), _buildArticleScreenshot(context)],
+      children: [_buildSummaryTab(context), _buildArticleScreenshot(context), _buildWebView(context)],
     );
   }
 
@@ -129,42 +130,21 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
         indicatorColor: colorScheme.primary,
         indicatorWeight: 3,
         labelStyle: textTheme.labelLarge,
-        tabs: const [Tab(text: '摘要'), Tab(text: '原文'), Tab(text: '截图')],
+        tabs: const [Tab(text: 'AI解读'), Tab(text: '截图'), Tab(text: '原文')],
       ),
     );
   }
 
   // 文章内容相关
   Widget _buildSummaryTab(BuildContext context) {
-    final textTheme = AppTheme.getTextTheme(context);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(controller.article.aiTitle ?? '', style: textTheme.headlineSmall),
-          const SizedBox(height: 16),
-          Text(controller.article.aiContent ?? '', style: textTheme.bodyMedium),
-          if (controller.tags.value.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(controller.tags.value, style: textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic)),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildArticleContent(BuildContext context) {
     final article = controller.article;
-    final imagePath = article.images.isEmpty ? '' : (article.images.first.path ?? '');
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: Dimensions.paddingVerticalM.copyWith(bottom: Dimensions.spacingM),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_shouldShowHeaderImage(imagePath)) _buildHeaderImage(context, imagePath),
+          if (controller.shouldShowHeaderImage()) _buildHeaderImage(context, controller.getHeaderImagePath()),
           _buildTitle(context),
           Obx(() => _buildTags(context)),
           _buildContent(context),
@@ -175,96 +155,159 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     );
   }
 
-  bool _shouldShowHeaderImage(String imagePath) {
-    return imagePath.isNotEmpty && !imagePath.endsWith('.svg');
-  }
-
-  Widget _buildHeaderImage(BuildContext context, String imagePath) {
-    return GestureDetector(
-      onTap: () => _showFullScreenImage([imagePath]),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-        width: double.infinity,
-        constraints: const BoxConstraints(maxHeight: 200),
-        child: ClipRRect(borderRadius: BorderRadius.circular(12), child: _buildImageWithError(imagePath, BoxFit.cover)),
-      ),
-    );
-  }
-
   Widget _buildTitle(BuildContext context) {
     final textTheme = AppTheme.getTextTheme(context);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-      child: Text((controller.article.aiTitle ?? controller.article.title) ?? '', style: textTheme.headlineSmall),
+    return ComponentStyle.articleTitleContainer(
+      context,
+      Text((controller.article.aiTitle ?? controller.article.title) ?? '', style: textTheme.headlineSmall),
     );
   }
 
   Widget _buildContent(BuildContext context) {
     final textTheme = AppTheme.getTextTheme(context);
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-      child: Text(controller.article.aiContent ?? '', style: textTheme.bodyMedium),
+    return ComponentStyle.articleContentContainer(
+      context,
+      Text(controller.article.aiContent ?? '', style: textTheme.bodyMedium),
     );
   }
 
   Widget _buildTags(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
     return controller.tags.value.isNotEmpty
-        ? Container(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          alignment: Alignment.centerLeft,
-          child: Text(controller.tags.value, style: textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic)),
+        ? ComponentStyle.articleTagsContainer(
+          context,
+          Wrap(
+            spacing: 8.0, // 水平间距
+            runSpacing: 8.0, // 垂直间距
+            children:
+                controller.tags.value.split(', ').map((tag) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(Dimensions.radiusM),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+                    child: Text(
+                      tag,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }).toList(),
+          ),
         )
         : const SizedBox.shrink();
   }
 
   Widget _buildComment(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
+    final colorScheme = AppTheme.getColorScheme(context);
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: colorScheme.outline),
-      ),
-      alignment: Alignment.centerLeft,
-      child: Column(
+    return ComponentStyle.articleContentContainer(
+      context,
+      Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("我的备注", style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text(controller.article.comment ?? "", style: textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic)),
+          Text('编辑评论', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Dimensions.verticalSpacerS,
+          Text(
+            controller.article.comment ?? '',
+            style: textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic, color: colorScheme.onSurfaceVariant),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildImageGallery(BuildContext context) {
+    final textTheme = AppTheme.getTextTheme(context);
     final images = controller.getArticleImages();
-    if (images.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        ComponentStyle.articleTitleContainer(
+          context,
+          Text('相关图片', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-          child: Text(
-            "图片集",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary(context)),
+          padding: Dimensions.paddingHorizontalL,
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 1.0,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: images.length,
+            itemBuilder: (context, index) {
+              final imagePath = images[index];
+              return GestureDetector(
+                onTap: () => _showFullScreenImage(images, initialIndex: index),
+                child: Container(
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.file(
+                    File(imagePath),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      logger.i("加载路径错误 $imagePath");
+                      return _buildErrorImage(context);
+                    },
+                  ),
+                ),
+              );
+            },
           ),
         ),
-        Container(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-          height: 120,
-          child: _buildImageList(context, images),
-        ),
+        Dimensions.verticalSpacerM,
       ],
+    );
+  }
+
+  Widget _buildErrorImage(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+
+    return Container(
+      color: colorScheme.surfaceContainerHighest,
+      child: Center(
+        child: Icon(Icons.broken_image_outlined, size: Dimensions.iconSizeL, color: colorScheme.onSurfaceVariant),
+      ),
+    );
+  }
+
+  Widget _buildHeaderImage(BuildContext context, String imagePath) {
+    return GestureDetector(
+      onTap: () => _showFullScreenImage([imagePath]),
+      child: Container(
+        padding: Dimensions.paddingPage.copyWith(bottom: 0),
+        width: double.infinity,
+        constraints: const BoxConstraints(maxHeight: 200),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(Dimensions.radiusM),
+          child: _buildImageWithError(imagePath, BoxFit.cover),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageWithError(String path, BoxFit fit) {
+    return Image.file(
+      File(path),
+      fit: fit,
+      alignment: Alignment.topCenter,
+      errorBuilder: (_, error, __) {
+        logger.i("加载路径错误 $path");
+        return _buildErrorImage(Get.context!);
+      },
     );
   }
 
@@ -275,20 +318,22 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       return _buildEmptyScreenshotState(context);
     }
 
-    return PhotoViewGallery.builder(
-      scrollPhysics: const BouncingScrollPhysics(),
-      builder: (BuildContext context, int index) {
-        return PhotoViewGalleryPageOptions(
-          imageProvider: FileImage(File(screenshots[index])),
-          initialScale: PhotoViewComputedScale.contained,
-          minScale: PhotoViewComputedScale.contained,
-          maxScale: PhotoViewComputedScale.covered * 2,
-        );
-      },
-      itemCount: screenshots.length,
-      loadingBuilder: (context, event) => _buildLoadingIndicator(context),
-      backgroundDecoration: BoxDecoration(color: AppTheme.getColorScheme(context).background),
-      pageController: PageController(),
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        children:
+            screenshots.map((screenshot) {
+              return Image.file(
+                File(screenshot),
+                fit: BoxFit.fitWidth,
+                width: double.infinity,
+                errorBuilder: (context, error, stackTrace) {
+                  logger.i("加载路径错误 $screenshot");
+                  return _buildErrorImage(context);
+                },
+              );
+            }).toList(),
+      ),
     );
   }
 
@@ -300,53 +345,49 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.image_not_supported_outlined, size: 48, color: colorScheme.onSurfaceVariant),
-          const SizedBox(height: 16),
+          Icon(Icons.image_not_supported_outlined, size: Dimensions.iconSizeXl, color: colorScheme.onSurfaceVariant),
+          Dimensions.verticalSpacerM,
           Text("暂无网页截图", style: textTheme.bodyLarge),
         ],
       ),
     );
   }
 
-  // 通用组件
-  Widget _buildImageWithError(String path, BoxFit fit) {
-    return Image.file(
-      File(path),
-      fit: fit,
-      alignment: Alignment.topCenter,
-      errorBuilder: (_, error, __) {
-        logger.i("加载路径错误 $path");
-        return const SizedBox.shrink();
+  // 使用浏览器显示原始网页
+  Widget _buildWebView(BuildContext context) {
+    final url = controller.article.url;
+    if (url == null || url.isEmpty) {
+      return _buildEmptyWebViewState(context);
+    }
+
+    return DreamWebView(
+      url: url,
+      onWebViewCreated: (webController) {
+        // 可以在这里保存WebView控制器的引用以便后续使用
       },
     );
   }
 
-  Widget _buildImageList(BuildContext context, List<String> images) {
-    return ListView.builder(
-      scrollDirection: Axis.horizontal,
-      itemCount: images.length,
-      itemBuilder: (context, index) {
-        return GestureDetector(
-          onTap: () => _showFullScreenImage(images, index),
-          child: Container(
-            margin: const EdgeInsets.only(right: 8.0),
-            width: 120,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.divider(context)),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: _buildImageWithError(images[index], BoxFit.cover),
-            ),
-          ),
-        );
-      },
+  Widget _buildEmptyWebViewState(BuildContext context) {
+    final textTheme = AppTheme.getTextTheme(context);
+    final colorScheme = AppTheme.getColorScheme(context);
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.link_off, size: Dimensions.iconSizeXl, color: colorScheme.onSurfaceVariant),
+          Dimensions.verticalSpacerM,
+          Text("无法加载原始网页", style: textTheme.bodyLarge),
+        ],
+      ),
     );
   }
 
   // 对话框
   void _showDeleteConfirmationDialog() {
+    final colorScheme = AppTheme.getColorScheme(Get.context!);
+
     Get.defaultDialog(
       title: "确认删除",
       middleText: "您确定要删除吗？",
@@ -357,13 +398,13 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           Get.back();
           Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
         },
-        child: const Text("确认", style: TextStyle(color: Colors.red)),
+        child: Text('删除', style: TextStyle(color: colorScheme.error)),
       ),
-      cancel: TextButton(onPressed: () => Get.back(), child: const Text("取消")),
+      cancel: TextButton(onPressed: () => Get.back(), child: Text("取消")),
     );
   }
 
-  void _showFullScreenImage(List<String> imagePaths, [int initialIndex = 0]) {
+  void _showFullScreenImage(List<String> images, {int initialIndex = 0}) {
     Get.dialog(
       Scaffold(
         appBar: AppBar(
@@ -379,12 +420,12 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                   middleText: "确定要删除这张图片吗?",
                   confirm: TextButton(
                     onPressed: () async {
-                      await controller.deleteImage(imagePaths[initialIndex]);
+                      await controller.deleteImage(images[initialIndex]);
                       Get.back();
                       Get.back();
                       Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
                     },
-                    child: const Text("确认", style: TextStyle(color: Colors.red)),
+                    child: Text("确认", style: TextStyle(color: Colors.red)),
                   ),
                   cancel: TextButton(onPressed: () => Get.back(), child: const Text("取消")),
                 );
@@ -397,15 +438,15 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
         body: PhotoViewGallery.builder(
           scrollDirection: Axis.horizontal,
           pageController: PageController(initialPage: initialIndex),
-          itemCount: imagePaths.length,
+          itemCount: images.length,
           builder: (context, index) {
             return PhotoViewGalleryPageOptions(
-              imageProvider: FileImage(File(imagePaths[index])),
+              imageProvider: FileImage(File(images[index])),
               initialScale: PhotoViewComputedScale.contained,
               minScale: PhotoViewComputedScale.contained,
               maxScale: PhotoViewComputedScale.covered * 5.0,
               errorBuilder: (context, error, stackTrace) {
-                logger.i("加载路径错误 ${imagePaths[index]}");
+                logger.i("加载路径错误 ${images[index]}");
                 return const SizedBox.shrink();
               },
             );
@@ -416,9 +457,25 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     );
   }
 
-  Widget _buildLoadingIndicator(BuildContext context) {
+  Widget _buildDeleteDialog(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
 
-    return Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary)));
+    return AlertDialog(
+      title: Text('删除确认', style: textTheme.titleLarge),
+      content: Text('确定要删除这篇文章吗？此操作不可撤销。', style: textTheme.bodyMedium),
+      actions: [
+        TextButton(onPressed: () => Get.back(), child: Text('取消', style: TextStyle(color: colorScheme.secondary))),
+        TextButton(
+          onPressed: () {
+            Get.back(); // 关闭弹窗
+            controller.deleteArticle();
+            Get.back(); // 返回文章列表
+            Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+          },
+          child: Text("确认", style: TextStyle(color: colorScheme.error)),
+        ),
+      ],
+    );
   }
 }

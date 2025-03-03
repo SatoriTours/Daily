@@ -12,6 +12,7 @@ import 'package:daily_satori/app/styles/component_style.dart';
 import 'package:daily_satori/global.dart';
 import 'package:daily_satori/app/components/articles/article_info_item.dart';
 import 'package:daily_satori/app/components/articles/article_action_bar.dart';
+import 'package:daily_satori/app/helpers/article_helper.dart';
 
 /// 文章卡片组件
 class ArticleCard extends StatelessWidget {
@@ -41,8 +42,8 @@ class ArticleCard extends StatelessWidget {
   }
 
   Widget _buildArticleContent(BuildContext context) {
-    final imagePath = article.images.isEmpty ? '' : article.images.first.path ?? '';
-    final hasImage = imagePath.isNotEmpty;
+    final hasImage = ArticleHelper.hasArticleHeaderImage(article);
+    final imagePath = ArticleHelper.getArticleHeaderImagePath(article);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -6,6 +6,7 @@ import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/helpers/article_helper.dart';
 
 class ArticleDetailController extends MyBaseController {
   /// 当前文章对象
@@ -73,5 +74,15 @@ class ArticleDetailController extends MyBaseController {
   Future<void> deleteImage(String imagePath) async {
     article.images.removeWhere((image) => image.path == imagePath);
     await ArticleService.i.updateArticle(article.id, article);
+  }
+
+  /// 获取文章主图路径
+  String getHeaderImagePath() {
+    return ArticleHelper.getArticleHeaderImagePath(article);
+  }
+
+  /// 检查是否应该显示头部图片
+  bool shouldShowHeaderImage() {
+    return ArticleHelper.shouldShowHeaderImage(article);
   }
 }
