@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
 
-import 'package:daily_satori/app/styles/theme.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/init_app.dart';
 
 import 'app/routes/app_pages.dart';
@@ -16,8 +16,8 @@ void _dailyAppRunner() {
   runApp(
     GetMaterialApp(
       title: "Daily Satori",
-      theme: MyTheme.light,
-      darkTheme: MyTheme.dark,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
       initialRoute: AppPages.INITIAL,
       getPages: AppPages.routes,

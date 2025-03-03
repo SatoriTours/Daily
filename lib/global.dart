@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
 
 /// 本地化时间设置
 final String timeLocal = 'zh_CN';
@@ -68,6 +69,9 @@ void errorNotice(String content, {String title = '错误'}) {
 
 /// 显示全屏加载提示
 void showFullScreenLoading({String tips = '', Color barrierColor = Colors.transparent}) {
+  final context = Get.context;
+  final textTheme = context != null ? AppTheme.getTextTheme(context) : null;
+
   Get.dialog(
     PopScope(
       child: Center(
@@ -76,7 +80,7 @@ void showFullScreenLoading({String tips = '', Color barrierColor = Colors.transp
           children: [
             const CircularProgressIndicator(),
             const SizedBox(height: 16),
-            Text(tips, style: MyFontStyle.loadingTipsStyle),
+            Text(tips, style: textTheme?.bodyMedium ?? MyFontStyle.loadingTipsStyle),
           ],
         ),
       ),

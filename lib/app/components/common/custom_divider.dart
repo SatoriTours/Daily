@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:daily_satori/app/styles/colors.dart';
+import 'package:daily_satori/app/styles/component_style.dart';
 
 /// 自定义分隔线
 class CustomDivider extends StatelessWidget {
@@ -12,12 +12,6 @@ class CustomDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Divider(
-      height: height,
-      thickness: 1,
-      color: AppColors.divider(context),
-      indent: indent,
-      endIndent: endIndent,
-    );
+    return ComponentStyle.customDivider(context, height: height, indent: indent, endIndent: endIndent);
   }
 }

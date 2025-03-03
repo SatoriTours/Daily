@@ -9,7 +9,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/article_service.dart';
-import 'package:daily_satori/app/styles/colors.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/component_style.dart';
 import 'package:daily_satori/global.dart';
 import 'package:daily_satori/app/components/articles/article_info_item.dart';
 import 'package:daily_satori/app/components/articles/article_action_bar.dart';
@@ -23,6 +24,9 @@ class ArticleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppTheme.getTheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
+
     return Card(
       margin: EdgeInsets.zero,
       elevation: 1,
@@ -56,9 +60,11 @@ class ArticleCard extends StatelessWidget {
   }
 
   Widget _buildTitle(BuildContext context) {
+    final textTheme = AppTheme.getTextTheme(context);
+
     return Text(
       article.aiTitle ?? article.title ?? '',
-      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary(context), height: 1.3),
+      style: textTheme.titleMedium,
       maxLines: 3,
       overflow: TextOverflow.ellipsis,
     );
@@ -77,8 +83,8 @@ class ArticleCard extends StatelessWidget {
               (_, __, ___) => Container(
                 width: 90,
                 height: 70,
-                color: AppColors.divider(context),
-                child: Icon(Icons.image_not_supported, color: AppColors.textSecondary(context)),
+                decoration: ComponentStyle.imageContainerDecoration(context),
+                child: Icon(Icons.image_not_supported, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 24),
               ),
         ),
       ),

@@ -11,8 +11,7 @@ import 'package:daily_satori/app/modules/articles/controllers/articles_controlle
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/article_service.dart';
-import 'package:daily_satori/app/styles/colors.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/global.dart';
 
 import 'package:daily_satori/app/components/empty_states/articles_empty_view.dart';
@@ -28,8 +27,10 @@ class ArticlesView extends GetView<ArticlesController> {
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
+    final textTheme = AppTheme.getTextTheme(context);
+
     return AppBar(
-      title: Obx(() => Text(controller.appBarTitle(), style: MyFontStyle.appBarTitleStyleThemed(context))),
+      title: Obx(() => Text(controller.appBarTitle(), style: textTheme.titleLarge?.copyWith(color: Colors.white))),
       centerTitle: true,
       leading: IconButton(icon: const Icon(Icons.menu), onPressed: () => Get.toNamed(Routes.LEFT_BAR)),
       actions: [
@@ -38,7 +39,7 @@ class ArticlesView extends GetView<ArticlesController> {
           if (WebService.i.webSocketTunnel.isConnected.value) {
             return IconButton(icon: const Icon(Icons.circle, color: Colors.green), onPressed: () {});
           } else {
-            return const SizedBox.shrink();
+            return IconButton(icon: const Icon(Icons.circle, color: Colors.red), onPressed: () {});
           }
         }),
       ],
@@ -119,15 +120,19 @@ class ArticleCard extends GetView<ArticlesController> {
   }
 
   Widget _buildTitle(BuildContext context) {
+    final textTheme = AppTheme.getTextTheme(context);
+
     return Text(
       article.aiTitle ?? article.title ?? '',
-      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary(context), height: 1.3),
+      style: textTheme.titleMedium,
       maxLines: 3,
       overflow: TextOverflow.ellipsis,
     );
   }
 
   Widget _buildImage(BuildContext context, String path) {
+    final colorScheme = AppTheme.getColorScheme(context);
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: SizedBox(
@@ -140,8 +145,8 @@ class ArticleCard extends GetView<ArticlesController> {
               (_, __, ___) => Container(
                 width: 90,
                 height: 70,
-                color: AppColors.divider(context),
-                child: Icon(Icons.image_not_supported, color: AppColors.textSecondary(context)),
+                color: colorScheme.surfaceVariant,
+                child: Icon(Icons.image_not_supported, color: colorScheme.onSurfaceVariant),
               ),
         ),
       ),
@@ -150,6 +155,7 @@ class ArticleCard extends GetView<ArticlesController> {
 
   Widget _buildActionBar(BuildContext context) {
     final url = Uri.parse(article.url ?? '');
+    final colorScheme = AppTheme.getColorScheme(context);
 
     return Container(
       margin: const EdgeInsets.only(top: 6),
@@ -168,14 +174,14 @@ class ArticleCard extends GetView<ArticlesController> {
           _buildActionButton(
             context,
             article.isFavorite ? Icons.favorite : Icons.favorite_border,
-            article.isFavorite ? AppColors.error(context) : AppColors.textSecondary(context).withOpacity(0.7),
+            article.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant.withOpacity(0.7),
             () async {
               await ArticleService.i.toggleFavorite(article.id);
               controller.updateArticleInList(article.id);
             },
           ),
           const SizedBox(width: 8),
-          _buildActionButton(context, Icons.share, AppColors.textSecondary(context).withOpacity(0.7), () {
+          _buildActionButton(context, Icons.share, colorScheme.onSurfaceVariant.withOpacity(0.7), () {
             Share.share(article.url ?? '', subject: article.aiTitle ?? article.title ?? '');
           }),
         ],
@@ -184,14 +190,17 @@ class ArticleCard extends GetView<ArticlesController> {
   }
 
   Widget _buildInfoItem(BuildContext context, IconData icon, String text) {
+    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: AppColors.textSecondary(context).withOpacity(0.7)),
+        Icon(icon, size: 14, color: colorScheme.onSurfaceVariant.withOpacity(0.7)),
         const SizedBox(width: 4),
         Text(
           text,
-          style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context).withOpacity(0.7)),
+          style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant.withOpacity(0.7)),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),

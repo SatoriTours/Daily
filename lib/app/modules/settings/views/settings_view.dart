@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/services/web_service/web_service.dart';
+import 'package:daily_satori/app/styles/colors.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
@@ -10,8 +10,7 @@ import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:daily_satori/app/services/freedisk_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/tags_service.dart';
-import 'package:daily_satori/app/styles/colors.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/global.dart';
 
 import '../controllers/settings_controller.dart';
@@ -21,15 +20,12 @@ class SettingsView extends GetView<SettingsController> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('设置'),
-        titleTextStyle: MyFontStyle.appBarTitleStyle,
-        centerTitle: true,
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('设置'), centerTitle: true, elevation: 0),
       body: Container(
-        color: Theme.of(context).brightness == Brightness.dark ? AppColors.backgroundDark : Colors.grey.shade50,
+        color: colorScheme.background,
         child: SingleChildScrollView(
           child: Column(
             children: [

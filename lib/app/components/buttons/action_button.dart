@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:daily_satori/app/styles/colors.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
 
 /// 操作按钮组件
 class ActionButton extends StatelessWidget {
@@ -14,7 +14,8 @@ class ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final buttonColor = color ?? AppColors.textSecondary(context).withOpacity(0.7);
+    final colorScheme = AppTheme.getColorScheme(context);
+    final buttonColor = color ?? colorScheme.onSurfaceVariant.withOpacity(0.7);
 
     final button = InkWell(
       onTap: onTap,

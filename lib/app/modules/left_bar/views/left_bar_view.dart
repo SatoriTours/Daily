@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:daily_satori/app/routes/app_pages.dart';
-import 'package:daily_satori/app/styles/colors.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/objectbox/tag.dart';
 
 import '../controllers/left_bar_controller.dart';
 
@@ -17,6 +17,8 @@ class LeftBarView extends GetView<LeftBarController> {
   }
 
   Widget _buildPage(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Daily Satori'), centerTitle: true),
       body: Column(
@@ -25,7 +27,7 @@ class LeftBarView extends GetView<LeftBarController> {
           const SizedBox(height: 8),
           _buildActions(context),
           const SizedBox(height: 8),
-          Divider(color: AppColors.divider(context)),
+          Divider(color: colorScheme.outline),
           Expanded(child: _buildTagsList(context)),
         ],
       ),
@@ -33,25 +35,32 @@ class LeftBarView extends GetView<LeftBarController> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final textTheme = AppTheme.getTextTheme(context);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('欢迎使用 Daily Satori', style: MyFontStyle.headerTitleStyleThemed(context)),
+          Text('欢迎使用 Daily Satori', style: textTheme.headlineSmall),
           const SizedBox(height: 4),
-          Text('您的个人阅读助手', style: MyFontStyle.cardSubtitleStyleThemed(context)),
+          Text(
+            '您的个人阅读助手',
+            style: textTheme.bodyMedium?.copyWith(color: AppTheme.getColorScheme(context).onSurfaceVariant),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildActions(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.dark ? AppColors.cardBackgroundDark : Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))],
       ),
@@ -68,7 +77,7 @@ class LeftBarView extends GetView<LeftBarController> {
               },
             ),
           ),
-          Container(width: 1, height: 30, color: AppColors.divider(context)),
+          Container(width: 1, height: 30, color: colorScheme.outline),
           Expanded(
             child: _buildActionButton(
               context,
@@ -80,7 +89,7 @@ class LeftBarView extends GetView<LeftBarController> {
               },
             ),
           ),
-          Container(width: 1, height: 30, color: AppColors.divider(context)),
+          Container(width: 1, height: 30, color: colorScheme.outline),
           Expanded(
             child: _buildActionButton(
               context,
@@ -100,19 +109,20 @@ class LeftBarView extends GetView<LeftBarController> {
     required String label,
     required VoidCallback onPressed,
   }) {
+    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
+
     return InkWell(
       onTap: onPressed,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 20, color: AppColors.primary(context)),
+            Icon(icon, size: 24, color: colorScheme.primary),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.textPrimary(context)),
-            ),
+            Text(label, style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurface)),
           ],
         ),
       ),
@@ -120,96 +130,43 @@ class LeftBarView extends GetView<LeftBarController> {
   }
 
   Widget _buildTagsList(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = AppTheme.getColorScheme(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: Row(
-            children: [
-              Icon(Icons.category, size: 18, color: AppColors.primary(context)),
-              const SizedBox(width: 8),
-              Text(
-                '分类',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary(context)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.cardBackground(context).withOpacity(0.5) : Colors.grey.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: isDark ? AppColors.divider(context) : Colors.transparent, width: 0.5),
-                  ),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: '搜索分类',
-                      hintStyle: TextStyle(fontSize: 13, color: AppColors.textSecondary(context)),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.fromLTRB(0, 8, 16, 8),
-                      prefixIcon: Padding(
-                        padding: const EdgeInsets.only(left: 12, right: 8),
-                        child: Icon(Icons.search, size: 16, color: AppColors.textSecondary(context)),
-                      ),
-                    ),
-                    style: TextStyle(fontSize: 13, color: AppColors.textPrimary(context)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(vertical: 0),
-            children: [...controller.tags.map((tag) => _buildTagItem(context, tag)).toList()],
-          ),
-        ),
-      ],
+    if (controller.tags.isEmpty) {
+      return Center(child: Text('暂无标签', style: TextStyle(color: colorScheme.onSurfaceVariant)));
+    }
+
+    return ListView.builder(
+      itemCount: controller.tags.length,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemBuilder: (context, index) => _buildTagItem(context, controller.tags[index]),
     );
   }
 
-  Widget _buildTagItem(BuildContext context, tag) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildTagItem(BuildContext context, Tag tag) {
+    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
 
-    return Column(
-      children: [
-        InkWell(
-          onTap: () {
-            controller.articlesController.showArticleByTagID(tag.id, tag.name ?? '');
-            Get.back();
-          },
-          hoverColor: AppColors.primary(context).withOpacity(0.05),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Icon(Icons.label_outline, size: 16, color: AppColors.primary(context)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    tag.name ?? '',
-                    style: TextStyle(fontSize: 14, color: AppColors.textPrimary(context)),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Icon(Icons.chevron_right, size: 16, color: AppColors.textSecondary(context)),
-              ],
-            ),
-          ),
+    return InkWell(
+      onTap: () {
+        controller.articlesController.showArticleByTagID(tag.id, tag.name ?? '');
+        Get.back();
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: colorScheme.outline.withOpacity(0.5), width: 0.5)),
         ),
-        Divider(
-          height: 1,
-          thickness: 0.5,
-          indent: 44,
-          endIndent: 0,
-          color: AppColors.divider(context).withOpacity(0.5),
+        child: Row(
+          children: [
+            Icon(Icons.tag, size: 18, color: colorScheme.primary),
+            const SizedBox(width: 12),
+            Expanded(child: Text(tag.name ?? '', style: textTheme.bodyMedium)),
+            Icon(Icons.chevron_right, size: 16, color: colorScheme.onSurfaceVariant),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

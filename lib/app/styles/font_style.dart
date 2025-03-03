@@ -13,6 +13,9 @@ class MyFontStyle {
   static const double _letterSpacing = 0.5;
   static const String _fontFamily = 'Lato';
 
+  /// 字体系列
+  static String get fontFamily => GoogleFonts.lato().fontFamily!;
+
   // 创建基础文本样式
   static TextStyle _createBaseStyle({
     required double fontSize,
@@ -44,6 +47,32 @@ class MyFontStyle {
 
     return baseStyle.copyWith(color: textColor);
   }
+
+  /// Material 3 文本主题样式
+  // Display 样式
+  static final displayLarge = _createBaseStyle(fontSize: 57, fontWeight: FontWeight.w400, height: 1.12);
+  static final displayMedium = _createBaseStyle(fontSize: 45, fontWeight: FontWeight.w400, height: 1.16);
+  static final displaySmall = _createBaseStyle(fontSize: 36, fontWeight: FontWeight.w400, height: 1.22);
+
+  // Headline 样式
+  static final headlineLarge = _createBaseStyle(fontSize: 32, fontWeight: FontWeight.w600, height: 1.25);
+  static final headlineMedium = _createBaseStyle(fontSize: 28, fontWeight: FontWeight.w600, height: 1.29);
+  static final headlineSmall = _createBaseStyle(fontSize: 24, fontWeight: FontWeight.w600, height: 1.33);
+
+  // Title 样式
+  static final titleLarge = _createBaseStyle(fontSize: 22, fontWeight: FontWeight.w600, height: 1.27);
+  static final titleMedium = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.5);
+  static final titleSmall = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.43);
+
+  // Body 样式
+  static final bodyLarge = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.5);
+  static final bodyMedium = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.43);
+  static final bodySmall = _createBaseStyle(fontSize: 12, fontWeight: FontWeight.w400, height: 1.33);
+
+  // Label 样式
+  static final labelLarge = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.43);
+  static final labelMedium = _createBaseStyle(fontSize: 12, fontWeight: FontWeight.w500, height: 1.33);
+  static final labelSmall = _createBaseStyle(fontSize: 11, fontWeight: FontWeight.w500, height: 1.45);
 
   // 标题相关样式
   static final appBarTitleStyle = _createBaseStyle(

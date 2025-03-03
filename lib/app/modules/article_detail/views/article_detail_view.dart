@@ -9,8 +9,8 @@ import 'package:get/get.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/colors.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/global.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -27,10 +27,12 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   // AppBar 相关
   PreferredSizeWidget _buildAppBar(BuildContext context) {
+    final textTheme = AppTheme.getTextTheme(context);
+
     return AppBar(
       title: Text(
         getTopLevelDomain(Uri.parse(controller.article.url ?? '').host),
-        style: MyFontStyle.appBarTitleStyleThemed(context),
+        style: textTheme.titleLarge?.copyWith(color: Colors.white),
       ),
       centerTitle: true,
       actions: [_buildAppBarActions(context)],
@@ -38,11 +40,13 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   }
 
   Widget _buildAppBarActions(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+
     return PopupMenuButton<int>(
-      icon: Icon(Icons.more_horiz, color: AppColors.textPrimary(context)),
+      icon: Icon(Icons.more_horiz, color: colorScheme.onSurface),
       offset: const Offset(0, 50),
       padding: EdgeInsets.zero,
-      color: AppColors.cardBackground(context),
+      color: colorScheme.surface,
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       itemBuilder: (context) => _buildPopupMenuItems(context),
@@ -62,17 +66,17 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   }
 
   PopupMenuItem<int> _buildPopupMenuItem(BuildContext context, int value, String title, IconData icon) {
+    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
+
     return PopupMenuItem<int>(
       value: value,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: AppColors.textPrimary(context)),
+          Icon(icon, size: 20, color: colorScheme.onSurface),
           const SizedBox(width: 12),
-          Text(
-            title,
-            style: TextStyle(fontSize: 14, color: AppColors.textPrimary(context), fontWeight: FontWeight.w500),
-          ),
+          Text(title, style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -110,30 +114,48 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   Widget _buildTabBarView(BuildContext context) {
     return TabBarView(
       physics: const NeverScrollableScrollPhysics(),
-      children: [_buildArticleContent(context), _buildArticleScreenshot(context), _buildArticleWebview()],
+      children: [_buildSummaryTab(context), _buildArticleContent(context), _buildArticleScreenshot(context)],
     );
   }
 
   Widget _buildTabBar(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
+
     return Container(
-      decoration: BoxDecoration(border: Border(top: BorderSide(color: AppColors.divider(context), width: 0.5))),
+      decoration: BoxDecoration(border: Border(top: BorderSide(color: colorScheme.outline, width: 0.5))),
       child: TabBar(
-        labelColor: AppColors.primary(context),
-        unselectedLabelColor: AppColors.textSecondary(context),
-        indicatorColor: AppColors.primary(context),
+        labelColor: colorScheme.primary,
+        unselectedLabelColor: colorScheme.onSurfaceVariant,
+        indicatorColor: colorScheme.primary,
         indicatorWeight: 3,
-        labelStyle: MyFontStyle.tabLabelStyleThemed(context),
-        unselectedLabelStyle: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: AppColors.textSecondary(context),
-        ),
-        tabs: const [Tab(text: 'AI解读'), Tab(text: '网页截图'), Tab(text: '原始链接')],
+        labelStyle: textTheme.labelLarge,
+        tabs: const [Tab(text: '摘要'), Tab(text: '原文'), Tab(text: '截图')],
       ),
     );
   }
 
   // 文章内容相关
+  Widget _buildSummaryTab(BuildContext context) {
+    final textTheme = AppTheme.getTextTheme(context);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(controller.article.title ?? '', style: textTheme.headlineSmall),
+          const SizedBox(height: 16),
+          Text(controller.article.aiContent ?? '', style: textTheme.bodyMedium),
+          if (controller.tags.value.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(controller.tags.value, style: textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic)),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildArticleContent(BuildContext context) {
     final article = controller.article;
     final imagePath = article.images.isEmpty ? '' : (article.images.first.path ?? '');
@@ -171,51 +193,54 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   }
 
   Widget _buildTitle(BuildContext context) {
+    final textTheme = AppTheme.getTextTheme(context);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-      child: Text(
-        (controller.article.aiTitle ?? controller.article.title) ?? '',
-        style: MyFontStyle.headerTitleStyleThemed(context),
-      ),
+      child: Text((controller.article.aiTitle ?? controller.article.title) ?? '', style: textTheme.headlineSmall),
     );
   }
 
   Widget _buildContent(BuildContext context) {
+    final textTheme = AppTheme.getTextTheme(context);
+
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-      child: Text(controller.article.aiContent ?? '', style: MyFontStyle.articleBodyStyleThemed(context)),
+      child: Text(controller.article.aiContent ?? '', style: textTheme.bodyMedium),
     );
   }
 
   Widget _buildTags(BuildContext context) {
+    final textTheme = AppTheme.getTextTheme(context);
+
     return controller.tags.value.isNotEmpty
         ? Container(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           alignment: Alignment.centerLeft,
-          child: Text(controller.tags.value, style: MyFontStyle.tagStyleThemed(context)),
+          child: Text(controller.tags.value, style: textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic)),
         )
         : const SizedBox.shrink();
   }
 
   Widget _buildComment(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
+
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground(context).withOpacity(0.5),
+        color: colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.divider(context)),
+        border: Border.all(color: colorScheme.outline),
       ),
       alignment: Alignment.centerLeft,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "我的备注",
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary(context)),
-          ),
+          Text("我的备注", style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text(controller.article.comment ?? "", style: MyFontStyle.commentStyleThemed(context)),
+          Text(controller.article.comment ?? "", style: textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic)),
         ],
       ),
     );
@@ -248,30 +273,39 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   Widget _buildArticleScreenshot(BuildContext context) {
     final screenshots = controller.getArticleScreenshots();
     if (screenshots.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.image_not_supported, size: 48, color: AppColors.textSecondary(context)),
-            const SizedBox(height: 16),
-            Text("暂无网页截图", style: MyFontStyle.emptyStateStyleThemed(context)),
-          ],
-        ),
-      );
+      return _buildEmptyScreenshotState(context);
     }
 
-    return ListView.builder(
-      itemCount: screenshots.length,
-      padding: EdgeInsets.zero,
-      itemBuilder: (context, index) {
-        return Image.file(
-          File(screenshots[index]),
-          errorBuilder: (_, error, __) {
-            logger.i("加载路径错误 ${screenshots[index]}");
-            return const SizedBox.shrink();
-          },
+    return PhotoViewGallery.builder(
+      scrollPhysics: const BouncingScrollPhysics(),
+      builder: (BuildContext context, int index) {
+        return PhotoViewGalleryPageOptions(
+          imageProvider: FileImage(File(screenshots[index])),
+          initialScale: PhotoViewComputedScale.contained,
+          minScale: PhotoViewComputedScale.contained,
+          maxScale: PhotoViewComputedScale.covered * 2,
         );
       },
+      itemCount: screenshots.length,
+      loadingBuilder: (context, event) => _buildLoadingIndicator(context),
+      backgroundDecoration: BoxDecoration(color: AppTheme.getColorScheme(context).background),
+      pageController: PageController(),
+    );
+  }
+
+  Widget _buildEmptyScreenshotState(BuildContext context) {
+    final textTheme = AppTheme.getTextTheme(context);
+    final colorScheme = AppTheme.getColorScheme(context);
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.image_not_supported_outlined, size: 48, color: colorScheme.onSurfaceVariant),
+          const SizedBox(height: 16),
+          Text("暂无网页截图", style: textTheme.bodyLarge),
+        ],
+      ),
     );
   }
 
@@ -385,5 +419,11 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       ),
       barrierDismissible: true,
     );
+  }
+
+  Widget _buildLoadingIndicator(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+
+    return Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary)));
   }
 }

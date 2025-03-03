@@ -4,7 +4,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/services/article_service.dart';
-import 'package:daily_satori/app/styles/colors.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
 
 /// 文章操作栏组件
 class ArticleActionBar extends StatelessWidget {
@@ -15,13 +15,15 @@ class ArticleActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildActionButton(
           context,
           article.isFavorite ? Icons.favorite : Icons.favorite_border,
-          article.isFavorite ? AppColors.error(context) : AppColors.textSecondary(context).withOpacity(0.7),
+          article.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant.withOpacity(0.7),
           () async {
             await ArticleService.i.toggleFavorite(article.id);
             if (onArticleUpdated != null) {
@@ -30,7 +32,7 @@ class ArticleActionBar extends StatelessWidget {
           },
         ),
         const SizedBox(width: 8),
-        _buildActionButton(context, Icons.share, AppColors.textSecondary(context).withOpacity(0.7), () {
+        _buildActionButton(context, Icons.share, colorScheme.onSurfaceVariant.withOpacity(0.7), () {
           Share.share(article.url ?? '', subject: article.aiTitle ?? article.title ?? '');
         }),
       ],

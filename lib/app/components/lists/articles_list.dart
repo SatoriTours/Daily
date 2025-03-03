@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:daily_satori/app/components/cards/article_card.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
-import 'package:daily_satori/app/styles/colors.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
 
 /// 文章列表组件
 class ArticlesList extends StatelessWidget {
@@ -23,9 +23,11 @@ class ArticlesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+
     return RefreshIndicator(
       onRefresh: onRefresh ?? () async {},
-      color: AppColors.primary(context),
+      color: colorScheme.primary,
       child: ListView.separated(
         controller: scrollController,
         itemCount: _calculateItemCount(),
@@ -48,6 +50,9 @@ class ArticlesList extends StatelessWidget {
   }
 
   Widget _buildLoadingIndicator(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Center(
@@ -58,11 +63,11 @@ class ArticlesList extends StatelessWidget {
               height: 24,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary(context)),
+                valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
               ),
             ),
             const SizedBox(height: 12),
-            Text('加载更多内容...', style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context))),
+            Text('加载更多内容...', style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
           ],
         ),
       ),
