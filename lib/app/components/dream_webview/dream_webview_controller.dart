@@ -1,6 +1,5 @@
+import 'package:daily_satori/app/components/dream_webview/flutter_inappwebview_screenshot.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-
-import 'package:daily_satori/app/compontents/dream_webview/flutter_inappwebview_screenshot.dart';
 
 class DreamWebViewController {
   /// WebView控制器实例

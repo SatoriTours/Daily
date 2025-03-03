@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:daily_satori/app/components/dream_webview/dream_webview_controller.dart';
 import 'package:flutter/cupertino.dart';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-import 'package:daily_satori/app/compontents/dream_webview/dream_webview_controller.dart';
 import 'package:daily_satori/app/services/adblock_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/global.dart';
@@ -49,7 +49,9 @@ class DreamWebView extends StatelessWidget {
   }
 
   Future<PermissionResponse> _handlePermissionRequest(
-      InAppWebViewController controller, PermissionRequest request) async {
+    InAppWebViewController controller,
+    PermissionRequest request,
+  ) async {
     return PermissionResponse(resources: request.resources, action: PermissionResponseAction.GRANT);
   }
 
@@ -145,7 +147,9 @@ class DreamWebView extends StatelessWidget {
   }
 
   Future<WebResourceResponse?> _handleShouldInterceptRequest(
-      InAppWebViewController controller, WebResourceRequest request) async {
+    InAppWebViewController controller,
+    WebResourceRequest request,
+  ) async {
     final url = request.url.toString().replaceFirst(RegExp(r'^https?://'), '');
     // final domain = getTopLevelDomain(url.host);
 
@@ -164,8 +168,10 @@ class DreamWebView extends StatelessWidget {
       return WebResourceResponse(data: Uint8List(0));
     }
 
-    RegExp? regexRule =
-        ADBlockService.i.regexNetworkRules.firstWhere((rule) => rule.hasMatch(url), orElse: () => RegExp(''));
+    RegExp? regexRule = ADBlockService.i.regexNetworkRules.firstWhere(
+      (rule) => rule.hasMatch(url),
+      orElse: () => RegExp(''),
+    );
 
     if (regexRule.pattern.isNotEmpty) {
       logger.d("[广告拦截-正则匹配] => 开始拦截广告请求: $url => ${regexRule.pattern}");

@@ -1,8 +1,8 @@
+import 'package:daily_satori/app/components/dream_webview/dream_webview.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
 
-import 'package:daily_satori/app/compontents/dream_webview/dream_webview.dart';
 import 'package:daily_satori/app/modules/share_dialog/controllers/share_dialog_controller.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/global.dart';
@@ -91,24 +91,22 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   Widget _displaySharedLink() {
     return Container(
-      child: Obx(() => controller.webLoadProgress.value > 0
-          ? LinearProgressIndicator(
-              value: controller.webLoadProgress.value,
-              backgroundColor: Colors.grey[200],
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-            )
-          : const SizedBox.shrink()),
+      child: Obx(
+        () =>
+            controller.webLoadProgress.value > 0
+                ? LinearProgressIndicator(
+                  value: controller.webLoadProgress.value,
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                )
+                : const SizedBox.shrink(),
+      ),
     );
   }
 
   Widget _displayWebContent() {
     return Container(
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.grey,
-          width: 1,
-        ),
-      ),
+      decoration: BoxDecoration(border: Border.all(color: Colors.grey, width: 1)),
       child: DreamWebView(
         url: controller.shareURL ?? '',
         onWebViewCreated: (webController) {
@@ -139,10 +137,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
   Widget _buildCommentTextfield() {
     return TextField(
       controller: controller.commentController,
-      decoration: InputDecoration(
-        labelText: "备注",
-        border: OutlineInputBorder(),
-      ),
+      decoration: InputDecoration(labelText: "备注", border: OutlineInputBorder()),
       maxLines: null,
       keyboardType: TextInputType.multiline,
     );
@@ -153,10 +148,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
       children: [
         Expanded(
           child: TextButton(
-            style: TextButton.styleFrom(
-              backgroundColor: Colors.grey,
-              foregroundColor: Colors.white,
-            ),
+            style: TextButton.styleFrom(backgroundColor: Colors.grey, foregroundColor: Colors.white),
             child: const Text("取消"),
             onPressed: () => controller.clickChannelBtn(),
           ),
@@ -164,10 +156,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
         const SizedBox(width: 10),
         Expanded(
           child: TextButton(
-            style: TextButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
+            style: TextButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
             child: const Text("保存"),
             onPressed: () async {
               if (!isProduction) {

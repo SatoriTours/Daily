@@ -15,6 +15,10 @@ import 'package:daily_satori/app/styles/colors.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/global.dart';
 
+import 'package:daily_satori/app/components/empty_states/articles_empty_view.dart';
+import 'package:daily_satori/app/components/inputs/search_text_field.dart';
+import 'package:daily_satori/app/components/lists/articles_list.dart';
+
 class ArticlesView extends GetView<ArticlesController> {
   const ArticlesView({super.key});
 
@@ -44,137 +48,34 @@ class ArticlesView extends GetView<ArticlesController> {
   Widget _buildBody(BuildContext context) {
     return Obx(() {
       if (controller.articles.isEmpty) {
-        return _buildEmptyView(context);
+        return ArticlesEmptyView(
+          onAddArticle: () {
+            // 这里可以添加引导用户添加文章的逻辑
+          },
+        );
       }
       return Column(
         children: [
-          if (controller.enableSearch.value) _buildSearchTextField(context),
-          Expanded(child: _buildArticlesList(context)),
+          if (controller.enableSearch.value)
+            SearchTextField(
+              controller: controller.searchController,
+              hintText: '搜索文章',
+              isVisible: controller.enableSearch.value,
+              onClear: controller.searchArticles,
+              onSubmitted: (_) => controller.searchArticles(),
+            ),
+          Expanded(
+            child: ArticlesList(
+              articles: controller.articles,
+              scrollController: controller.scrollController,
+              onRefresh: controller.reloadArticles,
+              isLoading: controller.isLoading.value,
+              onArticleUpdated: () => controller.updateArticleInList(controller.articles.last.id),
+            ),
+          ),
         ],
       );
     });
-  }
-
-  Widget _buildEmptyView(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(color: AppColors.primary(context).withOpacity(0.1), shape: BoxShape.circle),
-            child: Icon(Icons.article_outlined, size: 60, color: AppColors.primary(context)),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            '还没有收藏内容',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary(context)),
-          ),
-          const SizedBox(height: 12),
-          Text('您可以通过分享功能添加新文章', style: TextStyle(fontSize: 14, color: AppColors.textSecondary(context))),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () {
-              // 这里可以添加引导用户添加文章的逻辑
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('添加文章'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchTextField(BuildContext context) {
-    return AnimatedSlide(
-      offset: Offset(0, controller.enableSearch.value ? 0 : -1),
-      duration: const Duration(milliseconds: 300),
-      child: Container(
-        height: 44,
-        margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        child: TextField(
-          controller: controller.searchController,
-          decoration: InputDecoration(
-            hintText: '搜索文章',
-            hintStyle: TextStyle(fontSize: 14, color: AppColors.textSecondary(context)),
-            prefixIcon: Icon(Icons.search, size: 20, color: AppColors.textSecondary(context)),
-            suffixIcon: IconButton(
-              icon: Icon(Icons.clear, size: 18, color: AppColors.textSecondary(context)),
-              onPressed: () {
-                controller.searchController.clear();
-                controller.searchArticles();
-              },
-            ),
-            filled: true,
-            fillColor:
-                Theme.of(context).brightness == Brightness.dark
-                    ? AppColors.cardBackgroundDark.withOpacity(0.8)
-                    : Colors.grey.shade100,
-            contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: BorderSide.none),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: BorderSide.none),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(22),
-              borderSide: BorderSide(color: AppColors.primary(context), width: 1),
-            ),
-          ),
-          onSubmitted: (_) => controller.searchArticles(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildArticlesList(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: controller.reloadArticles,
-      color: AppColors.primary(context),
-      child: ListView.separated(
-        controller: controller.scrollController,
-        itemCount: _calculateItemCount(),
-        itemBuilder: (context, index) => _buildListItem(context, index),
-        separatorBuilder: (context, index) => const SizedBox(height: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      ),
-    );
-  }
-
-  int _calculateItemCount() {
-    return controller.articles.length + (controller.isLoading.value ? 1 : 0);
-  }
-
-  Widget _buildListItem(BuildContext context, int index) {
-    if (index == controller.articles.length) {
-      return _buildLoadingIndicator(context);
-    }
-    return ArticleCard(article: controller.articles[index]);
-  }
-
-  Widget _buildLoadingIndicator(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Center(
-        child: Column(
-          children: [
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary(context)),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text('加载更多内容...', style: TextStyle(fontSize: 12, color: AppColors.textSecondary(context))),
-          ],
-        ),
-      ),
-    );
   }
 }
 

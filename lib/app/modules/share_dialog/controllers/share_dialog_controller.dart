@@ -1,9 +1,9 @@
+import 'package:daily_satori/app/components/dream_webview/dream_webview_controller.dart';
 import 'package:flutter/material.dart' as material;
 import 'package:flutter/services.dart';
 
 import 'package:get/get.dart';
 
-import 'package:daily_satori/app/compontents/dream_webview/dream_webview_controller.dart';
 import 'package:daily_satori/app/helpers/my_base_controller.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
@@ -42,10 +42,18 @@ class ShareDialogController extends MyBaseController {
   final imageBox = ObjectboxService.i.box<Image>();
   final screenshotBox = ObjectboxService.i.box<Screenshot>();
 
-  Future<void> saveArticleInfo(String url, String title, String excerpt, String htmlContent, String textContent,
-      String publishedTime, List<String> imageUrls) async {
+  Future<void> saveArticleInfo(
+    String url,
+    String title,
+    String excerpt,
+    String htmlContent,
+    String textContent,
+    String publishedTime,
+    List<String> imageUrls,
+  ) async {
     logger.i(
-        "[saveArticleInfo] title => ${getSubstring(title)}, url => $url, imagesUrl => $imageUrls, publishedTime => $publishedTime");
+      "[saveArticleInfo] title => ${getSubstring(title)}, url => $url, imagesUrl => $imageUrls, publishedTime => $publishedTime",
+    );
 
     if (await _checkArticleExists(url)) return;
 
