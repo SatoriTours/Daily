@@ -26,12 +26,12 @@ class TagModel extends BaseModel<Tag> {
   String? get icon => entity?.icon;
 
   @override
-  TagModel _createFromEntity(Tag entity) {
-    return TagModel.withEntity(entity);
+  BaseModel<Tag> createFromEntity(Tag entity) {
+    return TagModel.fromEntity(entity);
   }
 
   @override
-  Future<int> _saveEntity(Tag entity) async {
+  Future<int> saveEntity(Tag entity) async {
     return await box.putAsync(entity);
   }
 

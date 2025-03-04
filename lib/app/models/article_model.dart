@@ -7,13 +7,17 @@ import 'package:daily_satori/objectbox.g.dart';
 /// 采用Rails风格的Model设计，同时作为领域模型和数据访问层
 /// 包含实体属性访问和数据操作方法，遵循活动记录模式(Active Record Pattern)
 class ArticleModel extends BaseModel<Article> {
-  // 单例实现
+  /// 单例实例
   static final ArticleModel _instance = ArticleModel._internal();
   static ArticleModel get i => _instance;
+
+  /// 工厂构造函数，返回单例实例
   factory ArticleModel() => _instance;
+
+  /// 内部构造函数
   ArticleModel._internal() : super.withEntity(null);
 
-  /// 构造函数，接收一个Article实体
+  /// 带实体的构造函数
   ArticleModel.withEntity(Article? article) : super.withEntity(article);
 
   @override
@@ -65,13 +69,15 @@ class ArticleModel extends BaseModel<Article> {
     return hasHeaderImage && !headerImagePath.endsWith('.svg');
   }
 
+  /// 实现基类的抽象方法，从实体创建模型实例
   @override
-  ArticleModel _createFromEntity(Article entity) {
-    return ArticleModel.withEntity(entity);
+  BaseModel<Article> createFromEntity(Article entity) {
+    return ArticleModel.fromEntity(entity);
   }
 
+  /// 实现基类的抽象方法，保存实体
   @override
-  Future<int> _saveEntity(Article entity) async {
+  Future<int> saveEntity(Article entity) async {
     return await box.putAsync(entity);
   }
 

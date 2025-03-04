@@ -13,7 +13,7 @@ abstract class BaseModel<T> {
   Box<T> get box => _objectboxService.box<T>();
 
   // 实体对象
-  T? _entity;
+  final T? _entity;
 
   /// 获取原始实体
   T? get entity => _entity;
@@ -24,18 +24,21 @@ abstract class BaseModel<T> {
   /// ID属性 - 子类必须实现
   int get id;
 
+  /// 将单个实体转换为模型 - 子类必须实现
+  BaseModel<T> createFromEntity(T entity);
+
+  /// 保存实体方法 - 子类必须实现
+  Future<int> saveEntity(T entity);
+
   /// 创建模型实例的工厂方法 - 子类必须实现
   static BaseModel fromEntity(dynamic entity) {
     throw UnimplementedError('Subclasses must implement fromEntity');
   }
 
-  /// 保存实体方法 - 子类必须实现
-  Future<int> _saveEntity(T entity);
-
   /// 实例方法 - 保存当前模型
   Future<int> save() async {
     if (_entity == null) return 0;
-    return await _saveEntity(_entity!);
+    return await saveEntity(_entity);
   }
 
   /// 查找所有记录
@@ -47,13 +50,13 @@ abstract class BaseModel<T> {
   /// 根据ID查找记录
   BaseModel<T>? findById(int id) {
     final entity = box.get(id);
-    return entity != null ? _createFromEntity(entity) : null;
+    return entity != null ? createFromEntity(entity) : null;
   }
 
   /// 保存记录
   Future<int> saveModel(BaseModel<T> model) async {
     if (model._entity == null) return 0;
-    return await _saveEntity(model._entity!);
+    return await saveEntity(model._entity);
   }
 
   /// 删除记录
@@ -67,11 +70,8 @@ abstract class BaseModel<T> {
     return deleteById(id);
   }
 
-  /// 将单个实体转换为模型
-  BaseModel<T> _createFromEntity(T entity);
-
   /// 将实体列表转换为模型列表
   List<BaseModel<T>> _fromEntityList(List<T> entities) {
-    return entities.map((entity) => _createFromEntity(entity)).toList();
+    return entities.map((entity) => createFromEntity(entity)).toList();
   }
 }
