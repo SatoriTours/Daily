@@ -2,24 +2,44 @@ part of 'articles_controller.dart';
 
 extension PartFilter on ArticlesController {
   /// 根据条件查询文章列表
-  List<Article> _queryByFilter([Condition<Article>? additionalCondition]) {
-    final query = articleBox.query(_buildFinalCondition(additionalCondition));
-    _applyTagFilter(query);
-    _applySorting(query);
+  List<ArticleModel> _queryByFilter([int? referenceId, bool? isGreaterThan]) {
+    String? keyword = enableSearch.value && _searchText.isNotEmpty ? _searchText : null;
+    bool? favorite = _onlyFavorite.value ? true : null;
+    List<int>? tagIds = _tagID > 0 ? [_tagID] : null;
 
-    return _executeQuery(query);
+    // 基本查询条件
+    var models = ArticleModel.where(keyword: keyword, isFavorite: favorite, tagIds: tagIds);
+
+    // 如果有额外的ID条件
+    if (referenceId != null && isGreaterThan != null) {
+      // 根据ID过滤结果
+      if (isGreaterThan) {
+        models = models.where((model) => model.id > referenceId).toList();
+      } else {
+        models = models.where((model) => model.id < referenceId).toList();
+      }
+    }
+
+    // 按ID排序
+    models.sort((a, b) => b.id.compareTo(a.id));
+
+    // 应用分页
+    if (models.length > _pageSize) {
+      models = models.sublist(0, _pageSize);
+    }
+
+    return models;
   }
 
   /// 构建最终的查询条件
   Condition<Article>? _buildFinalCondition(Condition<Article>? additionalCondition) {
-    final conditions = [
-      _buildFavoriteCondition(),
-      _buildSearchCondition(),
-      additionalCondition,
-    ].whereType<Condition<Article>>();
+    final conditions =
+        [_buildFavoriteCondition(), _buildSearchCondition(), additionalCondition].whereType<Condition<Article>>();
 
     return conditions.fold<Condition<Article>?>(
-        null, (finalCondition, condition) => finalCondition == null ? condition : finalCondition & condition);
+      null,
+      (finalCondition, condition) => finalCondition == null ? condition : finalCondition & condition,
+    );
   }
 
   /// 构建收藏过滤条件

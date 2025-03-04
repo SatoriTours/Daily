@@ -8,7 +8,6 @@ import 'package:get_time_ago/get_time_ago.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
-import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
@@ -48,7 +47,7 @@ class ArticlesView extends GetView<ArticlesController> {
 
   Widget _buildBody(BuildContext context) {
     return Obx(() {
-      if (controller.articles.isEmpty) {
+      if (controller.articleModels.isEmpty) {
         return ArticlesEmptyView(
           onAddArticle: () {
             // 这里可以添加引导用户添加文章的逻辑
@@ -67,152 +66,15 @@ class ArticlesView extends GetView<ArticlesController> {
             ),
           Expanded(
             child: ArticlesList(
-              articles: controller.articles,
+              articleModels: controller.articleModels,
               scrollController: controller.scrollController,
               onRefresh: controller.reloadArticles,
               isLoading: controller.isLoading.value,
-              onArticleUpdated: () => controller.updateArticleInList(controller.articles.last.id),
+              onArticleUpdated: () => controller.updateArticleInList(controller.articleModels.last.id),
             ),
           ),
         ],
       );
     });
-  }
-}
-
-class ArticleCard extends GetView<ArticlesController> {
-  final Article article;
-
-  const ArticleCard({super.key, required this.article});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: InkWell(
-        onTap: () => Get.toNamed(Routes.ARTICLE_DETAIL, arguments: article),
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [_buildArticleContent(context), _buildActionBar(context)],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildArticleContent(BuildContext context) {
-    final hasImage = controller.hasArticleHeaderImage(article);
-    final imagePath = controller.getArticleHeaderImagePath(article);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (hasImage) _buildImage(context, imagePath),
-        if (hasImage) const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_buildTitle(context)])),
-      ],
-    );
-  }
-
-  Widget _buildTitle(BuildContext context) {
-    final textTheme = AppTheme.getTextTheme(context);
-
-    return Text(
-      article.aiTitle ?? article.title ?? '',
-      style: textTheme.titleMedium,
-      maxLines: 3,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
-
-  Widget _buildImage(BuildContext context, String path) {
-    final colorScheme = AppTheme.getColorScheme(context);
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: SizedBox(
-        width: 90,
-        height: 70,
-        child: Image.file(
-          File(path),
-          fit: BoxFit.cover,
-          errorBuilder:
-              (_, __, ___) => Container(
-                width: 90,
-                height: 70,
-                color: colorScheme.surfaceVariant,
-                child: Icon(Icons.image_not_supported, color: colorScheme.onSurfaceVariant),
-              ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionBar(BuildContext context) {
-    final url = Uri.parse(article.url ?? '');
-    final colorScheme = AppTheme.getColorScheme(context);
-
-    return Container(
-      margin: const EdgeInsets.only(top: 6),
-      height: 24,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          _buildInfoItem(context, Icons.public, getTopLevelDomain(url.host)),
-          const SizedBox(width: 12),
-          _buildInfoItem(
-            context,
-            Icons.access_time,
-            article.createdAt != null ? GetTimeAgo.parse(article.createdAt!, pattern: 'MM-dd') : '未知时间',
-          ),
-          const Spacer(),
-          _buildActionButton(
-            context,
-            article.isFavorite ? Icons.favorite : Icons.favorite_border,
-            article.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant.withOpacity(0.7),
-            () async {
-              await ArticleService.i.toggleFavorite(article.id);
-              controller.updateArticleInList(article.id);
-            },
-          ),
-          const SizedBox(width: 8),
-          _buildActionButton(context, Icons.share, colorScheme.onSurfaceVariant.withOpacity(0.7), () {
-            Share.share(article.url ?? '', subject: article.aiTitle ?? article.title ?? '');
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoItem(BuildContext context, IconData icon, String text) {
-    final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: colorScheme.onSurfaceVariant.withOpacity(0.7)),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant.withOpacity(0.7)),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButton(BuildContext context, IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(width: 28, height: 24, alignment: Alignment.center, child: Icon(icon, size: 16, color: color)),
-    );
   }
 }

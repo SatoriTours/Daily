@@ -2,16 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
 
-import 'package:daily_satori/app/helpers/my_base_controller.dart';
-import 'package:daily_satori/app/objectbox/article.dart';
-import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
-import 'package:daily_satori/global.dart';
-import 'package:daily_satori/app/helpers/article_helper.dart';
+import 'package:daily_satori/app/models/article_model.dart';
+import 'package:daily_satori/app/objectbox/article.dart';
+import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/objectbox.g.dart';
+import 'package:daily_satori/global.dart';
 
 part 'part.clipboard.dart';
 part 'part.article_load.dart';
@@ -19,21 +17,17 @@ part 'part.event.dart';
 part 'part.update_list.dart';
 part 'part.filter.dart';
 
-class ArticlesController extends MyBaseController with WidgetsBindingObserver {
+class ArticlesController extends BaseController with WidgetsBindingObserver {
   // UI 控制器
   final scrollController = ScrollController();
   final searchController = TextEditingController();
 
   // 可观察状态
-  final articles = <Article>[].obs;
+  final articleModels = <ArticleModel>[].obs;
   final isLoading = false.obs;
   final enableSearch = false.obs;
   final tagName = ''.obs;
   final _onlyFavorite = false.obs;
-
-  // 数据源
-  final articleBox = ObjectboxService.i.box<Article>();
-  final tagBox = ObjectboxService.i.box<Tag>();
 
   // 内部状态
   DateTime lastRefreshTime = DateTime.now(); // 记录最后更新时间,用于后台恢复时判断是否需要刷新
@@ -109,15 +103,5 @@ class ArticlesController extends MyBaseController with WidgetsBindingObserver {
     if (_onlyFavorite.value) title = '收藏的文章';
     if (tagName.value.isNotEmpty) title = "$title - ${tagName.value}";
     return title;
-  }
-
-  /// 获取文章主图路径
-  String getArticleHeaderImagePath(Article article) {
-    return ArticleHelper.getArticleHeaderImagePath(article);
-  }
-
-  /// 检查文章是否有主图
-  bool hasArticleHeaderImage(Article article) {
-    return ArticleHelper.hasArticleHeaderImage(article);
   }
 }

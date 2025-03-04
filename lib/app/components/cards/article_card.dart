@@ -5,21 +5,19 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_time_ago/get_time_ago.dart';
 
-import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/component_style.dart';
 import 'package:daily_satori/global.dart';
 import 'package:daily_satori/app/components/articles/article_info_item.dart';
 import 'package:daily_satori/app/components/articles/article_action_bar.dart';
-import 'package:daily_satori/app/helpers/article_helper.dart';
 
 /// 文章卡片组件
 class ArticleCard extends StatelessWidget {
-  final Article article;
+  final ArticleModel articleModel;
   final VoidCallback? onArticleUpdated;
 
-  const ArticleCard({super.key, required this.article, this.onArticleUpdated});
+  ArticleCard({super.key, required this.articleModel, this.onArticleUpdated});
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +26,7 @@ class ArticleCard extends StatelessWidget {
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: InkWell(
-        onTap: () => Get.toNamed(Routes.ARTICLE_DETAIL, arguments: article),
+        onTap: () => Get.toNamed(Routes.ARTICLE_DETAIL, arguments: articleModel),
         borderRadius: BorderRadius.circular(10),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -42,8 +40,8 @@ class ArticleCard extends StatelessWidget {
   }
 
   Widget _buildArticleContent(BuildContext context) {
-    final hasImage = ArticleHelper.hasArticleHeaderImage(article);
-    final imagePath = ArticleHelper.getArticleHeaderImagePath(article);
+    final hasImage = articleModel.hasHeaderImage;
+    final imagePath = articleModel.headerImagePath;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,7 +57,7 @@ class ArticleCard extends StatelessWidget {
     final textTheme = AppTheme.getTextTheme(context);
 
     return Text(
-      article.aiTitle ?? article.title ?? '',
+      articleModel.aiTitle ?? articleModel.title ?? '',
       style: textTheme.titleMedium,
       maxLines: 3,
       overflow: TextOverflow.ellipsis,
@@ -88,7 +86,7 @@ class ArticleCard extends StatelessWidget {
   }
 
   Widget _buildActionBar(BuildContext context) {
-    final url = Uri.parse(article.url ?? '');
+    final url = Uri.parse(articleModel.url ?? '');
 
     return Container(
       margin: const EdgeInsets.only(top: 6),
@@ -100,10 +98,10 @@ class ArticleCard extends StatelessWidget {
           const SizedBox(width: 12),
           ArticleInfoItem(
             icon: Icons.access_time,
-            text: article.createdAt != null ? GetTimeAgo.parse(article.createdAt!, pattern: 'MM-dd') : '未知时间',
+            text: articleModel.createdAt != null ? GetTimeAgo.parse(articleModel.createdAt!, pattern: 'MM-dd') : '未知时间',
           ),
           const Spacer(),
-          ArticleActionBar(article: article, onArticleUpdated: onArticleUpdated),
+          ArticleActionBar(articleModel: articleModel, onArticleUpdated: onArticleUpdated),
         ],
       ),
     );

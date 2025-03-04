@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 
 import 'package:get/get.dart';
 
-import 'package:daily_satori/app/helpers/my_base_controller.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
@@ -25,7 +24,7 @@ part 'part.tags.dart';
 part 'part.images.dart';
 part 'part.screenshot.dart';
 
-class ShareDialogController extends MyBaseController {
+class ShareDialogController extends BaseController {
   static const platform = MethodChannel('android/back/desktop');
 
   String? shareURL = isProduction ? null : 'https://x.com/435hz/status/1868127842279842221';

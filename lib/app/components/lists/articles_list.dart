@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'package:daily_satori/app/components/cards/article_card.dart';
-import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/global.dart';
 
 /// 文章列表组件
 class ArticlesList extends StatelessWidget {
-  final List<Article> articles;
+  final List<ArticleModel> articleModels;
   final ScrollController? scrollController;
   final Future<void> Function()? onRefresh;
   final bool isLoading;
@@ -14,7 +14,7 @@ class ArticlesList extends StatelessWidget {
 
   const ArticlesList({
     super.key,
-    required this.articles,
+    required this.articleModels,
     this.scrollController,
     this.onRefresh,
     this.isLoading = false,
@@ -39,14 +39,14 @@ class ArticlesList extends StatelessWidget {
   }
 
   int _calculateItemCount() {
-    return articles.length + (isLoading ? 1 : 0);
+    return articleModels.length + (isLoading ? 1 : 0);
   }
 
   Widget _buildListItem(BuildContext context, int index) {
-    if (index == articles.length) {
+    if (index == articleModels.length) {
       return _buildLoadingIndicator(context);
     }
-    return ArticleCard(article: articles[index], onArticleUpdated: onArticleUpdated);
+    return ArticleCard(articleModel: articleModels[index], onArticleUpdated: onArticleUpdated);
   }
 
   Widget _buildLoadingIndicator(BuildContext context) {

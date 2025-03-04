@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 
 import 'package:share_plus/share_plus.dart';
 
-import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/global.dart';
 
 /// 文章操作栏组件
 class ArticleActionBar extends StatelessWidget {
-  final Article article;
+  final ArticleModel articleModel;
   final VoidCallback? onArticleUpdated;
 
-  const ArticleActionBar({super.key, required this.article, this.onArticleUpdated});
+  const ArticleActionBar({super.key, required this.articleModel, this.onArticleUpdated});
 
   @override
   Widget build(BuildContext context) {
@@ -22,10 +22,10 @@ class ArticleActionBar extends StatelessWidget {
       children: [
         _buildActionButton(
           context,
-          article.isFavorite ? Icons.favorite : Icons.favorite_border,
-          article.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant.withOpacity(0.7),
+          articleModel.isFavorite ? Icons.favorite : Icons.favorite_border,
+          articleModel.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant.withOpacity(0.7),
           () async {
-            await ArticleService.i.toggleFavorite(article.id);
+            await ArticleService.i.toggleFavorite(articleModel.id);
             if (onArticleUpdated != null) {
               onArticleUpdated!();
             }
@@ -33,7 +33,7 @@ class ArticleActionBar extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         _buildActionButton(context, Icons.share, colorScheme.onSurfaceVariant.withOpacity(0.7), () {
-          Share.share(article.url ?? '', subject: article.aiTitle ?? article.title ?? '');
+          Share.share(articleModel.url ?? '', subject: articleModel.aiTitle ?? articleModel.title ?? '');
         }),
       ],
     );

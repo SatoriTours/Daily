@@ -31,7 +31,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
     return AppBar(
       title: Text(
-        getTopLevelDomain(Uri.parse(controller.article.url ?? '').host),
+        getTopLevelDomain(Uri.parse(controller.articleModel.url ?? '').host),
         style: textTheme.titleLarge?.copyWith(color: Colors.white),
       ),
       centerTitle: true,
@@ -87,14 +87,14 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       case 1:
         Get.toNamed(
           Routes.SHARE_DIALOG,
-          arguments: {'articleID': controller.article.id, 'shareURL': controller.article.url, 'update': true},
+          arguments: {'articleID': controller.articleModel.id, 'shareURL': controller.articleModel.url, 'update': true},
         );
         break;
       case 2:
         _showDeleteConfirmationDialog();
         break;
       case 3:
-        Clipboard.setData(ClipboardData(text: controller.article.url ?? ''));
+        Clipboard.setData(ClipboardData(text: controller.articleModel.url ?? ''));
         successNotice("链接已复制到剪贴板");
         break;
       case 4:
@@ -137,7 +137,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   // 文章内容相关
   Widget _buildSummaryTab(BuildContext context) {
-    final article = controller.article;
+    final article = controller.articleModel;
 
     return SingleChildScrollView(
       padding: Dimensions.paddingVerticalM.copyWith(bottom: Dimensions.spacingM),
@@ -149,7 +149,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           Obx(() => _buildTags(context)),
           _buildContent(context),
           if (article.comment?.isNotEmpty ?? false) _buildComment(context),
-          if (article.images.length > 1) _buildImageGallery(context),
+          if (article.entity!.images.length > 1) _buildImageGallery(context),
         ],
       ),
     );
@@ -160,7 +160,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
     return ComponentStyle.articleTitleContainer(
       context,
-      Text((controller.article.aiTitle ?? controller.article.title) ?? '', style: textTheme.headlineSmall),
+      Text((controller.articleModel.aiTitle ?? controller.articleModel.title) ?? '', style: textTheme.headlineSmall),
     );
   }
 
@@ -169,7 +169,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
     return ComponentStyle.articleContentContainer(
       context,
-      Text(controller.article.aiContent ?? '', style: textTheme.bodyMedium),
+      Text(controller.articleModel.aiContent ?? '', style: textTheme.bodyMedium),
     );
   }
 
@@ -217,7 +217,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           Text('编辑评论', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
           Dimensions.verticalSpacerS,
           Text(
-            controller.article.comment ?? '',
+            controller.articleModel.comment ?? '',
             style: textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic, color: colorScheme.onSurfaceVariant),
           ),
         ],
@@ -355,7 +355,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   // 使用浏览器显示原始网页
   Widget _buildWebView(BuildContext context) {
-    final url = controller.article.url;
+    final url = controller.articleModel.url;
     if (url == null || url.isEmpty) {
       return _buildEmptyWebViewState(context);
     }
@@ -394,7 +394,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       confirm: TextButton(
         onPressed: () async {
           await controller.deleteArticle();
-          Get.find<ArticlesController>().removeArticleByIdFromList(controller.article.id);
+          Get.find<ArticlesController>().removeArticleByIdFromList(controller.articleModel.id);
           Get.back();
           Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
         },

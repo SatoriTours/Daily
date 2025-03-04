@@ -1,16 +1,14 @@
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'package:daily_satori/app/helpers/my_base_controller.dart';
-import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/global.dart';
-import 'package:daily_satori/app/helpers/article_helper.dart';
 
-class ArticleDetailController extends MyBaseController {
-  /// 当前文章对象
-  late Article article;
+class ArticleDetailController extends BaseController {
+  /// 当前文章模型
+  late ArticleModel articleModel;
 
   /// 文章标签字符串,以逗号分隔
   final tags = ''.obs;
@@ -18,23 +16,30 @@ class ArticleDetailController extends MyBaseController {
   @override
   void onInit() {
     super.onInit();
-    article = Get.arguments;
+    // 获取传入的ArticleModel
+    final argument = Get.arguments;
+    if (argument is ArticleModel) {
+      articleModel = argument;
+    } else {
+      throw ArgumentError('Invalid argument type: ${argument.runtimeType}');
+    }
+
     loadTags();
   }
 
   /// 加载并格式化文章标签
   Future<void> loadTags() async {
-    tags.value = article.tags.map((tag) => "#${tag.name}").join(', ');
+    tags.value = articleModel.entity!.tags.map((tag) => "#${tag.name}").join(', ');
   }
 
   /// 删除当前文章
   Future<void> deleteArticle() async {
-    await ArticleService.i.deleteArticle(article.id);
+    await ArticleService.i.deleteArticle(articleModel.id);
   }
 
   /// 获取文章内容图片列表(不含主图)
   List<String> getArticleImages() {
-    final images = _getValidImagePaths(article.images);
+    final images = _getValidImagePaths(articleModel.entity!.images);
     if (images.isNotEmpty) {
       images.removeAt(0); // 移除主图
     }
@@ -43,7 +48,7 @@ class ArticleDetailController extends MyBaseController {
 
   /// 获取文章截图列表
   List<String> getArticleScreenshots() {
-    return _getValidImagePaths(article.screenshots);
+    return _getValidImagePaths(articleModel.entity!.screenshots);
   }
 
   /// 获取有效的图片路径列表
@@ -72,17 +77,17 @@ class ArticleDetailController extends MyBaseController {
 
   /// 删除文章图片
   Future<void> deleteImage(String imagePath) async {
-    article.images.removeWhere((image) => image.path == imagePath);
-    await ArticleService.i.updateArticle(article.id, article);
+    articleModel.entity!.images.removeWhere((image) => image.path == imagePath);
+    await ArticleService.i.updateArticle(articleModel.id, articleModel.entity!);
   }
 
   /// 获取文章主图路径
   String getHeaderImagePath() {
-    return ArticleHelper.getArticleHeaderImagePath(article);
+    return articleModel.headerImagePath;
   }
 
   /// 检查是否应该显示头部图片
   bool shouldShowHeaderImage() {
-    return ArticleHelper.shouldShowHeaderImage(article);
+    return articleModel.shouldShowHeaderImage;
   }
 }
