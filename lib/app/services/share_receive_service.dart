@@ -1,11 +1,8 @@
 import 'package:flutter/services.dart';
-
 import 'package:get/get.dart';
 
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
-import 'package:daily_satori/global.dart';
 
 class ShareReceiveService {
   // 单例模式
@@ -40,20 +37,22 @@ class ShareReceiveService {
   Future<void> _handleSharedText(String sharedText) async {
     logger.i("处理分享内容, 参数: $sharedText");
 
-    final url = getUrlFromText(sharedText);
+    // 从文本中提取URL
+    final url = _extractUrlFromText(sharedText);
     if (url.isEmpty) return;
 
-    // 确保数据库未处于迁移状态
-    if (!(await ObjectboxService.i.shouldMigrateFromSQLite())) {
-      await Get.toNamed(
-        Routes.SHARE_DIALOG,
-        arguments: {
-          'articleID': 0,
-          'shareURL': url,
-          'update': false,
-          'needBackToApp': true,
-        },
-      );
-    }
+    // 直接处理分享内容
+    await Get.toNamed(
+      Routes.SHARE_DIALOG,
+      arguments: {'articleID': 0, 'shareURL': url, 'update': false, 'needBackToApp': true},
+    );
+  }
+
+  /// 从文本中提取URL
+  String _extractUrlFromText(String text) {
+    // 简单实现从文本中提取URL的逻辑
+    final urlRegex = RegExp(r'https?://[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?');
+    final match = urlRegex.firstMatch(text);
+    return match != null ? match.group(0) ?? '' : '';
   }
 }

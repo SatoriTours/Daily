@@ -1,7 +1,6 @@
 import 'package:daily_satori/app/services/adblock_service.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
-import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/flutter_service.dart';
@@ -27,7 +26,7 @@ Future<void> initApp() async {
 // 应用准备好之后执行(主要是UI准备好)
 void onAppReady() {
   ShareReceiveService.i.init();
-  ObjectboxService.i.checkAndMigrateFromSQLite();
+  // 数据迁移逻辑已移除
 }
 
 // 应用退出时执行(目前没使用)

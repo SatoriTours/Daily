@@ -244,7 +244,7 @@ class SettingsView extends GetView<SettingsController> {
             showDivider: false,
             onTap: () async {
               UIUtils.showLoading();
-              await TagsService.i.clearAllTags();
+              await TagsService.i.clearAll();
               Get.offNamed(Routes.ARTICLES);
               UIUtils.showSuccess("清除标签完成");
             },
