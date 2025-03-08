@@ -3,12 +3,43 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/models/article_model.dart';
+import 'package:daily_satori/app/objectbox/article.dart';
+import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/global.dart';
 
 class ArticleDetailController extends BaseController {
   /// 当前文章模型
   late ArticleModel articleModel;
+
+  /// 当前文章对象
+  Article get article => articleModel.entity;
+
+  /// 文章ID
+  int get articleId => articleModel.id;
+
+  /// 文章标题
+  String? get title => articleModel.title;
+
+  /// AI生成的标题
+  String? get aiTitle => articleModel.aiTitle;
+
+  /// 文章内容
+  String? get content => articleModel.content;
+
+  /// AI生成的内容
+  String? get aiContent => articleModel.aiContent;
+
+  /// HTML格式的内容
+  String? get htmlContent => articleModel.htmlContent;
+
+  /// 文章URL
+  String? get url => articleModel.url;
+
+  /// 是否收藏
+  bool get isFavorite => articleModel.isFavorite;
+
+  /// 评论
+  String? get comment => articleModel.comment;
 
   /// 文章标签字符串,以逗号分隔
   final tags = ''.obs;
@@ -16,10 +47,20 @@ class ArticleDetailController extends BaseController {
   @override
   void onInit() {
     super.onInit();
-    // 获取传入的ArticleModel
+    // 获取传入的参数
     final argument = Get.arguments;
-    if (argument is ArticleModel) {
+    if (argument is Article) {
+      articleModel = ArticleModel(argument);
+    } else if (argument is ArticleModel) {
       articleModel = argument;
+    } else if (argument is int) {
+      // 如果参数是ID，则根据ID查找文章
+      final foundArticleModel = ArticleRepository.find(argument);
+      if (foundArticleModel != null) {
+        articleModel = foundArticleModel;
+      } else {
+        throw ArgumentError('Article not found with ID: $argument');
+      }
     } else {
       throw ArgumentError('Invalid argument type: ${argument.runtimeType}');
     }
@@ -29,17 +70,17 @@ class ArticleDetailController extends BaseController {
 
   /// 加载并格式化文章标签
   Future<void> loadTags() async {
-    tags.value = articleModel.entity!.tags.map((tag) => "#${tag.name}").join(', ');
+    tags.value = article.tags.map((tag) => "#${tag.name}").join(', ');
   }
 
   /// 删除当前文章
   Future<void> deleteArticle() async {
-    await ArticleService.i.deleteArticle(articleModel.id);
+    await ArticleService.i.deleteArticle(articleId);
   }
 
   /// 获取文章内容图片列表(不含主图)
   List<String> getArticleImages() {
-    final images = _getValidImagePaths(articleModel.entity!.images);
+    final images = _getValidImagePaths(article.images);
     if (images.isNotEmpty) {
       images.removeAt(0); // 移除主图
     }
@@ -48,7 +89,7 @@ class ArticleDetailController extends BaseController {
 
   /// 获取文章截图列表
   List<String> getArticleScreenshots() {
-    return _getValidImagePaths(articleModel.entity!.screenshots);
+    return _getValidImagePaths(article.screenshots);
   }
 
   /// 获取有效的图片路径列表
@@ -77,17 +118,17 @@ class ArticleDetailController extends BaseController {
 
   /// 删除文章图片
   Future<void> deleteImage(String imagePath) async {
-    articleModel.entity!.images.removeWhere((image) => image.path == imagePath);
-    await ArticleService.i.updateArticle(articleModel.id, articleModel.entity!);
+    article.images.removeWhere((image) => image.path == imagePath);
+    await ArticleRepository.update(articleModel);
   }
 
   /// 获取文章主图路径
   String getHeaderImagePath() {
-    return articleModel.headerImagePath;
+    return articleModel.getHeaderImagePath();
   }
 
   /// 检查是否应该显示头部图片
   bool shouldShowHeaderImage() {
-    return articleModel.shouldShowHeaderImage;
+    return articleModel.shouldShowHeaderImage();
   }
 }

@@ -1,17 +1,11 @@
-import 'dart:io';
-
 import 'package:daily_satori/app/services/web_service/web_service.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
-import 'package:get_time_ago/get_time_ago.dart';
-import 'package:share_plus/share_plus.dart';
 
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
-import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/global.dart';
 
 import 'package:daily_satori/app/components/empty_states/articles_empty_view.dart';
 import 'package:daily_satori/app/components/inputs/search_text_field.dart';
@@ -47,12 +41,8 @@ class ArticlesView extends GetView<ArticlesController> {
 
   Widget _buildBody(BuildContext context) {
     return Obx(() {
-      if (controller.articleModels.isEmpty) {
-        return ArticlesEmptyView(
-          onAddArticle: () {
-            // 这里可以添加引导用户添加文章的逻辑
-          },
-        );
+      if (controller.articles.isEmpty) {
+        return Center(child: ArticlesEmptyView());
       }
       return Column(
         children: [
@@ -66,11 +56,11 @@ class ArticlesView extends GetView<ArticlesController> {
             ),
           Expanded(
             child: ArticlesList(
-              articleModels: controller.articleModels,
+              articles: controller.articles,
               scrollController: controller.scrollController,
               onRefresh: controller.reloadArticles,
               isLoading: controller.isLoading.value,
-              onArticleUpdated: () => controller.updateArticleInList(controller.articleModels.last.id),
+              onArticleUpdated: () => controller.updateArticleInList(controller.articles.last.id),
             ),
           ),
         ],

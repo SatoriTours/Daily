@@ -40,8 +40,8 @@ class ArticleCard extends StatelessWidget {
   }
 
   Widget _buildArticleContent(BuildContext context) {
-    final hasImage = articleModel.hasHeaderImage;
-    final imagePath = articleModel.headerImagePath;
+    final hasImage = articleModel.hasHeaderImage();
+    final imagePath = articleModel.getHeaderImagePath();
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

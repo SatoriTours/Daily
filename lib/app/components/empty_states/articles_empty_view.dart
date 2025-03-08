@@ -4,9 +4,7 @@ import 'package:daily_satori/app/styles/colors.dart';
 
 /// 文章列表空状态组件
 class ArticlesEmptyView extends StatelessWidget {
-  final VoidCallback? onAddArticle;
-
-  const ArticlesEmptyView({super.key, this.onAddArticle});
+  const ArticlesEmptyView({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -29,15 +27,6 @@ class ArticlesEmptyView extends StatelessWidget {
           const SizedBox(height: 12),
           Text('您可以通过分享功能添加新文章', style: TextStyle(fontSize: 14, color: AppColors.textSecondary(context))),
           const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: onAddArticle,
-            icon: const Icon(Icons.add),
-            label: const Text('添加文章'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            ),
-          ),
         ],
       ),
     );

@@ -7,7 +7,7 @@ extension PartArticleLoad on ArticlesController {
     lastRefreshTime = DateTime.now();
 
     final newArticles = _queryByFilter();
-    articleModels.assignAll(newArticles);
+    articles.assignAll(newArticles);
 
     // 滚动到顶部
     if (scrollController.hasClients) {
@@ -17,15 +17,15 @@ extension PartArticleLoad on ArticlesController {
 
   /// 加载更早的文章
   Future<void> _loadPreviousArticles() async {
-    if (articleModels.isEmpty) return;
+    if (articles.isEmpty) return;
 
     isLoading.value = true;
     try {
-      final articleID = articleModels.first.id;
+      final articleID = articles.first.id;
       logger.i('加载ID:$articleID之前的$_pageSize篇文章');
 
       final newArticles = _queryByFilter(articleID, true);
-      articleModels.insertAll(0, newArticles);
+      articles.insertAll(0, newArticles);
     } finally {
       isLoading.value = false;
     }
@@ -33,15 +33,15 @@ extension PartArticleLoad on ArticlesController {
 
   /// 加载更多文章
   Future<void> _loadMoreArticles() async {
-    if (articleModels.isEmpty) return;
+    if (articles.isEmpty) return;
 
     isLoading.value = true;
     try {
-      final articleID = articleModels.last.id;
+      final articleID = articles.last.id;
       logger.i('加载ID:$articleID之后的$_pageSize篇文章');
 
       final newArticles = _queryByFilter(articleID, false);
-      articleModels.addAll(newArticles);
+      articles.addAll(newArticles);
     } finally {
       isLoading.value = false;
     }

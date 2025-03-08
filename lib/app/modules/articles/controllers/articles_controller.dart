@@ -5,10 +5,7 @@ import 'package:get/get.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/models/article_model.dart';
-import 'package:daily_satori/app/objectbox/article.dart';
-import 'package:daily_satori/app/objectbox/tag.dart';
-import 'package:daily_satori/objectbox.g.dart';
+import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/global.dart';
 
 part 'part.clipboard.dart';
@@ -23,7 +20,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
   final searchController = TextEditingController();
 
   // 可观察状态
-  final articleModels = <ArticleModel>[].obs;
+  final articles = <ArticleModel>[].obs;
   final isLoading = false.obs;
   final enableSearch = false.obs;
   final tagName = ''.obs;

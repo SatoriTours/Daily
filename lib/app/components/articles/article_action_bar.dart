@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:share_plus/share_plus.dart';
 
-import 'package:daily_satori/app/services/article_service.dart';
+import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/global.dart';
 
@@ -25,7 +25,7 @@ class ArticleActionBar extends StatelessWidget {
           articleModel.isFavorite ? Icons.favorite : Icons.favorite_border,
           articleModel.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant.withOpacity(0.7),
           () async {
-            await ArticleService.i.toggleFavorite(articleModel.id);
+            await articleModel.toggleFavorite();
             if (onArticleUpdated != null) {
               onArticleUpdated!();
             }

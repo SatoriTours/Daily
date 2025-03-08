@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
+import 'package:daily_satori/global.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:dio/dio.dart';
 
@@ -38,11 +39,7 @@ class AppWebSocketTunnel {
       logger.i('尝试连接 WebSocket, 重试次数: $_retryCount, 地址: $webSocketUrl');
       _channel = WebSocketChannel.connect(Uri.parse(webSocketUrl));
 
-      _channel!.stream.listen(
-        _handleMessage,
-        onError: _handleError,
-        onDone: _handleDone,
-      );
+      _channel!.stream.listen(_handleMessage, onError: _handleError, onDone: _handleDone);
       await _channel!.ready;
       await _sendDeviceId(); // 连接成功后发送设备ID
       logger.i('WebSocket 已连接至 $webSocketUrl, 设备ID: $deviceId');
@@ -96,6 +93,10 @@ class AppWebSocketTunnel {
 
   /// 重连 WebSocket
   Future<void> _reconnect() async {
+    if (!isProduction) {
+      logger.i('非生产环境，不进行重连');
+      return;
+    }
     if (_isConnecting) {
       logger.i('正在连接中，请稍后...');
       return;
@@ -141,11 +142,7 @@ class AppWebSocketTunnel {
       final forwardUrl = _httpForwardUrl + requestPath;
       logger.i('转发请求路径: $forwardUrl');
 
-      final response = await _dio.request(
-        forwardUrl,
-        data: body,
-        options: Options(method: method, headers: headers),
-      );
+      final response = await _dio.request(forwardUrl, data: body, options: Options(method: method, headers: headers));
 
       await _processResponse(response, forwardUrl, messageID);
     } catch (e) {
@@ -165,10 +162,7 @@ class AppWebSocketTunnel {
         "body": response.toString(), // 服务器有可能返回的是json对象，所以这里使用toString，而不能使用response.data.toString()
       };
 
-      final reponse = {
-        "message_id": messageID,
-        "data": jsonEncode(responseData),
-      };
+      final reponse = {"message_id": messageID, "data": jsonEncode(responseData)};
 
       final responseJson = jsonEncode(reponse);
       logger.i('转发消息成功: $responseJson');
