@@ -1,5 +1,6 @@
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/models/image_model.dart';
+import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
@@ -30,6 +31,16 @@ class ImageRepository {
     final image = query.findFirst();
     query.close();
     return image != null ? ImageModel(image) : null;
+  }
+
+  /// 使用数据创建图片模型
+  static ImageModel createWithData(Map<String, dynamic> data, ArticleModel articleModel) {
+    final image = Image(url: data['url'], path: data['path']);
+
+    // 设置关联
+    image.article.target = articleModel.entity;
+
+    return ImageModel(image);
   }
 
   /// 保存图片

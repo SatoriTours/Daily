@@ -1,4 +1,5 @@
 import 'package:daily_satori/app/objectbox/article.dart';
+import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/global.dart';
@@ -16,6 +17,29 @@ class ArticleService {
   // 初始化服务
   Future<void> init() async {
     logger.i("[初始化服务] ArticleService");
+  }
+
+  /// 创建文章模型
+  ArticleModel createArticleModel(Map<String, dynamic> data) {
+    final article = Article(
+      title: data['title'],
+      aiTitle: data['aiTitle'],
+      content: data['content'],
+      aiContent: data['aiContent'],
+      htmlContent: data['htmlContent'],
+      url: data['url'],
+      pubDate: data['pubDate'],
+      createdAt: data['createdAt'] ?? DateTime.now().toUtc(),
+      updatedAt: data['updatedAt'] ?? DateTime.now().toUtc(),
+      comment: data['comment'],
+    );
+
+    return ArticleModel(article);
+  }
+
+  /// 更新文章ID
+  void updateArticleId(ArticleModel articleModel, int id) {
+    articleModel.entity.id = id;
   }
 
   // 保存文章

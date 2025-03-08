@@ -4,19 +4,16 @@ import 'package:get/get.dart';
 
 import 'package:daily_satori/app/components/dream_webview/dream_webview_controller.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
-import 'package:daily_satori/app/objectbox/article.dart';
-import 'package:daily_satori/app/objectbox/image.dart' as objectbox;
-import 'package:daily_satori/app/objectbox/screenshot.dart';
-import 'package:daily_satori/app/objectbox/tag.dart';
+import 'package:daily_satori/app/repositories/article_repository.dart';
+import 'package:daily_satori/app/repositories/image_repository.dart';
+import 'package:daily_satori/app/repositories/screenshot_repository.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:daily_satori/global.dart';
-import 'package:daily_satori/objectbox.g.dart';
 
 /// 分享对话框控制器
 /// 管理网页内容的加载、解析和保存
@@ -35,12 +32,6 @@ class ShareDialogController extends GetxController {
   // 控制器
   DreamWebViewController? webViewController;
   final TextEditingController commentController = TextEditingController();
-
-  // 数据访问对象
-  final articleBox = ObjectboxService.i.box<Article>();
-  final tagBox = ObjectboxService.i.box<Tag>();
-  final imageBox = ObjectboxService.i.box<objectbox.Image>();
-  final screenshotBox = ObjectboxService.i.box<Screenshot>();
 
   @override
   void onInit() {
@@ -139,7 +130,7 @@ class ShareDialogController extends GetxController {
       ]);
 
       // 创建并保存文章
-      final article = await _saveArticleData(
+      final articleModel = await _saveArticleData(
         url: url,
         title: title,
         aiTitle: results[0],
@@ -153,7 +144,7 @@ class ShareDialogController extends GetxController {
       );
 
       // 通知文章列表更新
-      Get.find<ArticlesController>().updateArticle(article.id);
+      Get.find<ArticlesController>().updateArticle(articleModel.id);
       _completeProcess();
     } catch (e) {
       logger.e("保存文章失败: $e");
@@ -317,7 +308,7 @@ class ShareDialogController extends GetxController {
   }
 
   /// 保存文章数据
-  Future<Article> _saveArticleData({
+  Future<ArticleModel> _saveArticleData({
     required String url,
     required String title,
     required String aiTitle,
@@ -329,8 +320,8 @@ class ShareDialogController extends GetxController {
     required List<ImageDownloadResult> images,
     required List<String> screenshots,
   }) async {
-    // 创建文章
-    var article = _createArticle(
+    // 创建文章模型
+    final articleModel = _createArticleModel(
       url: url,
       title: title,
       aiTitle: aiTitle,
@@ -340,17 +331,21 @@ class ShareDialogController extends GetxController {
       publishedTime: publishedTime,
     );
 
-    // 保存文章
-    article = await _saveOrUpdateArticle(article);
+    // 保存文章模型
+    await articleModel.save();
 
     // 保存关联数据
-    await Future.wait([_saveTags(article, tags), _saveImages(article, images), _saveScreenshots(article, screenshots)]);
+    await Future.wait([
+      _saveTags(articleModel, tags),
+      _saveImages(articleModel, images),
+      _saveScreenshots(articleModel, screenshots),
+    ]);
 
-    return article;
+    return articleModel;
   }
 
-  /// 创建文章
-  Article _createArticle({
+  /// 创建文章模型
+  ArticleModel _createArticleModel({
     required String url,
     required String title,
     required String aiTitle,
@@ -359,97 +354,135 @@ class ShareDialogController extends GetxController {
     required String htmlContent,
     required String publishedTime,
   }) {
-    return Article(
-      title: title,
-      aiTitle: aiTitle,
-      content: textContent,
-      aiContent: aiContent,
-      htmlContent: htmlContent,
-      url: url,
-      pubDate: DateTime.tryParse(publishedTime)?.toUtc() ?? DateTime.now().toUtc(),
-      createdAt: DateTime.now().toUtc(),
-      updatedAt: DateTime.now().toUtc(),
-      comment: commentController.text,
-    );
-  }
+    // 使用ArticleRepository创建新的文章模型
+    final article = ArticleRepository.find(articleID.value);
 
-  /// 保存或更新文章
-  Future<Article> _saveOrUpdateArticle(Article article) async {
-    article.id = articleID.value;
-    articleBox.put(article);
-    return article;
+    // 创建新文章或更新现有文章
+    if (article != null && isUpdate.value) {
+      // 更新现有文章的属性
+      article.title = title;
+      article.aiTitle = aiTitle;
+      article.content = textContent;
+      article.aiContent = aiContent;
+      article.htmlContent = htmlContent;
+      article.url = url;
+      article.updatedAt = DateTime.now().toUtc();
+      article.comment = commentController.text;
+      return article;
+    } else {
+      // 创建一个新的ArticleModel实例
+      // 首先尝试通过URL查找文章，确保不存在重复
+      final existingArticleByUrl = ArticleRepository.where(keyword: url).firstOrNull;
+      if (existingArticleByUrl != null) {
+        return existingArticleByUrl;
+      }
+
+      // 使用ArticleService创建新文章
+      // 从服务层中抽取出一个新的方法，用于创建文章并返回ArticleModel
+      final data = {
+        'title': title,
+        'aiTitle': aiTitle,
+        'content': textContent,
+        'aiContent': aiContent,
+        'htmlContent': htmlContent,
+        'url': url,
+        'pubDate': DateTime.tryParse(publishedTime)?.toUtc() ?? DateTime.now().toUtc(),
+        'createdAt': DateTime.now().toUtc(),
+        'updatedAt': DateTime.now().toUtc(),
+        'comment': commentController.text,
+      };
+
+      // 创建文章模型
+      final articleModel = ArticleService.i.createArticleModel(data);
+
+      if (isUpdate.value && articleID.value > 0) {
+        // 如果是更新模式，使用指定的ID
+        ArticleService.i.updateArticleId(articleModel, articleID.value);
+      }
+
+      // 保存到数据库
+      ArticleRepository.create(articleModel);
+
+      return articleModel;
+    }
   }
 
   /// 保存标签
-  Future<void> _saveTags(Article article, List<String> tags) async {
+  Future<void> _saveTags(ArticleModel articleModel, List<String> tagNames) async {
     try {
-      logger.i("[ShareDialogController] 开始保存标签: $tags");
+      logger.i("[ShareDialogController] 开始保存标签: $tagNames");
 
-      // 清除文章现有标签
-      article.tags.removeWhere((tag) => true);
-      articleBox.put(article);
+      // 清除原有标签 - 使用仓储层操作
+      articleModel.tags.clear();
 
-      // 获取或创建标签
-      for (var tagTitle in tags) {
-        // 查找已存在的标签
-        var tag = tagBox.query(Tag_.name.equals(tagTitle)).build().findFirst();
-
-        // 如果标签不存在,创建新标签
-        if (tag == null) {
-          tag = Tag(name: tagTitle);
-          tagBox.put(tag);
-        }
-
-        // 添加标签到文章
-        article.tags.add(tag);
+      // 添加新标签
+      for (var tagName in tagNames) {
+        // 获取或创建标签模型
+        final tagModel = TagModel.fromName(tagName);
+        articleModel.tags.add(tagModel.entity);
       }
 
-      // 保存文章
-      articleBox.put(article);
+      // 保存更新
+      await articleModel.save();
 
+      // 重新加载标签服务
       TagsService.i.reload();
-      logger.i("[ShareDialogController] 标签保存完成 ${article.id}");
+
+      logger.i("[ShareDialogController] 标签保存完成 ${articleModel.id}");
     } catch (e) {
       logger.e("[保存标签] 失败: $e");
     }
   }
 
   /// 保存图片
-  Future<void> _saveImages(Article article, List<ImageDownloadResult> results) async {
+  Future<void> _saveImages(ArticleModel articleModel, List<ImageDownloadResult> results) async {
     try {
       logger.i("[ShareDialogController] 开始保存图片: ${results.length}");
-      article.images.removeWhere((image) => true);
-      articleBox.put(article);
 
+      // 清除原有图片 - 使用仓储层操作
+      articleModel.images.clear();
+
+      // 添加新图片
       for (var result in results) {
-        final image = objectbox.Image(url: result.imageUrl, path: result.imagePath);
-        image.article.target = article;
-        imageBox.put(image);
-        logger.i("保存到数据库: ${result.imageUrl} => ${result.imagePath}");
+        // 使用ImageRepository创建新图片
+        final imageData = {'url': result.imageUrl, 'path': result.imagePath, 'articleId': articleModel.id};
+
+        // 创建图片模型并保存
+        final imageModel = ImageRepository.createWithData(imageData, articleModel);
+        await ImageRepository.create(imageModel);
       }
 
-      logger.i("网页相关图片保存完成 ${article.id}");
+      // 保存文章以更新关联
+      await ArticleRepository.update(articleModel);
+
+      logger.i("网页相关图片保存完成 ${articleModel.id}");
     } catch (e) {
       logger.e("[保存图片] 失败: $e");
     }
   }
 
   /// 保存截图
-  Future<void> _saveScreenshots(Article article, List<String> screenshotPaths) async {
+  Future<void> _saveScreenshots(ArticleModel articleModel, List<String> screenshotPaths) async {
     try {
       logger.i("[ShareDialogController] 开始保存截图: ${screenshotPaths.length}");
 
-      article.screenshots.removeWhere((screenshot) => true);
-      articleBox.put(article);
+      // 清除原有截图 - 使用仓储层操作
+      articleModel.screenshots.clear();
 
-      // 保存新的截图
-      for (var imagePath in screenshotPaths) {
-        final screenshot = Screenshot(path: imagePath);
-        screenshot.article.target = article;
-        screenshotBox.put(screenshot);
+      // 添加新截图
+      for (var path in screenshotPaths) {
+        // 使用ScreenshotRepository创建新截图
+        final screenshotData = {'path': path, 'articleId': articleModel.id};
+
+        // 创建截图模型并保存
+        final screenshotModel = ScreenshotRepository.createWithData(screenshotData, articleModel);
+        await ScreenshotRepository.create(screenshotModel);
       }
 
-      logger.i("网页截图保存完成 ${article.id}");
+      // 保存文章以更新关联
+      await ArticleRepository.update(articleModel);
+
+      logger.i("网页截图保存完成 ${articleModel.id}");
     } catch (e) {
       logger.e("[保存截图] 失败: $e");
     }

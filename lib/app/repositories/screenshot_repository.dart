@@ -1,5 +1,6 @@
 import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/models/screenshot_model.dart';
+import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
@@ -30,6 +31,16 @@ class ScreenshotRepository {
     final screenshot = query.findFirst();
     query.close();
     return screenshot != null ? ScreenshotModel(screenshot) : null;
+  }
+
+  /// 使用数据创建截图模型
+  static ScreenshotModel createWithData(Map<String, dynamic> data, ArticleModel articleModel) {
+    final screenshot = Screenshot(path: data['path']);
+
+    // 设置关联
+    screenshot.article.target = articleModel.entity;
+
+    return ScreenshotModel(screenshot);
   }
 
   /// 保存截图
