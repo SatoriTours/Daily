@@ -31,7 +31,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
     return AppBar(
       title: Text(
-        getTopLevelDomain(Uri.parse(controller.url ?? '').host),
+        getTopLevelDomain(Uri.parse(controller.articleModel.url ?? '').host),
         style: textTheme.titleLarge?.copyWith(color: Colors.white),
       ),
       centerTitle: true,
@@ -85,22 +85,30 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   void _handleMenuSelection(int value) {
     switch (value) {
       case 1:
-        Get.toNamed(
-          Routes.SHARE_DIALOG,
-          arguments: {'articleID': controller.articleId, 'shareURL': controller.url, 'update': true},
-        );
+        _onShareArticle();
         break;
       case 2:
         _showDeleteConfirmationDialog();
         break;
       case 3:
-        Clipboard.setData(ClipboardData(text: controller.url ?? ''));
-        successNotice("链接已复制到剪贴板");
+        _onCopyURL();
         break;
       case 4:
         controller.shareScreenshots();
         break;
     }
+  }
+
+  void _onShareArticle() {
+    Get.toNamed(
+      Routes.SHARE_DIALOG,
+      arguments: {'articleID': controller.articleModel.id, 'shareURL': controller.articleModel.url, 'update': true},
+    );
+  }
+
+  void _onCopyURL() {
+    Clipboard.setData(ClipboardData(text: controller.articleModel.url ?? ''));
+    successNotice('URL已复制到剪贴板');
   }
 
   // 主体内容
@@ -137,19 +145,23 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   // 文章内容相关
   Widget _buildSummaryTab(BuildContext context) {
-    final articleModel = controller.articleModel;
-
     return SingleChildScrollView(
       padding: Dimensions.paddingVerticalM.copyWith(bottom: Dimensions.spacingM),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (controller.shouldShowHeaderImage()) _buildHeaderImage(context, controller.getHeaderImagePath()),
+          if (controller.articleModel.shouldShowHeaderImage())
+            _buildHeaderImage(context, controller.articleModel.getHeaderImagePath()),
+          if (controller.articleModel.shouldShowHeaderImage()) const SizedBox(height: 10),
           _buildTitle(context),
+          const SizedBox(height: 15),
           Obx(() => _buildTags(context)),
+          const SizedBox(height: 15),
           _buildContent(context),
-          if (controller.comment?.isNotEmpty ?? false) _buildComment(context),
-          if (articleModel.images.length > 1) _buildImageGallery(context),
+          if (controller.articleModel.comment?.isNotEmpty ?? false) const SizedBox(height: 24),
+          if (controller.articleModel.comment?.isNotEmpty ?? false) _buildComment(context),
+          if (controller.articleModel.images.length > 1) const SizedBox(height: 24),
+          if (controller.articleModel.images.length > 1) _buildImageGallery(context),
         ],
       ),
     );
@@ -157,19 +169,20 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   Widget _buildTitle(BuildContext context) {
     final textTheme = AppTheme.getTextTheme(context);
-
-    return ComponentStyle.articleTitleContainer(
-      context,
-      Text((controller.aiTitle ?? controller.title) ?? '', style: textTheme.headlineSmall),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Text(
+        (controller.articleModel.aiTitle ?? controller.articleModel.title) ?? '',
+        style: textTheme.headlineSmall,
+      ),
     );
   }
 
   Widget _buildContent(BuildContext context) {
     final textTheme = AppTheme.getTextTheme(context);
-
-    return ComponentStyle.articleContentContainer(
-      context,
-      Text(controller.aiContent ?? '', style: textTheme.bodyMedium),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Text(controller.articleModel.aiContent ?? '', style: textTheme.bodyMedium),
     );
   }
 
@@ -178,11 +191,11 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     final textTheme = AppTheme.getTextTheme(context);
 
     return controller.tags.value.isNotEmpty
-        ? ComponentStyle.articleTagsContainer(
-          context,
-          Wrap(
-            spacing: 8.0, // 水平间距
-            runSpacing: 8.0, // 垂直间距
+        ? Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Wrap(
+            spacing: 10.0,
+            runSpacing: 10.0,
             children:
                 controller.tags.value.split(', ').map((tag) {
                   return Container(
@@ -190,7 +203,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                       color: colorScheme.primaryContainer.withOpacity(0.7),
                       borderRadius: BorderRadius.circular(Dimensions.radiusM),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
                     child: Text(
                       tag,
                       style: textTheme.bodySmall?.copyWith(
@@ -207,19 +220,15 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   Widget _buildComment(BuildContext context) {
     final textTheme = AppTheme.getTextTheme(context);
-    final colorScheme = AppTheme.getColorScheme(context);
 
-    return ComponentStyle.articleContentContainer(
-      context,
-      Column(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('编辑评论', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-          Dimensions.verticalSpacerS,
-          Text(
-            controller.comment ?? '',
-            style: textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic, color: colorScheme.onSurfaceVariant),
-          ),
+          Text('评论', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(controller.articleModel.comment ?? '', style: textTheme.bodyMedium),
         ],
       ),
     );
@@ -355,7 +364,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   // 使用浏览器显示原始网页
   Widget _buildWebView(BuildContext context) {
-    final url = controller.url;
+    final url = controller.articleModel.url;
     if (url == null || url.isEmpty) {
       return _buildEmptyWebViewState(context);
     }
@@ -394,7 +403,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       confirm: TextButton(
         onPressed: () async {
           await controller.deleteArticle();
-          Get.find<ArticlesController>().removeArticle(controller.articleId);
+          Get.find<ArticlesController>().removeArticle(controller.articleModel.id);
           Get.back();
           Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
         },

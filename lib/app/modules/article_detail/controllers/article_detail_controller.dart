@@ -5,33 +5,6 @@ class ArticleDetailController extends BaseController {
   /// 当前文章模型
   late ArticleModel articleModel;
 
-  /// 文章ID
-  int get articleId => articleModel.id;
-
-  /// 文章标题
-  String? get title => articleModel.title;
-
-  /// AI生成的标题
-  String? get aiTitle => articleModel.aiTitle;
-
-  /// 文章内容
-  String? get content => articleModel.content;
-
-  /// AI生成的内容
-  String? get aiContent => articleModel.aiContent;
-
-  /// HTML格式的内容
-  String? get htmlContent => articleModel.htmlContent;
-
-  /// 文章URL
-  String? get url => articleModel.url;
-
-  /// 是否收藏
-  bool get isFavorite => articleModel.isFavorite;
-
-  /// 评论
-  String? get comment => articleModel.comment;
-
   /// 文章标签字符串,以逗号分隔
   final tags = ''.obs;
 
@@ -64,7 +37,7 @@ class ArticleDetailController extends BaseController {
 
   /// 删除当前文章
   Future<void> deleteArticle() async {
-    await ArticleRepository.deleteArticle(articleId);
+    await ArticleRepository.deleteArticle(articleModel.id);
   }
 
   /// 获取文章内容图片列表(不含主图)
@@ -109,15 +82,5 @@ class ArticleDetailController extends BaseController {
   Future<void> deleteImage(String imagePath) async {
     articleModel.images.removeWhere((image) => image.path == imagePath);
     await ArticleRepository.update(articleModel);
-  }
-
-  /// 获取文章主图路径
-  String getHeaderImagePath() {
-    return articleModel.getHeaderImagePath();
-  }
-
-  /// 检查是否应该显示头部图片
-  bool shouldShowHeaderImage() {
-    return articleModel.shouldShowHeaderImage();
   }
 }
