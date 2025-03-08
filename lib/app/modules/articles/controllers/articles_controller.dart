@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:daily_satori/app/routes/app_pages.dart';
-import 'package:daily_satori/app/services/app_upgrade_service.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/repositories/article_repository.dart';
-import 'package:daily_satori/global.dart';
+
+import 'package:daily_satori/app_exports.dart';
 
 /// 文章列表控制器
 class ArticlesController extends BaseController with WidgetsBindingObserver {

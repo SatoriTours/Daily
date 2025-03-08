@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:daily_satori/app_exports.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';

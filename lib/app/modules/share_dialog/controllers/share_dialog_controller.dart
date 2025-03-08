@@ -2,17 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/components/dream_webview/dream_webview_controller.dart';
-import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
-import 'package:daily_satori/app/repositories/article_repository.dart';
-import 'package:daily_satori/app/repositories/image_repository.dart';
-import 'package:daily_satori/app/repositories/screenshot_repository.dart';
-import 'package:daily_satori/app/routes/app_pages.dart';
-import 'package:daily_satori/app/services/ai_service/ai_service.dart';
-import 'package:daily_satori/app/services/http_service.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/tags_service.dart';
-import 'package:daily_satori/global.dart';
 
 /// 分享对话框控制器
 /// 管理网页内容的加载、解析和保存
