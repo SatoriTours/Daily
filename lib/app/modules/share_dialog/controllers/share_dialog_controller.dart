@@ -1,12 +1,11 @@
-import 'package:daily_satori/app/components/dream_webview/dream_webview_controller.dart';
-import 'package:flutter/material.dart' as material;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import 'package:get/get.dart';
 
+import 'package:daily_satori/app/components/dream_webview/dream_webview_controller.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
-import 'package:daily_satori/app/objectbox/image.dart';
+import 'package:daily_satori/app/objectbox/image.dart' as objectbox;
 import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
@@ -20,25 +19,99 @@ import 'package:daily_satori/global.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 分享对话框控制器
-class ShareDialogController extends BaseController {
+/// 管理网页内容的加载、解析和保存
+class ShareDialogController extends GetxController {
   static const platform = MethodChannel('android/back/desktop');
 
   // 状态变量
-  String? shareURL = isProduction ? null : 'https://x.com/435hz/status/1868127842279842221';
-  bool isUpdate = false;
-  bool needBackToApp = false; // 是否需要返回分享过来的应用
-  int articleID = 0;
+  final RxString shareURL = ''.obs;
+  final RxBool isUpdate = false.obs;
+  final RxBool needBackToApp = false.obs;
+  final RxInt articleID = 0.obs;
+  final RxDouble webLoadProgress = 0.0.obs;
+  final RxBool isLoading = false.obs;
+  final RxString errorMessage = ''.obs;
 
   // 控制器
   DreamWebViewController? webViewController;
-  material.TextEditingController commentController = material.TextEditingController();
-  final webLoadProgress = 0.0.obs;
+  final TextEditingController commentController = TextEditingController();
 
   // 数据访问对象
   final articleBox = ObjectboxService.i.box<Article>();
   final tagBox = ObjectboxService.i.box<Tag>();
-  final imageBox = ObjectboxService.i.box<Image>();
+  final imageBox = ObjectboxService.i.box<objectbox.Image>();
   final screenshotBox = ObjectboxService.i.box<Screenshot>();
+
+  @override
+  void onInit() {
+    super.onInit();
+    _initDefaultValues();
+  }
+
+  @override
+  void onClose() {
+    commentController.dispose();
+    super.onClose();
+  }
+
+  /// 初始化默认值
+  void _initDefaultValues() {
+    if (!isProduction) {
+      shareURL.value = 'https://x.com/435hz/status/1868127842279842221';
+    }
+  }
+
+  /// 显示加载状态
+  void showLoading() {
+    isLoading.value = true;
+  }
+
+  /// 隐藏加载状态
+  void hideLoading() {
+    isLoading.value = false;
+  }
+
+  /// 设置错误信息
+  void setError(String message) {
+    errorMessage.value = message;
+  }
+
+  /// 清除错误信息
+  void clearError() {
+    errorMessage.value = '';
+  }
+
+  /// 更新URL
+  void updateShareURL(String? url) {
+    if (url != null && url.isNotEmpty) {
+      shareURL.value = url;
+      logger.i("接收到分享的链接 $url");
+    }
+  }
+
+  /// 更新是否为更新模式
+  void updateIsUpdate(bool? value) {
+    if (value != null) {
+      isUpdate.value = value;
+      logger.i("收到更新参数 $value");
+    }
+  }
+
+  /// 更新文章ID
+  void updateArticleID(int? id) {
+    if (id != null) {
+      articleID.value = id;
+      logger.i("收到文章ID参数 $id");
+    }
+  }
+
+  /// 更新是否需要返回应用
+  void updateNeedBackToApp(bool? value) {
+    if (value != null) {
+      needBackToApp.value = value;
+      logger.i("收到返回应用参数 $value");
+    }
+  }
 
   /// 保存文章信息
   Future<void> saveArticleInfo(
@@ -55,6 +128,8 @@ class ShareDialogController extends BaseController {
     if (await _checkArticleExists(url)) return;
 
     try {
+      showLoading();
+
       // 并行处理AI任务、图片下载和截图
       List<dynamic> results = await Future.wait([
         _processAiTitle(title),
@@ -83,18 +158,29 @@ class ShareDialogController extends BaseController {
     } catch (e) {
       logger.e("保存文章失败: $e");
       _showMessage("保存失败: $e");
+    } finally {
+      hideLoading();
     }
   }
 
   /// 解析网页内容
   Future<void> parseWebContent() async {
+    if (webViewController == null) {
+      _showMessage("WebView 未初始化");
+      return;
+    }
+
     try {
+      showLoading();
+
       await webViewController?.injectJavascriptFileFromAsset(assetFilePath: "assets/js/Readability.js");
       await webViewController?.injectJavascriptFileFromAsset(assetFilePath: "assets/js/parse_content.js");
       await webViewController?.evaluateJavascript(source: "parseContent()");
     } catch (e) {
       logger.e("解析网页内容失败: $e");
       _showMessage("解析失败，请重试");
+    } finally {
+      hideLoading();
     }
   }
 
@@ -102,43 +188,81 @@ class ShareDialogController extends BaseController {
   void showProcessDialog() {
     Get.defaultDialog(
       title: "操作提示",
-      content: material.Container(
-        padding: material.EdgeInsets.only(left: 10),
-        child: material.Column(
-          crossAxisAlignment: material.CrossAxisAlignment.start,
-          children: [_buildStepText("正在用AI对网页进行分析...")],
-        ),
+      content: Container(
+        padding: const EdgeInsets.only(left: 10),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_buildStepText("正在用AI对网页进行分析...")]),
       ),
-      confirm: material.TextButton(
+      confirm: TextButton(
         onPressed: () {
           logger.i("关闭对话框");
-          Get.close();
+          Get.back();
         },
-        child: material.Text("确定"),
+        child: const Text("确定"),
       ),
     );
   }
 
   /// 点击取消按钮
   void clickChannelBtn() {
-    if (!needBackToApp) {
+    if (!needBackToApp.value) {
       Get.back();
     } else {
       _backToPreviousApp();
     }
   }
 
-  // 私有方法
+  /// WebView创建完成
+  void onWebViewCreated(DreamWebViewController controller) {
+    webViewController = controller;
+
+    // 添加内容解析处理器
+    controller.addJavaScriptHandler(
+      handlerName: "getPageContent",
+      callback: (args) {
+        List<String> images = List.from(args[6]);
+
+        saveArticleInfo(
+          args[0].toString().trim(), // url
+          args[1].toString().trim(), // title
+          args[2].toString().trim(), // excerpt
+          args[3].toString().trim(), // htmlContent
+          args[4].toString().trim(), // textContent
+          args[5].toString().trim(), // publishedTime
+          images, // imagesUrl
+        );
+      },
+    );
+  }
+
+  /// 保存按钮点击
+  void onSaveButtonPressed() {
+    if (webViewController == null) {
+      _showMessage("WebView 未初始化");
+      return;
+    }
+
+    if (!isProduction) {
+      webViewController?.evaluateJavascript(source: "testNode()");
+    }
+
+    showProcessDialog();
+    parseWebContent();
+  }
+
+  /// 更新网页加载进度
+  void updateWebLoadProgress(double progress) {
+    webLoadProgress.value = progress;
+  }
 
   /// 检查文章是否已存在
   Future<bool> _checkArticleExists(String url) async {
-    if (!isUpdate) {
+    if (!isUpdate.value) {
       if (await ArticleService.i.isArticleExists(url)) {
         _showMessage('网页已存在 $url');
         return true;
       }
     }
-    if (isUpdate && articleID <= 0) {
+    if (isUpdate.value && articleID.value <= 0) {
       _showMessage('网页不存在 $url, 无法更新');
       return true;
     }
@@ -251,7 +375,7 @@ class ShareDialogController extends BaseController {
 
   /// 保存或更新文章
   Future<Article> _saveOrUpdateArticle(Article article) async {
-    article.id = articleID;
+    article.id = articleID.value;
     articleBox.put(article);
     return article;
   }
@@ -298,7 +422,7 @@ class ShareDialogController extends BaseController {
       articleBox.put(article);
 
       for (var result in results) {
-        final image = Image(url: result.imageUrl, path: result.imagePath);
+        final image = objectbox.Image(url: result.imageUrl, path: result.imagePath);
         image.article.target = article;
         imageBox.put(image);
         logger.i("保存到数据库: ${result.imageUrl} => ${result.imagePath}");
@@ -344,10 +468,10 @@ class ShareDialogController extends BaseController {
 
   /// 完成处理流程
   Future<void> _completeProcess() async {
-    Get.close();
+    Get.back(); // 关闭处理对话框
 
-    if (!needBackToApp) {
-      if (!isUpdate) {
+    if (!needBackToApp.value) {
+      if (!isUpdate.value) {
         await Get.find<ArticlesController>().reloadArticles();
       }
       Get.offAllNamed(Routes.ARTICLES);
@@ -358,16 +482,13 @@ class ShareDialogController extends BaseController {
 
   /// 显示提示信息
   void _showMessage(String message) {
-    Get.close();
+    Get.back(); // 关闭当前对话框
     successNotice(message);
   }
 
   /// 构建步骤文本
-  material.Widget _buildStepText(String tips) {
-    return material.Text(
-      tips,
-      style: material.TextStyle(fontWeight: material.FontWeight.bold, color: material.Colors.blue),
-    );
+  Widget _buildStepText(String tips) {
+    return Text(tips, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue));
   }
 }
 
