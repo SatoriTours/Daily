@@ -1,6 +1,5 @@
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/models/article_model.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
@@ -36,65 +35,98 @@ class ArticleRepository {
     bool? isGreaterThan,
     int pageSize = 20,
   }) {
-    // 构建查询条件
-    Condition<Article>? condition;
+    // 创建查询构建器
+    final queryBuilder = _createQueryBuilder(
+      keyword: keyword,
+      isFavorite: isFavorite,
+      startDate: startDate,
+      endDate: endDate,
+      referenceId: referenceId,
+      isGreaterThan: isGreaterThan,
+    );
 
-    // 关键词条件
+    // 应用标签过滤
+    _applyTagFilter(queryBuilder, tagIds);
+
+    // 应用排序
+    queryBuilder.order(Article_.id, flags: Order.descending);
+
+    // 执行查询
+    return _executeQuery(queryBuilder, pageSize);
+  }
+
+  /// 创建查询构建器并应用基本条件
+  static QueryBuilder<Article> _createQueryBuilder({
+    String? keyword,
+    bool? isFavorite,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? referenceId,
+    bool? isGreaterThan,
+  }) {
+    // 组合所有条件
+    final conditions = <Condition<Article>>[];
+
+    // 添加关键词条件
     if (keyword != null && keyword.isNotEmpty) {
-      condition =
-          Article_.title.contains(keyword) |
-          Article_.aiTitle.contains(keyword) |
-          Article_.content.contains(keyword) |
-          Article_.aiContent.contains(keyword) |
-          Article_.comment.contains(keyword);
+      conditions.add(
+        Article_.title.contains(keyword) |
+            Article_.aiTitle.contains(keyword) |
+            Article_.content.contains(keyword) |
+            Article_.aiContent.contains(keyword) |
+            Article_.comment.contains(keyword),
+      );
     }
 
-    // 收藏条件
+    // 添加收藏条件
     if (isFavorite != null) {
-      final favoriteCondition = Article_.isFavorite.equals(isFavorite);
-      condition = condition == null ? favoriteCondition : condition & favoriteCondition;
+      conditions.add(Article_.isFavorite.equals(isFavorite));
     }
 
-    // 开始日期条件
+    // 添加日期条件
     if (startDate != null) {
-      final startDateCondition = Article_.createdAt.greaterThan(startDate.millisecondsSinceEpoch);
-      condition = condition == null ? startDateCondition : condition & startDateCondition;
+      conditions.add(Article_.createdAt.greaterThan(startDate.millisecondsSinceEpoch));
     }
 
-    // 结束日期条件
     if (endDate != null) {
-      final endDateCondition = Article_.createdAt.lessThan(endDate.millisecondsSinceEpoch);
-      condition = condition == null ? endDateCondition : condition & endDateCondition;
+      conditions.add(Article_.createdAt.lessThan(endDate.millisecondsSinceEpoch));
     }
 
-    // ID参考条件（用于分页加载更多/之前的内容）
+    // 添加ID条件
     if (referenceId != null && isGreaterThan != null) {
-      final idCondition = isGreaterThan ? Article_.id.greaterThan(referenceId) : Article_.id.lessThan(referenceId);
-      condition = condition == null ? idCondition : condition & idCondition;
+      conditions.add(isGreaterThan ? Article_.id.greaterThan(referenceId) : Article_.id.lessThan(referenceId));
+    }
+
+    // 合并所有条件
+    Condition<Article>? finalCondition;
+    for (final condition in conditions) {
+      finalCondition = finalCondition == null ? condition : finalCondition & condition;
     }
 
     // 创建查询构建器
-    final queryBuilder = condition == null ? _box.query() : _box.query(condition);
+    return finalCondition == null ? _box.query() : _box.query(finalCondition);
+  }
 
-    // 标签过滤
+  /// 应用标签过滤
+  static void _applyTagFilter(QueryBuilder<Article> queryBuilder, List<int>? tagIds) {
     if (tagIds != null && tagIds.isNotEmpty) {
-      for (var tagId in tagIds) {
+      for (final tagId in tagIds) {
         queryBuilder.linkMany(Article_.tags, Tag_.id.equals(tagId));
       }
     }
+  }
 
-    // 排序
-    queryBuilder.order(Article_.id, flags: Order.descending);
-
-    // 执行查询并设置结果数量限制
+  /// 执行查询并返回结果
+  static List<ArticleModel> _executeQuery(QueryBuilder<Article> queryBuilder, int pageSize) {
     final query = queryBuilder.build();
+
+    // 设置分页
     if (pageSize > 0) {
       query.limit = pageSize;
     }
 
-    // 执行查询并返回结果
-    final articles = query.find();
-    return articles.map((e) => ArticleModel(e)).toList();
+    // 执行查询
+    return query.find().map((e) => ArticleModel(e)).toList();
   }
 
   /// 保存文章
