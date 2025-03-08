@@ -1,7 +1,7 @@
 import 'package:daily_satori/app/services/adblock_service.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
-import 'package:daily_satori/app/services/article_service.dart';
+import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/flutter_service.dart';
@@ -52,7 +52,6 @@ Future<void> _initParallelServices() async {
     TagsService.i.init(), // 初始化标签服务
     FontService.i.init(), // 初始化字体
     AiService.i.init(), // 初始化AI服务
-    ArticleService.i.init(), // 初始化文章服务
     ADBlockService.i.init(), // 初始化广告拦截服务
     FreeDiskService.i.init(), // 初始化磁盘服务
   ]);

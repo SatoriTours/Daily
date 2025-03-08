@@ -1,6 +1,8 @@
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/global.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 文章仓储类
@@ -22,6 +24,62 @@ class ArticleRepository {
   static ArticleModel? find(int id) {
     final article = _box.get(id);
     return article != null ? ArticleModel(article) : null;
+  }
+
+  /// 创建文章模型
+  static ArticleModel createArticleModel(Map<String, dynamic> data) {
+    final article = Article(
+      title: data['title'],
+      aiTitle: data['aiTitle'],
+      content: data['content'],
+      aiContent: data['aiContent'],
+      htmlContent: data['htmlContent'],
+      url: data['url'],
+      pubDate: data['pubDate'],
+      createdAt: data['createdAt'] ?? DateTime.now().toUtc(),
+      updatedAt: data['updatedAt'] ?? DateTime.now().toUtc(),
+      comment: data['comment'],
+    );
+
+    return ArticleModel(article);
+  }
+
+  /// 更新文章ID
+  static void updateArticleId(ArticleModel articleModel, int id) {
+    articleModel.entity.id = id;
+  }
+
+  /// 根据URL获取第一篇文章
+  static Future<ArticleModel?> findByUrl(String url) async {
+    final query = _box.query(Article_.url.equals(url)).build();
+    final article = query.findFirst();
+    query.close();
+    return article != null ? ArticleModel(article) : null;
+  }
+
+  /// 检查文章是否存在
+  static Future<bool> isArticleExists(String url) async {
+    return await findByUrl(url) != null;
+  }
+
+  /// 删除文章及其关联数据
+  static Future<void> deleteArticle(int id) async {
+    final articleModel = find(id);
+    if (articleModel == null) {
+      logger.i("未找到文章以删除: $id");
+      return;
+    }
+
+    // 清理关联数据
+    articleModel.tags.clear();
+    articleModel.images.clear();
+    articleModel.screenshots.clear();
+
+    // 保存更改并删除文章
+    await update(articleModel);
+    destroy(id);
+
+    logger.i("文章已删除: $id");
   }
 
   /// 搜索文章
@@ -131,12 +189,26 @@ class ArticleRepository {
 
   /// 保存文章
   static Future<int> create(ArticleModel articleModel) async {
-    return await _box.putAsync(articleModel.entity);
+    try {
+      final id = await _box.putAsync(articleModel.entity);
+      logger.i("文章已保存: ${firstLine(articleModel.title ?? '')}");
+      return id;
+    } catch (e) {
+      logger.e("[保存文章失败] $e");
+      return 0;
+    }
   }
 
   /// 更新文章
   static Future<int> update(ArticleModel articleModel) async {
-    return await _box.putAsync(articleModel.entity);
+    try {
+      final id = await _box.putAsync(articleModel.entity);
+      logger.i("文章已更新: ${firstLine(articleModel.title ?? '')}");
+      return id;
+    } catch (e) {
+      logger.e("[更新文章失败] $e");
+      return 0;
+    }
   }
 
   /// 删除文章
@@ -149,9 +221,11 @@ class ArticleRepository {
     final articleModel = find(id);
     if (articleModel == null) return false;
 
-    final entity = articleModel.entity;
-    entity.isFavorite = !entity.isFavorite;
-    await _box.putAsync(entity);
-    return entity.isFavorite;
+    articleModel.isFavorite = !articleModel.isFavorite;
+    await update(articleModel);
+
+    final status = articleModel.isFavorite ? "已收藏" : "已取消收藏";
+    logger.i("文章$status: $id");
+    return articleModel.isFavorite;
   }
 }

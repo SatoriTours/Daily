@@ -1,7 +1,6 @@
 import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/global.dart';
@@ -69,7 +68,7 @@ class ArticleDetailController extends BaseController {
 
   /// 删除当前文章
   Future<void> deleteArticle() async {
-    await ArticleService.i.deleteArticle(articleId);
+    await ArticleRepository.deleteArticle(articleId);
   }
 
   /// 获取文章内容图片列表(不含主图)

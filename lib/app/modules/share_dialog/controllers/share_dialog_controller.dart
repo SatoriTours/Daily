@@ -9,7 +9,6 @@ import 'package:daily_satori/app/repositories/image_repository.dart';
 import 'package:daily_satori/app/repositories/screenshot_repository.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
-import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/tags_service.dart';
@@ -248,7 +247,7 @@ class ShareDialogController extends GetxController {
   /// 检查文章是否已存在
   Future<bool> _checkArticleExists(String url) async {
     if (!isUpdate.value) {
-      if (await ArticleService.i.isArticleExists(url)) {
+      if (await ArticleRepository.isArticleExists(url)) {
         _showMessage('网页已存在 $url');
         return true;
       }
@@ -377,8 +376,8 @@ class ShareDialogController extends GetxController {
         return existingArticleByUrl;
       }
 
-      // 使用ArticleService创建新文章
-      // 从服务层中抽取出一个新的方法，用于创建文章并返回ArticleModel
+      // 使用ArticleRepository创建新文章
+      // 从仓储层中抽取出一个新的方法，用于创建文章并返回ArticleModel
       final data = {
         'title': title,
         'aiTitle': aiTitle,
@@ -393,11 +392,11 @@ class ShareDialogController extends GetxController {
       };
 
       // 创建文章模型
-      final articleModel = ArticleService.i.createArticleModel(data);
+      final articleModel = ArticleRepository.createArticleModel(data);
 
       if (isUpdate.value && articleID.value > 0) {
         // 如果是更新模式，使用指定的ID
-        ArticleService.i.updateArticleId(articleModel, articleID.value);
+        ArticleRepository.updateArticleId(articleModel, articleID.value);
       }
 
       // 保存到数据库
