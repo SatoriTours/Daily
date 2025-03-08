@@ -15,3 +15,7 @@ export 'app/modules/modules.dart';
 
 // 导出常用路由
 export 'app/routes/app_pages.dart';
+
+// 导出Flutter基础包
+export 'package:flutter/material.dart' hide VoidCallback;
+export 'package:get/get.dart';

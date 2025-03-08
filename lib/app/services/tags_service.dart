@@ -13,6 +13,7 @@ class TagsService {
 
   // 标签数据
   late List<Tag> _tags;
+  @Deprecated('使用getAllTagModels()代替')
   List<Tag> get tags => _tags;
 
   // ObjectBox 标签盒子
@@ -55,5 +56,10 @@ class TagsService {
     } catch (e) {
       logger.e("[添加标签] 失败: $e");
     }
+  }
+
+  /// 获取TagModel列表
+  List<TagModel> getAllTagModels() {
+    return _tags.map((tag) => TagModel(tag)).toList();
   }
 }

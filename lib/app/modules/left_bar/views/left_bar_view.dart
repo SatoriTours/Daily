@@ -1,12 +1,5 @@
-import 'package:flutter/material.dart';
-
-import 'package:get/get.dart';
-
-import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/objectbox/tag.dart';
-
-import '../controllers/left_bar_controller.dart';
 
 class LeftBarView extends GetView<LeftBarController> {
   const LeftBarView({super.key});
@@ -143,7 +136,7 @@ class LeftBarView extends GetView<LeftBarController> {
     );
   }
 
-  Widget _buildTagItem(BuildContext context, Tag tag) {
+  Widget _buildTagItem(BuildContext context, TagModel tag) {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
