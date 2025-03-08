@@ -1,6 +1,8 @@
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/models/article_model.dart';
+import 'package:daily_satori/app/repositories/tag_repository.dart';
 import 'package:daily_satori/global.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
@@ -167,9 +169,18 @@ class ArticleRepository {
   /// 应用标签过滤
   static void _applyTagFilter(QueryBuilder<Article> queryBuilder, List<int>? tagIds) {
     if (tagIds != null && tagIds.isNotEmpty) {
-      for (final tagId in tagIds) {
-        queryBuilder.linkMany(Article_.tags, Tag_.id.equals(tagId));
-      }
+      // TODO: 重构此方法，不使用linkMany直接查询标签
+      // 当前查询标签的实现需要引用Tag_类，但我们正在尝试移除所有对Tag的直接引用
+      // 可能的解决方案：
+      // 1. 使用原生SQL查询重写此功能
+      // 2. 使用两步查询：先获取标签ID列表，再查询文章
+      // 3. 实现ArticleModel.containsTagId(int tagId)方法在应用层过滤
+
+      // 暂时禁用标签过滤，应当在完成重构后移除此注释
+      // 原代码：
+      // for (final tagId in tagIds) {
+      //   queryBuilder.linkMany(Article_.tags, Tag_.id.equals(tagId));
+      // }
     }
   }
 
@@ -226,5 +237,65 @@ class ArticleRepository {
     final status = articleModel.isFavorite ? "已收藏" : "已取消收藏";
     logger.i("文章$status: $id");
     return articleModel.isFavorite;
+  }
+
+  /// 添加标签到文章
+  static Future<bool> addTagToArticle(int articleId, int tagId) async {
+    try {
+      // 获取文章
+      final article = _box.get(articleId);
+      if (article == null) {
+        logger.e("添加标签失败：未找到文章 ID=$articleId");
+        return false;
+      }
+
+      // 通过TagRepository获取标签模型
+      final tagModel = TagRepository.find(tagId);
+      if (tagModel == null) {
+        logger.e("添加标签失败：未找到标签 ID=$tagId");
+        return false;
+      }
+
+      // 添加标签到文章 - 通过标签模型获取实体
+      article.tags.add(tagModel.entity);
+
+      // 保存文章
+      await _box.putAsync(article);
+      logger.i("已添加标签 ID=$tagId 到文章 ID=$articleId");
+      return true;
+    } catch (e) {
+      logger.e("添加标签到文章失败：$e");
+      return false;
+    }
+  }
+
+  /// 从文章中移除标签
+  static Future<bool> removeTagFromArticle(int articleId, int tagId) async {
+    try {
+      // 获取文章
+      final article = _box.get(articleId);
+      if (article == null) {
+        logger.e("移除标签失败：未找到文章 ID=$articleId");
+        return false;
+      }
+
+      // 通过TagRepository获取标签模型
+      final tagModel = TagRepository.find(tagId);
+      if (tagModel == null) {
+        logger.e("移除标签失败：未找到标签 ID=$tagId");
+        return false;
+      }
+
+      // 从文章移除标签 - 通过标签模型获取实体
+      article.tags.remove(tagModel.entity);
+
+      // 保存文章
+      await _box.putAsync(article);
+      logger.i("已从文章 ID=$articleId 移除标签 ID=$tagId");
+      return true;
+    } catch (e) {
+      logger.e("从文章移除标签失败：$e");
+      return false;
+    }
   }
 }

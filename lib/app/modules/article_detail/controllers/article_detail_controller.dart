@@ -1,10 +1,5 @@
-import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:daily_satori/app_exports.dart';
-
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/repositories/article_repository.dart';
-import 'package:daily_satori/global.dart';
 
 class ArticleDetailController extends BaseController {
   /// 当前文章模型

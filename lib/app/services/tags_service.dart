@@ -1,9 +1,4 @@
-import 'package:daily_satori/app/objectbox/tag.dart';
-import 'package:daily_satori/app/models/article_model.dart';
-import 'package:daily_satori/app/models/tag_model.dart';
-import 'package:daily_satori/app/repositories/tag_repository.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app_exports.dart';
 
 class TagsService {
   // 单例模式
@@ -11,13 +6,11 @@ class TagsService {
   static final TagsService _instance = TagsService._();
   static TagsService get i => _instance;
 
-  // 标签数据
-  late List<Tag> _tags;
-  @Deprecated('使用getAllTagModels()代替')
-  List<Tag> get tags => _tags;
+  // 只保存TagModel列表
+  late List<TagModel> _tagModels;
 
-  // ObjectBox 标签盒子
-  final _tagBox = ObjectboxService.i.box<Tag>();
+  // 获取标签模型列表
+  List<TagModel> get tagModels => _tagModels;
 
   /// 初始化服务
   Future<void> init() async {
@@ -32,34 +25,41 @@ class TagsService {
 
   /// 加载标签数据
   Future<void> _loadTags() async {
-    _tags = _tagBox.getAll();
-    logger.i("[加载标签] 共加载 ${_tags.length} 个标签");
+    // 直接通过仓库获取TagModel列表
+    _tagModels = TagRepository.all();
+    logger.i("[加载标签] 共加载 ${_tagModels.length} 个标签");
   }
 
   /// 清空所有标签
   Future<void> clearAllTags() async {
-    _tagBox.removeAll();
+    // 使用仓库的方法删除所有标签
+    TagRepository.removeAll();
     await _loadTags();
     logger.i("[清空标签] 已清空所有标签");
   }
 
-  /// 添加标签到文章
+  /// 添加标签到文章 - 调用仓库层方法
   Future<void> addTagToArticle(ArticleModel articleModel, String tagName) async {
-    try {
-      // 获取或创建标签
-      final tagModel = TagRepository.findOrCreate(tagName);
+    final result = await TagRepository.addTagToArticle(articleModel, tagName);
 
-      // 添加标签到文章 - 这里仍然需要使用entity，但这是在服务层内部，不暴露给控制器
-      articleModel.tags.add(tagModel.entity);
-
-      logger.i("[添加标签] 已添加标签 '$tagName' 到文章 ${articleModel.id}");
-    } catch (e) {
-      logger.e("[添加标签] 失败: $e");
+    if (result) {
+      // 重新加载标签
+      await reload();
     }
   }
 
   /// 获取TagModel列表
   List<TagModel> getAllTagModels() {
-    return _tags.map((tag) => TagModel(tag)).toList();
+    return _tagModels;
+  }
+
+  /// 根据ID查找TagModel - 调用仓库层方法
+  TagModel? findTagModelById(int id) {
+    return TagRepository.findTagModelById(_tagModels, id);
+  }
+
+  /// 根据名称查找TagModel - 调用仓库层方法
+  TagModel? findTagModelByName(String name) {
+    return TagRepository.findTagModelByName(_tagModels, name);
   }
 }

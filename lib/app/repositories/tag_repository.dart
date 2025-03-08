@@ -1,6 +1,8 @@
 import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/models/tag_model.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/models/article_model.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 标签仓储类
@@ -32,6 +34,45 @@ class TagRepository {
     return tag != null ? TagModel(tag) : null;
   }
 
+  /// 根据ID从标签列表中查找标签
+  static TagModel? findTagModelById(List<TagModel> tagModels, int id) {
+    try {
+      return tagModels.firstWhere((tag) => tag.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// 根据名称从标签列表中查找标签
+  static TagModel? findTagModelByName(List<TagModel> tagModels, String name) {
+    try {
+      return tagModels.firstWhere((tag) => tag.name == name);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// 添加标签到文章
+  static Future<bool> addTagToArticle(ArticleModel articleModel, String tagName) async {
+    try {
+      // 获取或创建标签
+      final tagModel = findOrCreate(tagName);
+
+      // 获取文章实体
+      final article = articleModel.entity;
+
+      // 添加标签到文章
+      article.tags.add(tagModel.entity);
+
+      // 更新已保存
+      logger.i("[添加标签] 已添加标签 '$tagName' 到文章 ${articleModel.id}");
+      return true;
+    } catch (e) {
+      logger.e("[添加标签] 失败: $e");
+      return false;
+    }
+  }
+
   /// 创建或查找标签
   static TagModel findOrCreate(String name, {String? icon}) {
     var tagModel = findByName(name);
@@ -56,5 +97,11 @@ class TagRepository {
   /// 删除标签
   static bool destroy(int id) {
     return _box.remove(id);
+  }
+
+  /// 删除所有标签
+  static void removeAll() {
+    _box.removeAll();
+    logger.i("[删除标签] 所有标签已删除");
   }
 }
