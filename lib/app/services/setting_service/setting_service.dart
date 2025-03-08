@@ -1,17 +1,20 @@
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 
-import 'package:daily_satori/app/objectbox/setting.dart';
+import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_provider.dart';
-import 'package:daily_satori/objectbox.g.dart';
 import 'package:daily_satori/app/utils/random_utils.dart';
 
+/// 设置服务类
+///
+/// 负责管理应用设置的访问、缓存和业务逻辑
 class SettingService {
+  // MARK: - 单例实现
   SettingService._privateConstructor();
   static final SettingService _instance = SettingService._privateConstructor();
   static SettingService get i => _instance;
 
+  // MARK: - 设置键常量
   static String openAITokenKey = 'openai_token';
   static String openAIAddressKey = 'openai_address';
   static String aiModelKey = 'ai_model';
@@ -20,7 +23,8 @@ class SettingService {
   static String webServerPasswordKey = 'web_server_password';
   static String deviceIdKey = 'device_id';
   static String webSocketUrlKey = 'web_socket_url';
-  // 配置的初始值
+
+  // MARK: - 默认设置值
   static Map<String, String> defaultSettings = {
     openAITokenKey: '',
     openAIAddressKey: 'https://api.openai.com/v1',
@@ -32,110 +36,125 @@ class SettingService {
     webSocketUrlKey: 'ws://10.0.2.2:3000/ws',
   };
 
+  // MARK: - 内存缓存
+  final Map<String, String> _cache = {};
+
+  // MARK: - 初始化方法
   Future<void> init() async {
-    logger.i("[初始化服务] SettingsService");
-    _initDefaultSettings();
+    logger.i("[设置服务] 初始化");
+    await _initDefaultSettings();
+    await _initCache();
     await Settings.init(cacheProvider: SettingProvider());
   }
 
-  final settingBox = ObjectboxService.i.box<Setting>();
+  // MARK: - 业务方法
 
+  /// 检查AI是否启用
   bool aiEnabled() {
     final apiKey = getSetting(SettingService.openAITokenKey);
     final baseUrl = getSetting(SettingService.openAIAddressKey);
     final isEnabled = apiKey.isNotEmpty && baseUrl.isNotEmpty;
-    logger.i("[AI] 是否启用: $isEnabled");
+    logger.i("[设置服务] AI是否启用: $isEnabled");
     return isEnabled;
   }
 
-  // 初始化默认配置到数据库
+  // MARK: - 内部方法
+
+  /// 初始化默认设置
   Future<void> _initDefaultSettings() async {
     for (var entry in defaultSettings.entries) {
       final key = entry.key;
       final value = entry.value;
-      final existing = settingBox.query(Setting_.key.equals(key)).build().findFirst();
-      if (existing == null && value.isNotEmpty) {
-        settingBox.put(Setting(key: key, value: value));
+      if (!SettingRepository.containsKey(key) && value.isNotEmpty) {
+        await SettingRepository.setValue(key, value);
+        _cache[key] = value;
       }
     }
   }
 
+  /// 初始化缓存
+  Future<void> _initCache() async {
+    final allSettings = SettingRepository.all();
+    for (var setting in allSettings) {
+      if (setting.key != null && setting.value != null) {
+        _cache[setting.key!] = setting.value!;
+      }
+    }
+    logger.i("[设置服务] 缓存了 ${_cache.length} 条设置");
+  }
+
+  // MARK: - 公共接口方法
+
+  /// 检查设置键是否存在
   bool containsKey(String key) {
-    final existing = settingBox.query(Setting_.key.equals(key)).build().findFirst();
-    return existing != null;
+    if (_cache.containsKey(key)) return true;
+    return SettingRepository.containsKey(key);
   }
 
+  /// 保存单个设置
   Future<void> saveSetting(String key, String value) async {
-    if (key.isEmpty || value.isEmpty) {
-      return;
-    }
-    // logger.i("[更新Settings] key => $key, value => $value");
-    final existing = settingBox.query(Setting_.key.equals(key)).build().findFirst();
-    if (existing != null) {
-      // 如果存在，更新值
-      existing.value = value;
-      settingBox.put(existing);
+    if (key.isEmpty) return;
+
+    await SettingRepository.setValue(key, value);
+    if (value.isNotEmpty) {
+      _cache[key] = value;
     } else {
-      // 如果不存在，创建新的设置
-      settingBox.put(Setting(key: key, value: value));
+      _cache.remove(key);
     }
   }
 
+  /// 批量保存设置
   Future<void> saveSettings(Map<String, String> settings) async {
     if (settings.isEmpty) return;
 
-    try {
-      // 1. 获取所有需要更新的 key 对应的现有设置
-      final keys = settings.keys.toList();
-      final query = settingBox.query(Setting_.key.oneOf(keys)).build();
-      final existingSettings = query.find();
-      query.close();
+    await SettingRepository.saveSettings(settings);
 
-      // 2. 将现有设置转换为 Map，方便查找
-      final existingMap = {for (var setting in existingSettings) setting.key: setting};
-
-      // 3. 准备要更新的设置列表
-      final settingsToUpdate = <Setting>[];
-
-      // 4. 遍历需要保存的设置
-      settings.forEach((key, value) {
-        if (existingMap.containsKey(key)) {
-          // 更新现有设置
-          existingMap[key]!.value = value;
-          settingsToUpdate.add(existingMap[key]!);
-        } else {
-          // 创建新设置
-          settingsToUpdate.add(Setting(key: key, value: value));
-        }
-      });
-
-      // 5. 批量保存所有设置
-      settingBox.putMany(settingsToUpdate);
-
-      logger.i("[批量更新Settings] 更新 ${settingsToUpdate.length} 条设置");
-    } catch (e) {
-      logger.e("[批量更新Settings失败] $e");
-    }
+    // 更新缓存
+    settings.forEach((key, value) {
+      if (value.isNotEmpty) {
+        _cache[key] = value;
+      } else {
+        _cache.remove(key);
+      }
+    });
   }
 
+  /// 获取设置值
   String getSetting(String key, {defaultValue = ''}) {
-    final setting = settingBox.query(Setting_.key.equals(key)).build().findFirst();
-    return setting?.value ?? defaultValue;
-  }
-
-  Set getKeys() {
-    final settings = settingBox.getAll();
-    return settings.where((s) => s.key != null).map((s) => s.key!).toSet();
-  }
-
-  Future<void> remove(String key) async {
-    final existing = settingBox.query(Setting_.key.equals(key)).build().findFirst();
-    if (existing != null) {
-      settingBox.remove(existing.id);
+    // 先从缓存中获取
+    if (_cache.containsKey(key)) {
+      return _cache[key]!;
     }
+
+    // 从仓库获取，并更新缓存
+    final value = SettingRepository.getValue(key, defaultValue: defaultValue) ?? defaultValue;
+    if (value.isNotEmpty) {
+      _cache[key] = value;
+    }
+
+    return value;
   }
 
+  /// 获取所有设置键
+  Set getKeys() {
+    return SettingRepository.getKeys();
+  }
+
+  /// 删除设置
+  Future<void> remove(String key) async {
+    await SettingRepository.remove(key);
+    _cache.remove(key);
+  }
+
+  /// 清空所有设置
   Future<void> removeAll() async {
-    settingBox.removeAll();
+    await SettingRepository.removeAll();
+    _cache.clear();
+  }
+
+  /// 刷新缓存
+  Future<void> refreshCache() async {
+    _cache.clear();
+    await _initCache();
   }
 }
