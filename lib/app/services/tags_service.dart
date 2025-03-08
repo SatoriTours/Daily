@@ -1,4 +1,7 @@
 import 'package:daily_satori/app/objectbox/tag.dart';
+import 'package:daily_satori/app/models/article_model.dart';
+import 'package:daily_satori/app/models/tag_model.dart';
+import 'package:daily_satori/app/repositories/tag_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 
@@ -37,5 +40,20 @@ class TagsService {
     _tagBox.removeAll();
     await _loadTags();
     logger.i("[清空标签] 已清空所有标签");
+  }
+
+  /// 添加标签到文章
+  Future<void> addTagToArticle(ArticleModel articleModel, String tagName) async {
+    try {
+      // 获取或创建标签
+      final tagModel = TagRepository.findOrCreate(tagName);
+
+      // 添加标签到文章 - 这里仍然需要使用entity，但这是在服务层内部，不暴露给控制器
+      articleModel.tags.add(tagModel.entity);
+
+      logger.i("[添加标签] 已添加标签 '$tagName' 到文章 ${articleModel.id}");
+    } catch (e) {
+      logger.e("[添加标签] 失败: $e");
+    }
   }
 }

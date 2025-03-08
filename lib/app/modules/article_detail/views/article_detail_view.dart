@@ -137,7 +137,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   // 文章内容相关
   Widget _buildSummaryTab(BuildContext context) {
-    final article = controller.article;
+    final articleModel = controller.articleModel;
 
     return SingleChildScrollView(
       padding: Dimensions.paddingVerticalM.copyWith(bottom: Dimensions.spacingM),
@@ -149,7 +149,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           Obx(() => _buildTags(context)),
           _buildContent(context),
           if (controller.comment?.isNotEmpty ?? false) _buildComment(context),
-          if (article.images.length > 1) _buildImageGallery(context),
+          if (articleModel.images.length > 1) _buildImageGallery(context),
         ],
       ),
     );

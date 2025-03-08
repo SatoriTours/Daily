@@ -3,16 +3,12 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:daily_satori/app/services/article_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/global.dart';
 
 class ArticleDetailController extends BaseController {
   /// 当前文章模型
   late ArticleModel articleModel;
-
-  /// 当前文章对象
-  Article get article => articleModel.entity;
 
   /// 文章ID
   int get articleId => articleModel.id;
@@ -49,9 +45,7 @@ class ArticleDetailController extends BaseController {
     super.onInit();
     // 获取传入的参数
     final argument = Get.arguments;
-    if (argument is Article) {
-      articleModel = ArticleModel(argument);
-    } else if (argument is ArticleModel) {
+    if (argument is ArticleModel) {
       articleModel = argument;
     } else if (argument is int) {
       // 如果参数是ID，则根据ID查找文章
@@ -70,7 +64,7 @@ class ArticleDetailController extends BaseController {
 
   /// 加载并格式化文章标签
   Future<void> loadTags() async {
-    tags.value = article.tags.map((tag) => "#${tag.name}").join(', ');
+    tags.value = articleModel.tags.map((tag) => "#${tag.name}").join(', ');
   }
 
   /// 删除当前文章
@@ -80,7 +74,7 @@ class ArticleDetailController extends BaseController {
 
   /// 获取文章内容图片列表(不含主图)
   List<String> getArticleImages() {
-    final images = _getValidImagePaths(article.images);
+    final images = _getValidImagePaths(articleModel.images);
     if (images.isNotEmpty) {
       images.removeAt(0); // 移除主图
     }
@@ -89,7 +83,7 @@ class ArticleDetailController extends BaseController {
 
   /// 获取文章截图列表
   List<String> getArticleScreenshots() {
-    return _getValidImagePaths(article.screenshots);
+    return _getValidImagePaths(articleModel.screenshots);
   }
 
   /// 获取有效的图片路径列表
@@ -118,7 +112,7 @@ class ArticleDetailController extends BaseController {
 
   /// 删除文章图片
   Future<void> deleteImage(String imagePath) async {
-    article.images.removeWhere((image) => image.path == imagePath);
+    articleModel.images.removeWhere((image) => image.path == imagePath);
     await ArticleRepository.update(articleModel);
   }
 

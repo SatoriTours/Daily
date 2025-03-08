@@ -417,13 +417,12 @@ class ShareDialogController extends GetxController {
 
       // 添加新标签
       for (var tagName in tagNames) {
-        // 获取或创建标签模型
-        final tagModel = TagModel.fromName(tagName);
-        articleModel.tags.add(tagModel.entity);
+        // 使用TagsService添加标签
+        await TagsService.i.addTagToArticle(articleModel, tagName);
       }
 
       // 保存更新
-      await articleModel.save();
+      await ArticleRepository.update(articleModel);
 
       // 重新加载标签服务
       TagsService.i.reload();
