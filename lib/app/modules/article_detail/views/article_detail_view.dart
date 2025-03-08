@@ -394,7 +394,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       confirm: TextButton(
         onPressed: () async {
           await controller.deleteArticle();
-          Get.find<ArticlesController>().removeArticleByIdFromList(controller.articleId);
+          Get.find<ArticlesController>().removeArticle(controller.articleId);
           Get.back();
           Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
         },
@@ -454,28 +454,6 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
         ),
       ),
       barrierDismissible: true,
-    );
-  }
-
-  Widget _buildDeleteDialog(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
-
-    return AlertDialog(
-      title: Text('删除确认', style: textTheme.titleLarge),
-      content: Text('确定要删除这篇文章吗？此操作不可撤销。', style: textTheme.bodyMedium),
-      actions: [
-        TextButton(onPressed: () => Get.back(), child: Text('取消', style: TextStyle(color: colorScheme.secondary))),
-        TextButton(
-          onPressed: () {
-            Get.back(); // 关闭弹窗
-            controller.deleteArticle();
-            Get.back(); // 返回文章列表
-            Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
-          },
-          child: Text("确认", style: TextStyle(color: colorScheme.error)),
-        ),
-      ],
     );
   }
 }

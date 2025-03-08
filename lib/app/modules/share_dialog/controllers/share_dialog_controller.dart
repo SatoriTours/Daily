@@ -95,7 +95,7 @@ class ShareDialogController extends BaseController {
       _saveScreenshots(newArticle, List.from(results[3])).catchError((e) => logger.e("[保存截图] 失败: $e")),
     ]);
 
-    Get.find<ArticlesController>().updateArticleInList(newArticle.id);
+    Get.find<ArticlesController>().updateArticle(newArticle.id);
 
     saveCompleted();
   }

@@ -23,7 +23,7 @@ class ArticlesView extends GetView<ArticlesController> {
     final textTheme = AppTheme.getTextTheme(context);
 
     return AppBar(
-      title: Obx(() => Text(controller.appBarTitle(), style: textTheme.titleLarge?.copyWith(color: Colors.white))),
+      title: Obx(() => Text(controller.getTitle(), style: textTheme.titleLarge?.copyWith(color: Colors.white))),
       centerTitle: true,
       leading: IconButton(icon: const Icon(Icons.menu), onPressed: () => Get.toNamed(Routes.LEFT_BAR)),
       actions: [
@@ -42,7 +42,7 @@ class ArticlesView extends GetView<ArticlesController> {
   Widget _buildBody(BuildContext context) {
     return Obx(() {
       if (controller.articles.isEmpty) {
-        return Center(child: ArticlesEmptyView());
+        return const Center(child: ArticlesEmptyView());
       }
       return Column(
         children: [
@@ -60,7 +60,7 @@ class ArticlesView extends GetView<ArticlesController> {
               scrollController: controller.scrollController,
               onRefresh: controller.reloadArticles,
               isLoading: controller.isLoading.value,
-              onArticleUpdated: () => controller.updateArticleInList(controller.articles.last.id),
+              onArticleUpdated: () => controller.updateArticle(controller.articles.last.id),
             ),
           ),
         ],

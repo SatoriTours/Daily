@@ -72,7 +72,7 @@ class LeftBarView extends GetView<LeftBarController> {
               icon: Icons.article_outlined,
               label: '全部',
               onPressed: () {
-                controller.articlesController.showAllArticles();
+                controller.articlesController.clearAllFilters();
                 Get.back();
               },
             ),
@@ -84,7 +84,7 @@ class LeftBarView extends GetView<LeftBarController> {
               icon: Icons.favorite,
               label: '收藏',
               onPressed: () {
-                controller.articlesController.toggleOnlyFavorite(true);
+                controller.articlesController.toggleFavorite(true);
                 Get.back();
               },
             ),
@@ -149,7 +149,7 @@ class LeftBarView extends GetView<LeftBarController> {
 
     return InkWell(
       onTap: () {
-        controller.articlesController.showArticleByTagID(tag.id, tag.name ?? '');
+        controller.articlesController.filterByTag(tag.id, tag.name ?? '');
         Get.back();
       },
       borderRadius: BorderRadius.circular(8),
