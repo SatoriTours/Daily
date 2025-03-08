@@ -1,6 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
 
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/components/dream_webview/dream_webview_controller.dart';

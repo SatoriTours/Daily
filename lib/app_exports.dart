@@ -10,9 +10,6 @@ export 'app/repositories/repositories.dart';
 // 导出常用服务
 export 'app/services/services.dart';
 
-// 导出所有模块
-export 'app/modules/modules.dart';
-
 // 导出常用路由
 export 'app/routes/app_pages.dart';
 

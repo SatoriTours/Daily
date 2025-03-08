@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app_exports.dart';
 
 class LeftBarController extends BaseController {

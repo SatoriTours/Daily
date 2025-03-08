@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/modules/left_bar/controllers/left_bar_controller.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 
