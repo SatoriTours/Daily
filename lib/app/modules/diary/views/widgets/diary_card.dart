@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:daily_satori/app/models/diary_model.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
+import 'dart:io';
 
-/// 单个日记卡片组件 - 支持深色/浅色主题
+/// 单个日记卡片组件 - 支持Markdown和图片
 class DiaryCard extends StatelessWidget {
   final DiaryModel diary;
   final VoidCallback onDelete;
@@ -33,11 +35,50 @@ class DiaryCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 日记内容
-                Text(
-                  diary.content,
-                  style: TextStyle(fontSize: 15, height: 1.5, color: DiaryStyle.primaryTextColor(context)),
+                // Markdown渲染的日记内容
+                MarkdownBody(
+                  data: diary.content,
+                  selectable: true,
+                  styleSheet: MarkdownStyleSheet(
+                    p: TextStyle(fontSize: 15, height: 1.5, color: DiaryStyle.primaryTextColor(context)),
+                    h1: TextStyle(
+                      fontSize: 20,
+                      height: 1.5,
+                      fontWeight: FontWeight.bold,
+                      color: DiaryStyle.primaryTextColor(context),
+                    ),
+                    h2: TextStyle(
+                      fontSize: 18,
+                      height: 1.5,
+                      fontWeight: FontWeight.bold,
+                      color: DiaryStyle.primaryTextColor(context),
+                    ),
+                    h3: TextStyle(
+                      fontSize: 16,
+                      height: 1.5,
+                      fontWeight: FontWeight.bold,
+                      color: DiaryStyle.primaryTextColor(context),
+                    ),
+                    blockquote: TextStyle(
+                      fontSize: 15,
+                      height: 1.5,
+                      color: DiaryStyle.secondaryTextColor(context),
+                      fontStyle: FontStyle.italic,
+                    ),
+                    code: TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: DiaryStyle.accentColor(context),
+                      backgroundColor: DiaryStyle.inputBackgroundColor(context),
+                    ),
+                  ),
                 ),
+
+                // 图片显示
+                if (diary.images != null && diary.images!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  _buildImageGallery(context),
+                ],
 
                 // 标签和时间
                 if (diary.tags != null && diary.tags!.isNotEmpty) ...[const SizedBox(height: 12), _buildTags(context)],
@@ -56,6 +97,75 @@ class DiaryCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// 构建图片画廊
+  Widget _buildImageGallery(BuildContext context) {
+    final List<String> imagePaths = diary.images!.split(',');
+
+    return Container(
+      height: 120,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: imagePaths.length,
+        itemBuilder: (context, index) {
+          return Container(
+            width: 120,
+            height: 120,
+            margin: EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: DiaryStyle.inputBackgroundColor(context),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: GestureDetector(
+                onTap: () => _showImageFullscreen(context, imagePaths[index]),
+                child: Image.file(
+                  File(imagePaths[index]),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Center(child: Icon(Icons.broken_image, color: DiaryStyle.secondaryTextColor(context)));
+                  },
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// 显示全屏图片
+  void _showImageFullscreen(BuildContext context, String imagePath) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder:
+            (context) => Scaffold(
+              backgroundColor: Colors.black,
+              appBar: AppBar(
+                backgroundColor: Colors.black,
+                iconTheme: IconThemeData(color: Colors.white),
+                elevation: 0,
+              ),
+              body: Center(
+                child: InteractiveViewer(
+                  panEnabled: true,
+                  boundaryMargin: EdgeInsets.all(20),
+                  minScale: 0.5,
+                  maxScale: 4,
+                  child: Image.file(
+                    File(imagePath),
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Center(child: Icon(Icons.broken_image, color: Colors.white, size: 64));
+                    },
+                  ),
+                ),
+              ),
+            ),
       ),
     );
   }

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import 'package:daily_satori/app/models/diary_model.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app_exports.dart';
@@ -16,37 +19,31 @@ class DiaryView extends GetView<DiaryController> {
   @override
   Widget build(BuildContext context) {
     // 使用组件实例化
+    final appBar = AppBar(
+      backgroundColor: DiaryStyle.cardColor(context),
+      elevation: 0.5,
+      title: Text('我的日记', style: TextStyle(fontSize: 18, color: DiaryStyle.primaryTextColor(context))),
+      actions: [
+        IconButton(
+          icon: Icon(Icons.search, color: DiaryStyle.secondaryTextColor(context)),
+          onPressed: () {
+            controller.enableSearch(true);
+          },
+        ),
+        IconButton(
+          icon: Icon(Icons.tag, color: DiaryStyle.secondaryTextColor(context)),
+          onPressed: () {
+            _showTagsDialog(context);
+          },
+        ),
+      ],
+    );
     final inputArea = DiaryInput(controller: controller);
 
     return Scaffold(
       backgroundColor: DiaryStyle.backgroundColor(context),
-      appBar: AppBar(
-        backgroundColor: DiaryStyle.cardColor(context),
-        elevation: 0.5,
-        title: Text('我的日记', style: TextStyle(fontSize: 18, color: DiaryStyle.primaryTextColor(context))),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.search, color: DiaryStyle.secondaryTextColor(context)),
-            onPressed: () {
-              controller.enableSearch(true);
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.tag, color: DiaryStyle.secondaryTextColor(context)),
-            onPressed: () {
-              _showTagsDialog(context);
-            },
-          ),
-        ],
-      ),
+      appBar: appBar,
       body: Stack(children: [_buildDiaryList(context), Positioned(left: 0, right: 0, bottom: 0, child: inputArea)]),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showInputDialog(context);
-        },
-        backgroundColor: DiaryStyle.accentColor(context),
-        child: const Icon(Icons.add),
-      ),
     );
   }
 
@@ -125,10 +122,12 @@ class DiaryView extends GetView<DiaryController> {
     );
   }
 
-  /// 显示输入对话框 - 支持主题
-  void _showInputDialog(BuildContext context) {
-    final contentController = TextEditingController();
-    final tagsController = TextEditingController();
+  /// 显示编辑对话框 - 支持Markdown和图片
+  void _showEditDialog(BuildContext context, DiaryModel diary) {
+    final contentController = TextEditingController(text: diary.content);
+    final tagsController = TextEditingController(text: diary.tags);
+    final List<String> currentImages = diary.images?.split(',') ?? [];
+    final List<String> imagesToDelete = [];
 
     showModalBottomSheet(
       context: context,
@@ -136,181 +135,300 @@ class DiaryView extends GetView<DiaryController> {
       backgroundColor: DiaryStyle.bottomSheetColor(context),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 20, right: 20, top: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                left: 16,
+                right: 16,
+                top: 16,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    '写日记',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: DiaryStyle.primaryTextColor(context),
+                  // 顶部标题栏
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '编辑日记',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: DiaryStyle.primaryTextColor(context),
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          // 添加图片按钮
+                          IconButton(
+                            icon: Icon(Icons.photo_library, color: DiaryStyle.accentColor(context)),
+                            onPressed: () async {
+                              final picker = ImagePicker();
+                              final pickedImages = await picker.pickMultiImage();
+
+                              if (pickedImages.isNotEmpty) {
+                                // 保存图片并获取路径
+                                List<String> newImagePaths = [];
+                                final String dirPath = await controller.getImageSavePath();
+
+                                for (int i = 0; i < pickedImages.length; i++) {
+                                  final XFile image = pickedImages[i];
+                                  final String fileName = 'diary_img_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+                                  final String filePath = '$dirPath/$fileName';
+
+                                  // 复制图片到应用目录
+                                  final File savedImage = File(filePath);
+                                  await savedImage.writeAsBytes(await image.readAsBytes());
+
+                                  newImagePaths.add(filePath);
+                                }
+
+                                setModalState(() {
+                                  currentImages.addAll(newImagePaths);
+                                });
+                              }
+                            },
+                          ),
+                          // Markdown预览切换
+                          IconButton(
+                            icon: Icon(Icons.preview, color: DiaryStyle.accentColor(context)),
+                            onPressed: () {
+                              // 显示Markdown预览
+                              showDialog(
+                                context: context,
+                                builder:
+                                    (context) => AlertDialog(
+                                      title: Text('预览', style: TextStyle(color: DiaryStyle.primaryTextColor(context))),
+                                      content: Container(
+                                        width: double.maxFinite,
+                                        height: 400,
+                                        child: Markdown(
+                                          data: contentController.text,
+                                          styleSheet: MarkdownStyleSheet(
+                                            p: TextStyle(color: DiaryStyle.primaryTextColor(context)),
+                                            h1: TextStyle(color: DiaryStyle.primaryTextColor(context)),
+                                            h2: TextStyle(color: DiaryStyle.primaryTextColor(context)),
+                                            h3: TextStyle(color: DiaryStyle.primaryTextColor(context)),
+                                          ),
+                                        ),
+                                      ),
+                                      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('关闭'))],
+                                      backgroundColor: DiaryStyle.bottomSheetColor(context),
+                                    ),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close, color: DiaryStyle.secondaryTextColor(context)),
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  // Markdown 工具栏
+                  _buildMarkdownToolbar(context, contentController),
+
+                  // 编辑区域
+                  Expanded(
+                    child: TextField(
+                      controller: contentController,
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      decoration: InputDecoration(
+                        hintText: '支持Markdown格式，写下你的想法...',
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[600] : Colors.grey[400],
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      style: TextStyle(fontSize: 16, height: 1.5, color: DiaryStyle.primaryTextColor(context)),
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.close, size: 20, color: DiaryStyle.secondaryTextColor(context)),
-                    onPressed: () => Navigator.pop(context),
+
+                  // 显示现有图片
+                  if (currentImages.isNotEmpty)
+                    Container(
+                      height: 100,
+                      margin: EdgeInsets.symmetric(vertical: 8),
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: currentImages.length,
+                        itemBuilder: (context, index) {
+                          return Stack(
+                            children: [
+                              Container(
+                                width: 100,
+                                height: 100,
+                                margin: EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  image: DecorationImage(
+                                    image: FileImage(File(currentImages[index])),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 10,
+                                top: 5,
+                                child: GestureDetector(
+                                  onTap:
+                                      () => setModalState(() {
+                                        // 标记要删除的图片
+                                        imagesToDelete.add(currentImages[index]);
+                                        currentImages.removeAt(index);
+                                      }),
+                                  child: Container(
+                                    padding: EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.5),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(Icons.close, size: 16, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+
+                  // 标签输入框
+                  Container(
+                    margin: EdgeInsets.only(top: 8),
+                    child: TextField(
+                      controller: tagsController,
+                      style: TextStyle(fontSize: 14, color: DiaryStyle.primaryTextColor(context)),
+                      decoration: InputDecoration(
+                        hintText: '添加标签，用逗号分隔',
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[500] : Colors.grey[400],
+                        ),
+                        prefixIcon: Icon(Icons.tag, size: 18, color: DiaryStyle.secondaryTextColor(context)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: DiaryStyle.dividerColor(context)),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+
+                  // 更新按钮
+                  Container(
+                    margin: EdgeInsets.only(top: 16),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: DiaryStyle.accentColor(context),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () async {
+                        if (contentController.text.trim().isNotEmpty) {
+                          // 删除被标记的图片
+                          for (String path in imagesToDelete) {
+                            final file = File(path);
+                            if (await file.exists()) {
+                              await file.delete();
+                            }
+                          }
+
+                          // 创建更新后的日记
+                          final updatedDiary = DiaryModel(
+                            id: diary.id,
+                            content: contentController.text,
+                            tags: tagsController.text,
+                            mood: diary.mood,
+                            images: currentImages.isEmpty ? null : currentImages.join(','),
+                            createdAt: diary.createdAt,
+                          );
+
+                          controller.updateDiary(updatedDiary);
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: const Text('更新', style: TextStyle(fontSize: 16)),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: contentController,
-                maxLines: 6,
-                autofocus: true,
-                style: TextStyle(fontSize: 15, height: 1.5, color: DiaryStyle.primaryTextColor(context)),
-                decoration: InputDecoration(
-                  hintText: '写点什么...',
-                  hintStyle: TextStyle(
-                    color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[500] : Colors.grey[400],
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: tagsController,
-                style: TextStyle(fontSize: 14, color: DiaryStyle.primaryTextColor(context)),
-                decoration: InputDecoration(
-                  hintText: '添加标签，用逗号分隔',
-                  hintStyle: TextStyle(
-                    color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[500] : Colors.grey[400],
-                  ),
-                  prefixIcon: Icon(Icons.tag, size: 18, color: DiaryStyle.secondaryTextColor(context)),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(color: DiaryStyle.dividerColor(context)),
-                  ),
-                  contentPadding: EdgeInsets.symmetric(vertical: 10),
-                ),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: DiaryStyle.accentColor(context),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                ),
-                onPressed: () {
-                  if (contentController.text.trim().isNotEmpty) {
-                    controller.createDiary(contentController.text, tags: tagsController.text);
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Text('保存', style: TextStyle(fontSize: 16)),
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
-  /// 显示编辑对话框 - 支持主题
-  void _showEditDialog(BuildContext context, DiaryModel diary) {
-    final contentController = TextEditingController(text: diary.content);
-    final tagsController = TextEditingController(text: diary.tags);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: DiaryStyle.bottomSheetColor(context),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 20, right: 20, top: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '编辑日记',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: DiaryStyle.primaryTextColor(context),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.close, size: 20, color: DiaryStyle.secondaryTextColor(context)),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: contentController,
-                maxLines: 6,
-                autofocus: true,
-                style: TextStyle(fontSize: 15, height: 1.5, color: DiaryStyle.primaryTextColor(context)),
-                decoration: InputDecoration(
-                  hintText: '写点什么...',
-                  hintStyle: TextStyle(
-                    color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[500] : Colors.grey[400],
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: tagsController,
-                style: TextStyle(fontSize: 14, color: DiaryStyle.primaryTextColor(context)),
-                decoration: InputDecoration(
-                  hintText: '添加标签，用逗号分隔',
-                  hintStyle: TextStyle(
-                    color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[500] : Colors.grey[400],
-                  ),
-                  prefixIcon: Icon(Icons.tag, size: 18, color: DiaryStyle.secondaryTextColor(context)),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide(color: DiaryStyle.dividerColor(context)),
-                  ),
-                  contentPadding: EdgeInsets.symmetric(vertical: 10),
-                ),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: DiaryStyle.accentColor(context),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                ),
-                onPressed: () {
-                  if (contentController.text.trim().isNotEmpty) {
-                    final updatedDiary = DiaryModel(
-                      id: diary.id,
-                      content: contentController.text,
-                      tags: tagsController.text,
-                      mood: diary.mood,
-                      images: diary.images,
-                      createdAt: diary.createdAt,
-                    );
-                    controller.updateDiary(updatedDiary);
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Text('更新', style: TextStyle(fontSize: 16)),
-              ),
-              const SizedBox(height: 16),
-            ],
+  /// 构建Markdown工具栏
+  Widget _buildMarkdownToolbar(BuildContext context, TextEditingController contentController) {
+    return Container(
+      height: 40,
+      margin: EdgeInsets.only(top: 8, bottom: 8),
+      decoration: BoxDecoration(
+        color: DiaryStyle.inputBackgroundColor(context),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          _buildToolbarButton(context, '# 标题', () => _insertMarkdown(contentController, '# ')),
+          _buildToolbarButton(context, '**粗体**', () => _insertMarkdown(contentController, '**文本**')),
+          _buildToolbarButton(context, '*斜体*', () => _insertMarkdown(contentController, '*文本*')),
+          _buildToolbarButton(context, '- 列表', () => _insertMarkdown(contentController, '- 项目\n- 项目\n- 项目')),
+          _buildToolbarButton(context, '1. 有序列表', () => _insertMarkdown(contentController, '1. 项目\n2. 项目\n3. 项目')),
+          _buildToolbarButton(
+            context,
+            '[链接](url)',
+            () => _insertMarkdown(contentController, '[链接文本](https://example.com)'),
           ),
-        );
-      },
+          _buildToolbarButton(context, '> 引用', () => _insertMarkdown(contentController, '> 引用文本')),
+          _buildToolbarButton(context, '`代码`', () => _insertMarkdown(contentController, '`代码`')),
+          _buildToolbarButton(context, '---', () => _insertMarkdown(contentController, '\n---\n')),
+        ],
+      ),
     );
+  }
+
+  /// 构建工具栏按钮
+  Widget _buildToolbarButton(BuildContext context, String label, VoidCallback onPressed) {
+    return InkWell(
+      onTap: onPressed,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12),
+        alignment: Alignment.center,
+        child: Text(label, style: TextStyle(color: DiaryStyle.primaryTextColor(context), fontSize: 14)),
+      ),
+    );
+  }
+
+  /// 在当前光标位置插入Markdown内容
+  void _insertMarkdown(TextEditingController controller, String markdown) {
+    final int currentPosition = controller.selection.baseOffset;
+
+    // 处理光标位置无效的情况
+    if (currentPosition < 0) {
+      controller.text = controller.text + markdown;
+      controller.selection = TextSelection.collapsed(offset: controller.text.length);
+      return;
+    }
+
+    // 在光标位置插入Markdown
+    final String newText =
+        controller.text.substring(0, currentPosition) + markdown + controller.text.substring(currentPosition);
+
+    controller.text = newText;
+    controller.selection = TextSelection.collapsed(offset: currentPosition + markdown.length);
   }
 
   /// 显示标签选择对话框 - 支持主题
