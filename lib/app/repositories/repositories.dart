@@ -4,6 +4,7 @@
 library repositories;
 
 export 'article_repository.dart';
+export 'diary_repository.dart';
 export 'image_repository.dart';
 export 'screenshot_repository.dart';
 export 'setting_repository.dart';
