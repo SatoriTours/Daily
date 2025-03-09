@@ -135,7 +135,8 @@ class ShareDialogController extends GetxController {
       // 通知文章列表更新
       Get.find<ArticlesController>().updateArticle(articleModel.id);
       _completeProcess();
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('堆栈信息: $stackTrace');
       logger.e("保存文章失败: $e");
       _showMessage("保存失败: $e");
     } finally {

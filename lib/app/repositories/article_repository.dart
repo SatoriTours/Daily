@@ -23,8 +23,19 @@ class ArticleRepository {
 
   /// 根据ID查找文章
   static ArticleModel? find(int id) {
-    final article = _box.get(id);
-    return article != null ? ArticleModel(article) : null;
+    // 检查ID是否有效，避免ID=0时的异常
+    if (id <= 0) {
+      logger.i("查找文章时ID无效: $id");
+      return null;
+    }
+
+    try {
+      final article = _box.get(id);
+      return article != null ? ArticleModel(article) : null;
+    } catch (e) {
+      logger.e("查找文章时发生异常: $e, ID: $id");
+      return null;
+    }
   }
 
   /// 创建文章模型
