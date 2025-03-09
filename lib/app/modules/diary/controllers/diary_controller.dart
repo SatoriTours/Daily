@@ -1,9 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import 'package:daily_satori/app/models/diary_model.dart';
-import 'package:daily_satori/app/repositories/diary_repository.dart';
 import 'package:daily_satori/app_exports.dart';
 
 /// 日记列表控制器

@@ -3,7 +3,10 @@ import 'package:intl/intl.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:daily_satori/app/models/diary_model.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:feather_icons/feather_icons.dart';
 import 'dart:io';
+
+import '../../utils/diary_utils.dart';
 
 /// 单个日记卡片组件 - 支持Markdown和图片
 class DiaryCard extends StatelessWidget {
@@ -16,7 +19,7 @@ class DiaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: DiaryStyle.cardColor(context),
         borderRadius: BorderRadius.circular(12),
@@ -30,106 +33,131 @@ class DiaryCard extends StatelessWidget {
           onLongPress: () {
             _showOptionsSheet(context);
           },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Markdown渲染的日记内容
-                MarkdownBody(
-                  data: diary.content,
-                  selectable: true,
-                  styleSheet: MarkdownStyleSheet(
-                    p: TextStyle(fontSize: 15, height: 1.5, color: DiaryStyle.primaryTextColor(context)),
-                    h1: TextStyle(
-                      fontSize: 20,
-                      height: 1.5,
-                      fontWeight: FontWeight.bold,
-                      color: DiaryStyle.primaryTextColor(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 日记内容区域
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Markdown渲染的日记内容
+                    MarkdownBody(
+                      data: diary.content,
+                      selectable: true,
+                      styleSheet: DiaryUtils.getMarkdownStyleSheet(context),
                     ),
-                    h2: TextStyle(
-                      fontSize: 18,
-                      height: 1.5,
-                      fontWeight: FontWeight.bold,
-                      color: DiaryStyle.primaryTextColor(context),
+
+                    // 图片显示
+                    if (diary.images != null && diary.images!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _buildImageGallery(context),
+                    ],
+
+                    // 标签和时间
+                    if (diary.tags != null && diary.tags!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _buildTags(context),
+                    ],
+
+                    const SizedBox(height: 8),
+
+                    // 时间与操作
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // 时间
+                        Text(
+                          _formatTime(diary.createdAt),
+                          style: TextStyle(fontSize: 12, color: DiaryStyle.secondaryTextColor(context)),
+                        ),
+                        // 操作按钮
+                        Row(
+                          children: [
+                            // 编辑按钮
+                            InkWell(
+                              onTap: onEdit,
+                              borderRadius: BorderRadius.circular(4),
+                              child: Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: Icon(
+                                  FeatherIcons.edit2,
+                                  size: 14,
+                                  color: DiaryStyle.secondaryTextColor(context),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // 删除按钮
+                            InkWell(
+                              onTap: () {
+                                _showDeleteConfirmation(context);
+                              },
+                              borderRadius: BorderRadius.circular(4),
+                              child: Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: Icon(
+                                  FeatherIcons.trash2,
+                                  size: 14,
+                                  color: DiaryStyle.secondaryTextColor(context),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    h3: TextStyle(
-                      fontSize: 16,
-                      height: 1.5,
-                      fontWeight: FontWeight.bold,
-                      color: DiaryStyle.primaryTextColor(context),
-                    ),
-                    blockquote: TextStyle(
-                      fontSize: 15,
-                      height: 1.5,
-                      color: DiaryStyle.secondaryTextColor(context),
-                      fontStyle: FontStyle.italic,
-                    ),
-                    code: TextStyle(
-                      fontSize: 14,
-                      height: 1.5,
-                      color: DiaryStyle.accentColor(context),
-                      backgroundColor: DiaryStyle.inputBackgroundColor(context),
-                    ),
-                  ),
+                  ],
                 ),
-
-                // 图片显示
-                if (diary.images != null && diary.images!.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  _buildImageGallery(context),
-                ],
-
-                // 标签和时间
-                if (diary.tags != null && diary.tags!.isNotEmpty) ...[const SizedBox(height: 12), _buildTags(context)],
-
-                const SizedBox(height: 8),
-
-                // 时间
-                Align(
-                  alignment: Alignment.bottomRight,
-                  child: Text(
-                    _formatTime(diary.createdAt),
-                    style: TextStyle(fontSize: 12, color: DiaryStyle.timeTextColor(context)),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  /// 构建图片画廊
+  // 构建图片预览
   Widget _buildImageGallery(BuildContext context) {
-    final List<String> imagePaths = diary.images!.split(',');
+    final List<String> images = diary.images!.split(',');
 
     return Container(
-      height: 120,
+      height: 100,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: imagePaths.length,
+        itemCount: images.length,
         itemBuilder: (context, index) {
-          return Container(
-            width: 120,
-            height: 120,
-            margin: EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: DiaryStyle.inputBackgroundColor(context),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: GestureDetector(
-                onTap: () => _showImageFullscreen(context, imagePaths[index]),
-                child: Image.file(
-                  File(imagePaths[index]),
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Center(child: Icon(Icons.broken_image, color: DiaryStyle.secondaryTextColor(context)));
-                  },
+          final String imagePath = images[index];
+          final file = File(imagePath);
+
+          // 检查文件是否存在
+          if (!file.existsSync()) {
+            return Center(
+              child: Container(
+                width: 100,
+                height: 100,
+                margin: EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: DiaryStyle.tagBackgroundColor(context),
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                child: Icon(FeatherIcons.image, color: DiaryStyle.primaryTextColor(context)),
+              ),
+            );
+          }
+
+          return GestureDetector(
+            onTap: () {
+              _showFullImage(context, imagePath);
+            },
+            child: Container(
+              width: 100,
+              height: 100,
+              margin: EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                image: DecorationImage(image: FileImage(file), fit: BoxFit.cover),
               ),
             ),
           );
@@ -138,93 +166,119 @@ class DiaryCard extends StatelessWidget {
     );
   }
 
-  /// 显示全屏图片
-  void _showImageFullscreen(BuildContext context, String imagePath) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder:
-            (context) => Scaffold(
-              backgroundColor: Colors.black,
-              appBar: AppBar(
-                backgroundColor: Colors.black,
-                iconTheme: IconThemeData(color: Colors.white),
-                elevation: 0,
-              ),
-              body: Center(
-                child: InteractiveViewer(
-                  panEnabled: true,
-                  boundaryMargin: EdgeInsets.all(20),
-                  minScale: 0.5,
-                  maxScale: 4,
-                  child: Image.file(
-                    File(imagePath),
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Center(child: Icon(Icons.broken_image, color: Colors.white, size: 64));
-                    },
-                  ),
-                ),
-              ),
-            ),
-      ),
-    );
-  }
-
-  /// 构建标签列表 - 支持主题
+  // 构建标签
   Widget _buildTags(BuildContext context) {
-    final tagList = diary.tags?.split(',') ?? [];
+    final List<String> tags = diary.tags!.split(',');
 
     return Wrap(
       spacing: 8,
-      runSpacing: 4,
+      runSpacing: 8,
       children:
-          tagList.map((tag) {
-            if (tag.trim().isEmpty) return const SizedBox.shrink();
-
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: DiaryStyle.tagBackgroundColor(context),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text('#${tag.trim()}', style: TextStyle(fontSize: 12, color: DiaryStyle.tagTextColor(context))),
-            );
-          }).toList(),
+          tags
+              .map(
+                (tag) => Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: DiaryStyle.tagBackgroundColor(context),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(FeatherIcons.hash, size: 12, color: DiaryStyle.secondaryTextColor(context)),
+                      SizedBox(width: 4),
+                      Text(tag, style: TextStyle(fontSize: 12, color: DiaryStyle.secondaryTextColor(context))),
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
     );
   }
 
-  /// 显示操作选项 - 支持主题
+  // 显示全屏图片
+  void _showFullImage(BuildContext context, String imagePath) {
+    final file = File(imagePath);
+    if (!file.existsSync()) return;
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => Dialog(
+            insetPadding: EdgeInsets.zero,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // 图片
+                InteractiveViewer(minScale: 0.5, maxScale: 3.0, child: Image.file(file, fit: BoxFit.contain)),
+                // 关闭按钮
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.black.withOpacity(0.5), shape: BoxShape.circle),
+                      child: Icon(Icons.close, color: Colors.white, size: 20),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  // 显示删除确认对话框
+  void _showDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('确认删除'),
+            content: Text('你确定要删除这条日记吗？此操作无法撤销。'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: Text('取消')),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  onDelete();
+                },
+                child: Text('删除', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+    );
+  }
+
+  // 显示操作底部弹窗
   void _showOptionsSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: DiaryStyle.bottomSheetColor(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (context) {
-        return SafeArea(
+        return Container(
+          padding: EdgeInsets.symmetric(vertical: 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: Icon(Icons.edit, color: DiaryStyle.accentColor(context)),
-                title: Text('编辑', style: TextStyle(color: DiaryStyle.primaryTextColor(context))),
+                leading: Icon(FeatherIcons.edit2, color: DiaryStyle.accentColor(context)),
+                title: Text('编辑日记'),
                 onTap: () {
                   Navigator.pop(context);
                   onEdit();
                 },
               ),
-              Divider(height: 0.5, thickness: 0.5, indent: 16, endIndent: 16, color: DiaryStyle.dividerColor(context)),
               ListTile(
-                leading: Icon(
-                  Icons.delete,
-                  color: Colors.red[Theme.of(context).brightness == Brightness.dark ? 300 : 600],
-                ),
-                title: Text('删除', style: TextStyle(color: DiaryStyle.primaryTextColor(context))),
+                leading: Icon(FeatherIcons.trash2, color: Colors.red),
+                title: Text('删除日记', style: TextStyle(color: Colors.red)),
                 onTap: () {
                   Navigator.pop(context);
-                  _confirmDelete(context);
+                  _showDeleteConfirmation(context);
                 },
               ),
-              SizedBox(height: 8),
             ],
           ),
         );
@@ -232,37 +286,7 @@ class DiaryCard extends StatelessWidget {
     );
   }
 
-  /// 确认删除对话框 - 支持主题
-  void _confirmDelete(BuildContext context) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('删除确认', style: TextStyle(color: DiaryStyle.primaryTextColor(context))),
-            content: Text('确定要删除这条记录吗？', style: TextStyle(color: DiaryStyle.secondaryTextColor(context))),
-            backgroundColor: DiaryStyle.bottomSheetColor(context),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('取消', style: TextStyle(color: DiaryStyle.secondaryTextColor(context))),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  onDelete();
-                },
-                child: Text(
-                  '删除',
-                  style: TextStyle(color: Colors.red[Theme.of(context).brightness == Brightness.dark ? 300 : 600]),
-                ),
-              ),
-            ],
-          ),
-    );
-  }
-
-  /// 格式化时间
+  // 格式化时间
   String _formatTime(DateTime dateTime) {
     return DateFormat('HH:mm').format(dateTime);
   }

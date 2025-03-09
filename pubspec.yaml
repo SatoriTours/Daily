@@ -16,6 +16,9 @@ dependencies:
 
   # 图标
   cupertino_icons: ^1.0.8
+  # 新增图标库
+  font_awesome_flutter: ^10.6.0
+  feather_icons: ^1.2.0
 
   # getx 框架
   get:
