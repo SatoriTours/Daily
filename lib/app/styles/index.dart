@@ -5,6 +5,7 @@ library styles;
 
 export 'app_styles.dart';
 export 'component_style.dart';
+export 'diary_style.dart';
 export 'dimensions.dart';
 export 'font_style.dart';
 export 'theme.dart';
