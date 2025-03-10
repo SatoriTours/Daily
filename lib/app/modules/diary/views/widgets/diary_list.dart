@@ -5,7 +5,6 @@ import 'package:daily_satori/app/styles/diary_style.dart';
 
 import '../../controllers/diary_controller.dart';
 import 'diary_card.dart';
-import 'diary_date_header.dart';
 import 'diary_empty_state.dart';
 
 /// 日记列表组件
@@ -26,55 +25,27 @@ class DiaryList extends StatelessWidget {
         return const DiaryEmptyState();
       }
 
-      // 按日期分组日记
-      final groupedDiaries = _groupDiariesByDate(controller.diaries);
+      // 获取日记并按创建时间降序排序（最新的在前面）
+      final sortedDiaries = List<DiaryModel>.from(controller.diaries)
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       return Padding(
         padding: const EdgeInsets.only(bottom: 80), // 为底部输入框留出空间
         child: ListView.builder(
           controller: controller.scrollController,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          itemCount: groupedDiaries.length,
+          itemCount: sortedDiaries.length,
           itemBuilder: (context, index) {
-            final date = groupedDiaries.keys.elementAt(index);
-            final diariesForDate = groupedDiaries[date]!;
+            final diary = sortedDiaries[index];
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 12, bottom: 8, left: 4),
-                  child: DiaryDateHeader(date: date),
-                ),
-                ...diariesForDate.map(
-                  (diary) => DiaryCard(
-                    diary: diary,
-                    onDelete: () => controller.deleteDiary(diary.id),
-                    onEdit: () => onEditDiary(diary),
-                  ),
-                ),
-              ],
+            return DiaryCard(
+              diary: diary,
+              onDelete: () => controller.deleteDiary(diary.id),
+              onEdit: () => onEditDiary(diary),
             );
           },
         ),
       );
     });
-  }
-
-  /// 按日期分组日记
-  Map<DateTime, List<DiaryModel>> _groupDiariesByDate(List<DiaryModel> diaries) {
-    final Map<DateTime, List<DiaryModel>> grouped = {};
-
-    for (final diary in diaries) {
-      final date = DateTime(diary.createdAt.year, diary.createdAt.month, diary.createdAt.day);
-
-      if (!grouped.containsKey(date)) {
-        grouped[date] = [];
-      }
-
-      grouped[date]!.add(diary);
-    }
-
-    return grouped;
   }
 }
