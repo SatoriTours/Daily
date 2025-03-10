@@ -2,7 +2,6 @@ import 'package:daily_satori/app/services/web_service/web_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
@@ -39,11 +38,6 @@ class SettingsController extends GetxController {
       logger.i('选择备份目录: $backupDir');
       SettingRepository.saveSetting(SettingService.backupDirKey, backupDir);
     }
-  }
-
-  Future<bool> _requestDirectoryPermissions() async {
-    final manageExternalStoragePermission = await Permission.manageExternalStorage.request();
-    return manageExternalStoragePermission.isGranted;
   }
 
   void copyWebServiceAddress() {
