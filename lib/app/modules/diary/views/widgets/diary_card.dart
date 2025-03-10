@@ -19,7 +19,7 @@ class DiaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: DiaryStyle.cardColor(context),
         borderRadius: BorderRadius.circular(12),
@@ -30,38 +30,76 @@ class DiaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onLongPress: () {
-            _showOptionsSheet(context);
-          },
+          onLongPress: onEdit,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 顶部时间和更多菜单
               Padding(
-                padding: const EdgeInsets.only(left: 16, right: 8, top: 12, bottom: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // 时间
-                    Text(
-                      _formatDateTime(diary.createdAt),
-                      style: TextStyle(fontSize: 12, color: DiaryStyle.secondaryTextColor(context)),
-                    ),
-                    // 更多菜单按钮
-                    IconButton(
-                      icon: Icon(FeatherIcons.moreHorizontal, size: 18, color: DiaryStyle.secondaryTextColor(context)),
-                      padding: EdgeInsets.zero,
-                      constraints: BoxConstraints(),
-                      splashRadius: 18,
-                      onPressed: () => _showOptionsSheet(context),
-                    ),
-                  ],
+                padding: const EdgeInsets.only(left: 16, right: 8, top: 6, bottom: 0),
+                child: SizedBox(
+                  height: 22,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // 时间
+                      Text(
+                        _formatDateTime(diary.createdAt),
+                        style: TextStyle(fontSize: 11, color: DiaryStyle.secondaryTextColor(context)),
+                      ),
+                      // 更多菜单按钮 - 使用PopupMenuButton
+                      PopupMenuButton<String>(
+                        padding: EdgeInsets.zero,
+                        iconSize: 16,
+                        icon: Icon(
+                          FeatherIcons.moreHorizontal,
+                          size: 16,
+                          color: DiaryStyle.secondaryTextColor(context),
+                        ),
+                        splashRadius: 12,
+                        tooltip: '更多选项',
+                        elevation: 3,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        itemBuilder:
+                            (context) => [
+                              PopupMenuItem<String>(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(FeatherIcons.edit2, size: 16, color: DiaryStyle.accentColor(context)),
+                                    const SizedBox(width: 8),
+                                    Text('编辑日记'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(FeatherIcons.trash2, size: 16, color: Colors.red),
+                                    const SizedBox(width: 8),
+                                    Text('删除日记', style: TextStyle(color: Colors.red)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                        onSelected: (value) {
+                          if (value == 'edit') {
+                            onEdit();
+                          } else if (value == 'delete') {
+                            _showDeleteConfirmation(context);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
               // 日记内容区域
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -74,13 +112,13 @@ class DiaryCard extends StatelessWidget {
 
                     // 图片显示
                     if (diary.images != null && diary.images!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       _buildImageGallery(context),
                     ],
 
                     // 标签
                     if (diary.tags != null && diary.tags!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       _buildTags(context),
                     ],
                   ],
@@ -224,40 +262,6 @@ class DiaryCard extends StatelessWidget {
               ),
             ],
           ),
-    );
-  }
-
-  // 显示操作底部弹窗
-  void _showOptionsSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (context) {
-        return Container(
-          padding: EdgeInsets.symmetric(vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(FeatherIcons.edit2, color: DiaryStyle.accentColor(context)),
-                title: Text('编辑日记'),
-                onTap: () {
-                  Navigator.pop(context);
-                  onEdit();
-                },
-              ),
-              ListTile(
-                leading: Icon(FeatherIcons.trash2, color: Colors.red),
-                title: Text('删除日记', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showDeleteConfirmation(context);
-                },
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
