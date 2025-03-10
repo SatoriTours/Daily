@@ -38,6 +38,7 @@ class AiService {
   Future<void> init() async {
     logger.i("[AI服务] 初始化");
     _updateModelFromSettings();
+    logger.i('AI服务初始化完成');
   }
 
   // MARK: - 核心方法

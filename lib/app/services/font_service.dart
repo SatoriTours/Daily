@@ -27,6 +27,7 @@ class FontService {
     if (isProduction) {
       _configureProductionFonts();
     }
+    logger.i('字体服务初始化完成');
   }
 
   /// 配置生产环境字体设置

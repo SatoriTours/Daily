@@ -19,7 +19,7 @@ import 'package:daily_satori/app/services/web_service/web_service.dart';
 Future<void> initApp() async {
   await _initBasicServices();
   await _initParallelServices();
-  _initNonBlockingServices();
+  logger.i('所有服务初始化完成');
 }
 
 // 应用准备好之后执行(主要是UI准备好)
@@ -55,9 +55,4 @@ Future<void> _initParallelServices() async {
     PluginService.i.init(), // 初始化插件服务, 用来更新插件
     WebService.i.init(), // 初始化Web服务
   ]);
-}
-
-// 初始化不需要等待的服务
-void _initNonBlockingServices() {
-  // No additional non-blocking services to initialize
 }

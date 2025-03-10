@@ -14,7 +14,7 @@ class PluginService {
   // 初始化插件服务，日志记录并更新所有插件配置
   Future<void> init() async {
     logger.i("[初始化服务] PluginService");
-    await _updateAllPlugins();
+    _updateAllPlugins();
   }
 
   // 公有方法：获取各插件的内容
@@ -46,10 +46,18 @@ class PluginService {
   // 内部方法：更新所有插件配置
   Future<void> _updateAllPlugins() async {
     final String baseUrl = SettingRepository.getSetting(SettingService.pluginKey);
+    // 创建所有插件更新任务的列表
+    final List<Future<void>> updateTasks = [];
+
+    // 为每个插件创建更新任务
     for (final key in _localPlugins.keys) {
       final String url = path.join(baseUrl, key);
-      await _updatePlugin(key, url);
+      updateTasks.add(_updatePlugin(key, url));
     }
+
+    // 并行执行所有更新任务
+    await Future.wait(updateTasks);
+    logger.i('插件服务初更新完成');
   }
 
   // 内部方法：更新单个插件配置
