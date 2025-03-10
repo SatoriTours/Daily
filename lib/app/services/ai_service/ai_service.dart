@@ -4,6 +4,7 @@ import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:openai_dart/openai_dart.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:template_expressions/template_expressions.dart';
@@ -58,18 +59,14 @@ class AiService {
     }
 
     // 创建客户端
-    final client = _createClient();
-    if (client == null) {
-      logger.e("[AI服务] 创建客户端失败，检查API配置");
-      return null;
-    }
+    await _createClient();
 
     try {
       // 限制内容长度
       final trimmedContent = getSubstring(content, length: _maxContentLength);
 
       // 发送请求
-      final response = await client.createChatCompletion(
+      final response = await _client!.createChatCompletion(
         request: CreateChatCompletionRequest(
           model: _model,
           messages: [
@@ -83,7 +80,7 @@ class AiService {
 
       return response;
     } catch (e) {
-      logger.e("[AI服务] 请求失败: ${client.baseUrl} - $e");
+      logger.e("[AI服务] 请求失败: ${_client!.baseUrl} - $e");
       return null;
     }
   }
@@ -91,25 +88,32 @@ class AiService {
   /// 创建OpenAI客户端
   ///
   /// 返回配置好的客户端实例，或在配置无效时返回null
-  OpenAIClient? _createClient() {
-    _updateModelFromSettings();
+  OpenAIClient? _client;
 
-    final apiKey = SettingService.i.getSetting(SettingService.openAITokenKey);
-    final baseUrl = SettingService.i.getSetting(SettingService.openAIAddressKey);
+  Future<void> _createClient() async {
+    try {
+      // 读取配置信息
+      final apiKey = SettingRepository.getSetting(SettingService.openAITokenKey);
+      final baseUrl = SettingRepository.getSetting(SettingService.openAIAddressKey);
 
-    if (apiKey.isEmpty || baseUrl.isEmpty) {
-      return null;
+      _client ??= OpenAIClient(apiKey: apiKey, baseUrl: baseUrl);
+
+      logger.i("[AI服务] 客户端已创建");
+    } catch (e) {
+      logger.e("[AI服务] 创建客户端失败: $e");
     }
-
-    return OpenAIClient(apiKey: apiKey, baseUrl: baseUrl);
   }
 
   /// 从设置更新AI模型
   void _updateModelFromSettings() {
-    final modelName = SettingService.i.getSetting(SettingService.aiModelKey);
-    if (modelName.isNotEmpty) {
-      _model = ChatCompletionModel.modelId(modelName);
-    }
+    final modelName = _getModelName();
+    _model = ChatCompletionModel.modelId(modelName);
+  }
+
+  /// 获取模型名称
+  String _getModelName() {
+    final modelName = SettingRepository.getSetting(SettingService.aiModelKey);
+    return modelName.isEmpty ? 'deepseek-v3' : modelName;
   }
 
   // MARK: - 工具方法

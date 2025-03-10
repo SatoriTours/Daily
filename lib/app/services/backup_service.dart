@@ -9,6 +9,7 @@ import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/repositories/setting_repository.dart';
 
 class BackupService {
   // 单例模式
@@ -21,7 +22,7 @@ class BackupService {
   static const int _developmentBackupInterval = 24;
 
   // Getters
-  String get backupDir => SettingService.i.getSetting(SettingService.backupDirKey);
+  String get backupDir => SettingRepository.getSetting(SettingService.backupDirKey);
   File get backupTimeFile => File(path.join(backupDir, 'backup_time.txt'));
   int get _backupInterval => isProduction ? _productionBackupInterval : _developmentBackupInterval;
 
@@ -90,11 +91,7 @@ class BackupService {
         await Isolate.run(() async {
           BackgroundIsolateBinaryMessenger.ensureInitialized(rootIsolateToken);
           final targetFile = File(targetPath);
-          await ZipFile.createFromDirectory(
-            sourceDir: sourceDirectory,
-            zipFile: targetFile,
-            recurseSubDirs: true,
-          );
+          await ZipFile.createFromDirectory(sourceDir: sourceDirectory, zipFile: targetFile, recurseSubDirs: true);
         });
         logger.i("成功压缩目录 $sourceDir 到 $targetPath");
       } else {

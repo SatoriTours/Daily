@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/global.dart';
@@ -12,8 +13,8 @@ class AppWebSocketTunnel {
   WebSocketChannel? _channel;
   final String _httpForwardUrl = 'http://127.0.0.1:8888';
   final Dio _dio = Dio();
-  String get _webSocketUrl => SettingService.i.getSetting(SettingService.webSocketUrlKey);
-  String get _deviceId => SettingService.i.getSetting(SettingService.deviceIdKey);
+  String get _webSocketUrl => SettingRepository.getSetting(SettingService.webSocketUrlKey);
+  String get _deviceId => SettingRepository.getSetting(SettingService.deviceIdKey);
 
   // 重连机制相关参数
   int _retryCount = 0;

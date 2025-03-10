@@ -9,7 +9,7 @@ import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:daily_satori/app/services/freedisk_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
-import 'package:daily_satori/app/services/tags_service.dart';
+import 'package:daily_satori/app/repositories/tag_repository.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/app_styles.dart';
 import 'package:daily_satori/app/styles/component_style.dart';
@@ -244,7 +244,7 @@ class SettingsView extends GetView<SettingsController> {
             showDivider: false,
             onTap: () async {
               UIUtils.showLoading();
-              await TagsService.i.clearAll();
+              TagRepository.removeAll();
               Get.offNamed(Routes.ARTICLES);
               UIUtils.showSuccess("清除标签完成");
             },

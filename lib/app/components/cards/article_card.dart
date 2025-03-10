@@ -17,7 +17,7 @@ class ArticleCard extends StatelessWidget {
   final ArticleModel articleModel;
   final VoidCallback? onArticleUpdated;
 
-  ArticleCard({super.key, required this.articleModel, this.onArticleUpdated});
+  const ArticleCard({super.key, required this.articleModel, this.onArticleUpdated});
 
   @override
   Widget build(BuildContext context) {

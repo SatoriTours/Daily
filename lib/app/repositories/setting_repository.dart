@@ -139,4 +139,38 @@ class SettingRepository {
   static Future<void> removeAll() async {
     _box.removeAll();
   }
+
+  /// 获取设置值
+  static String getSetting(String key, {String defaultValue = ''}) {
+    return getValue(key, defaultValue: defaultValue) ?? defaultValue;
+  }
+
+  /// 保存单个设置
+  static Future<void> saveSetting(String key, String value) async {
+    if (key.isEmpty) return;
+    await setValue(key, value);
+  }
+
+  /// 检查AI功能是否启用
+  static bool aiEnabled(String openAITokenKey, String openAIAddressKey) {
+    final apiKey = getSetting(openAITokenKey);
+    final baseUrl = getSetting(openAIAddressKey);
+    final isEnabled = apiKey.isNotEmpty && baseUrl.isNotEmpty;
+    logger.i("[设置仓储] AI是否启用: $isEnabled");
+    return isEnabled;
+  }
+
+  /// 初始化默认设置
+  static Future<void> initDefaultSettings(Map<String, String> defaultSettings) async {
+    for (var entry in defaultSettings.entries) {
+      final key = entry.key;
+      final value = entry.value;
+      if (!containsKey(key) && value.isNotEmpty) {
+        await setValue(key, value);
+      }
+    }
+    logger.i("[设置仓储] 初始化默认设置完成");
+  }
+
+  // 内部方法，已经存在，所以这里只是为了表示我们在使用它
 }
