@@ -16,7 +16,6 @@ class MarkdownToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 48,
-      margin: EdgeInsets.only(top: 8),
       child: Row(
         children: [
           // 工具栏 - 带滚动功能
