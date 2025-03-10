@@ -119,7 +119,7 @@ class ShareDialogController extends GetxController {
       ]);
 
       // 创建并保存文章
-      final articleModel = await _saveArticleData(
+      ArticleModel articleModel = await _saveArticleData(
         url: url,
         title: title,
         aiTitle: results[0],
@@ -134,6 +134,7 @@ class ShareDialogController extends GetxController {
 
       // 通知文章列表更新
       Get.find<ArticlesController>().updateArticle(articleModel.id);
+
       _completeProcess();
     } catch (e, stackTrace) {
       print('堆栈信息: $stackTrace');
@@ -311,7 +312,7 @@ class ShareDialogController extends GetxController {
     required List<String> screenshots,
   }) async {
     // 创建文章模型
-    final articleModel = _createArticleModel(
+    final articleModel = await _createArticleModel(
       url: url,
       title: title,
       aiTitle: aiTitle,
@@ -321,21 +322,59 @@ class ShareDialogController extends GetxController {
       publishedTime: publishedTime,
     );
 
-    // 保存文章模型
-    await articleModel.save();
+    // 保存关联数据 - 不再使用Future.wait并行处理，改为顺序处理避免冲突
+    try {
+      // 检查文章ID是否有效
+      if (articleModel.id <= 0) {
+        logger.i("文章ID无效，尝试保存文章: ${articleModel.title}");
+        // 确保文章已保存到数据库
+        final id = await ArticleRepository.create(articleModel);
+        if (id <= 0) {
+          throw Exception("保存文章失败，无法获取有效ID");
+        }
+        logger.i("文章已保存，ID: $id");
+      }
 
-    // 保存关联数据
-    await Future.wait([
-      _saveTags(articleModel, tags),
-      _saveImages(articleModel, images),
-      _saveScreenshots(articleModel, screenshots),
-    ]);
+      // 获取已保存文章的ID，确保使用数据库中的实例
+      final savedArticle = await ArticleRepository.find(articleModel.id);
+      if (savedArticle == null) {
+        // 如果找不到文章，再次尝试通过URL查找
+        final articleByUrl = await ArticleRepository.findByUrl(url);
+        if (articleByUrl == null) {
+          throw Exception("无法找到已保存的文章: ${articleModel.id}");
+        }
+        logger.i("通过URL找到文章: ${articleByUrl.id}");
 
-    return articleModel;
+        // 使用通过URL找到的文章
+        await _saveTags(articleByUrl, tags);
+        await _saveImages(articleByUrl, images);
+        await _saveScreenshots(articleByUrl, screenshots);
+
+        // 最后进行一次文章更新
+        await ArticleRepository.update(articleByUrl);
+        logger.i("文章及所有关联数据保存完成: ${articleByUrl.id}");
+
+        return articleByUrl;
+      }
+
+      // 使用已保存的文章实例处理关联数据
+      await _saveTags(savedArticle, tags);
+      await _saveImages(savedArticle, images);
+      await _saveScreenshots(savedArticle, screenshots);
+
+      // 最后进行一次文章更新，确保所有关联数据都被正确保存
+      await ArticleRepository.update(savedArticle);
+      logger.i("文章及所有关联数据保存完成: ${savedArticle.id}");
+
+      return savedArticle;
+    } catch (e) {
+      logger.e("[保存关联数据] 失败: $e");
+      return articleModel;
+    }
   }
 
   /// 创建文章模型
-  ArticleModel _createArticleModel({
+  Future<ArticleModel> _createArticleModel({
     required String url,
     required String title,
     required String aiTitle,
@@ -343,32 +382,56 @@ class ShareDialogController extends GetxController {
     required String aiContent,
     required String htmlContent,
     required String publishedTime,
-  }) {
-    // 使用ArticleRepository创建新的文章模型
-    final article = ArticleRepository.find(articleID.value);
-
-    // 创建新文章或更新现有文章
-    if (article != null && isUpdate.value) {
-      // 更新现有文章的属性
-      article.title = title;
-      article.aiTitle = aiTitle;
-      article.content = textContent;
-      article.aiContent = aiContent;
-      article.htmlContent = htmlContent;
-      article.url = url;
-      article.updatedAt = DateTime.now().toUtc();
-      article.comment = commentController.text;
-      return article;
-    } else {
-      // 创建一个新的ArticleModel实例
+  }) async {
+    try {
       // 首先尝试通过URL查找文章，确保不存在重复
-      final existingArticleByUrl = ArticleRepository.where(keyword: url).firstOrNull;
-      if (existingArticleByUrl != null) {
-        return existingArticleByUrl;
+      final existingArticle = await ArticleRepository.findByUrl(url);
+
+      // 如果是更新模式且有指定ID
+      if (isUpdate.value && articleID.value > 0) {
+        final article = ArticleRepository.find(articleID.value);
+        if (article != null) {
+          // 更新现有文章的属性
+          article.title = title;
+          article.aiTitle = aiTitle;
+          article.content = textContent;
+          article.aiContent = aiContent;
+          article.htmlContent = htmlContent;
+          // 不更新URL，避免唯一约束冲突
+          // article.url = url;
+          article.updatedAt = DateTime.now().toUtc();
+          article.comment = commentController.text;
+
+          // 立即保存更新
+          await ArticleRepository.update(article);
+          logger.i("更新现有文章: ${article.id}");
+          return article;
+        }
       }
 
-      // 使用ArticleRepository创建新文章
-      // 从仓储层中抽取出一个新的方法，用于创建文章并返回ArticleModel
+      // 如果找到了现有文章（非更新模式或更新模式但找不到指定ID）
+      if (existingArticle != null) {
+        logger.i("找到现有文章，使用现有文章: ${existingArticle.id}");
+
+        // 如果不是更新模式，则更新现有文章内容
+        if (!isUpdate.value) {
+          existingArticle.title = title;
+          existingArticle.aiTitle = aiTitle;
+          existingArticle.content = textContent;
+          existingArticle.aiContent = aiContent;
+          existingArticle.htmlContent = htmlContent;
+          existingArticle.updatedAt = DateTime.now().toUtc();
+          existingArticle.comment = commentController.text;
+
+          // 立即保存更新
+          await ArticleRepository.update(existingArticle);
+          logger.i("更新现有文章内容: ${existingArticle.id}");
+        }
+
+        return existingArticle;
+      }
+
+      // 创建一个新的ArticleModel实例
       final data = {
         'title': title,
         'aiTitle': aiTitle,
@@ -385,15 +448,23 @@ class ShareDialogController extends GetxController {
       // 创建文章模型
       final articleModel = ArticleRepository.createArticleModel(data);
 
-      if (isUpdate.value && articleID.value > 0) {
-        // 如果是更新模式，使用指定的ID
-        ArticleRepository.updateArticleId(articleModel, articleID.value);
+      // 保存到数据库
+      final id = await ArticleRepository.create(articleModel);
+      if (id <= 0) {
+        throw Exception("创建文章失败，无法获取有效ID");
       }
 
-      // 保存到数据库
-      ArticleRepository.create(articleModel);
+      // 重新获取保存后的文章，确保有正确的ID
+      final savedArticle = await ArticleRepository.find(id);
+      if (savedArticle == null) {
+        throw Exception("无法找到刚刚创建的文章: $id");
+      }
 
-      return articleModel;
+      logger.i("创建新文章成功: $id");
+      return savedArticle;
+    } catch (e) {
+      logger.e("[创建文章模型] 失败: $e");
+      throw e; // 重新抛出异常，让调用者处理
     }
   }
 
@@ -411,8 +482,8 @@ class ShareDialogController extends GetxController {
         await TagsService.i.addTagToArticle(articleModel, tagName);
       }
 
-      // 保存更新
-      await ArticleRepository.update(articleModel);
+      // 保存更新 - 不再重复保存文章
+      // await ArticleRepository.update(articleModel);
 
       // 重新加载标签服务
       TagsService.i.reload();
@@ -433,16 +504,19 @@ class ShareDialogController extends GetxController {
 
       // 添加新图片
       for (var result in results) {
-        // 使用ImageRepository创建新图片
-        final imageData = {'url': result.imageUrl, 'path': result.imagePath, 'articleId': articleModel.id};
+        try {
+          // 使用ImageRepository创建新图片
+          final imageData = {'url': result.imageUrl, 'path': result.imagePath, 'articleId': articleModel.id};
 
-        // 创建图片模型并保存
-        final imageModel = ImageRepository.createWithData(imageData, articleModel);
-        await ImageRepository.create(imageModel);
+          // 创建图片模型并保存
+          final imageModel = ImageRepository.createWithData(imageData, articleModel);
+          await ImageRepository.create(imageModel);
+        } catch (e) {
+          logger.e("[保存单个图片] 失败: $e");
+          // 继续处理下一个图片
+          continue;
+        }
       }
-
-      // 保存文章以更新关联
-      await ArticleRepository.update(articleModel);
 
       logger.i("网页相关图片保存完成 ${articleModel.id}");
     } catch (e) {
@@ -460,16 +534,19 @@ class ShareDialogController extends GetxController {
 
       // 添加新截图
       for (var path in screenshotPaths) {
-        // 使用ScreenshotRepository创建新截图
-        final screenshotData = {'path': path, 'articleId': articleModel.id};
+        try {
+          // 使用ScreenshotRepository创建新截图
+          final screenshotData = {'path': path, 'articleId': articleModel.id};
 
-        // 创建截图模型并保存
-        final screenshotModel = ScreenshotRepository.createWithData(screenshotData, articleModel);
-        await ScreenshotRepository.create(screenshotModel);
+          // 创建截图模型并保存
+          final screenshotModel = ScreenshotRepository.createWithData(screenshotData, articleModel);
+          await ScreenshotRepository.create(screenshotModel);
+        } catch (e) {
+          logger.e("[保存单个截图] 失败: $e");
+          // 继续处理下一个截图
+          continue;
+        }
       }
-
-      // 保存文章以更新关联
-      await ArticleRepository.update(articleModel);
 
       logger.i("网页截图保存完成 ${articleModel.id}");
     } catch (e) {
