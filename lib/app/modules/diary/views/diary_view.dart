@@ -6,10 +6,12 @@ import 'package:daily_satori/app_exports.dart';
 
 import '../controllers/diary_controller.dart';
 import '../utils/diary_utils.dart';
-import 'widgets/diary_card.dart';
 import 'widgets/diary_input.dart';
-import 'widgets/markdown_toolbar.dart';
 import 'widgets/image_preview.dart';
+import 'widgets/diary_list.dart';
+import 'widgets/diary_toolbar.dart';
+import 'widgets/diary_input_decoration.dart';
+import 'widgets/diary_tags_dialog.dart';
 
 /// 日记页面
 class DiaryView extends GetView<DiaryController> {
@@ -22,7 +24,7 @@ class DiaryView extends GetView<DiaryController> {
       appBar: _buildAppBar(context),
       body: Stack(
         children: [
-          _buildDiaryList(context),
+          DiaryList(controller: controller, onEditDiary: (diary) => _showEditDialog(context, diary)),
           Positioned(left: 0, right: 0, bottom: 0, child: DiaryInput(controller: controller)),
         ],
       ),
@@ -45,107 +47,6 @@ class DiaryView extends GetView<DiaryController> {
           onPressed: () => _showTagsDialog(context),
         ),
       ],
-    );
-  }
-
-  /// 构建日记列表
-  Widget _buildDiaryList(BuildContext context) {
-    return Obx(() {
-      if (controller.isLoading.value && controller.diaries.isEmpty) {
-        return Center(child: CircularProgressIndicator(color: DiaryStyle.accentColor(context)));
-      }
-
-      if (controller.diaries.isEmpty) {
-        return _buildEmptyListPlaceholder(context);
-      }
-
-      // 按日期分组日记
-      final groupedDiaries = _groupDiariesByDate(controller.diaries);
-
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 80), // 为底部输入框留出空间
-        child: ListView.builder(
-          controller: controller.scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          itemCount: groupedDiaries.length,
-          itemBuilder: (context, index) {
-            final date = groupedDiaries.keys.elementAt(index);
-            final diariesForDate = groupedDiaries[date]!;
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 12, bottom: 8, left: 4),
-                  child: _buildDateHeader(context, date),
-                ),
-                ...diariesForDate.map(
-                  (diary) => DiaryCard(
-                    diary: diary,
-                    onDelete: () => controller.deleteDiary(diary.id),
-                    onEdit: () => _showEditDialog(context, diary),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      );
-    });
-  }
-
-  /// 构建空列表占位符
-  Widget _buildEmptyListPlaceholder(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            FeatherIcons.book,
-            size: 64,
-            color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[700] : Colors.grey[300],
-          ),
-          const SizedBox(height: 16),
-          Text('还没有日记，开始记录今天的想法吧', style: TextStyle(fontSize: 16, color: DiaryStyle.secondaryTextColor(context))),
-        ],
-      ),
-    );
-  }
-
-  /// 构建日期标题 - 支持主题
-  Widget _buildDateHeader(BuildContext context, DateTime date) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      margin: const EdgeInsets.only(bottom: 4),
-      decoration: BoxDecoration(
-        color: DiaryStyle.tagBackgroundColor(context).withOpacity(0.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        DiaryUtils.formatDate(date),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: DiaryStyle.secondaryTextColor(context),
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-
-  /// 通用输入框装饰
-  InputDecoration _getInputDecoration(BuildContext context) {
-    return InputDecoration(
-      hintText: '记录现在，畅想未来...',
-      hintStyle: TextStyle(
-        color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[600] : Colors.grey[400],
-      ),
-      border: InputBorder.none,
-      enabledBorder: InputBorder.none,
-      focusedBorder: InputBorder.none,
-      errorBorder: InputBorder.none,
-      disabledBorder: InputBorder.none,
-      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
     );
   }
 
@@ -182,7 +83,7 @@ class DiaryView extends GetView<DiaryController> {
                       expands: true,
                       autofocus: true,
                       textAlignVertical: TextAlignVertical.top,
-                      decoration: _getInputDecoration(context),
+                      decoration: DiaryInputDecoration.get(context),
                       style: TextStyle(fontSize: 16, height: 1.5, color: DiaryStyle.primaryTextColor(context)),
                     ),
                   ),
@@ -200,9 +101,8 @@ class DiaryView extends GetView<DiaryController> {
                     ),
 
                   // 工具栏和操作按钮
-                  _buildToolbar(
-                    context,
-                    contentController,
+                  DiaryToolbar(
+                    controller: contentController,
                     onImagePick: () => _pickImages(context, setModalState, currentImages),
                     onSave: () => _updateDiary(context, diary, contentController, currentImages, imagesToDelete),
                     saveLabel: '更新',
@@ -213,66 +113,6 @@ class DiaryView extends GetView<DiaryController> {
           },
         );
       },
-    );
-  }
-
-  /// 构建工具栏
-  Widget _buildToolbar(
-    BuildContext context,
-    TextEditingController controller, {
-    required Function() onImagePick,
-    required Function() onSave,
-    String saveLabel = '保存',
-  }) {
-    return Container(
-      height: 48,
-      margin: const EdgeInsets.only(top: 8),
-      child: Row(
-        children: [
-          // Markdown 工具栏
-          Expanded(
-            child: MarkdownToolbar(
-              controller: controller,
-              onSave: null, // 不使用工具栏的保存功能
-            ),
-          ),
-
-          // 图片添加按钮
-          _buildToolbarButton(context, FeatherIcons.image, '添加图片', onImagePick, isAccent: false),
-
-          // 保存/更新按钮
-          _buildToolbarButton(context, FeatherIcons.check, saveLabel, onSave, isAccent: true),
-        ],
-      ),
-    );
-  }
-
-  /// 构建工具栏按钮
-  Widget _buildToolbarButton(
-    BuildContext context,
-    IconData icon,
-    String tooltip,
-    VoidCallback onPressed, {
-    bool isAccent = false,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: Container(
-        width: 36,
-        height: 36,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        child: IconButton(
-          onPressed: onPressed,
-          icon: Icon(
-            icon,
-            size: 16,
-            color: isAccent ? DiaryStyle.accentColor(context) : DiaryStyle.primaryTextColor(context),
-          ),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-          visualDensity: VisualDensity.compact,
-        ),
-      ),
     );
   }
 
@@ -345,123 +185,7 @@ class DiaryView extends GetView<DiaryController> {
       context: context,
       backgroundColor: DiaryStyle.bottomSheetColor(context),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (context) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildTagsDialogHeader(context),
-            Divider(height: 1, thickness: 0.5, color: DiaryStyle.dividerColor(context)),
-            _buildTagsList(context),
-            Divider(height: 1, thickness: 0.5, color: DiaryStyle.dividerColor(context)),
-            _buildClearFiltersButton(context),
-            const SizedBox(height: 8),
-          ],
-        );
-      },
+      builder: (context) => DiaryTagsDialog(controller: controller),
     );
-  }
-
-  /// 构建标签对话框标题
-  Widget _buildTagsDialogHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '选择标签',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: DiaryStyle.primaryTextColor(context)),
-          ),
-          IconButton(
-            icon: Icon(FeatherIcons.x, size: 20, color: DiaryStyle.secondaryTextColor(context)),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建标签列表
-  Widget _buildTagsList(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
-      child: Obx(() {
-        if (controller.tags.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(20),
-            child: Center(child: Text('没有找到标签', style: TextStyle(color: DiaryStyle.secondaryTextColor(context)))),
-          );
-        }
-
-        return ListView.separated(
-          shrinkWrap: true,
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          itemCount: controller.tags.length,
-          separatorBuilder:
-              (context, index) => Divider(
-                height: 1,
-                thickness: 0.5,
-                indent: 20,
-                endIndent: 20,
-                color: DiaryStyle.dividerColor(context),
-              ),
-          itemBuilder: (context, index) {
-            final tag = controller.tags[index];
-            return ListTile(
-              dense: true,
-              leading: Icon(FeatherIcons.hash, size: 16, color: DiaryStyle.accentColor(context)),
-              title: Text(tag, style: TextStyle(fontSize: 15, color: DiaryStyle.primaryTextColor(context))),
-              onTap: () {
-                controller.filterByTag(tag);
-                Navigator.pop(context);
-              },
-            );
-          },
-        );
-      }),
-    );
-  }
-
-  /// 构建清除筛选按钮
-  Widget _buildClearFiltersButton(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: InkWell(
-        onTap: () {
-          controller.clearFilters();
-          Navigator.pop(context);
-        },
-        child: Container(
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: DiaryStyle.inputBackgroundColor(context),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Text(
-            '清除筛选',
-            style: TextStyle(color: DiaryStyle.primaryTextColor(context), fontWeight: FontWeight.w500),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 按日期分组日记
-  Map<DateTime, List<DiaryModel>> _groupDiariesByDate(List<DiaryModel> diaries) {
-    final Map<DateTime, List<DiaryModel>> grouped = {};
-
-    for (final diary in diaries) {
-      final date = DateTime(diary.createdAt.year, diary.createdAt.month, diary.createdAt.day);
-
-      if (!grouped.containsKey(date)) {
-        grouped[date] = [];
-      }
-
-      grouped[date]!.add(diary);
-    }
-
-    return grouped;
   }
 }
