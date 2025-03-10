@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
@@ -48,20 +49,13 @@ class AppHttpServer {
       return shelf.Response.found('/app');
     } else {
       final content = await rootBundle.loadString('assets/website/index.html');
-      return shelf.Response.ok(
-        content,
-        headers: {'Content-Type': 'text/html; charset=utf-8'},
-      );
+      return shelf.Response.ok(content, headers: {'Content-Type': 'text/html; charset=utf-8'});
     }
   }
 
   Future<void> _registerStaticRouter() async {
     final websiteDir = await _getWebsiteDir();
-    final staticHandler = createStaticHandler(
-      websiteDir,
-      defaultDocument: 'index.html',
-      serveFilesOutsidePath: true,
-    );
+    final staticHandler = createStaticHandler(websiteDir, defaultDocument: 'index.html', serveFilesOutsidePath: true);
     _router.mount('/app', staticHandler);
   }
 
@@ -70,14 +64,7 @@ class AppHttpServer {
       return _response(1, '请先把上个页面保存完成');
     }
 
-    Get.toNamed(
-      Routes.SHARE_DIALOG,
-      arguments: {
-        'articleID': 0,
-        'shareURL': params['url'],
-        'update': false,
-      },
-    );
+    Get.toNamed(Routes.SHARE_DIALOG, arguments: {'articleID': 0, 'shareURL': params['url'], 'update': false});
 
     return _response(0, '请在 APP 中继续操作');
   }
@@ -87,7 +74,7 @@ class AppHttpServer {
       final body = await request.readAsString();
       final params = Uri.splitQueryString(body);
       final password = params['password'];
-      final expectedPassword = SettingService.i.getSetting(SettingService.webServerPasswordKey);
+      final expectedPassword = SettingRepository.getSetting(SettingService.webServerPasswordKey);
 
       if (password != expectedPassword) {
         return _response(2, '密码错误');
@@ -117,5 +104,21 @@ class AppHttpServer {
       websiteDir.createSync(recursive: true);
       logger.i('创建静态资源目录: $websiteDir');
     }
+  }
+
+  // 验证密码中间件
+  shelf.Middleware _authMiddleware() {
+    return (shelf.Handler innerHandler) {
+      return (shelf.Request request) async {
+        final password = request.requestedUri.queryParameters['pwd'] ?? '';
+        final expectedPassword = SettingRepository.getSetting(SettingService.webServerPasswordKey);
+
+        if (password != expectedPassword) {
+          return _response(401, "密码错误");
+        }
+
+        return await innerHandler(request);
+      };
+    };
   }
 }

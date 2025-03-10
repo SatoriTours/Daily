@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 
 class SettingsController extends GetxController {
@@ -26,16 +27,17 @@ class SettingsController extends GetxController {
     webAccessUrl.value = WebService.i.webSocketTunnel.getWebAccessUrl();
   }
 
-  Future<void> selectBackupDirectory() async {
-    if (await _requestDirectoryPermissions()) {
-      final backupDir = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: "选择app备份目录",
-        initialDirectory: SettingService.i.getSetting(SettingService.backupDirKey),
-      );
-      if (backupDir != null) {
-        logger.i("选择了备份路径 $backupDir");
-        SettingService.i.saveSetting(SettingService.backupDirKey, backupDir);
-      }
+  /// 选择备份目录
+  void selectBackupDirectory() async {
+    final String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: '选择备份文件夹',
+      initialDirectory: SettingRepository.getSetting(SettingService.backupDirKey),
+    );
+
+    if (selectedDirectory != null) {
+      final backupDir = selectedDirectory;
+      logger.i('选择备份目录: $backupDir');
+      SettingRepository.saveSetting(SettingService.backupDirKey, backupDir);
     }
   }
 

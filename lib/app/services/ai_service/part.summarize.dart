@@ -4,23 +4,25 @@ part of 'ai_service.dart';
 ///
 /// 提供文章内容的摘要、标签提取等功能
 extension PartSummarize on AiService {
-  /// 生成单行摘要
+  /// 生成一行摘要
   ///
-  /// 将文本内容浓缩为一句话摘要
-  /// [text] 需要摘要的文本内容
-  Future<String> summarizeOneLine(String text) async {
+  /// 以一句话总结文本内容，常用于生成简短标题
+  /// [content] 需要总结的内容
+  Future<String> summarizeOneLine(String content) async {
+    if (content.isEmpty) return '';
+
     // 验证AI服务可用性
-    if (!SettingService.i.aiEnabled()) {
-      logger.i("[AI摘要] AI服务未启用，跳过单行摘要");
-      return text;
+    if (!SettingRepository.aiEnabled(SettingService.openAITokenKey, SettingService.openAIAddressKey)) {
+      logger.i("[AI摘要] AI服务未启用，跳过单行摘要生成");
+      return content;
     }
 
     logger.i("[AI摘要] 生成单行摘要中...");
 
     // 准备摘要提示
-    final role = _renderTemplate(PluginService.i.getSummarizeOneLineRole(), {'text': text});
+    final role = _renderTemplate(PluginService.i.getSummarizeOneLineRole(), {'text': content});
 
-    final prompt = _renderTemplate(PluginService.i.getSummarizeOneLinePrompt(), {'text': text});
+    final prompt = _renderTemplate(PluginService.i.getSummarizeOneLinePrompt(), {'text': content});
 
     // 发送请求
     final response = await _sendRequest(role, prompt);
@@ -29,7 +31,7 @@ extension PartSummarize on AiService {
     final result = response?.choices.first.message.content ?? '';
     if (result.isEmpty) {
       logger.w("[AI摘要] 单行摘要生成失败");
-      return text;
+      return content;
     }
 
     logger.i("[AI摘要] 单行摘要生成完成");
@@ -40,11 +42,13 @@ extension PartSummarize on AiService {
   ///
   /// 分析文本内容，生成详细摘要和相关标签
   /// [text] 需要分析的文本内容
-  Future<(String summary, List<String> tags)> summarize(String text) async {
-    // 验证AI服务可用性
-    if (!SettingService.i.aiEnabled()) {
-      logger.i("[AI摘要] AI服务未启用，跳过完整摘要生成");
-      return (text, const <String>[]);
+  Future<(String, List<String>)> summarize(String text) async {
+    if (text.isEmpty) return ('', const <String>[]);
+
+    // 检查AI是否启用
+    if (!SettingRepository.aiEnabled(SettingService.openAITokenKey, SettingService.openAIAddressKey)) {
+      logger.i("[AI摘要] AI服务未启用，跳过摘要生成");
+      return ('', const <String>[]);
     }
 
     logger.i("[AI摘要] 生成完整摘要和标签中...");
@@ -60,7 +64,7 @@ extension PartSummarize on AiService {
     final content = response?.choices.first.message.content ?? '';
     if (content.isEmpty) {
       logger.w("[AI摘要] 完整摘要响应为空");
-      return (text, const <String>[]);
+      return ('', const <String>[]);
     }
 
     // 解析JSON响应
@@ -70,7 +74,7 @@ extension PartSummarize on AiService {
     } catch (e) {
       logger.e("[AI摘要] JSON解析失败: $e");
       logger.e("[AI摘要] 原始内容: $content");
-      return (text, const <String>[]);
+      return ('', const <String>[]);
     }
 
     // 格式化摘要结果

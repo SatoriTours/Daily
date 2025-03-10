@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter_archive/flutter_archive.dart';
-import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -21,7 +20,7 @@ class BackupRestoreController extends BaseController {
   Future<void> reloadBackupList() async {
     backupList.clear();
     logger.i("开始加载备份列表");
-    String backupDir = SettingService.i.getSetting(SettingService.backupDirKey);
+    String backupDir = SettingRepository.getSetting(SettingService.backupDirKey);
     final directory = Directory(backupDir);
 
     if (await directory.exists()) {
@@ -53,7 +52,7 @@ class BackupRestoreController extends BaseController {
 
   Future<bool> restoreBackup() async {
     String backupName = backupList[selectedBackupIndex.value];
-    String backupDir = SettingService.i.getSetting(SettingService.backupDirKey);
+    String backupDir = SettingRepository.getSetting(SettingService.backupDirKey);
     String backupFolder = path.join(backupDir, 'daily_satori_backup_$backupName');
 
     final imagesFile = File(path.join(backupFolder, 'images.zip'));

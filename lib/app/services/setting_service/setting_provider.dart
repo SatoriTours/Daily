@@ -1,17 +1,16 @@
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 
+import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 
 class SettingProvider extends CacheProvider {
-  final _service = SettingService.i;
-
   String _value(String key) {
-    return _service.getSetting(key);
+    return SettingRepository.getValue(key, defaultValue: '') ?? '';
   }
 
   @override
   bool containsKey(String key) {
-    return _service.containsKey(key);
+    return SettingRepository.containsKey(key);
   }
 
   @override
@@ -49,12 +48,12 @@ class SettingProvider extends CacheProvider {
 
   @override
   Set getKeys() {
-    return _service.getKeys();
+    return SettingRepository.getKeys();
   }
 
   @override
   String? getString(String key, {String? defaultValue}) {
-    return _service.getSetting(key, defaultValue: defaultValue);
+    return SettingRepository.getValue(key, defaultValue: defaultValue);
   }
 
   @override
@@ -76,38 +75,38 @@ class SettingProvider extends CacheProvider {
 
   @override
   Future<void> remove(String key) async {
-    await _service.remove(key);
+    await SettingRepository.remove(key);
   }
 
   @override
   Future<void> removeAll() async {
-    await _service.removeAll();
+    await SettingRepository.removeAll();
   }
 
   @override
   Future<void> setBool(String key, bool? value) async {
     if (value == true) {
-      await _service.saveSetting(key, 'true');
+      await SettingRepository.setValue(key, 'true');
     } else {
-      await _service.saveSetting(key, 'false');
+      await SettingRepository.setValue(key, 'false');
     }
   }
 
   @override
   Future<void> setDouble(String key, double? value) async {
     if (value == null) {
-      await _service.saveSetting(key, '0.0');
+      await SettingRepository.setValue(key, '0.0');
     } else {
-      await _service.saveSetting(key, value.toString());
+      await SettingRepository.setValue(key, value.toString());
     }
   }
 
   @override
   Future<void> setInt(String key, int? value) async {
     if (value == null) {
-      await _service.saveSetting(key, '0');
+      await SettingRepository.setValue(key, '0');
     } else {
-      await _service.saveSetting(key, value.toString());
+      await SettingRepository.setValue(key, value.toString());
     }
   }
 
@@ -129,9 +128,9 @@ class SettingProvider extends CacheProvider {
   @override
   Future<void> setString(String key, String? value) async {
     if (value == null) {
-      await _service.saveSetting(key, '');
+      await SettingRepository.setValue(key, '');
     } else {
-      await _service.saveSetting(key, value);
+      await SettingRepository.setValue(key, value);
     }
   }
 }

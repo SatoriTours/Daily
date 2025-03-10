@@ -2,6 +2,7 @@ import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:path/path.dart' as path;
+import 'package:daily_satori/app/repositories/setting_repository.dart';
 
 class PluginService {
   // 私有构造函数，确保外部无法直接创建实例
@@ -35,7 +36,7 @@ class PluginService {
 
   // 内部方法：根据键名获取插件内容；若未设置则返回默认本地内容
   String _getPluginContent(String key) {
-    String content = SettingService.i.getSetting(_pluginKey(key));
+    String content = SettingRepository.getSetting(_pluginKey(key));
     if (content.isEmpty) {
       content = _localPlugins[key] ?? '';
     }
@@ -44,7 +45,7 @@ class PluginService {
 
   // 内部方法：更新所有插件配置
   Future<void> _updateAllPlugins() async {
-    final String baseUrl = SettingService.i.getSetting(SettingService.pluginKey);
+    final String baseUrl = SettingRepository.getSetting(SettingService.pluginKey);
     for (final key in _localPlugins.keys) {
       final String url = path.join(baseUrl, key);
       await _updatePlugin(key, url);
@@ -56,7 +57,7 @@ class PluginService {
     final String response = await HttpService.i.getTextContent(url);
     final String content = response.trim();
     if (content.isNotEmpty) {
-      await SettingService.i.saveSetting(_pluginKey(key), content);
+      await SettingRepository.saveSetting(_pluginKey(key), content);
       // logger.i('插件 $key 更新成功');
     }
   }
@@ -130,4 +131,9 @@ EXAMPLE JSON OUTPUT:
 ''',
     'common_tags': '软件,硬件,生活,效率,新闻,工具,成长,设计,健康,AI,互联网,云计算',
   };
+
+  /// 设置插件内容
+  Future<void> setPluginContent(String key, String content) async {
+    await SettingRepository.saveSetting(_pluginKey(key), content);
+  }
 }

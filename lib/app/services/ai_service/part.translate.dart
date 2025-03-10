@@ -3,17 +3,19 @@ part of 'ai_service.dart';
 /// AI翻译功能扩展
 ///
 /// 提供非中文内容的翻译服务
-extension PartTranslate on AiService {
+extension TranslateExtension on AiService {
   /// 翻译文本
   ///
-  /// 将非中文文本翻译为中文，如果是中文则原样返回
+  /// 如果AI服务不可用或为中文，则直接返回原文
   /// [text] 需要翻译的文本
   Future<String> translate(String text) async {
     // 验证条件：AI可用且非中文文本
-    if (!SettingService.i.aiEnabled()) {
+    if (!SettingRepository.aiEnabled(SettingService.openAITokenKey, SettingService.openAIAddressKey)) {
       logger.i("[AI翻译] AI服务未启用，跳过翻译");
       return text;
     }
+
+    if (text.isEmpty) return '';
 
     if (isChinese(text)) {
       logger.i("[AI翻译] 已是中文内容，无需翻译");
