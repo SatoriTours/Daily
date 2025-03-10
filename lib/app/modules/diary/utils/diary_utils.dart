@@ -30,30 +30,155 @@ class DiaryUtils {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('预览', style: TextStyle(color: DiaryStyle.primaryTextColor(context))),
+            title: Text(
+              '预览',
+              style: TextStyle(color: DiaryStyle.primaryTextColor(context), fontWeight: FontWeight.w600),
+            ),
             content: SizedBox(
               width: double.maxFinite,
               height: 400,
-              child: Markdown(data: content, styleSheet: getMarkdownStyleSheet(context)),
+              child: Markdown(
+                data: content,
+                styleSheet: getMarkdownStyleSheet(context),
+                softLineBreak: true,
+                selectable: true,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                imageBuilder: (uri, title, alt) {
+                  // 处理Markdown中的图片
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: Image.network(
+                        uri.toString(),
+                        fit: BoxFit.contain,
+                        errorBuilder:
+                            (context, error, stackTrace) => Container(
+                              height: 150,
+                              decoration: BoxDecoration(
+                                color: DiaryStyle.tagBackgroundColor(context),
+                                borderRadius: BorderRadius.circular(8.0),
+                              ),
+                              child: Center(
+                                child: Icon(Icons.broken_image_outlined, color: DiaryStyle.secondaryTextColor(context)),
+                              ),
+                            ),
+                      ),
+                    ),
+                  );
+                },
+                bulletBuilder: (index, style) {
+                  // 自定义项目符号样式
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Text(
+                      '•',
+                      style: TextStyle(
+                        color: DiaryStyle.accentColor(context),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-            actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text('关闭'))],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('关闭', style: TextStyle(color: DiaryStyle.accentColor(context))),
+              ),
+            ],
             backgroundColor: DiaryStyle.bottomSheetColor(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
     );
   }
 
   /// 获取Markdown样式表
   static MarkdownStyleSheet getMarkdownStyleSheet(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return MarkdownStyleSheet(
-      p: TextStyle(color: DiaryStyle.primaryTextColor(context)),
-      h1: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: DiaryStyle.primaryTextColor(context)),
-      h2: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: DiaryStyle.primaryTextColor(context)),
-      h3: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: DiaryStyle.primaryTextColor(context)),
-      blockquote: TextStyle(color: DiaryStyle.secondaryTextColor(context), fontStyle: FontStyle.italic),
-      code: TextStyle(
-        color: DiaryStyle.accentColor(context),
-        backgroundColor: DiaryStyle.inputBackgroundColor(context),
+      // 段落样式优化
+      p: TextStyle(color: DiaryStyle.primaryTextColor(context), fontSize: 15.0, height: 1.5, letterSpacing: 0.3),
+
+      // 标题样式优化
+      h1: TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        color: DiaryStyle.primaryTextColor(context),
+        height: 1.4,
+        letterSpacing: 0.2,
       ),
+      h2: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        color: DiaryStyle.primaryTextColor(context),
+        height: 1.4,
+        letterSpacing: 0.2,
+      ),
+      h3: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: DiaryStyle.primaryTextColor(context),
+        height: 1.4,
+      ),
+      h4: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: DiaryStyle.primaryTextColor(context),
+        height: 1.4,
+      ),
+
+      // 引用样式优化
+      blockquote: TextStyle(
+        color: DiaryStyle.secondaryTextColor(context),
+        fontStyle: FontStyle.italic,
+        fontSize: 15.0,
+        height: 1.5,
+      ),
+      blockquoteDecoration: BoxDecoration(
+        border: Border(left: BorderSide(color: DiaryStyle.accentColor(context).withOpacity(0.5), width: 4.0)),
+      ),
+      blockquotePadding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
+
+      // 代码样式优化
+      code: TextStyle(
+        color: isDarkMode ? Colors.greenAccent[200] : Colors.green[800],
+        backgroundColor: isDarkMode ? Colors.grey[850] : DiaryStyle.inputBackgroundColor(context),
+        fontFamily: 'monospace',
+        fontSize: 14.0,
+      ),
+      codeblockDecoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey[850] : DiaryStyle.inputBackgroundColor(context),
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      codeblockPadding: const EdgeInsets.all(12.0),
+
+      // 列表样式优化
+      listBullet: TextStyle(color: DiaryStyle.accentColor(context), fontSize: 16),
+      listIndent: 24.0,
+
+      // 链接样式优化
+      a: TextStyle(
+        color: DiaryStyle.accentColor(context),
+        decoration: TextDecoration.underline,
+        decorationColor: DiaryStyle.accentColor(context).withOpacity(0.4),
+      ),
+
+      // 强调样式优化
+      em: TextStyle(fontStyle: FontStyle.italic, color: DiaryStyle.primaryTextColor(context)),
+      strong: TextStyle(fontWeight: FontWeight.w700, color: DiaryStyle.primaryTextColor(context)),
+
+      // 段间距优化
+      blockSpacing: 16.0,
+      horizontalRuleDecoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: DiaryStyle.secondaryTextColor(context).withOpacity(0.3), width: 1.0)),
+      ),
+      tableBorder: TableBorder.all(color: DiaryStyle.secondaryTextColor(context).withOpacity(0.3), width: 1.0),
+      tableHeadAlign: TextAlign.center,
+      tableCellsPadding: const EdgeInsets.all(8.0),
     );
   }
 

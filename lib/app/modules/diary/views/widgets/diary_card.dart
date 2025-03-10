@@ -77,7 +77,51 @@ class DiaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Markdown渲染的日记内容
-          MarkdownBody(data: diary.content, selectable: true, styleSheet: DiaryUtils.getMarkdownStyleSheet(context)),
+          MarkdownBody(
+            data: diary.content,
+            selectable: true,
+            styleSheet: DiaryUtils.getMarkdownStyleSheet(context),
+            softLineBreak: true,
+            fitContent: true,
+            shrinkWrap: true,
+            imageBuilder: (uri, title, alt) {
+              // 处理Markdown中的图片
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8.0),
+                  child: Image.network(
+                    uri.toString(),
+                    fit: BoxFit.contain,
+                    errorBuilder:
+                        (context, error, stackTrace) => Container(
+                          height: 150,
+                          decoration: BoxDecoration(
+                            color: DiaryStyle.tagBackgroundColor(context),
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          child: Center(
+                            child: Icon(Icons.broken_image_outlined, color: DiaryStyle.secondaryTextColor(context)),
+                          ),
+                        ),
+                  ),
+                ),
+              );
+            },
+            onTapLink: (text, href, title) {
+              // TODO: 处理链接点击事件，可以打开浏览器或应用内WebView
+            },
+            bulletBuilder: (index, style) {
+              // 自定义项目符号样式
+              return Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Text(
+                  '•',
+                  style: TextStyle(color: DiaryStyle.accentColor(context), fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              );
+            },
+          ),
 
           // 图片显示
           if (diary.images != null && diary.images!.isNotEmpty) ...[
