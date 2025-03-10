@@ -36,9 +36,32 @@ class DiaryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 顶部时间和更多菜单
+              Padding(
+                padding: const EdgeInsets.only(left: 16, right: 8, top: 12, bottom: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // 时间
+                    Text(
+                      _formatDateTime(diary.createdAt),
+                      style: TextStyle(fontSize: 12, color: DiaryStyle.secondaryTextColor(context)),
+                    ),
+                    // 更多菜单按钮
+                    IconButton(
+                      icon: Icon(FeatherIcons.moreHorizontal, size: 18, color: DiaryStyle.secondaryTextColor(context)),
+                      padding: EdgeInsets.zero,
+                      constraints: BoxConstraints(),
+                      splashRadius: 18,
+                      onPressed: () => _showOptionsSheet(context),
+                    ),
+                  ],
+                ),
+              ),
+
               // 日记内容区域
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -55,59 +78,11 @@ class DiaryCard extends StatelessWidget {
                       _buildImageGallery(context),
                     ],
 
-                    // 标签和时间
+                    // 标签
                     if (diary.tags != null && diary.tags!.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       _buildTags(context),
                     ],
-
-                    const SizedBox(height: 8),
-
-                    // 时间与操作
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // 时间
-                        Text(
-                          _formatTime(diary.createdAt),
-                          style: TextStyle(fontSize: 12, color: DiaryStyle.secondaryTextColor(context)),
-                        ),
-                        // 操作按钮
-                        Row(
-                          children: [
-                            // 编辑按钮
-                            InkWell(
-                              onTap: onEdit,
-                              borderRadius: BorderRadius.circular(4),
-                              child: Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: Icon(
-                                  FeatherIcons.edit2,
-                                  size: 14,
-                                  color: DiaryStyle.secondaryTextColor(context),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            // 删除按钮
-                            InkWell(
-                              onTap: () {
-                                _showDeleteConfirmation(context);
-                              },
-                              borderRadius: BorderRadius.circular(4),
-                              child: Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: Icon(
-                                  FeatherIcons.trash2,
-                                  size: 14,
-                                  color: DiaryStyle.secondaryTextColor(context),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -286,8 +261,8 @@ class DiaryCard extends StatelessWidget {
     );
   }
 
-  // 格式化时间
-  String _formatTime(DateTime dateTime) {
-    return DateFormat('HH:mm').format(dateTime);
+  // 格式化日期和时间 "yyyy-MM-dd HH:mm:ss"
+  String _formatDateTime(DateTime dateTime) {
+    return DateFormat('yyyy-MM-dd HH:mm:ss').format(dateTime);
   }
 }

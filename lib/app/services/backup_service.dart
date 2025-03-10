@@ -29,8 +29,7 @@ class BackupService {
   // 初始化服务
   Future<void> init() async {
     logger.i("[初始化服务] BackupService");
-    await checkAndBackup();
-    logger.i('备份服务初始化完成');
+    checkAndBackup();
   }
 
   // 检查并执行备份
