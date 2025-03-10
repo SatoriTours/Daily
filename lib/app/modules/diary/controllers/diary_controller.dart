@@ -158,7 +158,11 @@ class DiaryController extends BaseController {
   }
 
   /// 选择并保存图片
-  Future<void> pickAndSaveImages(BuildContext context, StateSetter setModalState, List<String> imagesList) async {
+  Future<void> pickAndSaveImages(
+    BuildContext context,
+    Function(void Function()) setState,
+    List<String> imagesList,
+  ) async {
     final picker = ImagePicker();
     final pickedImages = await picker.pickMultiImage();
 
@@ -179,7 +183,7 @@ class DiaryController extends BaseController {
         newImagePaths.add(filePath);
       }
 
-      setModalState(() {
+      setState(() {
         imagesList.addAll(newImagePaths);
       });
     }

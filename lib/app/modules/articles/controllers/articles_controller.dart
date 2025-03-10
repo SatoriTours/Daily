@@ -62,6 +62,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     if (scrollController.hasClients) {
       scrollController.jumpTo(0);
     }
+    logger.i('文章列表重新加载完成');
   }
 
   /// 切换搜索状态
