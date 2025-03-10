@@ -7,11 +7,10 @@ import 'package:daily_satori/app/modules/diary/utils/diary_utils.dart';
 /// Markdown工具栏组件
 class MarkdownToolbar extends StatelessWidget {
   final TextEditingController controller;
-  final Function()? onImagePick;
   final Function()? onSave;
   final String saveLabel;
 
-  const MarkdownToolbar({super.key, required this.controller, this.onImagePick, this.onSave, this.saveLabel = '保存'});
+  const MarkdownToolbar({super.key, required this.controller, this.onSave, this.saveLabel = '保存'});
 
   @override
   Widget build(BuildContext context) {
@@ -79,13 +78,6 @@ class MarkdownToolbar extends StatelessWidget {
                   FontAwesomeIcons.minus,
                   '分割线',
                   () => DiaryUtils.insertMarkdown(controller, '\n---\n'),
-                ),
-                if (onImagePick != null) _buildToolbarButton(context, FeatherIcons.image, '添加图片', onImagePick!),
-                _buildToolbarButton(
-                  context,
-                  FeatherIcons.eye,
-                  '预览',
-                  () => DiaryUtils.showMarkdownPreview(context, controller.text),
                 ),
               ],
             ),

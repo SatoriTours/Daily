@@ -124,32 +124,66 @@ class _DiaryInputState extends State<DiaryInput> {
                           }),
                     ),
 
-                  // Markdown 工具栏
-                  MarkdownToolbar(
-                    controller: widget.controller.contentController,
-                    onImagePick: () => _selectImages(setModalState),
-                    onSave: () async {
-                      if (widget.controller.contentController.text.trim().isNotEmpty) {
-                        // 保存图片并获取路径列表
-                        final List<String> imagePaths = await _saveImages();
+                  // Markdown 工具栏和操作按钮
+                  Container(
+                    height: 48,
+                    margin: EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        // Markdown 工具栏
+                        Expanded(
+                          child: MarkdownToolbar(
+                            controller: widget.controller.contentController,
+                            onSave: null, // 不使用工具栏的保存功能
+                          ),
+                        ),
 
-                        // 从内容中提取标签
-                        final String tags = DiaryUtils.extractTags(widget.controller.contentController.text);
+                        // 图片添加按钮
+                        Container(
+                          margin: EdgeInsets.only(left: 8),
+                          child: IconButton(
+                            onPressed: () => _selectImages(setModalState),
+                            icon: Icon(FeatherIcons.image, size: 18, color: DiaryStyle.accentColor(context)),
+                            tooltip: '添加图片',
+                            padding: EdgeInsets.all(0),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
 
-                        // 创建日记
-                        widget.controller.createDiary(
-                          widget.controller.contentController.text,
-                          tags: tags,
-                          images: imagePaths.isEmpty ? null : imagePaths.join(','),
-                        );
+                        // 保存按钮
+                        Container(
+                          margin: EdgeInsets.only(left: 8),
+                          child: IconButton(
+                            onPressed: () async {
+                              if (widget.controller.contentController.text.trim().isNotEmpty) {
+                                // 保存图片并获取路径列表
+                                final List<String> imagePaths = await _saveImages();
 
-                        // 关闭底部弹窗
-                        Navigator.pop(context);
+                                // 从内容中提取标签
+                                final String tags = DiaryUtils.extractTags(widget.controller.contentController.text);
 
-                        // 清理标签控制器
-                        widget.controller.tagsController.clear();
-                      }
-                    },
+                                // 创建日记
+                                widget.controller.createDiary(
+                                  widget.controller.contentController.text,
+                                  tags: tags,
+                                  images: imagePaths.isEmpty ? null : imagePaths.join(','),
+                                );
+
+                                // 关闭底部弹窗
+                                Navigator.pop(context);
+
+                                // 清理标签控制器
+                                widget.controller.tagsController.clear();
+                              }
+                            },
+                            icon: Icon(FeatherIcons.check, size: 18, color: DiaryStyle.accentColor(context)),
+                            tooltip: '保存',
+                            padding: EdgeInsets.all(0),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

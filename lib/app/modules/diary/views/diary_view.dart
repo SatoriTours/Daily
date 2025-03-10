@@ -192,63 +192,106 @@ class DiaryView extends GetView<DiaryController> {
                           }),
                     ),
 
-                  // Markdown 工具栏
-                  MarkdownToolbar(
-                    controller: contentController,
-                    saveLabel: '更新',
-                    onImagePick: () async {
-                      final picker = ImagePicker();
-                      final pickedImages = await picker.pickMultiImage();
+                  // Markdown 工具栏和操作按钮
+                  Container(
+                    height: 48,
+                    margin: EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        // Markdown 工具栏
+                        Expanded(
+                          child: MarkdownToolbar(
+                            controller: contentController,
+                            onSave: null, // 不使用工具栏的保存功能
+                          ),
+                        ),
 
-                      if (pickedImages.isNotEmpty) {
-                        // 保存图片并获取路径
-                        List<String> newImagePaths = [];
-                        final String dirPath = await controller.getImageSavePath();
+                        // 图片添加按钮
+                        Tooltip(
+                          message: '添加图片',
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            margin: EdgeInsets.symmetric(horizontal: 2),
+                            child: IconButton(
+                              onPressed: () async {
+                                final picker = ImagePicker();
+                                final pickedImages = await picker.pickMultiImage();
 
-                        for (int i = 0; i < pickedImages.length; i++) {
-                          final XFile image = pickedImages[i];
-                          final String fileName = 'diary_img_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-                          final String filePath = '$dirPath/$fileName';
+                                if (pickedImages.isNotEmpty) {
+                                  // 保存图片并获取路径
+                                  List<String> newImagePaths = [];
+                                  final String dirPath = await controller.getImageSavePath();
 
-                          // 复制图片到应用目录
-                          final File savedImage = File(filePath);
-                          await savedImage.writeAsBytes(await image.readAsBytes());
+                                  for (int i = 0; i < pickedImages.length; i++) {
+                                    final XFile image = pickedImages[i];
+                                    final String fileName = 'diary_img_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+                                    final String filePath = '$dirPath/$fileName';
 
-                          newImagePaths.add(filePath);
-                        }
+                                    // 复制图片到应用目录
+                                    final File savedImage = File(filePath);
+                                    await savedImage.writeAsBytes(await image.readAsBytes());
 
-                        setModalState(() {
-                          currentImages.addAll(newImagePaths);
-                        });
-                      }
-                    },
-                    onSave: () async {
-                      if (contentController.text.trim().isNotEmpty) {
-                        // 删除被标记的图片
-                        for (String path in imagesToDelete) {
-                          final file = File(path);
-                          if (await file.exists()) {
-                            await file.delete();
-                          }
-                        }
+                                    newImagePaths.add(filePath);
+                                  }
 
-                        // 从内容中提取标签
-                        final String tags = DiaryUtils.extractTags(contentController.text);
+                                  setModalState(() {
+                                    currentImages.addAll(newImagePaths);
+                                  });
+                                }
+                              },
+                              icon: Icon(FeatherIcons.image, size: 16, color: DiaryStyle.primaryTextColor(context)),
+                              padding: EdgeInsets.all(0),
+                              constraints: BoxConstraints(),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                        ),
 
-                        // 创建更新后的日记
-                        final updatedDiary = DiaryModel(
-                          id: diary.id,
-                          content: contentController.text,
-                          tags: tags,
-                          mood: diary.mood,
-                          images: currentImages.isEmpty ? null : currentImages.join(','),
-                          createdAt: diary.createdAt,
-                        );
+                        // 更新按钮
+                        Tooltip(
+                          message: '更新',
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            margin: EdgeInsets.symmetric(horizontal: 2),
+                            child: IconButton(
+                              onPressed: () async {
+                                if (contentController.text.trim().isNotEmpty) {
+                                  // 删除被标记的图片
+                                  for (String path in imagesToDelete) {
+                                    final file = File(path);
+                                    if (await file.exists()) {
+                                      await file.delete();
+                                    }
+                                  }
 
-                        controller.updateDiary(updatedDiary);
-                        Navigator.pop(context);
-                      }
-                    },
+                                  // 从内容中提取标签
+                                  final String tags = DiaryUtils.extractTags(contentController.text);
+
+                                  // 创建更新后的日记
+                                  final updatedDiary = DiaryModel(
+                                    id: diary.id,
+                                    content: contentController.text,
+                                    tags: tags,
+                                    mood: diary.mood,
+                                    images: currentImages.isEmpty ? null : currentImages.join(','),
+                                    createdAt: diary.createdAt,
+                                  );
+
+                                  controller.updateDiary(updatedDiary);
+                                  Navigator.pop(context);
+                                }
+                              },
+                              icon: Icon(FeatherIcons.check, size: 16, color: DiaryStyle.accentColor(context)),
+                              padding: EdgeInsets.all(0),
+                              constraints: BoxConstraints(),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

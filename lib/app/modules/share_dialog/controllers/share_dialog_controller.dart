@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/components/dream_webview/dream_webview_controller.dart';
-import 'package:daily_satori/app/repositories/tag_repository.dart';
 
 /// 分享对话框控制器
 /// 管理网页内容的加载、解析和保存
@@ -456,7 +455,7 @@ class ShareDialogController extends GetxController {
       }
 
       // 重新获取保存后的文章，确保有正确的ID
-      final savedArticle = await ArticleRepository.find(id);
+      final savedArticle = ArticleRepository.find(id);
       if (savedArticle == null) {
         throw Exception("无法找到刚刚创建的文章: $id");
       }
@@ -465,7 +464,7 @@ class ShareDialogController extends GetxController {
       return savedArticle;
     } catch (e) {
       logger.e("[创建文章模型] 失败: $e");
-      throw e; // 重新抛出异常，让调用者处理
+      rethrow; // 重新抛出异常，让调用者处理
     }
   }
 
