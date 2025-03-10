@@ -16,6 +16,9 @@ dependencies:
 
   # 图标
   cupertino_icons: ^1.0.8
+  # 新增图标库
+  font_awesome_flutter: ^10.6.0
+  feather_icons: ^1.2.0
 
   # getx 框架
   get:
@@ -76,6 +79,12 @@ dependencies:
   objectbox: ^4.1.0
   objectbox_flutter_libs: any
   photo_view: ^0.15.0
+
+  # Markdown相关
+  flutter_markdown: ^0.6.17
+
+  # 图片选择
+  image_picker: ^1.0.4
 
   # 模板表达式
   template_expressions: ^3.3.1+2

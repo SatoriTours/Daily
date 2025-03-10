@@ -6,6 +6,8 @@ import '../modules/articles/bindings/articles_binding.dart';
 import '../modules/articles/views/articles_view.dart';
 import '../modules/backup_restore/bindings/backup_restore_binding.dart';
 import '../modules/backup_restore/views/backup_restore_view.dart';
+import '../modules/diary/bindings/diary_binding.dart';
+import '../modules/diary/views/diary_view.dart';
 import '../modules/home/bindings/home_binding.dart';
 import '../modules/home/views/home_view.dart';
 import '../modules/left_bar/bindings/left_bar_binding.dart';
@@ -20,15 +22,11 @@ part 'app_routes.dart';
 class AppPages {
   AppPages._();
 
-  static const INITIAL = Routes.ARTICLES;
+  static const INITIAL = Routes.HOME;
   // static const INITIAL = Routes.SHARE_DIALOG;
 
   static final routes = [
-    GetPage(
-      name: _Paths.HOME,
-      page: () => const HomeView(),
-      binding: HomeBinding(),
-    ),
+    GetPage(name: _Paths.HOME, page: () => const HomeView(), binding: HomeBinding()),
     GetPage(
       name: _Paths.SHARE_DIALOG,
       page: () => const ShareDialogView(),
@@ -68,6 +66,12 @@ class AppPages {
       transition: Transition.leftToRight,
       transitionDuration: Duration(milliseconds: 200),
       reverseTransitionDuration: Duration(milliseconds: 200),
+    ),
+    GetPage(
+      name: _Paths.DIARY,
+      page: () => const DiaryView(),
+      binding: DiaryBinding(),
+      transition: Transition.noTransition,
     ),
   ];
 }

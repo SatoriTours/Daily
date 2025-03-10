@@ -1,6 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-
 import 'package:daily_satori/app_exports.dart';
 
 /// 文章列表控制器
@@ -65,6 +62,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     if (scrollController.hasClients) {
       scrollController.jumpTo(0);
     }
+    logger.i('文章列表重新加载完成');
   }
 
   /// 切换搜索状态

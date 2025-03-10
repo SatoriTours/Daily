@@ -4,6 +4,7 @@
 library models;
 
 export 'article_model.dart';
+export 'diary_model.dart';
 export 'image_model.dart';
 export 'screenshot_model.dart';
 export 'setting_model.dart';
