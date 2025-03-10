@@ -1,11 +1,8 @@
-import 'package:image_picker/image_picker.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'dart:io';
 import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app_exports.dart';
 
 import '../controllers/diary_controller.dart';
-import '../utils/diary_utils.dart';
 import 'widgets/diary_input.dart';
 import 'widgets/image_preview.dart';
 import 'widgets/diary_list.dart';
@@ -103,8 +100,15 @@ class DiaryView extends GetView<DiaryController> {
                   // 工具栏和操作按钮
                   DiaryToolbar(
                     controller: contentController,
-                    onImagePick: () => _pickImages(context, setModalState, currentImages),
-                    onSave: () => _updateDiary(context, diary, contentController, currentImages, imagesToDelete),
+                    onImagePick: () => controller.pickAndSaveImages(context, setModalState, currentImages),
+                    onSave:
+                        () => controller.updateDiaryWithImages(
+                          context,
+                          diary,
+                          contentController,
+                          currentImages,
+                          imagesToDelete,
+                        ),
                     saveLabel: '更新',
                   ),
                 ],
@@ -114,69 +118,6 @@ class DiaryView extends GetView<DiaryController> {
         );
       },
     );
-  }
-
-  /// 选择并保存图片
-  Future<void> _pickImages(BuildContext context, StateSetter setModalState, List<String> imagesList) async {
-    final picker = ImagePicker();
-    final pickedImages = await picker.pickMultiImage();
-
-    if (pickedImages.isNotEmpty) {
-      // 保存图片并获取路径
-      List<String> newImagePaths = [];
-      final String dirPath = await controller.getImageSavePath();
-
-      for (int i = 0; i < pickedImages.length; i++) {
-        final XFile image = pickedImages[i];
-        final String fileName = 'diary_img_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-        final String filePath = '$dirPath/$fileName';
-
-        // 复制图片到应用目录
-        final File savedImage = File(filePath);
-        await savedImage.writeAsBytes(await image.readAsBytes());
-
-        newImagePaths.add(filePath);
-      }
-
-      setModalState(() {
-        imagesList.addAll(newImagePaths);
-      });
-    }
-  }
-
-  /// 更新日记
-  void _updateDiary(
-    BuildContext context,
-    DiaryModel diary,
-    TextEditingController contentController,
-    List<String> currentImages,
-    List<String> imagesToDelete,
-  ) async {
-    if (contentController.text.trim().isNotEmpty) {
-      // 删除被标记的图片
-      for (String path in imagesToDelete) {
-        final file = File(path);
-        if (await file.exists()) {
-          await file.delete();
-        }
-      }
-
-      // 从内容中提取标签
-      final String tags = DiaryUtils.extractTags(contentController.text);
-
-      // 创建更新后的日记
-      final updatedDiary = DiaryModel(
-        id: diary.id,
-        content: contentController.text,
-        tags: tags,
-        mood: diary.mood,
-        images: currentImages.isEmpty ? null : currentImages.join(','),
-        createdAt: diary.createdAt,
-      );
-
-      controller.updateDiary(updatedDiary);
-      Navigator.pop(context);
-    }
   }
 
   /// 显示标签选择对话框 - 支持主题

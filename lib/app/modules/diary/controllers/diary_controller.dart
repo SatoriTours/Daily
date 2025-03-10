@@ -1,6 +1,9 @@
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:daily_satori/app_exports.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../utils/diary_utils.dart';
 
 /// 日记列表控制器
 class DiaryController extends BaseController {
@@ -152,6 +155,69 @@ class DiaryController extends BaseController {
     }
 
     return path;
+  }
+
+  /// 选择并保存图片
+  Future<void> pickAndSaveImages(BuildContext context, StateSetter setModalState, List<String> imagesList) async {
+    final picker = ImagePicker();
+    final pickedImages = await picker.pickMultiImage();
+
+    if (pickedImages.isNotEmpty) {
+      // 保存图片并获取路径
+      List<String> newImagePaths = [];
+      final String dirPath = await getImageSavePath();
+
+      for (int i = 0; i < pickedImages.length; i++) {
+        final XFile image = pickedImages[i];
+        final String fileName = 'diary_img_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+        final String filePath = '$dirPath/$fileName';
+
+        // 复制图片到应用目录
+        final File savedImage = File(filePath);
+        await savedImage.writeAsBytes(await image.readAsBytes());
+
+        newImagePaths.add(filePath);
+      }
+
+      setModalState(() {
+        imagesList.addAll(newImagePaths);
+      });
+    }
+  }
+
+  /// 更新日记并处理图片
+  Future<void> updateDiaryWithImages(
+    BuildContext context,
+    DiaryModel diary,
+    TextEditingController contentController,
+    List<String> currentImages,
+    List<String> imagesToDelete,
+  ) async {
+    if (contentController.text.trim().isNotEmpty) {
+      // 删除被标记的图片
+      if (imagesToDelete.isNotEmpty) {
+        await _deleteImages(imagesToDelete);
+      }
+
+      // 从内容中提取标签
+      final String tags = DiaryUtils.extractTags(contentController.text);
+
+      // 创建更新后的日记
+      final updatedDiary = DiaryModel(
+        id: diary.id,
+        content: contentController.text,
+        tags: tags,
+        mood: diary.mood,
+        images: currentImages.isEmpty ? null : currentImages.join(','),
+        createdAt: diary.createdAt,
+      );
+
+      // 调用原有的updateDiary方法
+      await updateDiary(updatedDiary);
+
+      // 关闭对话框
+      Navigator.pop(context);
+    }
   }
 
   // ==== 私有方法 ====
