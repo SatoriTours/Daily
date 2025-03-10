@@ -12,7 +12,6 @@ import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/share_receive_service.dart';
-import 'package:daily_satori/app/services/tags_service.dart';
 import 'package:daily_satori/app/services/time_service.dart';
 import 'package:daily_satori/app/services/web_service/web_service.dart';
 
@@ -26,7 +25,6 @@ Future<void> initApp() async {
 // 应用准备好之后执行(主要是UI准备好)
 void onAppReady() {
   ShareReceiveService.i.init();
-  // 数据迁移逻辑已移除
 }
 
 // 应用退出时执行(目前没使用)
@@ -48,18 +46,18 @@ Future<void> _initBasicServices() async {
 Future<void> _initParallelServices() async {
   // 可以并行执行的初始化任务
   await Future.wait([
-    TagsService.i.init(), // 初始化标签服务
     FontService.i.init(), // 初始化字体
     AiService.i.init(), // 初始化AI服务
     ADBlockService.i.init(), // 初始化广告拦截服务
     FreeDiskService.i.init(), // 初始化磁盘服务
+    AppUpgradeService.i.init(), // 检查是否有新版本可以安装
+    BackupService.i.init(), // 备份服务
+    PluginService.i.init(), // 初始化插件服务, 用来更新插件
+    WebService.i.init(), // 初始化Web服务
   ]);
 }
 
 // 初始化不需要等待的服务
 void _initNonBlockingServices() {
-  AppUpgradeService.i.init(); // 检查是否有新版本可以安装
-  BackupService.i.init(); // 备份服务
-  PluginService.i.init(); // 初始化插件服务, 用来更新插件
-  WebService.i.init(); // 初始化Web服务
+  // No additional non-blocking services to initialize
 }

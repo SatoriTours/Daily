@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/components/dream_webview/dream_webview_controller.dart';
+import 'package:daily_satori/app/repositories/tag_repository.dart';
 
 /// 分享对话框控制器
 /// 管理网页内容的加载、解析和保存
@@ -336,7 +337,7 @@ class ShareDialogController extends GetxController {
       }
 
       // 获取已保存文章的ID，确保使用数据库中的实例
-      final savedArticle = await ArticleRepository.find(articleModel.id);
+      final savedArticle = ArticleRepository.find(articleModel.id);
       if (savedArticle == null) {
         // 如果找不到文章，再次尝试通过URL查找
         final articleByUrl = await ArticleRepository.findByUrl(url);
@@ -476,17 +477,10 @@ class ShareDialogController extends GetxController {
       // 清除原有标签 - 使用仓储层操作
       articleModel.tags.clear();
 
-      // 添加新标签
+      // 添加新标签，直接使用 TagRepository
       for (var tagName in tagNames) {
-        // 使用TagsService添加标签
-        await TagsService.i.addTagToArticle(articleModel, tagName);
+        await TagRepository.addTagToArticle(articleModel, tagName);
       }
-
-      // 保存更新 - 不再重复保存文章
-      // await ArticleRepository.update(articleModel);
-
-      // 重新加载标签服务
-      TagsService.i.reload();
 
       logger.i("[ShareDialogController] 标签保存完成 ${articleModel.id}");
     } catch (e) {
