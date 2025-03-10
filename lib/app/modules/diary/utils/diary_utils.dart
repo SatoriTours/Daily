@@ -75,7 +75,7 @@ class DiaryUtils {
                       '•',
                       style: TextStyle(
                         color: DiaryStyle.accentColor(context),
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -101,84 +101,85 @@ class DiaryUtils {
 
     return MarkdownStyleSheet(
       // 段落样式优化
-      p: TextStyle(color: DiaryStyle.primaryTextColor(context), fontSize: 15.0, height: 1.5, letterSpacing: 0.3),
+      p: TextStyle(color: DiaryStyle.primaryTextColor(context), fontSize: 13.0, height: 1.4, letterSpacing: 0.2),
 
       // 标题样式优化
       h1: TextStyle(
-        fontSize: 22,
+        fontSize: 18,
         fontWeight: FontWeight.w700,
         color: DiaryStyle.primaryTextColor(context),
-        height: 1.4,
+        height: 1.3,
         letterSpacing: 0.2,
       ),
       h2: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.w600,
-        color: DiaryStyle.primaryTextColor(context),
-        height: 1.4,
-        letterSpacing: 0.2,
-      ),
-      h3: TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
-        color: DiaryStyle.primaryTextColor(context),
-        height: 1.4,
-      ),
-      h4: TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: DiaryStyle.primaryTextColor(context),
-        height: 1.4,
+        height: 1.3,
+        letterSpacing: 0.1,
+      ),
+      h3: TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: DiaryStyle.primaryTextColor(context),
+        height: 1.3,
+      ),
+      h4: TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: DiaryStyle.primaryTextColor(context),
+        height: 1.3,
       ),
 
       // 引用样式优化
       blockquote: TextStyle(
         color: DiaryStyle.secondaryTextColor(context),
         fontStyle: FontStyle.italic,
-        fontSize: 15.0,
-        height: 1.5,
+        fontSize: 13.0,
+        height: 1.4,
       ),
       blockquoteDecoration: BoxDecoration(
-        border: Border(left: BorderSide(color: DiaryStyle.accentColor(context).withOpacity(0.5), width: 4.0)),
+        border: Border(left: BorderSide(color: DiaryStyle.accentColor(context).withOpacity(0.5), width: 3.0)),
       ),
-      blockquotePadding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
+      blockquotePadding: const EdgeInsets.only(left: 12.0, top: 6.0, bottom: 6.0),
 
       // 代码样式优化
       code: TextStyle(
         color: isDarkMode ? Colors.greenAccent[200] : Colors.green[800],
         backgroundColor: isDarkMode ? Colors.grey[850] : DiaryStyle.inputBackgroundColor(context),
         fontFamily: 'monospace',
-        fontSize: 14.0,
+        fontSize: 12.0,
       ),
       codeblockDecoration: BoxDecoration(
         color: isDarkMode ? Colors.grey[850] : DiaryStyle.inputBackgroundColor(context),
-        borderRadius: BorderRadius.circular(8.0),
+        borderRadius: BorderRadius.circular(6.0),
       ),
-      codeblockPadding: const EdgeInsets.all(12.0),
+      codeblockPadding: const EdgeInsets.all(8.0),
 
       // 列表样式优化
-      listBullet: TextStyle(color: DiaryStyle.accentColor(context), fontSize: 16),
-      listIndent: 24.0,
+      listBullet: TextStyle(color: DiaryStyle.accentColor(context), fontSize: 14),
+      listIndent: 20.0,
 
       // 链接样式优化
       a: TextStyle(
         color: DiaryStyle.accentColor(context),
+        fontSize: 13.0,
         decoration: TextDecoration.underline,
         decorationColor: DiaryStyle.accentColor(context).withOpacity(0.4),
       ),
 
       // 强调样式优化
-      em: TextStyle(fontStyle: FontStyle.italic, color: DiaryStyle.primaryTextColor(context)),
-      strong: TextStyle(fontWeight: FontWeight.w700, color: DiaryStyle.primaryTextColor(context)),
+      em: TextStyle(fontStyle: FontStyle.italic, color: DiaryStyle.primaryTextColor(context), fontSize: 13.0),
+      strong: TextStyle(fontWeight: FontWeight.w700, color: DiaryStyle.primaryTextColor(context), fontSize: 13.0),
 
       // 段间距优化
-      blockSpacing: 16.0,
+      blockSpacing: 12.0,
       horizontalRuleDecoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: DiaryStyle.secondaryTextColor(context).withOpacity(0.3), width: 1.0)),
       ),
       tableBorder: TableBorder.all(color: DiaryStyle.secondaryTextColor(context).withOpacity(0.3), width: 1.0),
       tableHeadAlign: TextAlign.center,
-      tableCellsPadding: const EdgeInsets.all(8.0),
+      tableCellsPadding: const EdgeInsets.all(6.0),
     );
   }
 

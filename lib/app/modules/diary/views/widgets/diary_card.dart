@@ -117,7 +117,11 @@ class DiaryCard extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 4),
                 child: Text(
                   '•',
-                  style: TextStyle(color: DiaryStyle.accentColor(context), fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: DiaryStyle.accentColor(context),
+                    fontSize: 14, // 从16减小到14
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               );
             },
