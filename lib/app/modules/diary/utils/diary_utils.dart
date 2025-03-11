@@ -185,7 +185,7 @@ class DiaryUtils {
 
   /// 从内容中提取标签
   static String extractTags(String content) {
-    final RegExp tagRegex = RegExp(r'#(\S+)');
+    final RegExp tagRegex = RegExp(r'#([a-zA-Z0-9\u4e00-\u9fa5]+)');
     final Iterable<RegExpMatch> matches = tagRegex.allMatches(content);
 
     final Set<String> tags = <String>{};

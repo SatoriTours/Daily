@@ -12,8 +12,9 @@ import 'image_preview.dart';
 /// 日记扩展编辑器组件
 class DiaryEditor extends StatefulWidget {
   final DiaryController controller;
+  final DiaryModel? diary; // 添加可选的日记对象，用于编辑模式
 
-  const DiaryEditor({super.key, required this.controller});
+  const DiaryEditor({super.key, required this.controller, this.diary});
 
   @override
   State<DiaryEditor> createState() => _DiaryEditorState();
@@ -21,6 +22,27 @@ class DiaryEditor extends StatefulWidget {
 
 class _DiaryEditorState extends State<DiaryEditor> {
   final List<XFile> _selectedImages = [];
+  List<String> _existingImages = []; // 存储已有的图片路径
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeEditor();
+  }
+
+  /// 初始化编辑器
+  void _initializeEditor() {
+    // 如果是编辑模式，需要填充已有内容
+    if (widget.diary != null) {
+      // 填充日记内容
+      widget.controller.contentController.text = widget.diary!.content;
+
+      // 处理已有图片
+      if (widget.diary!.images != null && widget.diary!.images!.isNotEmpty) {
+        _existingImages = widget.diary!.images!.split(',');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +99,9 @@ class _DiaryEditorState extends State<DiaryEditor> {
 
           // 图片添加按钮
           _buildToolbarButton(context, FeatherIcons.image, '添加图片', _selectImages, isAccent: false),
+
+          // AI魔法按钮
+          _buildToolbarButton(context, FeatherIcons.zap, 'AI魔法', _showAiMagicOptions, isAccent: false),
 
           // 保存按钮
           _buildToolbarButton(context, FeatherIcons.check, '保存', _saveDiary, isAccent: true),
@@ -146,17 +171,35 @@ class _DiaryEditorState extends State<DiaryEditor> {
   void _saveDiary() async {
     if (widget.controller.contentController.text.trim().isNotEmpty) {
       // 保存图片并获取路径列表
-      final List<String> imagePaths = await _saveImages();
+      final List<String> newImagePaths = await _saveImages();
+
+      // 合并已有图片和新图片
+      final List<String> allImagePaths = [..._existingImages, ...newImagePaths];
 
       // 从内容中提取标签
       final String tags = DiaryUtils.extractTags(widget.controller.contentController.text);
 
-      // 创建日记
-      widget.controller.createDiary(
-        widget.controller.contentController.text,
-        tags: tags,
-        images: imagePaths.isEmpty ? null : imagePaths.join(','),
-      );
+      if (widget.diary != null) {
+        // 更新模式 - 更新已有日记
+        final updatedDiary = DiaryModel(
+          id: widget.diary!.id,
+          content: widget.controller.contentController.text,
+          tags: tags,
+          mood: widget.diary!.mood,
+          images: allImagePaths.isEmpty ? null : allImagePaths.join(','),
+          createdAt: widget.diary!.createdAt,
+        );
+
+        // 调用更新方法
+        await widget.controller.updateDiary(updatedDiary);
+      } else {
+        // 创建模式 - 创建新日记
+        await widget.controller.createDiary(
+          widget.controller.contentController.text,
+          tags: tags,
+          images: allImagePaths.isEmpty ? null : allImagePaths.join(','),
+        );
+      }
 
       // 关闭底部弹窗
       if (mounted) {
@@ -188,5 +231,134 @@ class _DiaryEditorState extends State<DiaryEditor> {
     }
 
     return savedPaths;
+  }
+
+  /// 显示AI魔法选项菜单
+  void _showAiMagicOptions() {
+    // 获取当前选中的文本
+    final TextEditingController controller = widget.controller.contentController;
+    final TextSelection selection = controller.selection;
+
+    // 如果没有选中文本，显示提示
+    if (selection.isCollapsed) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先选择需要转换的文本')));
+      return;
+    }
+
+    final String selectedText = controller.text.substring(selection.start, selection.end);
+
+    // 显示AI魔法选项菜单
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(FeatherIcons.grid, color: DiaryStyle.accentColor(context)),
+                title: const Text('转换为表格'),
+                onTap: () {
+                  _convertToTable(selectedText, selection);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(FeatherIcons.list, color: DiaryStyle.accentColor(context)),
+                title: const Text('转换为列表'),
+                onTap: () {
+                  _convertToList(selectedText, selection);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(FeatherIcons.terminal, color: DiaryStyle.accentColor(context)),
+                title: const Text('格式化为代码块'),
+                onTap: () {
+                  _convertToCodeBlock(selectedText, selection);
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(FeatherIcons.star, color: DiaryStyle.accentColor(context)),
+                title: const Text('添加强调格式'),
+                onTap: () {
+                  _addEmphasis(selectedText, selection);
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 将选中文本转换为Markdown表格
+  void _convertToTable(String text, TextSelection selection) {
+    final lines = text.split('\n');
+    final StringBuffer tableBuffer = StringBuffer();
+
+    if (lines.isEmpty) return;
+
+    // 检测分隔符（逗号或制表符）
+    String separator = ',';
+    if (lines[0].contains('\t')) {
+      separator = '\t';
+    }
+
+    // 处理第一行作为表头
+    final List<String> headers = lines[0].split(separator);
+    tableBuffer.writeln('| ${headers.join(' | ')} |');
+
+    // 添加分隔行
+    tableBuffer.writeln('| ${headers.map((_) => '---').join(' | ')} |');
+
+    // 添加数据行
+    for (int i = 1; i < lines.length; i++) {
+      if (lines[i].trim().isEmpty) continue;
+      final cells = lines[i].split(separator);
+      // 确保单元格数量与表头一致
+      while (cells.length < headers.length) {
+        cells.add('');
+      }
+      tableBuffer.writeln('| ${cells.join(' | ')} |');
+    }
+
+    _replaceSelectedText(tableBuffer.toString(), selection);
+  }
+
+  /// 将选中文本转换为Markdown列表
+  void _convertToList(String text, TextSelection selection) {
+    final lines = text.split('\n').where((line) => line.trim().isNotEmpty).toList();
+    final StringBuffer listBuffer = StringBuffer();
+
+    for (final line in lines) {
+      listBuffer.writeln('- $line');
+    }
+
+    _replaceSelectedText(listBuffer.toString(), selection);
+  }
+
+  /// 将选中文本格式化为代码块
+  void _convertToCodeBlock(String text, TextSelection selection) {
+    final formattedText = '```\n$text\n```';
+    _replaceSelectedText(formattedText, selection);
+  }
+
+  /// 为选中文本添加强调格式
+  void _addEmphasis(String text, TextSelection selection) {
+    final formattedText = '**$text**';
+    _replaceSelectedText(formattedText, selection);
+  }
+
+  /// 替换选中的文本
+  void _replaceSelectedText(String newText, TextSelection selection) {
+    final TextEditingController controller = widget.controller.contentController;
+
+    controller.value = controller.value.copyWith(
+      text: controller.text.replaceRange(selection.start, selection.end, newText),
+      selection: TextSelection.collapsed(offset: selection.start + newText.length),
+    );
   }
 }
