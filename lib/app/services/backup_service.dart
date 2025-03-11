@@ -3,6 +3,7 @@ import 'dart:isolate';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_archive/flutter_archive.dart';
+import 'package:get/get.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:daily_satori/app/services/file_service.dart';

@@ -63,6 +63,7 @@ class BackupRestoreController extends BaseController {
     // final directory = await getApplicationDocumentsDirectory();
     // String appDocDir = path.join(directory.path, "backup_store");
     String appDocDir = (await getApplicationDocumentsDirectory()).path;
+    showFullScreenLoading();
 
     if (await imagesFile.exists() && await screenshotsFile.exists() && await databaseFile.exists()) {
       logger.i("恢复备份 images 目录");
@@ -78,9 +79,11 @@ class BackupRestoreController extends BaseController {
         destinationDir: Directory(path.join(appDocDir, ObjectboxService.dbDir)),
       );
       logger.i("恢复备份完成: $backupFolder => $appDocDir");
+      Get.back();
       return true;
     } else {
       logger.e("备份文件不存在, 无法恢复");
+      Get.back();
       return false;
     }
   }
