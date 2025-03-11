@@ -30,7 +30,9 @@ class ArticlesAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget _buildConnectionIndicator() {
     return Obx(() {
       final isConnected = WebService.i.webSocketTunnel.isConnected.value;
-      return IconButton(icon: Icon(Icons.circle, color: isConnected ? Colors.green : Colors.red), onPressed: () {});
+      return isConnected
+          ? IconButton(icon: const Icon(Icons.circle, color: Colors.green), onPressed: () {})
+          : const SizedBox.shrink();
     });
   }
 
