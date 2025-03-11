@@ -4,11 +4,11 @@ description: "Daily Satori Tours"
 publish_to: 'none'
 
 
-version: 3.0.1
+version: 3.0.2
 
 environment:
   sdk: ^3.7.0
-  flutter: ^3.29.0
+  flutter: ^3.29.1
 
 dependencies:
   flutter:
