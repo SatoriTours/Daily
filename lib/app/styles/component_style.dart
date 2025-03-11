@@ -305,7 +305,7 @@ class ComponentStyle {
   /// 文章图片样式
   static BoxDecoration articleImageDecoration(BuildContext context) {
     return BoxDecoration(
-      color: AppTheme.getColorScheme(context).surfaceVariant,
+      color: AppTheme.getColorScheme(context).surfaceContainerHighest,
       borderRadius: BorderRadius.circular(Dimensions.radiusM),
     );
   }

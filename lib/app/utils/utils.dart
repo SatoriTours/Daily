@@ -2,6 +2,8 @@
 ///
 /// 用于集中导出所有工具类，简化导入操作
 
+library;
+
 export 'app_info_utils.dart';
 export '../models/article_model.dart';
 export '../models/image_model.dart';

@@ -1,7 +1,7 @@
 /// 服务集中导出文件
 ///
 /// 用于集中导出所有服务类，方便其他地方导入
-library services;
+library;
 
 export 'adblock_service.dart';
 export 'ai_service/ai_service.dart';

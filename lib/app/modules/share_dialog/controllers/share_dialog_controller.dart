@@ -137,8 +137,7 @@ class ShareDialogController extends GetxController {
 
       _completeProcess();
     } catch (e, stackTrace) {
-      print('堆栈信息: $stackTrace');
-      logger.e("保存文章失败: $e");
+      logger.e("保存文章失败: $e\n堆栈信息: $stackTrace");
       _showMessage("保存失败: $e");
     } finally {
       hideLoading();

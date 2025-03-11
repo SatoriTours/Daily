@@ -1,7 +1,7 @@
 /// 样式导出文件
 ///
 /// 用于集中导出所有样式相关的类
-library styles;
+library;
 
 export 'app_styles.dart';
 export 'component_style.dart';
