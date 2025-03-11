@@ -119,7 +119,7 @@ class MyTheme {
 
       // 芯片主题
       chipTheme: ChipThemeData(
-        backgroundColor: isDark ? AppColors.primaryDark.withOpacity(0.2) : AppColors.primaryLight.withOpacity(0.1),
+        backgroundColor: isDark ? AppColors.primaryDark.withAlpha(51) : AppColors.primaryLight.withAlpha(26),
         disabledColor: isDark ? AppColors.dividerDark : AppColors.dividerLight,
         selectedColor: isDark ? AppColors.primaryDark : AppColors.primaryLight,
         secondarySelectedColor: isDark ? AppColors.primaryDarkVariantLight : AppColors.primaryLightVariant,

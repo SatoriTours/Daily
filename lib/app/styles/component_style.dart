@@ -20,7 +20,7 @@ class ComponentStyle {
       elevation: isDark ? 1 : 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      shadowColor: Colors.black.withOpacity(isDark ? 0.3 : 0.2),
+      shadowColor: Colors.black.withAlpha(isDark ? 77 : 51),
       clipBehavior: Clip.antiAlias,
     );
   }
@@ -31,7 +31,7 @@ class ComponentStyle {
 
     return ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: isDark ? AppColors.primaryDark : AppColors.primaryLight,
+        backgroundColor: isDark ? AppColors.primaryDark.withAlpha(51) : AppColors.primaryLight.withAlpha(26),
         foregroundColor: Colors.white,
         elevation: isDark ? 2 : 3,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -76,7 +76,7 @@ class ComponentStyle {
 
     return InputDecorationTheme(
       filled: true,
-      fillColor: isDark ? AppColors.cardBackgroundDark : Colors.grey.shade50,
+      fillColor: isDark ? AppColors.cardBackgroundDark.withAlpha(204) : Colors.grey.shade50,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -159,7 +159,7 @@ class ComponentStyle {
     final isDark = brightness == Brightness.dark;
 
     return ChipThemeData(
-      backgroundColor: isDark ? AppColors.primaryDark.withOpacity(0.2) : AppColors.primaryLight.withOpacity(0.1),
+      backgroundColor: isDark ? AppColors.primaryDark.withAlpha(51) : AppColors.primaryLight.withAlpha(26),
       disabledColor: isDark ? AppColors.dividerDark : AppColors.dividerLight,
       selectedColor: isDark ? AppColors.primaryDark : AppColors.primaryLight,
       secondarySelectedColor: isDark ? AppColors.primaryDarkVariantLight : AppColors.primaryLightVariant,
@@ -198,7 +198,7 @@ class ComponentStyle {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       tileColor: Colors.transparent,
-      selectedTileColor: isDark ? AppColors.primaryDark.withOpacity(0.2) : AppColors.primaryLight.withOpacity(0.1),
+      selectedTileColor: isDark ? AppColors.primaryDark.withAlpha(51) : AppColors.primaryLight.withAlpha(26),
       selectedColor: isDark ? AppColors.primaryDark : AppColors.primaryLight,
       iconColor: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
       textColor: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
@@ -231,7 +231,7 @@ class ComponentStyle {
         },
       ),
       filled: true,
-      fillColor: isDark ? AppColors.cardBackgroundDark.withOpacity(0.8) : Colors.grey.shade100,
+      fillColor: isDark ? AppColors.cardBackgroundDark.withAlpha(204) : Colors.grey.shade100,
       contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: BorderSide.none),
@@ -251,7 +251,7 @@ class ComponentStyle {
       borderRadius: BorderRadius.circular(10),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(isDark ? 0.2 : 0.1),
+          color: Colors.black.withAlpha(isDark ? 51 : 26),
           blurRadius: isDark ? 4 : 8,
           offset: const Offset(0, 2),
         ),
@@ -360,7 +360,7 @@ class ComponentStyle {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
-        boxShadow: [BoxShadow(color: colorScheme.shadow.withOpacity(0.1), blurRadius: 6, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: colorScheme.shadow.withAlpha(26), blurRadius: 6, offset: const Offset(0, 2))],
       ),
       child: child,
     );

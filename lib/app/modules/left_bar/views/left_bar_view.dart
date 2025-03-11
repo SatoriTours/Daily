@@ -56,7 +56,7 @@ class LeftBarView extends GetView<LeftBarController> {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(13), blurRadius: 5, offset: const Offset(0, 2))],
       ),
       child: Row(
         children: [
@@ -150,7 +150,7 @@ class LeftBarView extends GetView<LeftBarController> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: colorScheme.outline.withOpacity(0.5), width: 0.5)),
+          border: Border(bottom: BorderSide(color: colorScheme.outline.withAlpha(128), width: 0.5)),
         ),
         child: Row(
           children: [

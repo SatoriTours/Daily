@@ -12,7 +12,6 @@ class AppStyles {
   /// 获取卡片装饰
   static BoxDecoration cardDecoration(BuildContext context, {double? radius}) {
     final colorScheme = AppTheme.getColorScheme(context);
-    final isDark = AppTheme.isDarkMode(context);
 
     return BoxDecoration(
       color: colorScheme.surface,
@@ -27,7 +26,7 @@ class AppStyles {
     final colorScheme = AppTheme.getColorScheme(context);
 
     return BoxShadow(
-      color: colorScheme.shadow.withOpacity(isDark ? 0.3 : 0.1),
+      color: colorScheme.shadow.withAlpha(isDark ? 77 : 26),
       blurRadius: isDark ? 4 : 6,
       offset: const Offset(0, 2),
     );
@@ -39,7 +38,7 @@ class AppStyles {
     final isDark = AppTheme.isDarkMode(context);
 
     return BoxDecoration(
-      color: isDark ? colorScheme.surfaceVariant : colorScheme.surface,
+      color: isDark ? colorScheme.surfaceContainerHighest : colorScheme.surface,
       borderRadius: BorderRadius.circular(radius ?? Dimensions.radiusS),
     );
   }
@@ -63,8 +62,6 @@ class AppStyles {
     Widget? suffixIcon,
     String? helperText,
   }) {
-    final colorScheme = AppTheme.getColorScheme(context);
-
     return InputDecoration(
       hintText: hintText,
       labelText: labelText,
@@ -102,7 +99,7 @@ class AppStyles {
               )
               : null,
       filled: true,
-      fillColor: fillColor ?? (isDark ? colorScheme.surfaceVariant : colorScheme.surface),
+      fillColor: fillColor ?? (isDark ? colorScheme.surfaceContainerHighest : colorScheme.surface),
       contentPadding: Dimensions.paddingSearchBar,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(Dimensions.radiusXl), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(
@@ -132,7 +129,7 @@ class AppStyles {
     final colorScheme = AppTheme.getColorScheme(context);
 
     return BoxDecoration(
-      color: isSelected ? colorScheme.primary : colorScheme.surfaceVariant,
+      color: isSelected ? colorScheme.primary : colorScheme.surfaceContainerHighest,
       borderRadius: BorderRadius.circular(Dimensions.radiusCircular),
     );
   }
@@ -154,7 +151,7 @@ class AppStyles {
     return Divider(
       height: Dimensions.dividerHeight,
       thickness: Dimensions.dividerHeight,
-      color: colorScheme.outline.withOpacity(0.5),
+      color: colorScheme.outline.withAlpha(128),
       indent: indent ?? Dimensions.dividerIndent,
       endIndent: endIndent ?? Dimensions.dividerIndent,
     );

@@ -14,7 +14,7 @@ class DiaryDateHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       margin: const EdgeInsets.only(bottom: 4),
       decoration: BoxDecoration(
-        color: DiaryStyle.tagBackgroundColor(context).withOpacity(0.5),
+        color: DiaryStyle.tagBackgroundColor(context).withAlpha(128),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(

@@ -17,11 +17,11 @@ class ArticleInfoItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: colorScheme.onSurfaceVariant.withOpacity(0.7)),
+        Icon(icon, size: 14, color: colorScheme.onSurfaceVariant.withAlpha(179)),
         const SizedBox(width: 4),
         Text(
           text,
-          style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant.withOpacity(0.7)),
+          style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant.withAlpha(179)),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),

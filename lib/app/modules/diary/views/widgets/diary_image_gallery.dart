@@ -88,7 +88,7 @@ class DiaryImageGallery extends StatelessWidget {
                     onTap: () => Navigator.pop(context),
                     child: Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: Colors.black.withOpacity(0.5), shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: Colors.black.withAlpha(128), shape: BoxShape.circle),
                       child: const Icon(Icons.close, color: Colors.white, size: 20),
                     ),
                   ),

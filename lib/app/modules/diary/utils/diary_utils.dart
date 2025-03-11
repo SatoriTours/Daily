@@ -139,7 +139,7 @@ class DiaryUtils {
         height: 1.4,
       ),
       blockquoteDecoration: BoxDecoration(
-        border: Border(left: BorderSide(color: DiaryStyle.accentColor(context).withOpacity(0.5), width: 3.0)),
+        border: Border(left: BorderSide(color: DiaryStyle.accentColor(context).withAlpha(128), width: 3.0)),
       ),
       blockquotePadding: const EdgeInsets.only(left: 12.0, top: 6.0, bottom: 6.0),
 
@@ -165,7 +165,7 @@ class DiaryUtils {
         color: DiaryStyle.accentColor(context),
         fontSize: 13.0,
         decoration: TextDecoration.underline,
-        decorationColor: DiaryStyle.accentColor(context).withOpacity(0.4),
+        decorationColor: DiaryStyle.accentColor(context).withAlpha(102),
       ),
 
       // 强调样式优化
@@ -175,9 +175,9 @@ class DiaryUtils {
       // 段间距优化
       blockSpacing: 12.0,
       horizontalRuleDecoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: DiaryStyle.secondaryTextColor(context).withOpacity(0.3), width: 1.0)),
+        border: Border(bottom: BorderSide(color: DiaryStyle.secondaryTextColor(context).withAlpha(77), width: 1.0)),
       ),
-      tableBorder: TableBorder.all(color: DiaryStyle.secondaryTextColor(context).withOpacity(0.3), width: 1.0),
+      tableBorder: TableBorder.all(color: DiaryStyle.secondaryTextColor(context).withAlpha(77), width: 1.0),
       tableHeadAlign: TextAlign.center,
       tableCellsPadding: const EdgeInsets.all(6.0),
     );

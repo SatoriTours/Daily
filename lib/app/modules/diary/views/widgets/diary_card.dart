@@ -204,7 +204,7 @@ class _DiaryCardState extends State<DiaryCard> {
               margin: const EdgeInsets.only(top: 4.0),
               padding: const EdgeInsets.symmetric(vertical: 6.0),
               decoration: BoxDecoration(
-                color: DiaryStyle.accentColor(context).withOpacity(0.08),
+                color: DiaryStyle.accentColor(context).withAlpha(20),
                 borderRadius: BorderRadius.circular(6.0),
               ),
               child: GestureDetector(

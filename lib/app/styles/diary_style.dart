@@ -11,10 +11,11 @@ class DiaryStyle {
       Theme.of(context).brightness == Brightness.dark ? Color(0xFF1E1E1E) : Colors.white;
 
   /// 获取卡片阴影
-  static List<BoxShadow> cardShadow(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark
-          ? [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8, offset: Offset(0, 2))]
-          : [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: Offset(0, 2))];
+  static List<BoxShadow>? cardShadow(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? [BoxShadow(color: Colors.black.withAlpha(51), blurRadius: 8, offset: Offset(0, 2))]
+        : [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 8, offset: Offset(0, 2))];
+  }
 
   /// 获取主要文本颜色
   static Color primaryTextColor(BuildContext context) =>

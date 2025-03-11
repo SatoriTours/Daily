@@ -16,7 +16,7 @@ class ArticlesEmptyView extends StatelessWidget {
           Container(
             width: 120,
             height: 120,
-            decoration: BoxDecoration(color: AppColors.primary(context).withOpacity(0.1), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: AppColors.primary(context).withAlpha(26), shape: BoxShape.circle),
             child: Icon(Icons.article_outlined, size: 60, color: AppColors.primary(context)),
           ),
           const SizedBox(height: 24),

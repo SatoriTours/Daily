@@ -200,7 +200,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                 controller.tags.value.split(', ').map((tag) {
                   return Container(
                     decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer.withOpacity(0.7),
+                      color: colorScheme.primaryContainer.withAlpha(179),
                       borderRadius: BorderRadius.circular(Dimensions.radiusM),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
@@ -417,7 +417,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     Get.dialog(
       Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.black.withOpacity(0.7),
+          backgroundColor: Colors.black.withAlpha(179),
           elevation: 0,
           automaticallyImplyLeading: false,
           actions: [

@@ -20,7 +20,7 @@ class DiaryInput extends StatelessWidget {
         color: DiaryStyle.cardColor(context),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.05),
+            color: Colors.black.withAlpha(Theme.of(context).brightness == Brightness.dark ? 77 : 13),
             blurRadius: 8,
             offset: const Offset(0, -3),
           ),

@@ -1,7 +1,5 @@
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
-
 import 'package:daily_satori/app/repositories/setting_repository.dart';
-import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 
 class SettingProvider extends CacheProvider {
   String _value(String key) {
@@ -30,7 +28,9 @@ class SettingProvider extends CacheProvider {
       if (containsKey(key)) {
         double.parse(_value(key));
       }
-    } catch (e) {}
+    } catch (e) {
+      // 解析失败时使用默认值
+    }
 
     return defaultValue;
   }
@@ -41,7 +41,9 @@ class SettingProvider extends CacheProvider {
       if (containsKey(key)) {
         int.parse(_value(key));
       }
-    } catch (e) {}
+    } catch (e) {
+      // 解析失败时使用默认值
+    }
 
     return defaultValue;
   }

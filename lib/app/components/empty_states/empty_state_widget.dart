@@ -20,7 +20,7 @@ class EmptyStateWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 64, color: AppColors.textSecondary(context).withOpacity(0.5)),
+            Icon(icon, size: 64, color: AppColors.textSecondary(context).withAlpha(128)),
             const SizedBox(height: 16),
             Text(title, style: MyFontStyle.emptyStateStyleThemed(context), textAlign: TextAlign.center),
             if (subtitle != null) ...[

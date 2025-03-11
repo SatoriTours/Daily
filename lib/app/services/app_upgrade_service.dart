@@ -1,6 +1,5 @@
 import 'package:get/get.dart';
 import 'package:open_file/open_file.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:daily_satori/app/services/http_service.dart';

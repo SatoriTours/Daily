@@ -14,7 +14,7 @@ class CustomChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = isSelected ? AppColors.primary(context) : AppColors.primary(context).withOpacity(0.1);
+    final backgroundColor = isSelected ? AppColors.primary(context) : AppColors.primary(context).withAlpha(26);
 
     final textColor = isSelected ? Colors.white : AppColors.primary(context);
 

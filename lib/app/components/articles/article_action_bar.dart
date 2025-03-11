@@ -23,7 +23,7 @@ class ArticleActionBar extends StatelessWidget {
         _buildActionButton(
           context,
           articleModel.isFavorite ? Icons.favorite : Icons.favorite_border,
-          articleModel.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant.withOpacity(0.7),
+          articleModel.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant.withAlpha(179),
           () async {
             await articleModel.toggleFavorite();
             if (onArticleUpdated != null) {
@@ -32,7 +32,7 @@ class ArticleActionBar extends StatelessWidget {
           },
         ),
         const SizedBox(width: 8),
-        _buildActionButton(context, Icons.share, colorScheme.onSurfaceVariant.withOpacity(0.7), () {
+        _buildActionButton(context, Icons.share, colorScheme.onSurfaceVariant.withAlpha(179), () {
           Share.share(articleModel.url ?? '', subject: articleModel.aiTitle ?? articleModel.title ?? '');
         }),
       ],

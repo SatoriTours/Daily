@@ -91,14 +91,15 @@ class AppTheme {
       onBackground: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
       surface: isDark ? AppColors.cardBackgroundDark : AppColors.cardBackgroundLight,
       onSurface: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
-      surfaceVariant:
-          isDark ? AppColors.cardBackgroundDark.withOpacity(0.7) : AppColors.cardBackgroundLight.withOpacity(0.7),
+      surfaceVariant: isDark ? AppColors.cardBackgroundDark.withAlpha(77) : AppColors.cardBackgroundLight.withAlpha(77),
       onSurfaceVariant: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
       outline: isDark ? AppColors.dividerDark : AppColors.dividerLight,
-      shadow: Colors.black.withOpacity(isDark ? 0.3 : 0.2),
+      shadow: Colors.black.withAlpha(isDark ? 77 : 51),
       inverseSurface: isDark ? AppColors.backgroundLight : AppColors.backgroundDark,
       onInverseSurface: isDark ? AppColors.textPrimaryLight : AppColors.textPrimaryDark,
       inversePrimary: isDark ? AppColors.primaryLight : AppColors.primaryDark,
+      surfaceContainerHighest:
+          isDark ? AppColors.cardBackgroundDark.withAlpha(179) : AppColors.cardBackgroundLight.withAlpha(179),
     );
   }
 

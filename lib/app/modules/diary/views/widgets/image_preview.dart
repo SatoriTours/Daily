@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'dart:io';
 
@@ -45,7 +44,7 @@ class ImagePreview extends StatelessWidget {
                   onTap: () => onDelete(index),
                   child: Container(
                     padding: EdgeInsets.all(4),
-                    decoration: BoxDecoration(color: Colors.black.withOpacity(0.5), shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: Colors.black.withAlpha(128), shape: BoxShape.circle),
                     child: Icon(FeatherIcons.x, size: 14, color: Colors.white),
                   ),
                 ),

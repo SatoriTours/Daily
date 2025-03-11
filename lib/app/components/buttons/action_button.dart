@@ -15,7 +15,7 @@ class ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
-    final buttonColor = color ?? colorScheme.onSurfaceVariant.withOpacity(0.7);
+    final buttonColor = color ?? colorScheme.onSurfaceVariant.withAlpha(179);
 
     final button = InkWell(
       onTap: onTap,
