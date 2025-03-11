@@ -19,6 +19,7 @@ import 'package:daily_satori/app/services/web_service/web_service.dart';
 Future<void> initApp() async {
   await _initBasicServices();
   await _initParallelServices();
+  await _initNonBlockingServices();
   logger.i('所有服务初始化完成');
 }
 
@@ -51,8 +52,12 @@ Future<void> _initParallelServices() async {
     ADBlockService.i.init(), // 初始化广告拦截服务
     FreeDiskService.i.init(), // 初始化磁盘服务
     AppUpgradeService.i.init(), // 检查是否有新版本可以安装
-    BackupService.i.init(), // 备份服务
-    PluginService.i.init(), // 初始化插件服务, 用来更新插件
-    WebService.i.init(), // 初始化Web服务
   ]);
+}
+
+// 初始化那些不需要等待的服务
+Future<void> _initNonBlockingServices() async {
+  BackupService.i.init(); // 备份服务
+  PluginService.i.init(); // 初始化插件服务, 用来更新插件
+  WebService.i.init(); // 初始化Web服务
 }
