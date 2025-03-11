@@ -18,8 +18,8 @@ class WebService {
 
   Future<void> init() async {
     logger.i("[初始化服务] WebService");
-    await _httpServer.start();
-    await _webSocketTunnel.startConnect();
+    _httpServer.start();
+    _webSocketTunnel.startConnect();
     logger.i('Web服务初始化完成');
   }
 
