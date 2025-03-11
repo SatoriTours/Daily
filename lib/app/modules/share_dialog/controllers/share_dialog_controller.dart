@@ -566,7 +566,7 @@ class ShareDialogController extends GetxController {
       if (!isUpdate.value) {
         await Get.find<ArticlesController>().reloadArticles();
       }
-      Get.offAllNamed(Routes.ARTICLES);
+      Get.offAllNamed(Routes.HOME);
     } else {
       _backToPreviousApp();
     }

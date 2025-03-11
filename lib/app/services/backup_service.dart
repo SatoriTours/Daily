@@ -35,18 +35,21 @@ class BackupService {
   // 检查并执行备份
   Future<void> checkAndBackup({bool immediateBackup = false}) async {
     if (backupDir.isEmpty) return;
+    try {
+      logger.i("准备备份应用");
+      final lastBackupTime = await _getLastBackupTime();
+      final backupTimeDifference = DateTime.now().difference(lastBackupTime).inHours;
 
-    logger.i("准备备份应用");
-    final lastBackupTime = await _getLastBackupTime();
-    final backupTimeDifference = DateTime.now().difference(lastBackupTime).inHours;
-
-    if (backupTimeDifference >= _backupInterval || immediateBackup) {
-      logger.i("开始备份应用");
-      // 使用Isolate执行备份
-      await _startBackup();
-    } else {
-      final remainingHours = _backupInterval - backupTimeDifference;
-      logger.i("上次备份时间 $lastBackupTime, 备份间隔为 $_backupInterval 小时, 离下次备份还差: $remainingHours 小时");
+      if (backupTimeDifference >= _backupInterval || immediateBackup) {
+        logger.i("开始备份应用");
+        // 使用Isolate执行备份
+        await _startBackup();
+      } else {
+        final remainingHours = _backupInterval - backupTimeDifference;
+        logger.i("上次备份时间 $lastBackupTime, 备份间隔为 $_backupInterval 小时, 离下次备份还差: $remainingHours 小时");
+      }
+    } catch (e) {
+      logger.e("备份应用过程中发生错误: $e");
     }
   }
 
