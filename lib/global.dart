@@ -46,7 +46,7 @@ void successNotice(String content, {String title = '提示'}) => UIUtils.showSuc
 void errorNotice(String content, {String title = '错误'}) => UIUtils.showError(content, title: title);
 
 /// 显示全屏加载提示 (已移至 UIUtils.showLoading())
-void showFullScreenLoading({String tips = '', Color barrierColor = Colors.transparent}) =>
+void showFullScreenLoading({String tips = '', Color barrierColor = Colors.black45}) =>
     UIUtils.showLoading(tips: tips, barrierColor: barrierColor);
 
 /// 显示确认对话框 (已移至 DialogUtils.showConfirm())
