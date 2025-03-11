@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';

@@ -1,7 +1,7 @@
 /// 模型集中导出文件
 ///
 /// 用于集中导出所有模型类，方便其他地方导入
-library models;
+library;
 
 export 'article_model.dart';
 export 'diary_model.dart';

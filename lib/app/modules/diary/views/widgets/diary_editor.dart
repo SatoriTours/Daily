@@ -159,7 +159,9 @@ class _DiaryEditorState extends State<DiaryEditor> {
       );
 
       // 关闭底部弹窗
-      Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
 
       // 清理标签控制器
       widget.controller.tagsController.clear();

@@ -1,7 +1,6 @@
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:daily_satori/app_exports.dart';
-import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../utils/diary_utils.dart';
 
@@ -190,7 +189,7 @@ class DiaryController extends BaseController {
   }
 
   /// 更新日记并处理图片
-  Future<void> updateDiaryWithImages(
+  Future<bool> updateDiaryWithImages(
     BuildContext context,
     DiaryModel diary,
     TextEditingController contentController,
@@ -219,9 +218,10 @@ class DiaryController extends BaseController {
       // 调用原有的updateDiary方法
       await updateDiary(updatedDiary);
 
-      // 关闭对话框
-      Navigator.pop(context);
+      // 返回成功结果，而不是直接操作导航
+      return true;
     }
+    return false;
   }
 
   // ==== 私有方法 ====

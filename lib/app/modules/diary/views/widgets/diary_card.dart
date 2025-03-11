@@ -78,7 +78,7 @@ class _DiaryCardState extends State<DiaryCard> {
         }
       }
 
-      _displayContent = widget.diary.content.substring(0, breakPos) + '...';
+      _displayContent = '${widget.diary.content.substring(0, breakPos)}...';
     } else {
       _displayContent = widget.diary.content;
     }
@@ -182,9 +182,7 @@ class _DiaryCardState extends State<DiaryCard> {
                 ),
               );
             },
-            onTapLink: (text, href, title) {
-              // TODO: 处理链接点击事件，可以打开浏览器或应用内WebView
-            },
+            onTapLink: (text, href, title) {},
             bulletBuilder: (index, style) {
               // 自定义项目符号样式
               return Padding(

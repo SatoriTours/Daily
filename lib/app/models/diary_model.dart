@@ -18,8 +18,8 @@ class DiaryModel {
     this.tags,
     this.mood,
     this.images,
-  }) : this.createdAt = createdAt ?? DateTime.now(),
-       this.updatedAt = updatedAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now();
 
   /// 从Diary实体创建DiaryModel
   factory DiaryModel.fromEntity(Diary entity) {

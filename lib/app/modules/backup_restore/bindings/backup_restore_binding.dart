@@ -2,11 +2,9 @@ import 'package:get/get.dart';
 
 import '../controllers/backup_restore_controller.dart';
 
-class BackupRestoreBinding extends Bindings {
+class BackupRestoreBinding extends Binding {
   @override
-  void dependencies() {
-    Get.lazyPut<BackupRestoreController>(
-      () => BackupRestoreController(),
-    );
+  List<Bind> dependencies() {
+    return [Bind.lazyPut<BackupRestoreController>(() => BackupRestoreController())];
   }
 }

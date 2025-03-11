@@ -2,9 +2,9 @@ import 'package:get/get.dart';
 
 import '../controllers/diary_controller.dart';
 
-class DiaryBinding extends Bindings {
+class DiaryBinding extends Binding {
   @override
-  void dependencies() {
-    Get.lazyPut<DiaryController>(() => DiaryController());
+  List<Bind> dependencies() {
+    return [Bind.lazyPut<DiaryController>(() => DiaryController())];
   }
 }
