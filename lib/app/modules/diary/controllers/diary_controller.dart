@@ -12,6 +12,7 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
   final searchQuery = ''.obs;
   final currentTag = ''.obs;
   final isSearchVisible = false.obs;
+  final selectedFilterDate = Rx<DateTime?>(null); // 添加日期过滤状态
 
   /// 日记数据
   final diaries = <DiaryModel>[].obs;
@@ -130,6 +131,14 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
     _loadDiaries();
   }
 
+  /// 按日期筛选
+  void filterByDate(DateTime date) {
+    // 将时间设置为当天的起始时间
+    final selectedDay = DateTime(date.year, date.month, date.day);
+    selectedFilterDate.value = selectedDay;
+    _loadDiaries();
+  }
+
   /// 按内容搜索
   void search(String query) {
     if (query.trim().isEmpty) {
@@ -152,6 +161,7 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
     searchQuery.value = '';
     searchController.clear();
     isSearchVisible.value = false;
+    selectedFilterDate.value = null; // 清除日期过滤
     _loadDiaries();
   }
 
@@ -256,6 +266,25 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
     return false;
   }
 
+  /// 获取每日日记数量统计
+  Map<DateTime, int> getDailyDiaryCounts() {
+    final Map<DateTime, int> counts = {};
+    final allDiaries = DiaryRepository.i.getAll();
+
+    for (final diary in allDiaries) {
+      // 只考虑年月日，忽略时分秒
+      final dateKey = DateTime(diary.createdAt.year, diary.createdAt.month, diary.createdAt.day);
+
+      if (counts.containsKey(dateKey)) {
+        counts[dateKey] = counts[dateKey]! + 1;
+      } else {
+        counts[dateKey] = 1;
+      }
+    }
+
+    return counts;
+  }
+
   // ==== 私有方法 ====
 
   /// 创建图片目录
@@ -290,6 +319,14 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
           allDiaries
               .where((d) => d.tags != null && d.tags!.toLowerCase().contains(currentTag.value.toLowerCase()))
               .toList();
+    } else if (selectedFilterDate.value != null) {
+      // 按日期筛选
+      final filterDate = selectedFilterDate.value!;
+      diaries.value =
+          allDiaries.where((d) {
+            final diaryDate = DateTime(d.createdAt.year, d.createdAt.month, d.createdAt.day);
+            return diaryDate.isAtSameMomentAs(filterDate);
+          }).toList();
     } else {
       // 全部加载
       diaries.value = allDiaries;
