@@ -129,7 +129,17 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
 
   /// 按内容搜索
   void search(String query) {
-    searchQuery.value = query;
+    if (query.trim().isEmpty) {
+      // 如果搜索词为空，清除搜索状态
+      clearFilters();
+      return;
+    }
+
+    // 清除标签筛选
+    currentTag.value = '';
+
+    // 设置搜索词并重新加载日记
+    searchQuery.value = query.trim();
     _loadDiaries();
   }
 
@@ -143,10 +153,20 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
 
   /// 启用/禁用搜索
   void enableSearch(bool enable) {
-    if (enable) {
-      searchController.clear();
+    // 判断当前是否在搜索模式下（已有搜索内容或正在输入）
+    final bool isSearchMode = searchQuery.isNotEmpty || searchController.text.isNotEmpty;
+
+    if (isSearchMode) {
+      // 如果是搜索模式且要关闭搜索，则清除搜索结果
+      if (!enable) {
+        clearFilters();
+      }
     } else {
-      clearFilters();
+      // 如果不是搜索模式且要开启搜索，则准备搜索状态
+      if (enable) {
+        searchController.clear();
+        // 不立即设置searchQuery，等待用户输入并提交
+      }
     }
   }
 
@@ -252,39 +272,43 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
   Future<void> _loadDiaries() async {
     isLoading.value = true;
 
-    List<DiaryModel> result = [];
+    final allDiaries = DiaryRepository.i.getAll();
 
-    // 如果有搜索关键词，执行搜索
-    if (searchQuery.value.isNotEmpty) {
-      result = DiaryRepository.i.searchByContent(searchQuery.value);
-    }
-    // 如果有选择的标签，按标签筛选
-    else if (currentTag.value.isNotEmpty) {
-      result = DiaryRepository.i.searchByTag(currentTag.value);
-    }
-    // 否则加载所有日记
-    else {
-      result = DiaryRepository.i.getAll();
+    // 应用过滤条件
+    if (searchQuery.isNotEmpty) {
+      // 按内容搜索
+      diaries.value =
+          allDiaries.where((d) => d.content.toLowerCase().contains(searchQuery.value.toLowerCase())).toList();
+    } else if (currentTag.isNotEmpty) {
+      // 按标签筛选
+      diaries.value =
+          allDiaries
+              .where((d) => d.tags != null && d.tags!.toLowerCase().contains(currentTag.value.toLowerCase()))
+              .toList();
+    } else {
+      // 全部加载
+      diaries.value = allDiaries;
     }
 
-    diaries.value = result;
+    // 排序：最新的在前面
+    diaries.value.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     isLoading.value = false;
+
+    // 提取所有标签
+    _extractTags();
   }
 
-  /// 提取所有日记中的标签
+  /// 提取所有标签
   void _extractTags() {
-    final allDiaries = DiaryRepository.i.getAll();
-    final tagSet = <String>{};
+    tags.clear();
 
-    for (final diary in allDiaries) {
+    final Set<String> tagSet = {};
+
+    for (var diary in DiaryRepository.i.getAll()) {
       if (diary.tags != null && diary.tags!.isNotEmpty) {
-        final diaryTags = diary.tags!.split(',');
-        for (final tag in diaryTags) {
-          if (tag.trim().isNotEmpty) {
-            tagSet.add(tag.trim());
-          }
-        }
+        final diaryTags = diary.tags!.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty);
+        tagSet.addAll(diaryTags);
       }
     }
 

@@ -7,6 +7,7 @@ import 'widgets/diary_input.dart';
 import 'widgets/diary_list.dart';
 import 'widgets/diary_tags_dialog.dart';
 import 'widgets/diary_edit_dialog.dart';
+import 'widgets/diary_search_bar.dart';
 
 /// 日记页面
 class DiaryView extends GetView<DiaryController> {
@@ -19,7 +20,109 @@ class DiaryView extends GetView<DiaryController> {
       appBar: _buildAppBar(context),
       body: Stack(
         children: [
-          DiaryList(controller: controller, onEditDiary: (diary) => _showEditDialog(context, diary)),
+          Obx(() {
+            // 显示搜索结果状态
+            if (controller.searchQuery.isNotEmpty) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '搜索结果: "${controller.searchQuery.value}"',
+                            style: TextStyle(fontSize: 14, color: DiaryStyle.secondaryTextColor(context)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => controller.clearFilters(),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(FeatherIcons.x, size: 14, color: DiaryStyle.accentColor(context)),
+                                const SizedBox(width: 4),
+                                Text('清除', style: TextStyle(fontSize: 12, color: DiaryStyle.accentColor(context))),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: DiaryList(controller: controller, onEditDiary: (diary) => _showEditDialog(context, diary)),
+                  ),
+                ],
+              );
+            }
+
+            // 显示标签过滤状态
+            if (controller.currentTag.isNotEmpty) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '标签: "#${controller.currentTag.value}"',
+                            style: TextStyle(fontSize: 14, color: DiaryStyle.secondaryTextColor(context)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => controller.clearFilters(),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(FeatherIcons.x, size: 14, color: DiaryStyle.accentColor(context)),
+                                const SizedBox(width: 4),
+                                Text('清除', style: TextStyle(fontSize: 12, color: DiaryStyle.accentColor(context))),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: DiaryList(controller: controller, onEditDiary: (diary) => _showEditDialog(context, diary)),
+                  ),
+                ],
+              );
+            }
+
+            // 显示正常状态
+            return DiaryList(controller: controller, onEditDiary: (diary) => _showEditDialog(context, diary));
+          }),
+
+          // 搜索栏
+          Obx(() {
+            final bool shouldShowSearchBar =
+                controller.searchController.text.isNotEmpty || controller.searchQuery.isNotEmpty;
+
+            return Visibility(
+              visible: shouldShowSearchBar,
+              child: Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: DiarySearchBar(controller: controller, onClose: () => controller.enableSearch(false)),
+              ),
+            );
+          }),
+
           Positioned(left: 0, right: 0, bottom: 0, child: DiaryInput(controller: controller)),
         ],
       ),
@@ -35,7 +138,18 @@ class DiaryView extends GetView<DiaryController> {
       actions: [
         IconButton(
           icon: Icon(FeatherIcons.search, color: DiaryStyle.secondaryTextColor(context), size: 20),
-          onPressed: () => controller.enableSearch(true),
+          onPressed: () {
+            // 清除当前搜索内容
+            controller.searchController.clear();
+
+            // 如果之前有搜索结果，需要清除
+            if (controller.searchQuery.isNotEmpty) {
+              controller.clearFilters();
+            }
+
+            // 激活搜索栏
+            controller.enableSearch(true);
+          },
         ),
         IconButton(
           icon: Icon(FeatherIcons.tag, color: DiaryStyle.secondaryTextColor(context), size: 20),
