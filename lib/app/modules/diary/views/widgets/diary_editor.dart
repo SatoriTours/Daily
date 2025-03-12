@@ -97,8 +97,8 @@ class _DiaryEditorState extends State<DiaryEditor> {
             ),
           ),
 
-          // 图片添加按钮
-          _buildToolbarButton(context, FeatherIcons.image, '添加图片', _selectImages, isAccent: false),
+          // 图片添加按钮（整合了相册选择和拍照功能）
+          _buildToolbarButton(context, FeatherIcons.image, '添加图片', _showImageOptions, isAccent: false),
 
           // AI魔法按钮
           _buildToolbarButton(context, FeatherIcons.zap, 'AI魔法', _showAiMagicOptions, isAccent: false),
@@ -163,6 +163,18 @@ class _DiaryEditorState extends State<DiaryEditor> {
     if (pickedImages.isNotEmpty) {
       setState(() {
         _selectedImages.addAll(pickedImages);
+      });
+    }
+  }
+
+  /// 拍照
+  void _takePhoto() async {
+    final picker = ImagePicker();
+    final XFile? photo = await picker.pickImage(source: ImageSource.camera);
+
+    if (photo != null) {
+      setState(() {
+        _selectedImages.add(photo);
       });
     }
   }
@@ -359,6 +371,38 @@ class _DiaryEditorState extends State<DiaryEditor> {
     controller.value = controller.value.copyWith(
       text: controller.text.replaceRange(selection.start, selection.end, newText),
       selection: TextSelection.collapsed(offset: selection.start + newText.length),
+    );
+  }
+
+  /// 显示图片选项菜单
+  void _showImageOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(FeatherIcons.image, color: DiaryStyle.accentColor(context)),
+                title: const Text('从相册选择'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _selectImages();
+                },
+              ),
+              ListTile(
+                leading: Icon(FeatherIcons.camera, color: DiaryStyle.accentColor(context)),
+                title: const Text('拍照'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _takePhoto();
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
