@@ -229,34 +229,40 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
                 : null,
       ),
       child: Stack(
+        fit: StackFit.expand,
         alignment: Alignment.center,
         children: [
-          Text(
-            day.toString(),
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: (isToday || isSelected || diaryCount > 0) ? FontWeight.bold : FontWeight.normal,
-              color: isSelected ? Colors.white : DiaryStyle.primaryTextColor(context),
+          Center(
+            child: Text(
+              day.toString(),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: (isToday || isSelected || diaryCount > 0) ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? Colors.white : DiaryStyle.primaryTextColor(context),
+              ),
             ),
           ),
           if (diaryCount > 0)
             Positioned(
-              right: 6,
-              bottom: 6,
+              right: 1,
+              bottom: 1,
               child: Container(
-                width: 16,
-                height: 16,
+                width: 13,
+                height: 13,
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white : DiaryStyle.accentColor(context),
+                  color: isSelected ? Colors.white.withAlpha(235) : DiaryStyle.accentColor(context).withAlpha(235),
                   shape: BoxShape.circle,
                   border: isSelected ? Border.all(color: DiaryStyle.accentColor(context), width: 0.5) : null,
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 1, offset: const Offset(0, 0.5)),
+                  ],
                 ),
                 child: Center(
                   child: Text(
-                    diaryCount.toString(),
+                    diaryCount > 99 ? '99+' : diaryCount.toString(),
                     style: TextStyle(
                       color: isSelected ? DiaryStyle.accentColor(context) : Colors.white,
-                      fontSize: 10,
+                      fontSize: 8,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
