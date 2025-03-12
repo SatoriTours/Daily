@@ -29,7 +29,7 @@ class DiaryList extends StatelessWidget {
 
       return ListView.builder(
         controller: controller.scrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 72),
         itemCount: sortedDiaries.length,
         itemBuilder: (context, index) {
           final diary = sortedDiaries[index];
