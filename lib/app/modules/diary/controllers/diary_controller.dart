@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../utils/diary_utils.dart';
 
 /// 日记列表控制器
-class DiaryController extends BaseController {
+class DiaryController extends BaseController with WidgetsBindingObserver {
   /// UI状态
   final isLoading = false.obs;
   final selectedDate = DateTime.now().obs;
@@ -41,6 +41,13 @@ class DiaryController extends BaseController {
     contentController.dispose();
     tagsController.dispose();
     super.onClose();
+  }
+
+  @override
+  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (state == AppLifecycleState.resumed) {
+      await _handleAppResume();
+    }
   }
 
   // ==== 公共方法 ====
@@ -282,5 +289,10 @@ class DiaryController extends BaseController {
     }
 
     tags.value = tagSet.toList()..sort();
+  }
+
+  Future<void> _handleAppResume() async {
+    logger.i('检查剪切板内容');
+    await ClipboardUtils.checkAndNavigateToShareDialog();
   }
 }

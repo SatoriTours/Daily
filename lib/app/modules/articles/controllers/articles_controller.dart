@@ -20,7 +20,6 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
   final int _pageSize = 20;
 
   /// 内部状态
-  String _clipboardText = '';
   DateTime _lastRefreshTime = DateTime.now();
 
   // ==== 生命周期方法 ====
@@ -134,13 +133,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
   /// 检查剪贴板
   Future<void> checkClipboard() async {
     logger.i('检查剪切板内容');
-
-    final text = await getClipboardText();
-    final url = getUrlFromText(text);
-
-    if (url.isNotEmpty && url.startsWith('http') && url != _clipboardText) {
-      await _promptToSaveUrl(url);
-    }
+    await ClipboardUtils.checkAndNavigateToShareDialog();
   }
 
   // ==== 私有方法 ====
@@ -235,27 +228,5 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     } finally {
       isLoading.value = false;
     }
-  }
-
-  /// 提示保存URL
-  Future<void> _promptToSaveUrl(String url) async {
-    final message = '获取到剪切板链接:\n${getSubstring(url, length: 30, suffix: '...')}\n\n请确认是否保存?';
-
-    await showConfirmationDialog(
-      '是否保存',
-      message,
-      onConfirmed: () => _saveUrl(url),
-      onCanceled: () => _clipboardText = url,
-    );
-  }
-
-  /// 保存URL
-  Future<void> _saveUrl(String url) async {
-    if (isProduction) {
-      await setClipboardText('');
-    }
-
-    Get.toNamed(Routes.SHARE_DIALOG, arguments: {'shareURL': url});
-    _clipboardText = url;
   }
 }
