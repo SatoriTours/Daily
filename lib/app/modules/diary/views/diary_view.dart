@@ -236,7 +236,9 @@ class DiaryView extends GetView<DiaryController> {
   /// 显示日历选择对话框
   void _showCalendarDialog(BuildContext context) {
     // 如果已经有筛选，先清除
-    if (controller.searchQuery.isNotEmpty || controller.currentTag.isNotEmpty) {
+    if (controller.searchQuery.isNotEmpty ||
+        controller.currentTag.isNotEmpty ||
+        controller.selectedFilterDate.value != null) {
       controller.clearFilters();
     }
 
@@ -245,11 +247,7 @@ class DiaryView extends GetView<DiaryController> {
       backgroundColor: DiaryStyle.bottomSheetColor(context),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       isScrollControlled: true,
-      builder:
-          (context) => Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-            child: DiaryCalendarDialog(controller: controller),
-          ),
+      builder: (context) => DiaryCalendarDialog(controller: controller),
     );
   }
 }

@@ -40,7 +40,7 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
           _buildCalendarHeader(context),
           Expanded(child: SingleChildScrollView(child: _buildCalendar(context))),
           Divider(height: 1, thickness: 0.5, color: DiaryStyle.dividerColor(context)),
-          _buildButtons(context),
+          _buildAllDiariesButton(context),
           SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
       ),
@@ -49,18 +49,20 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
 
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            '选择日期',
+            '日记日历',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: DiaryStyle.primaryTextColor(context)),
           ),
           IconButton(
             icon: Icon(FeatherIcons.x, size: 20, color: DiaryStyle.secondaryTextColor(context)),
             onPressed: () => Navigator.pop(context),
             splashRadius: 20,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
         ],
       ),
@@ -70,34 +72,42 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
   Widget _buildCalendarHeader(BuildContext context) {
     final monthFormat = DateFormat('yyyy年MM月');
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            icon: Icon(FeatherIcons.chevronLeft, size: 20, color: DiaryStyle.secondaryTextColor(context)),
-            onPressed: () {
-              setState(() {
-                _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month - 1, 1);
-              });
-            },
-            splashRadius: 20,
-          ),
           Text(
             monthFormat.format(_displayedMonth),
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: DiaryStyle.primaryTextColor(context)),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: DiaryStyle.accentColor(context)),
           ),
-          IconButton(
-            icon: Icon(FeatherIcons.chevronRight, size: 20, color: DiaryStyle.secondaryTextColor(context)),
-            onPressed: () {
-              setState(() {
-                _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 1);
-              });
-            },
-            splashRadius: 20,
+          Row(
+            children: [
+              _buildIconButton(context, FeatherIcons.chevronLeft, () {
+                setState(() {
+                  _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month - 1, 1);
+                });
+              }),
+              const SizedBox(width: 8),
+              _buildIconButton(context, FeatherIcons.chevronRight, () {
+                setState(() {
+                  _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 1);
+                });
+              }),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildIconButton(BuildContext context, IconData icon, VoidCallback onPressed) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        child: Icon(icon, size: 18, color: DiaryStyle.secondaryTextColor(context)),
       ),
     );
   }
@@ -120,8 +130,13 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: 1),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 7,
+            childAspectRatio: 1,
+            mainAxisSpacing: 2,
+            crossAxisSpacing: 2,
+          ),
           itemCount: 42, // 6周 x 7天
           itemBuilder: (context, index) {
             // 计算实际日期
@@ -147,6 +162,10 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
                 setState(() {
                   _selectedDate = date;
                 });
+
+                // 直接应用过滤并关闭对话框
+                widget.controller.filterByDate(date);
+                Navigator.pop(context);
               },
               child: _buildDayCell(context, day, diaryCount, isToday, isSelected),
             );
@@ -159,21 +178,25 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
   Widget _buildWeekdayHeader(BuildContext context) {
     const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 
-    return Padding(
+    return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children:
             weekdays.map((day) {
-              return SizedBox(
-                width: 30,
+              final bool isWeekend = day == '六' || day == '日';
+              return Expanded(
                 child: Text(
                   day,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 12,
-                    color: DiaryStyle.secondaryTextColor(context),
-                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                    color:
+                        isWeekend
+                            ? DiaryStyle.accentColor(context).withAlpha(180)
+                            : DiaryStyle.secondaryTextColor(context),
+                    fontWeight: isWeekend ? FontWeight.w500 : FontWeight.normal,
                   ),
                 ),
               );
@@ -183,16 +206,27 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
   }
 
   Widget _buildDayCell(BuildContext context, int day, int diaryCount, bool isToday, bool isSelected) {
+    // 选择适当的背景颜色
+    Color bgColor;
+    if (isSelected) {
+      bgColor = DiaryStyle.accentColor(context);
+    } else if (isToday) {
+      bgColor = DiaryStyle.accentColor(context).withAlpha(30);
+    } else if (diaryCount > 0) {
+      bgColor = DiaryStyle.accentColor(context).withAlpha(10);
+    } else {
+      bgColor = Colors.transparent;
+    }
+
     return Container(
-      margin: const EdgeInsets.all(2),
+      margin: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color:
-            isSelected
-                ? DiaryStyle.accentColor(context)
-                : isToday
-                ? DiaryStyle.accentColor(context).withAlpha(30)
-                : Colors.transparent,
+        color: bgColor,
+        border:
+            diaryCount > 0 && !isSelected
+                ? Border.all(color: DiaryStyle.accentColor(context).withAlpha(80), width: 1)
+                : null,
       ),
       child: Stack(
         alignment: Alignment.center,
@@ -200,78 +234,35 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
           Text(
             day.toString(),
             style: TextStyle(
-              fontSize: 14,
-              fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 15,
+              fontWeight: (isToday || isSelected || diaryCount > 0) ? FontWeight.bold : FontWeight.normal,
               color: isSelected ? Colors.white : DiaryStyle.primaryTextColor(context),
             ),
           ),
           if (diaryCount > 0)
             Positioned(
-              right: 8,
-              bottom: 8,
+              right: 6,
+              bottom: 6,
               child: Container(
-                width: 14,
-                height: 14,
+                width: 16,
+                height: 16,
                 decoration: BoxDecoration(
                   color: isSelected ? Colors.white : DiaryStyle.accentColor(context),
                   shape: BoxShape.circle,
+                  border: isSelected ? Border.all(color: DiaryStyle.accentColor(context), width: 0.5) : null,
                 ),
                 child: Center(
                   child: Text(
                     diaryCount.toString(),
                     style: TextStyle(
                       color: isSelected ? DiaryStyle.accentColor(context) : Colors.white,
-                      fontSize: 8,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ),
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildButtons(BuildContext context) {
-    final dateText = DateFormat('yyyy年MM月dd日').format(_selectedDate);
-    final hasEntry =
-        _diaryCountMap[DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day)] != null &&
-        _diaryCountMap[DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day)]! > 0;
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () {
-                widget.controller.filterByDate(_selectedDate);
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: DiaryStyle.accentColor(context),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              child: Text(hasEntry ? '查看 $dateText 的日记' : '查看 $dateText'),
-            ),
-          ),
-          const SizedBox(width: 12),
-          OutlinedButton(
-            onPressed: () {
-              widget.controller.clearFilters();
-              Navigator.pop(context);
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: DiaryStyle.accentColor(context),
-              side: BorderSide(color: DiaryStyle.accentColor(context)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            ),
-            child: const Text('查看全部'),
-          ),
         ],
       ),
     );
@@ -286,5 +277,23 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
   // 辅助方法：判断两个日期是否是同一天
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  // 添加查看全部日记按钮
+  Widget _buildAllDiariesButton(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        widget.controller.clearFilters();
+        Navigator.pop(context);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        alignment: Alignment.center,
+        child: Text(
+          '查看全部日记',
+          style: TextStyle(color: DiaryStyle.accentColor(context), fontWeight: FontWeight.w500, fontSize: 15),
+        ),
+      ),
+    );
   }
 }
