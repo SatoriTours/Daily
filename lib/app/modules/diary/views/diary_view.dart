@@ -4,12 +4,12 @@ import 'package:daily_satori/app_exports.dart';
 import 'package:intl/intl.dart';
 
 import '../controllers/diary_controller.dart';
-import 'widgets/diary_input.dart';
 import 'widgets/diary_list.dart';
 import 'widgets/diary_tags_dialog.dart';
 import 'widgets/diary_edit_dialog.dart';
 import 'widgets/diary_search_bar.dart';
 import 'widgets/diary_calendar_dialog.dart';
+import 'widgets/diary_fab.dart';
 
 /// 日记页面
 class DiaryView extends GetView<DiaryController> {
@@ -172,7 +172,12 @@ class DiaryView extends GetView<DiaryController> {
             );
           }),
 
-          Positioned(left: 0, right: 0, bottom: 0, child: DiaryInput(controller: controller)),
+          // 添加悬浮按钮到右下角，使用SafeArea确保位置适当
+          Positioned(
+            right: 24,
+            bottom: 16,
+            child: SafeArea(bottom: true, right: true, child: DiaryFab(controller: controller)),
+          ),
         ],
       ),
     );

@@ -27,22 +27,19 @@ class DiaryList extends StatelessWidget {
       final sortedDiaries = List<DiaryModel>.from(controller.diaries)
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 80), // 为底部输入框留出空间
-        child: ListView.builder(
-          controller: controller.scrollController,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          itemCount: sortedDiaries.length,
-          itemBuilder: (context, index) {
-            final diary = sortedDiaries[index];
+      return ListView.builder(
+        controller: controller.scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        itemCount: sortedDiaries.length,
+        itemBuilder: (context, index) {
+          final diary = sortedDiaries[index];
 
-            return DiaryCard(
-              diary: diary,
-              onDelete: () => controller.deleteDiary(diary.id),
-              onEdit: () => onEditDiary(diary),
-            );
-          },
-        ),
+          return DiaryCard(
+            diary: diary,
+            onDelete: () => controller.deleteDiary(diary.id),
+            onEdit: () => onEditDiary(diary),
+          );
+        },
       );
     });
   }
