@@ -109,8 +109,11 @@ class DiaryView extends GetView<DiaryController> {
 
           // 搜索栏
           Obx(() {
+            // 使用isSearchVisible来控制搜索栏的显示，而不是依赖于文本内容
             final bool shouldShowSearchBar =
-                controller.searchController.text.isNotEmpty || controller.searchQuery.isNotEmpty;
+                controller.isSearchVisible.value ||
+                controller.searchController.text.isNotEmpty ||
+                controller.searchQuery.isNotEmpty;
 
             return Visibility(
               visible: shouldShowSearchBar,

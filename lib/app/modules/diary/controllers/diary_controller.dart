@@ -11,6 +11,7 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
   final selectedDate = DateTime.now().obs;
   final searchQuery = ''.obs;
   final currentTag = ''.obs;
+  final isSearchVisible = false.obs;
 
   /// 日记数据
   final diaries = <DiaryModel>[].obs;
@@ -20,6 +21,7 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
   final searchController = TextEditingController();
   final contentController = TextEditingController();
   final tagsController = TextEditingController(); // 添加标签控制器
+  final searchFocusNode = FocusNode(); // 添加搜索焦点节点
 
   // 日记标签列表
   final tags = <String>[].obs;
@@ -40,6 +42,7 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
     searchController.dispose();
     contentController.dispose();
     tagsController.dispose();
+    searchFocusNode.dispose(); // 释放焦点节点
     super.onClose();
   }
 
@@ -148,24 +151,26 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
     currentTag.value = '';
     searchQuery.value = '';
     searchController.clear();
+    isSearchVisible.value = false;
     _loadDiaries();
   }
 
   /// 启用/禁用搜索
   void enableSearch(bool enable) {
-    // 判断当前是否在搜索模式下（已有搜索内容或正在输入）
-    final bool isSearchMode = searchQuery.isNotEmpty || searchController.text.isNotEmpty;
+    // 设置搜索栏的可见状态
+    isSearchVisible.value = enable;
 
-    if (isSearchMode) {
-      // 如果是搜索模式且要关闭搜索，则清除搜索结果
-      if (!enable) {
-        clearFilters();
-      }
+    if (enable) {
+      // 如果要开启搜索，清空文本并准备接收输入
+      searchController.clear();
+      // 延迟一下再激活焦点，确保UI已经构建完成
+      Future.delayed(const Duration(milliseconds: 100), () {
+        searchFocusNode.requestFocus();
+      });
     } else {
-      // 如果不是搜索模式且要开启搜索，则准备搜索状态
-      if (enable) {
-        searchController.clear();
-        // 不立即设置searchQuery，等待用户输入并提交
+      // 如果是关闭搜索，并且当前有搜索结果，则清除
+      if (searchQuery.isNotEmpty || searchController.text.isNotEmpty) {
+        clearFilters();
       }
     }
   }

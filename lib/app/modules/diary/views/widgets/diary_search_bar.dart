@@ -14,6 +14,15 @@ class DiarySearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 当搜索栏出现时自动聚焦
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 使用控制器中的焦点节点
+      FocusScope.of(context).requestFocus(controller.searchFocusNode);
+      controller.searchController.selection = TextSelection.fromPosition(
+        TextPosition(offset: controller.searchController.text.length),
+      );
+    });
+
     return Container(
       height: 56,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -31,6 +40,7 @@ class DiarySearchBar extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller.searchController,
+              focusNode: controller.searchFocusNode, // 使用控制器中的焦点节点
               decoration: InputDecoration(
                 hintText: '搜索日记...',
                 hintStyle: TextStyle(color: DiaryStyle.secondaryTextColor(context)),
@@ -42,6 +52,9 @@ class DiarySearchBar extends StatelessWidget {
               textInputAction: TextInputAction.search,
               onSubmitted: (value) {
                 controller.search(value);
+                if (value.trim().isEmpty) {
+                  onClose();
+                }
               },
             ),
           ),
@@ -49,6 +62,9 @@ class DiarySearchBar extends StatelessWidget {
             icon: Icon(FeatherIcons.search, color: DiaryStyle.primaryTextColor(context), size: 20),
             onPressed: () {
               controller.search(controller.searchController.text);
+              if (controller.searchController.text.trim().isEmpty) {
+                onClose();
+              }
             },
             splashRadius: 20,
           ),
@@ -58,6 +74,7 @@ class DiarySearchBar extends StatelessWidget {
               onPressed: () {
                 controller.searchController.clear();
                 controller.clearFilters();
+                onClose();
               },
               splashRadius: 20,
             ),
