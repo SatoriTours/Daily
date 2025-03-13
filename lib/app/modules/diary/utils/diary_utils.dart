@@ -103,31 +103,31 @@ class DiaryUtils {
 
     return MarkdownStyleSheet(
       // 段落样式优化
-      p: TextStyle(color: DiaryStyle.primaryTextColor(context), fontSize: 13.0, height: 1.4, letterSpacing: 0.2),
+      p: TextStyle(color: DiaryStyle.primaryTextColor(context), fontSize: 15.0, height: 1.4, letterSpacing: 0.2),
 
       // 标题样式优化
       h1: TextStyle(
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: FontWeight.w700,
         color: DiaryStyle.primaryTextColor(context),
         height: 1.3,
         letterSpacing: 0.2,
       ),
       h2: TextStyle(
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: FontWeight.w600,
         color: DiaryStyle.primaryTextColor(context),
         height: 1.3,
         letterSpacing: 0.1,
       ),
       h3: TextStyle(
-        fontSize: 15,
+        fontSize: 17,
         fontWeight: FontWeight.w600,
         color: DiaryStyle.primaryTextColor(context),
         height: 1.3,
       ),
       h4: TextStyle(
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: FontWeight.w600,
         color: DiaryStyle.primaryTextColor(context),
         height: 1.3,
@@ -137,7 +137,7 @@ class DiaryUtils {
       blockquote: TextStyle(
         color: DiaryStyle.secondaryTextColor(context),
         fontStyle: FontStyle.italic,
-        fontSize: 13.0,
+        fontSize: 15.0,
         height: 1.4,
       ),
       blockquoteDecoration: BoxDecoration(
@@ -150,7 +150,7 @@ class DiaryUtils {
         color: isDarkMode ? Colors.greenAccent[200] : Colors.green[800],
         backgroundColor: isDarkMode ? Colors.grey[850] : DiaryStyle.inputBackgroundColor(context),
         fontFamily: 'monospace',
-        fontSize: 12.0,
+        fontSize: 14.0,
       ),
       codeblockDecoration: BoxDecoration(
         color: isDarkMode ? Colors.grey[850] : DiaryStyle.inputBackgroundColor(context),
@@ -165,14 +165,14 @@ class DiaryUtils {
       // 链接样式优化
       a: TextStyle(
         color: DiaryStyle.accentColor(context),
-        fontSize: 13.0,
+        fontSize: 15.0,
         decoration: TextDecoration.underline,
         decorationColor: DiaryStyle.accentColor(context).withAlpha(102),
       ),
 
       // 强调样式优化
-      em: TextStyle(fontStyle: FontStyle.italic, color: DiaryStyle.primaryTextColor(context), fontSize: 13.0),
-      strong: TextStyle(fontWeight: FontWeight.w700, color: DiaryStyle.primaryTextColor(context), fontSize: 13.0),
+      em: TextStyle(fontStyle: FontStyle.italic, color: DiaryStyle.primaryTextColor(context), fontSize: 15.0),
+      strong: TextStyle(fontWeight: FontWeight.w700, color: DiaryStyle.primaryTextColor(context), fontSize: 15.0),
 
       // 段间距优化
       blockSpacing: 12.0,

@@ -27,9 +27,9 @@ class _DiaryCardState extends State<DiaryCard> {
   // 内容是否已展开
   bool _isExpanded = false;
   // 折叠时显示的最大字符数
-  static const int _maxCollapsedLength = 150;
+  static const int _maxCollapsedLength = 300;
   // 展开内容的最小长度，低于此长度不显示展开按钮
-  static const int _minExpandableLength = 200;
+  static const int _minExpandableLength = 400;
   // 是否需要展开按钮
   late bool _needsExpand;
   // 用于显示的内容
