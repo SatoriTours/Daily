@@ -123,25 +123,33 @@ class DiaryView extends GetView<DiaryController> {
 
   /// 构建AppBar
   PreferredSizeWidget _buildAppBar(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return AppBar(
-      backgroundColor: DiaryStyle.cardColor(context),
+      backgroundColor: isDark ? Color(0xFF121212) : Color(0xFF5E8BFF),
       elevation: 0.5,
       leading: IconButton(
-        icon: Icon(FeatherIcons.calendar, color: DiaryStyle.secondaryTextColor(context), size: 20),
+        icon: Icon(FeatherIcons.calendar, color: Colors.white, size: 20),
         onPressed: () => _showCalendarDialog(context),
       ),
-      title: Text('我的日记', style: TextStyle(fontSize: 18, color: DiaryStyle.primaryTextColor(context))),
+      title: GestureDetector(
+        onDoubleTap: _scrollToTop,
+        child: Text('我的日记', style: TextStyle(fontSize: 18, color: Colors.white)),
+      ),
       actions: [
+        IconButton(icon: Icon(FeatherIcons.search, color: Colors.white, size: 20), onPressed: () => _activateSearch()),
         IconButton(
-          icon: Icon(FeatherIcons.search, color: DiaryStyle.secondaryTextColor(context), size: 20),
-          onPressed: () => _activateSearch(),
-        ),
-        IconButton(
-          icon: Icon(FeatherIcons.tag, color: DiaryStyle.secondaryTextColor(context), size: 20),
+          icon: Icon(FeatherIcons.tag, color: Colors.white, size: 20),
           onPressed: () => _showTagsDialog(context),
         ),
       ],
     );
+  }
+
+  /// 滚动到顶部
+  void _scrollToTop() {
+    if (controller.scrollController.hasClients) {
+      controller.scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    }
   }
 
   /// 激活搜索

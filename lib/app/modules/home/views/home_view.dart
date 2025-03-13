@@ -13,21 +13,18 @@ class HomeView extends GetView<HomeController> {
 
   @override
   Widget build(BuildContext context) {
+    // 确保所有页面的依赖都被初始化
+    ArticlesBinding().dependencies();
+    DiaryBinding().dependencies();
+    SettingsBinding().dependencies();
+
     return Scaffold(
       body: Obx(() {
-        switch (controller.currentIndex.value) {
-          case 0:
-            ArticlesBinding().dependencies();
-            return const ArticlesView();
-          case 1:
-            DiaryBinding().dependencies();
-            return const DiaryView();
-          case 2:
-            SettingsBinding().dependencies();
-            return const SettingsView();
-          default:
-            return const SizedBox.shrink();
-        }
+        // 使用IndexedStack替代直接切换，保持所有页面的状态
+        return IndexedStack(
+          index: controller.currentIndex.value,
+          children: const [ArticlesView(), DiaryView(), SettingsView()],
+        );
       }),
       bottomNavigationBar: Obx(() {
         return BottomNavigationBar(

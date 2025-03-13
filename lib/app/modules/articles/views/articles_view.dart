@@ -11,7 +11,7 @@ import 'package:daily_satori/app/services/web_service/web_service.dart';
 import 'widgets/articles_search_bar.dart';
 import 'widgets/articles_tags_dialog.dart';
 
-/// 文章列表页面
+/// 文章列表页面 - 保持状态
 class ArticlesView extends GetView<ArticlesController> {
   const ArticlesView({super.key});
 
@@ -22,6 +22,13 @@ class ArticlesView extends GetView<ArticlesController> {
       appBar: _buildAppBar(context),
       body: Stack(children: [_buildMainContent(context), _buildSearchBar()]),
     );
+  }
+
+  /// 滚动到顶部
+  void _scrollToTop() {
+    if (controller.scrollController.hasClients) {
+      controller.scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+    }
   }
 
   /// 构建主要内容区域
@@ -146,7 +153,10 @@ class ArticlesView extends GetView<ArticlesController> {
     return AppBar(
       backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFF5E8BFF),
       elevation: 0.5,
-      title: Obx(() => Text(controller.getTitle(), style: const TextStyle(fontSize: 18, color: Colors.white))),
+      title: GestureDetector(
+        onDoubleTap: _scrollToTop,
+        child: Obx(() => Text(controller.getTitle(), style: const TextStyle(fontSize: 18, color: Colors.white))),
+      ),
       centerTitle: true,
       leading: Center(child: _buildConnectionIndicator()),
       actions: [
