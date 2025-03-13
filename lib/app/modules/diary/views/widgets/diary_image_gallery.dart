@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart';
+import 'package:get/get.dart';
 import 'dart:io';
 
 /// 日记图片画廊组件
@@ -27,7 +30,7 @@ class DiaryImageGallery extends StatelessWidget {
             return _buildPlaceholder(context);
           }
 
-          return _buildImageItem(context, imagePath, file);
+          return _buildImageItem(context, imagePath, file, index, images);
         },
       ),
     );
@@ -50,9 +53,9 @@ class DiaryImageGallery extends StatelessWidget {
   }
 
   /// 构建单个图片项
-  Widget _buildImageItem(BuildContext context, String imagePath, File file) {
+  Widget _buildImageItem(BuildContext context, String imagePath, File file, int index, List<String> allImages) {
     return GestureDetector(
-      onTap: () => _showFullImage(context, imagePath),
+      onTap: () => _showFullScreenGallery(context, allImages, index),
       child: Container(
         width: 100,
         height: 100,
@@ -65,37 +68,53 @@ class DiaryImageGallery extends StatelessWidget {
     );
   }
 
-  /// 显示全屏图片
-  void _showFullImage(BuildContext context, String imagePath) {
-    final file = File(imagePath);
-    if (!file.existsSync()) return;
+  /// 显示全屏图片画廊
+  void _showFullScreenGallery(BuildContext context, List<String> images, int initialIndex) {
+    Get.dialog(
+      Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.black.withAlpha(179),
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          actions: [IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Get.back())],
+        ),
+        backgroundColor: Colors.black,
+        body: PhotoViewGallery.builder(
+          scrollDirection: Axis.horizontal,
+          pageController: PageController(initialPage: initialIndex),
+          itemCount: images.length,
+          builder: (BuildContext context, int index) {
+            final imagePath = images[index];
+            final file = File(imagePath);
 
-    showDialog(
-      context: context,
-      builder:
-          (context) => Dialog(
-            insetPadding: EdgeInsets.zero,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // 图片
-                InteractiveViewer(minScale: 0.5, maxScale: 3.0, child: Image.file(file, fit: BoxFit.contain)),
-                // 关闭按钮
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: Colors.black.withAlpha(128), shape: BoxShape.circle),
-                      child: const Icon(Icons.close, color: Colors.white, size: 20),
-                    ),
-                  ),
+            if (!file.existsSync()) {
+              return PhotoViewGalleryPageOptions.customChild(
+                child: Center(child: Icon(FeatherIcons.image, color: Colors.white70, size: 48)),
+              );
+            }
+
+            return PhotoViewGalleryPageOptions(
+              imageProvider: FileImage(file),
+              initialScale: PhotoViewComputedScale.contained,
+              minScale: PhotoViewComputedScale.contained,
+              maxScale: PhotoViewComputedScale.covered * 5.0,
+              heroAttributes: PhotoViewHeroAttributes(tag: imagePath),
+              errorBuilder: (context, error, stackTrace) {
+                return Center(child: Icon(FeatherIcons.alertCircle, color: Colors.white70, size: 48));
+              },
+            );
+          },
+          loadingBuilder:
+              (context, event) => Center(
+                child: CircularProgressIndicator(
+                  value: event == null ? 0 : event.cumulativeBytesLoaded / (event.expectedTotalBytes ?? 1),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white70),
                 ),
-              ],
-            ),
-          ),
+              ),
+          backgroundDecoration: const BoxDecoration(color: Colors.black),
+        ),
+      ),
+      barrierDismissible: true,
     );
   }
 }
