@@ -6,6 +6,7 @@ import 'package:daily_satori/app/modules/articles/controllers/articles_controlle
 import 'package:daily_satori/app/components/lists/articles_list.dart';
 import 'package:daily_satori/app/components/empty_states/articles_empty_view.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/services/web_service/web_service.dart';
 
 import 'widgets/articles_search_bar.dart';
 import 'widgets/articles_tags_dialog.dart';
@@ -130,6 +131,14 @@ class ArticlesView extends GetView<ArticlesController> {
     });
   }
 
+  /// 构建WebSocket连接状态指示器
+  Widget _buildConnectionIndicator() {
+    return Obx(() {
+      final isConnected = WebService.i.webSocketTunnel.isConnected.value;
+      return isConnected ? const Icon(Icons.circle, color: Colors.green, size: 20) : const SizedBox.shrink();
+    });
+  }
+
   /// 构建AppBar
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     final isDark = AppTheme.isDarkMode(context);
@@ -139,7 +148,7 @@ class ArticlesView extends GetView<ArticlesController> {
       elevation: 0.5,
       title: Obx(() => Text(controller.getTitle(), style: const TextStyle(fontSize: 18, color: Colors.white))),
       centerTitle: true,
-      leading: IconButton(icon: const Icon(Icons.menu, color: Colors.white), onPressed: () => Get.toNamed('/left_bar')),
+      leading: Center(child: _buildConnectionIndicator()),
       actions: [
         IconButton(
           icon: const Icon(FeatherIcons.search, color: Colors.white, size: 20),
