@@ -15,6 +15,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
   /// UI控制器
   final scrollController = ScrollController();
   final searchController = TextEditingController();
+  final searchFocusNode = FocusNode();
 
   /// 分页大小
   final int _pageSize = 20;
@@ -36,6 +37,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
   void onClose() {
     scrollController.dispose();
     searchController.dispose();
+    searchFocusNode.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.onClose();
   }
@@ -96,6 +98,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     tagId.value = -1;
     tagName.value = '';
     onlyFavorite.value = false;
+    searchController.clear();
     reloadArticles();
   }
 
@@ -176,7 +179,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
 
   /// 获取过滤后的文章列表
   List<ArticleModel> _fetchArticles([int? referenceId, bool? isGreaterThan]) {
-    String? keyword = enableSearch.value ? searchController.text.trim() : null;
+    String? keyword = searchController.text.trim().isNotEmpty ? searchController.text.trim() : null;
     bool? favorite = onlyFavorite.value ? true : null;
     List<int>? tagIds = tagId.value > 0 ? [tagId.value] : null;
 
