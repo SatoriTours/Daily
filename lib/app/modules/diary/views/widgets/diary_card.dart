@@ -182,7 +182,12 @@ class _DiaryCardState extends State<DiaryCard> {
                 ),
               );
             },
-            onTapLink: (text, href, title) {},
+            onTapLink: (text, href, title) {
+              // 实现点击超链接打开浏览器
+              if (href != null) {
+                DiaryUtils.launchURL(href);
+              }
+            },
             bulletBuilder: (index, style) {
               // 自定义项目符号样式
               return Padding(
@@ -199,7 +204,7 @@ class _DiaryCardState extends State<DiaryCard> {
           if (_needsExpand)
             Container(
               width: double.infinity,
-              margin: const EdgeInsets.only(top: 4.0),
+              margin: const EdgeInsets.only(top: 16.0), // 增加与文章内容的间距
               padding: const EdgeInsets.symmetric(vertical: 6.0),
               decoration: BoxDecoration(
                 color: DiaryStyle.accentColor(context).withAlpha(20),

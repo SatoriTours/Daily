@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 
 /// 日记模块的工具类
 class DiaryUtils {
@@ -211,6 +213,20 @@ class DiaryUtils {
       return '昨天';
     } else {
       return DateFormat('yyyy年MM月dd日').format(date);
+    }
+  }
+
+  /// 打开URL链接
+  static Future<void> launchURL(String url) async {
+    try {
+      final Uri uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        logger.e('无法打开链接: $url');
+      }
+    } catch (e) {
+      logger.e('打开链接出错: $e');
     }
   }
 }
