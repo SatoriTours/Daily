@@ -104,11 +104,6 @@ class ShareDialogController extends GetxController {
     }
 
     try {
-      showLoading();
-
-      // 显示保存中提示
-      _showSavingDialog();
-
       // 调用网页解析服务保存网页基本信息
       final articleModel = await WebpageParserService.i.saveWebpage(
         url: shareURL.value,
@@ -119,69 +114,12 @@ class ShareDialogController extends GetxController {
 
       // 通知文章列表更新
       Get.find<ArticlesController>().updateArticle(articleModel.id);
-
-      // 完成处理
-      _completeProcess();
-
-      // 显示成功消息
-      _showSuccessMessage();
     } catch (e, stackTrace) {
       logger.e("保存网页失败: $e\n堆栈信息: $stackTrace");
       _showMessage("保存失败: $e");
     } finally {
-      hideLoading();
+      _completeProcess();
     }
-  }
-
-  /// 显示保存对话框
-  void _showSavingDialog() {
-    final theme = Get.theme;
-    final isDark = theme.brightness == Brightness.dark;
-
-    Get.defaultDialog(
-      title: "保存中",
-      titleStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
-      radius: 10,
-      backgroundColor: isDark ? theme.colorScheme.surface : Colors.white,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            child: Text(
-              getShortUrl(shareURL.value),
-              style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 16),
-          CircularProgressIndicator(
-            strokeWidth: 3,
-            valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
-          ),
-        ],
-      ),
-      barrierDismissible: false,
-    );
-  }
-
-  /// 显示成功消息
-  void _showSuccessMessage() {
-    final theme = Get.theme;
-
-    Get.snackbar(
-      "已保存",
-      "正在后台处理内容",
-      snackPosition: SnackPosition.bottom,
-      backgroundColor: theme.colorScheme.primaryContainer.withOpacity(0.9),
-      colorText: theme.colorScheme.onPrimaryContainer,
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      borderRadius: 8,
-      icon: Icon(Icons.check_circle_outline_rounded, color: theme.colorScheme.primary, size: 22),
-      duration: const Duration(seconds: 2),
-      animationDuration: const Duration(milliseconds: 300),
-    );
   }
 
   /// 获取短URL显示

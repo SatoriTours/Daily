@@ -42,53 +42,52 @@ class ArticleCard extends StatelessWidget {
   Widget _buildArticleContent(BuildContext context) {
     final hasImage = articleModel.hasHeaderImage();
     final imagePath = articleModel.getHeaderImagePath();
+    final isProcessing = articleModel.entity.status != 'completed' && articleModel.entity.status != '';
+    final hasTitle =
+        (articleModel.aiTitle != null && articleModel.aiTitle!.isNotEmpty) ||
+        (articleModel.title != null && articleModel.title!.isNotEmpty);
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
       children: [
-        if (hasImage) _buildImage(context, imagePath),
-        if (hasImage) const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildTitle(context),
-              if (articleModel.entity.status != 'completed' && articleModel.entity.status != '')
-                _buildProcessingInfo(context),
-            ],
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (hasImage) _buildImage(context, imagePath),
+            if (hasImage) const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [if (hasTitle || !isProcessing) _buildTitle(context) else _buildUrlAsTitle(context)],
+              ),
+            ),
+          ],
         ),
+        if (isProcessing)
+          Positioned(
+            top: 0,
+            right: 0,
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.getColorScheme(context).primary),
+              ),
+            ),
+          ),
       ],
     );
   }
 
-  Widget _buildProcessingInfo(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
+  Widget _buildUrlAsTitle(BuildContext context) {
     final textTheme = AppTheme.getTextTheme(context);
+    final colorScheme = AppTheme.getColorScheme(context);
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              articleModel.url ?? '',
-              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
+    return Text(
+      articleModel.url ?? '',
+      style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
     );
   }
 

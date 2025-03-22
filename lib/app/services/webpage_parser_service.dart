@@ -26,11 +26,8 @@ class WebpageParserService {
   // 文章处理队列
   final Queue<int> _processingQueue = Queue<int>();
 
-  // 当前正在处理的文章ID集合
-  final Set<int> _processingArticles = <int>{};
-
-  // 最大并发处理数量
-  static const int _maxConcurrent = 5;
+  // 当前正在处理的文章ID
+  int? _currentProcessingArticle;
 
   // 定时器
   Timer? _processingTimer;
@@ -62,11 +59,6 @@ class WebpageParserService {
   }
 
   /// 保存网页内容（只保存URL和基本信息）
-  ///
-  /// [url] 网页URL
-  /// [comment] 用户备注
-  /// [isUpdate] 是否为更新操作
-  /// [articleID] 更新时的文章ID
   Future<ArticleModel> saveWebpage({
     required String url,
     required String comment,
@@ -76,10 +68,8 @@ class WebpageParserService {
     logger.i("[WebpageParserService] 开始保存网页基本信息: $url");
 
     // 检查文章是否已存在
-    if (!isUpdate) {
-      if (await ArticleRepository.isArticleExists(url)) {
-        throw Exception('网页已存在');
-      }
+    if (!isUpdate && await ArticleRepository.isArticleExists(url)) {
+      throw Exception('网页已存在');
     }
 
     if (isUpdate && articleID <= 0) {
@@ -92,7 +82,7 @@ class WebpageParserService {
       comment: comment,
       isUpdate: isUpdate,
       articleID: articleID,
-      status: 'pending', // 标记为待处理状态
+      status: 'pending',
     );
 
     // 将文章ID添加到处理队列
@@ -103,19 +93,21 @@ class WebpageParserService {
 
   /// 将文章ID添加到处理队列
   void _addToProcessingQueue(int articleId) {
-    if (!_processingQueue.contains(articleId) && !_processingArticles.contains(articleId)) {
+    // 检查文章ID是否已在队列中或正在处理
+    if (!_processingQueue.contains(articleId) && _currentProcessingArticle != articleId) {
       _processingQueue.add(articleId);
       logger.i("[WebpageParserService] 已将文章 #$articleId 添加到处理队列");
 
       // 尝试立即处理队列
       _processQueue();
+    } else {
+      logger.d("[WebpageParserService] 文章 #$articleId 已在队列中或正在处理，不重复添加");
     }
   }
 
   /// 检查数据库中待处理的文章
   Future<void> _checkPendingArticles() async {
     try {
-      // 查询数据库中所有标记为'pending'状态的文章
       final pendingArticles = await _findArticlesByStatus('pending');
 
       if (pendingArticles.isEmpty) {
@@ -127,12 +119,11 @@ class WebpageParserService {
 
       // 将待处理文章添加到队列
       for (final article in pendingArticles) {
-        if (!_processingQueue.contains(article.id) && !_processingArticles.contains(article.id)) {
+        if (!_processingQueue.contains(article.id) && _currentProcessingArticle != article.id) {
           _processingQueue.add(article.id);
         }
       }
 
-      // 处理队列
       _processQueue();
     } catch (e) {
       logger.e("[WebpageParserService] 检查待处理文章失败: $e");
@@ -142,9 +133,7 @@ class WebpageParserService {
   /// 通过状态查找文章
   Future<List<Article>> _findArticlesByStatus(String status) async {
     try {
-      // 使用仓库方法查询指定状态的文章
       final List<ArticleModel> articles = ArticleRepository.findByStatus(status);
-      // 转换为Article实体列表
       return articles.map((model) => model.entity).toList();
     } catch (e, stackTrace) {
       logger.e("[WebpageParserService] 查找$status状态文章失败: $e\n$stackTrace");
@@ -154,54 +143,43 @@ class WebpageParserService {
 
   /// 处理队列
   Future<void> _processQueue() async {
-    // 如果队列为空，直接返回
-    if (_processingQueue.isEmpty) return;
+    // 如果队列为空或当前有文章正在处理，直接返回
+    if (_processingQueue.isEmpty || _currentProcessingArticle != null) return;
 
-    // 如果当前处理的文章数量已达到最大并发数，直接返回
-    if (_processingArticles.length >= _maxConcurrent) return;
+    // 从队列中取出一篇文章进行处理
+    final articleId = _processingQueue.removeFirst();
+    _currentProcessingArticle = articleId;
 
-    // 计算可以新增处理的文章数量
-    final availableSlots = _maxConcurrent - _processingArticles.length;
-
-    // 从队列中取出文章ID进行处理
-    for (int i = 0; i < availableSlots && _processingQueue.isNotEmpty; i++) {
-      final articleId = _processingQueue.removeFirst();
-
-      // 标记为正在处理
-      _processingArticles.add(articleId);
-
-      // 获取文章实例
-      final article = ArticleRepository.find(articleId);
-      if (article == null) {
-        logger.e("[WebpageParserService] 无法找到文章 #$articleId");
-        _processingArticles.remove(articleId);
-        continue;
-      }
-
-      // 异步处理文章
-      _processWebpageAsync(article)
-          .then((_) {
-            // 处理完成后从正在处理集合中移除
-            _processingArticles.remove(articleId);
-
-            // 继续处理队列
-            _processQueue();
-          })
-          .catchError((e) {
-            logger.e("[WebpageParserService] 处理文章 #$articleId 失败: $e");
-            _processingArticles.remove(articleId);
-
-            // 继续处理队列
-            _processQueue();
-          });
+    // 获取文章实例
+    final article = ArticleRepository.find(articleId);
+    if (article == null) {
+      logger.e("[WebpageParserService] 无法找到文章 #$articleId");
+      _finishProcessing();
+      return;
     }
 
-    logger.i("[WebpageParserService] 当前正在处理 ${_processingArticles.length} 篇文章，队列中有 ${_processingQueue.length} 篇文章待处理");
+    // 异步处理文章
+    try {
+      await _processWebpageAsync(article);
+    } catch (e) {
+      logger.e("[WebpageParserService] 处理文章 #$articleId 失败: $e");
+    } finally {
+      _finishProcessing();
+    }
+
+    logger.i("[WebpageParserService] 当前正在处理文章 #$articleId，队列中还有 ${_processingQueue.length} 篇文章待处理");
+  }
+
+  /// 完成当前文章处理，继续处理队列
+  void _finishProcessing() {
+    _currentProcessingArticle = null;
+    _processQueue();
   }
 
   /// 异步处理网页内容
   Future<void> _processWebpageAsync(ArticleModel articleModel) async {
-    logger.i("[WebpageParserService] 开始处理文章 #${articleModel.id}: ${articleModel.url}");
+    final articleId = articleModel.id;
+    logger.i("[WebpageParserService] 开始处理文章 #$articleId: ${articleModel.url}");
 
     try {
       // 更新文章状态为处理中
@@ -211,55 +189,77 @@ class WebpageParserService {
       final webpageData = await _fetchWebpageContent(articleModel.url);
 
       // 并行处理各项任务
-      final titleFuture = _processAiTitle(webpageData.title);
-      final contentFuture = _processAiContent(webpageData.textContent);
-      final imagesFuture = _processImages(webpageData.imageUrls);
+      final results = await Future.wait([
+        _processAiTitle(webpageData.title),
+        _processAiContent(webpageData.textContent),
+        _processImages(webpageData.imageUrls),
+      ]);
 
-      final aiTitle = await titleFuture;
-      final aiContentResult = await contentFuture;
-      final images = await imagesFuture;
+      final aiTitle = results[0] as String;
+      final aiContentResult = results[1] as (String, List<String>);
+      final images = results[2] as List<ImageDownloadResult>;
 
       // 更新文章数据
-      articleModel.title = webpageData.title;
-      articleModel.aiTitle = aiTitle;
-      articleModel.content = webpageData.textContent;
-      articleModel.aiContent = aiContentResult.$1;
-      articleModel.htmlContent = webpageData.htmlContent;
-      _updateArticleStatus(articleModel, 'completed'); // 标记为处理完成
-      articleModel.updatedAt = DateTime.now().toUtc();
+      await _updateArticleWithProcessedData(
+        articleModel: articleModel,
+        webpageData: webpageData,
+        aiTitle: aiTitle,
+        aiContent: aiContentResult.$1,
+        tags: aiContentResult.$2,
+        images: images,
+      );
 
-      // 保存到数据库
-      await ArticleRepository.update(articleModel);
-
-      // 保存关联数据
-      await _saveTags(articleModel, aiContentResult.$2);
-      await _saveImages(articleModel, images);
-      await _saveScreenshots(articleModel, webpageData.screenshots);
-
-      // 保存到数据库，确保图片，截图，标签关联到文章
-      await ArticleRepository.update(articleModel);
-
-      logger.i("[WebpageParserService] 文章 #${articleModel.id} 处理完成");
+      logger.i("[WebpageParserService] 文章 #$articleId 处理完成");
 
       // 更新文章列表
-      Get.find<ArticlesController>().updateArticle(articleModel.id);
+      Get.find<ArticlesController>().updateArticle(articleId);
     } catch (e, stackTrace) {
-      logger.e("[WebpageParserService] 文章 #${articleModel.id} 处理失败: $e");
+      logger.e("[WebpageParserService] 文章 #$articleId 处理失败: $e");
       logger.e(stackTrace);
 
       // 标记处理错误信息
       articleModel.aiContent = "处理失败：$e";
-      _updateArticleStatus(articleModel, 'error'); // 标记为处理失败
+      _updateArticleStatus(articleModel, 'error');
       articleModel.updatedAt = DateTime.now().toUtc();
       await ArticleRepository.update(articleModel);
     }
   }
 
+  /// 更新文章数据
+  Future<void> _updateArticleWithProcessedData({
+    required ArticleModel articleModel,
+    required WebpageData webpageData,
+    required String aiTitle,
+    required String aiContent,
+    required List<String> tags,
+    required List<ImageDownloadResult> images,
+  }) async {
+    // 更新文章基本数据
+    articleModel.title = webpageData.title;
+    articleModel.aiTitle = aiTitle;
+    articleModel.content = webpageData.textContent;
+    articleModel.aiContent = aiContent;
+    articleModel.htmlContent = webpageData.htmlContent;
+    _updateArticleStatus(articleModel, 'completed');
+    articleModel.updatedAt = DateTime.now().toUtc();
+
+    // 保存到数据库
+    await ArticleRepository.update(articleModel);
+
+    // 保存关联数据
+    await Future.wait([
+      _saveTags(articleModel, tags),
+      _saveImages(articleModel, images),
+      _saveScreenshots(articleModel, webpageData.screenshots),
+    ]);
+
+    // 再次保存文章，确保关联数据正确
+    await ArticleRepository.update(articleModel);
+  }
+
   /// 更新文章处理状态
   void _updateArticleStatus(ArticleModel articleModel, String status) {
-    // 直接设置status字段
     articleModel.setStatus(status);
-    // 保存到数据库
     articleModel.save();
   }
 
@@ -284,7 +284,8 @@ class WebpageParserService {
         }
       }
 
-      // 创建一个新的ArticleModel实例
+      // 创建新文章
+      final now = DateTime.now().toUtc();
       final data = {
         'title': '正在加载...',
         'aiTitle': '',
@@ -292,23 +293,20 @@ class WebpageParserService {
         'aiContent': '',
         'htmlContent': '',
         'url': url,
-        'pubDate': DateTime.now().toUtc(),
-        'createdAt': DateTime.now().toUtc(),
-        'updatedAt': DateTime.now().toUtc(),
+        'pubDate': now,
+        'createdAt': now,
+        'updatedAt': now,
         'comment': comment,
-        'status': status, // 直接使用status字段
+        'status': status,
       };
 
-      // 创建文章模型
       final articleModel = ArticleRepository.createArticleModel(data);
-
-      // 保存到数据库
       final id = await ArticleRepository.create(articleModel);
+
       if (id <= 0) {
         throw Exception("创建文章失败，无法获取有效ID");
       }
 
-      // 重新获取保存后的文章，确保有正确的ID
       final savedArticle = ArticleRepository.find(id);
       if (savedArticle == null) {
         throw Exception("无法找到刚刚创建的文章: $id");
@@ -322,7 +320,7 @@ class WebpageParserService {
     }
   }
 
-  /// 无头浏览器模式获取网页内容
+  /// 获取网页内容
   Future<WebpageData> _fetchWebpageContent(String? url) async {
     if (url == null || url.isEmpty) {
       logger.e("[WebpageParserService] URL为空，无法获取内容");
@@ -331,7 +329,6 @@ class WebpageParserService {
 
     logger.i("[WebpageParserService] 开始获取网页内容: $url");
 
-    // 使用新的无头浏览器类
     final headlessWebView = HeadlessWebView();
     final result = await headlessWebView.loadAndParseUrl(url);
 
@@ -390,9 +387,6 @@ class WebpageParserService {
       // 清除原有标签
       articleModel.tags.clear();
 
-      // 删除数据库中原有的标签记录
-      // TagRepository.deleteByArticleId(articleModel.id);
-
       // 添加新标签
       for (var tagName in tagNames) {
         await TagRepository.addTagToArticle(articleModel, tagName);
@@ -410,22 +404,16 @@ class WebpageParserService {
       logger.i("[WebpageParserService] 开始保存图片: ${results.length}");
 
       // 清除原有图片
-      // 清除数据库中原有的图片记录
       articleModel.images.clear();
-
-      // 删除数据库中原有的图片记录
-      // ImageRepository.deleteByArticleId(articleModel.id);
 
       // 添加新图片
       for (var result in results) {
         try {
-          // 创建图片模型并保存
           final imageData = {'url': result.imageUrl, 'path': result.imagePath, 'articleId': articleModel.id};
           final imageModel = ImageRepository.createWithData(imageData, articleModel);
           await ImageRepository.create(imageModel);
         } catch (e) {
           logger.e("[WebpageParserService] 保存单个图片失败: $e");
-          continue;
         }
       }
 
@@ -443,19 +431,14 @@ class WebpageParserService {
       // 清除原有截图
       articleModel.screenshots.clear();
 
-      // 删除数据库中原有的截图记录
-      // ScreenshotRepository.deleteByArticleId(articleModel.id);
-
       // 添加新截图
       for (var path in screenshotPaths) {
         try {
-          // 创建截图模型并保存
           final screenshotData = {'path': path, 'articleId': articleModel.id};
           final screenshotModel = ScreenshotRepository.createWithData(screenshotData, articleModel);
           await ScreenshotRepository.create(screenshotModel);
         } catch (e) {
           logger.e("[WebpageParserService] 保存单个截图失败: $e");
-          continue;
         }
       }
 
