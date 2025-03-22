@@ -30,22 +30,21 @@ Future<void> _initializeWebPage(InAppWebViewController controller) async {
 }
 
 Future<({int totalHeight, int screenHeight, int totalPages})> _getPageDimensions(
-    InAppWebViewController controller) async {
+  InAppWebViewController controller,
+) async {
   final height = (await controller.evaluateJavascript(source: "document.documentElement.scrollHeight")) as int;
   final screenHeight = (await controller.evaluateJavascript(source: "window.innerHeight")) as int;
 
   final totalPages = (height / screenHeight).ceil();
   logger.d("总页数: $totalPages");
 
-  return (
-    totalHeight: height,
-    screenHeight: screenHeight,
-    totalPages: totalPages,
-  );
+  return (totalHeight: height, screenHeight: screenHeight, totalPages: totalPages);
 }
 
 Future<List<ui.Image>> _captureScreenshots(
-    InAppWebViewController controller, ({int totalHeight, int screenHeight, int totalPages}) pageInfo) async {
+  InAppWebViewController controller,
+  ({int totalHeight, int screenHeight, int totalPages}) pageInfo,
+) async {
   List<ui.Image> screenshots = [];
 
   for (var i = 0; i < pageInfo.totalPages; i++) {
@@ -56,12 +55,7 @@ Future<List<ui.Image>> _captureScreenshots(
     final screenshot = await _captureScreenshot(controller);
 
     if (screenshot != null) {
-      final processedImage = await _processScreenshot(
-        screenshot,
-        i,
-        pageInfo.screenHeight,
-        pageInfo.totalHeight,
-      );
+      final processedImage = await _processScreenshot(screenshot, i, pageInfo.screenHeight, pageInfo.totalHeight);
       screenshots.add(processedImage);
     }
   }

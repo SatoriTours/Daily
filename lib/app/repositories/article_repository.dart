@@ -27,14 +27,14 @@ class ArticleRepository {
 
   /// 根据状态查找文章
   static List<ArticleModel> findByStatus(String status) {
-    // 获取所有文章
-    final allArticles = getAll();
-
-    // 过滤出符合指定状态的文章
-    return allArticles.where((article) {
-      final articleStatus = article.getExtraData('status');
-      return articleStatus == status;
-    }).toList();
+    // 使用数据库查询语句直接获取指定状态的文章
+    final query = _box.query(Article_.status.equals(status)).build();
+    try {
+      final articles = query.find();
+      return articles.map((article) => ArticleModel(article)).toList();
+    } finally {
+      query.close();
+    }
   }
 
   /// 根据ID查找文章
@@ -67,6 +67,7 @@ class ArticleRepository {
       createdAt: data['createdAt'] ?? DateTime.now().toUtc(),
       updatedAt: data['updatedAt'] ?? DateTime.now().toUtc(),
       comment: data['comment'],
+      status: data['status'] ?? 'pending',
     );
 
     return ArticleModel(article);

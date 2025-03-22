@@ -27,7 +27,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
       id: const obx_int.IdUid(1, 4903589311666536386),
       name: 'Article',
-      lastPropertyId: const obx_int.IdUid(12, 7680535396124443137),
+      lastPropertyId: const obx_int.IdUid(13, 7461987700932446700),
       flags: 0,
       properties: <obx_int.ModelProperty>[
         obx_int.ModelProperty(
@@ -90,6 +90,11 @@ final _entities = <obx_int.ModelEntity>[
             id: const obx_int.IdUid(12, 7680535396124443137),
             name: 'createdAt',
             type: 10,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(13, 7461987700932446700),
+            name: 'status',
+            type: 9,
             flags: 0)
       ],
       relations: <obx_int.ModelRelation>[
@@ -344,7 +349,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
               object.url == null ? null : fbb.writeString(object.url!);
           final commentOffset =
               object.comment == null ? null : fbb.writeString(object.comment!);
-          fbb.startTable(13);
+          final statusOffset = fbb.writeString(object.status);
+          fbb.startTable(14);
           fbb.addInt64(0, object.id);
           fbb.addOffset(1, titleOffset);
           fbb.addOffset(2, aiTitleOffset);
@@ -357,6 +363,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fbb.addInt64(9, object.pubDate?.millisecondsSinceEpoch);
           fbb.addInt64(10, object.updatedAt?.millisecondsSinceEpoch);
           fbb.addInt64(11, object.createdAt?.millisecondsSinceEpoch);
+          fbb.addOffset(12, statusOffset);
           fbb.finish(fbb.endTable());
           return object.id;
         },
@@ -388,6 +395,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
               const fb.BoolReader().vTableGet(buffer, rootOffset, 18, false);
           final commentParam = const fb.StringReader(asciiOptimization: true)
               .vTableGetNullable(buffer, rootOffset, 20);
+          final statusParam = const fb.StringReader(asciiOptimization: true)
+              .vTableGet(buffer, rootOffset, 28, '');
           final pubDateParam = pubDateValue == null
               ? null
               : DateTime.fromMillisecondsSinceEpoch(pubDateValue);
@@ -407,6 +416,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
               url: urlParam,
               isFavorite: isFavoriteParam,
               comment: commentParam,
+              status: statusParam,
               pubDate: pubDateParam,
               updatedAt: updatedAtParam,
               createdAt: createdAtParam);
@@ -670,6 +680,10 @@ class Article_ {
   /// See [Article.createdAt].
   static final createdAt =
       obx.QueryDateProperty<Article>(_entities[0].properties[11]);
+
+  /// See [Article.status].
+  static final status =
+      obx.QueryStringProperty<Article>(_entities[0].properties[12]);
 
   /// see [Article.tags]
   static final tags =

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:daily_satori/app/components/webview/index.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -13,7 +14,6 @@ import 'package:daily_satori/global.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app/components/dream_webview/dream_webview.dart';
 
 import '../controllers/article_detail_controller.dart';
 
@@ -369,7 +369,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       return _buildEmptyWebViewState(context);
     }
 
-    return DreamWebView(
+    return VisibleWebView(
       url: url,
       onWebViewCreated: (webController) {
         // 可以在这里保存WebView控制器的引用以便后续使用

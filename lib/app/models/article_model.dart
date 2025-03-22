@@ -12,9 +12,6 @@ class ArticleModel {
   /// 底层实体对象
   final Article _entity;
 
-  /// 额外数据缓存
-  Map<String, dynamic>? _extraDataCache;
-
   /// 构造函数
   ArticleModel(this._entity);
 
@@ -65,9 +62,9 @@ class ArticleModel {
   String? get comment => _entity.comment;
   set comment(String? value) => _entity.comment = value;
 
-  /// 额外数据JSON
-  String? get extraData => _entity.extraData;
-  set extraData(String? value) => _entity.extraData = value;
+  /// 处理状态
+  String get status => _entity.status;
+  set status(String value) => _entity.status = value;
 
   /// 发布日期
   DateTime? get pubDate => _entity.pubDate;
@@ -89,38 +86,6 @@ class ArticleModel {
 
   /// 标签列表
   List<Tag> get tags => _entity.tags;
-
-  /// 获取额外数据
-  Map<String, dynamic> getExtraDataMap() {
-    if (_extraDataCache != null) {
-      return _extraDataCache!;
-    }
-
-    if (extraData == null || extraData!.isEmpty) {
-      _extraDataCache = {};
-      return {};
-    }
-
-    try {
-      _extraDataCache = json.decode(extraData!) as Map<String, dynamic>;
-      return _extraDataCache!;
-    } catch (e) {
-      return {};
-    }
-  }
-
-  /// 设置额外数据
-  void setExtraData(String key, dynamic value) {
-    final data = getExtraDataMap();
-    data[key] = value;
-    _extraDataCache = data;
-    extraData = json.encode(data);
-  }
-
-  /// 获取额外数据
-  dynamic getExtraData(String key) {
-    return getExtraDataMap()[key];
-  }
 
   /// 获取主图路径
   String getHeaderImagePath() {
@@ -145,12 +110,12 @@ class ArticleModel {
 
   /// 获取处理状态
   String getStatus() {
-    return getExtraData('status') ?? 'pending';
+    return status;
   }
 
   /// 设置处理状态
-  void setStatus(String status) {
-    setExtraData('status', status);
+  void setStatus(String newStatus) {
+    status = newStatus;
   }
 
   /// 保存模型

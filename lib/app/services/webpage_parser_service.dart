@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
-import 'package:daily_satori/app/components/dream_webview/flutter_inappwebview_screenshot.dart';
+import 'package:daily_satori/app/components/webview/headless_webview.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
@@ -256,10 +255,12 @@ class WebpageParserService {
     }
   }
 
-  /// 更新文章状态
+  /// 更新文章处理状态
   void _updateArticleStatus(ArticleModel articleModel, String status) {
-    // 使用extraData来存储状态信息
-    articleModel.setExtraData('status', status);
+    // 直接设置status字段
+    articleModel.setStatus(status);
+    // 保存到数据库
+    articleModel.save();
   }
 
   /// 创建初始文章模型
@@ -295,7 +296,7 @@ class WebpageParserService {
         'createdAt': DateTime.now().toUtc(),
         'updatedAt': DateTime.now().toUtc(),
         'comment': comment,
-        'extraData': {'status': status}, // 使用extraData存储状态
+        'status': status, // 直接使用status字段
       };
 
       // 创建文章模型
@@ -330,84 +331,19 @@ class WebpageParserService {
 
     logger.i("[WebpageParserService] 开始获取网页内容: $url");
 
-    // 创建无头浏览器
-    final headlessWebView = HeadlessInAppWebView(
-      initialUrlRequest: URLRequest(url: WebUri(url)),
-      initialSettings: InAppWebViewSettings(
-        javaScriptEnabled: true,
-        useShouldInterceptFetchRequest: true,
-        mediaPlaybackRequiresUserGesture: false,
-        allowsInlineMediaPlayback: true,
-        iframeAllow: "camera; microphone",
-        iframeAllowFullscreen: true,
-      ),
-      onConsoleMessage: (controller, consoleMessage) {
-        logger.d("[HeadlessWebView] ${consoleMessage.message}");
-      },
-    );
-
-    String title = '';
-    String excerpt = '';
-    String htmlContent = '';
-    String textContent = '';
-    String publishedTime = '';
-    List<String> imageUrls = [];
-    List<String> screenshots = [];
-
-    try {
-      // 运行无头浏览器
-      await headlessWebView.run();
-
-      // 获取控制器
-      final controller = headlessWebView.webViewController!;
-
-      // 等待页面加载完成
-      await Future.delayed(const Duration(seconds: 3));
-
-      // 注入解析脚本
-      await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/Readability.js");
-      await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/parse_content.js");
-
-      // 执行解析
-      final result = await controller.evaluateJavascript(source: "parseContent()");
-
-      if (result != null) {
-        // 转换为Map<String, dynamic>类型
-        final resultMap = result as Map<dynamic, dynamic>;
-        title = resultMap['title']?.toString() ?? '';
-        excerpt = resultMap['excerpt']?.toString() ?? '';
-        htmlContent = resultMap['htmlContent']?.toString() ?? '';
-        textContent = resultMap['textContent']?.toString() ?? '';
-        publishedTime = resultMap['publishedTime']?.toString() ?? '';
-
-        if (resultMap['imageUrls'] != null && resultMap['imageUrls'] is List) {
-          imageUrls = (resultMap['imageUrls'] as List).map((e) => e.toString()).toList();
-        }
-      }
-
-      // 捕获网页截图
-      screenshots = await _captureScreenshots(controller);
-    } catch (e) {
-      logger.e("[WebpageParserService] 获取网页内容失败: $e");
-    } finally {
-      // 关闭无头浏览器
-      await headlessWebView.dispose();
-    }
+    // 使用新的无头浏览器类
+    final headlessWebView = HeadlessWebView();
+    final result = await headlessWebView.loadAndParseUrl(url);
 
     return WebpageData(
-      title: title,
-      excerpt: excerpt,
-      htmlContent: htmlContent,
-      textContent: textContent,
-      publishedTime: publishedTime,
-      imageUrls: imageUrls,
-      screenshots: screenshots,
+      title: result.title,
+      excerpt: result.excerpt,
+      htmlContent: result.htmlContent,
+      textContent: result.textContent,
+      publishedTime: result.publishedTime,
+      imageUrls: result.imageUrls,
+      screenshots: result.screenshots,
     );
-  }
-
-  /// 捕获网页截图
-  Future<List<String>> _captureScreenshots(InAppWebViewController controller) async {
-    return await captureFullPageScreenshot(controller);
   }
 
   /// 处理AI标题

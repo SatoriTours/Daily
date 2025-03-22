@@ -1,12 +1,13 @@
-import 'package:daily_satori/app/components/dream_webview/flutter_inappwebview_screenshot.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:daily_satori/app/components/webview/flutter_inappwebview_screenshot.dart';
 
-class DreamWebViewController {
+/// 基础WebView控制器
+class BaseWebViewController {
   /// WebView控制器实例
   final InAppWebViewController webViewController;
 
   /// 构造函数
-  DreamWebViewController(this.webViewController);
+  BaseWebViewController(this.webViewController);
 
   /// 加载URL
   void loadUrl(String url) {
@@ -52,8 +53,18 @@ class DreamWebViewController {
     await webViewController.injectJavascriptFileFromAsset(assetFilePath: assetFilePath);
   }
 
+  /// 注入CSS文件
+  Future<void> injectCSSFileFromAsset({required String assetFilePath}) async {
+    await webViewController.injectCSSFileFromAsset(assetFilePath: assetFilePath);
+  }
+
+  /// 注入CSS代码
+  Future<void> injectCSSCode({required String source}) async {
+    await webViewController.injectCSSCode(source: source);
+  }
+
   /// 捕获全屏截图
-  Future<List<String>> captureFulScreenshot() async {
+  Future<List<String>> captureFullScreenshot() async {
     return await captureFullPageScreenshot(webViewController);
   }
 

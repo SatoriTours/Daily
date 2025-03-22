@@ -23,7 +23,6 @@ function hideObstructiveNodes() {
     if (zIndex >= hideNodeZIndex) {
       console.log('命中规则: 该节点的 zIndex >= ', hideNodeZIndex);
       node.classList.add('tours-statori-daily-hide');
-      // node.remove();
     }
   });
 
@@ -67,7 +66,6 @@ function adjustPageHeight() {
   staticElements.forEach(element => {
     const computedStyle = getComputedStyle(element);
     if (computedStyle.position === 'static') {
-      // console.log(`获取页面页面的元素,高度为: ${maxHeight}px`);
       const elementHeight = element.offsetHeight;
       if(isNaN(elementHeight)) {
         return;
@@ -78,26 +76,4 @@ function adjustPageHeight() {
 
   body.style.height = `${maxHeight}px`;
   console.log(`页面高度已调整为: ${maxHeight}px`);
-}
-
-
-window.onload = function () {
-  try {
-    if (translate != null) {
-      translate.service.use('client.edge');
-      translate.selectLanguageTag.show = false;
-    } else {
-      console.log("加载 translate 失败");
-    }
-  } catch (error) {
-    console.log("初始化 translate 失败", error);
-  }
-
-};
-
-
-function testNode() {
-  //  const ads = document.querySelectorAll('.ADEvent_tag_S3mUa');
-  //  ads.forEach(ad => removeAdNode(ad));
-  //  console.log("==================================", ads.length);
 }

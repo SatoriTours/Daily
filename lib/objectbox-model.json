@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "1:4903589311666536386",
-      "lastPropertyId": "12:7680535396124443137",
+      "lastPropertyId": "13:7461987700932446700",
       "name": "Article",
       "properties": [
         {
@@ -70,6 +70,11 @@
           "id": "12:7680535396124443137",
           "name": "createdAt",
           "type": 10
+        },
+        {
+          "id": "13:7461987700932446700",
+          "name": "status",
+          "type": 9
         }
       ],
       "relations": [
