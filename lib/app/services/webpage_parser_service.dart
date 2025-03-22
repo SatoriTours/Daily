@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
@@ -14,6 +15,7 @@ import 'package:daily_satori/app/repositories/screenshot_repository.dart';
 import 'package:daily_satori/app/repositories/tag_repository.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
+import 'package:get/get.dart';
 
 /// 网页解析服务
 ///
@@ -241,6 +243,9 @@ class WebpageParserService {
       await ArticleRepository.update(articleModel);
 
       logger.i("[WebpageParserService] 文章 #${articleModel.id} 处理完成");
+
+      // 更新文章列表
+      Get.find<ArticlesController>().updateArticle(articleModel.id);
     } catch (e, stackTrace) {
       logger.e("[WebpageParserService] 文章 #${articleModel.id} 处理失败: $e");
       logger.e(stackTrace);
