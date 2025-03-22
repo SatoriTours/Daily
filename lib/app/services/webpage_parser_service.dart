@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:io';
+import 'package:daily_satori/app/components/dream_webview/flutter_inappwebview_screenshot.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
@@ -14,7 +13,6 @@ import 'package:daily_satori/app/repositories/image_repository.dart';
 import 'package:daily_satori/app/repositories/screenshot_repository.dart';
 import 'package:daily_satori/app/repositories/tag_repository.dart';
 import 'package:daily_satori/app/services/http_service.dart';
-import 'package:daily_satori/app/services/file_service.dart';
 import 'package:get/get.dart';
 
 /// 网页解析服务
@@ -409,33 +407,7 @@ class WebpageParserService {
 
   /// 捕获网页截图
   Future<List<String>> _captureScreenshots(InAppWebViewController controller) async {
-    try {
-      // 这里调用现有的截图功能
-      final screenshot = await controller.takeScreenshot();
-      if (screenshot != null) {
-        final filePath = await _saveScreenshot(screenshot);
-        if (filePath.isNotEmpty) {
-          return [filePath];
-        }
-      }
-    } catch (e) {
-      logger.e("[WebpageParserService] 截图失败: $e");
-    }
-    return [];
-  }
-
-  /// 保存截图
-  Future<String> _saveScreenshot(Uint8List screenshotData) async {
-    try {
-      // 使用File服务保存图片
-      final filePath = FileService.i.getScreenshotPath();
-      final file = File(filePath);
-      await file.writeAsBytes(screenshotData);
-      return filePath;
-    } catch (e) {
-      logger.e("[WebpageParserService] 保存截图失败: $e");
-      return '';
-    }
+    return await captureFullPageScreenshot(controller);
   }
 
   /// 处理AI标题
