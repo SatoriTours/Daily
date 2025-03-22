@@ -48,8 +48,47 @@ class ArticleCard extends StatelessWidget {
       children: [
         if (hasImage) _buildImage(context, imagePath),
         if (hasImage) const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_buildTitle(context)])),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTitle(context),
+              if (articleModel.entity.status != 'completed' && articleModel.entity.status != '')
+                _buildProcessingInfo(context),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildProcessingInfo(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              articleModel.url ?? '',
+              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
