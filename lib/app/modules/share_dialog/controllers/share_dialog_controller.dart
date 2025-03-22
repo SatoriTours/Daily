@@ -135,14 +135,30 @@ class ShareDialogController extends GetxController {
 
   /// 显示保存对话框
   void _showSavingDialog() {
+    final theme = Get.theme;
+    final isDark = theme.brightness == Brightness.dark;
+
     Get.defaultDialog(
       title: "保存中",
+      titleStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
+      radius: 10,
+      backgroundColor: isDark ? theme.colorScheme.surface : Colors.white,
       content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text("正在保存链接: ${getShortUrl(shareURL.value)}"),
-          const SizedBox(height: 10),
-          const CircularProgressIndicator(),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            child: Text(
+              getShortUrl(shareURL.value),
+              style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 16),
+          CircularProgressIndicator(
+            strokeWidth: 3,
+            valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+          ),
         ],
       ),
       barrierDismissible: false,
@@ -151,19 +167,39 @@ class ShareDialogController extends GetxController {
 
   /// 显示成功消息
   void _showSuccessMessage() {
+    final theme = Get.theme;
+
     Get.snackbar(
-      "成功",
-      "网页已保存，正在后台处理内容",
+      "已保存",
+      "正在后台处理内容",
       snackPosition: SnackPosition.bottom,
-      backgroundColor: Colors.green,
-      colorText: Colors.white,
-      margin: const EdgeInsets.all(10),
+      backgroundColor: theme.colorScheme.primaryContainer.withOpacity(0.9),
+      colorText: theme.colorScheme.onPrimaryContainer,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      borderRadius: 8,
+      icon: Icon(Icons.check_circle_outline_rounded, color: theme.colorScheme.primary, size: 22),
       duration: const Duration(seconds: 2),
+      animationDuration: const Duration(milliseconds: 300),
     );
   }
 
   /// 获取短URL显示
   String getShortUrl(String url) {
+    if (url.isEmpty) return '';
+
+    // 尝试从URL中提取域名部分
+    Uri? uri;
+    try {
+      uri = Uri.parse(url);
+    } catch (_) {
+      // 如果解析失败，使用原始URL
+    }
+
+    if (uri != null && uri.host.isNotEmpty) {
+      return uri.host;
+    }
+
     // 如果URL太长，只显示前30个字符
     if (url.length > 30) {
       return '${url.substring(0, 30)}...';
@@ -216,13 +252,21 @@ class ShareDialogController extends GetxController {
       Get.back();
     }
 
+    final theme = Get.theme;
+
     Get.snackbar(
       "提示",
       message,
       snackPosition: SnackPosition.bottom,
-      backgroundColor: Colors.black87,
-      colorText: Colors.white,
-      margin: const EdgeInsets.all(10),
+      backgroundColor: theme.colorScheme.errorContainer,
+      colorText: theme.colorScheme.onErrorContainer,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      borderRadius: 12,
+      icon: Icon(Icons.info_outline_rounded, color: theme.colorScheme.error),
+      duration: const Duration(seconds: 3),
+      animationDuration: const Duration(milliseconds: 400),
+      boxShadows: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
     );
   }
 }
