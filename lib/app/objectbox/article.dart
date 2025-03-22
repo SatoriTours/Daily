@@ -20,6 +20,9 @@ class Article {
   bool isFavorite = false;
   String? comment;
 
+  /// 存储额外数据的JSON字符串
+  String? extraData;
+
   @Property(type: PropertyType.date)
   DateTime? pubDate;
 
@@ -47,6 +50,7 @@ class Article {
     this.url,
     this.isFavorite = false,
     this.comment,
+    this.extraData,
     this.pubDate,
     this.updatedAt,
     this.createdAt,

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/objectbox/screenshot.dart';
@@ -10,6 +11,9 @@ import 'package:daily_satori/app/repositories/article_repository.dart';
 class ArticleModel {
   /// 底层实体对象
   final Article _entity;
+
+  /// 额外数据缓存
+  Map<String, dynamic>? _extraDataCache;
 
   /// 构造函数
   ArticleModel(this._entity);
@@ -61,6 +65,10 @@ class ArticleModel {
   String? get comment => _entity.comment;
   set comment(String? value) => _entity.comment = value;
 
+  /// 额外数据JSON
+  String? get extraData => _entity.extraData;
+  set extraData(String? value) => _entity.extraData = value;
+
   /// 发布日期
   DateTime? get pubDate => _entity.pubDate;
   set pubDate(DateTime? value) => _entity.pubDate = value;
@@ -82,6 +90,38 @@ class ArticleModel {
   /// 标签列表
   List<Tag> get tags => _entity.tags;
 
+  /// 获取额外数据
+  Map<String, dynamic> getExtraDataMap() {
+    if (_extraDataCache != null) {
+      return _extraDataCache!;
+    }
+
+    if (extraData == null || extraData!.isEmpty) {
+      _extraDataCache = {};
+      return {};
+    }
+
+    try {
+      _extraDataCache = json.decode(extraData!) as Map<String, dynamic>;
+      return _extraDataCache!;
+    } catch (e) {
+      return {};
+    }
+  }
+
+  /// 设置额外数据
+  void setExtraData(String key, dynamic value) {
+    final data = getExtraDataMap();
+    data[key] = value;
+    _extraDataCache = data;
+    extraData = json.encode(data);
+  }
+
+  /// 获取额外数据
+  dynamic getExtraData(String key) {
+    return getExtraDataMap()[key];
+  }
+
   /// 获取主图路径
   String getHeaderImagePath() {
     return images.isEmpty ? '' : (images.first.path ?? '');
@@ -101,6 +141,16 @@ class ArticleModel {
   /// 切换收藏状态
   Future<bool> toggleFavorite() async {
     return await ArticleRepository.toggleFavorite(id);
+  }
+
+  /// 获取处理状态
+  String getStatus() {
+    return getExtraData('status') ?? 'pending';
+  }
+
+  /// 设置处理状态
+  void setStatus(String status) {
+    setExtraData('status', status);
   }
 
   /// 保存模型

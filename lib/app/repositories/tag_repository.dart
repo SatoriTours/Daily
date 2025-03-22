@@ -65,7 +65,7 @@ class TagRepository {
       article.tags.add(tagModel.entity);
 
       // 更新已保存
-      logger.i("[添加标签] 已添加标签 '$tagName' 到文章 ${articleModel.id}");
+      logger.i("[添加标签] 已添加标签 '$tagName' 到文章 ${articleModel.title}");
       return true;
     } catch (e) {
       logger.e("[添加标签] 失败: $e");
@@ -103,5 +103,10 @@ class TagRepository {
   static void removeAll() {
     _box.removeAll();
     logger.i("[删除标签] 所有标签已删除");
+  }
+
+  /// 根据文章ID删除标签
+  static int deleteByArticleId(int articleId) {
+    return 0;
   }
 }

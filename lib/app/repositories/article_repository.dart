@@ -20,6 +20,23 @@ class ArticleRepository {
     return _box.getAll().map((e) => ArticleModel(e)).toList();
   }
 
+  /// 获取所有文章（别名方法）
+  static List<ArticleModel> getAll() {
+    return all();
+  }
+
+  /// 根据状态查找文章
+  static List<ArticleModel> findByStatus(String status) {
+    // 获取所有文章
+    final allArticles = getAll();
+
+    // 过滤出符合指定状态的文章
+    return allArticles.where((article) {
+      final articleStatus = article.getExtraData('status');
+      return articleStatus == status;
+    }).toList();
+  }
+
   /// 根据ID查找文章
   static ArticleModel? find(int id) {
     // 检查ID是否有效，避免ID=0时的异常

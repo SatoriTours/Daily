@@ -14,12 +14,17 @@ import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/share_receive_service.dart';
 import 'package:daily_satori/app/services/time_service.dart';
 import 'package:daily_satori/app/services/web_service/web_service.dart';
+import 'package:daily_satori/app/services/webpage_parser_service.dart';
 
 // 应用加载好前执行
 Future<void> initApp() async {
   await _initBasicServices();
   await _initParallelServices();
   await _initNonBlockingServices();
+
+  // 初始化网页解析服务 (在基础服务和并行服务之后)
+  await WebpageParserService.i.init();
+
   logger.i('所有服务初始化完成');
 }
 
@@ -31,6 +36,9 @@ void onAppReady() {
 // 应用退出时执行(目前没使用)
 Future<void> clearApp() async {
   ObjectboxService.i.dispose();
+
+  // 关闭网页解析服务
+  WebpageParserService.i.dispose();
 }
 
 // 初始化基础的服务，所有服务都需要依赖这些基础服务
@@ -52,6 +60,7 @@ Future<void> _initParallelServices() async {
     ADBlockService.i.init(), // 初始化广告拦截服务
     FreeDiskService.i.init(), // 初始化磁盘服务
     AppUpgradeService.i.init(), // 检查是否有新版本可以安装
+    WebpageParserService.i.init(), // 初始化网页解析服务
   ]);
 }
 

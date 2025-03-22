@@ -41,16 +41,26 @@ function parseContent() {
     }
 
 
-    window.flutter_inappwebview.callHandler(
-        "getPageContent",
-        window.location.href, // 获取当前网页的URL
-        title,
-        excerpt,
-        content,
-        textContent,
-        publishedTime,
-        images
-    )
+    // window.flutter_inappwebview.callHandler(
+    //     "getPageContent",
+    //     window.location.href, // 获取当前网页的URL
+    //     title,
+    //     excerpt,
+    //     content,
+    //     textContent,
+    //     publishedTime,
+    //     images
+    // )
+
+    return {
+        url: window.location.href,
+        title: title,
+        excerpt: excerpt,
+        content: content,
+        textContent: textContent,
+        publishedTime: publishedTime,
+        imageUrls: images
+    }
 }
 
 function getPageImage() {

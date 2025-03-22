@@ -57,4 +57,20 @@ class ImageRepository {
   static bool destroy(int id) {
     return _box.remove(id);
   }
+
+  /// 根据文章ID删除图片
+  static int deleteByArticleId(int articleId) {
+    // 查询所有与指定文章ID关联的图片
+    final query = _box.query(Image_.article.equals(articleId)).build();
+    final images = query.find();
+    query.close();
+
+    // 如果没有找到图片，直接返回true
+    if (images.isEmpty) {
+      return 0;
+    }
+
+    // 删除所有找到的图片
+    return _box.removeMany(images.map((image) => image.id).toList());
+  }
 }
