@@ -73,6 +73,7 @@ class ArticleRepository {
       content: data['content'],
       aiContent: data['aiContent'],
       htmlContent: data['htmlContent'],
+      aiMarkdownContent: data['aiMarkdownContent'],
       url: data['url'],
       pubDate: data['pubDate'],
       createdAt: data['createdAt'] ?? DateTime.now().toUtc(),

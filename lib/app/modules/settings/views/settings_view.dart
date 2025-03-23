@@ -234,64 +234,6 @@ class SettingsView extends GetView<SettingsController> {
             },
           ),
           SimpleSettingsTile(
-            title: '仅保留文章封面图',
-            subtitle: '仅保留每篇文章的第一张图片作为封面图，删除其他图片和截图',
-            leading: Icon(
-              Icons.image_not_supported_outlined,
-              color: AppTheme.getColorScheme(context).primary,
-              size: Dimensions.iconSizeM,
-            ),
-            showDivider: true,
-            onTap: () async {
-              // 显示确认对话框
-              Get.dialog(
-                AlertDialog(
-                  title: const Text('确认操作'),
-                  content: const Text('此操作将删除所有文章中除封面图外的图片和截图，无法恢复。确定要继续吗？'),
-                  actions: [
-                    TextButton(child: const Text('取消'), onPressed: () => Get.back()),
-                    TextButton(
-                      child: const Text('确定'),
-                      onPressed: () async {
-                        Get.back();
-                        UIUtils.showLoading(tips: '正在处理图片，请稍等...');
-                        try {
-                          await controller.migrateArticleImages();
-                          Get.close();
-                          UIUtils.showSuccess("文章图片迁移完成");
-                        } catch (e) {
-                          Get.close();
-                          UIUtils.showError("操作失败: $e");
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          SimpleSettingsTile(
-            title: '迁移文章封面属性',
-            subtitle: '将文章的首张图片设置为封面属性（仅数据迁移，不删除图片）',
-            leading: Icon(
-              Icons.photo_size_select_actual_outlined,
-              color: AppTheme.getColorScheme(context).primary,
-              size: Dimensions.iconSizeM,
-            ),
-            showDivider: true,
-            onTap: () async {
-              UIUtils.showLoading(tips: '正在迁移文章封面属性，请稍等...');
-              try {
-                await controller.migrateArticleCoverImages();
-                Get.close();
-                UIUtils.showSuccess("文章封面属性迁移完成");
-              } catch (e) {
-                Get.close();
-                UIUtils.showError("操作失败: $e");
-              }
-            },
-          ),
-          SimpleSettingsTile(
             title: '清空所有标签',
             subtitle: '删除所有已创建的标签',
             leading: Icon(

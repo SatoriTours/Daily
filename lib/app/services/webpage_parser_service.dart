@@ -8,7 +8,6 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
-import 'package:daily_satori/app/repositories/image_repository.dart';
 import 'package:daily_satori/app/repositories/tag_repository.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:get/get.dart';
@@ -191,12 +190,14 @@ class WebpageParserService {
       final results = await Future.wait([
         _processAiTitle(webpageData.title),
         _processAiContent(webpageData.textContent),
-        _processImages(webpageData.coverImageUrl),
+        _processImage(webpageData.coverImageUrl),
+        _processMarkdown(webpageData.htmlContent),
       ]);
 
       final aiTitle = results[0] as String;
       final aiContentResult = results[1] as (String, List<String>);
-      final images = results[2] as List<ImageDownloadResult>;
+      final image = results[2] as ImageDownloadResult;
+      final markdown = results[3] as String;
 
       // 更新文章数据
       await _updateArticleWithProcessedData(
@@ -205,7 +206,8 @@ class WebpageParserService {
         aiTitle: aiTitle,
         aiContent: aiContentResult.$1,
         tags: aiContentResult.$2,
-        images: images,
+        image: image,
+        markdown: markdown,
       );
 
       logger.i("[WebpageParserService] 文章 #$articleId 处理完成");
@@ -231,7 +233,8 @@ class WebpageParserService {
     required String aiTitle,
     required String aiContent,
     required List<String> tags,
-    required List<ImageDownloadResult> images,
+    required ImageDownloadResult image,
+    required String markdown,
   }) async {
     // 更新文章基本数据
     articleModel.title = webpageData.title;
@@ -239,6 +242,9 @@ class WebpageParserService {
     articleModel.content = webpageData.textContent;
     articleModel.aiContent = aiContent;
     articleModel.htmlContent = webpageData.htmlContent;
+    articleModel.aiMarkdownContent = markdown;
+    articleModel.coverImage = image.imagePath;
+    articleModel.coverImageUrl = image.imageUrl;
     _updateArticleStatus(articleModel, 'completed');
     articleModel.updatedAt = DateTime.now().toUtc();
 
@@ -246,7 +252,7 @@ class WebpageParserService {
     await ArticleRepository.update(articleModel);
 
     // 保存关联数据
-    await Future.wait([_saveTags(articleModel, tags), _saveImages(articleModel, images)]);
+    await Future.wait([_saveTags(articleModel, tags)]);
 
     // 再次保存文章，确保关联数据正确
     await ArticleRepository.update(articleModel);
@@ -288,6 +294,9 @@ class WebpageParserService {
         'aiContent': '',
         'htmlContent': '',
         'url': url,
+        'aiMarkdownContent': '',
+        'coverImage': '',
+        'coverImageUrl': '',
         'pubDate': now,
         'createdAt': now,
         'updatedAt': now,
@@ -358,8 +367,13 @@ class WebpageParserService {
     }
   }
 
+  /// 处理Markdown
+  Future<String> _processMarkdown(String htmlContent) async {
+    return await AiService.i.convertHtmlToMarkdown(htmlContent);
+  }
+
   /// 处理图片
-  Future<ImageDownloadResult> _processImages(String imageUrl) async {
+  Future<ImageDownloadResult> _processImage(String imageUrl) async {
     try {
       return ImageDownloadResult(imageUrl, await HttpService.i.downloadImage(imageUrl));
     } catch (e) {
@@ -384,37 +398,6 @@ class WebpageParserService {
       logger.i("[WebpageParserService] 标签保存完成 ${articleModel.id}");
     } catch (e) {
       logger.e("[WebpageParserService] 保存标签失败: $e");
-    }
-  }
-
-  /// 保存图片
-  Future<void> _saveImages(ArticleModel articleModel, List<ImageDownloadResult> results) async {
-    try {
-      logger.i("[WebpageParserService] 开始保存图片: ${results.length}");
-
-      // 清除原有图片
-      articleModel.images.clear();
-
-      // 设置封面图
-      if (results.isNotEmpty) {
-        // 将第一张图片的路径设置为文章的封面图
-        articleModel.coverImage = results.first.imagePath;
-      }
-
-      // 添加新图片
-      for (var result in results) {
-        try {
-          final imageData = {'url': result.imageUrl, 'path': result.imagePath, 'articleId': articleModel.id};
-          final imageModel = ImageRepository.createWithData(imageData, articleModel);
-          await ImageRepository.create(imageModel);
-        } catch (e) {
-          logger.e("[WebpageParserService] 保存单个图片失败: $e");
-        }
-      }
-
-      logger.i("[WebpageParserService] 图片保存完成 ${articleModel.id}");
-    } catch (e) {
-      logger.e("[WebpageParserService] 保存图片失败: $e");
     }
   }
 }

@@ -11,6 +11,7 @@ import 'package:template_expressions/template_expressions.dart';
 
 part 'part.translate.dart';
 part 'part.summarize.dart';
+part 'part.html_to_markdown.dart';
 
 /// AI服务类
 ///

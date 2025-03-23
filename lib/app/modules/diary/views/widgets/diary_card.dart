@@ -188,16 +188,6 @@ class _DiaryCardState extends State<DiaryCard> {
                 DiaryUtils.launchURL(href);
               }
             },
-            bulletBuilder: (index, style) {
-              // 自定义项目符号样式
-              return Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: Text(
-                  '•',
-                  style: TextStyle(color: DiaryStyle.accentColor(context), fontSize: 14, fontWeight: FontWeight.bold),
-                ),
-              );
-            },
           ),
 
           // 显示"更多"按钮

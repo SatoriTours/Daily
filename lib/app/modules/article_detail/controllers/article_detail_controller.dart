@@ -1,5 +1,6 @@
 import 'package:share_plus/share_plus.dart';
 import 'package:daily_satori/app_exports.dart';
+import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 
 class ArticleDetailController extends BaseController {
   /// 当前文章模型
@@ -38,6 +39,41 @@ class ArticleDetailController extends BaseController {
   /// 删除当前文章
   Future<void> deleteArticle() async {
     await ArticleRepository.deleteArticle(articleModel.id);
+  }
+
+  /// 生成文章的Markdown内容
+  Future<void> generateMarkdownContent() async {
+    // 检查HTML内容是否存在
+    if (articleModel.htmlContent == null || articleModel.htmlContent!.isEmpty) {
+      logger.i("无法生成Markdown：HTML内容为空");
+      return;
+    }
+
+    // 检查是否已经生成过Markdown内容
+    if (articleModel.aiMarkdownContent != null && articleModel.aiMarkdownContent!.isNotEmpty) {
+      logger.i("Markdown内容已存在，跳过生成");
+      return;
+    }
+
+    logger.i("开始生成Markdown内容");
+
+    // 使用AI服务将HTML转换为Markdown
+    final markdown = await AiService.i.convertHtmlToMarkdown(
+      articleModel.htmlContent!,
+      title: articleModel.title ?? articleModel.aiTitle,
+      updatedAt: articleModel.updatedAt,
+    );
+
+    if (markdown.isEmpty) {
+      logger.e("Markdown内容生成失败");
+      return;
+    }
+
+    // 保存Markdown内容到文章模型
+    articleModel.aiMarkdownContent = markdown;
+    await ArticleRepository.update(articleModel);
+
+    logger.i("Markdown内容生成并保存成功");
   }
 
   /// 获取文章内容图片列表(不含主图)

@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "1:4903589311666536386",
-      "lastPropertyId": "14:3742913584949080496",
+      "lastPropertyId": "16:2180202132372963097",
       "name": "Article",
       "properties": [
         {
@@ -79,6 +79,16 @@
         {
           "id": "14:3742913584949080496",
           "name": "coverImage",
+          "type": 9
+        },
+        {
+          "id": "15:3642595248775502703",
+          "name": "aiMarkdownContent",
+          "type": 9
+        },
+        {
+          "id": "16:2180202132372963097",
+          "name": "coverImageUrl",
           "type": 9
         }
       ],

@@ -225,7 +225,7 @@ class _HeadlessWebViewSession {
     _headlessWebView = HeadlessInAppWebView(
       initialUrlRequest: URLRequest(url: WebUri(url)),
       initialSettings: _baseWebView.getWebViewSettings(isHeadless: true),
-      onConsoleMessage: _handleConsoleMessage,
+      // onConsoleMessage: _handleConsoleMessage,
       onLoadStop: _handleLoadStop,
     );
   }

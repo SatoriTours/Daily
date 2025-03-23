@@ -69,20 +69,6 @@ class DiaryUtils {
                     ),
                   );
                 },
-                bulletBuilder: (index, style) {
-                  // 自定义项目符号样式
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: Text(
-                      '•',
-                      style: TextStyle(
-                        color: DiaryStyle.accentColor(context),
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  );
-                },
               ),
             ),
             actions: [

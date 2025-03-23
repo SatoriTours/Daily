@@ -11,7 +11,6 @@ import 'package:daily_satori/global.dart';
 abstract class BaseWebView {
   /// 注入资源
   Future<void> injectResources(InAppWebViewController controller) async {
-    await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/translate.js");
     await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
     await controller.injectCSSFileFromAsset(assetFilePath: "assets/css/common.css");
   }

@@ -2,7 +2,7 @@ function parseContent() {
     const documentClone = document.cloneNode(true);
     let title = '';
     let excerpt = '';
-    let content = '';
+    let htmlContent = '';
     let textContent = '';
     let publishedTime = '';
 
@@ -17,13 +17,13 @@ function parseContent() {
         console.log("使用 Readability 解析网页成功");
         title = article.title;
         excerpt = article.excerpt;
-        content = article.content;
+        htmlContent = article.content;
         textContent = article.textContent;
         publishedTime = article.publishedTime;
     } catch (error) {
         console.log("Readability解析文章失败, 直接获取网页原始内容", error);
         title = document.title;
-        content = document.documentElement.innerHTML;
+        htmlContent = document.documentElement.innerHTML;
         textContent = document.body.textContent;
     }
 
@@ -40,23 +40,11 @@ function parseContent() {
         console.log("获取图片失败", error);
     }
 
-
-    // window.flutter_inappwebview.callHandler(
-    //     "getPageContent",
-    //     window.location.href, // 获取当前网页的URL
-    //     title,
-    //     excerpt,
-    //     content,
-    //     textContent,
-    //     publishedTime,
-    //     images
-    // )
-
     return {
         url: window.location.href,
         title: title,
         excerpt: excerpt,
-        content: content,
+        htmlContent: htmlContent,
         textContent: textContent,
         publishedTime: publishedTime,
         imageUrls: images

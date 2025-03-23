@@ -14,6 +14,7 @@ class Article {
   String? content;
   String? aiContent;
   String? htmlContent;
+  String? aiMarkdownContent;
 
   @Unique()
   String? url;
@@ -23,8 +24,9 @@ class Article {
   /// 处理状态：pending, processing, completed, error
   String status = 'pending';
 
-  /// 封面图片路径
+  /// 封面图片路径 和 URL
   String? coverImage;
+  String? coverImageUrl;
 
   @Property(type: PropertyType.date)
   DateTime? pubDate;
@@ -50,6 +52,7 @@ class Article {
     this.content,
     this.aiContent,
     this.htmlContent,
+    this.aiMarkdownContent,
     this.url,
     this.isFavorite = false,
     this.comment,

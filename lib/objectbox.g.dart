@@ -27,7 +27,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
       id: const obx_int.IdUid(1, 4903589311666536386),
       name: 'Article',
-      lastPropertyId: const obx_int.IdUid(14, 3742913584949080496),
+      lastPropertyId: const obx_int.IdUid(16, 2180202132372963097),
       flags: 0,
       properties: <obx_int.ModelProperty>[
         obx_int.ModelProperty(
@@ -99,6 +99,16 @@ final _entities = <obx_int.ModelEntity>[
         obx_int.ModelProperty(
             id: const obx_int.IdUid(14, 3742913584949080496),
             name: 'coverImage',
+            type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(15, 3642595248775502703),
+            name: 'aiMarkdownContent',
+            type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(16, 2180202132372963097),
+            name: 'coverImageUrl',
             type: 9,
             flags: 0)
       ],
@@ -358,7 +368,13 @@ obx_int.ModelDefinition getObjectBoxModel() {
           final coverImageOffset = object.coverImage == null
               ? null
               : fbb.writeString(object.coverImage!);
-          fbb.startTable(15);
+          final aiMarkdownContentOffset = object.aiMarkdownContent == null
+              ? null
+              : fbb.writeString(object.aiMarkdownContent!);
+          final coverImageUrlOffset = object.coverImageUrl == null
+              ? null
+              : fbb.writeString(object.coverImageUrl!);
+          fbb.startTable(17);
           fbb.addInt64(0, object.id);
           fbb.addOffset(1, titleOffset);
           fbb.addOffset(2, aiTitleOffset);
@@ -373,6 +389,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fbb.addInt64(11, object.createdAt?.millisecondsSinceEpoch);
           fbb.addOffset(12, statusOffset);
           fbb.addOffset(13, coverImageOffset);
+          fbb.addOffset(14, aiMarkdownContentOffset);
+          fbb.addOffset(15, coverImageUrlOffset);
           fbb.finish(fbb.endTable());
           return object.id;
         },
@@ -398,6 +416,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
           final htmlContentParam =
               const fb.StringReader(asciiOptimization: true)
                   .vTableGetNullable(buffer, rootOffset, 14);
+          final aiMarkdownContentParam =
+              const fb.StringReader(asciiOptimization: true)
+                  .vTableGetNullable(buffer, rootOffset, 32);
           final urlParam = const fb.StringReader(asciiOptimization: true)
               .vTableGetNullable(buffer, rootOffset, 16);
           final isFavoriteParam =
@@ -424,6 +445,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
               content: contentParam,
               aiContent: aiContentParam,
               htmlContent: htmlContentParam,
+              aiMarkdownContent: aiMarkdownContentParam,
               url: urlParam,
               isFavorite: isFavoriteParam,
               comment: commentParam,
@@ -431,7 +453,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
               coverImage: coverImageParam,
               pubDate: pubDateParam,
               updatedAt: updatedAtParam,
-              createdAt: createdAtParam);
+              createdAt: createdAtParam)
+            ..coverImageUrl = const fb.StringReader(asciiOptimization: true)
+                .vTableGetNullable(buffer, rootOffset, 34);
           obx_int.InternalToManyAccess.setRelInfo<Article>(object.tags, store,
               obx_int.RelInfo<Article>.toMany(4, object.id));
           obx_int.InternalToManyAccess.setRelInfo<Article>(
@@ -700,6 +724,14 @@ class Article_ {
   /// See [Article.coverImage].
   static final coverImage =
       obx.QueryStringProperty<Article>(_entities[0].properties[13]);
+
+  /// See [Article.aiMarkdownContent].
+  static final aiMarkdownContent =
+      obx.QueryStringProperty<Article>(_entities[0].properties[14]);
+
+  /// See [Article.coverImageUrl].
+  static final coverImageUrl =
+      obx.QueryStringProperty<Article>(_entities[0].properties[15]);
 
   /// see [Article.tags]
   static final tags =

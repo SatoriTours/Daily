@@ -10,3 +10,4 @@ export 'dimensions.dart';
 export 'font_style.dart';
 export 'theme.dart';
 export 'html_styles.dart';
+export 'markdown_styles.dart';

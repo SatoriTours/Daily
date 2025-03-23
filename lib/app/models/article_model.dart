@@ -49,6 +49,10 @@ class ArticleModel {
   String? get htmlContent => _entity.htmlContent;
   set htmlContent(String? value) => _entity.htmlContent = value;
 
+  /// AI生成的Markdown内容
+  String? get aiMarkdownContent => _entity.aiMarkdownContent;
+  set aiMarkdownContent(String? value) => _entity.aiMarkdownContent = value;
+
   /// URL
   String? get url => _entity.url;
   set url(String? value) => _entity.url = value;
@@ -68,6 +72,10 @@ class ArticleModel {
   /// 封面图片路径
   String? get coverImage => _entity.coverImage;
   set coverImage(String? value) => _entity.coverImage = value;
+
+  /// 封面图片URL
+  String? get coverImageUrl => _entity.coverImageUrl;
+  set coverImageUrl(String? value) => _entity.coverImageUrl = value;
 
   /// 发布日期
   DateTime? get pubDate => _entity.pubDate;

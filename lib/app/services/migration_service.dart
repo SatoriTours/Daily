@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart' as db_image;
 import 'package:daily_satori/app/objectbox/screenshot.dart';
@@ -23,7 +22,6 @@ class MigrationService {
     if (await _needMigration()) {
       logger.i("检测到需要迁移数据");
       await migrateArticleCoverImages();
-      await migrateArticleImages();
       await clearAllImagesAndScreenshots();
     } else {
       logger.i("数据已经迁移过，无需再次迁移");
@@ -44,92 +42,6 @@ class MigrationService {
     }
 
     return false;
-  }
-
-  /// 迁移文章图片，只保留封面图
-  ///
-  /// 此方法将遍历所有文章，为每篇文章只保留第一张图片作为封面图，
-  /// 并删除所有截图和多余的图片文件
-  Future<void> migrateArticleImages() async {
-    logger.i("开始迁移文章图片数据");
-
-    // 获取所有文章
-    final articles = ArticleRepository.getAll();
-    logger.i("总共找到 ${articles.length} 篇文章需要迁移");
-
-    int migratedCount = 0;
-    int errorCount = 0;
-    int skippedCount = 0;
-
-    for (final article in articles) {
-      try {
-        // 检查这篇文章是否需要迁移
-        final entity = article.entity;
-        if (entity.images.length <= 1 && entity.screenshots.isEmpty) {
-          skippedCount++;
-          continue; // 已经迁移过的文章跳过
-        }
-
-        await _migrateArticleImages(article);
-        migratedCount++;
-
-        // 每处理10篇文章打印一次进度
-        if ((migratedCount + skippedCount) % 10 == 0) {
-          logger.i(
-            "已处理 ${migratedCount + skippedCount}/${articles.length} 篇文章 (迁移: $migratedCount, 跳过: $skippedCount)",
-          );
-        }
-      } catch (e) {
-        errorCount++;
-        logger.e("迁移文章ID:${article.id}失败: $e");
-      }
-    }
-
-    logger.i("文章图片迁移完成: 成功=$migratedCount, 跳过=$skippedCount, 失败=$errorCount");
-  }
-
-  /// 迁移单篇文章的图片
-  Future<void> _migrateArticleImages(ArticleModel articleModel) async {
-    final article = articleModel.entity;
-    final imageBox = ObjectboxService.i.box<db_image.Image>();
-    final screenshotBox = ObjectboxService.i.box<Screenshot>();
-
-    // 仅保留第一张图片作为封面图
-    final allImages = article.images.toList();
-    db_image.Image? coverImage;
-
-    if (allImages.isNotEmpty) {
-      coverImage = allImages.first;
-
-      // 将第一张图片的路径设置为文章的封面图
-      article.coverImage = coverImage.path;
-
-      // 删除除第一张外的所有图片
-      for (int i = 1; i < allImages.length; i++) {
-        final img = allImages[i];
-        await _deleteImageFile(img.path);
-        imageBox.remove(img.id);
-      }
-    }
-
-    // 删除所有截图
-    final allScreenshots = article.screenshots.toList();
-    for (final screenshot in allScreenshots) {
-      await _deleteImageFile(screenshot.path);
-      screenshotBox.remove(screenshot.id);
-    }
-
-    // 清空文章的图片和截图集合并保存
-    article.images.clear();
-    article.screenshots.clear();
-
-    // 添加回封面图
-    if (coverImage != null) {
-      article.images.add(coverImage);
-    }
-
-    // 保存更新后的文章
-    ObjectboxService.i.box<Article>().put(article);
   }
 
   /// 迁移文章封面图到新的coverImage属性
@@ -162,11 +74,22 @@ class MigrationService {
         if (allImages.isNotEmpty) {
           // 将第一张图片路径设置为封面图属性
           entity.coverImage = allImages.first.path;
+          entity.coverImageUrl = allImages.first.url;
           // 保存更新后的文章
           ObjectboxService.i.box<Article>().put(entity);
           migratedCount++;
         } else {
           noImageCount++;
+        }
+
+        // 删除除了第一张之外的图片
+        for (final image in allImages.sublist(1)) {
+          await _deleteImageFile(image.path);
+        }
+
+        // 删除文章相关的截图
+        for (final screenshot in entity.screenshots) {
+          await _deleteImageFile(screenshot.path);
         }
 
         // 每处理20篇文章打印一次进度

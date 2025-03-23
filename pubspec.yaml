@@ -54,7 +54,7 @@ dependencies:
   dio: ^5.7.0
 
   # 文件选择
-  file_picker: ^9.0.2
+  file_picker: ^9.2.1
 
   # 权限判断
   permission_handler: ^11.3.1
@@ -81,7 +81,7 @@ dependencies:
   photo_view: ^0.15.0
 
   # Markdown相关
-  flutter_markdown: ^0.6.17
+  flutter_markdown: ^0.7.6+2
 
   # 图片选择
   image_picker: ^1.0.4
