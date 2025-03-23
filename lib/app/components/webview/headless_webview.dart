@@ -41,6 +41,50 @@ class HeadlessWebViewResult {
 
 /// 无头浏览器类
 class HeadlessWebView extends BaseWebView {
+  // 资源管理
+  final Set<_HeadlessWebViewSession> _activeSessions = {};
+  static const int _maxConcurrentSessions = 2;
+  Timer? _resourceMonitorTimer;
+
+  HeadlessWebView() {
+    _startResourceMonitor();
+  }
+
+  /// 启动资源监控
+  void _startResourceMonitor() {
+    _resourceMonitorTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _cleanupInactiveSessions();
+    });
+  }
+
+  /// 清理不活跃的会话
+  void _cleanupInactiveSessions() {
+    final now = DateTime.now();
+    final expiredSessions = _activeSessions.where((session) => session.isExpired(now)).toList();
+
+    for (var session in expiredSessions) {
+      _activeSessions.remove(session);
+      logger.w("[HeadlessWebView] 强制清理过期会话: ${session.url}");
+      session.forceDispose();
+    }
+
+    if (_activeSessions.isEmpty && _resourceMonitorTimer != null) {
+      logger.i("[HeadlessWebView] 所有会话已清理，暂停资源监控");
+      _resourceMonitorTimer?.cancel();
+      _resourceMonitorTimer = null;
+    }
+  }
+
+  /// 释放资源
+  void dispose() {
+    _resourceMonitorTimer?.cancel();
+
+    for (var session in _activeSessions) {
+      session.forceDispose();
+    }
+    _activeSessions.clear();
+  }
+
   /// 加载URL并解析内容
   Future<HeadlessWebViewResult> loadAndParseUrl(String url) async {
     if (url.isEmpty) {
@@ -50,14 +94,30 @@ class HeadlessWebView extends BaseWebView {
 
     logger.i("[HeadlessWebView] 开始获取网页内容: $url");
 
+    // 检查是否需要等待其他会话完成
+    while (_activeSessions.length >= _maxConcurrentSessions) {
+      logger.w("[HeadlessWebView] 已达到最大并发会话数($_maxConcurrentSessions)，等待中...");
+      await Future.delayed(const Duration(seconds: 1));
+      _cleanupInactiveSessions();
+    }
+
+    // 如果资源监控器未启动，现在启动它
+    if (_resourceMonitorTimer == null) {
+      _startResourceMonitor();
+    }
+
     // 创建无头浏览器会话
     final session = _HeadlessWebViewSession(url, this);
+    _activeSessions.add(session);
 
     try {
       // 运行无头浏览器并等待内容处理完成
-      return await session.start();
+      final result = await session.start();
+      _activeSessions.remove(session);
+      return result;
     } catch (e) {
       logger.e("[HeadlessWebView] 获取网页内容失败: $e");
+      _activeSessions.remove(session);
       return HeadlessWebViewResult.empty();
     }
   }
@@ -76,6 +136,11 @@ class _HeadlessWebViewSession {
   bool _isCompleted = false;
   bool _isStabilityCheckStarted = false;
   bool _hasLoadStopFired = false;
+  bool _isDisposed = false;
+
+  // 会话创建和最后活动时间
+  final DateTime _creationTime = DateTime.now();
+  DateTime _lastActivityTime = DateTime.now();
 
   // DOM稳定性检测变量
   int _stabilityCounter = 0;
@@ -87,10 +152,56 @@ class _HeadlessWebViewSession {
   Timer? _stabilityTimer;
   Timer? _timeoutTimer;
 
+  // 会话超时设置
+  static const _sessionMaxLifetime = Duration(minutes: 5);
+  static const _sessionInactivityTimeout = Duration(minutes: 2);
+
   _HeadlessWebViewSession(this.url, this._baseWebView);
+
+  /// 检查会话是否过期
+  bool isExpired(DateTime now) {
+    if (_isDisposed) return true;
+
+    // 检查会话是否超过最大生命周期
+    if (now.difference(_creationTime) > _sessionMaxLifetime) {
+      return true;
+    }
+
+    // 检查会话是否超过不活动超时时间
+    if (now.difference(_lastActivityTime) > _sessionInactivityTimeout) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /// 强制释放会话资源
+  Future<void> forceDispose() async {
+    if (_isDisposed) return;
+
+    _isDisposed = true;
+    _cleanup();
+
+    try {
+      if (!_completer.isCompleted) {
+        _completer.complete(HeadlessWebViewResult.empty());
+      }
+
+      await _headlessWebView.dispose();
+    } catch (e) {
+      logger.e("[HeadlessWebView] 释放会话资源失败: $e");
+    }
+  }
+
+  /// 更新最后活动时间
+  void _updateActivityTime() {
+    _lastActivityTime = DateTime.now();
+  }
 
   /// 启动无头浏览器会话
   Future<HeadlessWebViewResult> start() async {
+    _updateActivityTime();
+
     // 配置无头浏览器
     _configureWebView();
 
@@ -100,6 +211,7 @@ class _HeadlessWebViewSession {
     try {
       // 运行无头浏览器
       await _headlessWebView.run();
+      _updateActivityTime();
 
       // 检查加载进度
       _checkLoadProgress();
@@ -129,10 +241,11 @@ class _HeadlessWebViewSession {
 
   /// 处理页面加载停止事件
   void _handleLoadStop(InAppWebViewController controller, Uri? url) async {
+    _updateActivityTime();
     logger.i("[HeadlessWebView] onLoadStop 触发: $url");
     _hasLoadStopFired = true;
 
-    // 加载停止后，延迟1秒启动DOM稳定性检测
+    // 加载停止后，延迟3秒启动DOM稳定性检测
     if (!_isStabilityCheckStarted) {
       await Future.delayed(const Duration(seconds: 3));
       _startDOMStabilityCheck(controller);
@@ -180,15 +293,59 @@ class _HeadlessWebViewSession {
 
   /// 检查DOM稳定性
   Future<void> _checkDOMStability(InAppWebViewController controller) async {
-    // 获取DOM大小作为稳定性指标
-    final domSizeResult = await controller.evaluateJavascript(source: "document.documentElement.outerHTML.length");
+    _updateActivityTime();
+
+    // 使用更高效的DOM大小获取方法，只检查DOM元素数量和DOM元素属性总数，避免获取完整DOM字符串
+    final domSizeResult = await controller.evaluateJavascript(
+      source: """
+        (function() {
+          const elements = document.querySelectorAll('*');
+          const elementCount = elements.length;
+          let attributeCount = 0;
+
+          // 只采样前1000个元素以提高性能
+          const sampleSize = Math.min(elementCount, 1000);
+          for (let i = 0; i < sampleSize; i++) {
+            attributeCount += elements[i].attributes.length;
+          }
+
+          // 计算文本内容大小估计值
+          const bodyText = document.body.textContent || '';
+          const textLength = bodyText.length;
+
+          // 综合指标
+          return {
+            elementCount: elementCount,
+            attributeCount: attributeCount,
+            textLength: textLength,
+            timestamp: Date.now()
+          };
+        })();
+      """,
+    );
 
     if (domSizeResult == null) return;
 
-    int currentSize = int.tryParse(domSizeResult.toString()) ?? 0;
+    try {
+      final Map<String, dynamic> domMetrics = domSizeResult;
 
-    // 检查DOM是否稳定(变化小于阈值)
-    if (_lastDOMSize > 0) {
+      // 如果是第一次检查，记录当前状态并返回
+      if (_lastDOMSize == 0) {
+        // 使用元素数和属性数的加权总和作为DOM大小的评估指标
+        _lastDOMSize =
+            (domMetrics['elementCount'] as int) * 10 +
+            (domMetrics['attributeCount'] as int) +
+            (domMetrics['textLength'] as int) ~/ 100;
+        return;
+      }
+
+      // 计算当前的加权DOM大小
+      final int currentSize =
+          (domMetrics['elementCount'] as int) * 10 +
+          (domMetrics['attributeCount'] as int) +
+          (domMetrics['textLength'] as int) ~/ 100;
+
+      // 计算变化率
       double changePercent = (currentSize - _lastDOMSize).abs() / _lastDOMSize;
       logger.d("[HeadlessWebView] DOM变化率: ${(changePercent * 100).toStringAsFixed(2)}%");
 
@@ -205,13 +362,17 @@ class _HeadlessWebViewSession {
         // DOM变化较大，重置稳定计数器
         _stabilityCounter = 0;
       }
-    }
 
-    _lastDOMSize = currentSize;
+      _lastDOMSize = currentSize;
+    } catch (e) {
+      logger.e("[HeadlessWebView] 解析DOM指标失败: $e");
+    }
   }
 
   /// 处理页面内容
   Future<void> _processContent() async {
+    _updateActivityTime();
+
     if (_isCompleted) return;
     _isCompleted = true;
 
@@ -237,41 +398,99 @@ class _HeadlessWebViewSession {
 
   /// 解析网页内容
   Future<HeadlessWebViewResult> _parseWebPageContent(InAppWebViewController controller) async {
-    // 注入资源和脚本
-    await Future.wait([
-      _baseWebView.injectResources(controller),
-      _baseWebView.injectCssRules(controller),
-      _baseWebView.injectTwitterCssRules(controller),
-    ]);
+    try {
+      // 使用并行执行注入资源和脚本
+      final futures = await Future.wait([
+        // 注入资源和脚本
+        Future(() async {
+          try {
+            await _baseWebView.injectResources(controller);
+            return true;
+          } catch (e) {
+            logger.e("[HeadlessWebView] 注入资源失败: $e");
+            return false;
+          }
+        }),
 
-    // 注入解析脚本
-    await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/Readability.js");
-    await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/parse_content.js");
+        Future(() async {
+          try {
+            await _baseWebView.injectCssRules(controller);
+            return true;
+          } catch (e) {
+            logger.e("[HeadlessWebView] 注入CSS规则失败: $e");
+            return false;
+          }
+        }),
 
-    // 执行解析
-    final parseResult = await controller.evaluateJavascript(source: "parseContent()");
+        Future(() async {
+          try {
+            await _baseWebView.injectTwitterCssRules(controller);
+            return true;
+          } catch (e) {
+            logger.e("[HeadlessWebView] 注入Twitter CSS规则失败: $e");
+            return false;
+          }
+        }),
+      ]);
 
-    if (parseResult == null) {
+      // 检查资源注入是否成功
+      if (futures.contains(false)) {
+        logger.w("[HeadlessWebView] 部分资源注入失败，但继续执行解析");
+      }
+
+      // 注入解析脚本
+      try {
+        await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/Readability.js");
+        await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/parse_content.js");
+      } catch (e) {
+        logger.e("[HeadlessWebView] 注入解析脚本失败: $e");
+        throw e;
+      }
+
+      // 执行解析，使用超时保护
+      final parseResult = await _executeScriptWithTimeout(controller, "parseContent()", 5000);
+
+      if (parseResult == null) {
+        logger.w("[HeadlessWebView] 解析结果为空，返回空结果");
+        return HeadlessWebViewResult.empty();
+      }
+
+      // 提取解析结果
+      final resultMap = parseResult as Map<dynamic, dynamic>;
+      final result = _extractResultFromMap(resultMap);
+
+      // 捕获网页截图
+      final screenshots = await captureFullPageScreenshot(controller);
+
+      // 创建最终结果对象
+      return HeadlessWebViewResult(
+        title: result['title'] ?? '',
+        excerpt: result['excerpt'] ?? '',
+        htmlContent: result['htmlContent'] ?? '',
+        textContent: result['textContent'] ?? '',
+        publishedTime: result['publishedTime'] ?? '',
+        imageUrls: result['imageUrls'] ?? [],
+        screenshots: screenshots,
+      );
+    } catch (e) {
+      logger.e("[HeadlessWebView] 解析网页内容失败: $e");
       return HeadlessWebViewResult.empty();
     }
+  }
 
-    // 提取解析结果
-    final resultMap = parseResult as Map<dynamic, dynamic>;
-    final result = _extractResultFromMap(resultMap);
-
-    // 捕获网页截图
-    final screenshots = await captureFullPageScreenshot(controller);
-
-    // 创建最终结果对象
-    return HeadlessWebViewResult(
-      title: result['title'] ?? '',
-      excerpt: result['excerpt'] ?? '',
-      htmlContent: result['htmlContent'] ?? '',
-      textContent: result['textContent'] ?? '',
-      publishedTime: result['publishedTime'] ?? '',
-      imageUrls: result['imageUrls'] ?? [],
-      screenshots: screenshots,
-    );
+  /// 带超时保护地执行JavaScript
+  Future<dynamic> _executeScriptWithTimeout(InAppWebViewController controller, String script, int timeoutMs) async {
+    try {
+      // 创建一个可以在超时的情况下取消的计算
+      final result = await controller.evaluateJavascript(source: script).timeout(Duration(milliseconds: timeoutMs));
+      return result;
+    } on TimeoutException {
+      logger.w("[HeadlessWebView] JavaScript执行超时: $script");
+      return null;
+    } catch (e) {
+      logger.e("[HeadlessWebView] JavaScript执行失败: $e");
+      return null;
+    }
   }
 
   /// 从解析结果Map中提取数据
