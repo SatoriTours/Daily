@@ -23,6 +23,9 @@ class Article {
   /// 处理状态：pending, processing, completed, error
   String status = 'pending';
 
+  /// 封面图片路径
+  String? coverImage;
+
   @Property(type: PropertyType.date)
   DateTime? pubDate;
 
@@ -51,6 +54,7 @@ class Article {
     this.isFavorite = false,
     this.comment,
     this.status = 'pending',
+    this.coverImage,
     this.pubDate,
     this.updatedAt,
     this.createdAt,

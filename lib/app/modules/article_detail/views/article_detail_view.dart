@@ -1,8 +1,9 @@
 import 'dart:io';
 
-import 'package:daily_satori/app/components/webview/index.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_html/flutter_html.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:get/get.dart';
 
@@ -114,7 +115,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   // 主体内容
   Widget _buildBody(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Column(children: [Expanded(child: _buildTabBarView(context)), _buildTabBar(context)]),
     );
   }
@@ -122,7 +123,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   Widget _buildTabBarView(BuildContext context) {
     return TabBarView(
       physics: const NeverScrollableScrollPhysics(),
-      children: [_buildSummaryTab(context), _buildArticleScreenshot(context), _buildWebView(context)],
+      children: [_buildSummaryTab(context), _buildHtmlContent(context)],
     );
   }
 
@@ -138,7 +139,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
         indicatorColor: colorScheme.primary,
         indicatorWeight: 3,
         labelStyle: textTheme.labelLarge,
-        tabs: const [Tab(text: 'AI解读'), Tab(text: '截图'), Tab(text: '原文')],
+        tabs: const [Tab(text: 'AI解读'), Tab(text: '原文')],
       ),
     );
   }
@@ -160,8 +161,6 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
           _buildContent(context),
           if (controller.articleModel.comment?.isNotEmpty ?? false) const SizedBox(height: 24),
           if (controller.articleModel.comment?.isNotEmpty ?? false) _buildComment(context),
-          if (controller.articleModel.images.length > 1) const SizedBox(height: 24),
-          if (controller.articleModel.images.length > 1) _buildImageGallery(context),
         ],
       ),
     );
@@ -234,54 +233,6 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     );
   }
 
-  Widget _buildImageGallery(BuildContext context) {
-    final textTheme = AppTheme.getTextTheme(context);
-    final images = controller.getArticleImages();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ComponentStyle.articleTitleContainer(
-          context,
-          Text('相关图片', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-        ),
-        Padding(
-          padding: Dimensions.paddingHorizontalL,
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1.0,
-              crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-            ),
-            itemCount: images.length,
-            itemBuilder: (context, index) {
-              final imagePath = images[index];
-              return GestureDetector(
-                onTap: () => _showFullScreenImage(images, initialIndex: index),
-                child: Container(
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
-                  clipBehavior: Clip.antiAlias,
-                  child: Image.file(
-                    File(imagePath),
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      logger.i("加载路径错误 $imagePath");
-                      return _buildErrorImage(context);
-                    },
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        Dimensions.verticalSpacerM,
-      ],
-    );
-  }
-
   Widget _buildErrorImage(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
 
@@ -320,64 +271,48 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
     );
   }
 
-  // 截图和网页视图
-  Widget _buildArticleScreenshot(BuildContext context) {
-    final screenshots = controller.getArticleScreenshots();
-    if (screenshots.isEmpty) {
-      return _buildEmptyScreenshotState(context);
+  // HTML内容视图
+  Widget _buildHtmlContent(BuildContext context) {
+    final htmlContent = controller.articleModel.htmlContent;
+    if (htmlContent == null || htmlContent.isEmpty) {
+      return _buildEmptyHtmlState(context);
     }
 
     return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        children:
-            screenshots.map((screenshot) {
-              return Image.file(
-                File(screenshot),
-                fit: BoxFit.fitWidth,
-                width: double.infinity,
-                errorBuilder: (context, error, stackTrace) {
-                  logger.i("加载路径错误 $screenshot");
-                  return _buildErrorImage(context);
-                },
-              );
-            }).toList(),
+      padding: Dimensions.paddingPage,
+      child: Html(
+        data: htmlContent,
+        style: {
+          "body": Style(fontSize: FontSize(16.0), margin: Margins.zero, padding: HtmlPaddings.zero),
+          "img": Style(width: Width(MediaQuery.of(context).size.width - 32)),
+          "a": Style(color: AppTheme.getColorScheme(context).primary),
+        },
+        onLinkTap: (url, _, __) {
+          if (url != null) {
+            _launchUrlExternal(url);
+          }
+        },
       ),
     );
   }
 
-  Widget _buildEmptyScreenshotState(BuildContext context) {
-    final textTheme = AppTheme.getTextTheme(context);
-    final colorScheme = AppTheme.getColorScheme(context);
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.image_not_supported_outlined, size: Dimensions.iconSizeXl, color: colorScheme.onSurfaceVariant),
-          Dimensions.verticalSpacerM,
-          Text("暂无网页截图", style: textTheme.bodyLarge),
-        ],
-      ),
-    );
-  }
-
-  // 使用浏览器显示原始网页
-  Widget _buildWebView(BuildContext context) {
-    final url = controller.articleModel.url;
-    if (url == null || url.isEmpty) {
-      return _buildEmptyWebViewState(context);
+  // 在外部浏览器中打开URL
+  Future<void> _launchUrlExternal(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        logger.e('无法打开链接: $url');
+        errorNotice('无法打开链接');
+      }
+    } catch (e) {
+      logger.e('打开链接时出错: $e');
+      errorNotice('打开链接时出错');
     }
-
-    return VisibleWebView(
-      url: url,
-      onWebViewCreated: (webController) {
-        // 可以在这里保存WebView控制器的引用以便后续使用
-      },
-    );
   }
 
-  Widget _buildEmptyWebViewState(BuildContext context) {
+  Widget _buildEmptyHtmlState(BuildContext context) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
@@ -385,9 +320,9 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.link_off, size: Dimensions.iconSizeXl, color: colorScheme.onSurfaceVariant),
+          Icon(Icons.article_outlined, size: Dimensions.iconSizeXl, color: colorScheme.onSurfaceVariant),
           Dimensions.verticalSpacerM,
-          Text("无法加载原始网页", style: textTheme.bodyLarge),
+          Text("无法加载原文内容", style: textTheme.bodyLarge),
         ],
       ),
     );

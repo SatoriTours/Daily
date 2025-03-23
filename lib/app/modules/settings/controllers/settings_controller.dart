@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
+import 'package:daily_satori/app/services/migration_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class SettingsController extends GetxController {
@@ -46,6 +47,30 @@ class SettingsController extends GetxController {
       final backupDir = selectedDirectory;
       logger.i('选择备份目录: $backupDir');
       SettingRepository.saveSetting(SettingService.backupDirKey, backupDir);
+    }
+  }
+
+  /// 迁移文章图片，只保留封面图
+  Future<void> migrateArticleImages() async {
+    try {
+      await MigrationService.i.migrateArticleImages();
+      logger.i('文章图片迁移成功');
+      return;
+    } catch (e) {
+      logger.e('文章图片迁移失败: $e');
+      throw e;
+    }
+  }
+
+  /// 迁移文章封面属性
+  Future<void> migrateArticleCoverImages() async {
+    try {
+      await MigrationService.i.migrateArticleCoverImages();
+      logger.i('文章封面属性迁移成功');
+      return;
+    } catch (e) {
+      logger.e('文章封面属性迁移失败: $e');
+      throw e;
     }
   }
 

@@ -192,7 +192,7 @@ class WebpageParserService {
       final results = await Future.wait([
         _processAiTitle(webpageData.title),
         _processAiContent(webpageData.textContent),
-        _processImages(webpageData.imageUrls),
+        _processImages(webpageData.coverImageUrl),
       ]);
 
       final aiTitle = results[0] as String;
@@ -247,11 +247,7 @@ class WebpageParserService {
     await ArticleRepository.update(articleModel);
 
     // 保存关联数据
-    await Future.wait([
-      _saveTags(articleModel, tags),
-      _saveImages(articleModel, images),
-      _saveScreenshots(articleModel, webpageData.screenshots),
-    ]);
+    await Future.wait([_saveTags(articleModel, tags), _saveImages(articleModel, images)]);
 
     // 再次保存文章，确保关联数据正确
     await ArticleRepository.update(articleModel);
@@ -338,8 +334,7 @@ class WebpageParserService {
       htmlContent: result.htmlContent,
       textContent: result.textContent,
       publishedTime: result.publishedTime,
-      imageUrls: result.imageUrls,
-      screenshots: result.screenshots,
+      coverImageUrl: result.coverImageUrl,
     );
   }
 
@@ -365,17 +360,12 @@ class WebpageParserService {
   }
 
   /// 处理图片
-  Future<List<ImageDownloadResult>> _processImages(List<String> imageUrls) async {
+  Future<ImageDownloadResult> _processImages(String imageUrl) async {
     try {
-      final imageResults = await Future.wait(
-        imageUrls.map((imageUrl) async {
-          return ImageDownloadResult(imageUrl, await HttpService.i.downloadImage(imageUrl));
-        }),
-      );
-      return imageResults.where((result) => result.imagePath.isNotEmpty).toList();
+      return ImageDownloadResult(imageUrl, await HttpService.i.downloadImage(imageUrl));
     } catch (e) {
       logger.e("[WebpageParserService] 图片处理失败: $e");
-      return <ImageDownloadResult>[];
+      return ImageDownloadResult('', '');
     }
   }
 
@@ -406,6 +396,12 @@ class WebpageParserService {
       // 清除原有图片
       articleModel.images.clear();
 
+      // 设置封面图
+      if (results.isNotEmpty) {
+        // 将第一张图片的路径设置为文章的封面图
+        articleModel.coverImage = results.first.imagePath;
+      }
+
       // 添加新图片
       for (var result in results) {
         try {
@@ -420,31 +416,6 @@ class WebpageParserService {
       logger.i("[WebpageParserService] 图片保存完成 ${articleModel.id}");
     } catch (e) {
       logger.e("[WebpageParserService] 保存图片失败: $e");
-    }
-  }
-
-  /// 保存截图
-  Future<void> _saveScreenshots(ArticleModel articleModel, List<String> screenshotPaths) async {
-    try {
-      logger.i("[WebpageParserService] 开始保存截图: ${screenshotPaths.length}");
-
-      // 清除原有截图
-      articleModel.screenshots.clear();
-
-      // 添加新截图
-      for (var path in screenshotPaths) {
-        try {
-          final screenshotData = {'path': path, 'articleId': articleModel.id};
-          final screenshotModel = ScreenshotRepository.createWithData(screenshotData, articleModel);
-          await ScreenshotRepository.create(screenshotModel);
-        } catch (e) {
-          logger.e("[WebpageParserService] 保存单个截图失败: $e");
-        }
-      }
-
-      logger.i("[WebpageParserService] 截图保存完成 ${articleModel.id}");
-    } catch (e) {
-      logger.e("[WebpageParserService] 保存截图失败: $e");
     }
   }
 }
@@ -464,8 +435,7 @@ class WebpageData {
   final String htmlContent;
   final String textContent;
   final String publishedTime;
-  final List<String> imageUrls;
-  final List<String> screenshots;
+  final String coverImageUrl;
 
   WebpageData({
     required this.title,
@@ -473,20 +443,11 @@ class WebpageData {
     required this.htmlContent,
     required this.textContent,
     required this.publishedTime,
-    required this.imageUrls,
-    required this.screenshots,
+    required this.coverImageUrl,
   });
 
   /// 创建空的网页数据
   factory WebpageData.empty() {
-    return WebpageData(
-      title: '',
-      excerpt: '',
-      htmlContent: '',
-      textContent: '',
-      publishedTime: '',
-      imageUrls: const [],
-      screenshots: const [],
-    );
+    return WebpageData(title: '', excerpt: '', htmlContent: '', textContent: '', publishedTime: '', coverImageUrl: '');
   }
 }

@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "1:4903589311666536386",
-      "lastPropertyId": "13:7461987700932446700",
+      "lastPropertyId": "14:3742913584949080496",
       "name": "Article",
       "properties": [
         {
@@ -74,6 +74,11 @@
         {
           "id": "13:7461987700932446700",
           "name": "status",
+          "type": 9
+        },
+        {
+          "id": "14:3742913584949080496",
+          "name": "coverImage",
           "type": 9
         }
       ],

@@ -18,6 +18,7 @@ import 'package:daily_satori/app/services/share_receive_service.dart';
 import 'package:daily_satori/app/services/time_service.dart';
 import 'package:daily_satori/app/services/web_service/web_service.dart';
 import 'package:daily_satori/app/services/webpage_parser_service.dart';
+import 'package:daily_satori/app/services/migration_service.dart';
 
 // 应用加载优先级
 enum ServicePriority {
@@ -163,6 +164,7 @@ void _initNormalPriorityServices() {
   // 不等待这些服务完成初始化
   AppServiceManager.initService('AiService', () => AiService.i.init());
   AppServiceManager.initService('BackupService', () => BackupService.i.init());
+  AppServiceManager.initService('MigrationService', () => MigrationService.i.init());
   AppServiceManager.initService('PluginService', () => PluginService.i.init());
   AppServiceManager.initService('WebService', () => WebService.i.init());
 }

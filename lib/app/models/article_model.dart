@@ -65,6 +65,10 @@ class ArticleModel {
   String get status => _entity.status;
   set status(String value) => _entity.status = value;
 
+  /// 封面图片路径
+  String? get coverImage => _entity.coverImage;
+  set coverImage(String? value) => _entity.coverImage = value;
+
   /// 发布日期
   DateTime? get pubDate => _entity.pubDate;
   set pubDate(DateTime? value) => _entity.pubDate = value;
@@ -88,7 +92,10 @@ class ArticleModel {
 
   /// 获取主图路径
   String getHeaderImagePath() {
-    return images.isEmpty ? '' : (images.first.path ?? '');
+    if (_entity.coverImage != null && _entity.coverImage!.isNotEmpty) {
+      return _entity.coverImage!;
+    }
+    return '';
   }
 
   /// 检查是否有主图

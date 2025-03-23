@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:daily_satori/app/components/webview/base_webview.dart';
-import 'package:daily_satori/app/components/webview/flutter_inappwebview_screenshot.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 
 /// 无头浏览器数据模型
@@ -12,8 +11,7 @@ class HeadlessWebViewResult {
   final String htmlContent;
   final String textContent;
   final String publishedTime;
-  final List<String> imageUrls;
-  final List<String> screenshots;
+  final String coverImageUrl; // 只保留一张封面图
 
   HeadlessWebViewResult({
     required this.title,
@@ -21,8 +19,7 @@ class HeadlessWebViewResult {
     required this.htmlContent,
     required this.textContent,
     required this.publishedTime,
-    required this.imageUrls,
-    required this.screenshots,
+    required this.coverImageUrl,
   });
 
   /// 创建空的结果数据
@@ -33,8 +30,7 @@ class HeadlessWebViewResult {
       htmlContent: '',
       textContent: '',
       publishedTime: '',
-      imageUrls: const [],
-      screenshots: const [],
+      coverImageUrl: '',
     );
   }
 }
@@ -444,7 +440,7 @@ class _HeadlessWebViewSession {
         await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/parse_content.js");
       } catch (e) {
         logger.e("[HeadlessWebView] 注入解析脚本失败: $e");
-        throw e;
+        rethrow;
       }
 
       // 执行解析，使用超时保护
@@ -459,8 +455,11 @@ class _HeadlessWebViewSession {
       final resultMap = parseResult as Map<dynamic, dynamic>;
       final result = _extractResultFromMap(resultMap);
 
-      // 捕获网页截图
-      final screenshots = await captureFullPageScreenshot(controller);
+      // 提取封面图URL
+      String coverImageUrl = '';
+      if (result['imageUrls'] != null && (result['imageUrls'] as List).isNotEmpty) {
+        coverImageUrl = (result['imageUrls'] as List).first;
+      }
 
       // 创建最终结果对象
       return HeadlessWebViewResult(
@@ -469,8 +468,7 @@ class _HeadlessWebViewSession {
         htmlContent: result['htmlContent'] ?? '',
         textContent: result['textContent'] ?? '',
         publishedTime: result['publishedTime'] ?? '',
-        imageUrls: result['imageUrls'] ?? [],
-        screenshots: screenshots,
+        coverImageUrl: coverImageUrl,
       );
     } catch (e) {
       logger.e("[HeadlessWebView] 解析网页内容失败: $e");

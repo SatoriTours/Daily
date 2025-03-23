@@ -27,7 +27,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
       id: const obx_int.IdUid(1, 4903589311666536386),
       name: 'Article',
-      lastPropertyId: const obx_int.IdUid(13, 7461987700932446700),
+      lastPropertyId: const obx_int.IdUid(14, 3742913584949080496),
       flags: 0,
       properties: <obx_int.ModelProperty>[
         obx_int.ModelProperty(
@@ -94,6 +94,11 @@ final _entities = <obx_int.ModelEntity>[
         obx_int.ModelProperty(
             id: const obx_int.IdUid(13, 7461987700932446700),
             name: 'status',
+            type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(14, 3742913584949080496),
+            name: 'coverImage',
             type: 9,
             flags: 0)
       ],
@@ -350,7 +355,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
           final commentOffset =
               object.comment == null ? null : fbb.writeString(object.comment!);
           final statusOffset = fbb.writeString(object.status);
-          fbb.startTable(14);
+          final coverImageOffset = object.coverImage == null
+              ? null
+              : fbb.writeString(object.coverImage!);
+          fbb.startTable(15);
           fbb.addInt64(0, object.id);
           fbb.addOffset(1, titleOffset);
           fbb.addOffset(2, aiTitleOffset);
@@ -364,6 +372,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fbb.addInt64(10, object.updatedAt?.millisecondsSinceEpoch);
           fbb.addInt64(11, object.createdAt?.millisecondsSinceEpoch);
           fbb.addOffset(12, statusOffset);
+          fbb.addOffset(13, coverImageOffset);
           fbb.finish(fbb.endTable());
           return object.id;
         },
@@ -397,6 +406,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
               .vTableGetNullable(buffer, rootOffset, 20);
           final statusParam = const fb.StringReader(asciiOptimization: true)
               .vTableGet(buffer, rootOffset, 28, '');
+          final coverImageParam = const fb.StringReader(asciiOptimization: true)
+              .vTableGetNullable(buffer, rootOffset, 30);
           final pubDateParam = pubDateValue == null
               ? null
               : DateTime.fromMillisecondsSinceEpoch(pubDateValue);
@@ -417,6 +428,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
               isFavorite: isFavoriteParam,
               comment: commentParam,
               status: statusParam,
+              coverImage: coverImageParam,
               pubDate: pubDateParam,
               updatedAt: updatedAtParam,
               createdAt: createdAtParam);
@@ -684,6 +696,10 @@ class Article_ {
   /// See [Article.status].
   static final status =
       obx.QueryStringProperty<Article>(_entities[0].properties[12]);
+
+  /// See [Article.coverImage].
+  static final coverImage =
+      obx.QueryStringProperty<Article>(_entities[0].properties[13]);
 
   /// see [Article.tags]
   static final tags =
