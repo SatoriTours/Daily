@@ -9,7 +9,6 @@ import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/repositories/image_repository.dart';
-import 'package:daily_satori/app/repositories/screenshot_repository.dart';
 import 'package:daily_satori/app/repositories/tag_repository.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:get/get.dart';

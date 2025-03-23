@@ -11,6 +11,7 @@ import 'package:daily_satori/app/modules/articles/controllers/articles_controlle
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/html_styles.dart';
 import 'package:daily_satori/global.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -282,11 +283,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
       padding: Dimensions.paddingPage,
       child: Html(
         data: htmlContent,
-        style: {
-          "body": Style(fontSize: FontSize(16.0), margin: Margins.zero, padding: HtmlPaddings.zero),
-          "img": Style(width: Width(MediaQuery.of(context).size.width - 32)),
-          "a": Style(color: AppTheme.getColorScheme(context).primary),
-        },
+        style: HtmlStyles.getStyles(context),
         onLinkTap: (url, _, __) {
           if (url != null) {
             _launchUrlExternal(url);

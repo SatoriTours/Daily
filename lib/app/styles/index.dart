@@ -9,3 +9,4 @@ export 'diary_style.dart';
 export 'dimensions.dart';
 export 'font_style.dart';
 export 'theme.dart';
+export 'html_styles.dart';
