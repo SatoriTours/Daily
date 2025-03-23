@@ -108,7 +108,7 @@ class WebpageParserService {
   /// 检查数据库中待处理的文章
   Future<void> _checkPendingArticles() async {
     try {
-      final pendingArticles = await _findArticlesByStatus('pending');
+      final pendingArticles = await _findAllPending();
 
       if (pendingArticles.isEmpty) {
         logger.d("[WebpageParserService] 没有待处理的文章");
@@ -131,12 +131,12 @@ class WebpageParserService {
   }
 
   /// 通过状态查找文章
-  Future<List<Article>> _findArticlesByStatus(String status) async {
+  Future<List<Article>> _findAllPending() async {
     try {
-      final List<ArticleModel> articles = ArticleRepository.findByStatus(status);
+      final List<ArticleModel> articles = ArticleRepository.findAllPending();
       return articles.map((model) => model.entity).toList();
     } catch (e, stackTrace) {
-      logger.e("[WebpageParserService] 查找$status状态文章失败: $e\n$stackTrace");
+      logger.e("[WebpageParserService] 查找需要处理的文章失败: $e\n$stackTrace");
       return [];
     }
   }

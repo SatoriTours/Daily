@@ -37,6 +37,17 @@ class ArticleRepository {
     }
   }
 
+  /// 查找所有没有解析完成的文章
+  static List<ArticleModel> findAllPending() {
+    final query = _box.query(Article_.status.notEquals('completed').and(Article_.status.notEquals(''))).build();
+    try {
+      final articles = query.find();
+      return articles.map((article) => ArticleModel(article)).toList();
+    } finally {
+      query.close();
+    }
+  }
+
   /// 根据ID查找文章
   static ArticleModel? find(int id) {
     // 检查ID是否有效，避免ID=0时的异常
