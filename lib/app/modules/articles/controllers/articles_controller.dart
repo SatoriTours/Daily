@@ -112,6 +112,8 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     final article = ArticleRepository.find(id);
     if (article == null) return;
 
+    logger.i('更新文章状态 ${article.title}, |${article.status}|');
+
     final index = articles.indexWhere((item) => item.id == id);
     if (index != -1) {
       articles[index] = article;

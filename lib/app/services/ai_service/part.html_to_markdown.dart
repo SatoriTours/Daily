@@ -21,6 +21,8 @@ extension PartHtmlToMarkdown on AiService {
 
     logger.i("[AI转换] 将HTML转换为Markdown中...");
 
+    logger.i("[AI转换] 获取AI角色模板 ${PluginService.i.getHtmlToMarkdownRole()}");
+
     // 构建系统提示
     final roleTemplate = PluginService.i.getHtmlToMarkdownRole();
 

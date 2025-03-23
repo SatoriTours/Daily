@@ -58,11 +58,6 @@ class ArticlesView extends GetView<ArticlesController> {
                 scrollController: controller.scrollController,
                 onRefresh: controller.reloadArticles,
                 isLoading: controller.isLoading.value,
-                onArticleUpdated: () {
-                  if (controller.articles.isNotEmpty) {
-                    controller.updateArticle(controller.articles.last.id);
-                  }
-                },
               ),
             ),
           ],

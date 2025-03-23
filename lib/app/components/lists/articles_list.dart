@@ -11,7 +11,6 @@ class ArticlesList extends StatelessWidget {
   final ScrollController? scrollController;
   final Future<void> Function()? onRefresh;
   final bool isLoading;
-  final VoidCallback? onArticleUpdated;
 
   const ArticlesList({
     super.key,
@@ -19,7 +18,6 @@ class ArticlesList extends StatelessWidget {
     this.scrollController,
     this.onRefresh,
     this.isLoading = false,
-    this.onArticleUpdated,
   });
 
   @override
@@ -47,7 +45,7 @@ class ArticlesList extends StatelessWidget {
     if (index == articles.length) {
       return _buildLoadingIndicator(context);
     }
-    return ArticleCard(articleModel: articles[index], onArticleUpdated: onArticleUpdated);
+    return ArticleCard(articleModel: articles[index]);
   }
 
   Widget _buildLoadingIndicator(BuildContext context) {

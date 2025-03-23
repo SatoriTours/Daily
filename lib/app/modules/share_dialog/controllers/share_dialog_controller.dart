@@ -105,15 +105,12 @@ class ShareDialogController extends GetxController {
 
     try {
       // 调用网页解析服务保存网页基本信息
-      final articleModel = await WebpageParserService.i.saveWebpage(
+      await WebpageParserService.i.saveWebpage(
         url: shareURL.value,
         comment: commentController.text,
         isUpdate: isUpdate.value,
         articleID: articleID.value,
       );
-
-      // 通知文章列表更新
-      Get.find<ArticlesController>().updateArticle(articleModel.id);
     } catch (e, stackTrace) {
       logger.e("保存网页失败: $e\n堆栈信息: $stackTrace");
       _showMessage("保存失败: $e");

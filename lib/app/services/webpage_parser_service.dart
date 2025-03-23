@@ -182,7 +182,8 @@ class WebpageParserService {
 
     try {
       // 更新文章状态为处理中
-      _updateArticleStatus(articleModel, 'processing');
+      await _updateArticleStatus(articleModel, 'processing');
+      Get.find<ArticlesController>().updateArticle(articleId);
 
       // 获取网页内容
       final webpageData = await _fetchWebpageContent(articleModel.url);
@@ -260,9 +261,9 @@ class WebpageParserService {
   }
 
   /// 更新文章处理状态
-  void _updateArticleStatus(ArticleModel articleModel, String status) {
+  Future<void> _updateArticleStatus(ArticleModel articleModel, String status) async {
     articleModel.setStatus(status);
-    articleModel.save();
+    await articleModel.save();
   }
 
   /// 创建初始文章模型
