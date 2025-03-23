@@ -17,13 +17,13 @@ class ApiController {
     final router = Router();
 
     // 身份认证API
-    router.mount('/auth', AuthController().router);
+    router.mount('/auth', AuthController().router.call);
 
     // 文章API
-    router.mount('/articles', ArticleController().router);
+    router.mount('/articles', ArticleController().router.call);
 
     // 日记API
-    router.mount('/diary', DiaryController().router);
+    router.mount('/diary', DiaryController().router.call);
 
     // 文件上传API
     final filePipeline = const Pipeline().addMiddleware(AuthMiddleware.requireAuth());
