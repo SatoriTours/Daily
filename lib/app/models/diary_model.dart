@@ -46,4 +46,9 @@ class DiaryModel {
       images: images,
     );
   }
+
+  /// 将images字符串转换为列表
+  List<String> get imagesList {
+    return images?.split(',') ?? [];
+  }
 }

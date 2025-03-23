@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/services/file_service.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:daily_satori/app/models/diary_model.dart';
@@ -275,7 +276,7 @@ class DiaryController {
       'content': diary.content,
       'tags': diary.tags,
       'mood': diary.mood,
-      'images': diary.images,
+      'images': diary.imagesList.map((e) => FileService.i.convertLocalPathToWebPath(e)).toList(),
       'createdAt': diary.createdAt.toIso8601String(),
       'updatedAt': diary.updatedAt.toIso8601String(),
     };

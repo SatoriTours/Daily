@@ -187,15 +187,7 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
 
   /// 获取图片保存路径
   Future<String> getImageSavePath() async {
-    final directory = await getApplicationDocumentsDirectory();
-    final path = '${directory.path}/diary_images';
-
-    final dir = Directory(path);
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-
-    return path;
+    return FileService.i.diaryImagesBasePath;
   }
 
   /// 选择并保存图片

@@ -17,12 +17,14 @@ class FileService {
   // 路径存储
   late String _appPath;
   late String _imagesBasePath;
+  late String _diaryImagesBasePath;
   late String _screenshotsBasePath;
   late String _downloadsPath;
   late String _publicPath;
 
   // Getters
   String get imagesBasePath => _imagesBasePath;
+  String get diaryImagesBasePath => _diaryImagesBasePath;
   String get screenshotsBasePath => _screenshotsBasePath;
   String get downloadsPath => _downloadsPath;
   String get publicPath => _publicPath;
@@ -34,6 +36,7 @@ class FileService {
     logger.i("[初始化服务] FileService");
     _appPath = (await getApplicationDocumentsDirectory()).path;
     _imagesBasePath = await createDirectory('images');
+    _diaryImagesBasePath = await createDirectory('diary_images');
     _screenshotsBasePath = await createDirectory('screenshots');
     _downloadsPath = await createDirectory('downloads');
     _publicPath = await createDirectory('public');

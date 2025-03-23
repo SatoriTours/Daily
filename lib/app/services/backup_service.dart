@@ -75,7 +75,7 @@ class BackupService {
 
     final backupTasks = [
       _compressDirectory(FileService.i.imagesBasePath, path.join(backupFolder, 'images.zip')),
-      _compressDirectory(FileService.i.screenshotsBasePath, path.join(backupFolder, 'screenshots.zip')),
+      _compressDirectory(FileService.i.diaryImagesBasePath, path.join(backupFolder, 'diary_images.zip')),
       _compressDirectory(FileService.i.dbPath, path.join(backupFolder, 'objectbox.zip')),
     ];
 
