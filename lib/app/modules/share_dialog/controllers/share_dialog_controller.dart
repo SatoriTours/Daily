@@ -96,10 +96,10 @@ class ShareDialogController extends GetxController {
   }
 
   /// 保存按钮点击
-  void onSaveButtonPressed() async {
+  Future<void> onSaveButtonPressed() async {
     // 检查URL是否有效
     if (shareURL.value.isEmpty) {
-      _showMessage("链接为空，无法保存");
+      errorNotice("链接为空，无法保存");
       return;
     }
 
@@ -113,7 +113,9 @@ class ShareDialogController extends GetxController {
       );
     } catch (e, stackTrace) {
       logger.e("保存网页失败: $e\n堆栈信息: $stackTrace");
-      _showMessage("保存失败: $e");
+      errorNotice("保存失败: $e");
+      // 延迟2秒
+      await Future.delayed(const Duration(seconds: 2));
     } finally {
       _completeProcess();
     }
@@ -178,30 +180,5 @@ class ShareDialogController extends GetxController {
     } else {
       _backToPreviousApp();
     }
-  }
-
-  /// 显示提示信息
-  void _showMessage(String message) {
-    // 如果对话框正在显示，则关闭它
-    if (Get.isDialogOpen ?? false) {
-      Get.back();
-    }
-
-    final theme = Get.theme;
-
-    Get.snackbar(
-      "提示",
-      message,
-      snackPosition: SnackPosition.bottom,
-      backgroundColor: theme.colorScheme.errorContainer,
-      colorText: theme.colorScheme.onErrorContainer,
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      borderRadius: 12,
-      icon: Icon(Icons.info_outline_rounded, color: theme.colorScheme.error),
-      duration: const Duration(seconds: 3),
-      animationDuration: const Duration(milliseconds: 400),
-      boxShadows: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
-    );
   }
 }
