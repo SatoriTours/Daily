@@ -18,6 +18,7 @@ import 'app/objectbox/article.dart';
 import 'app/objectbox/diary.dart';
 import 'app/objectbox/image.dart';
 import 'app/objectbox/screenshot.dart';
+import 'app/objectbox/session.dart';
 import 'app/objectbox/setting.dart';
 import 'app/objectbox/tag.dart';
 
@@ -276,6 +277,46 @@ final _entities = <obx_int.ModelEntity>[
             flags: 0)
       ],
       relations: <obx_int.ModelRelation>[],
+      backlinks: <obx_int.ModelBacklink>[]),
+  obx_int.ModelEntity(
+      id: const obx_int.IdUid(7, 1811848833096075631),
+      name: 'SessionEntity',
+      lastPropertyId: const obx_int.IdUid(6, 7265530073834234274),
+      flags: 0,
+      properties: <obx_int.ModelProperty>[
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(1, 2124934430326158279),
+            name: 'id',
+            type: 6,
+            flags: 1),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(2, 8258119813882417041),
+            name: 'sessionId',
+            type: 9,
+            flags: 2080,
+            indexId: const obx_int.IdUid(6, 7022087712099044524)),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(3, 4855374858193305948),
+            name: 'isAuthenticated',
+            type: 1,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(4, 1136672955595213969),
+            name: 'username',
+            type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(5, 3355559810444181801),
+            name: 'createdAt',
+            type: 10,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(6, 7265530073834234274),
+            name: 'lastAccessedAt',
+            type: 10,
+            flags: 0)
+      ],
+      relations: <obx_int.ModelRelation>[],
       backlinks: <obx_int.ModelBacklink>[])
 ];
 
@@ -314,8 +355,8 @@ Future<obx.Store> openStore(
 obx_int.ModelDefinition getObjectBoxModel() {
   final model = obx_int.ModelInfo(
       entities: _entities,
-      lastEntityId: const obx_int.IdUid(6, 8005082016940708333),
-      lastIndexId: const obx_int.IdUid(5, 5582228043341448759),
+      lastEntityId: const obx_int.IdUid(7, 1811848833096075631),
+      lastIndexId: const obx_int.IdUid(6, 7022087712099044524),
       lastRelationId: const obx_int.IdUid(4, 6883695399629113204),
       lastSequenceId: const obx_int.IdUid(0, 0),
       retiredEntityUids: const [],
@@ -661,6 +702,54 @@ obx_int.ModelDefinition getObjectBoxModel() {
               images: imagesParam);
 
           return object;
+        }),
+    SessionEntity: obx_int.EntityDefinition<SessionEntity>(
+        model: _entities[6],
+        toOneRelations: (SessionEntity object) => [],
+        toManyRelations: (SessionEntity object) => {},
+        getId: (SessionEntity object) => object.id,
+        setId: (SessionEntity object, int id) {
+          object.id = id;
+        },
+        objectToFB: (SessionEntity object, fb.Builder fbb) {
+          final sessionIdOffset = fbb.writeString(object.sessionId);
+          final usernameOffset = object.username == null
+              ? null
+              : fbb.writeString(object.username!);
+          fbb.startTable(7);
+          fbb.addInt64(0, object.id);
+          fbb.addOffset(1, sessionIdOffset);
+          fbb.addBool(2, object.isAuthenticated);
+          fbb.addOffset(3, usernameOffset);
+          fbb.addInt64(4, object.createdAt.millisecondsSinceEpoch);
+          fbb.addInt64(5, object.lastAccessedAt.millisecondsSinceEpoch);
+          fbb.finish(fbb.endTable());
+          return object.id;
+        },
+        objectFromFB: (obx.Store store, ByteData fbData) {
+          final buffer = fb.BufferContext(fbData);
+          final rootOffset = buffer.derefObject(0);
+          final idParam =
+              const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+          final sessionIdParam = const fb.StringReader(asciiOptimization: true)
+              .vTableGet(buffer, rootOffset, 6, '');
+          final isAuthenticatedParam =
+              const fb.BoolReader().vTableGet(buffer, rootOffset, 8, false);
+          final usernameParam = const fb.StringReader(asciiOptimization: true)
+              .vTableGetNullable(buffer, rootOffset, 10);
+          final createdAtParam = DateTime.fromMillisecondsSinceEpoch(
+              const fb.Int64Reader().vTableGet(buffer, rootOffset, 12, 0));
+          final lastAccessedAtParam = DateTime.fromMillisecondsSinceEpoch(
+              const fb.Int64Reader().vTableGet(buffer, rootOffset, 14, 0));
+          final object = SessionEntity(
+              id: idParam,
+              sessionId: sessionIdParam,
+              isAuthenticated: isAuthenticatedParam,
+              username: usernameParam,
+              createdAt: createdAtParam,
+              lastAccessedAt: lastAccessedAtParam);
+
+          return object;
         })
   };
 
@@ -832,4 +921,31 @@ class Diary_ {
   /// See [Diary.images].
   static final images =
       obx.QueryStringProperty<Diary>(_entities[5].properties[6]);
+}
+
+/// [SessionEntity] entity fields to define ObjectBox queries.
+class SessionEntity_ {
+  /// See [SessionEntity.id].
+  static final id =
+      obx.QueryIntegerProperty<SessionEntity>(_entities[6].properties[0]);
+
+  /// See [SessionEntity.sessionId].
+  static final sessionId =
+      obx.QueryStringProperty<SessionEntity>(_entities[6].properties[1]);
+
+  /// See [SessionEntity.isAuthenticated].
+  static final isAuthenticated =
+      obx.QueryBooleanProperty<SessionEntity>(_entities[6].properties[2]);
+
+  /// See [SessionEntity.username].
+  static final username =
+      obx.QueryStringProperty<SessionEntity>(_entities[6].properties[3]);
+
+  /// See [SessionEntity.createdAt].
+  static final createdAt =
+      obx.QueryDateProperty<SessionEntity>(_entities[6].properties[4]);
+
+  /// See [SessionEntity.lastAccessedAt].
+  static final lastAccessedAt =
+      obx.QueryDateProperty<SessionEntity>(_entities[6].properties[5]);
 }

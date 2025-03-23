@@ -5,6 +5,7 @@ import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
+import 'package:daily_satori/app/services/web_service/api_controllers/api_controller.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
@@ -16,6 +17,7 @@ import 'package:path/path.dart' as path;
 
 class AppHttpServer {
   final _router = Router();
+  final _apiController = ApiController();
 
   Future<void> start() async {
     await _createWebsiteDir();
@@ -39,7 +41,12 @@ class AppHttpServer {
     // 定义 /ping 路由，返回字符串 "pong"
     _router.get('/ping', (shelf.Request request) => shelf.Response.ok('pong'));
     _router.get('/', _homePage);
+
+    // 注册旧的API
     _router.post('/api/v1/articles', _handleRequest(_createArticle));
+
+    // 注册新的RESTful API
+    _router.mount('/api/v2', _apiController.createHandler());
   }
 
   Future<shelf.Response> _homePage(shelf.Request request) async {
