@@ -15,6 +15,9 @@ class ArticleRepository {
   // 获取Box的静态方法
   static Box<Article> get _box => ObjectboxService.i.box<Article>();
 
+  /// 每页文章数量
+  static const int pageSize = 10;
+
   /// 查找所有文章
   static List<ArticleModel> all() {
     return _box.getAll().map((e) => ArticleModel(e)).toList();
@@ -23,6 +26,33 @@ class ArticleRepository {
   /// 获取所有文章（别名方法）
   static List<ArticleModel> getAll() {
     return all();
+  }
+
+  /// 分页获取所有文章
+  static List<ArticleModel> getAllPaginated(int page) {
+    final query = _box.query().order(Article_.id, flags: Order.descending).build();
+
+    try {
+      // 计算偏移量
+      final offset = (page - 1) * pageSize;
+      // 获取查询结果，带分页
+      final articles = query.find();
+      final paginatedArticles = articles.skip(offset).take(pageSize).toList();
+      return paginatedArticles.map((article) => ArticleModel(article)).toList();
+    } finally {
+      query.close();
+    }
+  }
+
+  /// 获取文章总数
+  static int getTotalCount() {
+    return _box.count();
+  }
+
+  /// 获取总页数
+  static int getTotalPages() {
+    final totalItems = getTotalCount();
+    return (totalItems / pageSize).ceil();
   }
 
   /// 根据状态查找文章
@@ -206,6 +236,101 @@ class ArticleRepository {
 
     // 执行查询
     return _executeQuery(queryBuilder, pageSize);
+  }
+
+  /// 分页搜索文章
+  static List<ArticleModel> wherePaginated({
+    String? keyword,
+    List<int>? tagIds,
+    bool? isFavorite,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? referenceId,
+    bool? isGreaterThan,
+    int page = 1,
+  }) {
+    // 创建查询构建器
+    final queryBuilder = _createQueryBuilder(
+      keyword: keyword,
+      isFavorite: isFavorite,
+      startDate: startDate,
+      endDate: endDate,
+      referenceId: referenceId,
+      isGreaterThan: isGreaterThan,
+    );
+
+    // 应用标签过滤
+    _applyTagFilter(queryBuilder, tagIds);
+
+    // 应用排序
+    queryBuilder.order(Article_.id, flags: Order.descending);
+
+    // 构建查询
+    final query = queryBuilder.build();
+    try {
+      // 计算偏移量
+      final offset = (page - 1) * pageSize;
+      // 获取查询结果，带分页
+      final articles = query.find();
+      final paginatedArticles = articles.skip(offset).take(pageSize).toList();
+      return paginatedArticles.map((article) => ArticleModel(article)).toList();
+    } finally {
+      query.close();
+    }
+  }
+
+  /// 获取搜索结果的总数
+  static int getSearchCount({
+    String? keyword,
+    List<int>? tagIds,
+    bool? isFavorite,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? referenceId,
+    bool? isGreaterThan,
+  }) {
+    // 创建查询构建器
+    final queryBuilder = _createQueryBuilder(
+      keyword: keyword,
+      isFavorite: isFavorite,
+      startDate: startDate,
+      endDate: endDate,
+      referenceId: referenceId,
+      isGreaterThan: isGreaterThan,
+    );
+
+    // 应用标签过滤
+    _applyTagFilter(queryBuilder, tagIds);
+
+    // 构建查询并计算总数
+    final query = queryBuilder.build();
+    try {
+      return query.count();
+    } finally {
+      query.close();
+    }
+  }
+
+  /// 获取搜索结果的总页数
+  static int getSearchTotalPages({
+    String? keyword,
+    List<int>? tagIds,
+    bool? isFavorite,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? referenceId,
+    bool? isGreaterThan,
+  }) {
+    final totalItems = getSearchCount(
+      keyword: keyword,
+      tagIds: tagIds,
+      isFavorite: isFavorite,
+      startDate: startDate,
+      endDate: endDate,
+      referenceId: referenceId,
+      isGreaterThan: isGreaterThan,
+    );
+    return (totalItems / pageSize).ceil();
   }
 
   /// 创建查询构建器并应用基本条件

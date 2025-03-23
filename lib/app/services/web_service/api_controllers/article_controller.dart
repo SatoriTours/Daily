@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/services/file_service.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:daily_satori/app/models/article_model.dart';
@@ -58,13 +59,29 @@ class ArticleController {
   /// 获取文章列表
   Future<Response> _getArticles(Request request) async {
     try {
-      // 获取所有文章
-      final articles = ArticleRepository.getAll();
+      final params = RequestUtils.parseQueryParams(request);
+      final pageStr = params['page'] ?? '1';
+      final page = int.tryParse(pageStr) ?? 1;
+
+      // 获取指定页的文章
+      final articles = ArticleRepository.getAllPaginated(page);
+      // 获取总页数和总条数
+      final totalItems = ArticleRepository.getTotalCount();
+      final totalPages = ArticleRepository.getTotalPages();
 
       // 转换为JSON格式
       final articlesJson = articles.map(_articleToJson).toList();
 
-      return ResponseUtils.success(articlesJson);
+      // 返回带分页信息的响应
+      return ResponseUtils.success({
+        'data': articlesJson,
+        'pagination': {
+          'page': page,
+          'pageSize': ArticleRepository.pageSize,
+          'totalItems': totalItems,
+          'totalPages': totalPages,
+        },
+      });
     } catch (e) {
       logger.e('获取文章列表失败: $e');
       return ResponseUtils.serverError('处理文章列表请求时发生错误');
@@ -76,18 +93,32 @@ class ArticleController {
     try {
       final params = RequestUtils.parseQueryParams(request);
       final query = params['q'] ?? '';
+      final pageStr = params['page'] ?? '1';
+      final page = int.tryParse(pageStr) ?? 1;
 
       if (query.isEmpty) {
         return ResponseUtils.validationError('搜索关键词不能为空');
       }
 
-      // 搜索文章 - 使用where方法进行搜索
-      final articles = ArticleRepository.where(keyword: query);
+      // 搜索文章 - 使用分页方法
+      final articles = ArticleRepository.wherePaginated(keyword: query, page: page);
+      // 获取搜索结果的总数和总页数
+      final totalItems = ArticleRepository.getSearchCount(keyword: query);
+      final totalPages = ArticleRepository.getSearchTotalPages(keyword: query);
 
       // 转换为JSON格式
       final articlesJson = articles.map(_articleToJson).toList();
 
-      return ResponseUtils.success(articlesJson);
+      // 返回带分页信息的响应
+      return ResponseUtils.success({
+        'data': articlesJson,
+        'pagination': {
+          'page': page,
+          'pageSize': ArticleRepository.pageSize,
+          'totalItems': totalItems,
+          'totalPages': totalPages,
+        },
+      });
     } catch (e) {
       logger.e('搜索文章失败: $e');
       return ResponseUtils.serverError('处理文章搜索请求时发生错误');
@@ -263,7 +294,7 @@ class ArticleController {
       'isFavorite': article.isFavorite,
       'comment': article.comment,
       'status': article.status,
-      'coverImage': article.coverImage,
+      'coverImage': FileService.i.convertLocalPathToWebPath(article.coverImage ?? ''),
       'coverImageUrl': article.coverImageUrl,
       'pubDate': article.pubDate?.toIso8601String(),
       'updatedAt': article.updatedAt?.toIso8601String(),

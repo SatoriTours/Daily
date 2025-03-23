@@ -19,11 +19,13 @@ class FileService {
   late String _imagesBasePath;
   late String _screenshotsBasePath;
   late String _downloadsPath;
+  late String _publicPath;
 
   // Getters
   String get imagesBasePath => _imagesBasePath;
   String get screenshotsBasePath => _screenshotsBasePath;
   String get downloadsPath => _downloadsPath;
+  String get publicPath => _publicPath;
   String get dbPath => path.join(_appPath, ObjectboxService.dbDir);
   String get appPath => _appPath;
 
@@ -34,6 +36,21 @@ class FileService {
     _imagesBasePath = await createDirectory('images');
     _screenshotsBasePath = await createDirectory('screenshots');
     _downloadsPath = await createDirectory('downloads');
+    _publicPath = await createDirectory('public');
+
+    // 确保公共静态资源目录存在
+    await _initializePublicDirectory();
+  }
+
+  // 初始化公共静态资源目录结构
+  Future<void> _initializePublicDirectory() async {
+    // 创建子目录
+    await createDirectory(path.join('public', 'css'));
+    await createDirectory(path.join('public', 'js'));
+    await createDirectory(path.join('public', 'img'));
+    await createDirectory(path.join('public', 'fonts'));
+
+    logger.i("公共静态资源目录结构已初始化");
   }
 
   // 获取下载文件路径
@@ -41,6 +58,9 @@ class FileService {
 
   // 获取图片路径
   String getImagePath(String imageName) => path.join(_imagesBasePath, imageName);
+
+  // 获取公共资源文件路径
+  String getPublicPath(String relativePath) => path.join(_publicPath, relativePath);
 
   // 生成截图路径
   String getScreenshotPath() {
@@ -67,6 +87,21 @@ class FileService {
     return dirPath;
   }
 
+  // 保存文件到公共目录
+  Future<String> saveToPublicDirectory(List<int> bytes, String relativePath) async {
+    final fullPath = getPublicPath(relativePath);
+    final file = File(fullPath);
+
+    // 确保父目录存在
+    final parentDir = Directory(path.dirname(fullPath));
+    if (!parentDir.existsSync()) {
+      parentDir.createSync(recursive: true);
+    }
+
+    await file.writeAsBytes(bytes);
+    return relativePath; // 返回相对路径，便于构建URL
+  }
+
   // 获取当前时间戳
   String _getCurrentTimestamp() => DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
 
@@ -78,5 +113,10 @@ class FileService {
     const pattern = r'\b\w+\.(jpg|jpeg|png|gif|svg|webp)\b';
     final match = RegExp(pattern, caseSensitive: false).firstMatch(url.toLowerCase());
     return match != null ? '.${match.group(0)!.split('.').last}' : '';
+  }
+
+  // 将本地路径转换为Web路径
+  String convertLocalPathToWebPath(String localPath) {
+    return localPath.replaceAll(appPath, '');
   }
 }

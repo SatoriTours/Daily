@@ -3,24 +3,22 @@ import 'dart:io';
 
 import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/web_service/api_controllers/api_controller.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
 import 'package:shelf_static/shelf_static.dart';
-import 'package:path/path.dart' as path;
 
 class AppHttpServer {
   final _router = Router();
   final _apiController = ApiController();
 
   Future<void> start() async {
-    await _createWebsiteDir();
     await _registerStaticRouter();
     _registerRouter();
 
@@ -33,14 +31,13 @@ class AppHttpServer {
       final server = await shelf_io.serve(handler, InternetAddress.anyIPv4, 8888);
       logger.i('[服务 WebService] Web服务启动成功: ${server.address.host}:${server.port}');
     } catch (e) {
-      logger.e('[服务  WebService] Web服务启动失败: $e');
+      logger.e('[服务 WebService] Web服务启动失败: $e');
     }
   }
 
   void _registerRouter() {
     // 定义 /ping 路由，返回字符串 "pong"
     _router.get('/ping', (shelf.Request request) => shelf.Response.ok('pong'));
-    _router.get('/', _homePage);
 
     // 注册旧的API
     _router.post('/api/v1/articles', _handleRequest(_createArticle));
@@ -49,21 +46,49 @@ class AppHttpServer {
     _router.mount('/api/v2', _apiController.createHandler());
   }
 
-  Future<shelf.Response> _homePage(shelf.Request request) async {
-    final websiteDir = await _getWebsiteDir();
-    final indexFile = File(path.join(websiteDir, 'index.html'));
-    if (indexFile.existsSync()) {
-      return shelf.Response.found('/app');
-    } else {
-      final content = await rootBundle.loadString('assets/website/index.html');
-      return shelf.Response.ok(content, headers: {'Content-Type': 'text/html; charset=utf-8'});
-    }
+  Future<void> _registerStaticRouter() async {
+    // 图片文件目录
+    final imagesDir = FileService.i.imagesBasePath;
+    final imagesHandler = createStaticHandler(imagesDir, serveFilesOutsidePath: true);
+    _router.mount('/images', imagesHandler);
+
+    // 内置静态资源
+    _router.mount('/assets', _assetHandler);
+
+    logger.i('静态资源目录已注册: 图片(/images), 内置资源(/assets)');
   }
 
-  Future<void> _registerStaticRouter() async {
-    final websiteDir = await _getWebsiteDir();
-    final staticHandler = createStaticHandler(websiteDir, defaultDocument: 'index.html', serveFilesOutsidePath: true);
-    _router.mount('/app', staticHandler);
+  /// 处理内置静态资源
+  Future<shelf.Response> _assetHandler(shelf.Request request) async {
+    try {
+      final assetPath = 'assets${request.url.path}';
+      final data = await rootBundle.load(assetPath);
+
+      // 确定内容类型
+      String contentType = 'application/octet-stream';
+      if (assetPath.endsWith('.html')) {
+        contentType = 'text/html; charset=utf-8';
+      } else if (assetPath.endsWith('.css')) {
+        contentType = 'text/css; charset=utf-8';
+      } else if (assetPath.endsWith('.js')) {
+        contentType = 'application/javascript; charset=utf-8';
+      } else if (assetPath.endsWith('.json')) {
+        contentType = 'application/json; charset=utf-8';
+      } else if (assetPath.endsWith('.png')) {
+        contentType = 'image/png';
+      } else if (assetPath.endsWith('.jpg') || assetPath.endsWith('.jpeg')) {
+        contentType = 'image/jpeg';
+      } else if (assetPath.endsWith('.gif')) {
+        contentType = 'image/gif';
+      } else if (assetPath.endsWith('.svg')) {
+        contentType = 'image/svg+xml';
+      }
+
+      return shelf.Response.ok(data.buffer.asUint8List(), headers: {'Content-Type': contentType});
+    } catch (e) {
+      logger.e('加载内置资源失败: $e');
+      return shelf.Response.notFound('资源不存在');
+    }
   }
 
   Future<shelf.Response> _createArticle(Map<String, String> params) async {
@@ -98,34 +123,5 @@ class AppHttpServer {
   shelf.Response _response(int code, String msg, {int status = 200}) {
     final body = jsonEncode({"code": code, "msg": msg});
     return shelf.Response(status, body: body, headers: {'Content-Type': 'application/json; charset=utf-8'});
-  }
-
-  Future<String> _getWebsiteDir() async {
-    final appDocDir = await getApplicationDocumentsDirectory();
-    return path.join(appDocDir.path, 'website');
-  }
-
-  Future<void> _createWebsiteDir() async {
-    final websiteDir = Directory(await _getWebsiteDir());
-    if (!websiteDir.existsSync()) {
-      websiteDir.createSync(recursive: true);
-      logger.i('创建静态资源目录: $websiteDir');
-    }
-  }
-
-  // 验证密码中间件
-  shelf.Middleware _authMiddleware() {
-    return (shelf.Handler innerHandler) {
-      return (shelf.Request request) async {
-        final password = request.requestedUri.queryParameters['pwd'] ?? '';
-        final expectedPassword = SettingRepository.getSetting(SettingService.webServerPasswordKey);
-
-        if (password != expectedPassword) {
-          return _response(401, "密码错误");
-        }
-
-        return await innerHandler(request);
-      };
-    };
   }
 }

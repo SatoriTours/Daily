@@ -66,4 +66,9 @@ class RequestUtils {
     }
     return filteredBody;
   }
+
+  /// 获取Content-Type
+  static String? getContentType(Request request) {
+    return request.headers['content-type'];
+  }
 }

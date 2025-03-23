@@ -12,6 +12,9 @@ class DiaryRepository {
   /// 获取日记 Box
   static Box<Diary> get _box => ObjectboxService.i.box<Diary>();
 
+  /// 每页日记数量
+  static const int pageSize = 10;
+
   /// 保存日记
   int save(DiaryModel diary) {
     return _box.put(diary.toEntity());
@@ -26,6 +29,33 @@ class DiaryRepository {
   List<DiaryModel> getAll() {
     final entities = _box.query(Diary_.id.notEquals(0)).order(Diary_.createdAt, flags: Order.descending).build().find();
     return entities.map((entity) => DiaryModel.fromEntity(entity)).toList();
+  }
+
+  /// 分页获取所有日记，按创建时间倒序排列
+  List<DiaryModel> getAllPaginated(int page) {
+    final query = _box.query(Diary_.id.notEquals(0)).order(Diary_.createdAt, flags: Order.descending).build();
+
+    try {
+      // 计算偏移量
+      final offset = (page - 1) * pageSize;
+      // 获取查询结果
+      final diaries = query.find();
+      final paginatedDiaries = diaries.skip(offset).take(pageSize).toList();
+      return paginatedDiaries.map((entity) => DiaryModel.fromEntity(entity)).toList();
+    } finally {
+      query.close();
+    }
+  }
+
+  /// 获取日记总数
+  int getTotalCount() {
+    return _box.count();
+  }
+
+  /// 获取总页数
+  int getTotalPages() {
+    final totalItems = getTotalCount();
+    return (totalItems / pageSize).ceil();
   }
 
   /// 根据ID获取单个日记
@@ -62,6 +92,38 @@ class DiaryRepository {
     final entities =
         _box.query(Diary_.content.contains(keyword)).order(Diary_.createdAt, flags: Order.descending).build().find();
     return entities.map((entity) => DiaryModel.fromEntity(entity)).toList();
+  }
+
+  /// 分页全文搜索日记内容
+  List<DiaryModel> searchByContentPaginated(String keyword, int page) {
+    final query = _box.query(Diary_.content.contains(keyword)).order(Diary_.createdAt, flags: Order.descending).build();
+
+    try {
+      // 计算偏移量
+      final offset = (page - 1) * pageSize;
+      // 获取查询结果
+      final diaries = query.find();
+      final paginatedDiaries = diaries.skip(offset).take(pageSize).toList();
+      return paginatedDiaries.map((entity) => DiaryModel.fromEntity(entity)).toList();
+    } finally {
+      query.close();
+    }
+  }
+
+  /// 获取搜索结果的总数
+  int getSearchCount(String keyword) {
+    final query = _box.query(Diary_.content.contains(keyword)).build();
+    try {
+      return query.count();
+    } finally {
+      query.close();
+    }
+  }
+
+  /// 获取搜索结果的总页数
+  int getSearchTotalPages(String keyword) {
+    final totalItems = getSearchCount(keyword);
+    return (totalItems / pageSize).ceil();
   }
 
   /// 获取按月分组的日记统计

@@ -66,14 +66,30 @@ class DiaryController {
   /// 获取日记列表
   Future<Response> _getDiaries(Request request) async {
     try {
-      // 获取所有日记
+      final params = RequestUtils.parseQueryParams(request);
+      final pageStr = params['page'] ?? '1';
+      final page = int.tryParse(pageStr) ?? 1;
+
+      // 获取指定页的日记
       final diaryRepository = DiaryRepository.i;
-      final diaries = diaryRepository.getAll();
+      final diaries = diaryRepository.getAllPaginated(page);
+      // 获取总页数和总条数
+      final totalItems = diaryRepository.getTotalCount();
+      final totalPages = diaryRepository.getTotalPages();
 
       // 转换为JSON格式
       final diariesJson = diaries.map(_diaryToJson).toList();
 
-      return ResponseUtils.success(diariesJson);
+      // 返回带分页信息的响应
+      return ResponseUtils.success({
+        'data': diariesJson,
+        'pagination': {
+          'page': page,
+          'pageSize': DiaryRepository.pageSize,
+          'totalItems': totalItems,
+          'totalPages': totalPages,
+        },
+      });
     } catch (e) {
       logger.e('获取日记列表失败: $e');
       return ResponseUtils.serverError('处理日记列表请求时发生错误');
@@ -85,19 +101,33 @@ class DiaryController {
     try {
       final params = RequestUtils.parseQueryParams(request);
       final query = params['q'] ?? '';
+      final pageStr = params['page'] ?? '1';
+      final page = int.tryParse(pageStr) ?? 1;
 
       if (query.isEmpty) {
         return ResponseUtils.validationError('搜索关键词不能为空');
       }
 
-      // 搜索日记内容
+      // 搜索日记内容，使用分页方法
       final diaryRepository = DiaryRepository.i;
-      final diaries = diaryRepository.searchByContent(query);
+      final diaries = diaryRepository.searchByContentPaginated(query, page);
+      // 获取搜索结果的总数和总页数
+      final totalItems = diaryRepository.getSearchCount(query);
+      final totalPages = diaryRepository.getSearchTotalPages(query);
 
       // 转换为JSON格式
       final diariesJson = diaries.map(_diaryToJson).toList();
 
-      return ResponseUtils.success(diariesJson);
+      // 返回带分页信息的响应
+      return ResponseUtils.success({
+        'data': diariesJson,
+        'pagination': {
+          'page': page,
+          'pageSize': DiaryRepository.pageSize,
+          'totalItems': totalItems,
+          'totalPages': totalPages,
+        },
+      });
     } catch (e) {
       logger.e('搜索日记失败: $e');
       return ResponseUtils.serverError('处理日记搜索请求时发生错误');
