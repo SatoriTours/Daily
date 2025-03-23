@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/objectbox.g.dart';
 import 'package:path/path.dart';
 
@@ -22,25 +23,19 @@ class FreeDiskService {
   /// 清理并备份图片文件
   Future<void> clean() async {
     await _backupAndCleanFiles<Image>(
-      box: ObjectboxService.i.box<Image>(),
+      imagePaths: ObjectboxService.i.box<Article>().getAll().map((article) => article.coverImage).toList(),
       sourcePath: FileService.i.imagesBasePath,
       backupDirName: 'images_bak',
-    );
-
-    await _backupAndCleanFiles<Screenshot>(
-      box: ObjectboxService.i.box<Screenshot>(),
-      sourcePath: FileService.i.screenshotsBasePath,
-      backupDirName: 'screenshots_bak',
     );
   }
 
   /// 备份并清理指定类型的文件
   Future<void> _backupAndCleanFiles<T>({
-    required Box<T> box,
+    required List<String?> imagePaths,
     required String sourcePath,
     required String backupDirName,
   }) async {
-    final files = box.getAll().map((e) => (e as dynamic).path as String?).where((e) => e != null);
+    final files = imagePaths.where((e) => e != null).toList();
     final backupPath = await FileService.i.createDirectory(backupDirName);
 
     // 备份存在的文件

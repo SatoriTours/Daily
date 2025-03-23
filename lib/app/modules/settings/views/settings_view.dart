@@ -218,6 +218,18 @@ class SettingsView extends GetView<SettingsController> {
         subtitleTextStyle: MyFontStyle.cardSubtitleStyleThemed(context),
         children: [
           SimpleSettingsTile(
+            title: '重新用AI分析所有网页',
+            subtitle: '重新用AI分析所有网页',
+            leading: Icon(Icons.refresh, color: AppTheme.getColorScheme(context).primary, size: Dimensions.iconSizeM),
+            showDivider: false,
+            onTap: () async {
+              UIUtils.showLoading();
+              controller.reAnalyzeAllWebpages();
+              Get.offNamed(Routes.ARTICLES);
+              UIUtils.showSuccess("清除标签完成");
+            },
+          ),
+          SimpleSettingsTile(
             title: '清除重复的图片',
             subtitle: '删除重复的图片文件以节省空间',
             leading: Icon(

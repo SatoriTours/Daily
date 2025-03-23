@@ -39,10 +39,64 @@ class ArticleRepository {
 
   /// 查找所有没有解析完成的文章
   static List<ArticleModel> findAllPending() {
-    final query = _box.query(Article_.status.notEquals('completed').and(Article_.status.notEquals(''))).build();
+    final query =
+        _box
+            .query(Article_.status.notEquals('completed').and(Article_.status.notEquals('')))
+            .order(Article_.id, flags: Order.descending)
+            .build();
     try {
       final articles = query.find();
       return articles.map((article) => ArticleModel(article)).toList();
+    } finally {
+      query.close();
+    }
+  }
+
+  /// 更新所有 status 为空的文章状态为 pending
+  static void updateEmptyStatusToPending() {
+    // 查询所有 status 为空的文章
+    final query = _box.query(Article_.status.isNull().or(Article_.status.equals(''))).build();
+    try {
+      final articles = query.find();
+      if (articles.isNotEmpty) {
+        logger.i("找到 ${articles.length} 篇状态为空的文章，将更新为 pending");
+
+        // 更新状态为 pending
+        for (final article in articles) {
+          article.status = 'pending';
+        }
+
+        _box.putMany(articles);
+
+        logger.i("已将所有状态为空的文章更新为 pending");
+      } else {
+        logger.i("没有找到状态为空的文章");
+      }
+    } finally {
+      query.close();
+    }
+  }
+
+  /// 将所有文章状态更新为 completed
+  static void updateAllStatusToCompleted() {
+    // 查询所有文章
+    final query = _box.query().build();
+    try {
+      final articles = query.find();
+      if (articles.isNotEmpty) {
+        logger.i("找到 ${articles.length} 篇文章，将全部更新为 completed 状态");
+
+        // 更新状态为 completed
+        for (final article in articles) {
+          article.status = 'completed';
+        }
+
+        _box.putMany(articles);
+
+        logger.i("已将所有文章状态更新为 completed");
+      } else {
+        logger.i("数据库中没有文章");
+      }
     } finally {
       query.close();
     }

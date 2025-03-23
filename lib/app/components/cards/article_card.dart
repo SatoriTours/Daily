@@ -21,7 +21,7 @@ class ArticleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isProcessing = articleModel.entity.status != 'completed' && articleModel.entity.status != '';
+    final isProcessing = articleModel.entity.status == 'processing';
     final colorScheme = AppTheme.getColorScheme(context);
 
     return Stack(

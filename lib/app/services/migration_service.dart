@@ -6,6 +6,7 @@ import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/objectbox.g.dart';
 
 /// 迁移服务，用于处理数据模型和文件存储的迁移工作
 class MigrationService {
@@ -108,6 +109,19 @@ class MigrationService {
   /// 删除图片文件
   Future<void> _deleteImageFile(String? filePath) async {
     if (filePath == null || filePath.isEmpty) return;
+
+    // 检查文件是否被用作文章封面图，如果是则不删除
+    final articleBox = ObjectboxService.i.box<Article>();
+    final query = articleBox.query(Article_.coverImage.equals(filePath)).build();
+    try {
+      final count = query.count();
+      if (count > 0) {
+        logger.i("文件被用作封面图，跳过删除: $filePath");
+        return;
+      }
+    } finally {
+      query.close();
+    }
 
     try {
       final file = File(filePath);

@@ -38,6 +38,7 @@ class WebpageParserService {
     if (_isInitialized) return;
 
     logger.i("[WebpageParserService] 初始化中...");
+    _processingQueue.clear();
 
     // 启动定时器，每30秒检查一次待处理的文章
     _processingTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkPendingArticles());
@@ -113,14 +114,14 @@ class WebpageParserService {
         return;
       }
 
-      logger.i("[WebpageParserService] 发现 ${pendingArticles.length} 篇待处理文章");
-
       // 将待处理文章添加到队列
       for (final article in pendingArticles) {
         if (!_processingQueue.contains(article.id) && _currentProcessingArticle != article.id) {
           _processingQueue.add(article.id);
         }
       }
+
+      logger.i("[WebpageParserService] 发现 ${_processingQueue.length} 篇待处理文章");
 
       _processQueue();
     } catch (e) {

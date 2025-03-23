@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/app/services/web_service/web_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:file_picker/file_picker.dart';
@@ -55,5 +56,12 @@ class SettingsController extends GetxController {
 
   void copyWebAccessUrl() {
     Clipboard.setData(ClipboardData(text: webAccessUrl.value));
+  }
+
+  /// 重新用AI分析所有网页
+  void reAnalyzeAllWebpages() {
+    // 获取所有文章
+    ArticleRepository.updateEmptyStatusToPending();
+    // ArticleRepository.updateAllStatusToCompleted();
   }
 }
