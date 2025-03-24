@@ -3,9 +3,8 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:path/path.dart' as path;
 import 'package:daily_satori/app/repositories/setting_repository.dart';
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:yaml/yaml.dart';
 
 class PluginService {
   // 私有构造函数，确保外部无法直接创建实例
@@ -16,30 +15,30 @@ class PluginService {
 
   // 插件配置内容
   late Map<String, String> _localPlugins = {};
-  final String _pluginsJsonPath = 'assets/configs/plugins.json';
+  final String _pluginsYamlPath = 'assets/configs/plugins.yaml';
 
   // 初始化插件服务，日志记录并更新所有插件配置
   Future<void> init() async {
     logger.i("[初始化服务] PluginService");
 
-    // 从JSON文件加载默认插件配置
+    // 从YAML文件加载默认插件配置
     await _loadLocalPlugins();
 
     // 更新所有插件配置
     _updateAllPlugins();
   }
 
-  // 从JSON文件加载默认插件配置
+  // 从YAML文件加载默认插件配置
   Future<void> _loadLocalPlugins() async {
     try {
-      // 加载JSON文件内容
-      final String jsonString = await rootBundle.loadString(_pluginsJsonPath);
-      final Map<String, dynamic> jsonMap = json.decode(jsonString);
+      // 加载YAML文件内容
+      final String yamlString = await rootBundle.loadString(_pluginsYamlPath);
+      final YamlMap yamlMap = loadYaml(yamlString) as YamlMap;
 
       // 转换为Map<String, String>
-      _localPlugins = jsonMap.map((key, value) => MapEntry(key, value.toString()));
+      _localPlugins = yamlMap.map((key, value) => MapEntry(key.toString(), value.toString()));
 
-      logger.i('从JSON文件加载了${_localPlugins.length}个插件配置');
+      logger.i('从YAML文件加载了${_localPlugins.length}个插件配置');
     } catch (e) {
       logger.e('加载插件配置文件失败: $e');
       // 如果加载失败，使用空Map，后续会从在线获取或使用空字符串

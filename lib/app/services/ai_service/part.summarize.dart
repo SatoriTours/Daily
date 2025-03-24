@@ -19,10 +19,13 @@ extension PartSummarize on AiService {
 
     logger.i("[AI摘要] 生成单行摘要中...");
 
-    // 准备摘要提示
-    final role = _renderTemplate(PluginService.i.getSummarizeOneLineRole(), {'text': content});
+    // 限制内容长度
+    final trimmedContent = getSubstring(content, length: 500);
 
-    final prompt = _renderTemplate(PluginService.i.getSummarizeOneLinePrompt(), {'text': content});
+    // 准备摘要提示
+    final role = _renderTemplate(PluginService.i.getSummarizeOneLineRole(), {'text': trimmedContent});
+
+    final prompt = _renderTemplate(PluginService.i.getSummarizeOneLinePrompt(), {'text': trimmedContent});
 
     // 发送请求
     final response = await _sendRequest(role, prompt);

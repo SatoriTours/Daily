@@ -31,7 +31,7 @@ class AiService {
   static const double _defaultTemperature = 0.5;
 
   /// 文本最大处理长度
-  static const int _maxContentLength = 5000;
+  static const int _maxContentLength = 50000;
 
   // MARK: - 初始化方法
 
