@@ -181,7 +181,6 @@ class WebpageParserService {
     logger.i("[WebpageParserService] 开始处理文章 #$articleId: ${articleModel.url}");
 
     try {
-      // 更新文章状态为处理中
       await _updateArticleStatus(articleModel, 'processing');
       Get.find<ArticlesController>().updateArticle(articleId);
 

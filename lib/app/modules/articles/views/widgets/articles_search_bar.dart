@@ -6,21 +6,17 @@ import 'package:daily_satori/app/styles/app_theme.dart';
 import '../../controllers/articles_controller.dart';
 
 /// 文章搜索栏组件
-class ArticlesSearchBar extends StatelessWidget {
-  final ArticlesController controller;
-  final VoidCallback onClose;
-
-  const ArticlesSearchBar({Key? key, required this.controller, required this.onClose}) : super(key: key);
+class ArticlesSearchBar extends GetView<ArticlesController> {
+  const ArticlesSearchBar({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final isDark = AppTheme.isDarkMode(context);
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final secondaryTextColor = isDark ? Colors.white70 : Colors.black54;
+    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
 
     // 当搜索栏出现时自动聚焦
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusScope.of(context).requestFocus(FocusNode());
+      FocusScope.of(context).requestFocus(controller.searchFocusNode);
       controller.searchController.selection = TextSelection.fromPosition(
         TextPosition(offset: controller.searchController.text.length),
       );
@@ -36,47 +32,39 @@ class ArticlesSearchBar extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            icon: Icon(FeatherIcons.arrowLeft, color: textColor, size: 20),
-            onPressed: onClose,
+            icon: Icon(FeatherIcons.arrowLeft, color: colorScheme.onSurface, size: 20),
+            onPressed: controller.toggleSearchState,
             splashRadius: 20,
           ),
           Expanded(
             child: TextField(
               controller: controller.searchController,
+              focusNode: controller.searchFocusNode,
               decoration: InputDecoration(
                 hintText: '搜索文章...',
-                hintStyle: TextStyle(color: secondaryTextColor),
+                hintStyle: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 isDense: true,
               ),
-              style: TextStyle(color: textColor),
+              style: textTheme.bodyMedium,
               textInputAction: TextInputAction.search,
               onSubmitted: (value) {
                 controller.searchArticles();
-                if (value.trim().isEmpty) {
-                  onClose();
-                }
               },
             ),
           ),
           IconButton(
-            icon: Icon(FeatherIcons.search, color: textColor, size: 20),
-            onPressed: () {
-              controller.searchArticles();
-              if (controller.searchController.text.trim().isEmpty) {
-                onClose();
-              }
-            },
+            icon: Icon(FeatherIcons.search, color: colorScheme.onSurface, size: 20),
+            onPressed: controller.searchArticles,
             splashRadius: 20,
           ),
           if (controller.searchController.text.isNotEmpty)
             IconButton(
-              icon: Icon(FeatherIcons.x, color: textColor, size: 20),
+              icon: Icon(FeatherIcons.x, color: colorScheme.onSurface, size: 20),
               onPressed: () {
                 controller.searchController.clear();
                 controller.clearAllFilters();
-                onClose();
               },
               splashRadius: 20,
             ),

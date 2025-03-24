@@ -1,51 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
-import 'package:daily_satori/app/components/cards/article_card.dart';
-import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
+
+import 'article_card.dart';
 
 /// 文章列表组件
-class ArticlesList extends StatelessWidget {
-  final List<ArticleModel> articles;
-  final ScrollController? scrollController;
-  final Future<void> Function()? onRefresh;
-  final bool isLoading;
-
-  const ArticlesList({
-    super.key,
-    required this.articles,
-    this.scrollController,
-    this.onRefresh,
-    this.isLoading = false,
-  });
+class ArticlesList extends GetView<ArticlesController> {
+  const ArticlesList({super.key});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
 
-    return RefreshIndicator(
-      onRefresh: onRefresh ?? () async {},
-      color: colorScheme.primary,
-      child: ListView.separated(
-        controller: scrollController,
-        itemCount: _calculateItemCount(),
-        itemBuilder: (context, index) => _buildListItem(context, index),
-        separatorBuilder: (context, index) => const SizedBox(height: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    return Obx(
+      () => RefreshIndicator(
+        onRefresh: () => controller.reloadArticles(),
+        color: colorScheme.primary,
+        child: ListView.separated(
+          controller: controller.scrollController,
+          itemCount: _calculateItemCount(),
+          itemBuilder: (context, index) => _buildListItem(context, index),
+          separatorBuilder: (context, index) => const SizedBox(height: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        ),
       ),
     );
   }
 
   int _calculateItemCount() {
-    return articles.length + (isLoading ? 1 : 0);
+    return controller.articles.length + (controller.isLoading.value ? 1 : 0);
   }
 
   Widget _buildListItem(BuildContext context, int index) {
-    if (index == articles.length) {
+    if (index == controller.articles.length) {
       return _buildLoadingIndicator(context);
     }
-    return ArticleCard(articleModel: articles[index]);
+    return ArticleCard(articleModel: controller.articles[index]);
   }
 
   Widget _buildLoadingIndicator(BuildContext context) {

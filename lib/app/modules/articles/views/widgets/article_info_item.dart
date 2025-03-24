@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 
 /// 文章信息项组件
-class ArticleInfoItem extends StatelessWidget {
+class ArticleInfoItem extends GetView<ArticlesController> {
   final IconData icon;
   final String text;
 

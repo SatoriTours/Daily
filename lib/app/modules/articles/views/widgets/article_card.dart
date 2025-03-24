@@ -1,23 +1,24 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-
 import 'package:get/get.dart';
 import 'package:get_time_ago/get_time_ago.dart';
 
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/component_style.dart';
+import 'package:daily_satori/app/models/article_model.dart';
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/global.dart';
-import 'package:daily_satori/app/components/articles/article_info_item.dart';
-import 'package:daily_satori/app/components/articles/article_action_bar.dart';
+
+import 'article_info_item.dart';
+import 'article_action_bar.dart';
 
 /// 文章卡片组件
-class ArticleCard extends StatelessWidget {
+class ArticleCard extends GetView<ArticlesController> {
   final ArticleModel articleModel;
-  final VoidCallback? onArticleUpdated;
 
-  const ArticleCard({super.key, required this.articleModel, this.onArticleUpdated});
+  const ArticleCard({super.key, required this.articleModel});
 
   @override
   Widget build(BuildContext context) {
@@ -138,7 +139,7 @@ class ArticleCard extends StatelessWidget {
             text: articleModel.createdAt != null ? GetTimeAgo.parse(articleModel.createdAt!, pattern: 'MM-dd') : '未知时间',
           ),
           const Spacer(),
-          ArticleActionBar(articleModel: articleModel, onArticleUpdated: onArticleUpdated),
+          ArticleActionBar(articleModel: articleModel),
         ],
       ),
     );

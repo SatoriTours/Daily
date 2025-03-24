@@ -5,6 +5,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
   /// UI状态
   final isLoading = false.obs;
   final enableSearch = false.obs;
+  final isSearchVisible = false.obs;
   final onlyFavorite = false.obs;
   final tagId = (-1).obs;
   final tagName = ''.obs;
@@ -68,15 +69,31 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
 
   /// 切换搜索状态
   void toggleSearchState() {
-    enableSearch.toggle();
-    if (!enableSearch.value) {
+    isSearchVisible.toggle();
+
+    if (isSearchVisible.value) {
+      // 如果开启搜索，清空文本并准备接收输入
       searchController.clear();
-      reloadArticles();
+      // 延迟一下再激活焦点，确保UI已经构建完成
+      Future.delayed(const Duration(milliseconds: 100), () {
+        searchFocusNode.requestFocus();
+      });
+    } else {
+      // 如果关闭搜索，并且搜索框有内容，则清除并重新加载文章
+      if (searchController.text.isNotEmpty) {
+        searchController.clear();
+        reloadArticles();
+      }
     }
   }
 
   /// 执行搜索
   Future<void> searchArticles() async {
+    if (searchController.text.trim().isEmpty) {
+      clearAllFilters();
+      return;
+    }
+
     reloadArticles();
   }
 
@@ -112,7 +129,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     final article = ArticleRepository.find(id);
     if (article == null) return;
 
-    logger.i('更新文章状态 ${article.title}, |${article.status}|');
+    logger.i('更新文章状态 ${article.title}');
 
     final index = articles.indexWhere((item) => item.id == id);
     if (index != -1) {
@@ -122,17 +139,16 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
 
   /// 获取标题
   String getTitle() {
-    var title = '文章';
-
-    if (onlyFavorite.value) {
-      title = '收藏的文章';
+    if (searchController.text.isNotEmpty) {
+      return '搜索: "${searchController.text}"';
     }
-
     if (tagName.value.isNotEmpty) {
-      title = '$title - ${tagName.value}';
+      return '标签: ${tagName.value}';
     }
-
-    return title;
+    if (onlyFavorite.value) {
+      return '收藏文章';
+    }
+    return '全部文章';
   }
 
   /// 检查剪贴板

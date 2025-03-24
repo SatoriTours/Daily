@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
-
+import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 
 /// 文章操作栏组件
-class ArticleActionBar extends StatelessWidget {
+class ArticleActionBar extends GetView<ArticlesController> {
   final ArticleModel articleModel;
-  final VoidCallback? onArticleUpdated;
 
-  const ArticleActionBar({super.key, required this.articleModel, this.onArticleUpdated});
+  const ArticleActionBar({super.key, required this.articleModel});
 
   @override
   Widget build(BuildContext context) {
@@ -26,9 +25,7 @@ class ArticleActionBar extends StatelessWidget {
           articleModel.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant.withAlpha(179),
           () async {
             await articleModel.toggleFavorite();
-            if (onArticleUpdated != null) {
-              onArticleUpdated!();
-            }
+            controller.updateArticle(articleModel.id);
           },
         ),
         const SizedBox(width: 8),
