@@ -212,12 +212,13 @@ class WebpageParserService {
     articleModel.coverImage = image.imagePath;
     articleModel.coverImageUrl = image.imageUrl;
     articleModel.updatedAt = DateTime.now().toUtc();
+    articleModel.status = 'completed';
 
     // 更新状态为已完成
-    await _updateArticleStatus(articleModel, 'completed');
+    // await _updateArticleStatus(articleModel, 'completed');
 
     // 保存到数据库
-    await ArticleRepository.update(articleModel);
+    // await ArticleRepository.update(articleModel);
 
     // 保存关联数据
     await _saveTags(articleModel, tags);

@@ -141,16 +141,16 @@ class _HeadlessWebViewSession {
   // DOM稳定性检测变量
   int _stabilityCounter = 0;
   int _lastDOMSize = 0;
-  static const _requiredStableChecks = 5; // 需要连续三次检测DOM稳定才认为页面加载完成
-  static const _domStabilityThreshold = 0.03; // DOM变化率小于3%视为稳定
+  static const _requiredStableChecks = 3; // 从5次降低到3次连续检测DOM稳定就认为页面加载完成
+  static const _domStabilityThreshold = 0.02; // DOM变化率小于2%视为稳定（从3%降低）
 
   // 定时器
   Timer? _stabilityTimer;
   Timer? _timeoutTimer;
 
   // 会话超时设置
-  static const _sessionMaxLifetime = Duration(minutes: 5);
-  static const _sessionInactivityTimeout = Duration(minutes: 2);
+  static const _sessionMaxLifetime = Duration(minutes: 4); // 缩短最大生命周期
+  static const _sessionInactivityTimeout = Duration(minutes: 1, seconds: 30); // 缩短不活动超时时间
 
   _HeadlessWebViewSession(this.url, this._baseWebView);
 
@@ -241,9 +241,9 @@ class _HeadlessWebViewSession {
     logger.i("[HeadlessWebView] onLoadStop 触发: $url");
     _hasLoadStopFired = true;
 
-    // 加载停止后，延迟3秒启动DOM稳定性检测
+    // 加载停止后，延迟1.5秒启动DOM稳定性检测（从3秒减少到1.5秒）
     if (!_isStabilityCheckStarted) {
-      await Future.delayed(const Duration(seconds: 3));
+      await Future.delayed(const Duration(milliseconds: 1500));
       _startDOMStabilityCheck(controller);
       _isStabilityCheckStarted = true;
     }
@@ -251,7 +251,7 @@ class _HeadlessWebViewSession {
 
   /// 设置超时保护
   void _setupTimeout() {
-    const maxTimeout = Duration(seconds: 30);
+    const maxTimeout = Duration(seconds: 25); // 从30秒减少到25秒
     _timeoutTimer = Timer(maxTimeout, () {
       if (!_isCompleted) {
         logger.w("[HeadlessWebView] 页面加载超时(${maxTimeout.inSeconds}秒)，使用当前内容");
@@ -260,11 +260,12 @@ class _HeadlessWebViewSession {
     });
   }
 
-  /// 检查加载进度，如果5秒后仍未触发onLoadStop，手动启动DOM稳定性检测
+  /// 检查加载进度，如果3秒后仍未触发onLoadStop，手动启动DOM稳定性检测
   void _checkLoadProgress() {
-    Future.delayed(const Duration(seconds: 6), () {
+    Future.delayed(const Duration(seconds: 4), () {
+      // 从6秒减少到4秒
       if (!_hasLoadStopFired && !_isStabilityCheckStarted && !_isCompleted) {
-        logger.w("[HeadlessWebView] 5秒内未触发onLoadStop，手动启动DOM稳定性检测");
+        logger.w("[HeadlessWebView] 4秒内未触发onLoadStop，手动启动DOM稳定性检测");
         _startDOMStabilityCheck(_headlessWebView.webViewController!);
         _isStabilityCheckStarted = true;
       }
@@ -273,7 +274,8 @@ class _HeadlessWebViewSession {
 
   /// 启动DOM稳定性检测
   void _startDOMStabilityCheck(InAppWebViewController controller) {
-    _stabilityTimer = Timer.periodic(const Duration(milliseconds: 800), (timer) async {
+    _stabilityTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) async {
+      // 从800毫秒减少到500毫秒
       try {
         if (_isCompleted) {
           timer.cancel();
@@ -291,6 +293,56 @@ class _HeadlessWebViewSession {
   Future<void> _checkDOMStability(InAppWebViewController controller) async {
     _updateActivityTime();
 
+    // 首先检查页面是否已经完全加载（新增）
+    final pageComplete = await controller.evaluateJavascript(
+      source: """
+        (function() {
+          // 检查常见的加载指示器是否存在
+          const spinners = document.querySelectorAll('.loading, .spinner, .loader, [class*="loading"], [class*="spinner"], [id*="loading"], [id*="spinner"]');
+          // 检查是否正在进行XHR请求
+          const isXhrActive = window.performance && window.performance.getEntriesByType &&
+                             window.performance.getEntriesByType('resource').some(r => !r.responseEnd && (Date.now() - r.startTime < 2000));
+
+          // 快速判断页面是否已经准备好
+          const readyState = document.readyState === 'complete';
+          const noActiveNetworkRequests = !isXhrActive;
+          const noVisibleSpinners = spinners.length === 0;
+
+          return {
+            ready: readyState && noActiveNetworkRequests && noVisibleSpinners,
+            readyState: document.readyState,
+            hasSpinners: spinners.length > 0,
+            hasActiveNetwork: isXhrActive
+          };
+        })();
+      """,
+    );
+
+    try {
+      // 如果页面已完全准备好且没有活动指标，可以直接提取内容
+      if (pageComplete != null && pageComplete['ready'] == true) {
+        _stabilityCounter++; // 增加稳定计数
+
+        // 如果已经连续两次检测到完全准备好，直接处理内容
+        if (_stabilityCounter >= 2) {
+          logger.i("[HeadlessWebView] 页面已完全加载，直接提取内容");
+          _stabilityTimer?.cancel();
+          await _processContent();
+          return;
+        }
+      } else {
+        // 如果页面未完全准备好，采用原有的DOM大小检测方法
+        await _checkDOMSizeStability(controller);
+      }
+    } catch (e) {
+      logger.e("[HeadlessWebView] 页面完成检测失败: $e");
+      // 失败后降级到原有的DOM大小检测
+      await _checkDOMSizeStability(controller);
+    }
+  }
+
+  /// 基于DOM大小的稳定性检测（从原来的_checkDOMStability拆分出来）
+  Future<void> _checkDOMSizeStability(InAppWebViewController controller) async {
     // 使用更高效的DOM大小获取方法，只检查DOM元素数量和DOM元素属性总数，避免获取完整DOM字符串
     final domSizeResult = await controller.evaluateJavascript(
       source: """
@@ -299,14 +351,14 @@ class _HeadlessWebViewSession {
           const elementCount = elements.length;
           let attributeCount = 0;
 
-          // 只采样前1000个元素以提高性能
-          const sampleSize = Math.min(elementCount, 1000);
+          // 只采样前500个元素以提高性能（从1000减少到500）
+          const sampleSize = Math.min(elementCount, 500);
           for (let i = 0; i < sampleSize; i++) {
             attributeCount += elements[i].attributes.length;
           }
 
           // 计算文本内容大小估计值
-          const bodyText = document.body.textContent || '';
+          const bodyText = document.body ? document.body.innerText || '' : '';
           const textLength = bodyText.length;
 
           // 综合指标
@@ -342,10 +394,14 @@ class _HeadlessWebViewSession {
           (domMetrics['textLength'] as int) ~/ 100;
 
       // 计算变化率
-      double changePercent = (currentSize - _lastDOMSize).abs() / _lastDOMSize;
+      double changePercent = (currentSize - _lastDOMSize).abs() / (_lastDOMSize > 0 ? _lastDOMSize : 1);
       logger.d("[HeadlessWebView] DOM变化率: ${(changePercent * 100).toStringAsFixed(2)}%");
 
-      if (changePercent < _domStabilityThreshold) {
+      // 添加启发式判断：如果DOM已经很大但变化很小，可以快速完成（新增）
+      final bool isLargePage = currentSize > 10000;
+      final bool hasMinimalChanges = changePercent < 0.01;
+
+      if (changePercent < _domStabilityThreshold || (isLargePage && hasMinimalChanges)) {
         _stabilityCounter++;
         logger.d("[HeadlessWebView] DOM稳定计数: $_stabilityCounter/$_requiredStableChecks");
 
