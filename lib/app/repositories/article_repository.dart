@@ -101,6 +101,13 @@ class ArticleRepository {
     }
   }
 
+  /// 按照创建日期到排序，找到最近的一个不为空，而且不是 completed 的文章
+  static ArticleModel? findLastPending() {
+    final query = _box.query(Article_.status.notEquals('completed').and(Article_.status.notEquals(''))).build();
+    final article = query.findFirst();
+    return article != null ? ArticleModel(article) : null;
+  }
+
   /// 更新所有 status 为空的文章状态为 pending
   static void updateEmptyStatusToPending() {
     // 查询所有 status 为空的文章

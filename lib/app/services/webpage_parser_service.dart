@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'package:daily_satori/app/components/webview/headless_webview.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 
@@ -7,30 +6,27 @@ import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/app/models/article_model.dart';
-import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/repositories/tag_repository.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:get/get.dart';
 
 /// 网页解析服务
 ///
-/// 负责解析网页内容并提取有用信息
+/// 负责解析网页内容，提取有用信息，并生成AI摘要
+/// 使用简单的定时器机制自动处理pending状态的文章
 class WebpageParserService {
-  // 单例模式
+  // 单例模式实现
   WebpageParserService._privateConstructor();
   static final WebpageParserService _instance = WebpageParserService._privateConstructor();
   static WebpageParserService get i => _instance;
 
-  // 文章处理队列
-  final Queue<int> _processingQueue = Queue<int>();
-
   // 当前正在处理的文章ID
-  int? _currentProcessingArticle;
+  int? _currentProcessingArticleId;
 
   // 定时器
   Timer? _processingTimer;
 
-  // 服务是否初始化
+  // 服务是否初始化标志
   bool _isInitialized = false;
 
   /// 初始化服务
@@ -38,13 +34,12 @@ class WebpageParserService {
     if (_isInitialized) return;
 
     logger.i("[WebpageParserService] 初始化中...");
-    _processingQueue.clear();
 
     // 启动定时器，每30秒检查一次待处理的文章
-    _processingTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkPendingArticles());
+    _processingTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkAndProcessPendingArticle());
 
     // 立即执行一次检查
-    _checkPendingArticles();
+    _checkAndProcessPendingArticle();
 
     _isInitialized = true;
     logger.i("[WebpageParserService] 初始化完成");
@@ -55,9 +50,12 @@ class WebpageParserService {
     _processingTimer?.cancel();
     _processingTimer = null;
     _isInitialized = false;
+    logger.i("[WebpageParserService] 已释放资源");
   }
 
   /// 保存网页内容（只保存URL和基本信息）
+  ///
+  /// 创建或更新文章记录，保存基本信息，并将状态设置为pending
   Future<ArticleModel> saveWebpage({
     required String url,
     required String comment,
@@ -84,108 +82,56 @@ class WebpageParserService {
       status: 'pending',
     );
 
-    // 将文章ID添加到处理队列
-    _addToProcessingQueue(articleModel.id);
+    // 立即检查并处理待处理文章
+    _checkAndProcessPendingArticle();
 
     return articleModel;
   }
 
-  /// 将文章ID添加到处理队列
-  void _addToProcessingQueue(int articleId) {
-    // 检查文章ID是否已在队列中或正在处理
-    if (!_processingQueue.contains(articleId) && _currentProcessingArticle != articleId) {
-      _processingQueue.add(articleId);
-      logger.i("[WebpageParserService] 已将文章 #$articleId 添加到处理队列");
-
-      // 尝试立即处理队列
-      _processQueue();
-    } else {
-      logger.d("[WebpageParserService] 文章 #$articleId 已在队列中或正在处理，不重复添加");
+  /// 检查并处理待处理的文章
+  ///
+  /// 查找最近的一个需要处理的文章，如果没有正在处理的文章，则开始处理
+  Future<void> _checkAndProcessPendingArticle() async {
+    // 如果当前有文章正在处理，直接返回
+    if (_currentProcessingArticleId != null) {
+      logger.d("[WebpageParserService] 当前有文章正在处理，ID: $_currentProcessingArticleId");
+      return;
     }
-  }
 
-  /// 检查数据库中待处理的文章
-  Future<void> _checkPendingArticles() async {
     try {
-      final pendingArticles = await _findAllPending();
+      // 查找最近的一个需要处理的文章
+      final pendingArticle = ArticleRepository.findLastPending();
 
-      if (pendingArticles.isEmpty) {
+      if (pendingArticle == null) {
         logger.d("[WebpageParserService] 没有待处理的文章");
         return;
       }
 
-      // 将待处理文章添加到队列
-      for (final article in pendingArticles) {
-        if (!_processingQueue.contains(article.id) && _currentProcessingArticle != article.id) {
-          _processingQueue.add(article.id);
-        }
-      }
-
-      logger.i("[WebpageParserService] 发现 ${_processingQueue.length} 篇待处理文章");
-
-      _processQueue();
+      // 开始处理文章
+      _processArticle(pendingArticle);
     } catch (e) {
       logger.e("[WebpageParserService] 检查待处理文章失败: $e");
     }
   }
 
-  /// 通过状态查找文章
-  Future<List<Article>> _findAllPending() async {
-    try {
-      final List<ArticleModel> articles = ArticleRepository.findAllPending();
-      return articles.map((model) => model.entity).toList();
-    } catch (e, stackTrace) {
-      logger.e("[WebpageParserService] 查找需要处理的文章失败: $e\n$stackTrace");
-      return [];
-    }
-  }
+  /// 处理文章
+  ///
+  /// 处理单篇文章，包括获取网页内容、生成AI摘要等
+  Future<void> _processArticle(ArticleModel article) async {
+    final articleId = article.id;
 
-  /// 处理队列
-  Future<void> _processQueue() async {
-    // 如果队列为空或当前有文章正在处理，直接返回
-    if (_processingQueue.isEmpty || _currentProcessingArticle != null) return;
+    // 设置当前处理中的文章ID
+    _currentProcessingArticleId = articleId;
 
-    // 从队列中取出一篇文章进行处理
-    final articleId = _processingQueue.removeFirst();
-    _currentProcessingArticle = articleId;
-
-    // 获取文章实例
-    final article = ArticleRepository.find(articleId);
-    if (article == null) {
-      logger.e("[WebpageParserService] 无法找到文章 #$articleId");
-      _finishProcessing();
-      return;
-    }
-
-    // 异步处理文章
-    try {
-      await _processWebpageAsync(article);
-    } catch (e) {
-      logger.e("[WebpageParserService] 处理文章 #$articleId 失败: $e");
-    } finally {
-      _finishProcessing();
-    }
-
-    logger.i("[WebpageParserService] 当前正在处理文章 #$articleId，队列中还有 ${_processingQueue.length} 篇文章待处理");
-  }
-
-  /// 完成当前文章处理，继续处理队列
-  void _finishProcessing() {
-    _currentProcessingArticle = null;
-    _processQueue();
-  }
-
-  /// 异步处理网页内容
-  Future<void> _processWebpageAsync(ArticleModel articleModel) async {
-    final articleId = articleModel.id;
-    logger.i("[WebpageParserService] 开始处理文章 #$articleId: ${articleModel.url}");
+    logger.i("[WebpageParserService] 开始处理文章 #$articleId: ${article.url}");
 
     try {
-      await _updateArticleStatus(articleModel, 'processing');
-      Get.find<ArticlesController>().updateArticle(articleId);
+      // 更新文章状态为处理中
+      await _updateArticleStatus(article, 'processing');
+      _notifyArticleUpdated(articleId);
 
       // 获取网页内容
-      final webpageData = await _fetchWebpageContent(articleModel.url);
+      final webpageData = await _fetchWebpageContent(article.url);
 
       // 并行处理各项任务
       final results = await Future.wait([
@@ -195,6 +141,7 @@ class WebpageParserService {
         _processMarkdown(webpageData.htmlContent),
       ]);
 
+      // 处理结果
       final aiTitle = results[0] as String;
       final aiContentResult = results[1] as (String, List<String>);
       final image = results[2] as ImageDownloadResult;
@@ -202,7 +149,7 @@ class WebpageParserService {
 
       // 更新文章数据
       await _updateArticleWithProcessedData(
-        articleModel: articleModel,
+        articleModel: article,
         webpageData: webpageData,
         aiTitle: aiTitle,
         aiContent: aiContentResult.$1,
@@ -213,21 +160,39 @@ class WebpageParserService {
 
       logger.i("[WebpageParserService] 文章 #$articleId 处理完成");
 
-      // 更新文章列表
-      Get.find<ArticlesController>().updateArticle(articleId);
+      // 通知UI更新
+      _notifyArticleUpdated(articleId);
     } catch (e, stackTrace) {
       logger.e("[WebpageParserService] 文章 #$articleId 处理失败: $e");
       logger.e(stackTrace);
 
       // 标记处理错误信息
-      articleModel.aiContent = "处理失败：$e";
-      _updateArticleStatus(articleModel, 'error');
-      articleModel.updatedAt = DateTime.now().toUtc();
-      await ArticleRepository.update(articleModel);
+      article.aiContent = "处理失败：$e";
+      await _updateArticleStatus(article, 'error');
+      article.updatedAt = DateTime.now().toUtc();
+      await ArticleRepository.update(article);
+    } finally {
+      // 清除当前处理中的文章ID
+      _currentProcessingArticleId = null;
+
+      // 检查是否有其他待处理文章
+      Future.delayed(const Duration(seconds: 1), _checkAndProcessPendingArticle);
+    }
+  }
+
+  /// 通知文章更新
+  void _notifyArticleUpdated(int articleId) {
+    try {
+      Get.find<ArticlesController>().updateArticle(articleId);
+    } catch (e) {
+      // 静默处理，如果控制器不存在，不影响处理流程
+      logger.d("[WebpageParserService] 通知文章更新失败: $e");
     }
   }
 
   /// 更新文章数据
+  ///
+  /// 使用处理结果更新文章的各项信息，包括标题、内容、摘要等
   Future<void> _updateArticleWithProcessedData({
     required ArticleModel articleModel,
     required WebpageData webpageData,
@@ -246,14 +211,16 @@ class WebpageParserService {
     articleModel.aiMarkdownContent = markdown;
     articleModel.coverImage = image.imagePath;
     articleModel.coverImageUrl = image.imageUrl;
-    _updateArticleStatus(articleModel, 'completed');
     articleModel.updatedAt = DateTime.now().toUtc();
+
+    // 更新状态为已完成
+    await _updateArticleStatus(articleModel, 'completed');
 
     // 保存到数据库
     await ArticleRepository.update(articleModel);
 
     // 保存关联数据
-    await Future.wait([_saveTags(articleModel, tags)]);
+    await _saveTags(articleModel, tags);
 
     // 再次保存文章，确保关联数据正确
     await ArticleRepository.update(articleModel);
@@ -266,6 +233,8 @@ class WebpageParserService {
   }
 
   /// 创建初始文章模型
+  ///
+  /// 创建或更新文章的初始状态，只包含基本信息
   Future<ArticleModel> _createInitialArticleModel({
     required String url,
     required String comment,
@@ -279,7 +248,7 @@ class WebpageParserService {
         final article = ArticleRepository.find(articleID);
         if (article != null) {
           article.comment = comment;
-          _updateArticleStatus(article, status);
+          await _updateArticleStatus(article, status);
           article.updatedAt = DateTime.now().toUtc();
           await ArticleRepository.update(article);
           return article;
@@ -326,6 +295,8 @@ class WebpageParserService {
   }
 
   /// 获取网页内容
+  ///
+  /// 使用Headless WebView加载并解析网页内容
   Future<WebpageData> _fetchWebpageContent(String? url) async {
     if (url == null || url.isEmpty) {
       logger.e("[WebpageParserService] URL为空，无法获取内容");
@@ -348,6 +319,8 @@ class WebpageParserService {
   }
 
   /// 处理AI标题
+  ///
+  /// 使用AI服务翻译或总结标题
   Future<String> _processAiTitle(String title) async {
     try {
       var aiTitle = await AiService.i.translate(title.trim());
@@ -359,6 +332,8 @@ class WebpageParserService {
   }
 
   /// 处理AI内容
+  ///
+  /// 使用AI服务总结文章内容并生成标签
   Future<(String, List<String>)> _processAiContent(String textContent) async {
     try {
       return await AiService.i.summarize(textContent.trim());
@@ -369,11 +344,15 @@ class WebpageParserService {
   }
 
   /// 处理Markdown
+  ///
+  /// 将HTML内容转换为Markdown格式
   Future<String> _processMarkdown(String htmlContent) async {
     return await AiService.i.convertHtmlToMarkdown(htmlContent);
   }
 
   /// 处理图片
+  ///
+  /// 下载并保存封面图片
   Future<ImageDownloadResult> _processImage(String imageUrl) async {
     try {
       return ImageDownloadResult(imageUrl, await HttpService.i.downloadImage(imageUrl));
@@ -384,6 +363,8 @@ class WebpageParserService {
   }
 
   /// 保存标签
+  ///
+  /// 为文章添加标签
   Future<void> _saveTags(ArticleModel articleModel, List<String> tagNames) async {
     try {
       logger.i("[WebpageParserService] 开始保存标签: $tagNames");
