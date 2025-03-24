@@ -10,6 +10,7 @@ import 'package:daily_satori/app/services/web_service/web_service.dart';
 import 'widgets/articles_search_bar.dart';
 import 'widgets/articles_tags_dialog.dart';
 import 'widgets/articles_list.dart';
+import 'widgets/article_calendar_dialog.dart';
 
 /// 文章列表页面 - 保持状态
 class ArticlesView extends GetView<ArticlesController> {
@@ -48,7 +49,8 @@ class ArticlesView extends GetView<ArticlesController> {
             // 如果有过滤条件，显示过滤指示器
             if (controller.searchController.text.isNotEmpty ||
                 controller.tagName.value.isNotEmpty ||
-                controller.onlyFavorite.value)
+                controller.onlyFavorite.value ||
+                controller.selectedFilterDate.value != null)
               _buildFilterIndicator(context),
             // 文章列表
             const Expanded(child: ArticlesList()),
@@ -105,8 +107,11 @@ class ArticlesView extends GetView<ArticlesController> {
     return AppBar(
       backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFF5E8BFF),
       elevation: 0.5,
-      // 左侧显示服务器连接状态图标
-      leading: _buildConnectionIndicator(),
+      // 左侧显示日历图标
+      leading: IconButton(
+        icon: const Icon(FeatherIcons.calendar, color: Colors.white, size: 20),
+        onPressed: () => _showCalendarDialog(context),
+      ),
       // 标题居中，保留双击滚动到顶部功能
       title: GestureDetector(
         onDoubleTap: _scrollToTop,
@@ -185,6 +190,24 @@ class ArticlesView extends GetView<ArticlesController> {
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (context) => const ArticlesTagsDialog(),
+    );
+  }
+
+  /// 显示日历选择对话框
+  void _showCalendarDialog(BuildContext context) {
+    // 如果已经有其他筛选，先清除
+    if (controller.searchController.text.isNotEmpty ||
+        controller.tagName.value.isNotEmpty ||
+        controller.onlyFavorite.value) {
+      controller.clearAllFilters();
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      isScrollControlled: true,
+      builder: (context) => const ArticleCalendarDialog(),
     );
   }
 }

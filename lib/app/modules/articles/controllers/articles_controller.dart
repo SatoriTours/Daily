@@ -9,6 +9,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
   final onlyFavorite = false.obs;
   final tagId = (-1).obs;
   final tagName = ''.obs;
+  final selectedFilterDate = Rx<DateTime?>(null);
 
   /// 文章数据
   final articles = <ArticleModel>[].obs;
@@ -107,14 +108,27 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
   void filterByTag(int id, String name) {
     tagId.value = id;
     tagName.value = name;
+    selectedFilterDate.value = null;
     reloadArticles();
   }
 
-  /// 清除所有过滤器
+  /// 按日期过滤
+  void filterByDate(DateTime date) {
+    final selectedDay = DateTime(date.year, date.month, date.day);
+    selectedFilterDate.value = selectedDay;
+    tagId.value = -1;
+    tagName.value = '';
+    onlyFavorite.value = false;
+    searchController.clear();
+    reloadArticles();
+  }
+
+  /// 清除所有过滤条件
   void clearAllFilters() {
     tagId.value = -1;
     tagName.value = '';
     onlyFavorite.value = false;
+    selectedFilterDate.value = null;
     searchController.clear();
     reloadArticles();
   }
@@ -139,16 +153,33 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
 
   /// 获取标题
   String getTitle() {
+    // 搜索过滤
     if (searchController.text.isNotEmpty) {
       return '搜索: "${searchController.text}"';
     }
+
+    // 标签过滤
     if (tagName.value.isNotEmpty) {
       return '标签: ${tagName.value}';
     }
+
+    // 收藏过滤
     if (onlyFavorite.value) {
       return '收藏文章';
     }
+
+    // 日期过滤
+    if (selectedFilterDate.value != null) {
+      return '按日期筛选';
+    }
+
+    // 默认标题
     return '全部文章';
+  }
+
+  /// 获取每天文章数量统计
+  Map<DateTime, int> getDailyArticleCounts() {
+    return ArticleRepository.getDailyArticleCounts();
   }
 
   /// 检查剪贴板
@@ -200,6 +231,18 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     String? keyword = searchController.text.trim().isNotEmpty ? searchController.text.trim() : null;
     bool? favorite = onlyFavorite.value ? true : null;
     List<int>? tagIds = tagId.value > 0 ? [tagId.value] : null;
+    DateTime? startDate = selectedFilterDate.value;
+    DateTime? endDate =
+        selectedFilterDate.value != null
+            ? DateTime(
+              selectedFilterDate.value!.year,
+              selectedFilterDate.value!.month,
+              selectedFilterDate.value!.day,
+              23,
+              59,
+              59,
+            )
+            : null;
 
     isLoading.value = true;
 
@@ -208,6 +251,8 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
         keyword: keyword,
         isFavorite: favorite,
         tagIds: tagIds,
+        startDate: startDate,
+        endDate: endDate,
         referenceId: referenceId,
         isGreaterThan: isGreaterThan,
         pageSize: _pageSize,

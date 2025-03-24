@@ -28,6 +28,25 @@ class ArticleRepository {
     return all();
   }
 
+  /// 获取每天文章数量统计
+  /// TODO: 优化此方法，使用objectbox的异步查询接口
+  static Map<DateTime, int> getDailyArticleCounts() {
+    final counts = <DateTime, int>{};
+    final allArticles = ArticleRepository.getAll();
+
+    for (final article in allArticles) {
+      final dateKey = DateTime(article.createdAt!.year, article.createdAt!.month, article.createdAt!.day);
+
+      if (counts.containsKey(dateKey)) {
+        counts[dateKey] = counts[dateKey]! + 1;
+      } else {
+        counts[dateKey] = 1;
+      }
+    }
+
+    return counts;
+  }
+
   /// 分页获取所有文章
   static List<ArticleModel> getAllPaginated(int page) {
     final query = _box.query().order(Article_.id, flags: Order.descending).build();
