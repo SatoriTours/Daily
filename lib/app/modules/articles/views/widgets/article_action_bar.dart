@@ -9,8 +9,9 @@ import 'package:daily_satori/app/modules/articles/controllers/articles_controlle
 /// 文章操作栏组件
 class ArticleActionBar extends GetView<ArticlesController> {
   final ArticleModel articleModel;
+  final bool isProcessing;
 
-  const ArticleActionBar({super.key, required this.articleModel});
+  const ArticleActionBar({super.key, required this.articleModel, this.isProcessing = false});
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +20,21 @@ class ArticleActionBar extends GetView<ArticlesController> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (isProcessing)
+          Container(
+            width: 28,
+            height: 24,
+            alignment: Alignment.center,
+            margin: const EdgeInsets.only(right: 8),
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+              ),
+            ),
+          ),
         _buildActionButton(
           context,
           articleModel.isFavorite ? Icons.favorite : Icons.favorite_border,

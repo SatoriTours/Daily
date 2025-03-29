@@ -1,6 +1,6 @@
 import 'package:share_plus/share_plus.dart';
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/services/ai_service/ai_service.dart';
+import 'package:daily_satori/app/utils/string_extensions.dart';
 
 class ArticleDetailController extends BaseController {
   /// 当前文章模型
@@ -44,13 +44,13 @@ class ArticleDetailController extends BaseController {
   /// 生成文章的Markdown内容
   Future<void> generateMarkdownContent() async {
     // 检查HTML内容是否存在
-    if (articleModel.htmlContent == null || articleModel.htmlContent!.isEmpty) {
+    if (articleModel.htmlContent.isNullOrEmpty) {
       logger.i("无法生成Markdown：HTML内容为空");
       return;
     }
 
     // 检查是否已经生成过Markdown内容
-    if (articleModel.aiMarkdownContent != null && articleModel.aiMarkdownContent!.isNotEmpty) {
+    if (articleModel.aiMarkdownContent.isNotNullOrEmpty) {
       logger.i("Markdown内容已存在，跳过生成");
       return;
     }

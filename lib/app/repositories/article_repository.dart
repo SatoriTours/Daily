@@ -86,6 +86,28 @@ class ArticleRepository {
     }
   }
 
+  /// 根据多个状态查找文章
+  static List<ArticleModel> findByStatuses(List<String> statuses) {
+    if (statuses.isEmpty) {
+      return [];
+    }
+
+    // 构建OR条件: status == status1 OR status == status2 OR ...
+    Condition<Article>? condition;
+    for (final status in statuses) {
+      final statusCondition = Article_.status.equals(status);
+      condition = condition == null ? statusCondition : condition.or(statusCondition);
+    }
+
+    final query = _box.query(condition).build();
+    try {
+      final articles = query.find();
+      return articles.map((article) => ArticleModel(article)).toList();
+    } finally {
+      query.close();
+    }
+  }
+
   /// 查找所有没有解析完成的文章
   static List<ArticleModel> findAllPending() {
     final query =

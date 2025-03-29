@@ -13,7 +13,6 @@ class ArticlesTagsDialog extends GetView<ArticlesController> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = AppTheme.isDarkMode(context);
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
