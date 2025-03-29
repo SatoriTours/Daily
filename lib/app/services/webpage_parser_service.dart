@@ -230,24 +230,20 @@ class WebpageParserService with WidgetsBindingObserver {
       article.htmlContent = webpageData.htmlContent;
       article.coverImageUrl = webpageData.coverImageUrl;
       article.updatedAt = DateTime.now().toUtc();
+      article.status = ArticleStatusManager.STATUS_WEB_CONTENT_FETCHED; // 更新文章状态为"网页内容获取完成"
 
-      // 更新文章状态为"网页内容获取完成"
-      await ArticleStatusManager.updateStatus(article, ArticleStatusManager.STATUS_WEB_CONTENT_FETCHED);
       await ArticleRepository.update(article);
 
       logger.i("[WebpageParserService] 网页内容获取完成: #$articleId");
       _notifyUI(articleId);
 
-      // 如果在前台运行，立即继续处理AI内容
-      if (_lifecycleState == AppLifecycleState.resumed) {
-        await _processAiContent(article);
-      }
+      await _processAiContent(article);
     } catch (e) {
       logger.e("[WebpageParserService] 获取网页内容失败: #$articleId, $e");
       if (_articleQueue.shouldRetry(articleId)) {
         _articleQueue.scheduleRetry(articleId);
       } else {
-        throw e; // 重新抛出异常供上层处理
+        rethrow; // 重新抛出异常供上层处理
       }
     }
   }
@@ -271,16 +267,21 @@ class WebpageParserService with WidgetsBindingObserver {
       );
 
       // 根据应用状态选择不同的处理方式
-      final processingResult = await _processContent(article, webpageData);
+      bool success = false;
+      if (_lifecycleState == AppLifecycleState.resumed) {
+        // 前台处理 - 分步执行并立即保存
+        success = await ContentProcessor.processInForeground(article, webpageData);
+      } else {
+        // 后台处理 - 使用Isolate
+        success = await _backgroundProcessor.process(article, webpageData);
+      }
 
-      // 更新文章
-      await ArticleUpdater.updateWithProcessedData(
-        article: article,
-        webpageData: webpageData,
-        processingResult: processingResult,
-      );
+      if (success) {
+        logger.i("[WebpageParserService] AI内容处理完成，所有任务成功: #$articleId");
+      } else {
+        logger.w("[WebpageParserService] AI内容处理部分失败: #$articleId");
+      }
 
-      logger.i("[WebpageParserService] AI内容处理完成: #$articleId");
       _notifyUI(articleId);
     } catch (e) {
       logger.e("[WebpageParserService] 处理AI内容失败: #$articleId, $e");
@@ -329,18 +330,6 @@ class WebpageParserService with WidgetsBindingObserver {
     } catch (e) {
       logger.e("[WebpageParserService] 获取网页内容失败: $e");
       rethrow;
-    }
-  }
-
-  /// 处理内容
-  Future<ProcessingResult> _processContent(ArticleModel article, WebpageData webpageData) async {
-    // 前台模式 - 并行处理
-    if (_lifecycleState == AppLifecycleState.resumed) {
-      return await ContentProcessor.processInForeground(webpageData);
-    }
-    // 后台模式 - 隔离处理
-    else {
-      return await _backgroundProcessor.process(article.id, webpageData);
     }
   }
 
@@ -466,7 +455,7 @@ class ArticleFactory {
 
 /// 文章更新器
 class ArticleUpdater {
-  /// 使用处理结果更新文章
+  /// 使用处理结果更新文章 - 修改为不再自动更新状态为completed
   static Future<void> updateWithProcessedData({
     required ArticleModel article,
     required WebpageData webpageData,
@@ -478,17 +467,18 @@ class ArticleUpdater {
     article.aiMarkdownContent = processingResult.markdown;
     article.coverImage = processingResult.imagePath;
     article.updatedAt = DateTime.now().toUtc();
-    article.status = ArticleStatusManager.STATUS_COMPLETED;
+
+    // 注意：不再设置状态为completed，由调用者决定
 
     // 保存标签
-    await _saveTags(article, processingResult.tags);
+    await saveTags(article, processingResult.tags);
 
     // 保存文章
     await ArticleRepository.update(article);
   }
 
-  /// 保存标签
-  static Future<void> _saveTags(ArticleModel article, List<String> tagNames) async {
+  /// 保存标签 - 改为公共方法便于直接调用
+  static Future<void> saveTags(ArticleModel article, List<String> tagNames) async {
     try {
       article.tags.clear();
       for (var tagName in tagNames) {
@@ -496,29 +486,84 @@ class ArticleUpdater {
       }
     } catch (e) {
       logger.e("[ArticleUpdater] 保存标签失败: $e");
+      rethrow; // 重新抛出异常以便跟踪任务失败
     }
   }
 }
 
 /// 内容处理器
 class ContentProcessor {
-  /// 前台处理
-  static Future<ProcessingResult> processInForeground(WebpageData webpageData) async {
-    // 并行处理
-    final results = await Future.wait([
-      _processTitle(webpageData.title),
-      _processSummary(webpageData.textContent),
-      _processImage(webpageData.coverImageUrl),
-      _processMarkdown(webpageData.htmlContent),
-    ]);
+  /// 前台处理 - 修改为并行处理并立即保存结果
+  static Future<bool> processInForeground(ArticleModel article, WebpageData webpageData) async {
+    logger.i("[ContentProcessor] 开始处理文章 #${article.id}");
 
-    return ProcessingResult(
-      aiTitle: results[0] as String,
-      aiContent: (results[1] as (String, List<String>)).$1,
-      tags: (results[1] as (String, List<String>)).$2,
-      imagePath: (results[2] as String),
-      markdown: results[3] as String,
-    );
+    // 创建任务结果跟踪
+    final taskResults = <String, bool>{'title': false, 'summary': false, 'image': false, 'markdown': false};
+
+    // 标题处理任务
+    final titleTask = _processTitle(webpageData.title)
+        .then((aiTitle) async {
+          await ArticleRepository.updateField(article.id, 'aiTitle', aiTitle);
+          logger.i("[ContentProcessor] 标题处理完成: #${article.id}");
+          taskResults['title'] = true;
+        })
+        .catchError((e) {
+          logger.e("[ContentProcessor] 标题处理失败: #${article.id}, $e");
+          taskResults['title'] = false;
+        });
+
+    // 摘要处理任务
+    final summaryTask = _processSummary(webpageData.textContent)
+        .then((summaryResult) async {
+          await ArticleRepository.updateField(article.id, 'aiContent', summaryResult.$1);
+          await ArticleUpdater.saveTags(article, summaryResult.$2);
+          logger.i("[ContentProcessor] 摘要和标签处理完成: #${article.id}");
+          taskResults['summary'] = true;
+        })
+        .catchError((e) {
+          logger.e("[ContentProcessor] 摘要处理失败: #${article.id}, $e");
+          taskResults['summary'] = false;
+        });
+
+    // 图片处理任务
+    final imageTask = _processImage(webpageData.coverImageUrl)
+        .then((imagePath) async {
+          await ArticleRepository.updateField(article.id, 'coverImage', imagePath);
+          logger.i("[ContentProcessor] 图片处理完成: #${article.id}");
+          taskResults['image'] = true;
+        })
+        .catchError((e) {
+          logger.e("[ContentProcessor] 图片处理失败: #${article.id}, $e");
+          taskResults['image'] = false;
+        });
+
+    // Markdown处理任务
+    final markdownTask = _processMarkdown(webpageData.htmlContent)
+        .then((markdown) async {
+          await ArticleRepository.updateField(article.id, 'aiMarkdownContent', markdown);
+          logger.i("[ContentProcessor] Markdown处理完成: #${article.id}");
+          taskResults['markdown'] = true;
+        })
+        .catchError((e) {
+          logger.e("[ContentProcessor] Markdown处理失败: #${article.id}, $e");
+          taskResults['markdown'] = false;
+        });
+
+    // 等待所有任务并行完成
+    await Future.wait([titleTask, summaryTask, imageTask, markdownTask]);
+
+    // 检查所有任务是否成功
+    final allTasksSucceeded = taskResults.values.every((success) => success);
+
+    // 只有当所有任务都成功完成时，才更新状态为completed
+    if (allTasksSucceeded) {
+      logger.i("[ContentProcessor] 所有处理任务成功完成: #${article.id}");
+      await ArticleRepository.updateField(article.id, 'status', ArticleStatusManager.STATUS_COMPLETED);
+      return true;
+    } else {
+      logger.w("[ContentProcessor] 部分任务处理失败，文章未完成: #${article.id}");
+      return false;
+    }
   }
 
   /// 处理标题
@@ -528,7 +573,7 @@ class ContentProcessor {
       return aiTitle.length >= 50 ? await AiService.i.summarizeOneLine(aiTitle) : aiTitle;
     } catch (e) {
       logger.e("[ContentProcessor] 标题处理失败: $e");
-      return '';
+      rethrow; // 重新抛出异常以便跟踪任务失败
     }
   }
 
@@ -538,7 +583,7 @@ class ContentProcessor {
       return await AiService.i.summarize(content.trim());
     } catch (e) {
       logger.e("[ContentProcessor] 内容摘要处理失败: $e");
-      return ('', const <String>[]);
+      rethrow; // 重新抛出异常以便跟踪任务失败
     }
   }
 
@@ -548,7 +593,7 @@ class ContentProcessor {
       return await HttpService.i.downloadImage(imageUrl);
     } catch (e) {
       logger.e("[ContentProcessor] 图片处理失败: $e");
-      return '';
+      rethrow; // 重新抛出异常以便跟踪任务失败
     }
   }
 
@@ -558,7 +603,7 @@ class ContentProcessor {
       return await AiService.i.convertHtmlToMarkdown(html);
     } catch (e) {
       logger.e("[ContentProcessor] Markdown处理失败: $e");
-      return '';
+      rethrow; // 重新抛出异常以便跟踪任务失败
     }
   }
 }
@@ -568,13 +613,13 @@ class BackgroundProcessor {
   Isolate? _isolate;
   ReceivePort? _receivePort;
 
-  /// 处理内容
-  Future<ProcessingResult> process(int articleId, WebpageData data) async {
+  /// 处理内容 - 修改为返回bool表示是否全部成功，并实现并行处理
+  Future<bool> process(ArticleModel article, WebpageData data) async {
     try {
       _receivePort = ReceivePort();
 
       final processingData = _IsolateData(
-        articleId: articleId,
+        articleId: article.id,
         title: data.title,
         textContent: data.textContent,
         htmlContent: data.htmlContent,
@@ -586,16 +631,80 @@ class BackgroundProcessor {
       final result = await _receivePort!.first as Map<String, dynamic>;
 
       if (result['error'] != null) {
-        throw Exception(result['error']);
+        logger.e("[BackgroundProcessor] Isolate处理出错: ${result['error']}");
+        return false;
       }
 
-      return ProcessingResult(
-        aiTitle: result['aiTitle'] as String,
-        aiContent: result['aiContent'] as String,
-        tags: List<String>.from(result['tags'] ?? []),
-        imagePath: result['imagePath'] as String,
-        markdown: result['markdown'] as String,
-      );
+      // 跟踪任务完成状态
+      final taskResults = <String, bool>{'title': false, 'content': false, 'image': false, 'markdown': false};
+
+      // 创建并行任务列表
+      final List<Future<void>> updateTasks = [];
+
+      // 标题更新任务
+      if (result['aiTitle'] != null) {
+        updateTasks.add(
+          ArticleRepository.updateField(article.id, 'aiTitle', result['aiTitle']).then((success) {
+            taskResults['title'] = success;
+          }),
+        );
+      }
+
+      // 内容更新任务
+      if (result['aiContent'] != null) {
+        updateTasks.add(
+          ArticleRepository.updateField(article.id, 'aiContent', result['aiContent']).then((success) async {
+            if (success && result['tags'] != null) {
+              try {
+                await ArticleUpdater.saveTags(article, List<String>.from(result['tags']));
+                taskResults['content'] = true;
+              } catch (e) {
+                logger.e("[BackgroundProcessor] 保存标签失败: $e");
+                taskResults['content'] = false;
+              }
+            } else {
+              taskResults['content'] = success;
+            }
+          }),
+        );
+      }
+
+      // 图片更新任务
+      if (result['imagePath'] != null) {
+        updateTasks.add(
+          ArticleRepository.updateField(article.id, 'coverImage', result['imagePath']).then((success) {
+            taskResults['image'] = success;
+          }),
+        );
+      }
+
+      // Markdown更新任务
+      if (result['markdown'] != null) {
+        updateTasks.add(
+          ArticleRepository.updateField(article.id, 'aiMarkdownContent', result['markdown']).then((success) {
+            taskResults['markdown'] = success;
+          }),
+        );
+      }
+
+      // 等待所有更新任务完成
+      await Future.wait(updateTasks);
+
+      // 检查所有任务是否都成功完成
+      final allSucceeded = taskResults.values.every((v) => v);
+
+      // 只有当所有数据都成功处理，才更新状态为completed
+      if (allSucceeded) {
+        await ArticleRepository.updateField(article.id, 'status', ArticleStatusManager.STATUS_COMPLETED);
+        logger.i("[BackgroundProcessor] 所有处理任务成功完成: #${article.id}");
+      } else {
+        logger.w("[BackgroundProcessor] 部分任务处理失败: #${article.id}");
+      }
+
+      return allSucceeded;
+    } catch (e) {
+      logger.e("[BackgroundProcessor] 后台处理失败: $e");
+      return false;
     } finally {
       cancel();
     }

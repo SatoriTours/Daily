@@ -83,7 +83,7 @@ class AiService {
       return response;
     } catch (e) {
       logger.e("[AI服务] 请求失败: ${_client!.baseUrl} - $e");
-      return null;
+      rethrow;
     }
   }
 

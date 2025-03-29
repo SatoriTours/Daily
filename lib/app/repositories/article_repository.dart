@@ -484,6 +484,65 @@ class ArticleRepository {
     return articleModel.isFavorite;
   }
 
+  /// 更新文章单个字段
+  ///
+  /// 只更新指定字段，避免覆盖其他属性
+  static Future<bool> updateField(int articleId, String fieldName, dynamic fieldValue) async {
+    try {
+      // 获取文章
+      final article = _box.get(articleId);
+      if (article == null) {
+        logger.e("更新字段失败：未找到文章 ID=$articleId");
+        return false;
+      }
+
+      // 根据字段类型更新不同属性
+      switch (fieldName) {
+        case 'title':
+          article.title = fieldValue as String? ?? '';
+          break;
+        case 'aiTitle':
+          article.aiTitle = fieldValue as String? ?? '';
+          break;
+        case 'content':
+          article.content = fieldValue as String? ?? '';
+          break;
+        case 'aiContent':
+          article.aiContent = fieldValue as String? ?? '';
+          break;
+        case 'htmlContent':
+          article.htmlContent = fieldValue as String? ?? '';
+          break;
+        case 'aiMarkdownContent':
+          article.aiMarkdownContent = fieldValue as String? ?? '';
+          break;
+        case 'coverImage':
+          article.coverImage = fieldValue as String? ?? '';
+          break;
+        case 'coverImageUrl':
+          article.coverImageUrl = fieldValue as String? ?? '';
+          break;
+        case 'status':
+          article.status = fieldValue as String? ?? '';
+          break;
+        default:
+          logger.w("不支持更新字段：$fieldName");
+          return false;
+      }
+
+      // 更新时间戳
+      article.updatedAt = DateTime.now().toUtc();
+
+      // 保存文章
+      await _box.putAsync(article);
+      logger.d("文章 ID=$articleId 的字段 $fieldName 已更新");
+      return true;
+    } catch (e) {
+      logger.e("更新文章字段失败：$e");
+      return false;
+    }
+  }
+
   /// 添加标签到文章
   static Future<bool> addTagToArticle(int articleId, int tagId) async {
     try {
