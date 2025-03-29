@@ -613,7 +613,7 @@ class WebpageParserService with WidgetsBindingObserver {
         final article = ArticleRepository.find(articleID);
         if (article != null) {
           article.comment = comment;
-          await _updateArticleStatus(article, statusPending);
+          article.status = statusPending;
           article.updatedAt = DateTime.now().toUtc();
           await ArticleRepository.update(article);
           return article;
