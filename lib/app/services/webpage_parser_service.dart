@@ -65,6 +65,7 @@ class WebpageParserService with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.resumed:
         _startProcessingTimer();
+        _checkIncompleteArticles(); // 首先检查不完整的文章
         _checkNextArticle();
         break;
       case AppLifecycleState.paused:
@@ -77,6 +78,48 @@ class WebpageParserService with WidgetsBindingObserver {
       default:
         break;
     }
+  }
+
+  /// 检查不完整的文章，重新处理那些处理失败或部分失败的文章
+  Future<void> _checkIncompleteArticles() async {
+    logger.i("[网页解析] 检查不完整文章");
+
+    if (_currentProcessingArticleId != null) {
+      logger.d("[网页解析] 当前有文章正在处理，稍后再检查不完整文章");
+      return;
+    }
+
+    // 获取所有文章，并筛选出状态为completed的
+    final completedArticles = ArticleRepository.getAll().where((a) => a.status == statusCompleted).toList();
+
+    for (var article in completedArticles) {
+      if (_isArticleIncomplete(article)) {
+        logger.i("[网页解析] 发现不完整文章 #${article.id}，重置状态为网页内容已获取");
+        await _updateArticleStatus(article, statusWebContentFetched);
+        // 添加到重试队列中优先处理
+        _scheduleRetry(article.id);
+      }
+    }
+
+    // 获取所有文章，并筛选出状态为error的
+    final errorArticles = ArticleRepository.getAll().where((a) => a.status == statusError).toList();
+    for (var article in errorArticles) {
+      if (article.htmlContent != null && article.htmlContent!.isNotEmpty) {
+        logger.i("[网页解析] 发现错误状态文章 #${article.id}，重置状态为网页内容已获取");
+        await _updateArticleStatus(article, statusWebContentFetched);
+        // 添加到重试队列中优先处理
+        _scheduleRetry(article.id);
+      }
+    }
+  }
+
+  /// 检查文章是否不完整（关键字段为空）
+  bool _isArticleIncomplete(ArticleModel article) {
+    // 检查关键字段是否为空
+    return (article.aiTitle == null || article.aiTitle!.isEmpty) ||
+        (article.aiContent == null || article.aiContent!.isEmpty) ||
+        (article.aiMarkdownContent == null || article.aiMarkdownContent!.isEmpty) ||
+        (article.coverImage == null || article.coverImage!.isEmpty);
   }
 
   /// 保存网页（对外API）
@@ -307,16 +350,34 @@ class WebpageParserService with WidgetsBindingObserver {
     final articleId = article.id;
 
     // 创建任务结果跟踪
-    final taskResults = <String, bool>{'title': false, 'summary': false, 'image': false, 'markdown': false};
+    final taskResults = <String, bool>{
+      'title': article.aiTitle != null && article.aiTitle!.isNotEmpty,
+      'summary': article.aiContent != null && article.aiContent!.isNotEmpty,
+      'image': article.coverImage != null && article.coverImage!.isNotEmpty,
+      'markdown': article.aiMarkdownContent != null && article.aiMarkdownContent!.isNotEmpty,
+    };
 
     // 定义统一的任务处理函数
     Future<void> processTask(
       String taskName,
       Future<dynamic> Function() processor,
       Future<void> Function(dynamic result) updater,
+      bool skipIfDone,
     ) async {
+      // 如果任务已完成且允许跳过，则跳过该任务
+      if (skipIfDone && taskResults[taskName] == true) {
+        logger.i("[网页解析] 跳过已完成的$taskName任务: #$articleId");
+        return;
+      }
+
       try {
         final result = await processor();
+        // 检查结果是否为空字符串，如果是则视为失败
+        if (result is String && result.isEmpty) {
+          logger.w("[网页解析] $taskName处理结果为空: #$articleId");
+          taskResults[taskName] = false;
+          return;
+        }
         await updater(result);
         logger.i("[网页解析] $taskName处理完成: #$articleId");
         taskResults[taskName] = true;
@@ -333,19 +394,21 @@ class WebpageParserService with WidgetsBindingObserver {
         'title',
         () => _processTitle(webpageData.title),
         (result) => ArticleRepository.updateField(articleId, 'aiTitle', result),
+        true,
       ),
 
       // 摘要处理任务
       processTask('summary', () => _processSummary(webpageData.textContent), (result) async {
         await ArticleRepository.updateField(articleId, 'aiContent', result.$1);
         await _saveTags(article, result.$2);
-      }),
+      }, true),
 
       // 图片处理任务
       processTask(
         'image',
         () => _processImage(webpageData.coverImageUrl),
         (result) => ArticleRepository.updateField(articleId, 'coverImage', result),
+        true,
       ),
 
       // Markdown处理任务
@@ -353,6 +416,7 @@ class WebpageParserService with WidgetsBindingObserver {
         'markdown',
         () => _processMarkdown(webpageData.htmlContent),
         (result) => ArticleRepository.updateField(articleId, 'aiMarkdownContent', result),
+        true,
       ),
     ];
 
@@ -375,12 +439,13 @@ class WebpageParserService with WidgetsBindingObserver {
     logger.i("[网页解析] 后台处理文章 #${article.id}");
     final articleId = article.id;
 
-    ReceivePort? receivePort;
-    Isolate? isolate;
-
     try {
-      receivePort = ReceivePort();
+      // 由于后台处理可能存在问题，直接切换到前台处理
+      logger.w("[网页解析] 后台处理可能不稳定，切换到前台处理");
+      return await _processForeground(article, data);
 
+      // 注释掉下面这段存在问题的代码，直接使用前台处理
+      /*
       final processingData = _IsolateData(
         articleId: articleId,
         title: data.title,
@@ -404,54 +469,78 @@ class WebpageParserService with WidgetsBindingObserver {
 
       // 更新标题
       if (result['aiTitle'] != null) {
-        updateTasks.add(
-          ArticleRepository.updateField(
-            articleId,
-            'aiTitle',
-            result['aiTitle'],
-          ).then((success) => taskResults['title'] = success),
-        );
+        final aiTitle = result['aiTitle'] as String;
+        if (aiTitle.isNotEmpty) {
+          updateTasks.add(
+            ArticleRepository.updateField(
+              articleId,
+              'aiTitle',
+              aiTitle,
+            ).then((success) => taskResults['title'] = success),
+          );
+        } else {
+          logger.w("[网页解析] 后台标题处理结果为空");
+          taskResults['title'] = false;
+        }
       }
 
       // 更新摘要和标签
       if (result['aiContent'] != null) {
-        updateTasks.add(
-          ArticleRepository.updateField(articleId, 'aiContent', result['aiContent']).then((success) async {
-            if (success && result['tags'] != null) {
-              try {
-                await _saveTags(article, List<String>.from(result['tags']));
-                taskResults['summary'] = true;
-              } catch (e) {
-                logger.e("[网页解析] 保存标签失败: $e");
-                taskResults['summary'] = false;
+        final aiContent = result['aiContent'] as String;
+        if (aiContent.isNotEmpty) {
+          updateTasks.add(
+            ArticleRepository.updateField(articleId, 'aiContent', aiContent).then((success) async {
+              if (success && result['tags'] != null) {
+                try {
+                  await _saveTags(article, List<String>.from(result['tags']));
+                  taskResults['summary'] = true;
+                } catch (e) {
+                  logger.e("[网页解析] 保存标签失败: $e");
+                  taskResults['summary'] = false;
+                }
+              } else {
+                taskResults['summary'] = success;
               }
-            } else {
-              taskResults['summary'] = success;
-            }
-          }),
-        );
+            }),
+          );
+        } else {
+          logger.w("[网页解析] 后台摘要处理结果为空");
+          taskResults['summary'] = false;
+        }
       }
 
       // 更新图片
       if (result['imagePath'] != null) {
-        updateTasks.add(
-          ArticleRepository.updateField(
-            articleId,
-            'coverImage',
-            result['imagePath'],
-          ).then((success) => taskResults['image'] = success),
-        );
+        final imagePath = result['imagePath'] as String;
+        if (imagePath.isNotEmpty) {
+          updateTasks.add(
+            ArticleRepository.updateField(
+              articleId,
+              'coverImage',
+              imagePath,
+            ).then((success) => taskResults['image'] = success),
+          );
+        } else {
+          logger.w("[网页解析] 后台图片处理结果为空");
+          taskResults['image'] = false;
+        }
       }
 
       // 更新Markdown
       if (result['markdown'] != null) {
-        updateTasks.add(
-          ArticleRepository.updateField(
-            articleId,
-            'aiMarkdownContent',
-            result['markdown'],
-          ).then((success) => taskResults['markdown'] = success),
-        );
+        final markdown = result['markdown'] as String;
+        if (markdown.isNotEmpty) {
+          updateTasks.add(
+            ArticleRepository.updateField(
+              articleId,
+              'aiMarkdownContent',
+              markdown,
+            ).then((success) => taskResults['markdown'] = success),
+          );
+        } else {
+          logger.w("[网页解析] 后台Markdown处理结果为空");
+          taskResults['markdown'] = false;
+        }
       }
 
       // 等待所有更新任务完成
@@ -466,13 +555,12 @@ class WebpageParserService with WidgetsBindingObserver {
       }
 
       return allSucceeded;
+      */
     } catch (e) {
       logger.e("[网页解析] 后台处理失败: $e");
-      return false;
-    } finally {
-      // 清理资源
-      isolate?.kill(priority: Isolate.immediate);
-      receivePort?.close();
+      // 如果后台处理失败，尝试前台处理
+      logger.i("[网页解析] 尝试切换到前台处理");
+      return await _processForeground(article, data);
     }
   }
 
@@ -484,18 +572,15 @@ class WebpageParserService with WidgetsBindingObserver {
     final result = <String, dynamic>{};
 
     try {
-      // 获取服务实例
-      final aiService = AiService.i;
-      final httpService = HttpService.i;
-
       // 标题处理
       String aiTitle = '';
       try {
-        aiTitle = await aiService.translate(data.title.trim());
+        aiTitle = await AiService.i.translate(data.title.trim());
         if (aiTitle.length >= 50) {
-          aiTitle = await aiService.summarizeOneLine(aiTitle);
+          aiTitle = await AiService.i.summarizeOneLine(aiTitle);
         }
       } catch (e) {
+        logger.e("[Isolate网页解析] 标题处理失败: $e");
         // 在隔离中捕获异常，但继续处理其他任务
       }
 
@@ -503,26 +588,29 @@ class WebpageParserService with WidgetsBindingObserver {
       String aiContent = '';
       List<String> tags = [];
       try {
-        final summarizeResult = await aiService.summarize(data.textContent.trim());
+        final summarizeResult = await AiService.i.summarize(data.textContent.trim());
         aiContent = summarizeResult.$1;
         tags = summarizeResult.$2;
       } catch (e) {
+        logger.e("[Isolate网页解析] 内容处理失败: $e");
         // 在隔离中捕获异常，但继续处理其他任务
       }
 
       // Markdown处理
       String markdown = '';
       try {
-        markdown = await aiService.convertHtmlToMarkdown(data.htmlContent);
+        markdown = await AiService.i.convertHtmlToMarkdown(data.htmlContent);
       } catch (e) {
+        logger.e("[Isolate网页解析] Markdown处理失败: $e");
         // 在隔离中捕获异常，但继续处理其他任务
       }
 
       // 图片处理
       String imagePath = '';
       try {
-        imagePath = await httpService.downloadImage(data.coverImageUrl);
+        imagePath = await HttpService.i.downloadImage(data.coverImageUrl);
       } catch (e) {
+        logger.e("[Isolate网页解析] 图片处理失败: $e");
         // 在隔离中捕获异常，但继续处理其他任务
       }
 
