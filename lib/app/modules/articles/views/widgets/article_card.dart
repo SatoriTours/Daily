@@ -9,6 +9,7 @@ import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/component_style.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/components/smart_image.dart';
+import 'package:daily_satori/app/services/webpage_parser_service.dart';
 import 'package:daily_satori/global.dart';
 
 import 'article_info_item.dart';
@@ -22,7 +23,9 @@ class ArticleCard extends GetView<ArticlesController> {
 
   @override
   Widget build(BuildContext context) {
-    final isProcessing = articleModel.status == 'processing';
+    final isProcessing =
+        articleModel.status == WebpageParserService.statusPending ||
+        articleModel.status == WebpageParserService.statusWebContentFetched;
     final colorScheme = AppTheme.getColorScheme(context);
 
     return Stack(
