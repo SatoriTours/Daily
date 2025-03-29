@@ -19,9 +19,13 @@ class SummaryTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (controller.articleModel.shouldShowHeaderImage())
-            ArticleImageView(imagePath: controller.articleModel.getHeaderImagePath(), controller: controller),
-          if (controller.articleModel.shouldShowHeaderImage()) const SizedBox(height: 10),
+          if (_shouldShowImage())
+            ArticleImageView(
+              imagePath: controller.articleModel.getHeaderImagePath(),
+              controller: controller,
+              networkUrl: controller.articleModel.coverImageUrl,
+            ),
+          if (_shouldShowImage()) const SizedBox(height: 10),
           _buildTitle(context),
           const SizedBox(height: 15),
           Obx(() => ArticleTags(tags: controller.tags.value)),
@@ -32,6 +36,11 @@ class SummaryTab extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  bool _shouldShowImage() {
+    return controller.articleModel.shouldShowHeaderImage() ||
+        (controller.articleModel.coverImageUrl != null && controller.articleModel.coverImageUrl!.isNotEmpty);
   }
 
   Widget _buildTitle(BuildContext context) {

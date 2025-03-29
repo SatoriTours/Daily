@@ -9,49 +9,38 @@ import 'package:daily_satori/app/modules/article_detail/controllers/article_deta
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/components/smart_image.dart';
 
 class ArticleImageView extends StatelessWidget {
   final String imagePath;
   final BoxFit fit;
   final ArticleDetailController controller;
+  final String? networkUrl;
 
-  const ArticleImageView({super.key, required this.imagePath, this.fit = BoxFit.cover, required this.controller});
+  const ArticleImageView({
+    super.key,
+    required this.imagePath,
+    this.fit = BoxFit.cover,
+    required this.controller,
+    this.networkUrl,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final images = [imagePath];
+
     return GestureDetector(
-      onTap: () => _showFullScreenImage([imagePath]),
+      onTap: () => _showFullScreenImage(images),
       child: Container(
         padding: Dimensions.paddingPage.copyWith(bottom: 0),
         width: double.infinity,
         constraints: const BoxConstraints(maxHeight: 200),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(Dimensions.radiusM),
-          child: _buildImageWithError(imagePath, fit),
+        child: SmartImage(
+          localPath: imagePath.isNotEmpty ? imagePath : null,
+          networkUrl: networkUrl ?? controller.articleModel.coverImageUrl,
+          fit: fit,
+          borderRadius: Dimensions.radiusM,
         ),
-      ),
-    );
-  }
-
-  Widget _buildImageWithError(String path, BoxFit fit) {
-    return Image.file(
-      File(path),
-      fit: fit,
-      alignment: Alignment.topCenter,
-      errorBuilder: (_, error, __) {
-        logger.i("加载路径错误 $path");
-        return _buildErrorImage(Get.context!);
-      },
-    );
-  }
-
-  Widget _buildErrorImage(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-
-    return Container(
-      color: colorScheme.surfaceContainerHighest,
-      child: Center(
-        child: Icon(Icons.broken_image_outlined, size: Dimensions.iconSizeL, color: colorScheme.onSurfaceVariant),
       ),
     );
   }
@@ -93,7 +82,7 @@ class ArticleImageView extends StatelessWidget {
           itemCount: images.length,
           builder: (context, index) {
             return PhotoViewGalleryPageOptions(
-              imageProvider: FileImage(File(images[index])),
+              imageProvider: _getImageProvider(images[index]),
               initialScale: PhotoViewComputedScale.contained,
               minScale: PhotoViewComputedScale.contained,
               maxScale: PhotoViewComputedScale.covered * 5.0,
@@ -107,5 +96,16 @@ class ArticleImageView extends StatelessWidget {
       ),
       barrierDismissible: true,
     );
+  }
+
+  ImageProvider _getImageProvider(String path) {
+    if (File(path).existsSync()) {
+      return FileImage(File(path));
+    } else if (networkUrl != null && networkUrl!.isNotEmpty) {
+      return NetworkImage(networkUrl!);
+    } else if (controller.articleModel.coverImageUrl != null && controller.articleModel.coverImageUrl!.isNotEmpty) {
+      return NetworkImage(controller.articleModel.coverImageUrl!);
+    }
+    return FileImage(File(path)); // 这里会报错，但会被errorBuilder处理
   }
 }

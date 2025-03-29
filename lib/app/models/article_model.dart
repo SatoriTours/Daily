@@ -124,13 +124,14 @@ class ArticleModel {
 
   /// 检查是否有主图
   bool hasHeaderImage() {
-    return getHeaderImagePath().isNotEmpty;
+    return getHeaderImagePath().isNotEmpty || (_entity.coverImageUrl != null && _entity.coverImageUrl!.isNotEmpty);
   }
 
   /// 检查是否应该显示头部图片
   bool shouldShowHeaderImage() {
     final path = getHeaderImagePath();
-    return path.isNotEmpty && !path.endsWith('.svg');
+    return (path.isNotEmpty && !path.endsWith('.svg')) ||
+        (_entity.coverImageUrl != null && _entity.coverImageUrl!.isNotEmpty);
   }
 
   /// 切换收藏状态

@@ -8,6 +8,7 @@ import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/component_style.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
+import 'package:daily_satori/app/components/smart_image.dart';
 import 'package:daily_satori/global.dart';
 
 import 'article_info_item.dart';
@@ -53,7 +54,8 @@ class ArticleCard extends GetView<ArticlesController> {
   }
 
   Widget _buildArticleContent(BuildContext context) {
-    final hasImage = articleModel.hasHeaderImage();
+    final hasImage =
+        articleModel.hasHeaderImage() || (articleModel.coverImageUrl != null && articleModel.coverImageUrl!.isNotEmpty);
     final imagePath = articleModel.getHeaderImagePath();
     final hasTitle =
         (articleModel.aiTitle != null && articleModel.aiTitle!.isNotEmpty) ||
@@ -96,24 +98,14 @@ class ArticleCard extends GetView<ArticlesController> {
     return Text(articleModel.showTitle(), style: textTheme.titleMedium, maxLines: 3, overflow: TextOverflow.ellipsis);
   }
 
-  Widget _buildImage(BuildContext context, String path) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: SizedBox(
-        width: 90,
-        height: 70,
-        child: Image.file(
-          File(path),
-          fit: BoxFit.cover,
-          errorBuilder:
-              (_, __, ___) => Container(
-                width: 90,
-                height: 70,
-                decoration: ComponentStyle.imageContainerDecoration(context),
-                child: Icon(Icons.image_not_supported, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 24),
-              ),
-        ),
-      ),
+  Widget _buildImage(BuildContext context, String localPath) {
+    return SmartImage(
+      localPath: localPath.isNotEmpty ? localPath : null,
+      networkUrl: articleModel.coverImageUrl,
+      width: 90,
+      height: 70,
+      fit: BoxFit.cover,
+      borderRadius: 8,
     );
   }
 
