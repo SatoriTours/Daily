@@ -37,6 +37,22 @@ class ArticleModel {
   String? get aiTitle => _entity.aiTitle;
   set aiTitle(String? value) => _entity.aiTitle = value;
 
+  /// 显示标题
+  String showTitle() {
+    if (aiTitle != null && aiTitle!.isNotEmpty) {
+      return aiTitle!;
+    }
+    return title ?? '';
+  }
+
+  /// 显示内容
+  String showContent() {
+    if (aiContent != null && aiContent!.isNotEmpty) {
+      return aiContent!;
+    }
+    return content ?? '';
+  }
+
   /// 内容
   String? get content => _entity.content;
   set content(String? value) => _entity.content = value;

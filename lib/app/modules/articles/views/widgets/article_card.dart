@@ -7,7 +7,6 @@ import 'package:get_time_ago/get_time_ago.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/component_style.dart';
-import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/global.dart';
 
@@ -94,12 +93,7 @@ class ArticleCard extends GetView<ArticlesController> {
   Widget _buildTitle(BuildContext context) {
     final textTheme = AppTheme.getTextTheme(context);
 
-    return Text(
-      articleModel.aiTitle ?? articleModel.title ?? '',
-      style: textTheme.titleMedium,
-      maxLines: 3,
-      overflow: TextOverflow.ellipsis,
-    );
+    return Text(articleModel.showTitle(), style: textTheme.titleMedium, maxLines: 3, overflow: TextOverflow.ellipsis);
   }
 
   Widget _buildImage(BuildContext context, String path) {

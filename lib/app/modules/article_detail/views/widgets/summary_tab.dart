@@ -49,7 +49,7 @@ class SummaryTab extends StatelessWidget {
     final textTheme = AppTheme.getTextTheme(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Text(controller.articleModel.aiContent ?? '', style: textTheme.bodyMedium),
+      child: Text(controller.articleModel.showContent(), style: textTheme.bodyMedium),
     );
   }
 
