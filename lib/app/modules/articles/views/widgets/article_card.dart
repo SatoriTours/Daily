@@ -26,6 +26,7 @@ class ArticleCard extends GetView<ArticlesController> {
     final isProcessing =
         articleModel.status == WebpageParserService.statusPending ||
         articleModel.status == WebpageParserService.statusWebContentFetched;
+    final isError = articleModel.status == WebpageParserService.statusError;
     final colorScheme = AppTheme.getColorScheme(context);
 
     return Stack(
@@ -52,6 +53,19 @@ class ArticleCard extends GetView<ArticlesController> {
               child: AnimatedBorder(borderRadius: BorderRadius.circular(10), color: colorScheme.primary),
             ),
           ),
+        if (isError)
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: colorScheme.error,
+                borderRadius: const BorderRadius.only(topRight: Radius.circular(10), bottomLeft: Radius.circular(10)),
+              ),
+              child: Text('加载失败', style: TextStyle(color: colorScheme.onError, fontSize: 12)),
+            ),
+          ),
       ],
     );
   }
@@ -63,20 +77,38 @@ class ArticleCard extends GetView<ArticlesController> {
     final hasTitle =
         (articleModel.aiTitle != null && articleModel.aiTitle!.isNotEmpty) ||
         (articleModel.title != null && articleModel.title!.isNotEmpty);
+    final isError = articleModel.status == WebpageParserService.statusError;
+    final textTheme = AppTheme.getTextTheme(context);
+    final colorScheme = AppTheme.getColorScheme(context);
 
     return Stack(
       children: [
-        Row(
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (hasImage) _buildImage(context, imagePath),
-            if (hasImage) const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [if (hasTitle) _buildTitle(context) else _buildUrlAsTitle(context)],
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (hasImage) _buildImage(context, imagePath),
+                if (hasImage) const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [if (hasTitle) _buildTitle(context) else _buildUrlAsTitle(context)],
+                  ),
+                ),
+              ],
             ),
+            if (isError)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  articleModel.aiContent ?? '内容处理失败',
+                  style: textTheme.bodySmall?.copyWith(color: colorScheme.error),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
           ],
         ),
       ],

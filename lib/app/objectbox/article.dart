@@ -21,7 +21,7 @@ class Article {
   bool isFavorite = false;
   String? comment;
 
-  /// 处理状态：pending, processing, completed, error
+  /// 处理状态: pending, web_content_fetched, completed, error
   String status = 'pending';
 
   /// 封面图片路径 和 URL
