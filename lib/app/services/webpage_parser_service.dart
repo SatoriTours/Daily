@@ -346,17 +346,20 @@ class WebpageParserService with WidgetsBindingObserver {
     String coverImageUrl,
   ) async {
     logger.d("[网页解析][保存] 保存网页内容到文章 #$articleId");
+    final article = ArticleRepository.find(articleId);
+    if (article == null) {
+      logger.e("[网页解析][保存] 无法找到文章 #$articleId");
+      return;
+    }
 
-    await ArticleRepository.updateField(articleId, ArticleFieldName.title, title);
-    await ArticleRepository.updateField(articleId, ArticleFieldName.content, textContent);
-    await ArticleRepository.updateField(articleId, ArticleFieldName.htmlContent, htmlContent);
-    await ArticleRepository.updateField(articleId, ArticleFieldName.coverImageUrl, coverImageUrl);
-    await ArticleRepository.updateField(
-      articleId,
-      ArticleFieldName.updatedAt,
-      DateTime.now().toUtc().toIso8601String(),
-    );
-    await ArticleRepository.updateField(articleId, ArticleFieldName.status, ArticleStatus.webContentFetched);
+    article.title = title;
+    article.content = textContent;
+    article.htmlContent = htmlContent;
+    article.coverImageUrl = coverImageUrl;
+    article.updatedAt = DateTime.now().toUtc();
+    article.status = ArticleStatus.webContentFetched;
+
+    await ArticleRepository.update(article);
 
     logger.d("[网页解析][保存] 网页内容保存完成 #$articleId");
   }
