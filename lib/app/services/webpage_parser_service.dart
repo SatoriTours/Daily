@@ -14,46 +14,52 @@ import 'package:get/get.dart';
 
 /// 网页解析服务 - 负责协调网页内容获取、AI处理和持久化
 class WebpageParserService with WidgetsBindingObserver {
-  // 单例模式实现
+  // ====================== 单例实现 ======================
   WebpageParserService._privateConstructor();
   static final WebpageParserService _instance = WebpageParserService._privateConstructor();
   static WebpageParserService get i => _instance;
 
-  // 服务状态管理
+  // ====================== 状态管理 ======================
   bool _isInitialized = false;
   final Set<int> _currentProcessingArticleIds = <int>{};
   static const int _maxConcurrentProcessing = 5;
   Timer? _processingTimer;
 
+  // ====================== 生命周期管理 ======================
+
   /// 初始化服务
   Future<void> init() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      logger.d("[网页解析][初始化] 服务已初始化，跳过");
+      return;
+    }
 
-    logger.i("[网页解析] 初始化中...");
+    logger.i("[网页解析][初始化] ▶ 开始初始化服务");
     WidgetsBinding.instance.addObserver(this);
     _startProcessingTimer();
     _checkNextArticle();
     _isInitialized = true;
-    logger.i("[网页解析] 初始化完成");
+    logger.i("[网页解析][初始化] ◀ 服务初始化完成");
   }
 
   /// 释放资源
   void dispose() {
+    logger.i("[网页解析][释放] ▶ 开始释放资源");
     _stopProcessingTimer();
     WidgetsBinding.instance.removeObserver(this);
     _isInitialized = false;
-    logger.i("[网页解析] 已释放资源");
+    logger.i("[网页解析][释放] ◀ 资源释放完成");
   }
 
   /// 处理应用生命周期变化
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    logger.i("[网页解析] 应用生命周期状态变更: $state");
+    logger.i("[网页解析][生命周期] 应用状态变更: $state");
 
     switch (state) {
       case AppLifecycleState.resumed:
         _startProcessingTimer();
-        _checkIncompleteArticles(); // 首先检查不完整的文章
+        _checkIncompleteArticles();
         _checkNextArticle();
         break;
       case AppLifecycleState.paused:
@@ -68,592 +74,705 @@ class WebpageParserService with WidgetsBindingObserver {
     }
   }
 
-  /// 检查不完整的文章，重新处理那些处理失败或部分失败的文章
-  Future<void> _checkIncompleteArticles() async {
-    logger.i("[网页解析] 检查不完整文章");
-
-    if (_currentProcessingArticleIds.length >= _maxConcurrentProcessing) {
-      logger.d("[网页解析] 当前已达到最大并行处理数量，稍后再检查不完整文章");
-      return;
-    }
-
-    // 获取所有文章，并筛选出状态为completed的不完整文章
-    final completedArticles = ArticleRepository.findByStatus(ArticleStatus.completed);
-    for (var article in completedArticles) {
-      if (_isArticleIncomplete(article)) {
-        logger.i("[网页解析] 发现不完整文章 #${article.id}，重置状态为网页内容已获取");
-        await _updateArticleStatus(article.id, ArticleStatus.webContentFetched);
-      }
-    }
-
-    // 检查web_content_fetched状态的文章，如果标题或内容为空，改为pending状态
-    final webContentFetchedArticles = ArticleRepository.findByStatus(ArticleStatus.webContentFetched);
-    for (var article in webContentFetchedArticles) {
-      if (article.title.isNullOrEmpty || article.content.isNullOrEmpty || article.htmlContent.isNullOrEmpty) {
-        logger.i("[网页解析] 发现网页内容不完整 #${article.id}，重置状态为pending");
-        await _updateArticleStatus(article.id, ArticleStatus.pending);
-      }
-    }
-  }
-
-  /// 检查文章是否不完整（关键字段为空）
-  bool _isArticleIncomplete(ArticleModel article) {
-    // 检查关键字段是否为空
-    return article.aiTitle.isNullOrEmpty ||
-        article.aiContent.isNullOrEmpty ||
-        article.aiMarkdownContent.isNullOrEmpty ||
-        (article.coverImageUrl.isNotNullOrEmpty && article.coverImage.isNullOrEmpty);
-  }
+  // ====================== 公共API ======================
 
   /// 保存网页（对外API）
+  ///
+  /// 用于创建新文章或更新现有文章，并触发处理流程
   Future<ArticleModel> saveWebpage({
     required String url,
     required String comment,
     bool isUpdate = false,
     int articleID = 0,
   }) async {
-    logger.i("[网页解析] 保存网页: $url");
+    logger.i("[网页解析][API] ▶ 保存网页请求: URL=$url, 更新=$isUpdate, ID=$articleID");
 
     // 验证输入
-    if (!isUpdate && await ArticleRepository.isArticleExists(url)) {
-      throw Exception('网页已存在');
-    }
-    if (isUpdate && articleID <= 0) {
-      throw Exception('网页不存在，无法更新');
-    }
+    await _validateSaveWebpageInput(url, isUpdate, articleID);
 
-    // 创建文章
-    final articleModel = await _createInitialArticle(
-      url: url,
-      comment: comment,
-      isUpdate: isUpdate,
-      articleID: articleID,
-    );
+    // 创建或更新文章
+    final ArticleModel article;
+    if (isUpdate && articleID > 0) {
+      article = await _resetExistingArticle(articleID, comment);
+      logger.i("[网页解析][API] 重置现有文章 #$articleID");
+    } else {
+      article = await _createNewArticle(url, comment);
+      logger.i("[网页解析][API] 创建新文章 #${article.id}");
+    }
 
     // 立即触发处理
     _checkNextArticle();
-    return articleModel;
+
+    logger.i("[网页解析][API] ◀ 保存网页完成: #${article.id}");
+    return article;
   }
 
-  // ====================== 私有方法 ======================
+  // ====================== 任务调度 ======================
 
   /// 启动处理定时器
   void _startProcessingTimer() {
-    if (_processingTimer != null && _processingTimer!.isActive) return;
+    if (_processingTimer != null && _processingTimer!.isActive) {
+      logger.d("[网页解析][调度] 定时器已在运行");
+      return;
+    }
 
     _processingTimer = Timer.periodic(const Duration(seconds: 30), (_) => _checkNextArticle());
-    logger.i("[网页解析] 启动定时处理器");
+    logger.i("[网页解析][调度] ▶ 定时处理器已启动（30秒间隔）");
   }
 
   /// 停止处理定时器
   void _stopProcessingTimer() {
-    _processingTimer?.cancel();
+    if (_processingTimer == null) return;
+
+    _processingTimer!.cancel();
     _processingTimer = null;
-    logger.i("[网页解析] 停止定时处理器");
+    logger.i("[网页解析][调度] ◀ 定时处理器已停止");
   }
 
-  /// 保存当前处理文章状态
-  void _saveCurrentArticleState() {
-    for (final articleId in _currentProcessingArticleIds.toList()) {
-      try {
-        final article = ArticleRepository.find(articleId);
-        if (article != null) {
-          // 根据当前处理阶段回退到适当状态
-          if (article.status == ArticleStatus.webContentFetched) {
-            // 网页内容已获取但AI处理未完成，保持该状态
-            logger.i("[网页解析] 保持网页内容已获取状态: ${article.id}");
-          } else {
-            // 其他情况回退到待处理
-            _updateArticleStatus(article.id, ArticleStatus.pending);
-            logger.i("[网页解析] 保存处理中文章状态: ${article.id}");
-          }
-        }
-      } catch (e) {
-        logger.e("[网页解析] 保存处理状态失败: $e");
-      }
-    }
-  }
-
-  /// 处理下一篇文章
+  /// 处理下一批文章
   Future<void> _checkNextArticle() async {
-    // 判断是否达到最大并行处理数
+    // 检查是否达到并行处理上限
     if (_currentProcessingArticleIds.length >= _maxConcurrentProcessing) {
+      logger.d("[网页解析][调度] 已达到最大并行处理数量 (${_currentProcessingArticleIds.length}/$_maxConcurrentProcessing)");
       return;
     }
 
-    // 可以处理的并行任务数
+    // 计算可用处理槽位
     final availableSlots = _maxConcurrentProcessing - _currentProcessingArticleIds.length;
+    logger.d("[网页解析][调度] 可用处理槽位: $availableSlots");
 
-    // 处理待处理文章，直到没有剩余任务或达到最大并行处理数
+    // 获取待处理文章
+    final pendingArticles = ArticleRepository.findAllPending();
+    if (pendingArticles.isEmpty) {
+      logger.d("[网页解析][调度] 没有待处理文章");
+      return;
+    }
+
+    // 优先处理webContentFetched状态的文章
+    int processedCount = 0;
     for (int i = 0; i < availableSlots; i++) {
-      // 获取所有待处理的文章
-      final pendingArticles = ArticleRepository.findAllPending();
+      final article = _selectNextArticleToProcess(pendingArticles);
+      if (article == null) break;
 
-      if (pendingArticles.isEmpty) {
-        // 没有待处理的文章
-        break;
-      }
+      _processArticle(article); // 异步处理，不等待
+      processedCount++;
+    }
 
-      ArticleModel? article;
-      try {
-        // 先查找网页内容已获取的文章
-        article = pendingArticles.firstWhere(
-          (a) => a.status == ArticleStatus.webContentFetched && !_currentProcessingArticleIds.contains(a.id),
-          orElse:
-              () => pendingArticles.firstWhere(
-                (a) => a.status == ArticleStatus.pending && !_currentProcessingArticleIds.contains(a.id),
-                orElse: () => throw Exception('No pending article found'),
-              ),
-        );
-      } catch (e) {
-        // 如果没有找到任何待处理文章，忽略异常
-        logger.d("[网页解析] 没有发现待处理的文章");
-        break;
-      }
-
-      if (!_currentProcessingArticleIds.contains(article.id)) {
-        _processArticle(article);
-      } else {
-        // 没有可以处理的文章或已经在处理
-        break;
-      }
+    if (processedCount > 0) {
+      logger.i("[网页解析][调度] 本次启动 $processedCount 个新任务");
     }
   }
 
-  /// 处理文章 - 根据文章状态执行不同的处理逻辑
+  /// 从待处理文章列表中选择下一个要处理的文章
+  ArticleModel? _selectNextArticleToProcess(List<ArticleModel> pendingArticles) {
+    if (pendingArticles.isEmpty) return null;
+
+    // 先尝试获取已有网页内容但未完成AI处理的文章
+    try {
+      // 优先处理 webContentFetched 状态的文章
+      final article = pendingArticles.firstWhere(
+        (a) => a.status == ArticleStatus.webContentFetched && !_currentProcessingArticleIds.contains(a.id),
+        orElse:
+            () => pendingArticles.firstWhere(
+              (a) => a.status == ArticleStatus.pending && !_currentProcessingArticleIds.contains(a.id),
+              orElse: () => throw Exception('没有可处理的文章'),
+            ),
+      );
+      return article;
+    } catch (e) {
+      logger.d("[网页解析][调度] 没有更多可处理文章");
+      return null;
+    }
+  }
+
+  // ====================== 核心处理流程 ======================
+
+  /// 处理单篇文章
+  ///
+  /// 主要处理流程入口，根据文章状态执行不同处理逻辑
   Future<void> _processArticle(ArticleModel article) async {
     final articleId = article.id;
-    _currentProcessingArticleIds.add(articleId);
+    if (_currentProcessingArticleIds.contains(articleId)) {
+      logger.w("[网页解析][流程] 文章 #$articleId 已在处理中，跳过");
+      return;
+    }
 
-    logger.i("[网页解析] 处理文章 #$articleId: ${article.url}, 状态: ${article.status}");
+    _currentProcessingArticleIds.add(articleId);
+    logger.i("[网页解析][流程] ▶ 开始处理文章 #$articleId [状态: ${article.status}]");
+    _notifyUI(articleId);
 
     try {
       // 根据文章状态执行不同处理逻辑
       if (article.status == ArticleStatus.pending) {
-        // 获取网页内容阶段
-        await _processFetchWebContent(article);
+        // 阶段1: 获取网页内容
+        await _executeWebContentFetchStage(article);
       } else if (article.status == ArticleStatus.webContentFetched) {
-        // AI处理阶段
-        await _processAiContent(
-          article,
-          title: article.title ?? '',
-          htmlContent: article.htmlContent ?? '',
-          content: article.content ?? '',
-          coverImageUrl: article.coverImageUrl ?? '',
-        );
+        // 阶段2: AI内容处理
+        await _executeAiProcessingStage(article);
       } else {
-        logger.w("[网页解析] 文章状态异常: ${article.status}");
-        await _updateArticleStatus(article.id, ArticleStatus.pending);
+        // 状态异常，重置为待处理
+        logger.w("[网页解析][流程] 文章状态异常: ${article.status}，重置为待处理");
+        await _updateArticleStatus(articleId, ArticleStatus.pending);
       }
     } catch (e, stackTrace) {
-      logger.e("[网页解析] 文章 #$articleId 处理失败: $e");
-      logger.e(stackTrace);
-
-      // 处理错误
-      _handleProcessingError(article, e);
+      logger.e("[网页解析][流程] 文章处理错误 #$articleId: $e");
+      logger.e(stackTrace.toString());
+      await _handleProcessingError(articleId, e, "处理流程");
     } finally {
       _currentProcessingArticleIds.remove(articleId);
-      // 处理完成后，尝试处理下一篇文章
+      logger.i("[网页解析][流程] ◀ 完成处理文章 #$articleId");
+      _notifyUI(articleId);
+
+      // 延迟一秒后检查下一篇文章
       Future.delayed(const Duration(seconds: 1), _checkNextArticle);
     }
   }
 
-  /// 阶段1: 获取网页内容
-  Future<void> _processFetchWebContent(ArticleModel article) async {
+  /// 执行网页内容获取阶段
+  Future<void> _executeWebContentFetchStage(ArticleModel article) async {
     final articleId = article.id;
+    logger.i("[网页解析][阶段1] ▶ 获取网页内容: #$articleId, URL: ${article.url}");
 
     try {
-      logger.i("[网页解析] 开始获取网页内容: #$articleId");
-      _notifyUI(articleId);
+      // 获取网页内容
+      final (title, htmlContent, textContent, coverImageUrl) = await _fetchWebContent(article.url);
 
-      // 获取网页内容 - 返回记录
-      final (String title, String htmlContent, String textContent, String coverImageUrl) = await _fetchWebContent(
-        article.url,
-      );
+      // 验证内容
+      _validateWebContent(articleId, title, htmlContent, textContent);
 
-      // 检查获取的内容是否为空
-      if (_isWebContentEmpty(title, htmlContent, textContent)) {
-        logger.w("[网页解析] 获取的网页内容为空: #$articleId, URL: ${article.url}");
-        throw Exception("获取的网页内容为空或不完整");
+      // 更新文章基本信息
+      await _saveWebContentToArticle(articleId, title, htmlContent, textContent, coverImageUrl);
+
+      logger.i("[网页解析][阶段1] ◀ 网页内容获取成功: #$articleId");
+
+      // 继续执行AI处理阶段
+      final updatedArticle = ArticleRepository.find(articleId);
+      if (updatedArticle != null) {
+        await _executeAiProcessingStage(updatedArticle);
       }
-
-      // 保存基本网页内容
-      article.title = title;
-      article.content = textContent;
-      article.htmlContent = htmlContent;
-      article.coverImageUrl = coverImageUrl;
-      article.updatedAt = DateTime.now().toUtc();
-      article.status = ArticleStatus.webContentFetched; // 更新文章状态为"网页内容获取完成"
-
-      await ArticleRepository.update(article);
-
-      logger.i("[网页解析] 网页内容获取完成: #$articleId");
-      _notifyUI(articleId);
-
-      // 将获取的数据传递给 AI 处理阶段
-      await _processAiContent(
-        article,
-        title: title,
-        htmlContent: htmlContent,
-        content: textContent,
-        coverImageUrl: coverImageUrl,
-      );
-    } catch (e) {
-      logger.e("[网页解析] 获取网页内容失败: #$articleId, $e");
-      // 直接标记为错误
-      article.title = "加载失败";
-      article.content = "无法获取网页内容：$e";
-      article.updatedAt = DateTime.now().toUtc();
-      article.status = ArticleStatus.error;
-      await ArticleRepository.update(article);
-      logger.w("[网页解析] 网页内容获取失败，标记为错误状态 #$articleId");
+    } catch (e, stackTrace) {
+      logger.e("[网页解析][阶段1] 网页内容获取失败 #$articleId: $e");
+      logger.e(stackTrace.toString());
+      await _markArticleAsFailed(articleId, "网页内容获取失败: $e");
+      throw Exception("获取网页内容失败: $e");
     }
   }
 
-  /// 检查网页内容是否为空
-  bool _isWebContentEmpty(String title, String htmlContent, String textContent) {
-    // 检查关键字段
-    return (htmlContent.isEmpty || htmlContent.length < 100) || // HTML内容为空或太短
-        (textContent.isEmpty || textContent.length < 50) || // 文本内容为空或太短
-        title.isEmpty; // 标题为空
-  }
-
-  /// 阶段2: 处理AI内容
-  Future<void> _processAiContent(
-    ArticleModel article, {
-    required String title,
-    required String htmlContent,
-    required String content,
-    required String coverImageUrl,
-  }) async {
+  /// 执行AI内容处理阶段
+  Future<void> _executeAiProcessingStage(ArticleModel article) async {
     final articleId = article.id;
+    final title = article.title ?? '';
+    final htmlContent = article.htmlContent ?? '';
+    final content = article.content ?? '';
+    final coverImageUrl = article.coverImageUrl ?? '';
+
+    logger.i("[网页解析][阶段2] ▶ 开始AI内容处理: #$articleId");
 
     try {
-      logger.i("[网页解析] 开始处理AI内容: #$articleId");
-      _notifyUI(articleId);
-
-      // 直接调用处理逻辑，传递所需数据
-      bool success = await _processForeground(
-        article,
-        title: title,
-        htmlContent: htmlContent,
-        content: content,
-        coverImageUrl: coverImageUrl,
-      );
+      // 运行AI处理管道
+      final success = await _runAiProcessingPipeline(article, title, htmlContent, content, coverImageUrl);
 
       if (success) {
-        logger.i("[网页解析] AI内容处理完成，所有任务成功: #$articleId");
+        await _updateArticleStatus(articleId, ArticleStatus.completed);
+        logger.i("[网页解析][阶段2] ◀ AI处理成功完成: #$articleId");
       } else {
-        logger.w("[网页解析] AI内容处理部分失败: #$articleId");
+        // 部分任务可能失败，状态保持为webContentFetched以便后续重试
+        logger.w("[网页解析][阶段2] ◀ AI处理部分失败: #$articleId");
       }
-
-      _notifyUI(articleId);
     } catch (e, stackTrace) {
-      logger.e("[网页解析] 处理AI内容失败: #$articleId, $e $stackTrace");
-      // 直接标记为失败
-      article.aiContent = "AI处理失败：$e";
-      article.updatedAt = DateTime.now().toUtc();
-      article.status = ArticleStatus.error;
-      await ArticleRepository.update(article);
-      rethrow; // 重新抛出异常供上层处理
+      logger.e("[网页解析][阶段2] AI处理发生错误 #$articleId: $e");
+      logger.e(stackTrace.toString());
+      await _markArticleAsFailed(articleId, "AI处理失败: $e");
+      throw Exception("AI处理失败: $e");
     }
   }
 
-  /// 统一内容处理 - 不再区分前台和后台 (直接调用 _processForeground)
-  // Future<bool> _processArticleContent(ArticleModel article, WebpageData webpageData) async {
-  //   // 直接使用前台处理模式
-  //   return await _processForeground(article, webpageData);
-  // }
-
-  /// 在主线程执行并行任务
-  Future<bool> _processForeground(
-    ArticleModel article, {
-    required String title,
-    required String htmlContent,
-    required String content,
-    required String coverImageUrl,
-  }) async {
-    logger.i("[网页解析] 处理文章 #${article.id}");
-    final articleId = article.id;
-
-    // 移除 taskResults 和 processTask 辅助函数
-    // 直接创建和管理 Futures
-
-    final futures = <Future<void>>[];
-    // 使用布尔标志跟踪每个任务的成功状态
-    bool titleSuccess = article.aiTitle != null && article.aiTitle!.isNotEmpty;
-    bool summarySuccess = article.aiContent != null && article.aiContent!.isNotEmpty;
-    // 封面图片为空不一定是失败，只有在下载失败时才标记为失败
-    bool imageSuccess = true; // Assume success unless download fails
-    bool markdownSuccess = article.aiMarkdownContent != null && article.aiMarkdownContent!.isNotEmpty;
-
-    // 标题处理任务 (仅当需要且未完成时)
-    if (title.isNotEmpty && !titleSuccess) {
-      futures.add(() async {
-        try {
-          final result = await _processTitle(title);
-          if (result.isNotEmpty) {
-            await ArticleRepository.updateField(articleId, ArticleFieldName.aiTitle, result);
-            titleSuccess = true;
-            logger.i("[网页解析] 标题处理完成: #$articleId");
-          } else {
-            logger.w("[网页解析] 标题处理结果为空: #$articleId");
-            titleSuccess = false; // 结果为空视为失败
-          }
-        } catch (e, stackTrace) {
-          logger.e("[网页解析] 标题处理失败: #$articleId, $e");
-          logger.e(stackTrace);
-          titleSuccess = false; // 标记为失败
-        }
-      }()); // 立即调用 async 函数
-    }
-
-    // 摘要处理任务 (仅当需要且未完成时)
-    if (content.isNotEmpty && !summarySuccess) {
-      futures.add(() async {
-        try {
-          final (summary, tags) = await _processSummary(content);
-          if (summary.isNotEmpty) {
-            await ArticleRepository.updateField(articleId, ArticleFieldName.aiContent, summary);
-            await _saveTags(article, tags);
-            summarySuccess = true;
-            logger.i("[网页解析] 摘要和标签处理完成: #$articleId");
-          } else {
-            logger.w("[网页解析] 摘要处理结果为空: #$articleId");
-            summarySuccess = false;
-          }
-        } catch (e, stackTrace) {
-          logger.e("[网页解析] 摘要处理失败: #$articleId, $e");
-          logger.e(stackTrace);
-          summarySuccess = false;
-        }
-      }());
-    }
-
-    // 图片处理任务 (仅当需要且未完成时)
-    // 注意: article.coverImage.isNullOrEmpty 检查本地图片是否存在
-    if (coverImageUrl.isNotEmpty && article.coverImage.isNullOrEmpty) {
-      futures.add(() async {
-        try {
-          final result = await _processImage(coverImageUrl);
-          // 即使 result 为空 (例如图片无法下载但不是严重错误)，也可能不算失败
-          // 这里我们假设下载方法会抛出异常如果是严重错误
-          await ArticleRepository.updateField(articleId, ArticleFieldName.coverImage, result);
-          imageSuccess = true; // 只要没抛异常就算成功（即使图片为空）
-          logger.i("[网页解析] 图片处理完成: #$articleId");
-        } catch (e, stackTrace) {
-          logger.e("[网页解析] 图片处理失败: #$articleId, $e");
-          logger.e(stackTrace);
-          imageSuccess = false; // 下载失败则标记为失败
-        }
-      }());
-    }
-
-    // Markdown处理任务 (仅当需要且未完成时)
-    if (htmlContent.isNotEmpty && !markdownSuccess) {
-      futures.add(() async {
-        try {
-          final result = await _processMarkdown(htmlContent);
-          if (result.isNotEmpty) {
-            await ArticleRepository.updateField(articleId, ArticleFieldName.aiMarkdownContent, result);
-            markdownSuccess = true;
-            logger.i("[网页解析] Markdown处理完成: #$articleId");
-          } else {
-            logger.w("[网页解析] Markdown处理结果为空: #$articleId");
-            markdownSuccess = false;
-          }
-        } catch (e, stackTrace) {
-          logger.e("[网页解析] Markdown处理失败: #$articleId, $e");
-          logger.e(stackTrace);
-          markdownSuccess = false;
-        }
-      }());
-    }
-
-    // 如果没有需要执行的任务，直接判断当前状态
-    if (futures.isEmpty) {
-      logger.i("[网页解析] 无需执行AI任务: #$articleId");
-    } else {
-      // 并行执行所有需要执行的任务
-      await Future.wait(futures);
-    }
-
-    // 检查所有任务是否都已成功完成（包括之前已完成的）
-    final allTasksSucceeded = titleSuccess && summarySuccess && imageSuccess && markdownSuccess;
-
-    // 只有当所有必需的任务都成功完成时，才更新状态为completed
-    if (allTasksSucceeded) {
-      await _updateArticleStatus(article.id, ArticleStatus.completed);
-      logger.i("[网页解析] 所有AI任务完成，状态更新为 completed: #$articleId");
-    } else {
-      // 如果有任何任务失败，文章状态将保持 webContentFetched (或之前的状态)
-      // _checkIncompleteArticles 会在之后检查并可能重试
-      logger.w(
-        "[网页解析] AI 内容处理部分失败或有任务未完成: #${article.id}. 成功状态 - title: $titleSuccess, summary: $summarySuccess, image: $imageSuccess, markdown: $markdownSuccess",
-      );
-    }
-
-    _notifyUI(articleId); // 通知UI更新，无论成功与否
-
-    return allTasksSucceeded;
-  }
-
-  /// 处理标题
-  Future<String> _processTitle(String title) async {
-    try {
-      var aiTitle = await AiService.i.translate(title.trim());
-      return aiTitle.length >= 50 ? await AiService.i.summarizeOneLine(aiTitle) : aiTitle;
-    } catch (e) {
-      logger.e("[网页解析] 标题处理失败: $e");
-      rethrow;
-    }
-  }
-
-  /// 处理摘要
-  Future<(String, List<String>)> _processSummary(String content) async {
-    try {
-      return await AiService.i.summarize(content.trim());
-    } catch (e) {
-      logger.e("[网页解析] 内容摘要处理失败: $e");
-      rethrow;
-    }
-  }
-
-  /// 处理图片
-  Future<String> _processImage(String imageUrl) async {
-    if (imageUrl.isEmpty) return '';
-    return await HttpService.i.downloadImage(imageUrl);
-  }
-
-  /// 处理Markdown
-  Future<String> _processMarkdown(String html) async {
-    try {
-      return await AiService.i.convertHtmlToMarkdown(html);
-    } catch (e) {
-      logger.e("[网页解析] Markdown处理失败: $e");
-      rethrow;
-    }
-  }
-
-  /// 保存标签
-  Future<void> _saveTags(ArticleModel article, List<String> tagNames) async {
-    try {
-      article.tags.clear();
-      for (var tagName in tagNames) {
-        await TagRepository.addTagToArticle(article, tagName);
-      }
-    } catch (e) {
-      logger.e("[网页解析] 保存标签失败: $e");
-      rethrow;
-    }
-  }
-
-  /// 处理错误
-  void _handleProcessingError(ArticleModel article, dynamic error) {
-    final articleId = article.id;
-
-    // 标记为失败
-    article.aiContent = "处理失败：$error";
-    article.status = ArticleStatus.error;
-    article.updatedAt = DateTime.now().toUtc();
-    ArticleRepository.update(article);
-    logger.w("[网页解析] 处理失败，标记为错误状态 #$articleId");
-  }
+  // ====================== 网页内容处理 ======================
 
   /// 获取网页内容
   Future<(String title, String htmlContent, String textContent, String coverImageUrl)> _fetchWebContent(
     String? url,
   ) async {
     if (url.isNullOrEmpty) {
-      // 返回一个包含空字符串的无名记录
+      logger.w("[网页解析][内容] URL为空，无法获取内容");
       return ('', '', '', '');
     }
 
-    try {
-      final headlessWebView = HeadlessWebView();
-      final result = await headlessWebView.loadAndParseUrl(url!);
+    logger.d("[网页解析][内容] 开始加载URL: $url");
 
-      // 直接返回包含所需数据的无名记录
-      return (result.title, result.htmlContent, result.textContent, result.coverImageUrl);
-    } catch (e, stackTrace) {
-      logger.e("[网页解析] 获取网页内容失败: $e $stackTrace");
-      rethrow;
+    final headlessWebView = HeadlessWebView();
+    final result = await headlessWebView.loadAndParseUrl(url!);
+
+    logger.d(
+      "[网页解析][内容] 成功获取内容: 标题长度=${result.title.length}, "
+      "HTML=${result.htmlContent.length}字节, "
+      "文本=${result.textContent.length}字节",
+    );
+
+    return (result.title, result.htmlContent, result.textContent, result.coverImageUrl);
+  }
+
+  /// 验证网页内容是否有效
+  void _validateWebContent(int articleId, String title, String htmlContent, String textContent) {
+    final List<String> errors = [];
+
+    if (title.isEmpty) {
+      errors.add("标题为空");
     }
+
+    if (htmlContent.isEmpty || htmlContent.length < 100) {
+      errors.add("HTML内容为空或过短(${htmlContent.length}字节)");
+    }
+
+    if (textContent.isEmpty || textContent.length < 50) {
+      errors.add("文本内容为空或过短(${textContent.length}字节)");
+    }
+
+    if (errors.isNotEmpty) {
+      final errorMsg = errors.join(", ");
+      logger.w("[网页解析][验证] 内容验证失败 #$articleId: $errorMsg");
+      throw Exception("网页内容无效: $errorMsg");
+    }
+
+    logger.d("[网页解析][验证] 内容验证通过 #$articleId");
+  }
+
+  /// 保存网页内容到文章
+  Future<void> _saveWebContentToArticle(
+    int articleId,
+    String title,
+    String htmlContent,
+    String textContent,
+    String coverImageUrl,
+  ) async {
+    logger.d("[网页解析][保存] 保存网页内容到文章 #$articleId");
+
+    await ArticleRepository.updateField(articleId, ArticleFieldName.title, title);
+    await ArticleRepository.updateField(articleId, ArticleFieldName.content, textContent);
+    await ArticleRepository.updateField(articleId, ArticleFieldName.htmlContent, htmlContent);
+    await ArticleRepository.updateField(articleId, ArticleFieldName.coverImageUrl, coverImageUrl);
+    await ArticleRepository.updateField(
+      articleId,
+      ArticleFieldName.updatedAt,
+      DateTime.now().toUtc().toIso8601String(),
+    );
+    await ArticleRepository.updateField(articleId, ArticleFieldName.status, ArticleStatus.webContentFetched);
+
+    logger.d("[网页解析][保存] 网页内容保存完成 #$articleId");
+  }
+
+  // ====================== AI处理 ======================
+
+  /// 执行AI处理管道，处理标题、摘要、图片和Markdown内容
+  Future<bool> _runAiProcessingPipeline(
+    ArticleModel article,
+    String title,
+    String htmlContent,
+    String content,
+    String coverImageUrl,
+  ) async {
+    final articleId = article.id;
+    logger.d("[网页解析][AI] ▶ 启动AI处理管道 #$articleId");
+
+    // 确定需要执行的任务
+    final needsTitle = article.aiTitle.isNullOrEmpty && title.isNotEmpty;
+    final needsSummary = article.aiContent.isNullOrEmpty && content.isNotEmpty;
+    final needsImage = article.coverImage.isNullOrEmpty && coverImageUrl.isNotEmpty;
+    final needsMarkdown = article.aiMarkdownContent.isNullOrEmpty && htmlContent.isNotEmpty;
+
+    // 创建任务列表
+    final tasks = <Future<bool>>[];
+
+    if (needsTitle) {
+      logger.d("[网页解析][AI] 添加标题处理任务 #$articleId");
+      tasks.add(_processTitleTask(articleId, title));
+    }
+
+    if (needsSummary) {
+      logger.d("[网页解析][AI] 添加摘要处理任务 #$articleId");
+      tasks.add(_processSummaryTask(articleId, content, article));
+    }
+
+    if (needsImage) {
+      logger.d("[网页解析][AI] 添加图片处理任务 #$articleId");
+      tasks.add(_processImageTask(articleId, coverImageUrl));
+    }
+
+    if (needsMarkdown) {
+      logger.d("[网页解析][AI] 添加Markdown处理任务 #$articleId");
+      tasks.add(_processMarkdownTask(articleId, htmlContent));
+    }
+
+    // 检查是否有任务需要执行
+    if (tasks.isEmpty) {
+      logger.i("[网页解析][AI] 无需执行AI任务 #$articleId");
+      return _isArticleContentComplete(article);
+    }
+
+    // 并行执行所有任务
+    logger.i("[网页解析][AI] 开始执行 ${tasks.length} 个AI任务 #$articleId");
+    final results = await Future.wait(tasks);
+    final allTasksSucceeded = results.every((success) => success);
+
+    // 重新检查文章是否完整
+    final updatedArticle = ArticleRepository.find(articleId);
+    final isComplete = updatedArticle != null && _isArticleContentComplete(updatedArticle);
+
+    logger.i("[网页解析][AI] ◀ AI处理完成 #$articleId: 成功=${allTasksSucceeded}, 完整=${isComplete}");
+    return isComplete;
+  }
+
+  /// 处理标题任务
+  Future<bool> _processTitleTask(int articleId, String title) async {
+    logger.d("[网页解析][AI:标题] ▶ 开始处理标题 #$articleId");
+
+    try {
+      var aiTitle = await AiService.i.translate(title.trim());
+
+      // 如果标题太长，进行概括
+      if (aiTitle.length >= 50) {
+        logger.d("[网页解析][AI:标题] 标题太长，进行概括 #$articleId");
+        aiTitle = await AiService.i.summarizeOneLine(aiTitle);
+      }
+
+      if (aiTitle.isEmpty) {
+        logger.w("[网页解析][AI:标题] 处理结果为空 #$articleId");
+        return false;
+      }
+
+      await ArticleRepository.updateField(articleId, ArticleFieldName.aiTitle, aiTitle);
+      logger.d("[网页解析][AI:标题] ◀ 标题处理成功 #$articleId");
+      return true;
+    } catch (e) {
+      logger.e("[网页解析][AI:标题] 处理失败 #$articleId: $e");
+      return false;
+    }
+  }
+
+  /// 处理摘要和标签任务
+  Future<bool> _processSummaryTask(int articleId, String content, ArticleModel article) async {
+    logger.d("[网页解析][AI:摘要] ▶ 开始处理摘要 #$articleId");
+
+    try {
+      final (summary, tags) = await AiService.i.summarize(content.trim());
+
+      if (summary.isEmpty) {
+        logger.w("[网页解析][AI:摘要] 处理结果为空 #$articleId");
+        return false;
+      }
+
+      await ArticleRepository.updateField(articleId, ArticleFieldName.aiContent, summary);
+      await _saveTags(article, tags);
+
+      logger.d("[网页解析][AI:摘要] ◀ 摘要处理成功，提取了 ${tags.length} 个标签 #$articleId");
+      return true;
+    } catch (e) {
+      logger.e("[网页解析][AI:摘要] 处理失败 #$articleId: $e");
+      return false;
+    }
+  }
+
+  /// 处理图片任务
+  Future<bool> _processImageTask(int articleId, String imageUrl) async {
+    if (imageUrl.isEmpty) {
+      logger.d("[网页解析][AI:图片] 图片URL为空，跳过处理 #$articleId");
+      return true;
+    }
+
+    logger.d("[网页解析][AI:图片] ▶ 开始处理图片 #$articleId: $imageUrl");
+
+    try {
+      final imagePath = await HttpService.i.downloadImage(imageUrl);
+
+      if (imagePath.isNotEmpty) {
+        await ArticleRepository.updateField(articleId, ArticleFieldName.coverImage, imagePath);
+        logger.d("[网页解析][AI:图片] ◀ 图片处理成功 #$articleId");
+        return true;
+      } else {
+        logger.w("[网页解析][AI:图片] 图片下载结果为空 #$articleId");
+        return true; // 图片下载失败但不影响整体流程
+      }
+    } catch (e) {
+      logger.e("[网页解析][AI:图片] 处理失败 #$articleId: $e");
+      return false;
+    }
+  }
+
+  /// 处理Markdown转换任务
+  Future<bool> _processMarkdownTask(int articleId, String html) async {
+    logger.d("[网页解析][AI:Markdown] ▶ 开始处理Markdown #$articleId");
+
+    try {
+      final markdown = await AiService.i.convertHtmlToMarkdown(html);
+
+      if (markdown.isEmpty) {
+        logger.w("[网页解析][AI:Markdown] 处理结果为空 #$articleId");
+        return false;
+      }
+
+      await ArticleRepository.updateField(articleId, ArticleFieldName.aiMarkdownContent, markdown);
+      logger.d("[网页解析][AI:Markdown] ◀ Markdown处理成功 #$articleId");
+      return true;
+    } catch (e) {
+      logger.e("[网页解析][AI:Markdown] 处理失败 #$articleId: $e");
+      return false;
+    }
+  }
+
+  /// 保存标签到文章
+  Future<void> _saveTags(ArticleModel article, List<String> tagNames) async {
+    if (tagNames.isEmpty) return;
+
+    final articleId = article.id;
+    logger.d("[网页解析][标签] ▶ 开始保存 ${tagNames.length} 个标签 #$articleId");
+
+    try {
+      article.tags.clear();
+
+      for (var tagName in tagNames) {
+        await TagRepository.addTagToArticle(article, tagName);
+      }
+
+      logger.d("[网页解析][标签] ◀ 标签保存完成 #$articleId");
+    } catch (e) {
+      logger.e("[网页解析][标签] 保存标签失败 #$articleId: $e");
+      // 标签失败不阻止主流程
+    }
+  }
+
+  // ====================== 文章状态和验证 ======================
+
+  /// 检查不完整文章，重置状态以便重新处理
+  Future<void> _checkIncompleteArticles() async {
+    logger.i("[网页解析][检查] ▶ 开始检查不完整文章");
+
+    if (_currentProcessingArticleIds.length >= _maxConcurrentProcessing) {
+      logger.d("[网页解析][检查] 当前已达到最大并行处理数量，稍后再检查");
+      return;
+    }
+
+    // 检查已完成但内容不完整的文章
+    int resetCount = 0;
+    final completedArticles = ArticleRepository.findByStatus(ArticleStatus.completed);
+
+    for (var article in completedArticles) {
+      if (!_isArticleContentComplete(article)) {
+        logger.w("[网页解析][检查] 发现不完整文章 #${article.id}，重置为webContentFetched");
+        await _updateArticleStatus(article.id, ArticleStatus.webContentFetched);
+        resetCount++;
+      }
+    }
+
+    // 检查webContentFetched状态但基础内容缺失的文章
+    final webContentFetchedArticles = ArticleRepository.findByStatus(ArticleStatus.webContentFetched);
+
+    for (var article in webContentFetchedArticles) {
+      if (_isBasicContentMissing(article)) {
+        logger.w("[网页解析][检查] 发现基础内容缺失 #${article.id}，重置为pending");
+        await _updateArticleStatus(article.id, ArticleStatus.pending);
+        resetCount++;
+      }
+    }
+
+    logger.i("[网页解析][检查] ◀ 检查完成，重置了 $resetCount 篇文章状态");
+  }
+
+  /// 检查文章内容是否完整（所有AI处理字段都已填充）
+  bool _isArticleContentComplete(ArticleModel article) {
+    bool titleComplete = article.aiTitle != null && article.aiTitle!.isNotEmpty;
+    bool summaryComplete = article.aiContent != null && article.aiContent!.isNotEmpty;
+    bool markdownComplete = article.aiMarkdownContent != null && article.aiMarkdownContent!.isNotEmpty;
+    bool coverComplete =
+        article.coverImageUrl == null ||
+        article.coverImageUrl!.isEmpty ||
+        (article.coverImage != null && article.coverImage!.isNotEmpty);
+
+    final isComplete = titleComplete && summaryComplete && markdownComplete && coverComplete;
+
+    if (!isComplete) {
+      logger.d(
+        "[网页解析][检查] 文章 #${article.id} 内容不完整: "
+        "标题=$titleComplete, "
+        "摘要=$summaryComplete, "
+        "Markdown=$markdownComplete, "
+        "图片完整=$coverComplete",
+      );
+    }
+
+    return isComplete;
+  }
+
+  /// 检查文章的基础内容是否缺失
+  bool _isBasicContentMissing(ArticleModel article) {
+    return article.title.isNullOrEmpty || article.content.isNullOrEmpty || article.htmlContent.isNullOrEmpty;
+  }
+
+  /// 保存当前处理中文章的状态
+  void _saveCurrentArticleState() {
+    if (_currentProcessingArticleIds.isEmpty) return;
+
+    logger.i("[网页解析][状态] ▶ 保存 ${_currentProcessingArticleIds.length} 个处理中文章的状态");
+
+    for (final articleId in _currentProcessingArticleIds.toList()) {
+      try {
+        final article = ArticleRepository.find(articleId);
+        if (article != null) {
+          final targetStatus =
+              article.status == ArticleStatus.webContentFetched
+                  ? ArticleStatus
+                      .webContentFetched // 保持当前状态
+                  : ArticleStatus.pending; // 回退到待处理
+
+          _updateArticleStatus(article.id, targetStatus);
+          logger.d("[网页解析][状态] 文章 #$articleId 状态已设为 $targetStatus");
+        }
+      } catch (e) {
+        logger.e("[网页解析][状态] 保存文章 #$articleId 状态失败: $e");
+      }
+    }
+
+    logger.i("[网页解析][状态] ◀ 保存处理中文章状态完成");
+  }
+
+  // ====================== 文章创建与更新 ======================
+
+  /// 创建新文章
+  Future<ArticleModel> _createNewArticle(String url, String comment) async {
+    logger.d("[网页解析][创建] ▶ 开始创建新文章: $url");
+
+    final data = _prepareNewArticleData(url, comment);
+    final articleModel = ArticleRepository.createArticleModel(data);
+
+    final id = await ArticleRepository.create(articleModel);
+    if (id <= 0) {
+      throw Exception("创建文章记录失败");
+    }
+
+    final savedArticle = ArticleRepository.find(id);
+    if (savedArticle == null) {
+      throw Exception("无法找到刚创建的文章: $id");
+    }
+
+    logger.d("[网页解析][创建] ◀ 新文章创建成功: #${savedArticle.id}");
+    return savedArticle;
+  }
+
+  /// 重置现有文章以更新内容
+  Future<ArticleModel> _resetExistingArticle(int articleId, String comment) async {
+    logger.d("[网页解析][更新] ▶ 开始重置文章: #$articleId");
+
+    final article = ArticleRepository.find(articleId);
+    if (article == null) {
+      throw Exception("找不到要更新的文章: $articleId");
+    }
+
+    // 只重置AI相关字段，保留原始内容
+    article.comment = comment;
+    _resetArticleAiFields(article);
+    article.status = ArticleStatus.pending;
+    article.updatedAt = DateTime.now().toUtc();
+
+    await ArticleRepository.update(article);
+    logger.d("[网页解析][更新] ◀ 文章重置成功: #$articleId");
+
+    return article;
+  }
+
+  /// 准备新文章的数据
+  Map<String, dynamic> _prepareNewArticleData(String url, String comment) {
+    final now = DateTime.now().toUtc();
+
+    return {
+      'title': '正在加载...',
+      'url': url,
+      'comment': comment,
+      'pubDate': now,
+      'createdAt': now,
+      'updatedAt': now,
+      'status': ArticleStatus.pending,
+      // 加入初始化的AI字段
+      ..._initEmptyAiFields(),
+    };
+  }
+
+  /// 初始化空的AI字段
+  Map<String, String> _initEmptyAiFields() {
+    return {
+      'aiTitle': '',
+      'aiContent': '',
+      'aiMarkdownContent': '',
+      'content': '',
+      'htmlContent': '',
+      'coverImage': '',
+      'coverImageUrl': '',
+    };
+  }
+
+  /// 重置文章的AI字段
+  void _resetArticleAiFields(ArticleModel article) {
+    article.aiTitle = '';
+    article.aiContent = '';
+    article.aiMarkdownContent = '';
+    article.coverImage = '';
+  }
+
+  // ====================== 错误处理 ======================
+
+  /// 统一处理错误
+  Future<void> _handleProcessingError(int articleId, dynamic error, String stage) async {
+    logger.e("[网页解析][错误] ▶ ${stage}错误 #$articleId: $error");
+
+    try {
+      await _markArticleAsFailed(articleId, "处理失败: $error");
+      logger.w("[网页解析][错误] ◀ 文章已标记为错误 #$articleId");
+    } catch (e) {
+      logger.e("[网页解析][错误] 无法标记文章错误状态 #$articleId: $e");
+    }
+  }
+
+  /// 将文章标记为失败状态
+  Future<void> _markArticleAsFailed(int articleId, String errorMessage) async {
+    await ArticleRepository.updateField(articleId, ArticleFieldName.status, ArticleStatus.error);
+    await ArticleRepository.updateField(articleId, ArticleFieldName.aiContent, errorMessage);
+    await ArticleRepository.updateField(
+      articleId,
+      ArticleFieldName.updatedAt,
+      DateTime.now().toUtc().toIso8601String(),
+    );
+  }
+
+  /// 验证保存网页输入参数
+  Future<void> _validateSaveWebpageInput(String url, bool isUpdate, int articleID) async {
+    if (url.isNullOrEmpty) {
+      throw Exception("URL不能为空");
+    }
+
+    if (!isUpdate && await ArticleRepository.isArticleExists(url)) {
+      throw Exception("网页已存在，无法重复添加");
+    }
+
+    if (isUpdate && articleID <= 0) {
+      throw Exception("文章ID无效，无法更新");
+    }
+  }
+
+  // ====================== 辅助方法 ======================
+
+  /// 更新文章状态
+  Future<void> _updateArticleStatus(int articleId, String status) async {
+    logger.d("[网页解析][状态] 更新文章 #$articleId 状态: $status");
+    await ArticleRepository.updateField(articleId, ArticleFieldName.status, status);
   }
 
   /// 通知UI更新
   void _notifyUI(int articleId) {
     try {
-      Get.find<ArticlesController>().updateArticle(articleId);
+      if (Get.isRegistered<ArticlesController>()) {
+        Get.find<ArticlesController>().updateArticle(articleId);
+        logger.d("[网页解析][UI] 已通知UI更新文章 #$articleId");
+      }
     } catch (e) {
       // 控制器不存在时静默处理
-    }
-  }
-
-  /// 更新文章状态
-  Future<void> _updateArticleStatus(int articleID, String status) async {
-    await ArticleRepository.updateField(articleID, ArticleFieldName.status, status);
-  }
-
-  /// 创建初始文章
-  Future<ArticleModel> _createInitialArticle({
-    required String url,
-    required String comment,
-    required bool isUpdate,
-    required int articleID,
-  }) async {
-    try {
-      // 如果是更新模式
-      if (isUpdate && articleID > 0) {
-        final article = ArticleRepository.find(articleID);
-        if (article != null) {
-          article.comment = comment;
-          article.aiTitle = '';
-          article.aiContent = '';
-          article.aiMarkdownContent = '';
-          article.coverImage = '';
-          article.status = ArticleStatus.pending;
-          article.updatedAt = DateTime.now().toUtc();
-          await ArticleRepository.update(article);
-          return article;
-        }
-      }
-
-      // 创建新文章
-      final now = DateTime.now().toUtc();
-      final data = {
-        'title': '正在加载...',
-        'aiTitle': '',
-        'content': '',
-        'aiContent': '',
-        'htmlContent': '',
-        'url': url,
-        'aiMarkdownContent': '',
-        'coverImage': '',
-        'coverImageUrl': '',
-        'pubDate': now,
-        'createdAt': now,
-        'updatedAt': now,
-        'comment': comment,
-        'status': ArticleStatus.pending,
-      };
-
-      final articleModel = ArticleRepository.createArticleModel(data);
-      final id = await ArticleRepository.create(articleModel);
-
-      if (id <= 0) {
-        throw Exception("创建文章失败");
-      }
-
-      final savedArticle = ArticleRepository.find(id);
-      if (savedArticle == null) {
-        throw Exception("无法找到刚创建的文章: $id");
-      }
-
-      return savedArticle;
-    } catch (e) {
-      logger.e("[网页解析] 创建文章失败: $e");
-      rethrow;
     }
   }
 }
