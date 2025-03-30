@@ -234,7 +234,13 @@ class WebpageParserService with WidgetsBindingObserver {
         await _processFetchWebContent(article);
       } else if (article.status == ArticleStatus.webContentFetched) {
         // AI处理阶段
-        await _processAiContent(article);
+        await _processAiContent(
+          article,
+          title: article.title ?? '',
+          htmlContent: article.htmlContent ?? '',
+          content: article.content ?? '',
+          coverImageUrl: article.coverImageUrl ?? '',
+        );
       } else {
         logger.w("[网页解析] 文章状态异常: ${article.status}");
         await _updateArticleStatus(article.id, ArticleStatus.pending);
@@ -260,20 +266,22 @@ class WebpageParserService with WidgetsBindingObserver {
       logger.i("[网页解析] 开始获取网页内容: #$articleId");
       _notifyUI(articleId);
 
-      // 获取网页内容
-      final webpageData = await _fetchWebContent(article.url);
+      // 获取网页内容 - 返回记录
+      final (String title, String htmlContent, String textContent, String coverImageUrl) = await _fetchWebContent(
+        article.url,
+      );
 
       // 检查获取的内容是否为空
-      if (_isWebContentEmpty(webpageData)) {
+      if (_isWebContentEmpty(title, htmlContent, textContent)) {
         logger.w("[网页解析] 获取的网页内容为空: #$articleId, URL: ${article.url}");
         throw Exception("获取的网页内容为空或不完整");
       }
 
       // 保存基本网页内容
-      article.title = webpageData.title;
-      article.content = webpageData.textContent;
-      article.htmlContent = webpageData.htmlContent;
-      article.coverImageUrl = webpageData.coverImageUrl;
+      article.title = title;
+      article.content = textContent;
+      article.htmlContent = htmlContent;
+      article.coverImageUrl = coverImageUrl;
       article.updatedAt = DateTime.now().toUtc();
       article.status = ArticleStatus.webContentFetched; // 更新文章状态为"网页内容获取完成"
 
@@ -282,7 +290,14 @@ class WebpageParserService with WidgetsBindingObserver {
       logger.i("[网页解析] 网页内容获取完成: #$articleId");
       _notifyUI(articleId);
 
-      await _processAiContent(article);
+      // 将获取的数据传递给 AI 处理阶段
+      await _processAiContent(
+        article,
+        title: title,
+        htmlContent: htmlContent,
+        content: textContent,
+        coverImageUrl: coverImageUrl,
+      );
     } catch (e) {
       logger.e("[网页解析] 获取网页内容失败: #$articleId, $e");
       // 直接标记为错误
@@ -296,33 +311,35 @@ class WebpageParserService with WidgetsBindingObserver {
   }
 
   /// 检查网页内容是否为空
-  bool _isWebContentEmpty(WebpageData data) {
+  bool _isWebContentEmpty(String title, String htmlContent, String textContent) {
     // 检查关键字段
-    return (data.htmlContent.isEmpty || data.htmlContent.length < 100) || // HTML内容为空或太短
-        (data.textContent.isEmpty || data.textContent.length < 50) || // 文本内容为空或太短
-        data.title.isEmpty; // 标题为空
+    return (htmlContent.isEmpty || htmlContent.length < 100) || // HTML内容为空或太短
+        (textContent.isEmpty || textContent.length < 50) || // 文本内容为空或太短
+        title.isEmpty; // 标题为空
   }
 
   /// 阶段2: 处理AI内容
-  Future<void> _processAiContent(ArticleModel article) async {
+  Future<void> _processAiContent(
+    ArticleModel article, {
+    required String title,
+    required String htmlContent,
+    required String content,
+    required String coverImageUrl,
+  }) async {
     final articleId = article.id;
 
     try {
       logger.i("[网页解析] 开始处理AI内容: #$articleId");
       _notifyUI(articleId);
 
-      // 创建网页数据对象，确保所有字段都是非空字符串
-      final webpageData = WebpageData(
-        title: article.title ?? '',
-        excerpt: '',
-        htmlContent: article.htmlContent ?? '',
-        textContent: article.content ?? '',
-        publishedTime: '',
-        coverImageUrl: article.coverImageUrl ?? '',
+      // 直接调用处理逻辑，传递所需数据
+      bool success = await _processForeground(
+        article,
+        title: title,
+        htmlContent: htmlContent,
+        content: content,
+        coverImageUrl: coverImageUrl,
       );
-
-      // 统一处理，根据应用状态决定在前台或后台执行
-      bool success = await _processArticleContent(article, webpageData);
 
       if (success) {
         logger.i("[网页解析] AI内容处理完成，所有任务成功: #$articleId");
@@ -342,103 +359,141 @@ class WebpageParserService with WidgetsBindingObserver {
     }
   }
 
-  /// 统一内容处理 - 不再区分前台和后台
-  Future<bool> _processArticleContent(ArticleModel article, WebpageData webpageData) async {
-    // 直接使用前台处理模式
-    return await _processForeground(article, webpageData);
-  }
+  /// 统一内容处理 - 不再区分前台和后台 (直接调用 _processForeground)
+  // Future<bool> _processArticleContent(ArticleModel article, WebpageData webpageData) async {
+  //   // 直接使用前台处理模式
+  //   return await _processForeground(article, webpageData);
+  // }
 
   /// 在主线程执行并行任务
-  Future<bool> _processForeground(ArticleModel article, WebpageData webpageData) async {
+  Future<bool> _processForeground(
+    ArticleModel article, {
+    required String title,
+    required String htmlContent,
+    required String content,
+    required String coverImageUrl,
+  }) async {
     logger.i("[网页解析] 处理文章 #${article.id}");
     final articleId = article.id;
 
-    // 创建任务结果跟踪
-    final taskResults = <String, bool>{
-      'title': article.aiTitle != null && article.aiTitle!.isNotEmpty,
-      'summary': article.aiContent != null && article.aiContent!.isNotEmpty,
-      'image': article.coverImage == null || article.coverImage!.isEmpty,
-      'markdown': article.aiMarkdownContent != null && article.aiMarkdownContent!.isNotEmpty,
-    };
+    // 移除 taskResults 和 processTask 辅助函数
+    // 直接创建和管理 Futures
 
-    // 定义统一的任务处理函数
-    Future<void> processTask(
-      String taskName,
-      Future<dynamic> Function() processor,
-      Future<void> Function(dynamic result) updater,
-      bool skipIfDone,
-    ) async {
-      // 如果任务已完成且允许跳过，则跳过该任务
-      if (skipIfDone && taskResults[taskName] == true) {
-        logger.i("[网页解析] 跳过已完成的$taskName任务: #$articleId");
-        return;
-      }
+    final futures = <Future<void>>[];
+    // 使用布尔标志跟踪每个任务的成功状态
+    bool titleSuccess = article.aiTitle != null && article.aiTitle!.isNotEmpty;
+    bool summarySuccess = article.aiContent != null && article.aiContent!.isNotEmpty;
+    // 封面图片为空不一定是失败，只有在下载失败时才标记为失败
+    bool imageSuccess = true; // Assume success unless download fails
+    bool markdownSuccess = article.aiMarkdownContent != null && article.aiMarkdownContent!.isNotEmpty;
 
-      try {
-        final result = await processor();
-        // 检查结果是否为空字符串，如果是则视为失败
-        if (result is String && result.isEmpty) {
-          logger.w("[网页解析] $taskName处理结果为空: #$articleId");
-          taskResults[taskName] = false;
-          return;
+    // 标题处理任务 (仅当需要且未完成时)
+    if (title.isNotEmpty && !titleSuccess) {
+      futures.add(() async {
+        try {
+          final result = await _processTitle(title);
+          if (result.isNotEmpty) {
+            await ArticleRepository.updateField(articleId, ArticleFieldName.aiTitle, result);
+            titleSuccess = true;
+            logger.i("[网页解析] 标题处理完成: #$articleId");
+          } else {
+            logger.w("[网页解析] 标题处理结果为空: #$articleId");
+            titleSuccess = false; // 结果为空视为失败
+          }
+        } catch (e, stackTrace) {
+          logger.e("[网页解析] 标题处理失败: #$articleId, $e");
+          logger.e(stackTrace);
+          titleSuccess = false; // 标记为失败
         }
-        await updater(result);
-        logger.i("[网页解析] $taskName处理完成: #$articleId");
-        taskResults[taskName] = true;
-      } catch (e, stackTrace) {
-        logger.e("[网页解析] $taskName处理失败: #$articleId, $e");
-        logger.e(stackTrace);
-        taskResults[taskName] = false;
-      }
+      }()); // 立即调用 async 函数
     }
 
-    // 创建处理任务列表
-    final tasks = [
-      // 标题处理任务
-      if (webpageData.title.isNotEmpty)
-        processTask(
-          'title',
-          () => _processTitle(webpageData.title),
-          (result) => ArticleRepository.updateField(articleId, ArticleFieldName.aiTitle, result),
-          true,
-        ),
+    // 摘要处理任务 (仅当需要且未完成时)
+    if (content.isNotEmpty && !summarySuccess) {
+      futures.add(() async {
+        try {
+          final (summary, tags) = await _processSummary(content);
+          if (summary.isNotEmpty) {
+            await ArticleRepository.updateField(articleId, ArticleFieldName.aiContent, summary);
+            await _saveTags(article, tags);
+            summarySuccess = true;
+            logger.i("[网页解析] 摘要和标签处理完成: #$articleId");
+          } else {
+            logger.w("[网页解析] 摘要处理结果为空: #$articleId");
+            summarySuccess = false;
+          }
+        } catch (e, stackTrace) {
+          logger.e("[网页解析] 摘要处理失败: #$articleId, $e");
+          logger.e(stackTrace);
+          summarySuccess = false;
+        }
+      }());
+    }
 
-      // 摘要处理任务
-      if (webpageData.textContent.isNotEmpty)
-        processTask('summary', () => _processSummary(webpageData.textContent), (result) async {
-          await ArticleRepository.updateField(articleId, ArticleFieldName.aiContent, result.$1);
-          await _saveTags(article, result.$2);
-        }, true),
+    // 图片处理任务 (仅当需要且未完成时)
+    // 注意: article.coverImage.isNullOrEmpty 检查本地图片是否存在
+    if (coverImageUrl.isNotEmpty && article.coverImage.isNullOrEmpty) {
+      futures.add(() async {
+        try {
+          final result = await _processImage(coverImageUrl);
+          // 即使 result 为空 (例如图片无法下载但不是严重错误)，也可能不算失败
+          // 这里我们假设下载方法会抛出异常如果是严重错误
+          await ArticleRepository.updateField(articleId, ArticleFieldName.coverImage, result);
+          imageSuccess = true; // 只要没抛异常就算成功（即使图片为空）
+          logger.i("[网页解析] 图片处理完成: #$articleId");
+        } catch (e, stackTrace) {
+          logger.e("[网页解析] 图片处理失败: #$articleId, $e");
+          logger.e(stackTrace);
+          imageSuccess = false; // 下载失败则标记为失败
+        }
+      }());
+    }
 
-      if (webpageData.coverImageUrl.isNotEmpty)
-        // 图片处理任务
-        processTask(
-          'image',
-          () => _processImage(webpageData.coverImageUrl),
-          (result) => ArticleRepository.updateField(articleId, ArticleFieldName.coverImage, result),
-          true,
-        ),
+    // Markdown处理任务 (仅当需要且未完成时)
+    if (htmlContent.isNotEmpty && !markdownSuccess) {
+      futures.add(() async {
+        try {
+          final result = await _processMarkdown(htmlContent);
+          if (result.isNotEmpty) {
+            await ArticleRepository.updateField(articleId, ArticleFieldName.aiMarkdownContent, result);
+            markdownSuccess = true;
+            logger.i("[网页解析] Markdown处理完成: #$articleId");
+          } else {
+            logger.w("[网页解析] Markdown处理结果为空: #$articleId");
+            markdownSuccess = false;
+          }
+        } catch (e, stackTrace) {
+          logger.e("[网页解析] Markdown处理失败: #$articleId, $e");
+          logger.e(stackTrace);
+          markdownSuccess = false;
+        }
+      }());
+    }
 
-      // Markdown处理任务
-      if (webpageData.htmlContent.isNotEmpty)
-        processTask(
-          'markdown',
-          () => _processMarkdown(webpageData.htmlContent),
-          (result) => ArticleRepository.updateField(articleId, ArticleFieldName.aiMarkdownContent, result),
-          true,
-        ),
-    ];
+    // 如果没有需要执行的任务，直接判断当前状态
+    if (futures.isEmpty) {
+      logger.i("[网页解析] 无需执行AI任务: #$articleId");
+    } else {
+      // 并行执行所有需要执行的任务
+      await Future.wait(futures);
+    }
 
-    // 并行执行所有任务
-    await Future.wait(tasks);
+    // 检查所有任务是否都已成功完成（包括之前已完成的）
+    final allTasksSucceeded = titleSuccess && summarySuccess && imageSuccess && markdownSuccess;
 
-    // 检查所有任务是否成功
-    final allTasksSucceeded = taskResults.values.every((success) => success);
-
-    // 只有当所有任务都成功完成时，才更新状态为completed
+    // 只有当所有必需的任务都成功完成时，才更新状态为completed
     if (allTasksSucceeded) {
       await _updateArticleStatus(article.id, ArticleStatus.completed);
+      logger.i("[网页解析] 所有AI任务完成，状态更新为 completed: #$articleId");
+    } else {
+      // 如果有任何任务失败，文章状态将保持 webContentFetched (或之前的状态)
+      // _checkIncompleteArticles 会在之后检查并可能重试
+      logger.w(
+        "[网页解析] AI 内容处理部分失败或有任务未完成: #${article.id}. 成功状态 - title: $titleSuccess, summary: $summarySuccess, image: $imageSuccess, markdown: $markdownSuccess",
+      );
     }
+
+    _notifyUI(articleId); // 通知UI更新，无论成功与否
 
     return allTasksSucceeded;
   }
@@ -506,23 +561,20 @@ class WebpageParserService with WidgetsBindingObserver {
   }
 
   /// 获取网页内容
-  Future<WebpageData> _fetchWebContent(String? url) async {
+  Future<(String title, String htmlContent, String textContent, String coverImageUrl)> _fetchWebContent(
+    String? url,
+  ) async {
     if (url.isNullOrEmpty) {
-      return WebpageData.empty();
+      // 返回一个包含空字符串的无名记录
+      return ('', '', '', '');
     }
 
     try {
       final headlessWebView = HeadlessWebView();
       final result = await headlessWebView.loadAndParseUrl(url!);
 
-      return WebpageData(
-        title: result.title,
-        excerpt: result.excerpt,
-        htmlContent: result.htmlContent,
-        textContent: result.textContent,
-        publishedTime: result.publishedTime,
-        coverImageUrl: result.coverImageUrl,
-      );
+      // 直接返回包含所需数据的无名记录
+      return (result.title, result.htmlContent, result.textContent, result.coverImageUrl);
     } catch (e, stackTrace) {
       logger.e("[网页解析] 获取网页内容失败: $e $stackTrace");
       rethrow;
@@ -603,29 +655,5 @@ class WebpageParserService with WidgetsBindingObserver {
       logger.e("[网页解析] 创建文章失败: $e");
       rethrow;
     }
-  }
-}
-
-/// 网页数据类
-class WebpageData {
-  final String title;
-  final String excerpt;
-  final String htmlContent;
-  final String textContent;
-  final String publishedTime;
-  final String coverImageUrl;
-
-  WebpageData({
-    required this.title,
-    required this.excerpt,
-    required this.htmlContent,
-    required this.textContent,
-    required this.publishedTime,
-    required this.coverImageUrl,
-  });
-
-  /// 创建空的网页数据
-  factory WebpageData.empty() {
-    return WebpageData(title: '', excerpt: '', htmlContent: '', textContent: '', publishedTime: '', coverImageUrl: '');
   }
 }
