@@ -720,7 +720,7 @@ class WebpageParserService with WidgetsBindingObserver {
 
   /// 统一处理错误
   Future<void> _handleProcessingError(int articleId, dynamic error, String stage) async {
-    logger.e("[网页解析][错误] ▶ ${stage}错误 #$articleId: $error");
+    logger.e("[网页解析][错误] ▶ $stage 错误 #$articleId: $error");
 
     try {
       await _markArticleAsFailed(articleId, "处理失败: $error");
@@ -732,13 +732,17 @@ class WebpageParserService with WidgetsBindingObserver {
 
   /// 将文章标记为失败状态
   Future<void> _markArticleAsFailed(int articleId, String errorMessage) async {
-    await ArticleRepository.updateField(articleId, ArticleFieldName.status, ArticleStatus.error);
-    await ArticleRepository.updateField(articleId, ArticleFieldName.aiContent, errorMessage);
-    await ArticleRepository.updateField(
-      articleId,
-      ArticleFieldName.updatedAt,
-      DateTime.now().toUtc().toIso8601String(),
-    );
+    final article = ArticleRepository.find(articleId);
+    if (article == null) {
+      logger.e("[网页解析][错误] 无法找到文章 #$articleId");
+      return;
+    }
+
+    article.status = ArticleStatus.error;
+    article.aiContent = errorMessage;
+    article.updatedAt = DateTime.now().toUtc();
+
+    await ArticleRepository.update(article);
   }
 
   /// 验证保存网页输入参数
