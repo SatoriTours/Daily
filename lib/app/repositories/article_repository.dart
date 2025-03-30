@@ -509,7 +509,7 @@ class ArticleRepository {
   /// 更新文章单个字段
   ///
   /// 只更新指定字段，避免覆盖其他属性
-  static Future<bool> updateField(int articleId, String fieldName, dynamic fieldValue) async {
+  static Future<bool> updateField(int articleId, ArticleFieldName fieldName, String fieldValue) async {
     try {
       // 获取文章
       final article = _box.get(articleId);
@@ -519,33 +519,33 @@ class ArticleRepository {
       }
 
       // 根据字段类型更新不同属性
-      switch (fieldName) {
+      switch (fieldName.name) {
         case 'title':
-          article.title = fieldValue as String? ?? '';
+          article.title = fieldValue;
           break;
         case 'aiTitle':
-          article.aiTitle = fieldValue as String? ?? '';
+          article.aiTitle = fieldValue;
           break;
         case 'content':
-          article.content = fieldValue as String? ?? '';
+          article.content = fieldValue;
           break;
         case 'aiContent':
-          article.aiContent = fieldValue as String? ?? '';
+          article.aiContent = fieldValue;
           break;
         case 'htmlContent':
-          article.htmlContent = fieldValue as String? ?? '';
+          article.htmlContent = fieldValue;
           break;
         case 'aiMarkdownContent':
-          article.aiMarkdownContent = fieldValue as String? ?? '';
+          article.aiMarkdownContent = fieldValue;
           break;
         case 'coverImage':
-          article.coverImage = fieldValue as String? ?? '';
+          article.coverImage = fieldValue;
           break;
         case 'coverImageUrl':
-          article.coverImageUrl = fieldValue as String? ?? '';
+          article.coverImageUrl = fieldValue;
           break;
         case 'status':
-          article.status = fieldValue as String? ?? '';
+          article.status = fieldValue;
           break;
         default:
           logger.w("不支持更新字段：$fieldName");
@@ -624,4 +624,47 @@ class ArticleRepository {
       return false;
     }
   }
+}
+
+/// 获取文章数据库字段名
+class ArticleFieldName {
+  final String name;
+
+  const ArticleFieldName({required this.name});
+
+  static const ArticleFieldName id = ArticleFieldName(name: "id");
+  static const ArticleFieldName title = ArticleFieldName(name: "title");
+  static const ArticleFieldName aiTitle = ArticleFieldName(name: "aiTitle");
+  static const ArticleFieldName content = ArticleFieldName(name: "content");
+  static const ArticleFieldName htmlContent = ArticleFieldName(name: "htmlContent");
+  static const ArticleFieldName aiContent = ArticleFieldName(name: "aiContent");
+  static const ArticleFieldName url = ArticleFieldName(name: "url");
+  static const ArticleFieldName isFavorite = ArticleFieldName(name: "isFavorite");
+  static const ArticleFieldName comment = ArticleFieldName(name: "comment");
+  static const ArticleFieldName pubDate = ArticleFieldName(name: "pubDate");
+  static const ArticleFieldName coverImage = ArticleFieldName(name: "coverImage");
+  static const ArticleFieldName aiMarkdownContent = ArticleFieldName(name: "aiMarkdownContent");
+  static const ArticleFieldName coverImageUrl = ArticleFieldName(name: "coverImageUrl");
+
+  static const ArticleFieldName status = ArticleFieldName(name: "status");
+  static const ArticleFieldName createdAt = ArticleFieldName(name: "createdAt");
+  static const ArticleFieldName updatedAt = ArticleFieldName(name: "updatedAt");
+}
+
+/// 文章状态常量类
+class ArticleStatus {
+  // 私有构造函数防止实例化
+  ArticleStatus._();
+
+  /// 待处理状态
+  static const String pending = 'pending';
+
+  /// 网页内容已获取状态
+  static const String webContentFetched = 'web_content_fetched';
+
+  /// 处理完成状态
+  static const String completed = 'completed';
+
+  /// 错误状态
+  static const String error = 'error';
 }

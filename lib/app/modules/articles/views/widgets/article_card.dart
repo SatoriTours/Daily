@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_time_ago/get_time_ago.dart';
@@ -21,9 +22,8 @@ class ArticleCard extends GetView<ArticlesController> {
   @override
   Widget build(BuildContext context) {
     final isProcessing =
-        articleModel.status == WebpageParserService.statusPending ||
-        articleModel.status == WebpageParserService.statusWebContentFetched;
-    final isError = articleModel.status == WebpageParserService.statusError;
+        articleModel.status == ArticleStatus.pending || articleModel.status == ArticleStatus.webContentFetched;
+    final isError = articleModel.status == ArticleStatus.error;
     final colorScheme = AppTheme.getColorScheme(context);
 
     return Stack(
@@ -68,7 +68,7 @@ class ArticleCard extends GetView<ArticlesController> {
     final hasTitle =
         (articleModel.aiTitle != null && articleModel.aiTitle!.isNotEmpty) ||
         (articleModel.title != null && articleModel.title!.isNotEmpty);
-    final isError = articleModel.status == WebpageParserService.statusError;
+    final isError = articleModel.status == ArticleStatus.error;
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 

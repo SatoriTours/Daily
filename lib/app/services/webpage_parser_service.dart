@@ -25,17 +25,6 @@ class WebpageParserService with WidgetsBindingObserver {
   static const int _maxConcurrentProcessing = 5;
   Timer? _processingTimer;
 
-  // 任务队列和重试管理
-  final Map<int, int> _retryCount = {};
-  final List<int> _retryQueue = [];
-  static const int _maxRetries = 3;
-
-  // 状态常量定义
-  static const String statusPending = 'pending';
-  static const String statusWebContentFetched = 'web_content_fetched';
-  static const String statusCompleted = 'completed';
-  static const String statusError = 'error';
-
   /// 初始化服务
   Future<void> init() async {
     if (_isInitialized) return;
@@ -89,24 +78,20 @@ class WebpageParserService with WidgetsBindingObserver {
     }
 
     // 获取所有文章，并筛选出状态为completed的不完整文章
-    final completedArticles = ArticleRepository.findByStatus(statusCompleted);
+    final completedArticles = ArticleRepository.findByStatus(ArticleStatus.completed);
     for (var article in completedArticles) {
       if (_isArticleIncomplete(article)) {
         logger.i("[网页解析] 发现不完整文章 #${article.id}，重置状态为网页内容已获取");
-        await _updateArticleStatus(article, statusWebContentFetched);
-        // 添加到重试队列中优先处理
-        _scheduleRetry(article.id);
+        await _updateArticleStatus(article.id, ArticleStatus.webContentFetched);
       }
     }
 
     // 检查web_content_fetched状态的文章，如果标题或内容为空，改为pending状态
-    final webContentFetchedArticles = ArticleRepository.findByStatus(statusWebContentFetched);
+    final webContentFetchedArticles = ArticleRepository.findByStatus(ArticleStatus.webContentFetched);
     for (var article in webContentFetchedArticles) {
       if (article.title.isNullOrEmpty || article.content.isNullOrEmpty || article.htmlContent.isNullOrEmpty) {
         logger.i("[网页解析] 发现网页内容不完整 #${article.id}，重置状态为pending");
-        await _updateArticleStatus(article, statusPending);
-        // 添加到重试队列中优先处理
-        _scheduleRetry(article.id);
+        await _updateArticleStatus(article.id, ArticleStatus.pending);
       }
     }
   }
@@ -174,12 +159,12 @@ class WebpageParserService with WidgetsBindingObserver {
         final article = ArticleRepository.find(articleId);
         if (article != null) {
           // 根据当前处理阶段回退到适当状态
-          if (article.status == statusWebContentFetched) {
+          if (article.status == ArticleStatus.webContentFetched) {
             // 网页内容已获取但AI处理未完成，保持该状态
             logger.i("[网页解析] 保持网页内容已获取状态: ${article.id}");
           } else {
             // 其他情况回退到待处理
-            _updateArticleStatus(article, statusPending);
+            _updateArticleStatus(article.id, ArticleStatus.pending);
             logger.i("[网页解析] 保存处理中文章状态: ${article.id}");
           }
         }
@@ -199,36 +184,31 @@ class WebpageParserService with WidgetsBindingObserver {
     // 可以处理的并行任务数
     final availableSlots = _maxConcurrentProcessing - _currentProcessingArticleIds.length;
 
-    // 处理重试队列和待处理文章，直到没有剩余任务或达到最大并行处理数
+    // 处理待处理文章，直到没有剩余任务或达到最大并行处理数
     for (int i = 0; i < availableSlots; i++) {
-      // 先处理重试队列中的文章
-      ArticleModel? article = _getNextRetryArticle();
+      // 获取所有待处理的文章
+      final pendingArticles = ArticleRepository.findAllPending();
 
-      // 然后尝试获取数据库中的待处理文章
-      if (article == null) {
-        // 获取所有待处理的文章并筛选
-        final pendingArticles = ArticleRepository.findAllPending();
+      if (pendingArticles.isEmpty) {
+        // 没有待处理的文章
+        break;
+      }
 
-        if (pendingArticles.isNotEmpty) {
-          try {
-            // 先查找网页内容已获取的文章
-            article = pendingArticles.firstWhere(
-              (a) => a.status == statusWebContentFetched && !_currentProcessingArticleIds.contains(a.id),
-              orElse:
-                  () => pendingArticles.firstWhere(
-                    (a) => a.status == statusPending && !_currentProcessingArticleIds.contains(a.id),
-                    orElse: () => throw Exception('No pending article found'),
-                  ),
-            );
-          } catch (e) {
-            // 如果没有找到任何待处理文章，忽略异常
-            logger.d("[网页解析] 没有发现待处理的文章");
-            break;
-          }
-        } else {
-          // 没有待处理的文章
-          break;
-        }
+      ArticleModel? article;
+      try {
+        // 先查找网页内容已获取的文章
+        article = pendingArticles.firstWhere(
+          (a) => a.status == ArticleStatus.webContentFetched && !_currentProcessingArticleIds.contains(a.id),
+          orElse:
+              () => pendingArticles.firstWhere(
+                (a) => a.status == ArticleStatus.pending && !_currentProcessingArticleIds.contains(a.id),
+                orElse: () => throw Exception('No pending article found'),
+              ),
+        );
+      } catch (e) {
+        // 如果没有找到任何待处理文章，忽略异常
+        logger.d("[网页解析] 没有发现待处理的文章");
+        break;
       }
 
       if (!_currentProcessingArticleIds.contains(article.id)) {
@@ -249,15 +229,15 @@ class WebpageParserService with WidgetsBindingObserver {
 
     try {
       // 根据文章状态执行不同处理逻辑
-      if (article.status == statusPending) {
+      if (article.status == ArticleStatus.pending) {
         // 获取网页内容阶段
         await _processFetchWebContent(article);
-      } else if (article.status == statusWebContentFetched) {
+      } else if (article.status == ArticleStatus.webContentFetched) {
         // AI处理阶段
         await _processAiContent(article);
       } else {
         logger.w("[网页解析] 文章状态异常: ${article.status}");
-        await _updateArticleStatus(article, statusPending);
+        await _updateArticleStatus(article.id, ArticleStatus.pending);
       }
     } catch (e, stackTrace) {
       logger.e("[网页解析] 文章 #$articleId 处理失败: $e");
@@ -295,7 +275,7 @@ class WebpageParserService with WidgetsBindingObserver {
       article.htmlContent = webpageData.htmlContent;
       article.coverImageUrl = webpageData.coverImageUrl;
       article.updatedAt = DateTime.now().toUtc();
-      article.status = statusWebContentFetched; // 更新文章状态为"网页内容获取完成"
+      article.status = ArticleStatus.webContentFetched; // 更新文章状态为"网页内容获取完成"
 
       await ArticleRepository.update(article);
 
@@ -305,17 +285,13 @@ class WebpageParserService with WidgetsBindingObserver {
       await _processAiContent(article);
     } catch (e) {
       logger.e("[网页解析] 获取网页内容失败: #$articleId, $e");
-      if (_shouldRetry(articleId)) {
-        _scheduleRetry(articleId);
-      } else {
-        // 重试次数已用完
-        article.title = "加载失败";
-        article.content = "无法获取网页内容：$e";
-        article.updatedAt = DateTime.now().toUtc();
-        article.status = statusError;
-        await ArticleRepository.update(article);
-        logger.w("[网页解析] 网页内容获取重试次数已用完，标记为错误状态 #$articleId");
-      }
+      // 直接标记为错误
+      article.title = "加载失败";
+      article.content = "无法获取网页内容：$e";
+      article.updatedAt = DateTime.now().toUtc();
+      article.status = ArticleStatus.error;
+      await ArticleRepository.update(article);
+      logger.w("[网页解析] 网页内容获取失败，标记为错误状态 #$articleId");
     }
   }
 
@@ -355,19 +331,14 @@ class WebpageParserService with WidgetsBindingObserver {
       }
 
       _notifyUI(articleId);
-    } catch (e) {
-      logger.e("[网页解析] 处理AI内容失败: #$articleId, $e");
-      if (_shouldRetry(articleId)) {
-        _scheduleRetry(articleId);
-      } else {
-        // 重试次数已用完
-        article.aiContent = "AI处理失败：$e";
-        article.updatedAt = DateTime.now().toUtc();
-        article.status = statusError;
-        await ArticleRepository.update(article);
-        logger.w("[网页解析] AI处理重试次数已用完，标记为错误状态 #$articleId");
-        throw e; // 重新抛出异常供上层处理
-      }
+    } catch (e, stackTrace) {
+      logger.e("[网页解析] 处理AI内容失败: #$articleId, $e $stackTrace");
+      // 直接标记为失败
+      article.aiContent = "AI处理失败：$e";
+      article.updatedAt = DateTime.now().toUtc();
+      article.status = ArticleStatus.error;
+      await ArticleRepository.update(article);
+      rethrow; // 重新抛出异常供上层处理
     }
   }
 
@@ -386,7 +357,7 @@ class WebpageParserService with WidgetsBindingObserver {
     final taskResults = <String, bool>{
       'title': article.aiTitle != null && article.aiTitle!.isNotEmpty,
       'summary': article.aiContent != null && article.aiContent!.isNotEmpty,
-      'image': article.coverImage != null && article.coverImage!.isNotEmpty,
+      'image': article.coverImage == null || article.coverImage!.isEmpty,
       'markdown': article.aiMarkdownContent != null && article.aiMarkdownContent!.isNotEmpty,
     };
 
@@ -414,8 +385,9 @@ class WebpageParserService with WidgetsBindingObserver {
         await updater(result);
         logger.i("[网页解析] $taskName处理完成: #$articleId");
         taskResults[taskName] = true;
-      } catch (e) {
+      } catch (e, stackTrace) {
         logger.e("[网页解析] $taskName处理失败: #$articleId, $e");
+        logger.e(stackTrace);
         taskResults[taskName] = false;
       }
     }
@@ -423,34 +395,38 @@ class WebpageParserService with WidgetsBindingObserver {
     // 创建处理任务列表
     final tasks = [
       // 标题处理任务
-      processTask(
-        'title',
-        () => _processTitle(webpageData.title),
-        (result) => ArticleRepository.updateField(articleId, 'aiTitle', result),
-        true,
-      ),
+      if (webpageData.title.isNotEmpty)
+        processTask(
+          'title',
+          () => _processTitle(webpageData.title),
+          (result) => ArticleRepository.updateField(articleId, ArticleFieldName.aiTitle, result),
+          true,
+        ),
 
       // 摘要处理任务
-      processTask('summary', () => _processSummary(webpageData.textContent), (result) async {
-        await ArticleRepository.updateField(articleId, 'aiContent', result.$1);
-        await _saveTags(article, result.$2);
-      }, true),
+      if (webpageData.textContent.isNotEmpty)
+        processTask('summary', () => _processSummary(webpageData.textContent), (result) async {
+          await ArticleRepository.updateField(articleId, ArticleFieldName.aiContent, result.$1);
+          await _saveTags(article, result.$2);
+        }, true),
 
-      // 图片处理任务
-      processTask(
-        'image',
-        () => _processImage(webpageData.coverImageUrl),
-        (result) => ArticleRepository.updateField(articleId, 'coverImage', result),
-        true,
-      ),
+      if (webpageData.coverImageUrl.isNotEmpty)
+        // 图片处理任务
+        processTask(
+          'image',
+          () => _processImage(webpageData.coverImageUrl),
+          (result) => ArticleRepository.updateField(articleId, ArticleFieldName.coverImage, result),
+          true,
+        ),
 
       // Markdown处理任务
-      processTask(
-        'markdown',
-        () => _processMarkdown(webpageData.htmlContent),
-        (result) => ArticleRepository.updateField(articleId, 'aiMarkdownContent', result),
-        true,
-      ),
+      if (webpageData.htmlContent.isNotEmpty)
+        processTask(
+          'markdown',
+          () => _processMarkdown(webpageData.htmlContent),
+          (result) => ArticleRepository.updateField(articleId, ArticleFieldName.aiMarkdownContent, result),
+          true,
+        ),
     ];
 
     // 并行执行所有任务
@@ -461,7 +437,7 @@ class WebpageParserService with WidgetsBindingObserver {
 
     // 只有当所有任务都成功完成时，才更新状态为completed
     if (allTasksSucceeded) {
-      await ArticleRepository.updateField(article.id, 'status', statusCompleted);
+      await _updateArticleStatus(article.id, ArticleStatus.completed);
     }
 
     return allTasksSucceeded;
@@ -490,12 +466,8 @@ class WebpageParserService with WidgetsBindingObserver {
 
   /// 处理图片
   Future<String> _processImage(String imageUrl) async {
-    try {
-      return await HttpService.i.downloadImage(imageUrl);
-    } catch (e) {
-      logger.e("[网页解析] 图片处理失败: $e");
-      rethrow;
-    }
+    if (imageUrl.isEmpty) return '';
+    return await HttpService.i.downloadImage(imageUrl);
   }
 
   /// 处理Markdown
@@ -525,18 +497,12 @@ class WebpageParserService with WidgetsBindingObserver {
   void _handleProcessingError(ArticleModel article, dynamic error) {
     final articleId = article.id;
 
-    if (_shouldRetry(articleId)) {
-      _scheduleRetry(articleId);
-      // 保持当前状态，等待重试
-      logger.i("[网页解析] 安排重试 #$articleId，当前重试次数: ${_retryCount[articleId]}");
-    } else {
-      // 重试次数用完，标记为失败
-      article.aiContent = "处理失败：$error";
-      _updateArticleStatus(article, statusError);
-      article.updatedAt = DateTime.now().toUtc();
-      ArticleRepository.update(article);
-      logger.w("[网页解析] 重试次数已用完，标记为失败 #$articleId");
-    }
+    // 标记为失败
+    article.aiContent = "处理失败：$error";
+    article.status = ArticleStatus.error;
+    article.updatedAt = DateTime.now().toUtc();
+    ArticleRepository.update(article);
+    logger.w("[网页解析] 处理失败，标记为错误状态 #$articleId");
   }
 
   /// 获取网页内容
@@ -557,8 +523,8 @@ class WebpageParserService with WidgetsBindingObserver {
         publishedTime: result.publishedTime,
         coverImageUrl: result.coverImageUrl,
       );
-    } catch (e) {
-      logger.e("[网页解析] 获取网页内容失败: $e");
+    } catch (e, stackTrace) {
+      logger.e("[网页解析] 获取网页内容失败: $e $stackTrace");
       rethrow;
     }
   }
@@ -573,39 +539,8 @@ class WebpageParserService with WidgetsBindingObserver {
   }
 
   /// 更新文章状态
-  Future<void> _updateArticleStatus(ArticleModel article, String status) async {
-    article.setStatus(status);
-    await article.save();
-  }
-
-  /// 获取下一个需要重试的文章
-  ArticleModel? _getNextRetryArticle() {
-    if (_retryQueue.isEmpty) return null;
-
-    // 找到第一个不在当前处理列表中的文章
-    for (int i = 0; i < _retryQueue.length; i++) {
-      final articleId = _retryQueue[i];
-      if (!_currentProcessingArticleIds.contains(articleId)) {
-        _retryQueue.removeAt(i);
-        return ArticleRepository.find(articleId);
-      }
-    }
-
-    return null;
-  }
-
-  /// 是否应该重试
-  bool _shouldRetry(int articleId) {
-    final count = _retryCount[articleId] ?? 0;
-    return count < _maxRetries;
-  }
-
-  /// 安排重试
-  void _scheduleRetry(int articleId) {
-    _retryCount[articleId] = (_retryCount[articleId] ?? 0) + 1;
-    if (!_retryQueue.contains(articleId)) {
-      _retryQueue.add(articleId);
-    }
+  Future<void> _updateArticleStatus(int articleID, String status) async {
+    await ArticleRepository.updateField(articleID, ArticleFieldName.status, status);
   }
 
   /// 创建初始文章
@@ -621,15 +556,12 @@ class WebpageParserService with WidgetsBindingObserver {
         final article = ArticleRepository.find(articleID);
         if (article != null) {
           article.comment = comment;
-          article.status = statusPending;
-          article.updatedAt = DateTime.now().toUtc();
-          article.htmlContent = '';
-          article.content = '';
-          article.aiContent = '';
           article.aiTitle = '';
+          article.aiContent = '';
           article.aiMarkdownContent = '';
           article.coverImage = '';
-          article.coverImageUrl = '';
+          article.status = ArticleStatus.pending;
+          article.updatedAt = DateTime.now().toUtc();
           await ArticleRepository.update(article);
           return article;
         }
@@ -651,7 +583,7 @@ class WebpageParserService with WidgetsBindingObserver {
         'createdAt': now,
         'updatedAt': now,
         'comment': comment,
-        'status': statusPending,
+        'status': ArticleStatus.pending,
       };
 
       final articleModel = ArticleRepository.createArticleModel(data);
