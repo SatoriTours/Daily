@@ -200,7 +200,7 @@ class AIConfigView extends GetView<AIConfigController> {
               decoration: BoxDecoration(
                 color:
                     isSelected
-                        ? (isDark ? colorScheme.primary.withOpacity(0.2) : colorScheme.primaryContainer)
+                        ? colorScheme.primary
                         : (isDark ? colorScheme.surface.withOpacity(0.3) : colorScheme.surface),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
@@ -218,7 +218,7 @@ class AIConfigView extends GetView<AIConfigController> {
                     size: 18,
                     color:
                         isSelected
-                            ? colorScheme.primary
+                            ? Colors.white
                             : (isDark
                                 ? colorScheme.onSurface.withOpacity(0.8)
                                 : colorScheme.onSurface.withOpacity(0.6)),
@@ -229,7 +229,7 @@ class AIConfigView extends GetView<AIConfigController> {
                     style: TextStyle(
                       color:
                           isSelected
-                              ? colorScheme.primary
+                              ? Colors.white
                               : (isDark
                                   ? colorScheme.onSurface.withOpacity(0.9)
                                   : colorScheme.onSurface.withOpacity(0.7)),
@@ -279,7 +279,7 @@ class AIConfigView extends GetView<AIConfigController> {
             decoration: BoxDecoration(
               color:
                   config.isDefault
-                      ? (isDark ? colorScheme.primary.withOpacity(0.3) : colorScheme.primaryContainer.withOpacity(0.7))
+                      ? colorScheme.primary
                       : (isDark
                           ? colorScheme.surfaceVariant.withOpacity(0.2)
                           : colorScheme.surfaceVariant.withOpacity(0.5)),
@@ -296,13 +296,13 @@ class AIConfigView extends GetView<AIConfigController> {
                         decoration: BoxDecoration(
                           color:
                               config.isDefault
-                                  ? colorScheme.primary.withOpacity(0.2)
+                                  ? Colors.white.withOpacity(0.2)
                                   : colorScheme.onSurface.withOpacity(0.05),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
                           _getConfigIcon(config.functionType),
-                          color: config.isDefault ? colorScheme.primary : colorScheme.onSurface.withOpacity(0.6),
+                          color: config.isDefault ? Colors.white : colorScheme.onSurface.withOpacity(0.6),
                           size: 22,
                         ),
                       ),
@@ -316,7 +316,7 @@ class AIConfigView extends GetView<AIConfigController> {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
-                                color: config.isDefault ? colorScheme.primary : colorScheme.onSurface,
+                                color: config.isDefault ? Colors.white : colorScheme.onSurface,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -326,7 +326,13 @@ class AIConfigView extends GetView<AIConfigController> {
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Text(
                                   '继承自通用配置',
-                                  style: TextStyle(fontSize: 13, color: colorScheme.onSurface.withOpacity(0.6)),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color:
+                                        config.isDefault
+                                            ? Colors.white.withOpacity(0.8)
+                                            : colorScheme.onSurface.withOpacity(0.6),
+                                  ),
                                 ),
                               ),
                           ],
@@ -338,15 +344,18 @@ class AIConfigView extends GetView<AIConfigController> {
                 if (config.isDefault)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(color: colorScheme.primary, borderRadius: BorderRadius.circular(20)),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check_circle, size: 16, color: colorScheme.onPrimary),
+                        const Icon(Icons.check_circle, size: 16, color: Colors.white),
                         const SizedBox(width: 4),
-                        Text(
+                        const Text(
                           '默认',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: colorScheme.onPrimary),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ],
                     ),
@@ -409,10 +418,10 @@ class AIConfigView extends GetView<AIConfigController> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: isDark ? colorScheme.primary.withOpacity(0.15) : colorScheme.primaryContainer.withOpacity(0.3),
+            color: isDark ? colorScheme.primary.withOpacity(0.2) : colorScheme.primaryContainer.withOpacity(0.5),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: isDark ? colorScheme.primary.withOpacity(0.9) : colorScheme.primary, size: 18),
+          child: Icon(icon, color: colorScheme.primary, size: 18),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -424,7 +433,7 @@ class AIConfigView extends GetView<AIConfigController> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: isDark ? colorScheme.onSurface.withOpacity(0.85) : colorScheme.onSurface.withOpacity(0.6),
+                  color: isDark ? colorScheme.onSurface.withOpacity(0.85) : colorScheme.onSurface.withOpacity(0.7),
                 ),
               ),
               const SizedBox(height: 4),
@@ -432,10 +441,11 @@ class AIConfigView extends GetView<AIConfigController> {
                 isEmpty ? '未设置' : value,
                 style: TextStyle(
                   fontSize: 15,
+                  fontWeight: isEmpty ? FontWeight.normal : FontWeight.w500,
                   color:
                       isEmpty
                           ? colorScheme.error.withOpacity(isDark ? 0.85 : 0.7)
-                          : (isDark ? colorScheme.onSurface.withOpacity(0.9) : colorScheme.onSurface),
+                          : (isDark ? colorScheme.onSurface : colorScheme.onSurface.withOpacity(0.9)),
                 ),
               ),
             ],
