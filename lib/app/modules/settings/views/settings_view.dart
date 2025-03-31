@@ -61,9 +61,9 @@ class SettingsView extends GetView<SettingsController> {
                 : CustomScrollView(
                   physics: const BouncingScrollPhysics(),
                   slivers: [
-                    SliverToBoxAdapter(child: _buildUserHeader(context)),
                     SliverList(
                       delegate: SliverChildListDelegate([
+                        const SizedBox(height: 16),
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 300),
                           child: _buildFeaturesSection(context),
@@ -86,61 +86,6 @@ class SettingsView extends GetView<SettingsController> {
                     ),
                   ],
                 ),
-      ),
-    );
-  }
-
-  Widget _buildUserHeader(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 30, 20, 25),
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Hero(
-                tag: 'app_logo',
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: colorScheme.primary.withOpacity(0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(Icons.article_rounded, color: colorScheme.primary, size: 32),
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Daily Satori',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
-                    ),
-                    const SizedBox(height: 4),
-                    Text('个性化您的阅读体验', style: TextStyle(fontSize: 14, color: colorScheme.onSurface.withOpacity(0.7))),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
