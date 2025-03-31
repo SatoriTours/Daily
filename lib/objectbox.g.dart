@@ -14,6 +14,7 @@ import 'package:objectbox/internal.dart'
 import 'package:objectbox/objectbox.dart' as obx;
 import 'package:objectbox_flutter_libs/objectbox_flutter_libs.dart';
 
+import 'app/objectbox/ai_config.dart';
 import 'app/objectbox/article.dart';
 import 'app/objectbox/diary.dart';
 import 'app/objectbox/image.dart';
@@ -317,6 +318,65 @@ final _entities = <obx_int.ModelEntity>[
             flags: 0)
       ],
       relations: <obx_int.ModelRelation>[],
+      backlinks: <obx_int.ModelBacklink>[]),
+  obx_int.ModelEntity(
+      id: const obx_int.IdUid(8, 8052371033223414407),
+      name: 'AIConfig',
+      lastPropertyId: const obx_int.IdUid(10, 6416813489943682923),
+      flags: 0,
+      properties: <obx_int.ModelProperty>[
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(1, 3416097050865193739),
+            name: 'id',
+            type: 6,
+            flags: 1),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(2, 541532691968829320),
+            name: 'name',
+            type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(3, 517888173487759768),
+            name: 'apiAddress',
+            type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(4, 298960381089981878),
+            name: 'apiToken',
+            type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(5, 1095429783429514120),
+            name: 'modelName',
+            type: 9,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(6, 607431780469758011),
+            name: 'functionType',
+            type: 6,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(7, 5194775131111945655),
+            name: 'inheritFromGeneral',
+            type: 1,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(8, 7284770867159186074),
+            name: 'isDefault',
+            type: 1,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(9, 4368213221540153817),
+            name: 'createdAt',
+            type: 10,
+            flags: 0),
+        obx_int.ModelProperty(
+            id: const obx_int.IdUid(10, 6416813489943682923),
+            name: 'updatedAt',
+            type: 10,
+            flags: 0)
+      ],
+      relations: <obx_int.ModelRelation>[],
       backlinks: <obx_int.ModelBacklink>[])
 ];
 
@@ -355,7 +415,7 @@ Future<obx.Store> openStore(
 obx_int.ModelDefinition getObjectBoxModel() {
   final model = obx_int.ModelInfo(
       entities: _entities,
-      lastEntityId: const obx_int.IdUid(7, 1811848833096075631),
+      lastEntityId: const obx_int.IdUid(8, 8052371033223414407),
       lastIndexId: const obx_int.IdUid(6, 7022087712099044524),
       lastRelationId: const obx_int.IdUid(4, 6883695399629113204),
       lastSequenceId: const obx_int.IdUid(0, 0),
@@ -750,6 +810,70 @@ obx_int.ModelDefinition getObjectBoxModel() {
               lastAccessedAt: lastAccessedAtParam);
 
           return object;
+        }),
+    AIConfig: obx_int.EntityDefinition<AIConfig>(
+        model: _entities[7],
+        toOneRelations: (AIConfig object) => [],
+        toManyRelations: (AIConfig object) => {},
+        getId: (AIConfig object) => object.id,
+        setId: (AIConfig object, int id) {
+          object.id = id;
+        },
+        objectToFB: (AIConfig object, fb.Builder fbb) {
+          final nameOffset = fbb.writeString(object.name);
+          final apiAddressOffset = fbb.writeString(object.apiAddress);
+          final apiTokenOffset = fbb.writeString(object.apiToken);
+          final modelNameOffset = fbb.writeString(object.modelName);
+          fbb.startTable(11);
+          fbb.addInt64(0, object.id);
+          fbb.addOffset(1, nameOffset);
+          fbb.addOffset(2, apiAddressOffset);
+          fbb.addOffset(3, apiTokenOffset);
+          fbb.addOffset(4, modelNameOffset);
+          fbb.addInt64(5, object.functionType);
+          fbb.addBool(6, object.inheritFromGeneral);
+          fbb.addBool(7, object.isDefault);
+          fbb.addInt64(8, object.createdAt.millisecondsSinceEpoch);
+          fbb.addInt64(9, object.updatedAt.millisecondsSinceEpoch);
+          fbb.finish(fbb.endTable());
+          return object.id;
+        },
+        objectFromFB: (obx.Store store, ByteData fbData) {
+          final buffer = fb.BufferContext(fbData);
+          final rootOffset = buffer.derefObject(0);
+          final idParam =
+              const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+          final nameParam = const fb.StringReader(asciiOptimization: true)
+              .vTableGet(buffer, rootOffset, 6, '');
+          final apiAddressParam = const fb.StringReader(asciiOptimization: true)
+              .vTableGet(buffer, rootOffset, 8, '');
+          final apiTokenParam = const fb.StringReader(asciiOptimization: true)
+              .vTableGet(buffer, rootOffset, 10, '');
+          final modelNameParam = const fb.StringReader(asciiOptimization: true)
+              .vTableGet(buffer, rootOffset, 12, '');
+          final functionTypeParam =
+              const fb.Int64Reader().vTableGet(buffer, rootOffset, 14, 0);
+          final inheritFromGeneralParam =
+              const fb.BoolReader().vTableGet(buffer, rootOffset, 16, false);
+          final isDefaultParam =
+              const fb.BoolReader().vTableGet(buffer, rootOffset, 18, false);
+          final createdAtParam = DateTime.fromMillisecondsSinceEpoch(
+              const fb.Int64Reader().vTableGet(buffer, rootOffset, 20, 0));
+          final updatedAtParam = DateTime.fromMillisecondsSinceEpoch(
+              const fb.Int64Reader().vTableGet(buffer, rootOffset, 22, 0));
+          final object = AIConfig(
+              id: idParam,
+              name: nameParam,
+              apiAddress: apiAddressParam,
+              apiToken: apiTokenParam,
+              modelName: modelNameParam,
+              functionType: functionTypeParam,
+              inheritFromGeneral: inheritFromGeneralParam,
+              isDefault: isDefaultParam,
+              createdAt: createdAtParam,
+              updatedAt: updatedAtParam);
+
+          return object;
         })
   };
 
@@ -948,4 +1072,47 @@ class SessionEntity_ {
   /// See [SessionEntity.lastAccessedAt].
   static final lastAccessedAt =
       obx.QueryDateProperty<SessionEntity>(_entities[6].properties[5]);
+}
+
+/// [AIConfig] entity fields to define ObjectBox queries.
+class AIConfig_ {
+  /// See [AIConfig.id].
+  static final id =
+      obx.QueryIntegerProperty<AIConfig>(_entities[7].properties[0]);
+
+  /// See [AIConfig.name].
+  static final name =
+      obx.QueryStringProperty<AIConfig>(_entities[7].properties[1]);
+
+  /// See [AIConfig.apiAddress].
+  static final apiAddress =
+      obx.QueryStringProperty<AIConfig>(_entities[7].properties[2]);
+
+  /// See [AIConfig.apiToken].
+  static final apiToken =
+      obx.QueryStringProperty<AIConfig>(_entities[7].properties[3]);
+
+  /// See [AIConfig.modelName].
+  static final modelName =
+      obx.QueryStringProperty<AIConfig>(_entities[7].properties[4]);
+
+  /// See [AIConfig.functionType].
+  static final functionType =
+      obx.QueryIntegerProperty<AIConfig>(_entities[7].properties[5]);
+
+  /// See [AIConfig.inheritFromGeneral].
+  static final inheritFromGeneral =
+      obx.QueryBooleanProperty<AIConfig>(_entities[7].properties[6]);
+
+  /// See [AIConfig.isDefault].
+  static final isDefault =
+      obx.QueryBooleanProperty<AIConfig>(_entities[7].properties[7]);
+
+  /// See [AIConfig.createdAt].
+  static final createdAt =
+      obx.QueryDateProperty<AIConfig>(_entities[7].properties[8]);
+
+  /// See [AIConfig.updatedAt].
+  static final updatedAt =
+      obx.QueryDateProperty<AIConfig>(_entities[7].properties[9]);
 }

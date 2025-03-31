@@ -1,5 +1,7 @@
 import 'package:get/get.dart';
 
+import '../modules/ai_config/bindings/ai_config_binding.dart';
+import '../modules/ai_config/views/ai_config_view.dart';
 import '../modules/article_detail/bindings/article_detail_binding.dart';
 import '../modules/article_detail/views/article_detail_view.dart';
 import '../modules/articles/bindings/articles_binding.dart';
@@ -72,6 +74,12 @@ class AppPages {
       page: () => const DiaryView(),
       binding: DiaryBinding(),
       transition: Transition.noTransition,
+    ),
+    GetPage(
+      name: _Paths.AI_CONFIG,
+      page: () => const AIConfigView(),
+      binding: AIConfigBinding(),
+      transition: Transition.rightToLeft,
     ),
   ];
 }

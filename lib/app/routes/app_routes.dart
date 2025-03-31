@@ -11,6 +11,7 @@ abstract class Routes {
   static const BACKUP_RESTORE = _Paths.BACKUP_RESTORE;
   static const LEFT_BAR = _Paths.LEFT_BAR;
   static const DIARY = _Paths.DIARY;
+  static const AI_CONFIG = _Paths.AI_CONFIG;
 }
 
 abstract class _Paths {
@@ -23,4 +24,5 @@ abstract class _Paths {
   static const BACKUP_RESTORE = '/backup-restore';
   static const LEFT_BAR = '/left-bar';
   static const DIARY = '/diary';
+  static const AI_CONFIG = '/ai-config';
 }

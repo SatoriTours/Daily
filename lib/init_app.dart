@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:daily_satori/app/services/adblock_service.dart';
+import 'package:daily_satori/app/services/ai_config_service.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/backup_service.dart';
@@ -156,6 +157,7 @@ Future<void> _initHighPriorityServices() async {
     AppServiceManager.initService('ADBlockService', () => ADBlockService.i.init()),
     AppServiceManager.initService('FreeDiskService', () => FreeDiskService.i.init()),
     AppServiceManager.initService('WebpageParserService', () => WebpageParserService.i.init()),
+    AppServiceManager.initService('AIConfigService', () => AIConfigService.i.init()),
   ]);
 }
 
