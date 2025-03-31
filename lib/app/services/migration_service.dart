@@ -1,11 +1,15 @@
 import 'dart:io';
 
+import 'package:daily_satori/app/models/models.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart' as db_image;
 import 'package:daily_satori/app/objectbox/screenshot.dart';
+import 'package:daily_satori/app/repositories/ai_config_repository.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/services/setting_service/setting_service.dart';
+import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 迁移服务，用于处理数据模型和文件存储的迁移工作
@@ -19,6 +23,9 @@ class MigrationService {
   Future<void> init() async {
     logger.i("[初始化服务] MigrationService");
 
+    // 迁移AI配置数据
+    await migrateAIConfigFromSettings();
+
     // 检查是否需要迁移
     if (await _needMigration()) {
       logger.i("检测到需要迁移数据");
@@ -26,6 +33,77 @@ class MigrationService {
       await clearAllImagesAndScreenshots();
     } else {
       logger.i("数据已经迁移过，无需再次迁移");
+    }
+  }
+
+  /// 迁移AI配置数据从Settings到AI配置管理
+  Future<void> migrateAIConfigFromSettings() async {
+    logger.i("[AI配置迁移] 开始从Settings迁移AI配置数据");
+
+    try {
+      // 检查设置中是否存在AI配置数据
+      final apiToken = Settings.getValue<String>(SettingService.openAITokenKey) ?? '';
+      final apiAddress =
+          Settings.getValue<String>(SettingService.openAIAddressKey) ??
+          SettingService.defaultSettings[SettingService.openAIAddressKey] ??
+          '';
+      final modelName =
+          Settings.getValue<String>(SettingService.aiModelKey) ??
+          SettingService.defaultSettings[SettingService.aiModelKey] ??
+          '';
+
+      // 如果所有设置都为空，则不需要迁移
+      if ((apiToken.isEmpty) &&
+          (apiAddress.isEmpty || apiAddress == SettingService.defaultSettings[SettingService.openAIAddressKey]) &&
+          (modelName.isEmpty || modelName == SettingService.defaultSettings[SettingService.aiModelKey])) {
+        logger.i("[AI配置迁移] 无需迁移AI配置数据，设置为空或默认值");
+        return;
+      }
+
+      // 获取或创建通用配置
+      AIConfigModel? generalConfig = AIConfigRepository.getGeneralConfig();
+      if (generalConfig == null) {
+        // 如果不存在通用配置，创建一个
+        logger.i("[AI配置迁移] 创建通用配置");
+        AIConfigRepository.initDefaultConfigs();
+        generalConfig = AIConfigRepository.getGeneralConfig();
+
+        if (generalConfig == null) {
+          logger.e("[AI配置迁移] 创建通用配置失败");
+          return;
+        }
+      }
+
+      // 更新通用配置
+      logger.i("[AI配置迁移] 更新通用配置");
+
+      // 只更新非空/非默认值
+      if (apiToken.isNotEmpty) {
+        generalConfig.apiToken = apiToken;
+      }
+
+      if (apiAddress.isNotEmpty && apiAddress != SettingService.defaultSettings[SettingService.openAIAddressKey]) {
+        generalConfig.apiAddress = apiAddress;
+      }
+
+      if (modelName.isNotEmpty && modelName != SettingService.defaultSettings[SettingService.aiModelKey]) {
+        generalConfig.modelName = modelName;
+      }
+
+      // 保存更新后的配置
+      AIConfigRepository.updateAIConfig(generalConfig);
+
+      // 清除Settings中的AI配置数据
+      logger.i("[AI配置迁移] 清除Settings中的AI配置数据");
+      Settings.setValue<String>(SettingService.openAITokenKey, '');
+
+      // 不清除这两个，保留作为默认值参考
+      // Settings.setValue<String>(SettingService.openAIAddressKey, '');
+      // Settings.setValue<String>(SettingService.aiModelKey, '');
+
+      logger.i("[AI配置迁移] AI配置数据迁移完成");
+    } catch (e, stackTrace) {
+      logger.e("[AI配置迁移] 迁移AI配置数据失败: $e", stackTrace: stackTrace);
     }
   }
 

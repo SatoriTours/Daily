@@ -3,6 +3,7 @@ import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/repositories/ai_config_repository.dart';
 import 'package:daily_satori/app/services/ai_config_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -145,31 +146,104 @@ class AIConfigController extends GetxController {
 
     // 显示编辑对话框
     final result = await Get.dialog(
-      AlertDialog(
-        title: Text("新建${AIConfigService.i.getFunctionTypeName(selectedFunctionType.value)}配置"),
-        content: SingleChildScrollView(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: Get.width * 0.9,
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(controller: nameController, decoration: const InputDecoration(labelText: "配置名称")),
+              Row(
+                children: [
+                  Icon(_getTypeIcon(selectedFunctionType.value), color: Get.theme.colorScheme.primary, size: 24),
+                  const SizedBox(width: 12),
+                  Text(
+                    "新建${AIConfigService.i.getFunctionTypeName(selectedFunctionType.value)}配置",
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              _buildTextField(controller: nameController, icon: Icons.title, label: "配置名称", hintText: "输入配置名称"),
+              const SizedBox(height: 16),
               if (selectedFunctionType.value != 0)
                 Obx(
-                  () => CheckboxListTile(
-                    title: const Text("继承通用配置"),
-                    value: inheritFromGeneralController.value,
-                    onChanged: (value) => inheritFromGeneralController.value = value ?? false,
+                  () => Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => inheritFromGeneralController.value = !inheritFromGeneralController.value,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Get.theme.colorScheme.outline.withOpacity(0.3)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.settings_backup_restore, color: Get.theme.colorScheme.primary, size: 22),
+                            const SizedBox(width: 12),
+                            const Expanded(child: Text("继承通用配置", style: TextStyle(fontSize: 16))),
+                            Checkbox(
+                              value: inheritFromGeneralController.value,
+                              onChanged: (value) => inheritFromGeneralController.value = value ?? false,
+                              activeColor: Get.theme.colorScheme.primary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              TextField(controller: apiAddressController, decoration: const InputDecoration(labelText: "API地址")),
-              TextField(controller: apiTokenController, decoration: const InputDecoration(labelText: "API令牌")),
-              TextField(controller: modelNameController, decoration: const InputDecoration(labelText: "模型名称")),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: apiAddressController,
+                icon: Icons.link,
+                label: "API地址",
+                hintText: "例如: https://api.openai.com/v1",
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: apiTokenController,
+                icon: Icons.vpn_key,
+                label: "API令牌",
+                hintText: "输入API密钥",
+                isPassword: true,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: modelNameController,
+                icon: Icons.smart_toy,
+                label: "模型名称",
+                hintText: "例如: gpt-3.5-turbo",
+              ),
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Get.back(result: false),
+                    child: Text("取消", style: TextStyle(color: Get.theme.colorScheme.onSurface.withOpacity(0.7))),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () => Get.back(result: true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Get.theme.colorScheme.primary,
+                      foregroundColor: Get.theme.colorScheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text("保存配置"),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Get.back(result: false), child: const Text("取消")),
-          TextButton(onPressed: () => Get.back(result: true), child: const Text("保存")),
-        ],
       ),
     );
 
@@ -205,31 +279,107 @@ class AIConfigController extends GetxController {
 
     // 显示编辑对话框
     final result = await Get.dialog(
-      AlertDialog(
-        title: Text("编辑${config.functionTypeName}配置"),
-        content: SingleChildScrollView(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: Get.width * 0.9,
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(controller: nameController, decoration: const InputDecoration(labelText: "配置名称")),
+              Row(
+                children: [
+                  Icon(Icons.edit, color: Get.theme.colorScheme.primary, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "编辑 ${config.name}",
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              _buildTextField(controller: nameController, icon: Icons.title, label: "配置名称", hintText: "输入配置名称"),
+              const SizedBox(height: 16),
               if (config.functionType != 0)
                 Obx(
-                  () => CheckboxListTile(
-                    title: const Text("继承通用配置"),
-                    value: inheritFromGeneralController.value,
-                    onChanged: (value) => inheritFromGeneralController.value = value ?? false,
+                  () => Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => inheritFromGeneralController.value = !inheritFromGeneralController.value,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Get.theme.colorScheme.outline.withOpacity(0.3)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.settings_backup_restore, color: Get.theme.colorScheme.primary, size: 22),
+                            const SizedBox(width: 12),
+                            const Expanded(child: Text("继承通用配置", style: TextStyle(fontSize: 16))),
+                            Checkbox(
+                              value: inheritFromGeneralController.value,
+                              onChanged: (value) => inheritFromGeneralController.value = value ?? false,
+                              activeColor: Get.theme.colorScheme.primary,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              TextField(controller: apiAddressController, decoration: const InputDecoration(labelText: "API地址")),
-              TextField(controller: apiTokenController, decoration: const InputDecoration(labelText: "API令牌")),
-              TextField(controller: modelNameController, decoration: const InputDecoration(labelText: "模型名称")),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: apiAddressController,
+                icon: Icons.link,
+                label: "API地址",
+                hintText: "例如: https://api.openai.com/v1",
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: apiTokenController,
+                icon: Icons.vpn_key,
+                label: "API令牌",
+                hintText: "输入API密钥",
+                isPassword: true,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                controller: modelNameController,
+                icon: Icons.smart_toy,
+                label: "模型名称",
+                hintText: "例如: gpt-3.5-turbo",
+              ),
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Get.back(result: false),
+                    child: Text("取消", style: TextStyle(color: Get.theme.colorScheme.onSurface.withOpacity(0.7))),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () => Get.back(result: true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Get.theme.colorScheme.primary,
+                      foregroundColor: Get.theme.colorScheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text("保存修改"),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Get.back(result: false), child: const Text("取消")),
-          TextButton(onPressed: () => Get.back(result: true), child: const Text("保存")),
-        ],
       ),
     );
 
@@ -246,6 +396,56 @@ class AIConfigController extends GetxController {
       if (success) {
         UIUtils.showSuccess("更新配置成功");
       }
+    }
+  }
+
+  /// 构建表单输入框
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required IconData icon,
+    required String label,
+    required String hintText,
+    bool isPassword = false,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: isPassword,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hintText,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Get.theme.colorScheme.outline.withOpacity(0.3)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Get.theme.colorScheme.outline.withOpacity(0.3)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Get.theme.colorScheme.primary, width: 2),
+        ),
+        filled: true,
+        fillColor: Get.theme.colorScheme.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+    );
+  }
+
+  /// 获取类型图标
+  IconData _getTypeIcon(int type) {
+    switch (type) {
+      case 0:
+        return Icons.settings;
+      case 1:
+        return Icons.article;
+      case 2:
+        return Icons.book;
+      case 3:
+        return Icons.edit_note;
+      default:
+        return Icons.settings;
     }
   }
 
