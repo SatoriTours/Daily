@@ -81,7 +81,7 @@ dependencies:
   photo_view: ^0.15.0
 
   # Markdown相关
-  flutter_markdown: ^0.7.6+2
+  flutter_markdown: ^0.7.7
 
   # 图片选择
   image_picker: ^1.0.4

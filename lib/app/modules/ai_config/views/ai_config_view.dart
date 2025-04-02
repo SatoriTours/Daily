@@ -1,8 +1,5 @@
 import 'package:daily_satori/app/models/models.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/styles/colors.dart';
-import 'package:daily_satori/app/styles/dimensions.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
