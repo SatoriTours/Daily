@@ -8,12 +8,13 @@ extension PartSummarize on AiService {
   ///
   /// 以一句话总结文本内容，常用于生成简短标题
   /// [content] 需要总结的内容
-  Future<String> summarizeOneLine(String content) async {
+  /// [functionType] 功能类型，默认为0（通用配置）
+  Future<String> summarizeOneLine(String content, {int functionType = 0}) async {
     if (content.isEmpty) return '';
 
     // 验证AI服务可用性
-    if (!SettingRepository.aiEnabled(SettingService.openAITokenKey, SettingService.openAIAddressKey)) {
-      logger.i("[AI摘要] AI服务未启用，跳过单行摘要生成");
+    if (!isAiEnabled(functionType)) {
+      logger.i("[AI摘要] 功能类型 $functionType 的AI服务未启用，跳过单行摘要生成");
       return content;
     }
 
@@ -27,8 +28,8 @@ extension PartSummarize on AiService {
 
     final prompt = _renderTemplate(PluginService.i.getSummarizeOneLinePrompt(), {'text': trimmedContent});
 
-    // 发送请求
-    final response = await _sendRequest(role, prompt);
+    // 发送请求，使用指定的功能类型
+    final response = await _sendRequest(role, prompt, functionType: functionType);
 
     // 处理响应
     final result = response?.choices.first.message.content ?? '';
@@ -45,12 +46,13 @@ extension PartSummarize on AiService {
   ///
   /// 分析文本内容，生成详细摘要和相关标签
   /// [text] 需要分析的文本内容
-  Future<(String, List<String>)> summarize(String text) async {
+  /// [functionType] 功能类型，默认为0（通用配置）
+  Future<(String, List<String>)> summarize(String text, {int functionType = 0}) async {
     if (text.isEmpty) return ('', const <String>[]);
 
     // 检查AI是否启用
-    if (!SettingRepository.aiEnabled(SettingService.openAITokenKey, SettingService.openAIAddressKey)) {
-      logger.i("[AI摘要] AI服务未启用，跳过摘要生成");
+    if (!isAiEnabled(functionType)) {
+      logger.i("[AI摘要] 功能类型 $functionType 的AI服务未启用，跳过摘要生成");
       return ('', const <String>[]);
     }
 
@@ -60,8 +62,13 @@ extension PartSummarize on AiService {
     final isLongText = text.length > 300;
     final systemPrompt = isLongText ? _longSummarizeSystemPrompt : _shortSummarizeSystemPrompt;
 
-    // 发送JSON格式的请求
-    final response = await _sendRequest(systemPrompt, text, responseFormat: const ResponseFormat.jsonObject());
+    // 发送JSON格式的请求，使用指定的功能类型
+    final response = await _sendRequest(
+      systemPrompt,
+      text,
+      functionType: functionType,
+      responseFormat: const ResponseFormat.jsonObject(),
+    );
 
     // 处理响应
     final content = response?.choices.first.message.content ?? '';
