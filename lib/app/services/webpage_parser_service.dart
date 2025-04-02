@@ -107,6 +107,13 @@ class WebpageParserService with WidgetsBindingObserver {
     return article;
   }
 
+  /// 获取文章状态（对外API）
+  ///
+  /// 获取指定ID文章的当前状态，用于UI显示处理进度
+  ArticleModel? getArticleStatus(int articleId) {
+    return ArticleRepository.find(articleId);
+  }
+
   // ====================== 任务调度 ======================
 
   /// 启动处理定时器

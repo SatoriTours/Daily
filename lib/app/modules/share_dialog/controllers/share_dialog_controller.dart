@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/webpage_parser_service.dart';
+import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/global.dart';
 
 /// 分享对话框控制器
@@ -20,6 +23,10 @@ class ShareDialogController extends GetxController {
   final RxInt articleID = 0.obs;
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
+  final RxInt saveProgress = 0.obs; // 0: 未开始，1: 获取页面，2: 处理内容，3: 完成
+  final RxString progressMessage = ''.obs;
+  final RxBool processingComplete = false.obs;
+  final RxInt articleId = 0.obs;
 
   // 控制器
   final TextEditingController commentController = TextEditingController();
@@ -95,6 +102,56 @@ class ShareDialogController extends GetxController {
     }
   }
 
+  /// 更新处理进度
+  void updateProgress(int progress, String message) {
+    saveProgress.value = progress;
+    progressMessage.value = message;
+  }
+
+  /// 获取文章状态
+  Future<ArticleModel?> _getArticleStatus(int articleId) async {
+    try {
+      return WebpageParserService.i.getArticleStatus(articleId);
+    } catch (e) {
+      logger.e("获取文章状态失败: $e");
+      return null;
+    }
+  }
+
+  /// 监听文章状态变化
+  void _startArticleStatusListener(int articleId) {
+    // 保存文章ID以便于跟踪
+    this.articleId.value = articleId;
+
+    // 设置统一的处理中状态
+    updateProgress(1, "内容分析中");
+
+    // 创建一个定时器每秒检查一次文章状态
+    final timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (processingComplete.value) {
+        timer.cancel();
+        return;
+      }
+
+      final article = await _getArticleStatus(articleId);
+      if (article == null) return;
+
+      // 只关注最终状态
+      if (article.status == 'completed') {
+        updateProgress(3, "处理完成");
+        processingComplete.value = true;
+        timer.cancel();
+        // 延迟一秒后进行完成处理
+        await Future.delayed(const Duration(seconds: 1));
+        _navigateToHome();
+      } else if (article.status == 'error') {
+        updateProgress(0, "处理失败: ${article.aiContent}");
+        processingComplete.value = true;
+        timer.cancel();
+      }
+    });
+  }
+
   /// 保存按钮点击
   Future<void> onSaveButtonPressed() async {
     // 检查URL是否有效
@@ -103,22 +160,56 @@ class ShareDialogController extends GetxController {
       return;
     }
 
+    // 先显示加载状态
+    isLoading.value = true;
+
     try {
+      // 显示进度对话框
+      _showProgressDialog();
+
+      // 直接设置为内容分析中状态
+      updateProgress(1, "内容分析中");
+
       // 调用网页解析服务保存网页基本信息
-      await WebpageParserService.i.saveWebpage(
+      final article = await WebpageParserService.i.saveWebpage(
         url: shareURL.value,
         comment: commentController.text,
         isUpdate: isUpdate.value,
         articleID: articleID.value,
       );
+
+      // 开始监听文章状态
+      _startArticleStatusListener(article.id);
     } catch (e, stackTrace) {
       logger.e("保存网页失败: $e\n堆栈信息: $stackTrace");
+
+      // 关闭进度对话框
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+
+      // 显示错误提示
       errorNotice("保存失败: $e");
-      // 延迟2秒
-      await Future.delayed(const Duration(seconds: 2));
     } finally {
-      _completeProcess();
+      // 隐藏加载状态
+      isLoading.value = false;
     }
+  }
+
+  /// 显示进度对话框
+  void _showProgressDialog() {
+    // 确保之前的对话框已关闭
+    if (Get.isDialogOpen ?? false) {
+      Get.back();
+    }
+
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ProgressDialogContent(controller: this),
+      ),
+      barrierDismissible: false,
+    );
   }
 
   /// 获取短URL显示
@@ -164,21 +255,92 @@ class ShareDialogController extends GetxController {
     }
   }
 
-  /// 完成处理流程
-  Future<void> _completeProcess() async {
-    // 关闭保存对话框
-    if (Get.isDialogOpen ?? false) {
-      Get.back();
-    }
-
-    // 根据需要返回到应用或主页
+  /// 导航至首页
+  void _navigateToHome() {
     if (!needBackToApp.value) {
       if (!isUpdate.value) {
-        await Get.find<ArticlesController>().reloadArticles();
+        Get.find<ArticlesController>().reloadArticles();
       }
       Get.offAllNamed(Routes.HOME);
     } else {
       _backToPreviousApp();
     }
+  }
+}
+
+/// 进度对话框内容
+class ProgressDialogContent extends StatefulWidget {
+  final ShareDialogController controller;
+
+  const ProgressDialogContent({Key? key, required this.controller}) : super(key: key);
+
+  @override
+  State<ProgressDialogContent> createState() => _ProgressDialogContentState();
+}
+
+class _ProgressDialogContentState extends State<ProgressDialogContent> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(20),
+      width: 220,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Obx(() {
+            final progress = widget.controller.saveProgress.value;
+            if (progress == 0) {
+              return Icon(Icons.error_outline, size: 46, color: Colors.red);
+            } else if (progress == 3) {
+              return Icon(Icons.check_circle, size: 46, color: Colors.green);
+            } else {
+              // 动画沙漏
+              return RotationTransition(
+                turns: _animationController,
+                child: Icon(Icons.hourglass_top, size: 46, color: theme.colorScheme.primary),
+              );
+            }
+          }),
+          const SizedBox(height: 12),
+          Obx(
+            () => Text(
+              widget.controller.saveProgress.value == 0 ? widget.controller.progressMessage.value : "内容分析中",
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+            ),
+          ),
+          Obx(() {
+            final progress = widget.controller.saveProgress.value;
+            if (progress == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: TextButton(
+                  style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6)),
+                  onPressed: () => Get.back(),
+                  child: const Text("关闭"),
+                ),
+              );
+            } else {
+              return const SizedBox(height: 8);
+            }
+          }),
+        ],
+      ),
+    );
   }
 }
