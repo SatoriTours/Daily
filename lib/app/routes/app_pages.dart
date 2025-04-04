@@ -1,85 +1,43 @@
 import 'package:get/get.dart';
 
-import '../modules/ai_config/bindings/ai_config_binding.dart';
-import '../modules/ai_config/views/ai_config_view.dart';
-import '../modules/article_detail/bindings/article_detail_binding.dart';
-import '../modules/article_detail/views/article_detail_view.dart';
-import '../modules/articles/bindings/articles_binding.dart';
-import '../modules/articles/views/articles_view.dart';
-import '../modules/backup_restore/bindings/backup_restore_binding.dart';
-import '../modules/backup_restore/views/backup_restore_view.dart';
-import '../modules/diary/bindings/diary_binding.dart';
-import '../modules/diary/views/diary_view.dart';
-import '../modules/home/bindings/home_binding.dart';
-import '../modules/home/views/home_view.dart';
-import '../modules/left_bar/bindings/left_bar_binding.dart';
-import '../modules/left_bar/views/left_bar_view.dart';
-import '../modules/settings/bindings/settings_binding.dart';
-import '../modules/settings/views/settings_view.dart';
-import '../modules/share_dialog/bindings/share_dialog_binding.dart';
-import '../modules/share_dialog/views/share_dialog_view.dart';
+import 'package:daily_satori/app/modules/ai_config/bindings/ai_config_binding.dart';
+import 'package:daily_satori/app/modules/ai_config/views/ai_config_view.dart';
+import 'package:daily_satori/app/modules/article_detail/bindings/article_detail_binding.dart';
+import 'package:daily_satori/app/modules/article_detail/views/article_detail_view.dart';
+import 'package:daily_satori/app/modules/articles/bindings/articles_binding.dart';
+import 'package:daily_satori/app/modules/articles/views/articles_view.dart';
+import 'package:daily_satori/app/modules/backup_restore/bindings/backup_restore_binding.dart';
+import 'package:daily_satori/app/modules/backup_restore/views/backup_restore_view.dart';
+import 'package:daily_satori/app/modules/diary/bindings/diary_binding.dart';
+import 'package:daily_satori/app/modules/diary/views/diary_view.dart';
+import 'package:daily_satori/app/modules/home/bindings/home_binding.dart';
+import 'package:daily_satori/app/modules/home/views/home_view.dart';
+import 'package:daily_satori/app/modules/left_bar/bindings/left_bar_binding.dart';
+import 'package:daily_satori/app/modules/left_bar/views/left_bar_view.dart';
+import 'package:daily_satori/app/modules/settings/bindings/settings_binding.dart';
+import 'package:daily_satori/app/modules/settings/views/settings_view.dart';
+import 'package:daily_satori/app/modules/share_dialog/bindings/share_dialog_binding.dart';
+import 'package:daily_satori/app/modules/share_dialog/views/share_dialog_view.dart';
 
-part 'app_routes.dart';
+import 'app_routes.dart';
 
+/// 应用程序页面路由配置
 class AppPages {
   AppPages._();
 
-  static const INITIAL = Routes.HOME;
-  // static const INITIAL = Routes.SHARE_DIALOG;
+  /// 初始路由
+  static const initial = Routes.home;
 
+  /// 路由列表
   static final routes = [
-    GetPage(name: _Paths.HOME, page: () => const HomeView(), binding: HomeBinding()),
-    GetPage(
-      name: _Paths.SHARE_DIALOG,
-      page: () => const ShareDialogView(),
-      binding: ShareDialogBinding(),
-      transition: Transition.downToUp,
-    ),
-    GetPage(
-      name: _Paths.SETTINGS,
-      page: () => const SettingsView(),
-      binding: SettingsBinding(),
-      transition: Transition.leftToRight,
-      transitionDuration: Duration(milliseconds: 200),
-      reverseTransitionDuration: Duration(milliseconds: 200),
-    ),
-    GetPage(
-      name: _Paths.ARTICLES,
-      page: () => const ArticlesView(),
-      binding: ArticlesBinding(),
-      transition: Transition.noTransition,
-    ),
-    GetPage(
-      name: _Paths.ARTICLE_DETAIL,
-      page: () => const ArticleDetailView(),
-      binding: ArticleDetailBinding(),
-      transition: Transition.topLevel,
-    ),
-    GetPage(
-      name: _Paths.BACKUP_RESTORE,
-      page: () => const BackupRestoreView(),
-      binding: BackupRestoreBinding(),
-      transition: Transition.rightToLeft,
-    ),
-    GetPage(
-      name: _Paths.LEFT_BAR,
-      page: () => const LeftBarView(),
-      binding: LeftBarBinding(),
-      transition: Transition.leftToRight,
-      transitionDuration: Duration(milliseconds: 200),
-      reverseTransitionDuration: Duration(milliseconds: 200),
-    ),
-    GetPage(
-      name: _Paths.DIARY,
-      page: () => const DiaryView(),
-      binding: DiaryBinding(),
-      transition: Transition.noTransition,
-    ),
-    GetPage(
-      name: _Paths.AI_CONFIG,
-      page: () => const AIConfigView(),
-      binding: AIConfigBinding(),
-      transition: Transition.rightToLeft,
-    ),
+    GetPage(name: Routes.home, page: () => const HomeView(), binding: HomeBinding()),
+    GetPage(name: Routes.shareDialog, page: () => const ShareDialogView(), binding: ShareDialogBinding()),
+    GetPage(name: Routes.settings, page: () => const SettingsView(), binding: SettingsBinding()),
+    GetPage(name: Routes.articles, page: () => const ArticlesView(), binding: ArticlesBinding()),
+    GetPage(name: Routes.articleDetail, page: () => const ArticleDetailView(), binding: ArticleDetailBinding()),
+    GetPage(name: Routes.backupRestore, page: () => const BackupRestoreView(), binding: BackupRestoreBinding()),
+    GetPage(name: Routes.leftBar, page: () => const LeftBarView(), binding: LeftBarBinding()),
+    GetPage(name: Routes.diary, page: () => const DiaryView(), binding: DiaryBinding()),
+    GetPage(name: Routes.aiConfig, page: () => const AIConfigView(), binding: AIConfigBinding()),
   ];
 }

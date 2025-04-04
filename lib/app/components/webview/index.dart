@@ -6,7 +6,6 @@
 /// - [VisibleWebView]: 可见的 WebView 组件
 /// - [HeadlessWebView]: 无头 WebView 组件
 /// - [FlutterInAppWebViewScreenshot]: WebView 截图工具
-library webview;
 
 // WebView组件导出文件
 export 'base_webview.dart';

@@ -5,6 +5,8 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:daily_satori/app/services/adblock_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/utils/string_utils.dart';
+import 'package:daily_satori/app/utils/app_info_utils.dart';
 import 'package:daily_satori/global.dart';
 
 /// WebView 基类
@@ -56,7 +58,7 @@ abstract class BaseWebView {
   /// - 注入特定域名的 CSS 规则
   Future<void> injectCssRules(InAppWebViewController controller) async {
     final url = await controller.getUrl();
-    final domain = getTopLevelDomain(url?.host);
+    final domain = StringUtils.getTopLevelDomain(url?.host);
 
     final StringBuffer css = StringBuffer();
 
@@ -141,7 +143,7 @@ abstract class BaseWebView {
   /// 返回适合当前环境的 WebView 配置
   InAppWebViewSettings getWebViewSettings({bool isHeadless = false}) {
     return InAppWebViewSettings(
-      isInspectable: !isProduction,
+      isInspectable: !AppInfoUtils.isProduction,
       javaScriptEnabled: true,
       useShouldInterceptFetchRequest: true,
       mediaPlaybackRequiresUserGesture: false,

@@ -8,7 +8,6 @@
 /// - 截图仓储 [ScreenshotRepository]
 /// - 设置仓储 [SettingRepository]
 /// - 标签仓储 [TagRepository]
-library repositories;
 
 export 'article_repository.dart';
 export 'diary_repository.dart';
