@@ -239,12 +239,10 @@ class _FilterIndicator extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(color: colorScheme.surfaceVariant, borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
       child: Row(
         children: [
-          Expanded(
-            child: Text('已过滤: $title', style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-          ),
+          Expanded(child: Text('已过滤: $title', style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurface))),
           InkWell(
             onTap: onClear,
             borderRadius: BorderRadius.circular(4),

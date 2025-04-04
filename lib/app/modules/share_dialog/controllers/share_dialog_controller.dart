@@ -7,6 +7,8 @@ import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/webpage_parser_service.dart';
+import 'package:daily_satori/app/utils/app_info_utils.dart';
+import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:daily_satori/global.dart';
 
 /// 分享对话框控制器
@@ -43,7 +45,7 @@ class ShareDialogController extends GetxController {
 
   /// 初始化默认值
   void _initDefaultValues() {
-    if (!isProduction) {
+    if (!AppInfoUtils.isProduction) {
       shareURL.value = 'https://x.com/435hz/status/1868127842279842221';
     }
   }
@@ -154,7 +156,7 @@ class ShareDialogController extends GetxController {
   Future<void> onSaveButtonPressed() async {
     // 检查URL是否有效
     if (shareURL.value.isEmpty) {
-      errorNotice("链接为空，无法保存");
+      UIUtils.showError("链接为空，无法保存");
       return;
     }
 
@@ -187,7 +189,7 @@ class ShareDialogController extends GetxController {
       }
 
       // 显示错误提示
-      errorNotice("保存失败: $e");
+      UIUtils.showError("保存失败: $e");
     } finally {
       // 隐藏加载状态
       isLoading.value = false;
@@ -259,7 +261,7 @@ class ShareDialogController extends GetxController {
       if (!isUpdate.value) {
         Get.find<ArticlesController>().reloadArticles();
       }
-      Get.offAllNamed(Routes.HOME);
+      Get.offAllNamed(Routes.home);
     } else {
       _backToPreviousApp();
     }

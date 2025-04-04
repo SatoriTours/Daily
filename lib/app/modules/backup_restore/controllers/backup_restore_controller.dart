@@ -4,8 +4,13 @@ import 'package:flutter_archive/flutter_archive.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:get/get.dart';
+import 'package:zip_file/zip_file.dart';
 
 import 'package:daily_satori/app_exports.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/utils/ui_utils.dart';
 
 class BackupRestoreController extends BaseController {
   var selectedBackupIndex = 0.obs;
@@ -63,7 +68,7 @@ class BackupRestoreController extends BaseController {
     // final directory = await getApplicationDocumentsDirectory();
     // String appDocDir = path.join(directory.path, "backup_store");
     String appDocDir = (await getApplicationDocumentsDirectory()).path;
-    showFullScreenLoading();
+    UIUtils.showLoading();
 
     if (await imagesFile.exists() && await screenshotsFile.exists() && await databaseFile.exists()) {
       logger.i("恢复备份 images 目录");

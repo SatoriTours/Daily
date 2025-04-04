@@ -7,6 +7,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/utils/app_info_utils.dart';
 import 'package:daily_satori/global.dart';
 
 class ADBlockService {
@@ -55,7 +56,7 @@ class ADBlockService {
     final content = await _getRulesContent();
     _parseRules(content);
 
-    if (isProduction) {
+    if (AppInfoUtils.isProduction) {
       _updateRules();
     }
   }

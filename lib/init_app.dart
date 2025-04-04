@@ -74,26 +74,28 @@ class AppServiceManager {
 
 // 应用加载好前执行
 Future<void> initApp() async {
-  // 启动性能跟踪
   final stopwatch = Stopwatch()..start();
+
+  // 确保Flutter绑定初始化
+  WidgetsFlutterBinding.ensureInitialized();
 
   // 初始化关键基础服务
   await _initCriticalServices();
 
-  // 初始化高优先级服务（并行）
+  // 初始化高优先级服务
   await _initHighPriorityServices();
 
-  // 初始化普通优先级服务（可延迟）
+  // 初始化普通优先级服务
   _initNormalPriorityServices();
 
-  // 预加载低优先级服务（应用就绪后）
+  // 在UI准备好后初始化低优先级服务
   WidgetsBinding.instance.addPostFrameCallback((_) {
     _initLowPriorityServices();
   });
 
   stopwatch.stop();
   final initTime = stopwatch.elapsedMilliseconds;
-  print('[Satori] 应用初始化完成，耗时: ${initTime}ms');
+  logger.i('[Satori] 应用初始化完成，耗时: ${initTime}ms');
 }
 
 // 应用准备好之后执行(主要是UI准备好)

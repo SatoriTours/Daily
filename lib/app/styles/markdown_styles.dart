@@ -37,31 +37,31 @@ class MarkdownStyles {
       h6: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.onSurface),
 
       // 强调样式
-      em: TextStyle(fontStyle: FontStyle.italic, color: colorScheme.onSurfaceVariant),
+      em: TextStyle(fontStyle: FontStyle.italic, color: colorScheme.onSurface),
       strong: TextStyle(fontWeight: FontWeight.w700, color: colorScheme.onSurface),
 
       // 引用样式
       blockquote: textTheme.bodyMedium?.copyWith(
-        color: colorScheme.onSurfaceVariant,
+        color: colorScheme.onSurface,
         fontStyle: FontStyle.italic,
         height: 1.6,
       ),
       blockquoteDecoration: BoxDecoration(
         border: Border(left: BorderSide(color: colorScheme.primary.withAlpha(70), width: 4)),
-        color: colorScheme.surfaceVariant.withAlpha(30),
+        color: colorScheme.surfaceContainerHighest.withAlpha(30),
       ),
       blockquotePadding: const EdgeInsets.only(left: 16, top: 8, bottom: 8, right: 8),
 
       // 代码样式
       code: textTheme.bodySmall?.copyWith(
         fontFamily: 'monospace',
-        backgroundColor: colorScheme.surfaceVariant.withAlpha(50),
+        backgroundColor: colorScheme.surfaceContainerHighest.withAlpha(50),
         letterSpacing: -0.2,
         height: 1.5,
         fontSize: (textTheme.bodySmall?.fontSize ?? 12) * 0.95,
       ),
       codeblockDecoration: BoxDecoration(
-        color: colorScheme.surfaceVariant.withAlpha(70),
+        color: colorScheme.surfaceContainerHighest.withAlpha(70),
         borderRadius: BorderRadius.circular(Dimensions.radiusS),
       ),
       codeblockPadding: const EdgeInsets.all(12),

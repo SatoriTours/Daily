@@ -8,6 +8,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:dio/dio.dart';
 
 import 'package:get/get.dart' as getx;
+import 'package:daily_satori/app/utils/app_info_utils.dart';
 
 class AppWebSocketTunnel {
   WebSocketChannel? _channel;
@@ -94,7 +95,7 @@ class AppWebSocketTunnel {
 
   /// 重连 WebSocket
   Future<void> _reconnect() async {
-    if (!isProduction) {
+    if (!AppInfoUtils.isProduction) {
       logger.i('非生产环境，不进行重连');
       return;
     }

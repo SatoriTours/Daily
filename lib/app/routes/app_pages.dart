@@ -19,7 +19,7 @@ import 'package:daily_satori/app/modules/settings/views/settings_view.dart';
 import 'package:daily_satori/app/modules/share_dialog/bindings/share_dialog_binding.dart';
 import 'package:daily_satori/app/modules/share_dialog/views/share_dialog_view.dart';
 
-import 'app_routes.dart';
+part 'app_routes.dart';
 
 /// 应用程序页面路由配置
 class AppPages {

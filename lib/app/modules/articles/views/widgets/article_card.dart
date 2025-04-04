@@ -55,7 +55,7 @@ class ArticleCard extends GetView<ArticlesController> {
     return InkWell(
       onTap: () {
         _logger.d('点击文章卡片: ${articleModel.id}');
-        Get.toNamed(Routes.ARTICLE_DETAIL, arguments: articleModel);
+        Get.toNamed(Routes.articleDetail, arguments: articleModel);
       },
       borderRadius: BorderRadius.circular(10),
       child: Padding(

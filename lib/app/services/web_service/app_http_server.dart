@@ -92,11 +92,11 @@ class AppHttpServer {
   }
 
   Future<shelf.Response> _createArticle(Map<String, String> params) async {
-    if (Get.currentRoute == Routes.SHARE_DIALOG) {
+    if (Get.currentRoute == Routes.shareDialog) {
       return _response(1, '请先把上个页面保存完成');
     }
 
-    Get.toNamed(Routes.SHARE_DIALOG, arguments: {'articleID': 0, 'shareURL': params['url'], 'update': false});
+    Get.toNamed(Routes.shareDialog, arguments: {'articleID': 0, 'shareURL': params['url'], 'update': false});
 
     return _response(0, '请在 APP 中继续操作');
   }

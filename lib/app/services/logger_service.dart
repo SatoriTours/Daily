@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:logger/logger.dart';
 
+import 'package:daily_satori/app/utils/app_info_utils.dart';
 import 'package:daily_satori/global.dart';
 
 late Logger logger;
@@ -14,15 +15,12 @@ class LoggerService {
 
   Future<void> init() async {
     log("[Satori] [初始化服务] LoggerService");
-    PlatformInAppWebViewController.debugLoggingSettings.enabled = !isProduction;
-    if (isProduction) {
+    PlatformInAppWebViewController.debugLoggingSettings.enabled = !AppInfoUtils.isProduction;
+    if (AppInfoUtils.isProduction) {
       Logger.level = Level.info;
     }
 
-    logger = Logger(
-      printer: SimplePrinter(colors: false),
-      output: _MyConsoleOutput(),
-    );
+    logger = Logger(printer: SimplePrinter(colors: false), output: _MyConsoleOutput());
   }
 }
 
@@ -30,7 +28,7 @@ class _MyConsoleOutput extends LogOutput {
   @override
   void output(OutputEvent event) {
     final logString = event.lines.join("\n");
-    if (isProduction) {
+    if (AppInfoUtils.isProduction) {
     } else {
       log(logString, name: "Satori");
     }

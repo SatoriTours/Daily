@@ -8,6 +8,7 @@ import 'package:daily_satori/app/modules/article_detail/controllers/article_deta
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:daily_satori/global.dart';
 
 /// 文章原始内容标签页
@@ -99,7 +100,7 @@ class OriginalContentTab extends StatelessWidget {
     // 安全检查URL格式
     if (!(href.startsWith('http://') || href.startsWith('https://'))) {
       logger.e('无效链接格式: $href');
-      errorNotice('无效链接格式');
+      UIUtils.showError('无效链接格式');
       return;
     }
 
@@ -109,11 +110,11 @@ class OriginalContentTab extends StatelessWidget {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
         logger.e('无法打开链接: $href');
-        errorNotice('无法打开链接');
+        UIUtils.showError('无法打开链接');
       }
     } catch (e) {
       logger.e('打开链接时出错: $e');
-      errorNotice('打开链接时出错');
+      UIUtils.showError('打开链接时出错');
     }
   }
 
@@ -146,15 +147,15 @@ class OriginalContentTab extends StatelessWidget {
       // 检查生成结果
       if (controller.articleModel.aiMarkdownContent?.isNotEmpty ?? false) {
         logger.i('Markdown内容生成成功');
-        successNotice('Markdown内容生成成功');
+        UIUtils.showSuccess('Markdown内容生成成功');
       } else {
         logger.e('生成Markdown内容失败');
-        errorNotice('生成Markdown内容失败');
+        UIUtils.showError('生成Markdown内容失败');
       }
     } catch (e) {
       Get.back();
       logger.e('生成Markdown时出错: $e');
-      errorNotice('生成过程中出错: $e');
+      UIUtils.showError('生成过程中出错: $e');
     }
   }
 }

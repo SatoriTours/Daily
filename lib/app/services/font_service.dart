@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/utils/app_info_utils.dart';
 import 'package:daily_satori/global.dart';
 
 /// 字体服务类
@@ -33,7 +34,7 @@ class FontService {
   Future<void> init() async {
     logger.i("[初始化服务] FontService");
 
-    if (isProduction) {
+    if (AppInfoUtils.isProduction) {
       _configureProductionFonts();
     }
 

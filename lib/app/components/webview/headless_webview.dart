@@ -230,11 +230,6 @@ class _HeadlessWebViewSession {
     );
   }
 
-  /// 处理控制台消息
-  void _handleConsoleMessage(InAppWebViewController controller, ConsoleMessage consoleMessage) {
-    logger.d("[HeadlessWebView] ${consoleMessage.message}");
-  }
-
   /// 处理页面加载停止事件
   void _handleLoadStop(InAppWebViewController controller, Uri? url) async {
     _updateActivityTime();

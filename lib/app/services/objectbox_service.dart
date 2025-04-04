@@ -1,5 +1,6 @@
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:objectbox/objectbox.dart';
 
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
@@ -8,6 +9,7 @@ import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:daily_satori/objectbox.g.dart';
+import 'package:daily_satori/app/utils/app_info_utils.dart';
 
 /// 对象存储服务类
 ///
@@ -51,7 +53,7 @@ class ObjectboxService {
 
   /// 在开发环境中初始化管理界面
   void _initAdminIfNeeded() {
-    if (!isProduction && Admin.isAvailable()) {
+    if (!AppInfoUtils.isProduction && Admin.isAvailable()) {
       logger.i("[存储服务] 启用管理界面: http://0.0.0.0:9000");
       _admin = Admin(store, bindUri: 'http://0.0.0.0:9000');
     }
@@ -60,7 +62,7 @@ class ObjectboxService {
   /// 释放资源
   void dispose() {
     _store.close();
-    if (!isProduction && Admin.isAvailable()) {
+    if (!AppInfoUtils.isProduction && Admin.isAvailable()) {
       _admin.close();
     }
   }

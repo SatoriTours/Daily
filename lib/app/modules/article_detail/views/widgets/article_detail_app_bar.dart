@@ -6,6 +6,8 @@ import 'package:daily_satori/app/modules/article_detail/controllers/article_deta
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/utils/string_utils.dart';
+import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:daily_satori/global.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -21,7 +23,7 @@ class ArticleDetailAppBar extends StatelessWidget implements PreferredSizeWidget
 
     return AppBar(
       title: Text(
-        getTopLevelDomain(Uri.parse(controller.articleModel.url ?? '').host),
+        StringUtils.getTopLevelDomain(Uri.parse(controller.articleModel.url ?? '').host),
         style: textTheme.titleLarge?.copyWith(color: Colors.white),
       ),
       centerTitle: true,
@@ -95,14 +97,14 @@ class ArticleDetailAppBar extends StatelessWidget implements PreferredSizeWidget
 
   void _onShareArticle() {
     Get.toNamed(
-      Routes.SHARE_DIALOG,
+      Routes.shareDialog,
       arguments: {'articleID': controller.articleModel.id, 'shareURL': controller.articleModel.url, 'update': true},
     );
   }
 
   void _onCopyURL() {
     Clipboard.setData(ClipboardData(text: controller.articleModel.url ?? ''));
-    successNotice('URL已复制到剪贴板');
+    UIUtils.showSuccess('URL已复制到剪贴板');
   }
 
   void _showDeleteConfirmationDialog() {

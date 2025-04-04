@@ -19,7 +19,7 @@ void runDailySatoriApp() {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      initialRoute: AppPages.INITIAL,
+      initialRoute: AppPages.initial,
       getPages: AppPages.routes,
       onReady: onAppReady,
     ),

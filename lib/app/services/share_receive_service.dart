@@ -43,7 +43,7 @@ class ShareReceiveService {
 
     // 直接处理分享内容
     await Get.toNamed(
-      Routes.SHARE_DIALOG,
+      Routes.shareDialog,
       arguments: {'articleID': 0, 'shareURL': url, 'update': false, 'needBackToApp': true},
     );
   }

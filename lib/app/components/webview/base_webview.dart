@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-
 import 'package:daily_satori/app/services/adblock_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/utils/string_utils.dart';
-import 'package:daily_satori/app/utils/app_info_utils.dart';
 import 'package:daily_satori/global.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 /// WebView 基类
 ///

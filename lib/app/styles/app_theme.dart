@@ -87,8 +87,6 @@ class AppTheme {
       onSecondaryContainer: Colors.white,
       error: isDark ? AppColors.errorDark : AppColors.errorLight,
       onError: Colors.white,
-      background: isDark ? AppColors.backgroundDark : AppColors.backgroundLight,
-      onBackground: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
       surface: isDark ? AppColors.cardBackgroundDark : AppColors.cardBackgroundLight,
       onSurface: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
       surfaceContainerHighest:

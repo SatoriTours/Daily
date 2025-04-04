@@ -64,7 +64,7 @@ class ClipboardUtils {
           url,
           onConfirmed: () async {
             // 处理确认后的逻辑
-            if (clearClipboard && isProduction) {
+            if (clearClipboard && AppInfoUtils.isProduction) {
               await setText('');
             }
             onUrlDetected(url);
@@ -77,7 +77,7 @@ class ClipboardUtils {
         );
       } else {
         // 不显示确认直接处理
-        if (clearClipboard && isProduction) {
+        if (clearClipboard && AppInfoUtils.isProduction) {
           await setText('');
         }
         onUrlDetected(url);
@@ -98,7 +98,7 @@ class ClipboardUtils {
     await checkForUrl(
       onUrlDetected: (url) {
         // 统一的URL处理逻辑：导航到分享对话框
-        Get.toNamed(Routes.SHARE_DIALOG, arguments: {'shareURL': url});
+        Get.toNamed(Routes.shareDialog, arguments: {'shareURL': url});
       },
       clearClipboard: clearClipboard,
       urlValidator: urlValidator,
