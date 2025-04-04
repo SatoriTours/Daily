@@ -17,7 +17,7 @@ class HomeBinding extends Binding {
     _initializeSubModules();
     _logBinding();
 
-    return [Bind.lazyPut(() => HomeController())];
+    return [Bind.lazyPut<HomeController>(() => HomeController())];
   }
 
   /// 初始化子模块依赖

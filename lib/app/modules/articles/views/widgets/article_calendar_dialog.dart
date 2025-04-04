@@ -39,10 +39,10 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildHeader(context),
-          Divider(height: 1, thickness: 0.5, color: colorScheme.outline.withOpacity(0.5)),
+          Divider(height: 1, thickness: 0.5, color: colorScheme.outline.withAlpha(128)),
           _buildCalendarHeader(context),
           Expanded(child: SingleChildScrollView(child: _buildCalendar(context))),
-          Divider(height: 1, thickness: 0.5, color: colorScheme.outline.withOpacity(0.5)),
+          Divider(height: 1, thickness: 0.5, color: colorScheme.outline.withAlpha(128)),
           _buildAllArticlesButton(context),
           SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
@@ -214,7 +214,6 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
 
   Widget _buildDayCell(BuildContext context, int day, int articleCount, bool isToday, bool isSelected) {
     final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
 
     // 选择适当的背景颜色
     Color bgColor;

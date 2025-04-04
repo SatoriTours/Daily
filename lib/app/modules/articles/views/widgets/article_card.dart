@@ -8,7 +8,6 @@ import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/components/smart_image.dart';
-import 'package:daily_satori/app/services/webpage_parser_service.dart';
 import 'package:daily_satori/global.dart';
 
 import 'article_info_item.dart';

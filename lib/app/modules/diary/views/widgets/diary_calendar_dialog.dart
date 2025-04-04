@@ -9,7 +9,7 @@ import '../../controllers/diary_controller.dart';
 class DiaryCalendarDialog extends StatefulWidget {
   final DiaryController controller;
 
-  const DiaryCalendarDialog({Key? key, required this.controller}) : super(key: key);
+  const DiaryCalendarDialog({super.key, required this.controller});
 
   @override
   State<DiaryCalendarDialog> createState() => _DiaryCalendarDialogState();

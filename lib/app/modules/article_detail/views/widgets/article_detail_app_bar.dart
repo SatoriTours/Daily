@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 
 import 'package:daily_satori/app/modules/article_detail/controllers/article_detail_controller.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/global.dart';

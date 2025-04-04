@@ -9,7 +9,7 @@ import 'diary_editor.dart';
 class DiaryFab extends StatefulWidget {
   final DiaryController controller;
 
-  const DiaryFab({Key? key, required this.controller}) : super(key: key);
+  const DiaryFab({super.key, required this.controller});
 
   @override
   State<DiaryFab> createState() => _DiaryFabState();
@@ -76,7 +76,7 @@ class _DiaryFabState extends State<DiaryFab> with SingleTickerProviderStateMixin
                       end: Alignment.bottomRight,
                       colors: [
                         DiaryStyle.accentColor(context),
-                        DiaryStyle.accentColor(context).withBlue((DiaryStyle.accentColor(context).blue * 0.85).toInt()),
+                        DiaryStyle.accentColor(context).withBlue((DiaryStyle.accentColor(context).b * 0.85).toInt()),
                       ],
                     ),
                   ),

@@ -47,21 +47,21 @@ class MarkdownStyles {
         height: 1.6,
       ),
       blockquoteDecoration: BoxDecoration(
-        border: Border(left: BorderSide(color: colorScheme.primary.withOpacity(0.7), width: 4)),
-        color: colorScheme.surfaceVariant.withOpacity(0.3),
+        border: Border(left: BorderSide(color: colorScheme.primary.withAlpha(70), width: 4)),
+        color: colorScheme.surfaceVariant.withAlpha(30),
       ),
       blockquotePadding: const EdgeInsets.only(left: 16, top: 8, bottom: 8, right: 8),
 
       // 代码样式
       code: textTheme.bodySmall?.copyWith(
         fontFamily: 'monospace',
-        backgroundColor: colorScheme.surfaceVariant.withOpacity(0.5),
+        backgroundColor: colorScheme.surfaceVariant.withAlpha(50),
         letterSpacing: -0.2,
         height: 1.5,
         fontSize: (textTheme.bodySmall?.fontSize ?? 12) * 0.95,
       ),
       codeblockDecoration: BoxDecoration(
-        color: colorScheme.surfaceVariant.withOpacity(0.7),
+        color: colorScheme.surfaceVariant.withAlpha(70),
         borderRadius: BorderRadius.circular(Dimensions.radiusS),
       ),
       codeblockPadding: const EdgeInsets.all(12),
@@ -86,7 +86,7 @@ class MarkdownStyles {
         color: colorScheme.primary,
         fontWeight: FontWeight.w500,
         decoration: TextDecoration.underline,
-        decorationColor: colorScheme.primary.withOpacity(0.4),
+        decorationColor: colorScheme.primary.withAlpha(40),
       ),
 
       // 段落间距

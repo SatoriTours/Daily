@@ -40,7 +40,7 @@ class ArticlesTagsDialog extends GetView<ArticlesController> {
           ),
         ),
 
-        Divider(height: 1, color: colorScheme.outline.withOpacity(0.5)),
+        Divider(height: 1, color: colorScheme.outline.withAlpha(128)),
 
         // 标签列表
         SingleChildScrollView(
@@ -48,7 +48,7 @@ class ArticlesTagsDialog extends GetView<ArticlesController> {
           child: Wrap(spacing: 8, runSpacing: 8, children: tags.map((tag) => _buildTagItem(context, tag)).toList()),
         ),
 
-        Divider(height: 1, color: colorScheme.outline.withOpacity(0.5)),
+        Divider(height: 1, color: colorScheme.outline.withAlpha(128)),
 
         // 清除过滤按钮
         Padding(
@@ -83,7 +83,7 @@ class ArticlesTagsDialog extends GetView<ArticlesController> {
     final colorScheme = AppTheme.getColorScheme(context);
     final isSelected = controller.tagId.value == tag.id;
 
-    final backgroundColor = isSelected ? colorScheme.primary.withOpacity(0.2) : colorScheme.surfaceContainerHighest;
+    final backgroundColor = isSelected ? colorScheme.primary.withAlpha(51) : colorScheme.surfaceContainerHighest;
 
     final textColor = isSelected ? colorScheme.primary : colorScheme.onSurface;
 

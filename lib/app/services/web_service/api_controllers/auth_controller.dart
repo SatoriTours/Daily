@@ -1,6 +1,5 @@
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
-import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/auth_middleware.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/request_utils.dart';

@@ -7,7 +7,7 @@ class DiaryTagsList extends StatelessWidget {
   final RxList<String> tags;
   final Function(String) onTagSelected;
 
-  const DiaryTagsList({Key? key, required this.tags, required this.onTagSelected}) : super(key: key);
+  const DiaryTagsList({super.key, required this.tags, required this.onTagSelected});
 
   @override
   Widget build(BuildContext context) {
@@ -20,11 +20,6 @@ class DiaryTagsList extends StatelessWidget {
           ),
         );
       }
-
-      // 计算每行显示的标签数量
-      final screenWidth = MediaQuery.of(context).size.width;
-      final tagWidth = 100.0; // 预估每个标签的平均宽度
-      final tagsPerRow = (screenWidth / tagWidth).floor();
 
       return Padding(
         padding: const EdgeInsets.all(16),

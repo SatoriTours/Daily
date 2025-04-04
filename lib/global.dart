@@ -9,43 +9,56 @@ export 'package:daily_satori/app/utils/utils.dart';
 /// 建议在新代码中直接使用对应的工具类
 
 /// 本地化时间设置 (已移至 DateTimeUtils.timeLocal)
+@deprecated
 final String timeLocal = DateTimeUtils.timeLocal;
 
 /// 是否为生产环境 (已移至 AppInfoUtils.isProduction)
+@deprecated
 bool get isProduction => AppInfoUtils.isProduction;
 
 /// 获取当前时间的ISO 8601格式字符串 (已移至 DateTimeUtils.nowToString())
+@deprecated
 String nowToString() => DateTimeUtils.nowToString();
 
 /// 获取当前应用版本信息 (已移至 AppInfoUtils.getVersion())
+@deprecated
 Future<String> getAppVersion() => AppInfoUtils.getVersion();
 
 /// 更新数据的时间戳 (已移至 DateTimeUtils.updateTimestamps())
+@deprecated
 Map<String, String?> updateTimestamps(Map<String, String?> data) => DateTimeUtils.updateTimestamps(data);
 
 /// 检查文本是否包含中文字符 (已移至 StringUtils.isChinese())
+@deprecated
 bool isChinese(String text) => StringUtils.isChinese(text);
 
 /// 获取文本的子串,可指定长度和后缀 (已移至 StringUtils.getSubstring())
+@deprecated
 String getSubstring(String text, {int length = 50, String suffix = ''}) =>
     StringUtils.getSubstring(text, length: length, suffix: suffix);
 
 /// 获取文本的第一行 (已移至 StringUtils.firstLine())
+@deprecated
 String firstLine(String text) => StringUtils.firstLine(text);
 
 /// 从主机名获取顶级域名 (已移至 StringUtils.getTopLevelDomain())
+@deprecated
 String getTopLevelDomain(String? host) => StringUtils.getTopLevelDomain(host);
 
 /// 格式化日期时间为本地格式 (已移至 DateTimeUtils.formatDateTimeToLocal())
+@deprecated
 String formatDateTimeToLocal(DateTime dateTime) => DateTimeUtils.formatDateTimeToLocal(dateTime);
 
 /// 显示成功提示 (已移至 UIUtils.showSuccess())
+@deprecated
 void successNotice(String content, {String title = '提示'}) => UIUtils.showSuccess(content, title: title);
 
 /// 显示错误提示 (已移至 UIUtils.showError())
+@deprecated
 void errorNotice(String content, {String title = '错误'}) => UIUtils.showError(content, title: title);
 
 /// 显示全屏加载提示 (已移至 UIUtils.showLoading())
+@deprecated
 void showFullScreenLoading({String tips = '', Color barrierColor = Colors.black45}) =>
     UIUtils.showLoading(tips: tips, barrierColor: barrierColor);
 

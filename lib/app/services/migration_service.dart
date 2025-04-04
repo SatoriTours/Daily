@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:daily_satori/app/models/models.dart';
-import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart' as db_image;
 import 'package:daily_satori/app/objectbox/screenshot.dart';
@@ -318,9 +317,7 @@ class MigrationService {
   void _logMigrationProgress(_MigrationCounter counter, {bool isFinal = false}) {
     final status = isFinal ? "完成" : "进度";
     logger.i(
-      "📊 [迁移服务] 封面迁移$status: ${counter.migratedCount} 篇成功, " +
-          "${counter.noImageCount} 篇无图, ${counter.skippedCount} 篇跳过" +
-          (counter.errorCount > 0 ? ", ${counter.errorCount} 篇失败" : ""),
+      "📊 [迁移服务] 封面迁移$status: ${counter.migratedCount} 篇成功, ${counter.noImageCount} 篇无图, ${counter.skippedCount} 篇跳过${counter.errorCount > 0 ? ', ${counter.errorCount} 篇失败' : ''}",
     );
   }
 }

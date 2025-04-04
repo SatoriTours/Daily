@@ -10,7 +10,7 @@ class DiarySearchBar extends StatelessWidget {
   final DiaryController controller;
   final VoidCallback onClose;
 
-  const DiarySearchBar({Key? key, required this.controller, required this.onClose}) : super(key: key);
+  const DiarySearchBar({super.key, required this.controller, required this.onClose});
 
   @override
   Widget build(BuildContext context) {

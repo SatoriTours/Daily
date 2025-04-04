@@ -4,11 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:daily_satori/app/routes/app_pages.dart';
-import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/webpage_parser_service.dart';
-import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/global.dart';
 
 /// 分享对话框控制器
@@ -127,7 +125,7 @@ class ShareDialogController extends GetxController {
     updateProgress(1, "内容分析中");
 
     // 创建一个定时器每秒检查一次文章状态
-    final timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+    Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (processingComplete.value) {
         timer.cancel();
         return;
@@ -272,7 +270,7 @@ class ShareDialogController extends GetxController {
 class ProgressDialogContent extends StatefulWidget {
   final ShareDialogController controller;
 
-  const ProgressDialogContent({Key? key, required this.controller}) : super(key: key);
+  const ProgressDialogContent({super.key, required this.controller});
 
   @override
   State<ProgressDialogContent> createState() => _ProgressDialogContentState();

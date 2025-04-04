@@ -1,7 +1,14 @@
-/// 仓储集中导出文件
+/// Daily Satori 仓储层导出文件
 ///
-/// 用于集中导出所有仓储类，方便其他地方导入
-library;
+/// 本库集中导出所有仓储类，提供统一的数据访问接口。
+/// 包含以下仓储：
+/// - 文章仓储 [ArticleRepository]
+/// - 日记仓储 [DiaryRepository]
+/// - 图片仓储 [ImageRepository]
+/// - 截图仓储 [ScreenshotRepository]
+/// - 设置仓储 [SettingRepository]
+/// - 标签仓储 [TagRepository]
+library repositories;
 
 export 'article_repository.dart';
 export 'diary_repository.dart';

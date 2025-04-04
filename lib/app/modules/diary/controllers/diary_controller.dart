@@ -1,4 +1,3 @@
-import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:daily_satori/app_exports.dart';
 import 'package:image_picker/image_picker.dart';

@@ -5,7 +5,6 @@ import 'package:daily_satori/app/modules/article_detail/controllers/article_deta
 import 'package:daily_satori/app/modules/article_detail/views/widgets/article_image_view.dart';
 import 'package:daily_satori/app/modules/article_detail/views/widgets/article_tags.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/styles/index.dart';
 
 /// 文章摘要标签页
 /// 显示文章的基本信息，包括：

@@ -3,9 +3,9 @@ import 'package:get/get.dart';
 import '../controllers/ai_config_controller.dart';
 
 /// AI配置绑定
-class AIConfigBinding extends Bindings {
+class AIConfigBinding extends Binding {
   @override
-  void dependencies() {
-    Get.lazyPut<AIConfigController>(() => AIConfigController());
+  List<Bind> dependencies() {
+    return [Bind.lazyPut<AIConfigController>(() => AIConfigController())];
   }
 }
