@@ -11,6 +11,10 @@ import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/global.dart';
 
+/// 文章原始内容标签页
+/// 支持两种内容格式：
+/// 1. Markdown格式（优先显示）
+/// 2. HTML格式
 class OriginalContentTab extends StatelessWidget {
   final ArticleDetailController controller;
 
@@ -18,48 +22,17 @@ class OriginalContentTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 检查是否有Markdown内容
-    final hasMarkdown =
-        controller.articleModel.aiMarkdownContent != null && controller.articleModel.aiMarkdownContent!.isNotEmpty;
-
-    // 优先显示Markdown内容，否则显示HTML内容
-    return hasMarkdown ? _buildMarkdownContent(context) : _buildHtmlContent(context);
+    return _hasMarkdownContent ? _buildMarkdownView() : _buildHtmlView();
   }
 
-  // HTML内容视图
-  Widget _buildHtmlContent(BuildContext context) {
-    final htmlContent = controller.articleModel.htmlContent;
-    if (htmlContent == null || htmlContent.isEmpty) {
-      return _buildEmptyHtmlState(context);
-    }
+  /// 判断是否有Markdown内容
+  bool get _hasMarkdownContent => controller.articleModel.aiMarkdownContent?.isNotEmpty ?? false;
 
-    // 添加错误边界处理
-    return SingleChildScrollView(
-      padding: Dimensions.paddingPage,
-      child: Builder(
-        builder: (context) {
-          return Html(
-            data: htmlContent,
-            style: HtmlStyles.getStyles(context),
-            // 改进链接处理方式
-            onLinkTap: (url, _, __) {
-              if (url != null && url.isNotEmpty) {
-                _launchUrlExternal(url);
-              }
-            },
-            // 使用安全的配置
-            shrinkWrap: true,
-          );
-        },
-      ),
-    );
-  }
-
-  // Markdown内容视图
-  Widget _buildMarkdownContent(BuildContext context) {
+  /// 构建Markdown视图
+  Widget _buildMarkdownView() {
     final markdownContent = controller.articleModel.aiMarkdownContent;
     if (markdownContent == null || markdownContent.isEmpty) {
-      return _buildEmptyMarkdownState(context);
+      return _buildEmptyState(message: "尚未生成Markdown内容", showGenerateButton: true);
     }
 
     return SingleChildScrollView(
@@ -67,17 +40,33 @@ class OriginalContentTab extends StatelessWidget {
       child: MarkdownBody(
         data: markdownContent,
         selectable: true,
-        styleSheet: MarkdownStyles.getStyleSheet(context),
-        onTapLink: (text, href, title) {
-          if (href != null) {
-            _launchUrlExternal(href);
-          }
-        },
+        styleSheet: MarkdownStyles.getStyleSheet(Get.context!),
+        onTapLink: _handleLinkTap,
       ),
     );
   }
 
-  Widget _buildEmptyMarkdownState(BuildContext context) {
+  /// 构建HTML视图
+  Widget _buildHtmlView() {
+    final htmlContent = controller.articleModel.htmlContent;
+    if (htmlContent == null || htmlContent.isEmpty) {
+      return _buildEmptyState(message: "无法加载原文内容", showGenerateButton: false);
+    }
+
+    return SingleChildScrollView(
+      padding: Dimensions.paddingPage,
+      child: Html(
+        data: htmlContent,
+        style: HtmlStyles.getStyles(Get.context!),
+        onLinkTap: (url, _, __) => _handleLinkTap(null, url, null),
+        shrinkWrap: true,
+      ),
+    );
+  }
+
+  /// 构建空状态视图
+  Widget _buildEmptyState({required String message, required bool showGenerateButton}) {
+    final context = Get.context!;
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
@@ -87,33 +76,40 @@ class OriginalContentTab extends StatelessWidget {
         children: [
           Icon(Icons.article_outlined, size: Dimensions.iconSizeXl, color: colorScheme.onSurfaceVariant),
           Dimensions.verticalSpacerM,
-          Text("尚未生成Markdown内容", style: textTheme.bodyLarge),
-          Dimensions.verticalSpacerM,
-          ElevatedButton.icon(
-            onPressed: () => _generateMarkdown(),
-            icon: Icon(Icons.article_outlined),
-            label: Text("生成Markdown"),
-          ),
+          Text(message, style: textTheme.bodyLarge),
+          if (showGenerateButton) ...[
+            Dimensions.verticalSpacerM,
+            ElevatedButton.icon(
+              onPressed: _generateMarkdown,
+              icon: const Icon(Icons.article_outlined),
+              label: const Text("生成Markdown"),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  // 在外部浏览器中打开URL
-  Future<void> _launchUrlExternal(String url) async {
+  /// 处理链接点击事件
+  void _handleLinkTap(String? text, String? href, String? title) async {
+    if (href == null || href.isEmpty) {
+      logger.w('链接为空');
+      return;
+    }
+
     // 安全检查URL格式
-    if (url.isEmpty || !(url.startsWith('http://') || url.startsWith('https://'))) {
-      logger.e('无效链接格式: $url');
+    if (!(href.startsWith('http://') || href.startsWith('https://'))) {
+      logger.e('无效链接格式: $href');
       errorNotice('无效链接格式');
       return;
     }
 
     try {
-      final uri = Uri.parse(url);
+      final uri = Uri.parse(href);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        logger.e('无法打开链接: $url');
+        logger.e('无法打开链接: $href');
         errorNotice('无法打开链接');
       }
     } catch (e) {
@@ -122,51 +118,44 @@ class OriginalContentTab extends StatelessWidget {
     }
   }
 
-  Widget _buildEmptyHtmlState(BuildContext context) {
-    final textTheme = AppTheme.getTextTheme(context);
-    final colorScheme = AppTheme.getColorScheme(context);
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.article_outlined, size: Dimensions.iconSizeXl, color: colorScheme.onSurfaceVariant),
-          Dimensions.verticalSpacerM,
-          Text("无法加载原文内容", style: textTheme.bodyLarge),
-        ],
-      ),
-    );
-  }
-
-  void _generateMarkdown() async {
+  /// 生成Markdown内容
+  Future<void> _generateMarkdown() async {
     try {
-      final loadingDialog = Get.dialog(
-        Center(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [CircularProgressIndicator(), SizedBox(height: 16), Text("正在生成Markdown内容，请稍候...")],
+      // 显示加载对话框
+      Get.dialog(
+        const Center(
+          child: Card(
+            margin: EdgeInsets.all(16),
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [CircularProgressIndicator(), SizedBox(height: 16), Text("正在生成Markdown内容，请稍候...")],
+              ),
             ),
           ),
         ),
         barrierDismissible: false,
       );
 
+      // 生成Markdown内容
       await controller.generateMarkdownContent();
 
-      Get.back(); // 关闭加载对话框
+      // 关闭加载对话框
+      Get.back();
 
-      if (controller.articleModel.aiMarkdownContent != null && controller.articleModel.aiMarkdownContent!.isNotEmpty) {
+      // 检查生成结果
+      if (controller.articleModel.aiMarkdownContent?.isNotEmpty ?? false) {
+        logger.i('Markdown内容生成成功');
         successNotice('Markdown内容生成成功');
       } else {
+        logger.e('生成Markdown内容失败');
         errorNotice('生成Markdown内容失败');
       }
     } catch (e) {
       Get.back();
-      errorNotice('生成过程中出错: $e');
       logger.e('生成Markdown时出错: $e');
+      errorNotice('生成过程中出错: $e');
     }
   }
 }
