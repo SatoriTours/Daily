@@ -1,25 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
-import 'package:daily_satori/app/services/adblock_service.dart';
-import 'package:daily_satori/app/services/ai_config_service.dart';
-import 'package:daily_satori/app/services/ai_service/ai_service.dart';
-import 'package:daily_satori/app/services/app_upgrade_service.dart';
-import 'package:daily_satori/app/services/backup_service.dart';
-import 'package:daily_satori/app/services/file_service.dart';
-import 'package:daily_satori/app/services/flutter_service.dart';
-import 'package:daily_satori/app/services/font_service.dart';
-import 'package:daily_satori/app/services/freedisk_service.dart';
-import 'package:daily_satori/app/services/http_service.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
-import 'package:daily_satori/app/services/plugin_service.dart';
-import 'package:daily_satori/app/services/setting_service/setting_service.dart';
-import 'package:daily_satori/app/services/share_receive_service.dart';
-import 'package:daily_satori/app/services/time_service.dart';
-import 'package:daily_satori/app/services/web_service/web_service.dart';
-import 'package:daily_satori/app/services/webpage_parser_service.dart';
-import 'package:daily_satori/app/services/migration_service/migration_service.dart';
+import 'package:daily_satori/app/services/services.dart';
 
 // 应用加载优先级
 enum ServicePriority {
