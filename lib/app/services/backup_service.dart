@@ -3,6 +3,7 @@ import 'dart:isolate';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_archive/flutter_archive.dart';
+import 'package:get/get.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:daily_satori/app/services/file_service.dart';
@@ -22,6 +23,10 @@ class BackupService {
   static const int _productionBackupInterval = 6;
   static const int _developmentBackupInterval = 24;
 
+  // 备份进度监控
+  final isBackingUp = false.obs;
+  final backupProgress = 0.0.obs;
+
   // Getters
   String get backupDir => SettingRepository.getSetting(SettingService.backupDirKey);
   File get backupTimeFile => File(path.join(backupDir, 'backup_time.txt'));
@@ -34,8 +39,17 @@ class BackupService {
   }
 
   // 检查并执行备份
-  Future<void> checkAndBackup({bool immediateBackup = false}) async {
-    if (backupDir.isEmpty) return;
+  Future<bool> checkAndBackup({bool immediateBackup = false}) async {
+    if (backupDir.isEmpty) return false;
+
+    if (isBackingUp.value) {
+      logger.w("已经有备份任务在进行中");
+      return false;
+    }
+
+    isBackingUp.value = true;
+    backupProgress.value = 0.0;
+
     try {
       logger.i("准备备份应用");
       final lastBackupTime = await _getLastBackupTime();
@@ -43,14 +57,19 @@ class BackupService {
 
       if (backupTimeDifference >= _backupInterval || immediateBackup) {
         logger.i("开始备份应用");
-        // 使用Isolate执行备份
+        // 执行备份
         await _startBackup();
+        return true;
       } else {
         final remainingHours = _backupInterval - backupTimeDifference;
         logger.i("上次备份时间 $lastBackupTime, 备份间隔为 $_backupInterval 小时, 离下次备份还差: $remainingHours 小时");
+        return false;
       }
     } catch (e) {
       logger.e("备份应用过程中发生错误: $e");
+      return false;
+    } finally {
+      isBackingUp.value = false;
     }
   }
 
@@ -74,13 +93,31 @@ class BackupService {
     final backupFolder = path.join(backupDir, 'daily_satori_backup_$timestamp');
     await Directory(backupFolder).create(recursive: true);
 
-    final backupTasks = [
-      _compressDirectory(FileService.i.imagesBasePath, path.join(backupFolder, 'images.zip')),
-      _compressDirectory(FileService.i.diaryImagesBasePath, path.join(backupFolder, 'diary_images.zip')),
-      _compressDirectory(FileService.i.dbPath, path.join(backupFolder, 'objectbox.zip')),
-    ];
+    backupProgress.value = 0.1;
 
-    await Future.wait(backupTasks);
+    // 备份数据库
+    logger.i("开始备份数据库");
+    await _compressDirectory(FileService.i.dbPath, path.join(backupFolder, 'objectbox.zip'));
+    backupProgress.value = 0.4;
+
+    // 备份图片
+    logger.i("开始备份图片");
+    await _compressDirectory(FileService.i.imagesBasePath, path.join(backupFolder, 'images.zip'));
+    backupProgress.value = 0.6;
+
+    // 备份日记图片
+    logger.i("开始备份日记图片");
+    await _compressDirectory(FileService.i.diaryImagesBasePath, path.join(backupFolder, 'diary_images.zip'));
+    backupProgress.value = 0.8;
+
+    // 备份截图
+    logger.i("开始备份截图");
+    final screenshotsDir = FileService.i.screenshotsBasePath;
+    if (await Directory(screenshotsDir).exists()) {
+      await _compressDirectory(screenshotsDir, path.join(backupFolder, 'screenshots.zip'));
+    }
+
+    backupProgress.value = 1.0;
     logger.i("完成了文件的备份: $backupFolder");
   }
 

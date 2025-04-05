@@ -184,9 +184,9 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant.withOpacity(0.5),
+        color: colorScheme.primary.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outlineVariant),
+        border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,7 +209,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
             decoration: BoxDecoration(
               color: colorScheme.surface,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: colorScheme.outlineVariant.withOpacity(0.5)),
+              border: Border.all(color: colorScheme.primary.withOpacity(0.1)),
             ),
             child: Row(
               children: [
