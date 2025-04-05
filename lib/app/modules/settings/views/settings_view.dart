@@ -19,7 +19,7 @@ class SettingsView extends GetView<SettingsController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.getColorScheme(context).background,
+      backgroundColor: AppTheme.getColorScheme(context).surface,
       appBar: _buildAppBar(context),
       body: Obx(
         () =>
@@ -143,13 +143,13 @@ class SettingsView extends GetView<SettingsController> {
           Obx(
             () => Text(
               '版本 ${controller.appVersion.value}',
-              style: TextStyle(fontSize: 13, color: colorScheme.onBackground.withValues(alpha: 0.6)),
+              style: TextStyle(fontSize: 13, color: colorScheme.onSurface.withValues(alpha: 0.6)),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             '© 2023-2024 Satori Tours',
-            style: TextStyle(fontSize: 12, color: colorScheme.onBackground.withValues(alpha: 0.5)),
+            style: TextStyle(fontSize: 12, color: colorScheme.onSurface.withValues(alpha: 0.5)),
           ),
         ],
       ),
@@ -206,8 +206,8 @@ class _SettingItem extends StatelessWidget {
         child: Icon(icon, color: iconBackground),
       ),
       title: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-      subtitle: Text(subtitle, style: TextStyle(fontSize: 13, color: colorScheme.onBackground.withValues(alpha: 0.6))),
-      trailing: Icon(Icons.chevron_right, color: colorScheme.onBackground.withValues(alpha: 0.3)),
+      subtitle: Text(subtitle, style: TextStyle(fontSize: 13, color: colorScheme.onSurface.withValues(alpha: 0.6))),
+      trailing: Icon(Icons.chevron_right, color: colorScheme.onSurface.withValues(alpha: 0.3)),
       onTap: onTap,
     );
   }

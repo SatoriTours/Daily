@@ -31,13 +31,33 @@ class AppPages {
   /// 路由列表
   static final routes = [
     GetPage(name: Routes.home, page: () => const HomeView(), binding: HomeBinding()),
-    GetPage(name: Routes.shareDialog, page: () => const ShareDialogView(), binding: ShareDialogBinding()),
+    GetPage(
+      name: Routes.shareDialog,
+      page: () => const ShareDialogView(),
+      binding: ShareDialogBinding(),
+      transition: Transition.downToUp,
+    ),
     GetPage(name: Routes.settings, page: () => const SettingsView(), binding: SettingsBinding()),
-    GetPage(name: Routes.articles, page: () => const ArticlesView(), binding: ArticlesBinding()),
-    GetPage(name: Routes.articleDetail, page: () => const ArticleDetailView(), binding: ArticleDetailBinding()),
+    GetPage(
+      name: Routes.articles,
+      page: () => const ArticlesView(),
+      binding: ArticlesBinding(),
+      transition: Transition.noTransition,
+    ),
+    GetPage(
+      name: Routes.articleDetail,
+      page: () => const ArticleDetailView(),
+      binding: ArticleDetailBinding(),
+      transition: Transition.topLevel,
+    ),
     GetPage(name: Routes.backupRestore, page: () => const BackupRestoreView(), binding: BackupRestoreBinding()),
     GetPage(name: Routes.leftBar, page: () => const LeftBarView(), binding: LeftBarBinding()),
     GetPage(name: Routes.diary, page: () => const DiaryView(), binding: DiaryBinding()),
-    GetPage(name: Routes.aiConfig, page: () => const AIConfigView(), binding: AIConfigBinding()),
+    GetPage(
+      name: Routes.aiConfig,
+      page: () => const AIConfigView(),
+      binding: AIConfigBinding(),
+      transition: Transition.rightToLeft,
+    ),
   ];
 }

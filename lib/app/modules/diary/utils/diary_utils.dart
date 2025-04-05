@@ -45,8 +45,9 @@ class DiaryUtils {
                 softLineBreak: true,
                 selectable: true,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
+                // TODO: 当 flutter_markdown 包更新并提供更好的 sizedImageBuilder 实现时，替换为 sizedImageBuilder
+                // 目前 sizedImageBuilder 的类型系统存在问题，暂时继续使用 imageBuilder
                 imageBuilder: (Uri uri, String? title, String? alt) {
-                  // 处理Markdown中的图片
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
                     child: ClipRRect(
