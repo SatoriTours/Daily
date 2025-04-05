@@ -26,7 +26,7 @@ class UIUtils {
       title,
       message,
       snackPosition: SnackPosition.top,
-      backgroundColor: isError ? Colors.red.withOpacity(0.8) : Colors.green.withOpacity(0.8),
+      backgroundColor: isError ? Colors.red.withAlpha(204) : Colors.green.withAlpha(204),
       colorText: Colors.white,
       duration: duration ?? const Duration(seconds: 3),
       margin: const EdgeInsets.all(8),

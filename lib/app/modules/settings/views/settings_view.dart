@@ -1,7 +1,6 @@
 import 'package:daily_satori/app/styles/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
@@ -72,7 +71,7 @@ class SettingsView extends GetView<SettingsController> {
               items: [
                 _SettingItem(
                   title: 'AI 配置',
-                  subtitle: '管理AI模型配置，优化摘要、内容解读和日记生成',
+                  subtitle: '设置多个场景下的 AI 模型',
                   icon: Icons.smart_toy_rounded,
                   iconBackground: Colors.blue,
                   onTap: () => Get.toNamed('/ai-config'),

@@ -2,7 +2,6 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:logger/logger.dart';
 
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/components/empty_states/articles_empty_view.dart';

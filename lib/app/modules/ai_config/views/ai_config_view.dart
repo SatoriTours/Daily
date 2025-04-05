@@ -92,7 +92,7 @@ class AIConfigView extends GetView<AIConfigController> {
             decoration: BoxDecoration(
               color: colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 5))],
+              boxShadow: [BoxShadow(color: Colors.black.withAlpha(8), blurRadius: 10, offset: const Offset(0, 5))],
             ),
             child: Column(
               children:
@@ -146,7 +146,7 @@ class _ConfigItem extends StatelessWidget {
       leading: Container(
         width: 36,
         height: 36,
-        decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(color: iconColor.withAlpha(25), borderRadius: BorderRadius.circular(10)),
         child: Icon(_getTypeIcon(config.functionType), color: iconColor, size: 20),
       ),
       title: Text(config.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
@@ -155,16 +155,14 @@ class _ConfigItem extends StatelessWidget {
         style: TextStyle(
           fontSize: 13,
           color:
-              config.apiAddress.isEmpty
-                  ? colorScheme.onSurface.withOpacity(0.5)
-                  : colorScheme.onSurface.withOpacity(0.7),
+              config.apiAddress.isEmpty ? colorScheme.onSurface.withAlpha(128) : colorScheme.onSurface.withAlpha(179),
         ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [Icon(Icons.chevron_right, color: colorScheme.onSurface.withOpacity(0.3), size: 20)],
+        children: [Icon(Icons.chevron_right, color: colorScheme.onSurface.withAlpha(77), size: 20)],
       ),
       onTap: () => controller.editConfig(config),
     );

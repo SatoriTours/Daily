@@ -158,6 +158,7 @@ class _DiaryCardState extends State<DiaryCard> {
             softLineBreak: true,
             fitContent: true,
             shrinkWrap: true,
+            // ignore: deprecated_member_use
             imageBuilder: (Uri uri, String? title, String? alt) {
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),

@@ -1,5 +1,4 @@
 import 'package:daily_satori/app/models/models.dart';
-import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/repositories/ai_config_repository.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/ai_config_service.dart';
@@ -7,7 +6,6 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'dart:math' show min;
 
 /// AI配置控制器
 ///
@@ -97,7 +95,7 @@ class AIConfigController extends GetxController {
 
   /// 处理API预设变化
   void _handleApiPresetChange(int index) {
-    if (index < 0 || index >= apiPresets.length || tempApiAddressController == null) {
+    if (index < 0 || index >= apiPresets.length) {
       return;
     }
 
@@ -113,14 +111,14 @@ class AIConfigController extends GetxController {
       availableModels.value = List<String>.from(apiPresets[index]['models']);
       if (availableModels.isNotEmpty) {
         selectedModelIndex.value = 0;
-        tempModelNameController?.text = availableModels[0];
+        tempModelNameController.text = availableModels[0];
       }
     }
   }
 
   /// 处理模型索引变化
   void _handleModelIndexChange(int index) {
-    if (tempModelNameController == null || availableModels.isEmpty || index < 0 || index >= availableModels.length) {
+    if (availableModels.isEmpty || index < 0 || index >= availableModels.length) {
       return;
     }
 
