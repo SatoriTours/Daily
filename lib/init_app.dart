@@ -109,11 +109,6 @@ Future<void> clearApp() async {
     ObjectboxService.i.dispose();
   }
 
-  // 关闭网页解析服务
-  if (AppServiceManager.getServiceStatus('WebpageParserService')?.isInitialized == true) {
-    WebpageParserService.i.dispose();
-  }
-
   // 清理其他资源
   _cancelAllTimers();
 }
@@ -140,7 +135,7 @@ Future<void> _initHighPriorityServices() async {
     AppServiceManager.initService('FontService', () => FontService.i.init()),
     AppServiceManager.initService('ADBlockService', () => ADBlockService.i.init()),
     AppServiceManager.initService('FreeDiskService', () => FreeDiskService.i.init()),
-    AppServiceManager.initService('WebpageParserService', () => WebpageParserService.i.init()),
+    // AppServiceManager.initService('WebpageParserService', () => WebpageParserService.i.init()),
     AppServiceManager.initService('AIConfigService', () => AIConfigService.i.init()),
   ]);
 }

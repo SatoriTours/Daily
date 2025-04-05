@@ -108,19 +108,38 @@ class ArticleRepository {
     }
   }
 
-  /// 查找所有没有解析完成的文章
+  /// 查找所有待处理的文章
   static List<ArticleModel> findAllPending() {
-    final query =
-        _box
-            .query(Article_.status.notEquals('completed').and(Article_.status.notEquals('')))
-            .order(Article_.id, flags: Order.descending)
-            .build();
-    try {
-      final articles = query.find();
-      return articles.map((article) => ArticleModel(article)).toList();
-    } finally {
-      query.close();
+    // 查找状态为pending或webContentFetched的文章
+    final pendingArticles = findByStatus(ArticleStatus.pending);
+    final webContentFetchedArticles = findByStatus(ArticleStatus.webContentFetched);
+
+    // 合并结果
+    return [...pendingArticles, ...webContentFetchedArticles];
+  }
+
+  /// 查找所有未完成的文章
+  static List<ArticleModel> findAllIncomplete() {
+    // 状态是completed但内容不完整的文章
+    final List<ArticleModel> result = [];
+
+    // 获取状态为completed但可能内容不完整的文章
+    final completedArticles = findByStatus(ArticleStatus.completed);
+    for (final article in completedArticles) {
+      final bool titleComplete = article.aiTitle != null && article.aiTitle!.isNotEmpty;
+      final bool summaryComplete = article.aiContent != null && article.aiContent!.isNotEmpty;
+      final bool markdownComplete = article.aiMarkdownContent != null && article.aiMarkdownContent!.isNotEmpty;
+      final bool coverComplete =
+          article.coverImageUrl == null ||
+          article.coverImageUrl!.isEmpty ||
+          (article.coverImage != null && article.coverImage!.isNotEmpty);
+
+      if (!titleComplete || !summaryComplete || !markdownComplete || !coverComplete) {
+        result.add(article);
+      }
     }
+
+    return result;
   }
 
   /// 按照创建日期到排序，找到最近的一个不为空，而且不是 completed 的文章

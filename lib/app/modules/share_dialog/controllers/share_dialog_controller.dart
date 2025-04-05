@@ -15,7 +15,7 @@ class ShareDialogController extends GetxController {
   static const platform = MethodChannel('android/back/desktop');
 
   // 状态变量
-  final RxString shareURL = ''.obs;
+  final RxString shareURL = 'https://x.com/435hz/status/1868127842279842221'.obs;
   final RxBool isUpdate = false.obs;
   final RxBool needBackToApp = false.obs;
   final RxInt articleID = 0.obs;
@@ -43,8 +43,33 @@ class ShareDialogController extends GetxController {
 
   /// 初始化默认值
   void _initDefaultValues() {
-    if (!AppInfoUtils.isProduction) {
-      shareURL.value = 'https://x.com/435hz/status/1868127842279842221';
+    // 从路由参数中获取初始值
+    final Map<String, dynamic> args = Get.arguments ?? {};
+
+    // 初始化分享URL
+    if (args.containsKey('url') && args['url'] != null) {
+      shareURL.value = args['url'];
+      logger.i("初始化分享链接: ${shareURL.value}");
+    } else {
+      shareURL.value = '';
+    }
+
+    // 初始化是否为更新模式
+    if (args.containsKey('isUpdate') && args['isUpdate'] != null) {
+      isUpdate.value = args['isUpdate'];
+      logger.i("初始化更新模式: ${isUpdate.value}");
+    }
+
+    // 初始化文章ID
+    if (args.containsKey('articleID') && args['articleID'] != null) {
+      articleID.value = args['articleID'];
+      logger.i("初始化文章ID: ${articleID.value}");
+    }
+
+    // 初始化是否需要返回应用
+    if (args.containsKey('needBackToApp') && args['needBackToApp'] != null) {
+      needBackToApp.value = args['needBackToApp'];
+      logger.i("初始化返回应用标志: ${needBackToApp.value}");
     }
   }
 

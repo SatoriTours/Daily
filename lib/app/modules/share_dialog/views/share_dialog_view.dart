@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 
 import 'package:daily_satori/app/modules/share_dialog/controllers/share_dialog_controller.dart';
 
-/// 分享对话框视图
+/// 分享页面视图
 /// 用于保存链接或添加备注信息
 class ShareDialogView extends GetView<ShareDialogController> {
   const ShareDialogView({super.key});
@@ -12,46 +12,41 @@ class ShareDialogView extends GetView<ShareDialogController> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final screenHeight = MediaQuery.of(context).size.height;
 
-    return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 8,
-      clipBehavior: Clip.antiAlias,
-      child: _DialogContent(controller: controller, theme: theme, isDark: isDark),
-    );
-  }
-}
-
-/// 对话框内容组件
-class _DialogContent extends StatelessWidget {
-  final ShareDialogController controller;
-  final ThemeData theme;
-  final bool isDark;
-
-  const _DialogContent({required this.controller, required this.theme, required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: MediaQuery.of(context).size.width * 0.9,
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.6),
-      color: isDark ? theme.colorScheme.surfaceContainerHigh : Colors.white,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Header(controller: controller, theme: theme, isDark: isDark),
-          Expanded(child: _Body(controller: controller, theme: theme, isDark: isDark)),
-          _ErrorMessage(controller: controller),
-          _ActionButtons(controller: controller, theme: theme, isDark: isDark),
-        ],
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          height: screenHeight * 0.5, // 设置为屏幕高度的一半
+          decoration: BoxDecoration(
+            color: isDark ? theme.colorScheme.surface : theme.colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [
+              if (!isDark)
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                  offset: const Offset(0, -2),
+                ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _Header(controller: controller, theme: theme, isDark: isDark),
+              Expanded(child: _SharePageContent(controller: controller, theme: theme, isDark: isDark)),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-/// 对话框头部组件
+/// 顶部标题栏组件
 class _Header extends StatelessWidget {
   final ShareDialogController controller;
   final ThemeData theme;
@@ -62,25 +57,23 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
       decoration: BoxDecoration(
-        color: isDark ? theme.colorScheme.surfaceContainerHighest : theme.colorScheme.primaryContainer.withAlpha(51),
-        border: Border(bottom: BorderSide(color: theme.dividerColor.withAlpha(26), width: 1)),
+        color: theme.colorScheme.surface,
+        border: Border(bottom: BorderSide(color: theme.dividerColor.withOpacity(0.1), width: 1)),
       ),
       child: Row(
         children: [
-          Icon(Icons.bookmark_add_rounded, color: theme.colorScheme.primary, size: 22),
-          const SizedBox(width: 12),
           Expanded(
             child: Obx(
               () => Text(
-                controller.shareURL.value.isNotEmpty ? '保存链接' : '添加备注',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                controller.shareURL.value.isNotEmpty ? '保存链接' : '更新文章',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
             ),
           ),
           IconButton(
-            icon: Icon(Icons.close_rounded, size: 20, color: theme.colorScheme.onSurfaceVariant),
+            icon: const Icon(Icons.close_rounded),
             onPressed: () => controller.clickChannelBtn(),
             padding: EdgeInsets.zero,
             visualDensity: VisualDensity.compact,
@@ -91,38 +84,61 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// 对话框主体内容组件
-class _Body extends StatelessWidget {
+/// 分享页面内容组件
+class _SharePageContent extends StatelessWidget {
   final ShareDialogController controller;
   final ThemeData theme;
   final bool isDark;
 
-  const _Body({required this.controller, required this.theme, required this.isDark});
+  const _SharePageContent({required this.controller, required this.theme, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isDark ? theme.colorScheme.surfaceContainerLow : theme.colorScheme.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              if (!isDark) BoxShadow(color: Colors.black.withAlpha(13), blurRadius: 6, offset: const Offset(0, 2)),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _UrlSection(controller: controller, theme: theme, isDark: isDark),
-              _CommentSection(controller: controller, theme: theme, isDark: isDark),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: _ShareContentCard(controller: controller, theme: theme, isDark: isDark),
+            ),
           ),
         ),
+        _ErrorMessage(controller: controller),
+        _ActionButtons(controller: controller, theme: theme, isDark: isDark),
+      ],
+    );
+  }
+}
+
+/// 分享内容卡片
+class _ShareContentCard extends StatelessWidget {
+  final ShareDialogController controller;
+  final ThemeData theme;
+  final bool isDark;
+
+  const _ShareContentCard({required this.controller, required this.theme, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? theme.colorScheme.surfaceContainerLow : theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 6, spreadRadius: 1, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _UrlSection(controller: controller, theme: theme, isDark: isDark),
+          _CommentSection(controller: controller, theme: theme, isDark: isDark),
+        ],
       ),
     );
   }
@@ -147,39 +163,41 @@ class _UrlSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(Icons.link_rounded, size: 16, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                "网页链接",
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: theme.colorScheme.onSurface),
+              Icon(Icons.link_rounded, size: 20, color: theme.colorScheme.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "网页链接",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
+                ),
               ),
-              const Spacer(),
               Text(
                 controller.getShortUrl(controller.shareURL.value),
-                style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant),
+                style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurfaceVariant),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             decoration: BoxDecoration(
-              color: isDark ? theme.colorScheme.surfaceContainerLowest : Colors.white,
-              borderRadius: BorderRadius.circular(10),
+              color: isDark ? theme.colorScheme.surfaceContainerLowest : theme.colorScheme.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200, width: 1),
             ),
             child: Text(
               controller.shareURL.value,
-              style: TextStyle(color: theme.colorScheme.onSurface.withAlpha(204), fontSize: 13),
+              style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 15),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(height: 24),
+          Divider(color: theme.dividerColor.withOpacity(0.5)),
           const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 12),
         ],
       );
     });
@@ -200,31 +218,32 @@ class _CommentSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(Icons.comment_outlined, size: 16, color: theme.colorScheme.primary),
-            const SizedBox(width: 8),
+            Icon(Icons.comment_outlined, size: 20, color: theme.colorScheme.primary),
+            const SizedBox(width: 10),
             Text(
               "备注信息",
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: theme.colorScheme.onSurface),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         TextField(
           controller: controller.commentController,
           decoration: InputDecoration(
             hintText: "添加备注信息（可选）",
-            hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withAlpha(153), fontSize: 13),
+            hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7), fontSize: 15),
             filled: true,
-            fillColor: isDark ? theme.colorScheme.surfaceContainerLowest : Colors.white,
+            fillColor: isDark ? theme.colorScheme.surfaceContainerLowest : theme.colorScheme.surfaceContainerLowest,
             border: _buildInputBorder(),
             enabledBorder: _buildInputBorder(),
             focusedBorder: _buildInputBorder(isActive: true),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
-          style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14),
-          minLines: 3,
-          maxLines: 5,
+          style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 15),
+          minLines: 4,
+          maxLines: 6,
           keyboardType: TextInputType.multiline,
           textInputAction: TextInputAction.newline,
           cursorColor: theme.colorScheme.primary,
@@ -235,7 +254,7 @@ class _CommentSection extends StatelessWidget {
 
   InputBorder _buildInputBorder({bool isActive = false}) {
     return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(12),
       borderSide: BorderSide(
         color: isActive ? theme.colorScheme.primary : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
         width: isActive ? 1.5 : 1,
@@ -258,15 +277,15 @@ class _ErrorMessage extends StatelessWidget {
       }
 
       return Container(
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        decoration: BoxDecoration(color: Colors.red.withAlpha(26), borderRadius: BorderRadius.circular(8)),
+        margin: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
         child: Row(
           children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 16),
-            const SizedBox(width: 8),
+            const Icon(Icons.error_outline, color: Colors.red, size: 18),
+            const SizedBox(width: 10),
             Expanded(
-              child: Text(controller.errorMessage.value, style: const TextStyle(color: Colors.red, fontSize: 13)),
+              child: Text(controller.errorMessage.value, style: const TextStyle(color: Colors.red, fontSize: 14)),
             ),
           ],
         ),
@@ -286,35 +305,46 @@ class _ActionButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        color: isDark ? theme.colorScheme.surfaceContainerHighest : theme.colorScheme.primaryContainer.withAlpha(26),
-        border: Border(top: BorderSide(color: theme.dividerColor.withAlpha(26), width: 1)),
+        color: isDark ? theme.colorScheme.surfaceContainerLow : theme.colorScheme.surface,
+        boxShadow: [
+          if (!isDark) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, -1)),
+        ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: theme.colorScheme.onSurface,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              side: BorderSide(color: theme.colorScheme.outline),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          Expanded(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: theme.colorScheme.onSurface,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                side: BorderSide(color: theme.colorScheme.outline),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () => controller.clickChannelBtn(),
+              child: const Text("取消", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
             ),
-            onPressed: () => controller.clickChannelBtn(),
-            child: const Text("取消"),
           ),
-          const SizedBox(width: 12),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: theme.colorScheme.primary,
-              foregroundColor: theme.colorScheme.onPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
+          const SizedBox(width: 16),
+          Expanded(
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: theme.colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+              onPressed: () => controller.onSaveButtonPressed(),
+              child: Obx(
+                () => Text(
+                  controller.isLoading.value ? "保存中..." : "保存",
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                ),
+              ),
             ),
-            onPressed: () => controller.onSaveButtonPressed(),
-            child: Obx(() => Text(controller.isLoading.value ? "保存中..." : "保存")),
           ),
         ],
       ),
