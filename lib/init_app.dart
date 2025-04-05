@@ -19,7 +19,7 @@ import 'package:daily_satori/app/services/share_receive_service.dart';
 import 'package:daily_satori/app/services/time_service.dart';
 import 'package:daily_satori/app/services/web_service/web_service.dart';
 import 'package:daily_satori/app/services/webpage_parser_service.dart';
-import 'package:daily_satori/app/services/migration_service.dart';
+import 'package:daily_satori/app/services/migration_service/migration_service.dart';
 
 // 应用加载优先级
 enum ServicePriority {

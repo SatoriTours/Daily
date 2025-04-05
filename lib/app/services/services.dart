@@ -13,7 +13,6 @@ export 'font_service.dart';
 export 'freedisk_service.dart';
 export 'http_service.dart';
 export 'logger_service.dart';
-export 'migration_service.dart';
 export 'objectbox_service.dart';
 export 'plugin_service.dart';
 export 'setting_service/setting_service.dart';
