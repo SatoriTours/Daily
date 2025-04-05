@@ -56,36 +56,60 @@ class AIConfigView extends GetView<AIConfigController> {
         );
       }
 
-      return ListView(
+      return CustomScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildConfigsByType(0, Icons.settings),
-          _buildConfigsByType(1, Icons.article),
-          _buildConfigsByType(2, Icons.book),
-          _buildConfigsByType(3, Icons.edit_note),
+        slivers: [
+          SliverList(
+            delegate: SliverChildListDelegate([
+              const SizedBox(height: 16),
+              _buildConfigSection(0, '通用配置', Icons.settings, Colors.blue),
+              _buildConfigSection(1, '文章总结', Icons.article, Colors.green),
+              _buildConfigSection(2, '书本解读', Icons.book, Colors.orange),
+              _buildConfigSection(3, '日记总结', Icons.edit_note, Colors.purple),
+              const SizedBox(height: 20),
+            ]),
+          ),
         ],
       );
     });
   }
 
-  /// 构建单个类型的配置列表
-  Widget _buildConfigsByType(int type, IconData icon) {
+  /// 构建配置分类区域
+  Widget _buildConfigSection(int type, String title, IconData icon, Color iconColor) {
     final configs = controller.getConfigsByType(type);
+    final colorScheme = AppTheme.getColorScheme(Get.context!);
 
     if (configs.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 配置列表，直接显示卡片
-        ...configs.map((config) => _ConfigCard(config: config, controller: controller)),
-
-        // 底部间距
-        const SizedBox(height: 16),
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 5))],
+            ),
+            child: Column(
+              children:
+                  configs.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final config = entry.value;
+                    return Column(
+                      children: [
+                        _ConfigItem(config: config, controller: controller, iconColor: iconColor),
+                        if (index < configs.length - 1) const Divider(height: 1, indent: 56),
+                      ],
+                    );
+                  }).toList(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -105,89 +129,61 @@ class AIConfigView extends GetView<AIConfigController> {
   }
 }
 
-/// 配置卡片组件
-class _ConfigCard extends StatelessWidget {
+/// 配置项组件
+class _ConfigItem extends StatelessWidget {
   final AIConfigModel config;
   final AIConfigController controller;
+  final Color iconColor;
 
-  const _ConfigCard({required this.config, required this.controller});
+  const _ConfigItem({required this.config, required this.controller, required this.iconColor});
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: isDark ? colorScheme.outline.withAlpha(120) : colorScheme.outline.withAlpha(90),
-          width: 1.5,
-        ),
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+        child: Icon(_getTypeIcon(config.functionType), color: iconColor, size: 20),
       ),
-      child: InkWell(
-        onTap: () => controller.editConfig(config),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  // 添加类型图标
-                  _getTypeIcon(config.functionType),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      config.name,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
-                    ),
-                  ),
-                  // 添加向右箭头
-                  Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant.withAlpha(150), size: 20),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                config.apiAddress.isEmpty ? '未设置，继承通用配置' : config.apiAddress,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: config.apiAddress.isEmpty ? colorScheme.onSurface.withAlpha(153) : colorScheme.onSurface,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+      title: Text(config.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+      subtitle: Text(
+        config.apiAddress.isEmpty ? '未设置，继承通用配置' : config.apiAddress,
+        style: TextStyle(
+          fontSize: 13,
+          color:
+              config.apiAddress.isEmpty
+                  ? colorScheme.onSurface.withOpacity(0.5)
+                  : colorScheme.onSurface.withOpacity(0.7),
         ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [Icon(Icons.chevron_right, color: colorScheme.onSurface.withOpacity(0.3), size: 20)],
+      ),
+      onTap: () => controller.editConfig(config),
     );
   }
 
   // 获取类型图标
-  Widget _getTypeIcon(int type) {
-    IconData iconData;
+  IconData _getTypeIcon(int type) {
     switch (type) {
       case 0:
-        iconData = Icons.settings;
-        break;
+        return Icons.settings;
       case 1:
-        iconData = Icons.article;
-        break;
+        return Icons.article;
       case 2:
-        iconData = Icons.book;
-        break;
+        return Icons.book;
       case 3:
-        iconData = Icons.edit_note;
-        break;
+        return Icons.edit_note;
       default:
-        iconData = Icons.settings;
+        return Icons.settings;
     }
-
-    return Icon(iconData, size: 18, color: AppTheme.getColorScheme(Get.context!).primary);
   }
 }
 

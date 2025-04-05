@@ -3,6 +3,7 @@ import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/repositories/ai_config_repository.dart';
 import 'package:daily_satori/app/services/ai_config_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -16,29 +17,7 @@ class AIConfigEditController extends GetxController {
   // MARK: - 可观察属性
 
   /// 预设的API地址和模型名称
-  final List<Map<String, dynamic>> apiPresets = [
-    {
-      'name': 'OpenAI API',
-      'apiAddress': 'https://api.openai.com/v1',
-      'models': ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4-vision'],
-    },
-    {
-      'name': '阿里云百炼',
-      'apiAddress': 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-      'models': ['deepseek-v3', 'qwen2.5-14b-instruct-1m', 'qwen-turbo-latest'],
-    },
-    {
-      'name': 'Azure OpenAI',
-      'apiAddress': 'https://{your-resource-name}.openai.azure.com',
-      'models': ['gpt-35-turbo', 'gpt-4', 'gpt-4-32k'],
-    },
-    {
-      'name': 'Anthropic API',
-      'apiAddress': 'https://api.anthropic.com',
-      'models': ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku', 'claude-3-5-sonnet'],
-    },
-    {'name': '自定义', 'apiAddress': '', 'models': []},
-  ];
+  final RxList<Map<String, dynamic>> apiPresets = <Map<String, dynamic>>[].obs;
 
   /// 当前选择的API预设索引
   final RxInt selectedApiPresetIndex = 0.obs;
@@ -80,6 +59,7 @@ class AIConfigEditController extends GetxController {
   void onInit() {
     super.onInit();
     _initControllers();
+    _loadApiPresets();
     _initPresetListeners();
     _processArguments();
   }
@@ -90,6 +70,26 @@ class AIConfigEditController extends GetxController {
     apiAddressController = TextEditingController();
     apiTokenController = TextEditingController();
     modelNameController = TextEditingController();
+  }
+
+  /// 加载API预设模型
+  void _loadApiPresets() {
+    // 从PluginService获取预设
+    final presets = PluginService.i.getApiPresets();
+
+    // 转换为控制器使用的格式
+    apiPresets.value =
+        presets
+            .map((preset) => {'name': preset.name, 'apiAddress': preset.apiAddress, 'models': preset.models})
+            .toList();
+
+    // 确保最后一项是自定义选项
+    bool hasCustom = apiPresets.any((preset) => preset['name'] == '自定义');
+    if (!hasCustom && apiPresets.isNotEmpty) {
+      apiPresets.add({'name': '自定义', 'apiAddress': '', 'models': <String>[]});
+    }
+
+    logger.i('加载了${apiPresets.length}个API预设模型');
   }
 
   /// 初始化预设监听器
