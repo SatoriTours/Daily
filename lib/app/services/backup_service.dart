@@ -5,13 +5,24 @@ import 'package:flutter/services.dart';
 import 'package:flutter_archive/flutter_archive.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as path;
+import 'package:archive/archive.dart' as archive;
+import 'package:path_provider/path_provider.dart';
 
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
+import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
-import 'package:daily_satori/app/utils/app_info_utils.dart';
+
+/// 备份项配置类，定义备份内容和目标
+class BackupItem {
+  final String name; // 备份项名称
+  final String sourcePath; // 源路径
+  final String zipFileName; // 目标文件名
+
+  const BackupItem({required this.name, required this.sourcePath, required this.zipFileName});
+}
 
 class BackupService {
   // 单例模式
@@ -27,14 +38,28 @@ class BackupService {
   final isBackingUp = false.obs;
   final backupProgress = 0.0.obs;
 
+  // 备份项配置
+  late final List<BackupItem> _backupItems;
+
+  // 初始化备份项配置
+  void _initBackupItems() {
+    _backupItems = [
+      BackupItem(name: "数据库", sourcePath: FileService.i.dbPath, zipFileName: 'objectbox.zip'),
+      BackupItem(name: "网页图片", sourcePath: FileService.i.imagesBasePath, zipFileName: 'images.zip'),
+      BackupItem(name: "日记图片", sourcePath: FileService.i.diaryImagesBasePath, zipFileName: 'diary_images.zip'),
+    ];
+  }
+
   // Getters
   String get backupDir => SettingRepository.getSetting(SettingService.backupDirKey);
   File get backupTimeFile => File(path.join(backupDir, 'backup_time.txt'));
   int get _backupInterval => AppInfoUtils.isProduction ? _productionBackupInterval : _developmentBackupInterval;
+  List<BackupItem> get backupItems => _backupItems;
 
   // 初始化服务
   Future<void> init() async {
     logger.i("[初始化服务] BackupService");
+    _initBackupItems();
     checkAndBackup();
   }
 
@@ -95,26 +120,15 @@ class BackupService {
 
     backupProgress.value = 0.1;
 
-    // 备份数据库
-    logger.i("开始备份数据库");
-    await _compressDirectory(FileService.i.dbPath, path.join(backupFolder, 'objectbox.zip'));
-    backupProgress.value = 0.4;
+    final progressPerItem = 0.9 / _backupItems.length;
+    double currentProgress = 0.1;
 
-    // 备份图片
-    logger.i("开始备份图片");
-    await _compressDirectory(FileService.i.imagesBasePath, path.join(backupFolder, 'images.zip'));
-    backupProgress.value = 0.6;
-
-    // 备份日记图片
-    logger.i("开始备份日记图片");
-    await _compressDirectory(FileService.i.diaryImagesBasePath, path.join(backupFolder, 'diary_images.zip'));
-    backupProgress.value = 0.8;
-
-    // 备份截图
-    logger.i("开始备份截图");
-    final screenshotsDir = FileService.i.screenshotsBasePath;
-    if (await Directory(screenshotsDir).exists()) {
-      await _compressDirectory(screenshotsDir, path.join(backupFolder, 'screenshots.zip'));
+    // 按配置进行备份
+    for (final item in _backupItems) {
+      logger.i("开始备份${item.name}");
+      await _compressDirectory(item.sourcePath, path.join(backupFolder, item.zipFileName));
+      currentProgress += progressPerItem;
+      backupProgress.value = currentProgress;
     }
 
     backupProgress.value = 1.0;
@@ -147,5 +161,81 @@ class BackupService {
   // 更新备份时间
   Future<void> _updateLastBackupTime(DateTime time) async {
     await backupTimeFile.writeAsString(time.toIso8601String());
+  }
+
+  // 从备份恢复文件
+  Future<bool> restoreBackup(String backupName) async {
+    String backupFolder = path.join(backupDir, 'daily_satori_backup_$backupName');
+    String appDocDir = (await getApplicationDocumentsDirectory()).path;
+
+    UIUtils.showLoading();
+
+    try {
+      // 检查备份文件是否都存在
+      List<File> backupFiles = [];
+      bool allFilesExist = true;
+
+      for (final item in _backupItems) {
+        final zipFile = File(path.join(backupFolder, item.zipFileName));
+        backupFiles.add(zipFile);
+
+        if (!await zipFile.exists()) {
+          logger.e("备份文件不存在: ${zipFile.path}");
+          allFilesExist = false;
+          break;
+        }
+      }
+
+      if (!allFilesExist) {
+        logger.e("备份文件不完整，无法恢复");
+        Get.back();
+        return false;
+      }
+
+      // 恢复所有备份项
+      for (int i = 0; i < _backupItems.length; i++) {
+        final item = _backupItems[i];
+        final zipFile = backupFiles[i];
+
+        // 确定恢复的目标路径
+        String destinationPath;
+        if (item.zipFileName == 'objectbox.zip') {
+          destinationPath = path.join(appDocDir, ObjectboxService.dbDir);
+        } else {
+          // 为其他项目从源路径提取目标目录名
+          final dirName = path.basename(item.sourcePath);
+          destinationPath = path.join(appDocDir, dirName);
+        }
+
+        logger.i("恢复备份 ${item.name} 到 $destinationPath");
+        await _extractZipFile(zipFile, destinationPath);
+      }
+
+      logger.i("恢复备份完成: $backupFolder => $appDocDir");
+      Get.back();
+      return true;
+    } catch (e) {
+      logger.e("恢复备份失败: $e");
+      Get.back();
+      return false;
+    }
+  }
+
+  // 解压缩文件
+  Future<void> _extractZipFile(File zipFile, String destinationPath) async {
+    final bytes = await zipFile.readAsBytes();
+    final zipArchive = archive.ZipDecoder().decodeBytes(bytes);
+
+    for (final file in zipArchive) {
+      final filename = file.name;
+      if (file.isFile) {
+        final data = file.content as List<int>;
+        File(path.join(destinationPath, filename))
+          ..createSync(recursive: true)
+          ..writeAsBytesSync(data);
+      } else {
+        Directory(path.join(destinationPath, filename)).createSync(recursive: true);
+      }
+    }
   }
 }
