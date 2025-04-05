@@ -12,6 +12,7 @@ abstract class Routes {
   static const articles = '/articles';
   static const articleDetail = '/article-detail';
   static const backupRestore = '/backup-restore';
+  static const backupSettings = '/backup-settings';
   static const leftBar = '/left-bar';
   static const diary = '/diary';
   static const aiConfig = '/ai-config';
@@ -40,6 +41,9 @@ abstract class RouteNames {
 
   /// 备份还原页面
   static const backupRestore = 'BackupRestore';
+
+  /// 备份设置页面
+  static const backupSettings = 'BackupSettings';
 
   /// 左侧栏
   static const leftBar = 'LeftBar';

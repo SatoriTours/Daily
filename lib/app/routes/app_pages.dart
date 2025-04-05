@@ -10,6 +10,8 @@ import 'package:daily_satori/app/modules/articles/bindings/articles_binding.dart
 import 'package:daily_satori/app/modules/articles/views/articles_view.dart';
 import 'package:daily_satori/app/modules/backup_restore/bindings/backup_restore_binding.dart';
 import 'package:daily_satori/app/modules/backup_restore/views/backup_restore_view.dart';
+import 'package:daily_satori/app/modules/backup_settings/bindings/backup_settings_binding.dart';
+import 'package:daily_satori/app/modules/backup_settings/views/backup_settings_view.dart';
 import 'package:daily_satori/app/modules/diary/bindings/diary_binding.dart';
 import 'package:daily_satori/app/modules/diary/views/diary_view.dart';
 import 'package:daily_satori/app/modules/home/bindings/home_binding.dart';
@@ -55,6 +57,12 @@ class AppPages {
       transition: Transition.topLevel,
     ),
     GetPage(name: Routes.backupRestore, page: () => const BackupRestoreView(), binding: BackupRestoreBinding()),
+    GetPage(
+      name: Routes.backupSettings,
+      page: () => const BackupSettingsView(),
+      binding: BackupSettingsBinding(),
+      transition: Transition.rightToLeft,
+    ),
     GetPage(name: Routes.leftBar, page: () => const LeftBarView(), binding: LeftBarBinding()),
     GetPage(name: Routes.diary, page: () => const DiaryView(), binding: DiaryBinding()),
     GetPage(

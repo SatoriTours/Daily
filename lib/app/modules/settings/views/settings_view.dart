@@ -94,7 +94,7 @@ class SettingsView extends GetView<SettingsController> {
                   subtitle: '保护您的数据安全',
                   icon: Icons.backup_rounded,
                   iconBackground: Colors.green,
-                  onTap: () => _showBackupDialog(context),
+                  onTap: () => Get.toNamed(Routes.backupSettings),
                 ),
                 _SettingItem(
                   title: '清理与维护',
@@ -249,20 +249,10 @@ class _SettingsSection extends StatelessWidget {
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: colorScheme.surface,
+              color: colorScheme.surfaceVariant.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 5)),
-              ],
             ),
-            child: Column(
-              children:
-                  items.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final item = entry.value;
-                    return Column(children: [item, if (index < items.length - 1) const Divider(height: 1, indent: 72)]);
-                  }).toList(),
-            ),
+            child: Column(children: items.map((item) => item).toList()),
           ),
         ],
       ),
