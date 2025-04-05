@@ -7,7 +7,7 @@ extension PartHtmlToMarkdown on AiService {
   /// 将HTML转换为Markdown
   ///
   /// [html] HTML内容
-  /// [functionType] 功能类型，默认为1（收藏文章总结）
+  /// [functionType] 功能类型，默认为1（文章分析）
   Future<String> htmlToMarkdown(String html, {int functionType = 1}) async {
     if (html.isEmpty) return '';
 

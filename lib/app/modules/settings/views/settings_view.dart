@@ -70,7 +70,7 @@ class SettingsView extends GetView<SettingsController> {
               icon: Icons.flash_on_rounded,
               items: [
                 _SettingItem(
-                  title: 'AI配置管理',
+                  title: 'AI 配置',
                   subtitle: '管理AI模型配置，优化摘要、内容解读和日记生成',
                   icon: Icons.smart_toy_rounded,
                   iconBackground: Colors.blue,

@@ -49,11 +49,11 @@ class AIConfigService {
   String getFunctionTypeName(int functionType) {
     switch (functionType) {
       case 1:
-        return "收藏文章总结";
+        return "文章分析";
       case 2:
         return "书本解读";
       case 3:
-        return "日记总结生成";
+        return "日记总结";
       case 0:
         return "通用配置";
       default:

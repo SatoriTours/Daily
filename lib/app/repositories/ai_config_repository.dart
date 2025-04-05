@@ -127,10 +127,10 @@ class AIConfigRepository {
         );
         addAIConfig(generalConfig);
 
-        // 添加收藏文章总结配置
+        // 添加文章分析配置
         final articleConfig = AIConfigModel(
           AIConfig(
-            name: "收藏文章总结",
+            name: "文章分析",
             apiAddress: "",
             apiToken: "",
             modelName: "",

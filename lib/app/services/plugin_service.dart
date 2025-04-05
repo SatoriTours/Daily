@@ -6,28 +6,34 @@ import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:yaml/yaml.dart';
 
+/// 插件服务类 - 负责管理AI提示词和API模型预设
+///
+/// 主要功能:
+/// 1. 加载和解析本地YAML配置文件
+/// 2. 从远程服务器获取最新配置
+/// 3. 管理配置缓存和持久化
+/// 4. 提供公开方法获取各类配置内容
 class PluginService {
-  // 私有构造函数，确保外部无法直接创建实例
+  // 单例模式实现
   PluginService._();
-
   static final PluginService _instance = PluginService._();
   static PluginService get i => _instance;
 
-  // 通用缓存
+  // 缓存
   final Map<String, String> _promptCache = {};
   final Map<String, dynamic> _configCache = {};
 
-  // 本地配置
-  List<_PromptConfig> _localPrompts = [];
+  // 本地配置数据
+  List<PromptConfig> _localPrompts = [];
   List<ApiPreset> _apiPresets = [];
 
-  // 配置文件解析器映射表
-  late final Map<String, _ConfigParser> _configParsers = {
-    'ai_prompts.yaml': _ConfigParser(
+  // 配置文件解析器映射
+  late final Map<String, ConfigParser> _configParsers = {
+    'ai_prompts.yaml': ConfigParser(
       rootKey: 'prompts',
-      parser: (item) => _PromptConfig.fromYaml(item),
+      parser: (item) => PromptConfig.fromYaml(item),
       resultHandler: (list) {
-        _localPrompts = list.cast<_PromptConfig>();
+        _localPrompts = list.cast<PromptConfig>();
         // 提前缓存到内存
         for (final prompt in _localPrompts) {
           _promptCache[prompt.key] = prompt.content;
@@ -35,7 +41,7 @@ class PluginService {
         return '提示词';
       },
     ),
-    'ai_models.yaml': _ConfigParser(
+    'ai_models.yaml': ConfigParser(
       rootKey: 'api_presets',
       parser: (item) => ApiPreset.fromYaml(item),
       resultHandler: (list) {
@@ -45,54 +51,44 @@ class PluginService {
     ),
   };
 
-  // 配置文件列表，所有需要管理的配置文件
-  late final List<_ConfigFile> _configFiles =
-      _configParsers.keys.map((fileName) => _ConfigFile(name: fileName)).toList();
+  // 配置文件列表
+  late final List<ConfigFile> _configFiles = _configParsers.keys.map((fileName) => ConfigFile(name: fileName)).toList();
 
-  // 初始化插件服务，日志记录并更新所有插件配置
+  /// 初始化插件服务
   Future<void> init() async {
-    logger.i("[初始化服务] PluginService");
-
-    // 加载所有本地配置文件
+    logger.i("[初始化] PluginService");
     await _loadAllLocalConfigs();
-
-    // 更新所有配置文件
     await _updateAllConfigs();
   }
 
-  // 加载所有本地配置文件
+  /// 加载所有本地配置文件
   Future<void> _loadAllLocalConfigs() async {
     for (final configFile in _configFiles) {
       await _loadLocalConfig(configFile);
     }
   }
 
-  // 加载单个本地配置文件
-  Future<void> _loadLocalConfig(_ConfigFile configFile) async {
+  /// 加载单个本地配置文件
+  Future<void> _loadLocalConfig(ConfigFile configFile) async {
     try {
-      // 加载YAML文件内容
       final String yamlString = await rootBundle.loadString(configFile.localPath);
       configFile.yamlContent = loadYaml(yamlString) as YamlMap;
-
-      // 将原始内容缓存
       _configCache[configFile.name] = yamlString;
 
-      logger.i('成功加载本地配置: ${configFile.name}');
-
-      // 解析配置文件
+      logger.i('加载本地配置: ${configFile.name} - 成功');
       _parseConfigFile(configFile);
     } catch (e, stackTrace) {
-      logger.e('加载本地配置失败 ${configFile.name}: $e', stackTrace: stackTrace);
+      logger.e('加载本地配置: ${configFile.name} - 失败 | $e', stackTrace: stackTrace);
     }
   }
 
-  // 解析单个配置文件
-  void _parseConfigFile(_ConfigFile configFile) {
+  /// 解析配置文件内容
+  void _parseConfigFile(ConfigFile configFile) {
     if (configFile.yamlContent == null) return;
 
     final parser = _configParsers[configFile.name];
     if (parser == null) {
-      logger.w('未找到配置文件解析器: ${configFile.name}');
+      logger.w('解析器缺失: ${configFile.name}');
       return;
     }
 
@@ -104,12 +100,7 @@ class PluginService {
     );
   }
 
-  /// 通用YAML配置解析器
-  ///
-  /// [yamlContent] - YAML内容
-  /// [rootKey] - 根键名称
-  /// [parser] - 数据项解析器函数
-  /// [resultHandler] - 结果处理函数，返回日志前缀
+  /// 通用YAML配置解析方法
   void _parseYamlConfig<T>({
     required YamlMap yamlContent,
     required String rootKey,
@@ -120,122 +111,104 @@ class PluginService {
       if (yamlContent.containsKey(rootKey)) {
         final YamlList itemsList = yamlContent[rootKey] as YamlList;
         final parsedList = itemsList.map((item) => parser(item)).toList();
-
-        // 处理结果并获取日志前缀
         final logPrefix = resultHandler(parsedList);
 
-        logger.i('从YAML文件加载了${parsedList.length}个$logPrefix');
+        logger.i('解析YAML: $rootKey - 加载了${parsedList.length}个$logPrefix');
       } else {
-        logger.e('加载配置失败: $rootKey节点不存在');
+        logger.e('解析YAML: $rootKey - 节点不存在');
       }
     } catch (e) {
-      logger.e('解析配置失败: $e');
+      logger.e('解析YAML: $rootKey - 解析失败 | $e');
     }
   }
 
-  // 内部方法：根据键名获取插件内容；若未设置则返回默认本地内容
+  /// 获取AI提示词内容
+  ///
+  /// 优先级: 缓存 > 设置持久化 > 本地配置
   String _getAiPromptContent(String key) {
-    // 先从缓存读取
+    // 1. 先从内存缓存读取
     if (_promptCache.containsKey(key)) {
       return _promptCache[key]!;
     }
 
-    // 从设置读取
-    String content = SettingRepository.getSetting(_pluginKey(key));
+    // 2. 从设置存储读取
+    final String content = SettingRepository.getSetting(_makePluginKey(key));
     if (content.isNotEmpty) {
-      // 添加到缓存
-      _promptCache[key] = content;
+      _promptCache[key] = content; // 添加到缓存
       return content;
     }
 
-    // 从本地配置读取
+    // 3. 从本地配置读取
     final localPrompt = _localPrompts.firstWhere(
       (prompt) => prompt.key == key,
-      orElse: () => _PromptConfig(key: key, content: ''),
+      orElse: () => PromptConfig(key: key, content: ''),
     );
 
-    // 添加到缓存
-    _promptCache[key] = localPrompt.content;
+    _promptCache[key] = localPrompt.content; // 添加到缓存
     return localPrompt.content;
   }
 
-  // 更新所有配置文件
+  /// 更新所有配置文件
   Future<void> _updateAllConfigs() async {
     final String baseUrl = SettingRepository.getSetting(SettingService.pluginKey);
     if (baseUrl.isEmpty) {
-      logger.w('插件服务器地址未设置，跳过更新');
+      logger.w('更新配置: 服务器地址未设置 - 已跳过');
       return;
     }
 
-    // 创建所有更新任务
-    final List<Future<void>> updateTasks = [];
-    for (final configFile in _configFiles) {
-      updateTasks.add(_updateConfig(configFile, baseUrl));
-    }
+    // 并行执行所有配置更新
+    await Future.wait(_configFiles.map((file) => _updateConfig(file, baseUrl)));
 
-    // 并行执行更新任务
-    await Future.wait(updateTasks);
-    logger.i('所有配置更新完成');
+    logger.i('更新配置: 所有文件更新完成');
   }
 
-  // 更新单个配置文件
-  Future<void> _updateConfig(_ConfigFile configFile, String baseUrl) async {
+  /// 更新单个配置文件
+  Future<void> _updateConfig(ConfigFile configFile, String baseUrl) async {
+    final fileName = configFile.name;
     try {
-      final String url = path.join(baseUrl, configFile.name);
+      final String url = path.join(baseUrl, fileName);
       final String response = await HttpService.i.getTextContent(url);
 
       if (response.trim().isNotEmpty) {
-        // 保存到设置表
-        await SettingRepository.saveSetting(_pluginKey(configFile.name), response.trim());
-
-        // 更新到内存
+        // 保存到设置并更新内存
+        await SettingRepository.saveSetting(_makePluginKey(fileName), response.trim());
         configFile.yamlContent = loadYaml(response.trim()) as YamlMap;
-        _configCache[configFile.name] = response.trim();
+        _configCache[fileName] = response.trim();
 
-        logger.i('成功从服务器更新配置: ${configFile.name}');
-
-        // 重新解析配置
+        logger.i('更新配置: $fileName - 从服务器成功更新');
         _parseConfigFile(configFile);
       }
     } catch (e) {
-      logger.e('更新配置失败 ${configFile.name}: $e');
+      logger.e('更新配置: $fileName - 服务器更新失败 | $e');
 
-      // 更新失败时，使用本地配置备份
-      final localContent = _configCache[configFile.name];
+      // 更新失败时使用本地配置备份
+      final localContent = _configCache[fileName];
       if (localContent != null) {
-        await SettingRepository.saveSetting(_pluginKey(configFile.name), localContent);
-        logger.i('使用本地备份更新 ${configFile.name}');
+        await SettingRepository.saveSetting(_makePluginKey(fileName), localContent);
+        logger.i('更新配置: $fileName - 已使用本地备份');
       }
     }
   }
 
-  // 内部辅助方法：构造在 SettingService 中存储插件内容的键名
-  String _pluginKey(String key) => 'plugin_$key';
+  /// 构造用于SettingService的键名
+  String _makePluginKey(String key) => 'plugin_$key';
 
-  // 公有方法：获取各插件的内容
+  // 公开的API方法 - 获取各类提示词内容
   String getTranslateRole() => _getAiPromptContent('translate_role');
-
   String getTranslatePrompt() => _getAiPromptContent('translate_prompt');
-
   String getSummarizeOneLineRole() => _getAiPromptContent('summarize_oneline_role');
-
   String getSummarizeOneLinePrompt() => _getAiPromptContent('summarize_oneline_prompt');
-
   String getLongSummaryRole() => _getAiPromptContent('long_summary_role');
-
   String getShortSummaryRole() => _getAiPromptContent('short_summary_role');
-
   String getLongSummaryResult() => _getAiPromptContent('long_summary_result');
-
   String getCommonTags() => _getAiPromptContent('common_tags');
-
   String getHtmlToMarkdownRole() => _getAiPromptContent('html_to_markdown_role');
 
-  // 公有方法：获取API提供商预设列表
+  /// 获取API提供商预设列表
   List<ApiPreset> getApiPresets() {
     // 尝试从设置获取
     final configName = 'ai_models.yaml';
-    final storedContent = SettingRepository.getSetting(_pluginKey(configName));
+    final storedContent = SettingRepository.getSetting(_makePluginKey(configName));
 
     if (storedContent.isNotEmpty) {
       try {
@@ -245,11 +218,11 @@ class PluginService {
           return presets.map((item) => ApiPreset.fromYaml(item)).toList();
         }
       } catch (e) {
-        logger.e('解析API预设列表失败: $e');
+        logger.e('获取API预设: 解析失败 | $e');
       }
     }
 
-    // 如果从设置中获取失败，或者解析失败，则使用本地预设
+    // 如果从设置获取失败，使用本地预设
     return _apiPresets;
   }
 }
@@ -277,33 +250,33 @@ class ApiPreset {
   }
 }
 
-/// 配置解析器
-class _ConfigParser<T> {
+/// 配置解析器类 - 负责解析特定类型的配置
+class ConfigParser<T> {
   final String rootKey; // YAML根键名
   final T Function(dynamic) parser; // 解析函数
-  final String Function(List<dynamic>) resultHandler; // 结果处理函数，返回日志前缀
+  final String Function(List<dynamic>) resultHandler; // 结果处理函数
 
-  _ConfigParser({required this.rootKey, required this.parser, required this.resultHandler});
+  ConfigParser({required this.rootKey, required this.parser, required this.resultHandler});
 }
 
-/// 提示词配置
-class _PromptConfig {
+/// 提示词配置类
+class PromptConfig {
   final String key;
   final String content;
 
-  _PromptConfig({required this.key, required this.content});
+  PromptConfig({required this.key, required this.content});
 
   /// 从YAML对象创建PromptConfig
-  factory _PromptConfig.fromYaml(dynamic yaml) {
-    return _PromptConfig(key: yaml['key'] as String, content: yaml['content'] as String);
+  factory PromptConfig.fromYaml(dynamic yaml) {
+    return PromptConfig(key: yaml['key'] as String, content: yaml['content'] as String);
   }
 }
 
-/// 配置文件定义
-class _ConfigFile {
+/// 配置文件类 - 表示一个配置文件及其内容
+class ConfigFile {
   final String name; // 配置文件名，如 ai_prompts.yaml
-  final String localPath; // 本地文件路径
+  final String localPath; // 本地资源路径
   YamlMap? yamlContent; // 解析后的YAML内容
 
-  _ConfigFile({required this.name, String? localPath}) : localPath = localPath ?? 'assets/configs/$name';
+  ConfigFile({required this.name, String? localPath}) : localPath = localPath ?? 'assets/configs/$name';
 }

@@ -18,9 +18,9 @@ class AIConfig {
   String modelName;
 
   /// 功能类型
-  /// 1: 收藏文章总结和Markdown转换
+  /// 1: 文章分析和Markdown转换
   /// 2: 书本解读
-  /// 3: 日记总结生成
+  /// 3: 日记总结
   /// 0: 通用配置，可被继承
   int functionType;
 
