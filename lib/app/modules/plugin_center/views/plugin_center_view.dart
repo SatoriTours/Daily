@@ -99,7 +99,7 @@ class PluginCenterView extends GetView<PluginCenterController> {
         return const SizedBox.shrink();
       }
 
-      return FloatingActionButton(
+      return FloatingActionButton.small(
         onPressed: () => _updateAllPlugins(context),
         tooltip: '更新所有插件',
         child: const Icon(Icons.refresh),

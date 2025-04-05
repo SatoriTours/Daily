@@ -30,7 +30,7 @@ class ServerUrlDialog {
         actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         actions: [
           TextButton(
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.of(context).pop(),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -43,7 +43,7 @@ class ServerUrlDialog {
               if (url.isNotEmpty) {
                 controller.updateServerUrl(url);
               }
-              Get.back();
+              Navigator.of(context).pop();
             },
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
