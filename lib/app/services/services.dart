@@ -19,6 +19,6 @@ export 'setting_service/setting_service.dart';
 export 'share_receive_service.dart';
 export 'time_service.dart';
 export 'web_service/web_service.dart';
-export 'webpage_parser_service/webpage_parser_service.dart';
 export 'ai_config_service.dart';
 export 'migration_service/migration_service.dart';
+export 'webpage_parser_service.dart';
