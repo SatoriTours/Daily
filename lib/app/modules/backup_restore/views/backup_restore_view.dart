@@ -85,7 +85,7 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
                               trailing:
                                   isSelected ? Icon(Icons.check_circle, color: Theme.of(context).primaryColor) : null,
                               selected: isSelected,
-                              selectedTileColor: Theme.of(context).primaryColor.withOpacity(0.05),
+                              selectedTileColor: Theme.of(context).primaryColor.withValues(alpha: 0.05),
                               onTap: () {
                                 controller.selectedBackupIndex.value = index;
                               },

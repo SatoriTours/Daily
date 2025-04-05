@@ -249,7 +249,7 @@ class _SettingsSection extends StatelessWidget {
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceVariant.withValues(alpha: 0.15),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(children: items.map((item) => item).toList()),

@@ -1,7 +1,6 @@
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:logger/logger.dart';
 
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';

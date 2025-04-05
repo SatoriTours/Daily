@@ -37,11 +37,14 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.folder_open_rounded, size: 64, color: colorScheme.primary.withOpacity(0.8)),
+          Icon(Icons.folder_open_rounded, size: 64, color: colorScheme.primary.withValues(alpha: 0.8)),
           const SizedBox(height: 24),
           Text('请选择备份目录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: colorScheme.onSurface)),
           const SizedBox(height: 12),
-          Text('选择一个文件夹存储您的应用数据备份', style: TextStyle(fontSize: 14, color: colorScheme.onSurface.withOpacity(0.6))),
+          Text(
+            '选择一个文件夹存储您的应用数据备份',
+            style: TextStyle(fontSize: 14, color: colorScheme.onSurface.withValues(alpha: 0.6)),
+          ),
           const SizedBox(height: 32),
           ElevatedButton.icon(
             onPressed: () => controller.selectBackupDirectory(),
@@ -109,7 +112,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: colorScheme.secondaryContainer.withOpacity(0.3),
+              color: colorScheme.secondaryContainer.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -148,7 +151,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withOpacity(0.3),
+        color: colorScheme.primaryContainer.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -165,7 +168,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
           Obx(
             () => LinearProgressIndicator(
               value: controller.backupProgress.value,
-              backgroundColor: colorScheme.primaryContainer.withOpacity(0.2),
+              backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.2),
               valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
             ),
           ),
@@ -184,9 +187,9 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.primary.withOpacity(0.08),
+        color: colorScheme.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.primary.withOpacity(0.2)),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,7 +212,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
             decoration: BoxDecoration(
               color: colorScheme.surface,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: colorScheme.primary.withOpacity(0.1)),
+              border: Border.all(color: colorScheme.primary.withValues(alpha: 0.1)),
             ),
             child: Row(
               children: [
@@ -257,9 +260,9 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [
@@ -267,7 +270,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
             const SizedBox(width: 16),
             Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: color)),
             const Spacer(),
-            Icon(Icons.arrow_forward_ios_rounded, size: 16, color: color.withOpacity(0.6)),
+            Icon(Icons.arrow_forward_ios_rounded, size: 16, color: color.withValues(alpha: 0.6)),
           ],
         ),
       ),

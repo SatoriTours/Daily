@@ -1,5 +1,4 @@
 import 'package:get_time_ago/get_time_ago.dart';
-import 'package:logger/logger.dart';
 
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/components/smart_image.dart';
