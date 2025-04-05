@@ -48,7 +48,7 @@ class HomeView extends GetView<HomeController> {
   /// 记录页面构建日志
   void _logBuild() {
     if (kDebugMode) {
-      print('主页视图构建 [$_tag:${DateTime.now()}]');
+      logger.i('主页视图构建 [$_tag:${DateTime.now()}]');
     }
   }
 
@@ -56,7 +56,7 @@ class HomeView extends GetView<HomeController> {
   void _logPageSwitch(int index) {
     if (kDebugMode) {
       final pages = ['文章页', '日记页', '设置页'];
-      print('切换到${pages[index]} [$_tag:${DateTime.now()}]');
+      logger.i('切换到${pages[index]} [$_tag:${DateTime.now()}]');
     }
   }
 }

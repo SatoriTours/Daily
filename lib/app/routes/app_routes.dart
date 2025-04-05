@@ -15,6 +15,7 @@ abstract class Routes {
   static const leftBar = '/left-bar';
   static const diary = '/diary';
   static const aiConfig = '/ai-config';
+  static const aiConfigEdit = '/ai-config-edit';
 }
 
 /// 应用程序路由名称
@@ -47,4 +48,7 @@ abstract class RouteNames {
 
   /// AI配置页面
   static const aiConfig = 'AIConfig';
+
+  /// AI配置编辑页面
+  static const aiConfigEdit = 'AIConfigEdit';
 }

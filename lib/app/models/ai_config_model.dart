@@ -87,14 +87,15 @@ class AIConfigModel {
   /// 获取功能类型名称
   String get functionTypeName {
     switch (functionType) {
+      case 0:
+        return "通用配置";
       case 1:
-        return "收藏文章总结";
+        return "文章总结";
       case 2:
         return "书本解读";
       case 3:
-        return "日记总结生成";
-      case 0:
-        return "通用配置";
+        return "日记总结";
+
       default:
         return "未知";
     }

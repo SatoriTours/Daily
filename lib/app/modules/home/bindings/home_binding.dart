@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
 import '../controllers/home_controller.dart';
@@ -27,14 +28,14 @@ class HomeBinding extends Binding {
     SettingsBinding().dependencies();
 
     if (kDebugMode) {
-      print('子模块依赖初始化完成 [$_tag:${DateTime.now()}]');
+      logger.i('子模块依赖初始化完成 [$_tag:${DateTime.now()}]');
     }
   }
 
   /// 记录绑定日志
   void _logBinding() {
     if (kDebugMode) {
-      print('主页模块依赖注入完成 [$_tag:${DateTime.now()}]');
+      logger.i('主页模块依赖注入完成 [$_tag:${DateTime.now()}]');
     }
   }
 }

@@ -1,11 +1,13 @@
 import 'package:daily_satori/app/models/models.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/repositories/ai_config_repository.dart';
+import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/ai_config_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:math' show min;
 
 /// AI配置控制器
 ///
@@ -27,19 +29,50 @@ class AIConfigController extends GetxController {
   /// 是否正在加载
   final RxBool isLoading = false.obs;
 
-  // MARK: - 表单控制器
+  /// 预设的API地址和模型名称
+  final List<Map<String, dynamic>> apiPresets = [
+    {
+      'name': 'OpenAI API',
+      'apiAddress': 'https://api.openai.com/v1',
+      'models': ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4-vision'],
+    },
+    {
+      'name': 'Azure OpenAI',
+      'apiAddress': 'https://{your-resource-name}.openai.azure.com',
+      'models': ['gpt-35-turbo', 'gpt-4', 'gpt-4-32k'],
+    },
+    {
+      'name': 'Anthropic API',
+      'apiAddress': 'https://api.anthropic.com',
+      'models': ['claude-2', 'claude-instant-1', 'claude-3-opus', 'claude-3-sonnet'],
+    },
+    {'name': '自定义', 'apiAddress': '', 'models': []},
+  ];
 
-  /// 配置名称输入控制器
-  final TextEditingController nameController = TextEditingController();
+  /// 当前选择的API预设索引
+  final RxInt selectedApiPresetIndex = 0.obs;
 
-  /// API地址输入控制器
-  final TextEditingController apiAddressController = TextEditingController();
+  /// 可用的模型列表（基于当前选择的API预设）
+  final RxList<String> availableModels = <String>[].obs;
 
-  /// API令牌输入控制器
-  final TextEditingController apiTokenController = TextEditingController();
+  /// 当前选择的模型索引
+  final RxInt selectedModelIndex = 0.obs;
 
-  /// 模型名称输入控制器
-  final TextEditingController modelNameController = TextEditingController();
+  /// 自定义API地址
+  final RxString customApiAddress = ''.obs;
+
+  /// 当前是否处于编辑模式（而非新建模式）
+  final RxBool isEditMode = false.obs;
+
+  /// 当前编辑的配置
+  AIConfigModel? currentEditingConfig;
+
+  // MARK: - 控制器
+  // 使用公开的控制器来供编辑页面访问
+  TextEditingController tempNameController = TextEditingController();
+  TextEditingController tempApiAddressController = TextEditingController();
+  TextEditingController tempApiTokenController = TextEditingController();
+  TextEditingController tempModelNameController = TextEditingController();
 
   /// 是否继承通用配置
   final RxBool inheritFromGeneralController = false.obs;
@@ -50,14 +83,63 @@ class AIConfigController extends GetxController {
   void onInit() {
     super.onInit();
     loadConfigs();
+    _initPresetListeners();
   }
 
+  /// 初始化预设监听器
+  void _initPresetListeners() {
+    // 监听API预设变化
+    ever(selectedApiPresetIndex, _handleApiPresetChange);
+
+    // 监听模型索引变化
+    ever(selectedModelIndex, _handleModelIndexChange);
+  }
+
+  /// 处理API预设变化
+  void _handleApiPresetChange(int index) {
+    if (index < 0 || index >= apiPresets.length || tempApiAddressController == null) {
+      return;
+    }
+
+    // 更新API地址
+    tempApiAddressController.text = apiPresets[index]['apiAddress'];
+
+    // 更新可用模型列表
+    if (index == apiPresets.length - 1) {
+      // 自定义API
+      availableModels.clear();
+    } else if (apiPresets[index]['models'] is List) {
+      // 有预设模型
+      availableModels.value = List<String>.from(apiPresets[index]['models']);
+      if (availableModels.isNotEmpty) {
+        selectedModelIndex.value = 0;
+        tempModelNameController?.text = availableModels[0];
+      }
+    }
+  }
+
+  /// 处理模型索引变化
+  void _handleModelIndexChange(int index) {
+    if (tempModelNameController == null || availableModels.isEmpty || index < 0 || index >= availableModels.length) {
+      return;
+    }
+
+    tempModelNameController.text = availableModels[index];
+  }
+
+  /// 当控制器被关闭时调用
   @override
   void onClose() {
-    nameController.dispose();
-    apiAddressController.dispose();
-    apiTokenController.dispose();
-    modelNameController.dispose();
+    // 清理控制器
+    tempNameController.dispose();
+    tempApiAddressController.dispose();
+    tempApiTokenController.dispose();
+    tempModelNameController.dispose();
+
+    // 清理可观察属性，避免内存泄漏
+    availableModels.clear();
+    configs.clear();
+
     super.onClose();
   }
 
@@ -89,32 +171,25 @@ class AIConfigController extends GetxController {
     return configs.where((config) => config.functionType == type).toList();
   }
 
-  /// 保存配置
+  /// 保存配置到列表
   ///
-  /// [config] 要保存的配置
-  /// 返回是否保存成功
-  Future<bool> saveConfig(AIConfigModel config) async {
-    try {
-      if (config.id == 0) {
-        // 新建配置
-        final id = AIConfigRepository.addAIConfig(config);
-        config.id = id;
-        configs.add(config);
-      } else {
-        // 更新配置
-        AIConfigRepository.updateAIConfig(config);
-        final index = configs.indexWhere((c) => c.id == config.id);
-        if (index >= 0) {
-          configs[index] = config;
-        }
-      }
+  /// 当从编辑页面返回时，更新本地列表数据
+  void updateConfigsList(dynamic result) {
+    if (result is Map<String, dynamic>) {
+      final action = result['action'];
+      final config = result['config'] as AIConfigModel?;
 
-      configs.refresh();
-      return true;
-    } catch (e, stackTrace) {
-      logger.e("[AI配置控制器] 保存配置失败: $e", stackTrace: stackTrace);
-      UIUtils.showError("保存配置失败: $e");
-      return false;
+      if (config != null) {
+        if (action == 'created') {
+          configs.add(config);
+        } else if (action == 'updated') {
+          final index = configs.indexWhere((c) => c.id == config.id);
+          if (index >= 0) {
+            configs[index] = config;
+          }
+        }
+        configs.refresh();
+      }
     }
   }
 
@@ -160,251 +235,28 @@ class AIConfigController extends GetxController {
     }
   }
 
-  // MARK: - UI相关方法
-
   /// 创建新配置
   Future<void> createNewConfig() async {
-    _resetForm();
-    inheritFromGeneralController.value = (selectedFunctionType.value != 0);
+    // 设置当前功能类型
+    final result = await Get.toNamed(Routes.aiConfigEdit, arguments: {'functionType': selectedFunctionType.value});
 
-    final result = await _showConfigDialog(
-      "新建${AIConfigService.i.getFunctionTypeName(selectedFunctionType.value)}配置",
-      _getTypeIcon(selectedFunctionType.value),
-    );
-
-    if (result == true) {
-      final config = AIConfigModel(
-        AIConfig(
-          name: nameController.text,
-          apiAddress: apiAddressController.text,
-          apiToken: apiTokenController.text,
-          modelName: modelNameController.text,
-          functionType: selectedFunctionType.value,
-          inheritFromGeneral: inheritFromGeneralController.value,
-        ),
-      );
-
-      final success = await saveConfig(config);
-      if (success) {
-        UIUtils.showSuccess("创建配置成功");
-      }
-    }
+    // 处理返回结果，更新列表
+    updateConfigsList(result);
   }
 
   /// 编辑配置
   ///
   /// [config] 要编辑的配置
   Future<void> editConfig(AIConfigModel config) async {
-    _fillForm(config);
+    // 传递配置到编辑页面
+    final result = await Get.toNamed(Routes.aiConfigEdit, arguments: {'config': config});
 
-    final result = await _showConfigDialog("编辑 ${config.name}", Icons.edit);
-
-    if (result == true) {
-      config
-        ..name = nameController.text
-        ..apiAddress = apiAddressController.text
-        ..apiToken = apiTokenController.text
-        ..modelName = modelNameController.text
-        ..inheritFromGeneral = inheritFromGeneralController.value;
-
-      final success = await saveConfig(config);
-      if (success) {
-        UIUtils.showSuccess("更新配置成功");
-      }
-    }
-  }
-
-  // MARK: - 私有辅助方法
-
-  /// 重置表单
-  void _resetForm() {
-    nameController.text = "";
-    apiAddressController.text = "";
-    apiTokenController.text = "";
-    modelNameController.text = "";
-  }
-
-  /// 填充表单
-  ///
-  /// [config] 用于填充表单的配置
-  void _fillForm(AIConfigModel config) {
-    nameController.text = config.name;
-    apiAddressController.text = config.apiAddress;
-    apiTokenController.text = config.apiToken;
-    modelNameController.text = config.modelName;
-    inheritFromGeneralController.value = config.inheritFromGeneral;
-  }
-
-  /// 显示配置对话框
-  ///
-  /// [title] 对话框标题
-  /// [icon] 对话框图标
-  Future<bool?> _showConfigDialog(String title, IconData icon) {
-    return Get.dialog<bool>(
-      Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          width: Get.width * 0.9,
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDialogHeader(title, icon),
-              const SizedBox(height: 24),
-              _buildDialogContent(),
-              const SizedBox(height: 32),
-              _buildDialogActions(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建对话框头部
-  Widget _buildDialogHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, color: Get.theme.colorScheme.primary, size: 24),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 构建对话框内容
-  Widget _buildDialogContent() {
-    return Column(
-      children: [
-        _buildTextField(controller: nameController, icon: Icons.title, label: "配置名称", hintText: "输入配置名称"),
-        const SizedBox(height: 16),
-        if (selectedFunctionType.value != 0) _buildInheritFromGeneralSwitch(),
-        const SizedBox(height: 16),
-        _buildTextField(
-          controller: apiAddressController,
-          icon: Icons.link,
-          label: "API地址",
-          hintText: "例如: https://api.openai.com/v1",
-        ),
-        const SizedBox(height: 16),
-        _buildTextField(
-          controller: apiTokenController,
-          icon: Icons.vpn_key,
-          label: "API令牌",
-          hintText: "输入API密钥",
-          isPassword: true,
-        ),
-        const SizedBox(height: 16),
-        _buildTextField(
-          controller: modelNameController,
-          icon: Icons.smart_toy,
-          label: "模型名称",
-          hintText: "例如: gpt-3.5-turbo",
-        ),
-      ],
-    );
-  }
-
-  /// 构建对话框按钮
-  Widget _buildDialogActions() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        TextButton(
-          onPressed: () => Get.back(result: false),
-          child: Text("取消", style: TextStyle(color: Get.theme.colorScheme.onSurface.withAlpha(179))),
-        ),
-        const SizedBox(width: 12),
-        ElevatedButton(
-          onPressed: () => Get.back(result: true),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Get.theme.colorScheme.primary,
-            foregroundColor: Get.theme.colorScheme.onPrimary,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: const Text("保存"),
-        ),
-      ],
-    );
-  }
-
-  /// 构建继承通用配置开关
-  Widget _buildInheritFromGeneralSwitch() {
-    return Obx(
-      () => Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => inheritFromGeneralController.value = !inheritFromGeneralController.value,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Get.theme.colorScheme.outline.withAlpha(77)),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.settings_backup_restore, color: Get.theme.colorScheme.primary, size: 22),
-                const SizedBox(width: 12),
-                const Expanded(child: Text("继承通用配置", style: TextStyle(fontSize: 16))),
-                Checkbox(
-                  value: inheritFromGeneralController.value,
-                  onChanged: (value) => inheritFromGeneralController.value = value ?? false,
-                  activeColor: Get.theme.colorScheme.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建表单输入框
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required IconData icon,
-    required String label,
-    required String hintText,
-    bool isPassword = false,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: isPassword,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hintText,
-        prefixIcon: Icon(icon),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Get.theme.colorScheme.outline.withAlpha(77)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Get.theme.colorScheme.outline.withAlpha(77)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Get.theme.colorScheme.primary, width: 2),
-        ),
-        filled: true,
-        fillColor: Get.theme.colorScheme.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      ),
-    );
+    // 处理返回结果，更新列表
+    updateConfigsList(result);
   }
 
   /// 获取类型图标
-  IconData _getTypeIcon(int type) {
+  IconData getTypeIcon(int type) {
     switch (type) {
       case 0:
         return Icons.settings;
@@ -426,13 +278,21 @@ class AIConfigController extends GetxController {
       final newConfig = config.clone();
 
       // 保存配置
-      final success = await saveConfig(newConfig);
-      if (success) {
-        UIUtils.showSuccess("克隆配置成功");
-      }
+      final id = AIConfigRepository.addAIConfig(newConfig);
+      newConfig.id = id;
+      configs.add(newConfig);
+      configs.refresh();
+
+      UIUtils.showSuccess("克隆配置成功");
     } catch (e, stackTrace) {
       logger.e("[AI配置控制器] 克隆配置失败: $e", stackTrace: stackTrace);
       UIUtils.showError("克隆配置失败: $e");
     }
+  }
+
+  /// 验证并保存配置
+  Future<bool> _validateAndSave() async {
+    // 实现验证逻辑
+    return true; // 临时返回，需要根据实际需求实现
   }
 }

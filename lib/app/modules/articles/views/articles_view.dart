@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:feather_icons/feather_icons.dart';
@@ -17,12 +18,9 @@ import 'widgets/article_calendar_dialog.dart';
 class ArticlesView extends GetView<ArticlesController> {
   const ArticlesView({super.key});
 
-  // 日志记录器
-  static final _logger = Logger(printer: PrettyPrinter(methodCount: 0));
-
   @override
   Widget build(BuildContext context) {
-    _logger.i('构建文章列表页面');
+    logger.i('构建文章列表页面');
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: _buildAppBar(context),
@@ -49,7 +47,7 @@ class ArticlesView extends GetView<ArticlesController> {
     return Obx(() {
       final bool shouldShowSearchBar = controller.isSearchVisible.value || controller.searchController.text.isNotEmpty;
       if (!shouldShowSearchBar) return const SizedBox.shrink();
-      _logger.d('显示搜索栏');
+      logger.d('显示搜索栏');
       return const ArticlesSearchBar();
     });
   }
@@ -59,7 +57,7 @@ class ArticlesView extends GetView<ArticlesController> {
     return Obx(() {
       if (!_shouldShowFilterIndicator()) return const SizedBox.shrink();
 
-      _logger.d('显示过滤指示器: ${controller.getTitle()}');
+      logger.d('显示过滤指示器: ${controller.getTitle()}');
       return _FilterIndicator(title: controller.getTitle(), onClear: controller.clearAllFilters);
     });
   }
@@ -68,7 +66,7 @@ class ArticlesView extends GetView<ArticlesController> {
   Widget _buildArticlesSection() {
     return Obx(() {
       if (controller.articles.isEmpty) {
-        _logger.d('文章列表为空，显示空状态');
+        logger.d('文章列表为空，显示空状态');
         return const Expanded(child: ArticlesEmptyView());
       }
       return const Expanded(child: ArticlesList());
@@ -101,7 +99,7 @@ class ArticlesView extends GetView<ArticlesController> {
     return IconButton(
       icon: const Icon(FeatherIcons.calendar, color: Colors.white, size: 20),
       onPressed: () {
-        _logger.d('打开日历对话框');
+        logger.d('打开日历对话框');
         _showCalendarDialog(context);
       },
     );
@@ -111,7 +109,7 @@ class ArticlesView extends GetView<ArticlesController> {
   Widget _buildAppBarTitle() {
     return GestureDetector(
       onDoubleTap: () {
-        _logger.d('双击标题，滚动到顶部');
+        logger.d('双击标题，滚动到顶部');
         _scrollToTop();
       },
       child: Obx(() => Text(controller.getTitle(), style: const TextStyle(fontSize: 18, color: Colors.white))),
@@ -124,7 +122,7 @@ class ArticlesView extends GetView<ArticlesController> {
       IconButton(
         icon: const Icon(FeatherIcons.search, color: Colors.white, size: 20),
         onPressed: () {
-          _logger.d('激活搜索');
+          logger.d('激活搜索');
           _activateSearch();
         },
       ),
@@ -147,7 +145,7 @@ class ArticlesView extends GetView<ArticlesController> {
 
   /// 处理菜单选择
   void _handleMenuSelection(String value, BuildContext context) {
-    _logger.d('选择菜单项: $value');
+    logger.d('选择菜单项: $value');
     switch (value) {
       case 'tags':
         _showTagsDialog(context);
@@ -198,7 +196,7 @@ class ArticlesView extends GetView<ArticlesController> {
 
   /// 显示标签选择对话框
   void _showTagsDialog(BuildContext context) {
-    _logger.d('显示标签对话框');
+    logger.d('显示标签对话框');
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -210,7 +208,7 @@ class ArticlesView extends GetView<ArticlesController> {
   /// 显示日历选择对话框
   void _showCalendarDialog(BuildContext context) {
     if (_shouldShowFilterIndicator()) {
-      _logger.d('清除现有过滤条件');
+      logger.d('清除现有过滤条件');
       controller.clearAllFilters();
     }
 

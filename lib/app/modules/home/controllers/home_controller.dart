@@ -30,14 +30,14 @@ class HomeController extends BaseController {
     currentIndex.value = index;
 
     if (kDebugMode) {
-      print('页面切换: $oldIndex -> $index [$_tag:${DateTime.now()}]');
+      logger.i('页面切换: $oldIndex -> $index [$_tag:${DateTime.now()}]');
     }
   }
 
   /// 记录页面初始化日志
   void _logPageInit() {
     if (kDebugMode) {
-      print('主页初始化完成 [$_tag:${DateTime.now()}]');
+      logger.i('主页初始化完成 [$_tag:${DateTime.now()}]');
     }
   }
 }

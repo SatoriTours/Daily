@@ -19,10 +19,7 @@ class AIConfigView extends GetView<AIConfigController> {
     return Scaffold(
       backgroundColor: AppTheme.getColorScheme(context).surface,
       appBar: _buildAppBar(context),
-      body: Column(
-        children: [_FunctionTypeSelector(controller: controller), Expanded(child: _ConfigList(controller: controller))],
-      ),
-      floatingActionButton: _buildFloatingActionButton(context),
+      body: _buildAllConfigsList(),
     );
   }
 
@@ -39,146 +36,62 @@ class AIConfigView extends GetView<AIConfigController> {
     );
   }
 
-  /// 构建悬浮按钮
-  Widget _buildFloatingActionButton(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-    return FloatingActionButton(
-      onPressed: controller.createNewConfig,
-      backgroundColor: colorScheme.primary,
-      foregroundColor: colorScheme.onPrimary,
-      child: const Icon(Icons.add),
-    );
-  }
-
   /// 显示AI配置信息对话框
   void _showInfoDialog(BuildContext context) {
     showDialog(context: context, builder: (context) => _InfoDialog());
   }
-}
 
-/// 功能类型选择器组件
-class _FunctionTypeSelector extends StatelessWidget {
-  final AIConfigController controller;
-
-  const _FunctionTypeSelector({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
-      decoration: BoxDecoration(
-        color: AppTheme.getColorScheme(context).surface,
-        boxShadow: [BoxShadow(color: Colors.black.withAlpha(13), blurRadius: 4, offset: const Offset(0, 2))],
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          children: const [
-            _TypeChip(type: 0, label: '通用配置', icon: Icons.settings),
-            SizedBox(width: 12),
-            _TypeChip(type: 1, label: '文章总结', icon: Icons.article),
-            SizedBox(width: 12),
-            _TypeChip(type: 2, label: '书本解读', icon: Icons.book),
-            SizedBox(width: 12),
-            _TypeChip(type: 3, label: '日记总结', icon: Icons.edit_note),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 功能类型选择片段组件
-class _TypeChip extends GetView<AIConfigController> {
-  final int type;
-  final String label;
-  final IconData icon;
-
-  const _TypeChip({required this.type, required this.label, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
+  /// 构建所有配置列表
+  Widget _buildAllConfigsList() {
     return Obx(() {
-      final isSelected = controller.selectedFunctionType.value == type;
-      return Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => controller.selectedFunctionType.value = type,
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color:
-                  isSelected ? colorScheme.primary : (isDark ? colorScheme.surface.withAlpha(77) : colorScheme.surface),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color:
-                    isSelected
-                        ? colorScheme.primary
-                        : (isDark ? colorScheme.onSurface.withAlpha(77) : colorScheme.outline.withAlpha(77)),
-                width: isSelected ? 1.5 : 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color:
-                      isSelected
-                          ? Colors.white
-                          : (isDark ? colorScheme.onSurface.withAlpha(204) : colorScheme.onSurface.withAlpha(153)),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color:
-                        isSelected
-                            ? Colors.white
-                            : (isDark ? colorScheme.onSurface.withAlpha(230) : colorScheme.onSurface.withAlpha(179)),
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+      if (controller.isLoading.value) {
+        return _buildLoadingState();
+      }
+
+      // 获取所有配置
+      final configs = controller.configs;
+      if (configs.isEmpty) {
+        return Center(
+          child: Text('没有配置', style: TextStyle(color: AppTheme.getColorScheme(Get.context!).onSurface.withAlpha(150))),
+        );
+      }
+
+      return ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildConfigsByType(0, Icons.settings),
+          _buildConfigsByType(1, Icons.article),
+          _buildConfigsByType(2, Icons.book),
+          _buildConfigsByType(3, Icons.edit_note),
+        ],
       );
     });
   }
-}
 
-/// 配置列表组件
-class _ConfigList extends StatelessWidget {
-  final AIConfigController controller;
+  /// 构建单个类型的配置列表
+  Widget _buildConfigsByType(int type, IconData icon) {
+    final configs = controller.getConfigsByType(type);
 
-  const _ConfigList({required this.controller});
+    if (configs.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 配置列表，直接显示卡片
+        ...configs.map((config) => _ConfigCard(config: config, controller: controller)),
 
-    return Obx(() {
-      if (controller.isLoading.value) {
-        return _buildLoadingState(colorScheme);
-      }
-
-      final configs = controller.getConfigsByType(controller.selectedFunctionType.value);
-      if (configs.isEmpty) {
-        return _buildEmptyState(context);
-      }
-
-      return _buildConfigListView(configs);
-    });
+        // 底部间距
+        const SizedBox(height: 16),
+      ],
+    );
   }
 
   /// 构建加载状态
-  Widget _buildLoadingState(ColorScheme colorScheme) {
+  Widget _buildLoadingState() {
+    final colorScheme = AppTheme.getColorScheme(Get.context!);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -188,49 +101,6 @@ class _ConfigList extends StatelessWidget {
           Text('加载配置中...', style: TextStyle(color: colorScheme.onSurface.withAlpha(153))),
         ],
       ),
-    );
-  }
-
-  /// 构建空状态
-  Widget _buildEmptyState(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.settings_outlined, size: 64, color: colorScheme.onSurface.withAlpha(51)),
-          const SizedBox(height: 16),
-          Text(
-            '没有配置',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colorScheme.onSurface.withAlpha(179)),
-          ),
-          const SizedBox(height: 8),
-          Text('点击下方按钮添加新配置', style: TextStyle(fontSize: 14, color: colorScheme.onSurface.withAlpha(128))),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: controller.createNewConfig,
-            icon: const Icon(Icons.add),
-            label: const Text('添加配置'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建配置列表视图
-  Widget _buildConfigListView(List<AIConfigModel> configs) {
-    return ListView.builder(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      itemCount: configs.length,
-      itemBuilder: (context, index) => _ConfigCard(config: configs[index], controller: controller),
     );
   }
 }
@@ -252,7 +122,10 @@ class _ConfigCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: isDark ? colorScheme.outline.withAlpha(51) : colorScheme.outline.withAlpha(26)),
+        side: BorderSide(
+          color: isDark ? colorScheme.outline.withAlpha(120) : colorScheme.outline.withAlpha(90),
+          width: 1.5,
+        ),
       ),
       child: InkWell(
         onTap: () => controller.editConfig(config),
@@ -264,24 +137,25 @@ class _ConfigCard extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  // 添加类型图标
+                  _getTypeIcon(config.functionType),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       config.name,
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
                     ),
                   ),
-                  _buildStatusChip(config.isDefault, colorScheme),
+                  // 添加向右箭头
+                  Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant.withAlpha(150), size: 20),
                 ],
               ),
               const SizedBox(height: 8),
               Text(
-                config.apiAddress.isEmpty ? '未设置API地址' : config.apiAddress,
+                config.apiAddress.isEmpty ? '未设置，继承通用配置' : config.apiAddress,
                 style: TextStyle(
                   fontSize: 14,
-                  color:
-                      config.apiAddress.isEmpty
-                          ? colorScheme.error.withAlpha(204)
-                          : colorScheme.onSurface.withAlpha(153),
+                  color: config.apiAddress.isEmpty ? colorScheme.onSurface.withAlpha(153) : colorScheme.onSurface,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -293,19 +167,27 @@ class _ConfigCard extends StatelessWidget {
     );
   }
 
-  /// 构建状态标签
-  Widget _buildStatusChip(bool isDefault, ColorScheme colorScheme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: isDefault ? colorScheme.primary.withAlpha(26) : colorScheme.error.withAlpha(26),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        isDefault ? '默认' : '未设为默认',
-        style: TextStyle(fontSize: 12, color: isDefault ? colorScheme.primary : colorScheme.error),
-      ),
-    );
+  // 获取类型图标
+  Widget _getTypeIcon(int type) {
+    IconData iconData;
+    switch (type) {
+      case 0:
+        iconData = Icons.settings;
+        break;
+      case 1:
+        iconData = Icons.article;
+        break;
+      case 2:
+        iconData = Icons.book;
+        break;
+      case 3:
+        iconData = Icons.edit_note;
+        break;
+      default:
+        iconData = Icons.settings;
+    }
+
+    return Icon(iconData, size: 18, color: AppTheme.getColorScheme(Get.context!).primary);
   }
 }
 

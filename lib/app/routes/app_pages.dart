@@ -2,6 +2,8 @@ import 'package:get/get.dart';
 
 import 'package:daily_satori/app/modules/ai_config/bindings/ai_config_binding.dart';
 import 'package:daily_satori/app/modules/ai_config/views/ai_config_view.dart';
+import 'package:daily_satori/app/modules/ai_config_edit/bindings/ai_config_edit_binding.dart';
+import 'package:daily_satori/app/modules/ai_config_edit/views/ai_config_edit_view.dart';
 import 'package:daily_satori/app/modules/article_detail/bindings/article_detail_binding.dart';
 import 'package:daily_satori/app/modules/article_detail/views/article_detail_view.dart';
 import 'package:daily_satori/app/modules/articles/bindings/articles_binding.dart';
@@ -57,6 +59,12 @@ class AppPages {
       name: Routes.aiConfig,
       page: () => const AIConfigView(),
       binding: AIConfigBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.aiConfigEdit,
+      page: () => const AIConfigEditView(),
+      binding: AIConfigEditBinding(),
       transition: Transition.rightToLeft,
     ),
   ];
