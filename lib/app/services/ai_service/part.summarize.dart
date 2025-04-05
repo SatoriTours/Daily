@@ -21,7 +21,7 @@ extension PartSummarize on AiService {
     logger.i("[AI摘要] 生成单行摘要中...");
 
     // 限制内容长度
-    final trimmedContent = getSubstring(content, length: 500);
+    final trimmedContent = StringUtils.getSubstring(content, length: 500);
 
     // 准备摘要提示
     final role = _renderTemplate(PluginService.i.getSummarizeOneLineRole(), {'text': trimmedContent});
@@ -92,7 +92,7 @@ extension PartSummarize on AiService {
 
     final List<String> tags = result.tags;
 
-    logger.i("[AI摘要] 摘要生成完成: ${getSubstring(summary)}");
+    logger.i("[AI摘要] 摘要生成完成: ${StringUtils.getSubstring(summary)}");
     logger.i("[AI摘要] 标签生成完成: $tags");
 
     return (summary, tags);

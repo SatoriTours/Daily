@@ -109,6 +109,8 @@ dependencies:
   # 分享
   # receive_sharing_intent: ^1.8.0
 
+  archive: ^3.4.10
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

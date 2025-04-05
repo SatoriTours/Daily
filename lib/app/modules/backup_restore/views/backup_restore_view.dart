@@ -13,44 +13,36 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('从备份恢复'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('从备份恢复'), centerTitle: true),
       body: Obx(() {
         return controller.backupList.isEmpty
             ? const Center(child: Text("暂无备份信息")) // 无数据时的提示
             : Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: controller.backupList.length,
-                      itemBuilder: (context, index) {
-                        return Obx(() {
-                          bool isSelected =
-                              controller.selectedBackupIndex.value ==
-                                  index; // 判断是否被选中
-                          return ListTile(
-                            title: Center(
-                                child: Text(
-                                    '${index + 1}. 备份时间: ${controller.getBackupTime(controller.backupList[index])}')),
-                            tileColor:
-                                isSelected ? Colors.blue : null, // 设置选中背景色为蓝色
-                            onTap: () {
-                              controller.selectedBackupIndex.value =
-                                  index; // 设置选中的索引
-                            },
-                          );
-                        });
-                      },
-                    ),
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: controller.backupList.length,
+                    itemBuilder: (context, index) {
+                      return Obx(() {
+                        bool isSelected = controller.selectedBackupIndex.value == index; // 判断是否被选中
+                        return ListTile(
+                          title: Center(
+                            child: Text(
+                              '${index + 1}. 备份时间: ${controller.getBackupTime(controller.backupList[index])}',
+                            ),
+                          ),
+                          tileColor: isSelected ? Colors.blue : null, // 设置选中背景色为蓝色
+                          onTap: () {
+                            controller.selectedBackupIndex.value = index; // 设置选中的索引
+                          },
+                        );
+                      });
+                    },
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: _buildRestoreButton(context),
-                  ),
-                ],
-              );
+                ),
+                Padding(padding: const EdgeInsets.all(16.0), child: _buildRestoreButton(context)),
+              ],
+            );
       }),
     );
   }
@@ -62,24 +54,17 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
         SizedBox(
           width: MediaQuery.of(context).size.width / 2, // 设置宽度为页面的一半
           child: TextButton(
-            style: TextButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
+            style: TextButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
             child: const Text("还原"),
             onPressed: () async {
               final result = await controller.restoreBackup();
               if (result) {
-                Get.snackbar('提示', '文件已还原',
-                    snackPosition: SnackPosition.top,
-                    backgroundColor: Colors.green);
+                Get.snackbar('提示', '文件已还原', snackPosition: SnackPosition.top, backgroundColor: Colors.green);
               } else {
-                Get.snackbar('提示', '文件不存在, 无法恢复',
-                    snackPosition: SnackPosition.top,
-                    backgroundColor: Colors.red);
+                Get.snackbar('提示', '文件不存在, 无法恢复', snackPosition: SnackPosition.top, backgroundColor: Colors.red);
               }
 
-              if (isProduction && result) {
+              if (AppInfoUtils.isProduction && result) {
                 Get.defaultDialog(
                   title: "重启应用",
                   middleText: "点击确定, 重启应用",

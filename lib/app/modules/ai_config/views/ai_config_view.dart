@@ -185,7 +185,7 @@ class _ConfigList extends StatelessWidget {
         children: [
           CircularProgressIndicator(color: colorScheme.primary),
           const SizedBox(height: 16),
-          Text('加载配置中...', style: TextStyle(color: colorScheme.onBackground.withAlpha(153))),
+          Text('加载配置中...', style: TextStyle(color: colorScheme.onSurface.withAlpha(153))),
         ],
       ),
     );
@@ -199,14 +199,14 @@ class _ConfigList extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.settings_outlined, size: 64, color: colorScheme.onBackground.withAlpha(51)),
+          Icon(Icons.settings_outlined, size: 64, color: colorScheme.onSurface.withAlpha(51)),
           const SizedBox(height: 16),
           Text(
             '没有配置',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colorScheme.onBackground.withAlpha(179)),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colorScheme.onSurface.withAlpha(179)),
           ),
           const SizedBox(height: 8),
-          Text('点击下方按钮添加新配置', style: TextStyle(fontSize: 14, color: colorScheme.onBackground.withAlpha(128))),
+          Text('点击下方按钮添加新配置', style: TextStyle(fontSize: 14, color: colorScheme.onSurface.withAlpha(128))),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: controller.createNewConfig,

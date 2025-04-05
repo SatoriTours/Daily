@@ -1,16 +1,11 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/modules/article_detail/controllers/article_detail_controller.dart';
-import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app/utils/string_utils.dart';
-import 'package:daily_satori/app/utils/ui_utils.dart';
-import 'package:daily_satori/global.dart';
-import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class ArticleDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
   final ArticleDetailController controller;

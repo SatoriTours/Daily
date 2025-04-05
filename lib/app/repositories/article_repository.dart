@@ -468,7 +468,7 @@ class ArticleRepository {
   static Future<int> create(ArticleModel articleModel) async {
     try {
       final id = await _box.putAsync(articleModel.entity);
-      logger.i("文章已保存: ${firstLine(articleModel.title ?? '')}");
+      logger.i("文章已保存: ${StringUtils.firstLine(articleModel.title ?? '')}");
       return id;
     } catch (e) {
       logger.e("[保存文章失败] $e");
@@ -480,7 +480,7 @@ class ArticleRepository {
   static Future<int> update(ArticleModel articleModel) async {
     try {
       final id = await _box.putAsync(articleModel.entity);
-      logger.i("文章已更新: ${firstLine(articleModel.title ?? '')}");
+      logger.i("文章已更新: ${StringUtils.firstLine(articleModel.title ?? '')}");
       return id;
     } catch (e) {
       logger.e("[更新文章失败] $e");

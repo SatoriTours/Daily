@@ -10,6 +10,7 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:daily_satori/app/utils/ui_utils.dart';
 
 class SettingsController extends GetxController {
   final webServiceAddress = ''.obs;
@@ -51,7 +52,7 @@ class SettingsController extends GetxController {
     // 检查是否有权限
     final manageExternalStoragePermission = await Permission.manageExternalStorage.request();
     if (!manageExternalStoragePermission.isGranted) {
-      errorNotice('请授予应用管理外部存储的权限');
+      UIUtils.showError('请授予应用管理外部存储的权限');
       return;
     }
 

@@ -7,8 +7,6 @@ import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/webpage_parser_service.dart';
-import 'package:daily_satori/app/utils/app_info_utils.dart';
-import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:daily_satori/global.dart';
 
 /// 分享对话框控制器

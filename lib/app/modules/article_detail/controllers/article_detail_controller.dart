@@ -74,6 +74,7 @@ class ArticleDetailController extends BaseController {
     await ArticleRepository.update(articleModel);
 
     logger.i("Markdown内容生成并保存成功");
+    UIUtils.showSuccess('保存成功');
   }
 
   /// 获取文章内容图片列表(不含主图)
@@ -102,7 +103,7 @@ class ArticleDetailController extends BaseController {
   Future<void> shareScreenshots() async {
     final screenshots = getArticleScreenshots();
     if (screenshots.isEmpty) {
-      successNotice("没有网页截图可以分享");
+      UIUtils.showSuccess("没有网页截图可以分享");
       return;
     }
 

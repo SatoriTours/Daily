@@ -428,7 +428,7 @@ class WebpageParserService with WidgetsBindingObserver {
     final updatedArticle = ArticleRepository.find(articleId);
     final isComplete = updatedArticle != null && _isArticleContentComplete(updatedArticle);
 
-    logger.i("[网页解析][AI] ◀ AI处理完成 #$articleId: 成功=${allTasksSucceeded}, 完整=${isComplete}");
+    logger.i("[网页解析][AI] ◀ AI处理完成 #$articleId: 成功=$allTasksSucceeded, 完整=$isComplete");
     return isComplete;
   }
 

@@ -10,6 +10,7 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
+import 'package:daily_satori/app/utils/app_info_utils.dart';
 
 class BackupService {
   // 单例模式
@@ -24,7 +25,7 @@ class BackupService {
   // Getters
   String get backupDir => SettingRepository.getSetting(SettingService.backupDirKey);
   File get backupTimeFile => File(path.join(backupDir, 'backup_time.txt'));
-  int get _backupInterval => isProduction ? _productionBackupInterval : _developmentBackupInterval;
+  int get _backupInterval => AppInfoUtils.isProduction ? _productionBackupInterval : _developmentBackupInterval;
 
   // 初始化服务
   Future<void> init() async {

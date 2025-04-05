@@ -2,7 +2,6 @@ import 'package:get/get.dart';
 import 'package:open_file/open_file.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/global.dart';
@@ -31,12 +30,12 @@ class AppUpgradeService {
 
   // 检查并下载新版本(带UI提示)
   Future<void> checkAndDownload() async {
-    showFullScreenLoading();
+    UIUtils.showLoading();
     try {
       if (await check()) {
         await _downAndInstallApp();
       } else {
-        successNotice('当前已是最新版本');
+        UIUtils.showSuccess('当前已是最新版本');
       }
     } finally {
       Get.close();
@@ -74,18 +73,18 @@ class AppUpgradeService {
 
   // 下载并安装新版本
   Future<void> _downAndInstallApp() async {
-    if (!needUpgrade || !isProduction) return;
+    if (!needUpgrade || !AppInfoUtils.isProduction) return;
 
-    await showConfirmationDialog(
-      '检测到新版本',
-      '当前版本 [$_currentVersion], 最新版本 [$_latestVersion]\n请确认是否下载更新',
-      onConfirmed: () async {
+    await DialogUtils.showConfirm(
+      title: '检测到新版本',
+      message: '当前版本 [$_currentVersion], 最新版本 [$_latestVersion]\n请确认是否下载更新',
+      onConfirm: () async {
         if (!await _requestInstallPermission()) {
-          errorNotice('需要安装权限才能继续');
+          UIUtils.showError('需要安装权限才能继续');
           return;
         }
 
-        showFullScreenLoading();
+        UIUtils.showLoading();
         try {
           final appFilePath = await HttpService.i.downloadFile(_downloadURL);
           logger.i("下载文件到: $appFilePath");
@@ -96,7 +95,7 @@ class AppUpgradeService {
           }
         } catch (e) {
           logger.e("下载或安装失败: $e");
-          errorNotice("更新失败，请稍后重试");
+          UIUtils.showError("更新失败，请稍后重试");
         } finally {
           Get.close();
         }
@@ -106,7 +105,7 @@ class AppUpgradeService {
 
   // 获取当前版本号
   Future<void> _getCurrentVersion() async {
-    _currentVersion = await getAppVersion();
+    _currentVersion = await AppInfoUtils.getVersion();
   }
 
   // 从Github获取最新版本信息

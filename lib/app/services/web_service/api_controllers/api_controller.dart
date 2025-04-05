@@ -152,7 +152,7 @@ class ApiController {
 
   /// 创建带错误处理的管道
   Handler createHandler() {
-    return const Pipeline().addMiddleware(_errorHandler()).addHandler(router);
+    return const Pipeline().addMiddleware(_errorHandler()).addHandler(router.call);
   }
 
   /// 错误处理中间件

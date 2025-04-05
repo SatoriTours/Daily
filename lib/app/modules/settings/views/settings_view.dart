@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
 
-import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 
@@ -75,7 +74,7 @@ class SettingsView extends GetView<SettingsController> {
                   subtitle: '管理AI模型配置，优化摘要、内容解读和日记生成',
                   icon: Icons.smart_toy_rounded,
                   iconBackground: Colors.blue,
-                  onTap: () => Get.toNamed(Routes.AI_CONFIG),
+                  onTap: () => Get.toNamed('/ai-config'),
                 ),
                 _SettingItem(
                   title: '插件中心',

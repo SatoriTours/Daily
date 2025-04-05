@@ -89,7 +89,7 @@ class LeftBarView extends GetView<LeftBarController> {
               context,
               icon: Icons.settings,
               label: '设置',
-              onPressed: () => Get.toNamed(Routes.SETTINGS),
+              onPressed: () => Get.toNamed('/settings'),
             ),
           ),
         ],

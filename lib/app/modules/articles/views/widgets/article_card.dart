@@ -1,14 +1,10 @@
-import 'package:daily_satori/app/repositories/article_repository.dart';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:get_time_ago/get_time_ago.dart';
 import 'package:logger/logger.dart';
 
-import 'package:daily_satori/app/routes/app_pages.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
+import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/components/smart_image.dart';
-import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
 
 import 'article_info_item.dart';
 import 'article_action_bar.dart';
@@ -153,7 +149,7 @@ class ArticleCard extends GetView<ArticlesController> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          ArticleInfoItem(icon: Icons.public, text: getTopLevelDomain(url.host)),
+          ArticleInfoItem(icon: Icons.public, text: StringUtils.getTopLevelDomain(url.host)),
           const SizedBox(width: 12),
           ArticleInfoItem(
             icon: Icons.access_time,

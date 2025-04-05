@@ -1,6 +1,5 @@
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-import 'package:objectbox/objectbox.dart';
 
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';

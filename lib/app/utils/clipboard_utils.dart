@@ -1,5 +1,4 @@
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
 import 'package:daily_satori/app_exports.dart';
 
 /// 剪贴板工具类

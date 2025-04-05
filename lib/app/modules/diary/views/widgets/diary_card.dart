@@ -159,7 +159,6 @@ class _DiaryCardState extends State<DiaryCard> {
             fitContent: true,
             shrinkWrap: true,
             imageBuilder: (Uri uri, String? title, String? alt) {
-              // 处理Markdown中的图片
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: ClipRRect(

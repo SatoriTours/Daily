@@ -9,6 +9,7 @@ import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/ai_config_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:template_expressions/template_expressions.dart';
+import 'package:daily_satori/app/utils/string_utils.dart';
 
 part 'part.translate.dart';
 part 'part.summarize.dart';
@@ -72,7 +73,7 @@ class AiService {
 
     try {
       // 限制内容长度
-      final trimmedContent = getSubstring(content, length: _maxContentLength);
+      final trimmedContent = StringUtils.getSubstring(content, length: _maxContentLength);
 
       // 获取模型
       final modelName = _getModelNameForFunction(functionType);
