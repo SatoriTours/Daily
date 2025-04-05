@@ -56,7 +56,12 @@ class AppPages {
       binding: ArticleDetailBinding(),
       transition: Transition.topLevel,
     ),
-    GetPage(name: Routes.backupRestore, page: () => const BackupRestoreView(), binding: BackupRestoreBinding()),
+    GetPage(
+      name: Routes.backupRestore,
+      page: () => const BackupRestoreView(),
+      binding: BackupRestoreBinding(),
+      transition: Transition.rightToLeft,
+    ),
     GetPage(
       name: Routes.backupSettings,
       page: () => const BackupSettingsView(),

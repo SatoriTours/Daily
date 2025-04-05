@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:logger/logger.dart';
@@ -12,15 +13,12 @@ import 'article_card.dart';
 class ArticlesList extends GetView<ArticlesController> {
   const ArticlesList({super.key});
 
-  // 日志记录器
-  static final _logger = Logger(printer: PrettyPrinter(methodCount: 0));
-
   @override
   Widget build(BuildContext context) {
-    _logger.d('构建文章列表组件');
+    logger.d('构建文章列表组件');
     return RefreshIndicator(
       onRefresh: () async {
-        _logger.i('下拉刷新文章列表');
+        logger.i('下拉刷新文章列表');
         await controller.reloadArticles();
       },
       color: AppTheme.getColorScheme(context).primary,
@@ -32,7 +30,7 @@ class ArticlesList extends GetView<ArticlesController> {
   Widget _buildListView() {
     return Obx(() {
       final itemCount = _calculateItemCount();
-      _logger.d('文章列表项数量: $itemCount');
+      logger.d('文章列表项数量: $itemCount');
 
       return ListView.builder(
         controller: controller.scrollController,
@@ -61,7 +59,7 @@ class ArticlesList extends GetView<ArticlesController> {
 
   /// 构建加载指示器
   Widget _buildLoadingIndicator(BuildContext context) {
-    _logger.d('显示加载指示器');
+    logger.d('显示加载指示器');
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 

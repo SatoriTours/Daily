@@ -16,12 +16,9 @@ class ArticleCard extends GetView<ArticlesController> {
 
   const ArticleCard({super.key, required this.articleModel});
 
-  // 日志记录器
-  static final _logger = Logger(printer: PrettyPrinter(methodCount: 0));
-
   @override
   Widget build(BuildContext context) {
-    _logger.d('构建文章卡片: ${articleModel.id}');
+    logger.d('构建文章卡片: ${articleModel.id}');
 
     return Card(
       margin: EdgeInsets.zero,
@@ -50,7 +47,7 @@ class ArticleCard extends GetView<ArticlesController> {
   Widget _buildMainContent(BuildContext context, bool isProcessing) {
     return InkWell(
       onTap: () {
-        _logger.d('点击文章卡片: ${articleModel.id}');
+        logger.d('点击文章卡片: ${articleModel.id}');
         Get.toNamed(Routes.articleDetail, arguments: articleModel);
       },
       borderRadius: BorderRadius.circular(10),
