@@ -1,12 +1,13 @@
 import 'package:daily_satori/app/styles/colors.dart';
 import 'package:flutter/material.dart';
-
 import 'package:get/get.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 
 import '../controllers/settings_controller.dart';
+import 'package:daily_satori/app/routes/app_pages.dart';
 
 /// 设置页面
 /// 包含三个主要部分：
@@ -81,7 +82,7 @@ class SettingsView extends GetView<SettingsController> {
                   subtitle: '管理扩展插件与订阅源',
                   icon: Icons.extension_rounded,
                   iconBackground: Colors.deepPurple,
-                  onTap: () => _showPluginDialog(context),
+                  onTap: () => Get.toNamed(Routes.pluginCenter),
                 ),
               ],
             ),
@@ -157,10 +158,6 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   // 对话框显示方法
-  void _showPluginDialog(BuildContext context) {
-    // TODO: 实现插件管理对话框
-  }
-
   void _showBackupDialog(BuildContext context) {
     // TODO: 实现备份恢复对话框
   }

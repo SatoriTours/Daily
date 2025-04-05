@@ -16,6 +16,8 @@ import 'package:daily_satori/app/modules/home/bindings/home_binding.dart';
 import 'package:daily_satori/app/modules/home/views/home_view.dart';
 import 'package:daily_satori/app/modules/left_bar/bindings/left_bar_binding.dart';
 import 'package:daily_satori/app/modules/left_bar/views/left_bar_view.dart';
+import 'package:daily_satori/app/modules/plugin_center/bindings/plugin_center_binding.dart';
+import 'package:daily_satori/app/modules/plugin_center/views/plugin_center_view.dart';
 import 'package:daily_satori/app/modules/settings/bindings/settings_binding.dart';
 import 'package:daily_satori/app/modules/settings/views/settings_view.dart';
 import 'package:daily_satori/app/modules/share_dialog/bindings/share_dialog_binding.dart';
@@ -65,6 +67,12 @@ class AppPages {
       name: Routes.aiConfigEdit,
       page: () => const AIConfigEditView(),
       binding: AIConfigEditBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.pluginCenter,
+      page: () => const PluginCenterView(),
+      binding: PluginCenterBinding(),
       transition: Transition.rightToLeft,
     ),
   ];

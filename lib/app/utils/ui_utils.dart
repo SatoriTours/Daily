@@ -20,6 +20,21 @@ class UIUtils {
     Get.snackbar(title, content, snackPosition: SnackPosition.top, backgroundColor: Colors.red);
   }
 
+  /// 显示通用提示条
+  static void showSnackBar(String title, String message, {bool isError = false, Duration? duration}) {
+    Get.snackbar(
+      title,
+      message,
+      snackPosition: SnackPosition.top,
+      backgroundColor: isError ? Colors.red.withOpacity(0.8) : Colors.green.withOpacity(0.8),
+      colorText: Colors.white,
+      duration: duration ?? const Duration(seconds: 3),
+      margin: const EdgeInsets.all(8),
+      borderRadius: 8,
+      icon: Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white),
+    );
+  }
+
   /// 显示全屏加载提示
   static void showLoading({String tips = '', Color barrierColor = Colors.transparent}) {
     final context = Get.context;

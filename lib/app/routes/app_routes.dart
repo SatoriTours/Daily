@@ -16,6 +16,7 @@ abstract class Routes {
   static const diary = '/diary';
   static const aiConfig = '/ai-config';
   static const aiConfigEdit = '/ai-config-edit';
+  static const pluginCenter = '/plugin-center';
 }
 
 /// 应用程序路由名称
@@ -51,4 +52,7 @@ abstract class RouteNames {
 
   /// AI配置编辑页面
   static const aiConfigEdit = 'AIConfigEdit';
+
+  /// 插件中心页面
+  static const pluginCenter = 'PluginCenter';
 }

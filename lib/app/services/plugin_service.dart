@@ -150,7 +150,7 @@ class PluginService {
 
   /// 更新所有配置文件
   Future<void> _updateAllConfigs() async {
-    final String baseUrl = SettingRepository.getSetting(SettingService.pluginKey);
+    final String baseUrl = getPluginServerUrl();
     if (baseUrl.isEmpty) {
       logger.w('更新配置: 服务器地址未设置 - 已跳过');
       return;
@@ -175,6 +175,9 @@ class PluginService {
         configFile.yamlContent = loadYaml(response.trim()) as YamlMap;
         _configCache[fileName] = response.trim();
 
+        // 更新最后更新时间
+        await _updateLastUpdateTime(fileName);
+
         logger.i('更新配置: $fileName - 从服务器成功更新');
         _parseConfigFile(configFile);
       }
@@ -187,6 +190,91 @@ class PluginService {
         await SettingRepository.saveSetting(_makePluginKey(fileName), localContent);
         logger.i('更新配置: $fileName - 已使用本地备份');
       }
+    }
+  }
+
+  /// 获取插件服务器URL
+  String getPluginServerUrl() {
+    return SettingRepository.getSetting(SettingService.pluginKey);
+  }
+
+  /// 设置插件服务器URL
+  Future<void> setPluginServerUrl(String url) async {
+    await SettingRepository.saveSetting(SettingService.pluginKey, url);
+  }
+
+  /// 更新最后更新时间
+  Future<void> _updateLastUpdateTime(String fileName) async {
+    final timeKey = '${_makePluginKey(fileName)}_last_update';
+    final now = DateTime.now().toIso8601String();
+    await SettingRepository.saveSetting(timeKey, now);
+  }
+
+  /// 获取最后更新时间
+  DateTime? getLastUpdateTime(String fileName) {
+    final timeKey = '${_makePluginKey(fileName)}_last_update';
+    final timeStr = SettingRepository.getSetting(timeKey);
+    if (timeStr.isEmpty) return null;
+
+    try {
+      return DateTime.parse(timeStr);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// 获取所有插件信息
+  List<PluginInfo> getAllPlugins() {
+    return _configFiles.map((file) {
+      final lastUpdate = getLastUpdateTime(file.name);
+
+      // 尝试获取描述
+      String description = '';
+      if (file.yamlContent != null && file.yamlContent!.containsKey('description')) {
+        description = file.yamlContent!['description'] as String? ?? '';
+      }
+
+      return PluginInfo(
+        fileName: file.name,
+        description: description.isNotEmpty ? description : _getDefaultDescription(file.name),
+        lastUpdateTime: lastUpdate,
+      );
+    }).toList();
+  }
+
+  /// 获取插件默认描述
+  String _getDefaultDescription(String fileName) {
+    switch (fileName) {
+      case 'ai_prompts.yaml':
+        return 'AI提示词配置，包含翻译、摘要等角色提示';
+      case 'ai_models.yaml':
+        return 'AI模型配置，包含各种AI服务提供商的预设';
+      default:
+        return '插件配置文件';
+    }
+  }
+
+  /// 强制更新单个插件
+  Future<bool> forceUpdatePlugin(String fileName) async {
+    try {
+      // 查找配置文件
+      final configFile = _configFiles.firstWhere(
+        (file) => file.name == fileName,
+        orElse: () => throw Exception('找不到插件配置: $fileName'),
+      );
+
+      // 获取服务器URL
+      final baseUrl = getPluginServerUrl();
+      if (baseUrl.isEmpty) {
+        throw Exception('插件服务器地址未设置');
+      }
+
+      // 执行更新
+      await _updateConfig(configFile, baseUrl);
+      return true;
+    } catch (e) {
+      logger.e('强制更新插件失败: $fileName | $e');
+      return false;
     }
   }
 
@@ -225,6 +313,15 @@ class PluginService {
     // 如果从设置获取失败，使用本地预设
     return _apiPresets;
   }
+}
+
+/// 插件信息类 - 表示单个插件的信息
+class PluginInfo {
+  final String fileName; // 文件名
+  final String description; // 描述
+  final DateTime? lastUpdateTime; // 最后更新时间
+
+  PluginInfo({required this.fileName, required this.description, this.lastUpdateTime});
 }
 
 /// API提供商预设模型
