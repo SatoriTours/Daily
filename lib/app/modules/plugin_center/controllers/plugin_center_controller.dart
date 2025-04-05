@@ -71,31 +71,35 @@ class PluginCenterController extends GetxController {
 
   /// 更新所有插件
   Future<bool> updateAllPlugins() async {
-    isLoading.value = true;
-
     try {
       // 获取所有插件文件名
       final pluginNames = plugins.map((p) => p.fileName).toList();
 
-      // 逐个更新插件
+      // 逐个更新插件，但不设置全局加载状态
       bool allSuccess = true;
       for (final name in pluginNames) {
         updatingPlugin.value = name;
+
+        // 更新单个插件，并等待完成
         final success = await PluginService.i.forceUpdatePlugin(name);
         if (!success) {
           allSuccess = false;
         }
+
+        // 短暂延迟，让用户能看到完成状态
+        await Future.delayed(const Duration(milliseconds: 300));
       }
 
-      // 重新加载插件数据
+      // 更新完成后重新加载插件数据
+      updatingPlugin.value = '';
       await loadPluginData();
       return allSuccess;
     } catch (e) {
       logger.e("更新所有插件失败: $e");
       return false;
     } finally {
+      // 确保清除更新状态
       updatingPlugin.value = '';
-      isLoading.value = false;
     }
   }
 
