@@ -19,18 +19,21 @@ class ArticlesEmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildIconContainer(context),
-          const SizedBox(height: 24),
-          _buildTitle(context),
-          const SizedBox(height: 12),
-          _buildSubtitle(context),
-          const SizedBox(height: 32),
-        ],
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildIconContainer(context),
+            const SizedBox(height: 24),
+            _buildTitle(context),
+            const SizedBox(height: 12),
+            _buildSubtitle(context),
+            const SizedBox(height: 32),
+          ],
+        ),
       ),
     );
   }
