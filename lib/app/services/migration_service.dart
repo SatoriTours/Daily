@@ -83,10 +83,7 @@ class MigrationService {
           Settings.getValue<String>(SettingService.openAIAddressKey) ??
           SettingService.defaultSettings[SettingService.openAIAddressKey] ??
           '',
-      'modelName':
-          Settings.getValue<String>(SettingService.aiModelKey) ??
-          SettingService.defaultSettings[SettingService.aiModelKey] ??
-          '',
+      'modelName': Settings.getValue<String>('ai_model') ?? SettingService.defaultSettings['ai_model'] ?? '',
     };
   }
 
@@ -99,7 +96,7 @@ class MigrationService {
     // 如果所有设置都为空或为默认值，则不需要迁移
     return !(apiToken.isEmpty &&
         (apiAddress.isEmpty || apiAddress == SettingService.defaultSettings[SettingService.openAIAddressKey]) &&
-        (modelName.isEmpty || modelName == SettingService.defaultSettings[SettingService.aiModelKey]));
+        (modelName.isEmpty || modelName == SettingService.defaultSettings['ai_model']));
   }
 
   /// 获取或创建通用AI配置
@@ -139,7 +136,7 @@ class MigrationService {
       generalConfig.apiAddress = apiAddress;
     }
 
-    if (modelName.isNotEmpty && modelName != SettingService.defaultSettings[SettingService.aiModelKey]) {
+    if (modelName.isNotEmpty && modelName != SettingService.defaultSettings['ai_model']) {
       generalConfig.modelName = modelName;
     }
 
@@ -152,7 +149,7 @@ class MigrationService {
     logger.i("🔄 [迁移服务] 清除旧AI配置数据");
     SettingRepository.removeSetting(SettingService.openAITokenKey);
     SettingRepository.removeSetting(SettingService.openAIAddressKey);
-    SettingRepository.removeSetting(SettingService.aiModelKey);
+    SettingRepository.removeSetting('ai_model');
   }
 
   //====================

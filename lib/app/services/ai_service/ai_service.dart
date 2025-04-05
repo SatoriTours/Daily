@@ -26,9 +26,6 @@ class AiService {
 
   // MARK: - 私有属性
 
-  /// 当前使用的AI模型名称
-  String _defaultModelName = 'gpt-4o-mini';
-
   /// 默认温度值（控制输出随机性）
   static const double _defaultTemperature = 0.5;
 
@@ -40,7 +37,6 @@ class AiService {
   /// 初始化AI服务
   Future<void> init() async {
     logger.i("[AI服务] 初始化");
-    _updateDefaultModel();
     logger.i('AI服务初始化完成');
   }
 
@@ -132,22 +128,10 @@ class AiService {
     }
   }
 
-  /// 从设置更新默认AI模型
-  void _updateDefaultModel() {
-    final modelName = SettingRepository.getSetting(SettingService.aiModelKey);
-    _defaultModelName = modelName.isEmpty ? 'deepseek-v3' : modelName;
-  }
-
   /// 获取特定功能的模型名称
   String _getModelNameForFunction(int functionType) {
     // 尝试从AI配置服务获取特定功能的模型名称
     final modelName = AIConfigService.i.getModelNameForFunction(functionType);
-
-    // 如果特定功能没有配置模型名称，则使用默认模型
-    if (modelName.isEmpty) {
-      return _defaultModelName;
-    }
-
     return modelName;
   }
 

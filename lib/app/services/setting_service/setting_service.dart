@@ -18,7 +18,6 @@ class SettingService {
   // MARK: - 设置键常量
   static String openAITokenKey = 'openai_token';
   static String openAIAddressKey = 'openai_address';
-  static String aiModelKey = 'ai_model';
   static String backupDirKey = 'backup_dir';
   static String pluginKey = 'plugin_url';
   static String webServerPasswordKey = 'web_server_password';
@@ -29,7 +28,6 @@ class SettingService {
   static Map<String, String> defaultSettings = {
     openAITokenKey: '',
     openAIAddressKey: 'https://api.openai.com/v1',
-    aiModelKey: 'deepseek-v3',
     backupDirKey: '',
     pluginKey: 'https://raw.githubusercontent.com/SatoriTours/plugin/refs/heads/main',
     webServerPasswordKey: RandomUtils.generateRandomPassword(),
