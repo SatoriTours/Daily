@@ -18,7 +18,7 @@ import 'package:daily_satori/app/styles/app_theme.dart';
 ///   tooltip: '编辑',
 /// )
 /// ```
-class ActionButton extends StatelessWidget {
+class ActionIconButton extends StatelessWidget {
   /// 按钮图标
   final IconData icon;
 
@@ -47,7 +47,14 @@ class ActionButton extends StatelessWidget {
   /// [color] 自定义颜色，可选
   /// [size] 图标大小，默认为 16
   /// [tooltip] 工具提示文本，可选
-  const ActionButton({super.key, required this.icon, required this.onTap, this.color, this.size = 16, this.tooltip});
+  const ActionIconButton({
+    super.key,
+    required this.icon,
+    required this.onTap,
+    this.color,
+    this.size = 16,
+    this.tooltip,
+  });
 
   @override
   Widget build(BuildContext context) {

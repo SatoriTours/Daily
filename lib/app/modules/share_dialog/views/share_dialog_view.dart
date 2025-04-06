@@ -1,10 +1,12 @@
-import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:daily_satori/app/modules/share_dialog/controllers/share_dialog_controller.dart';
-
-import '../../../styles/index.dart';
+import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/components/buttons/app_button.dart';
+import 'package:daily_satori/app/components/buttons/button_group.dart';
+import 'package:daily_satori/app/components/common/labeled_section.dart';
+import 'package:daily_satori/app/components/inputs/comment_field.dart';
 
 /// 分享页面视图
 /// 用于保存链接或添加/更新文章备注信息
@@ -14,19 +16,18 @@ class ShareDialogView extends GetView<ShareDialogController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: _buildAppBar(),
+      appBar: _buildAppBar(context),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          padding: Dimensions.paddingPage,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildSpacer(),
-              _buildArticleInfo(),
-              _buildSpacer(),
-              _buildCommentSection(),
-              _buildSpacer(),
-              _buildSaveButton(),
+              _buildArticleInfo(context),
+              Dimensions.verticalSpacerL,
+              _buildCommentSection(context),
+              Dimensions.verticalSpacerL,
+              _buildSaveButton(context),
             ],
           ),
         ),
@@ -34,128 +35,74 @@ class ShareDialogView extends GetView<ShareDialogController> {
     );
   }
 
-  Widget _buildSpacer({double height = 24}) {
-    return SizedBox(height: height);
-  }
-
   // 构建顶部应用栏
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      title: Text(controller.isUpdate.value ? '更新文章' : '保存链接', style: MyFontStyle.appBarTitleStyle),
+      title: Obx(() => Text(controller.isUpdate.value ? '更新文章' : '保存链接', style: MyFontStyle.appBarTitleStyle)),
       automaticallyImplyLeading: !controller.isUpdate.value,
     );
   }
 
   // 构建文章信息区域
-  Widget _buildArticleInfo() {
-    if (controller.isUpdate.value) {
-      return _buildArticleTitle();
-    } else {
-      return _buildArticleURL();
-    }
+  Widget _buildArticleInfo(BuildContext context) {
+    return Obx(() {
+      if (controller.isUpdate.value) {
+        return _buildArticleTitle(context);
+      } else {
+        return _buildArticleURL(context);
+      }
+    });
   }
 
   // 构建文章标题区域
-  Widget _buildArticleTitle() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.article_outlined, size: 18),
-        _buildSpacer(height: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("文章标题", style: MyFontStyle.bodyLarge),
-              _buildSpacer(height: 4),
-              Text(
-                controller.articleTitle.value,
-                style: MyFontStyle.bodyMedium,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-      ],
+  Widget _buildArticleTitle(BuildContext context) {
+    return LabeledSection(
+      icon: Icons.article_outlined,
+      label: "文章标题",
+      showCardBackground: true,
+      child: Text(
+        controller.articleTitle.value,
+        style: MyFontStyle.bodyLarge,
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+      ),
     );
   }
 
   // 构建文章URL区域
-  Widget _buildArticleURL() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.link_rounded, size: 18),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(controller.getShortUrl(controller.shareURL.value), style: MyFontStyle.bodyMedium),
-                const SizedBox(height: 4),
-                Text(
-                  controller.shareURL.value,
-                  style: MyFontStyle.bodyMedium,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
+  Widget _buildArticleURL(BuildContext context) {
+    return LabeledSection(
+      icon: Icons.link_rounded,
+      label: controller.getShortUrl(controller.shareURL.value),
+      showCardBackground: true,
+      child: Text(
+        controller.shareURL.value,
+        style: MyFontStyle.bodyMedium,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
 
   // 构建备注信息区域
-  Widget _buildCommentSection() {
+  Widget _buildCommentSection(BuildContext context) {
     return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Icon(Icons.comment_outlined, size: 18),
-                const SizedBox(width: 10),
-                Text("备注信息", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-              ],
-            ),
-          ),
-          Expanded(
-            child: TextField(
-              controller: controller.commentController,
-              decoration: InputDecoration(
-                hintText: "添加备注信息（可选）",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.all(16),
-              ),
-              style: MyFontStyle.bodyMedium,
-              minLines: 3,
-              maxLines: null,
-              keyboardType: TextInputType.multiline,
-              textInputAction: TextInputAction.newline,
-            ),
-          ),
-        ],
+      child: LabeledSection(
+        icon: Icons.comment_outlined,
+        label: "备注信息",
+        showCardBackground: true,
+        child: CommentField(controller: controller.commentController, hintText: "添加备注信息（可选）"),
       ),
     );
   }
 
   // 构建保存按钮
-  Widget _buildSaveButton() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: SizedBox(
-        width: double.infinity,
-        height: 48,
-        child: ElevatedButton(onPressed: () => controller.onSaveButtonPressed(), child: const Text("保存")),
-      ),
+  Widget _buildSaveButton(BuildContext context) {
+    return ButtonGroup(
+      children: [
+        AppButton(title: "取消", type: AppButtonType.secondary, onPressed: () => Get.back()),
+        AppButton(title: "保存", type: AppButtonType.primary, onPressed: () => controller.onSaveButtonPressed()),
+      ],
     );
   }
 }
