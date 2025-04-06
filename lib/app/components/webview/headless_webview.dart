@@ -284,60 +284,8 @@ class _HeadlessWebViewSession {
     });
   }
 
-  /// 检查DOM稳定性
-  Future<void> _checkDOMStability(InAppWebViewController controller) async {
-    _updateActivityTime();
-
-    // 首先检查页面是否已经完全加载（新增）
-    final pageComplete = await controller.evaluateJavascript(
-      source: """
-        (function() {
-          // 检查常见的加载指示器是否存在
-          const spinners = document.querySelectorAll('.loading, .spinner, .loader, [class*="loading"], [class*="spinner"], [id*="loading"], [id*="spinner"]');
-          // 检查是否正在进行XHR请求
-          const isXhrActive = window.performance && window.performance.getEntriesByType &&
-                             window.performance.getEntriesByType('resource').some(r => !r.responseEnd && (Date.now() - r.startTime < 2000));
-
-          // 快速判断页面是否已经准备好
-          const readyState = document.readyState === 'complete';
-          const noActiveNetworkRequests = !isXhrActive;
-          const noVisibleSpinners = spinners.length === 0;
-
-          return {
-            ready: readyState && noActiveNetworkRequests && noVisibleSpinners,
-            readyState: document.readyState,
-            hasSpinners: spinners.length > 0,
-            hasActiveNetwork: isXhrActive
-          };
-        })();
-      """,
-    );
-
-    try {
-      // 如果页面已完全准备好且没有活动指标，可以直接提取内容
-      if (pageComplete != null && pageComplete['ready'] == true) {
-        _stabilityCounter++; // 增加稳定计数
-
-        // 如果已经连续两次检测到完全准备好，直接处理内容
-        if (_stabilityCounter >= 2) {
-          logger.i("[HeadlessWebView] 页面已完全加载，直接提取内容");
-          _stabilityTimer?.cancel();
-          await _processContent();
-          return;
-        }
-      } else {
-        // 如果页面未完全准备好，采用原有的DOM大小检测方法
-        await _checkDOMSizeStability(controller);
-      }
-    } catch (e) {
-      logger.e("[HeadlessWebView] 页面完成检测失败: $e");
-      // 失败后降级到原有的DOM大小检测
-      await _checkDOMSizeStability(controller);
-    }
-  }
-
   /// 基于DOM大小的稳定性检测（从原来的_checkDOMStability拆分出来）
-  Future<void> _checkDOMSizeStability(InAppWebViewController controller) async {
+  Future<void> _checkDOMStability(InAppWebViewController controller) async {
     // 使用更高效的DOM大小获取方法，只检查DOM元素数量和DOM元素属性总数，避免获取完整DOM字符串
     final domSizeResult = await controller.evaluateJavascript(
       source: """

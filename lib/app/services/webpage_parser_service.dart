@@ -63,11 +63,6 @@ class WebpageParserService {
     }
   }
 
-  /// 获取文章状态（对外API）
-  ArticleModel? getArticleStatus(int articleId) {
-    return ArticleRepository.find(articleId);
-  }
-
   // ====================== 内部处理方法 ======================
 
   /// 处理文章初始化阶段：验证URL、创建或更新文章

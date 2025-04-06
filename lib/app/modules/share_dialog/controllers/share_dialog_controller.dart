@@ -8,6 +8,7 @@ import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/webpage_parser_service.dart';
+import 'package:daily_satori/app/components/dialogs/processing_dialog.dart';
 
 /// 分享对话框控制器
 /// 管理网页内容的保存和更新
@@ -17,11 +18,6 @@ class ShareDialogController extends GetxController {
   // 状态变量
   final RxString shareURL = ''.obs;
   final RxBool isUpdate = false.obs;
-
-  final RxString errorMessage = ''.obs;
-  final RxInt saveProgress = 0.obs; // 0: 未开始，1: 获取页面，2: 处理内容，3: 完成
-  final RxString progressMessage = ''.obs;
-  final RxBool processingComplete = false.obs;
 
   final RxInt articleID = 0.obs;
   final RxString articleTitle = ''.obs;
@@ -81,58 +77,20 @@ class ShareDialogController extends GetxController {
     }
   }
 
-  /// 设置错误信息
-  void setError(String message) {
-    errorMessage.value = message;
-  }
-
-  /// 清除错误信息
-  void clearError() {
-    errorMessage.value = '';
-  }
-
-  /// 更新处理进度
-  void updateProgress(int progress, String message) {
-    saveProgress.value = progress;
-    progressMessage.value = message;
-  }
-
   /// 保存按钮点击
   Future<void> onSaveButtonPressed() async {
-    // 检查URL是否有效
-    if (shareURL.value.isEmpty) {
-      setError("链接为空，无法保存");
-      return;
-    }
-
-    // 先清除错误信息
-    clearError();
-
-    _showProgressDialog();
-
-    // 直接设置为内容分析中状态
-    updateProgress(1, "内容分析中");
-
-    // 调用网页解析服务保存网页基本信息
-    await WebpageParserService.i.saveWebpage(
-      url: shareURL.value,
-      comment: commentController.text,
-      isUpdate: isUpdate.value,
-      articleID: articleID.value,
+    await ProcessingDialog.show(
+      message: 'AI分析中...',
+      onProcess: (updateMessage) async {
+        await WebpageParserService.i.saveWebpage(
+          url: shareURL.value,
+          comment: commentController.text,
+          isUpdate: isUpdate.value,
+          articleID: articleID.value,
+        );
+      },
     );
-  }
-
-  /// 显示进度对话框
-  void _showProgressDialog() {
-    // 确保之前的对话框已关闭
-    if (Get.isDialogOpen ?? false) {
-      Get.back();
-    }
-
-    Get.dialog(
-      Dialog(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-      barrierDismissible: false,
-    );
+    backToPreviousStep();
   }
 
   /// 获取短URL显示
@@ -159,8 +117,8 @@ class ShareDialogController extends GetxController {
   }
 
   /// 点击取消按钮
-  void clickChannelBtn() {
-    if (!isUpdate.value) {
+  void backToPreviousStep() {
+    if (isUpdate.value) {
       _navigateToHome();
     } else {
       _backToPreviousApp();
