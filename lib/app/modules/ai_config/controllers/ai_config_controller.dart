@@ -287,10 +287,4 @@ class AIConfigController extends GetxController {
       UIUtils.showError("克隆配置失败: $e");
     }
   }
-
-  /// 验证并保存配置
-  Future<bool> _validateAndSave() async {
-    // 实现验证逻辑
-    return true; // 临时返回，需要根据实际需求实现
-  }
 }

@@ -97,28 +97,7 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
 
   /// 构建名称输入框
   Widget _buildNameField() {
-    return TextField(
-      controller: controller.nameController,
-      decoration: InputDecoration(
-        hintText: "输入配置名称",
-        hintStyle: TextStyle(color: Get.theme.colorScheme.onSurfaceVariant.withAlpha(150), fontSize: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Get.theme.colorScheme.outline.withAlpha(77)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Get.theme.colorScheme.outline.withAlpha(77)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Get.theme.colorScheme.primary, width: 2),
-        ),
-        filled: true,
-        fillColor: Get.theme.colorScheme.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      ),
-    );
+    return TextField(controller: controller.nameController, decoration: InputDecoration(hintText: "输入配置名称"));
   }
 
   /// 构建继承通用配置部分
