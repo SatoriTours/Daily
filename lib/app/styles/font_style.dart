@@ -204,6 +204,7 @@ class MyFontStyle {
     letterSpacing: 0.8,
   );
 
+  // 标签文本样式
   static final chipTextStyle = _createBaseStyle(fontSize: 13, fontWeight: FontWeight.w500);
 
   static TextStyle chipTextStyleThemed(BuildContext context) {

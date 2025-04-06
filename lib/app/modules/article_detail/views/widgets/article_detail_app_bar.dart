@@ -91,10 +91,7 @@ class ArticleDetailAppBar extends StatelessWidget implements PreferredSizeWidget
   }
 
   void _onShareArticle() {
-    Get.toNamed(
-      Routes.shareDialog,
-      arguments: {'articleID': controller.articleModel.id, 'shareURL': controller.articleModel.url, 'update': true},
-    );
+    Get.toNamed(Routes.shareDialog, arguments: {'articleID': controller.articleModel.id});
   }
 
   void _onCopyURL() {
