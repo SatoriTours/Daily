@@ -25,16 +25,7 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: TextButton(
-              onPressed: () async {
-                final success = await controller.saveConfig();
-                if (success) Get.back(result: true);
-              },
-              child: Text(
-                '保存',
-                style: textTheme.labelLarge?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.w600),
-              ),
-            ),
+            child: TextButton(onPressed: controller.saveConfig, child: Text('保存')),
           ),
         ],
       ),
@@ -118,7 +109,7 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
           Row(
             children: [
               Icon(icon, size: 20, color: colorScheme.primary),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Text(title, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500)),
             ],
           ),
@@ -170,12 +161,12 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colorScheme.outline.withOpacity(0.3)),
+          border: Border.all(color: colorScheme.outline.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
             Expanded(child: Text(value, style: textTheme.bodyLarge)),
-            Icon(Icons.arrow_drop_down, color: colorScheme.onSurface.withOpacity(0.5)),
+            Icon(Icons.arrow_drop_down, color: colorScheme.onSurface.withValues(alpha: 0.5)),
           ],
         ),
       ),
@@ -231,25 +222,16 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       builder:
           (context) => SafeArea(
             child: Padding(
-              padding: const EdgeInsets.only(top: 24, bottom: 16),
+              padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Row(
-                      children: [
-                        Icon(Icons.list_alt, size: 24, color: colorScheme.primary),
-                        const SizedBox(width: 12),
-                        Text(
-                          title,
-                          style: textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
+                  Row(
+                    children: [
+                      Icon(Icons.list_alt, size: 22, color: colorScheme.primary),
+                      const SizedBox(width: 12),
+                      Text(title, style: textTheme.titleLarge),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   const Divider(height: 1),
@@ -268,8 +250,8 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
                           Navigator.pop(context);
                         },
                         child: Container(
-                          color: isSelected ? colorScheme.primaryContainer.withOpacity(0.12) : null,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          color: isSelected ? colorScheme.primaryContainer.withValues(alpha: 0.2) : null,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
                           child: Text(
                             item,
                             style: textTheme.bodyLarge?.copyWith(

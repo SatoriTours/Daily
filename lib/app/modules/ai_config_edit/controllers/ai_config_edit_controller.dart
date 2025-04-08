@@ -101,38 +101,9 @@ class AIConfigEditController extends GetxController {
     modelNameController.text = modelName;
   }
 
-  /// 验证表单数据
-  String? validateForm() {
-    if (nameController.text.isEmpty) {
-      return '请输入配置名称';
-    }
-    if (apiAddressController.text.isEmpty) {
-      return '请输入API地址';
-    }
-    if (apiTokenController.text.isEmpty) {
-      return '请输入API令牌';
-    }
-    if (modelNameController.text.isEmpty) {
-      return '请选择模型';
-    }
-    return null;
-  }
-
   /// 保存配置
   Future<bool> saveConfig() async {
     try {
-      // 验证表单
-      final validationError = validateForm();
-      if (validationError != null) {
-        Get.snackbar(
-          '验证错误',
-          validationError,
-          snackPosition: SnackPosition.top,
-          backgroundColor: Colors.orange.withAlpha(200),
-        );
-        return false;
-      }
-
       final configToSave =
           isEditMode
               ? aiConfig!
