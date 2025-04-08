@@ -135,31 +135,9 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
     required BuildContext context,
     bool isPassword = false,
   }) {
-    final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
-    return TextField(
-      controller: controller,
-      obscureText: isPassword,
-      style: textTheme.bodyLarge,
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface.withOpacity(0.5)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.3)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.3)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.primary),
-        ),
-      ),
-    );
+    return TextField(controller: controller, obscureText: isPassword, style: textTheme.bodyLarge);
   }
 
   Widget _buildApiProviderSelection(BuildContext context) {
