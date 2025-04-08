@@ -72,6 +72,9 @@ class BackupService {
       return false;
     }
 
+    // 非生产环境不执行备份
+    if (!AppInfoUtils.isProduction) return false;
+
     isBackingUp.value = true;
     backupProgress.value = 0.0;
 
