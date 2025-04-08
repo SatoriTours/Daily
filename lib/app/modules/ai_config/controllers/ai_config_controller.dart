@@ -247,7 +247,7 @@ class AIConfigController extends GetxController {
   /// [config] 要编辑的配置
   Future<void> editConfig(AIConfigModel config) async {
     // 传递配置到编辑页面
-    final result = await Get.toNamed(Routes.aiConfigEdit, arguments: {'config': config});
+    final result = await Get.toNamed(Routes.aiConfigEdit, arguments: {'aiConfig': config});
 
     // 处理返回结果，更新列表
     updateConfigsList(result);
