@@ -1,4 +1,5 @@
 import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -135,17 +136,19 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
     return Obx(
       () => _buildSelectionField(
         context: context,
-        value: controller.apiPresets[controller.selectedApiPresetIndex]['name'],
+        value: controller.apiPresets[controller.selectedApiPresetIndex].name,
         onTap: () => _showApiProviderBottomSheet(context),
       ),
     );
   }
 
   Widget _buildModelNameDropdown(BuildContext context) {
-    return _buildSelectionField(
-      context: context,
-      value: controller.modelNameController.text.isEmpty ? '请选择模型' : controller.modelNameController.text,
-      onTap: () => _showModelSelectionBottomSheet(context),
+    return Obx(
+      () => _buildSelectionField(
+        context: context,
+        value: controller.modelName,
+        onTap: () => _showModelSelectionBottomSheet(context),
+      ),
     );
   }
 
@@ -159,10 +162,6 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colorScheme.outline.withValues(alpha: 0.3)),
-        ),
         child: Row(
           children: [
             Expanded(child: Text(value, style: textTheme.bodyLarge)),
@@ -177,8 +176,8 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
     _showSelectionBottomSheet(
       context: context,
       title: '选择AI服务提供商',
-      items: controller.apiPresets.map((e) => e['name'] as String).toList(),
-      selectedValue: controller.apiPresets[controller.selectedApiPresetIndex]['name'],
+      items: controller.apiPresets.map((e) => e.name).toList(),
+      selectedValue: controller.apiPresets[controller.selectedApiPresetIndex].name,
       onSelected: (index) => controller.updateApiAddress(index),
     );
   }
@@ -186,12 +185,7 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
   void _showModelSelectionBottomSheet(BuildContext context) {
     final models = controller.availableModels;
     if (models.isEmpty) {
-      Get.snackbar(
-        '提示',
-        '当前API提供商没有可用模型',
-        snackPosition: SnackPosition.top,
-        backgroundColor: Colors.orange.withAlpha(200),
-      );
+      UIUtils.showError('当前API提供商没有可用模型');
       return;
     }
 
