@@ -48,7 +48,6 @@ class AIConfigEditController extends GetxController {
         ...PluginService.i.getApiPresets().map(
           (preset) => {'name': preset.name, 'apiAddress': preset.apiAddress, 'models': preset.models},
         ),
-        {'name': '自定义', 'apiAddress': '', 'models': <String>[]},
       ];
 
   @override

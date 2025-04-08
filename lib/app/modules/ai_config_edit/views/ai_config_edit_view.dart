@@ -226,44 +226,63 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      backgroundColor: colorScheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder:
-          (context) => Container(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 16, bottom: 16),
-                  child: Text(title, style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
-                ),
-                const Divider(),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const ClampingScrollPhysics(),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    return ListTile(
-                      title: Text(item, style: textTheme.bodyLarge),
-                      leading: Radio<String>(
-                        value: item,
-                        groupValue: selectedValue,
-                        onChanged: (_) {
+          (context) => SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 24, bottom: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      children: [
+                        Icon(Icons.list_alt, size: 24, color: colorScheme.primary),
+                        const SizedBox(width: 12),
+                        Text(
+                          title,
+                          style: textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const ClampingScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      final isSelected = item == selectedValue;
+
+                      return InkWell(
+                        onTap: () {
                           onSelected(index);
                           Navigator.pop(context);
                         },
-                        activeColor: colorScheme.primary,
-                      ),
-                      onTap: () {
-                        onSelected(index);
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                ),
-              ],
+                        child: Container(
+                          color: isSelected ? colorScheme.primaryContainer.withOpacity(0.12) : null,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          child: Text(
+                            item,
+                            style: textTheme.bodyLarge?.copyWith(
+                              color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
     );
