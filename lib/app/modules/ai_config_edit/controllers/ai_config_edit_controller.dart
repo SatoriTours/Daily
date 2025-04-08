@@ -1,6 +1,7 @@
 import 'package:daily_satori/app/models/models.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/repositories/ai_config_repository.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -69,13 +70,14 @@ class AIConfigEditController extends GetxController {
     nameController.text = aiConfig!.name;
     apiTokenController.text = aiConfig!.apiToken;
 
-    updateApiAddressByName(aiConfig!.apiAddress);
+    updateApiAddressByUrl(aiConfig!.apiAddress);
     updateModelName(aiConfig!.modelName);
   }
 
   /// 更新API地址
-  void updateApiAddressByName(String name) {
-    final index = apiPresets.indexWhere((preset) => preset.name == name);
+  void updateApiAddressByUrl(String url) {
+    final index = apiPresets.indexWhere((preset) => preset.apiAddress == url);
+
     if (index != -1) {
       _selectedApiPresetIndex.value = index;
       apiAddressController.text = apiPresets[index].apiAddress;
@@ -88,12 +90,6 @@ class AIConfigEditController extends GetxController {
 
     _selectedApiPresetIndex.value = index;
     apiAddressController.text = apiPresets[index].apiAddress;
-
-    // 如果有预设模型且当前模型不在列表中，选择第一个模型
-    final models = availableModels;
-    if (models.isNotEmpty && !models.contains(modelNameController.text)) {
-      modelNameController.text = models[0];
-    }
   }
 
   /// 更新模型名称
@@ -119,25 +115,26 @@ class AIConfigEditController extends GetxController {
                 ),
               );
 
-      // 更新配置
-      configToSave
-        ..name = nameController.text
-        ..apiAddress = apiAddressController.text
-        ..apiToken = apiTokenController.text
-        ..modelName = modelNameController.text
-        ..inheritFromGeneral = true;
+      // 如果是编辑模式，直接更新现有配置的属性
+      // 如果是新建模式，上面已经创建了包含所有属性的对象，不需要再次设置
+      if (isEditMode) {
+        configToSave
+          ..name = nameController.text
+          ..apiAddress = apiAddressController.text
+          ..apiToken = apiTokenController.text
+          ..modelName = modelNameController.text
+          ..inheritFromGeneral = true;
+      }
 
       if (isEditMode) {
         // 更新现有配置
         AIConfigRepository.updateAIConfig(configToSave);
-        Get.back(result: {'action': 'updated', 'config': configToSave});
       } else {
         // 创建新配置
         final id = AIConfigRepository.addAIConfig(configToSave);
         configToSave.id = id;
-        Get.back(result: {'action': 'created', 'config': configToSave});
       }
-
+      Get.back();
       return true;
     } catch (e) {
       Get.snackbar('错误', '保存配置失败: $e', snackPosition: SnackPosition.top, backgroundColor: Colors.red.withAlpha(200));
