@@ -12,12 +12,6 @@ api_presets:
       - deepseek-v3
       - qwen2.5-14b-instruct-1m
       - qwen-turbo-latest
-  - name: Azure OpenAI
-    apiAddress: https://{your-resource-name}.openai.azure.com
-    models:
-      - gpt-35-turbo
-      - gpt-4
-      - gpt-4-32k
   - name: Anthropic API
     apiAddress: https://api.anthropic.com
     models:
@@ -25,6 +19,12 @@ api_presets:
       - claude-3-sonnet
       - claude-3-haiku
       - claude-3.5-sonnet
+  - name: 火山云
+    apiAddress: https://ark.cn-beijing.volces.com/api/v3
+    models:
+      - deepseek-v3-250324
+      - doubao-1-5-lite-32k-250115
+      - doubao-1-5-pro-32k-250115
   - name: 自定义
     apiAddress: ""
     models: []
