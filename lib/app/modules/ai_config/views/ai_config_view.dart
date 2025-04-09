@@ -55,7 +55,7 @@ class AIConfigView extends GetView<AIConfigController> {
         return ListView.separated(
           padding: Dimensions.paddingM,
           itemCount: allConfigs.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
             final config = allConfigs[index];
             final color = _getTypeColor(config.functionType);
