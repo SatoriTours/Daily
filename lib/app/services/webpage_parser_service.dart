@@ -9,6 +9,7 @@ import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/repositories/tag_repository.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/utils/string_extensions.dart';
+import 'package:daily_satori/global.dart';
 import 'package:get/get.dart';
 
 /// 网页解析服务 - 负责网页内容获取、AI处理和持久化
@@ -189,8 +190,11 @@ class WebpageParserService {
 
     logger.i("[网页解析][AI:标题] ▶ 开始处理标题 #$articleId");
 
+    var aiTitle = title;
     try {
-      var aiTitle = await AiService.i.translate(title.trim());
+      if (!StringUtils.isChinese((title))) {
+        aiTitle = await AiService.i.translate(title.trim());
+      }
 
       // 如果标题太长，进行概括
       if (aiTitle.length >= 50) {

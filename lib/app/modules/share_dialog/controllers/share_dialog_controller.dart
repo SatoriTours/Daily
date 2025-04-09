@@ -68,7 +68,7 @@ class ShareDialogController extends GetxController {
 
     final article = ArticleRepository.find(articleID.value);
     if (article != null) {
-      articleTitle.value = article.title ?? '未命名文章';
+      articleTitle.value = article.showTitle();
       if (shareURL.value.isEmpty) {
         shareURL.value = article.url ?? '';
       }

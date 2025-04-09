@@ -1,7 +1,6 @@
 import 'package:daily_satori/app/models/models.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/repositories/ai_config_repository.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
