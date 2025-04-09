@@ -15,7 +15,7 @@ class AIConfigEditController extends GetxController {
   final AIConfigModel? aiConfig;
 
   /// API预设列表
-  final List<ApiPreset> apiPresets;
+  final List<AiModel> apiPresets;
 
   /// 表单控制器
   late final TextEditingController nameController;
@@ -44,7 +44,7 @@ class AIConfigEditController extends GetxController {
   }
 
   /// 构造函数
-  AIConfigEditController() : aiConfig = Get.arguments['aiConfig'], apiPresets = PluginService.i.getApiPresets();
+  AIConfigEditController() : aiConfig = Get.arguments['aiConfig'], apiPresets = PluginService.i.getAiModels();
 
   @override
   void onInit() {

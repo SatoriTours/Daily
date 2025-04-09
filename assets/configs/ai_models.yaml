@@ -1,4 +1,4 @@
-api_presets:
+ai_models:
   - name: OpenAI API
     apiAddress: https://api.openai.com/v1
     models:

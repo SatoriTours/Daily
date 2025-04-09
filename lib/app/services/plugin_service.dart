@@ -8,199 +8,156 @@ import 'package:yaml/yaml.dart';
 
 /// 插件服务类 - 负责管理AI提示词和API模型预设
 ///
-/// 主要功能:
-/// 1. 加载和解析本地YAML配置文件
-/// 2. 从远程服务器获取最新配置
-/// 3. 管理配置缓存和持久化
-/// 4. 提供公开方法获取各类配置内容
+/// 配置加载顺序：
+/// 1. 优先从数据库加载
+/// 2. 若数据库无配置，则加载本地文件并保存到数据库
 class PluginService {
   // 单例模式实现
   PluginService._();
   static final PluginService _instance = PluginService._();
   static PluginService get i => _instance;
 
-  // 缓存
-  final Map<String, String> _promptCache = {};
-  final Map<String, dynamic> _configCache = {};
+  // 最终使用的数据
+  List<AiModel> _aiModels = [];
+  final Map<String, String> _aiPrompts = {};
 
-  // 本地配置数据
-  List<PromptConfig> _localPrompts = [];
-  List<ApiPreset> _apiPresets = [];
-
-  // 配置文件解析器映射
-  late final Map<String, ConfigParser> _configParsers = {
-    'ai_prompts.yaml': ConfigParser(
-      rootKey: 'prompts',
-      parser: (item) => PromptConfig.fromYaml(item),
-      resultHandler: (list) {
-        _localPrompts = list.cast<PromptConfig>();
-        // 提前缓存到内存
-        for (final prompt in _localPrompts) {
-          _promptCache[prompt.key] = prompt.content;
-        }
-        return '提示词';
-      },
-    ),
-    'ai_models.yaml': ConfigParser(
-      rootKey: 'api_presets',
-      parser: (item) => ApiPreset.fromYaml(item),
-      resultHandler: (list) {
-        _apiPresets = list.cast<ApiPreset>();
-        return 'AI模型预设';
-      },
-    ),
-  };
-
-  // 配置文件列表
-  late final List<ConfigFile> _configFiles = _configParsers.keys.map((fileName) => ConfigFile(name: fileName)).toList();
+  // 配置文件信息
+  final _aiPromptsFileName = 'ai_prompts.yaml';
+  final _aiModelsFileName = 'ai_models.yaml';
 
   /// 初始化插件服务
   Future<void> init() async {
     logger.i("[初始化] PluginService");
-    await _loadAllLocalConfigs();
-    await _updateAllConfigs();
+
+    // 加载所有配置
+    await _loadAiPromptsConfig();
+    await _loadAiModelsConfig();
+
+    // 尝试更新配置, 不需要 await , 这个本来就是异步处理
+    _updateAllConfigs();
   }
 
-  /// 加载所有本地配置文件
-  Future<void> _loadAllLocalConfigs() async {
-    for (final configFile in _configFiles) {
-      await _loadLocalConfig(configFile);
-    }
-  }
+  /// 加载提示词配置
+  Future<void> _loadAiPromptsConfig() async {
+    final configContent = await _loadConfigContent(_aiPromptsFileName);
+    if (configContent.isEmpty) return;
 
-  /// 加载单个本地配置文件
-  Future<void> _loadLocalConfig(ConfigFile configFile) async {
     try {
-      final String yamlString = await rootBundle.loadString(configFile.localPath);
-      configFile.yamlContent = loadYaml(yamlString) as YamlMap;
-      _configCache[configFile.name] = yamlString;
+      final yamlData = loadYaml(configContent) as Map;
+      if (yamlData.containsKey('ai_prompts')) {
+        final promptsList = yamlData['ai_prompts'] as YamlList? ?? [];
 
-      logger.i('加载本地配置: ${configFile.name} - 成功');
-      _parseConfigFile(configFile);
-    } catch (e, stackTrace) {
-      logger.e('加载本地配置: ${configFile.name} - 失败 | $e', stackTrace: stackTrace);
-    }
-  }
+        // 清空旧缓存
+        _aiPrompts.clear();
 
-  /// 解析配置文件内容
-  void _parseConfigFile(ConfigFile configFile) {
-    if (configFile.yamlContent == null) return;
+        // 直接添加到缓存
+        for (final item in promptsList) {
+          final key = item['key'] as String;
+          final content = item['content'] as String;
+          _aiPrompts[key] = content;
+        }
 
-    final parser = _configParsers[configFile.name];
-    if (parser == null) {
-      logger.w('解析器缺失: ${configFile.name}');
-      return;
-    }
-
-    _parseYamlConfig(
-      yamlContent: configFile.yamlContent!,
-      rootKey: parser.rootKey,
-      parser: parser.parser,
-      resultHandler: parser.resultHandler,
-    );
-  }
-
-  /// 通用YAML配置解析方法
-  void _parseYamlConfig<T>({
-    required YamlMap yamlContent,
-    required String rootKey,
-    required T Function(dynamic) parser,
-    required String Function(List<dynamic>) resultHandler,
-  }) {
-    try {
-      if (yamlContent.containsKey(rootKey)) {
-        final YamlList itemsList = yamlContent[rootKey] as YamlList;
-        final parsedList = itemsList.map((item) => parser(item)).toList();
-        final logPrefix = resultHandler(parsedList);
-
-        logger.i('解析YAML: $rootKey - 加载了${parsedList.length}个$logPrefix');
-      } else {
-        logger.e('解析YAML: $rootKey - 节点不存在');
+        logger.i('解析YAML: ai_prompts - 加载了${promptsList.length}个提示词');
       }
     } catch (e) {
-      logger.e('解析YAML: $rootKey - 解析失败 | $e');
+      logger.e('解析YAML: ai_prompts - 失败 | $e');
     }
   }
 
-  /// 获取AI提示词内容
-  ///
-  /// 优先级: 缓存 > 设置持久化 > 本地配置
-  String _getAiPromptContent(String key) {
-    // 1. 先从内存缓存读取
-    if (_promptCache.containsKey(key)) {
-      return _promptCache[key]!;
+  /// 加载API预设配置
+  Future<void> _loadAiModelsConfig() async {
+    final configContent = await _loadConfigContent(_aiModelsFileName);
+    if (configContent.isEmpty) return;
+
+    try {
+      final yamlData = loadYaml(configContent) as Map;
+      if (yamlData.containsKey('ai_models')) {
+        final modelsList = yamlData['ai_models'] as YamlList? ?? [];
+
+        // 清空旧列表
+        _aiModels = [];
+
+        // 直接添加到列表
+        for (final item in modelsList) {
+          final aiModel = AiModel(
+            name: item['name'] as String,
+            apiAddress: item['apiAddress'] as String,
+            models: (item['models'] as List).map((e) => e.toString()).toList(),
+          );
+          _aiModels.add(aiModel);
+        }
+
+        logger.i('解析YAML: ai_models - 加载了${_aiModels.length}个模型预设');
+      }
+    } catch (e) {
+      logger.e('解析YAML: ai_models - 失败 | $e');
     }
-
-    // 2. 从设置存储读取
-    final String content = SettingRepository.getSetting(_makePluginKey(key));
-    if (content.isNotEmpty) {
-      _promptCache[key] = content; // 添加到缓存
-      return content;
-    }
-
-    // 3. 从本地配置读取
-    final localPrompt = _localPrompts.firstWhere(
-      (prompt) => prompt.key == key,
-      orElse: () => PromptConfig(key: key, content: ''),
-    );
-
-    _promptCache[key] = localPrompt.content; // 添加到缓存
-    return localPrompt.content;
   }
 
-  /// 更新所有配置文件
+  /// 加载配置文件内容
+  Future<String> _loadConfigContent(String fileName) async {
+    final String settingKey = _makePluginKey(fileName);
+    final String localPath = 'assets/configs/$fileName';
+
+    // 1. 从数据库读取配置
+    String configContent = SettingRepository.getSetting(settingKey);
+
+    // 2. 数据库无配置时，读取本地文件
+    if (configContent.isEmpty) {
+      try {
+        configContent = await rootBundle.loadString(localPath);
+        if (configContent.isNotEmpty) {
+          // 保存到数据库
+          await SettingRepository.saveSetting(settingKey, configContent);
+          logger.i('加载本地配置: $fileName - 成功并保存到数据库');
+        }
+      } catch (e) {
+        logger.e('加载本地配置: $fileName - 失败 | $e');
+      }
+    }
+
+    return configContent;
+  }
+
+  /// 更新所有配置
   Future<void> _updateAllConfigs() async {
     final String baseUrl = getPluginServerUrl();
     if (baseUrl.isEmpty) {
-      logger.w('更新配置: 服务器地址未设置 - 已跳过');
+      logger.w('更新配置: 服务器地址未设置');
       return;
     }
 
-    // 并行执行所有配置更新
-    await Future.wait(_configFiles.map((file) => _updateConfig(file, baseUrl)));
+    await Future.wait([_updateConfig(_aiPromptsFileName, baseUrl), _updateConfig(_aiModelsFileName, baseUrl)]);
 
-    logger.i('更新配置: 所有文件更新完成');
+    logger.i('配置更新完成');
   }
 
-  /// 更新单个配置文件
-  Future<void> _updateConfig(ConfigFile configFile, String baseUrl) async {
-    final fileName = configFile.name;
+  /// 更新单个配置
+  Future<void> _updateConfig(String fileName, String baseUrl) async {
     try {
       final String url = path.join(baseUrl, fileName);
       final String response = await HttpService.i.getTextContent(url);
 
       if (response.trim().isNotEmpty) {
-        // 保存到设置并更新内存
-        await SettingRepository.saveSetting(_makePluginKey(fileName), response.trim());
-        configFile.yamlContent = loadYaml(response.trim()) as YamlMap;
-        _configCache[fileName] = response.trim();
+        // 保存到数据库
+        final String settingKey = _makePluginKey(fileName);
+        await SettingRepository.saveSetting(settingKey, response.trim());
 
         // 更新最后更新时间
         await _updateLastUpdateTime(fileName);
 
-        logger.i('更新配置: $fileName - 从服务器成功更新');
-        _parseConfigFile(configFile);
+        logger.i('更新配置: $fileName - 成功');
+
+        // 重新加载配置
+        if (fileName == _aiPromptsFileName) {
+          await _loadAiPromptsConfig();
+        } else if (fileName == _aiModelsFileName) {
+          await _loadAiModelsConfig();
+        }
       }
     } catch (e) {
-      logger.e('更新配置: $fileName - 服务器更新失败 | $e');
-
-      // 更新失败时使用本地配置备份
-      final localContent = _configCache[fileName];
-      if (localContent != null) {
-        await SettingRepository.saveSetting(_makePluginKey(fileName), localContent);
-        logger.i('更新配置: $fileName - 已使用本地备份');
-      }
+      logger.e('更新配置: $fileName - 失败 | $e');
     }
-  }
-
-  /// 获取插件服务器URL
-  String getPluginServerUrl() {
-    return SettingRepository.getSetting(SettingService.pluginKey);
-  }
-
-  /// 设置插件服务器URL
-  Future<void> setPluginServerUrl(String url) async {
-    await SettingRepository.saveSetting(SettingService.pluginKey, url);
   }
 
   /// 更新最后更新时间
@@ -223,54 +180,28 @@ class PluginService {
     }
   }
 
-  /// 获取所有插件信息
-  List<PluginInfo> getAllPlugins() {
-    return _configFiles.map((file) {
-      final lastUpdate = getLastUpdateTime(file.name);
+  /// 构造用于SettingService的键名
+  String _makePluginKey(String key) => 'plugin_$key';
 
-      // 尝试获取描述
-      String description = '';
-      if (file.yamlContent != null && file.yamlContent!.containsKey('description')) {
-        description = file.yamlContent!['description'] as String? ?? '';
-      }
-
-      return PluginInfo(
-        fileName: file.name,
-        description: description.isNotEmpty ? description : _getDefaultDescription(file.name),
-        lastUpdateTime: lastUpdate,
-      );
-    }).toList();
+  /// 获取插件服务器URL
+  String getPluginServerUrl() {
+    return SettingRepository.getSetting(SettingService.pluginKey);
   }
 
-  /// 获取插件默认描述
-  String _getDefaultDescription(String fileName) {
-    switch (fileName) {
-      case 'ai_prompts.yaml':
-        return 'AI提示词配置，包含翻译、摘要等角色提示';
-      case 'ai_models.yaml':
-        return 'AI模型配置，包含各种AI服务提供商的预设';
-      default:
-        return '插件配置文件';
-    }
+  /// 设置插件服务器URL
+  Future<void> setPluginServerUrl(String url) async {
+    await SettingRepository.saveSetting(SettingService.pluginKey, url);
   }
 
   /// 强制更新单个插件
   Future<bool> forceUpdatePlugin(String fileName) async {
     try {
-      // 查找配置文件
-      final configFile = _configFiles.firstWhere(
-        (file) => file.name == fileName,
-        orElse: () => throw Exception('找不到插件配置: $fileName'),
-      );
-
-      // 获取服务器URL
-      final baseUrl = getPluginServerUrl();
+      final String baseUrl = getPluginServerUrl();
       if (baseUrl.isEmpty) {
         throw Exception('插件服务器地址未设置');
       }
 
-      // 执行更新
-      await _updateConfig(configFile, baseUrl);
+      await _updateConfig(fileName, baseUrl);
       return true;
     } catch (e) {
       logger.e('强制更新插件失败: $fileName | $e');
@@ -278,102 +209,53 @@ class PluginService {
     }
   }
 
-  /// 构造用于SettingService的键名
-  String _makePluginKey(String key) => 'plugin_$key';
+  /// 获取所有插件信息
+  List<PluginInfo> getAllPlugins() {
+    final plugins = [
+      PluginInfo(
+        fileName: _aiPromptsFileName,
+        description: '提示词配置，包含翻译、摘要等角色提示',
+        lastUpdateTime: getLastUpdateTime(_aiPromptsFileName),
+      ),
+      PluginInfo(
+        fileName: _aiModelsFileName,
+        description: 'AI模型配置，包含各种AI服务提供商的预设',
+        lastUpdateTime: getLastUpdateTime(_aiModelsFileName),
+      ),
+    ];
 
-  // 公开的API方法 - 获取各类提示词内容
-  String getTranslateRole() => _getAiPromptContent('translate_role');
-  String getTranslatePrompt() => _getAiPromptContent('translate_prompt');
-  String getSummarizeOneLineRole() => _getAiPromptContent('summarize_oneline_role');
-  String getSummarizeOneLinePrompt() => _getAiPromptContent('summarize_oneline_prompt');
-  String getLongSummaryRole() => _getAiPromptContent('long_summary_role');
-  String getShortSummaryRole() => _getAiPromptContent('short_summary_role');
-  String getLongSummaryResult() => _getAiPromptContent('long_summary_result');
-  String getCommonTags() => _getAiPromptContent('common_tags');
-  String getHtmlToMarkdownRole() => _getAiPromptContent('html_to_markdown_role');
+    return plugins;
+  }
+
+  // 公开API - 获取提示词
+  String getTranslateRole() => _aiPrompts['translate_role'] ?? '';
+  String getTranslatePrompt() => _aiPrompts['translate_prompt'] ?? '';
+  String getSummarizeOneLineRole() => _aiPrompts['summarize_oneline_role'] ?? '';
+  String getSummarizeOneLinePrompt() => _aiPrompts['summarize_oneline_prompt'] ?? '';
+  String getLongSummaryRole() => _aiPrompts['long_summary_role'] ?? '';
+  String getShortSummaryRole() => _aiPrompts['short_summary_role'] ?? '';
+  String getLongSummaryResult() => _aiPrompts['long_summary_result'] ?? '';
+  String getCommonTags() => _aiPrompts['common_tags'] ?? '';
+  String getHtmlToMarkdownRole() => _aiPrompts['html_to_markdown_role'] ?? '';
 
   /// 获取API提供商预设列表
-  List<ApiPreset> getApiPresets() {
-    // 尝试从设置获取
-    final configName = 'ai_models.yaml';
-    final storedContent = SettingRepository.getSetting(_makePluginKey(configName));
-
-    if (storedContent.isNotEmpty) {
-      try {
-        final YamlMap yamlMap = loadYaml(storedContent) as YamlMap;
-        if (yamlMap.containsKey('api_presets')) {
-          final YamlList presets = yamlMap['api_presets'] as YamlList;
-          return presets.map((item) => ApiPreset.fromYaml(item)).toList();
-        }
-      } catch (e) {
-        logger.e('获取API预设: 解析失败 | $e');
-      }
-    }
-
-    // 如果从设置获取失败，使用本地预设
-    return _apiPresets;
-  }
-}
-
-/// 插件信息类 - 表示单个插件的信息
-class PluginInfo {
-  final String fileName; // 文件名
-  final String description; // 描述
-  final DateTime? lastUpdateTime; // 最后更新时间
-
-  PluginInfo({required this.fileName, required this.description, this.lastUpdateTime});
+  List<AiModel> getAiModels() => _aiModels;
 }
 
 /// API提供商预设模型
-class ApiPreset {
+class AiModel {
   final String name;
   final String apiAddress;
   final List<String> models;
 
-  ApiPreset({required this.name, required this.apiAddress, required this.models});
-
-  /// 从YAML对象创建ApiPreset
-  factory ApiPreset.fromYaml(dynamic yaml) {
-    return ApiPreset(
-      name: yaml['name'] as String,
-      apiAddress: yaml['apiAddress'] as String,
-      models: (yaml['models'] as List).map((e) => e.toString()).toList(),
-    );
-  }
-
-  /// 转换为Map对象
-  Map<String, dynamic> toMap() {
-    return {'name': name, 'apiAddress': apiAddress, 'models': models};
-  }
+  AiModel({required this.name, required this.apiAddress, required this.models});
 }
 
-/// 配置解析器类 - 负责解析特定类型的配置
-class ConfigParser<T> {
-  final String rootKey; // YAML根键名
-  final T Function(dynamic) parser; // 解析函数
-  final String Function(List<dynamic>) resultHandler; // 结果处理函数
+/// 插件信息类
+class PluginInfo {
+  final String fileName;
+  final String description;
+  final DateTime? lastUpdateTime;
 
-  ConfigParser({required this.rootKey, required this.parser, required this.resultHandler});
-}
-
-/// 提示词配置类
-class PromptConfig {
-  final String key;
-  final String content;
-
-  PromptConfig({required this.key, required this.content});
-
-  /// 从YAML对象创建PromptConfig
-  factory PromptConfig.fromYaml(dynamic yaml) {
-    return PromptConfig(key: yaml['key'] as String, content: yaml['content'] as String);
-  }
-}
-
-/// 配置文件类 - 表示一个配置文件及其内容
-class ConfigFile {
-  final String name; // 配置文件名，如 ai_prompts.yaml
-  final String localPath; // 本地资源路径
-  YamlMap? yamlContent; // 解析后的YAML内容
-
-  ConfigFile({required this.name, String? localPath}) : localPath = localPath ?? 'assets/configs/$name';
+  PluginInfo({required this.fileName, required this.description, this.lastUpdateTime});
 }

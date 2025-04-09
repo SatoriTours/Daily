@@ -1,4 +1,4 @@
-prompts:
+ai_prompts:
   - key: translate_role
     content: |
       你是一个翻译助手, 能够将任何文本翻译成中文
