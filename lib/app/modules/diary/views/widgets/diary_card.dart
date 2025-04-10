@@ -190,6 +190,12 @@ class _DiaryCardState extends State<DiaryCard> {
             },
           ),
 
+          // 图片显示 - 移到了"显示更多"按钮前面
+          if (widget.diary.images != null && widget.diary.images!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            DiaryImageGallery(imagesString: widget.diary.images!),
+          ],
+
           // 显示"更多"按钮
           if (_needsExpand)
             Container(
@@ -225,12 +231,6 @@ class _DiaryCardState extends State<DiaryCard> {
                 ),
               ),
             ),
-
-          // 图片显示
-          if (widget.diary.images != null && widget.diary.images!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            DiaryImageGallery(imagesString: widget.diary.images!),
-          ],
 
           // 标签
           if (widget.diary.tags != null && widget.diary.tags!.isNotEmpty) ...[
