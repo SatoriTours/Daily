@@ -71,47 +71,60 @@ class DiaryImageGallery extends StatelessWidget {
   /// 显示全屏图片画廊
   void _showFullScreenGallery(BuildContext context, List<String> images, int initialIndex) {
     Get.dialog(
-      Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.black.withAlpha(179),
-          elevation: 0,
-          automaticallyImplyLeading: false,
-          actions: [IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Get.back())],
-        ),
-        backgroundColor: Colors.black,
-        body: PhotoViewGallery.builder(
-          scrollDirection: Axis.horizontal,
-          pageController: PageController(initialPage: initialIndex),
-          itemCount: images.length,
-          builder: (BuildContext context, int index) {
-            final imagePath = images[index];
-            final file = File(imagePath);
-
-            if (!file.existsSync()) {
-              return PhotoViewGalleryPageOptions.customChild(
-                child: Center(child: Icon(FeatherIcons.image, color: Colors.white70, size: 48)),
-              );
-            }
-
-            return PhotoViewGalleryPageOptions(
-              imageProvider: FileImage(file),
-              initialScale: PhotoViewComputedScale.contained,
-              minScale: PhotoViewComputedScale.contained,
-              maxScale: PhotoViewComputedScale.covered * 5.0,
-              heroAttributes: PhotoViewHeroAttributes(tag: imagePath),
-              errorBuilder: (context, error, stackTrace) {
-                return Center(child: Icon(FeatherIcons.alertCircle, color: Colors.white70, size: 48));
-              },
-            );
-          },
-          loadingBuilder:
-              (context, event) => Center(
-                child: CircularProgressIndicator(
-                  value: event == null ? 0 : event.cumulativeBytesLoaded / (event.expectedTotalBytes ?? 1),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white70),
+      Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: GestureDetector(
+          onTap: () => Navigator.of(context).pop(), // 点击背景关闭
+          child: Scaffold(
+            backgroundColor: Colors.black,
+            appBar: AppBar(
+              backgroundColor: Colors.black.withAlpha(179),
+              elevation: 0,
+              automaticallyImplyLeading: false,
+              // 使用Navigator.of(context).pop()直接关闭当前对话框
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
-              ),
-          backgroundDecoration: const BoxDecoration(color: Colors.black),
+              ],
+            ),
+            body: PhotoViewGallery.builder(
+              scrollDirection: Axis.horizontal,
+              pageController: PageController(initialPage: initialIndex),
+              itemCount: images.length,
+              builder: (BuildContext context, int index) {
+                final imagePath = images[index];
+                final file = File(imagePath);
+
+                if (!file.existsSync()) {
+                  return PhotoViewGalleryPageOptions.customChild(
+                    child: Center(child: Icon(FeatherIcons.image, color: Colors.white70, size: 48)),
+                  );
+                }
+
+                return PhotoViewGalleryPageOptions(
+                  imageProvider: FileImage(file),
+                  initialScale: PhotoViewComputedScale.contained,
+                  minScale: PhotoViewComputedScale.contained,
+                  maxScale: PhotoViewComputedScale.covered * 5.0,
+                  heroAttributes: PhotoViewHeroAttributes(tag: imagePath),
+                  errorBuilder: (context, error, stackTrace) {
+                    return Center(child: Icon(FeatherIcons.alertCircle, color: Colors.white70, size: 48));
+                  },
+                );
+              },
+              loadingBuilder:
+                  (context, event) => Center(
+                    child: CircularProgressIndicator(
+                      value: event == null ? 0 : event.cumulativeBytesLoaded / (event.expectedTotalBytes ?? 1),
+                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white70),
+                    ),
+                  ),
+              backgroundDecoration: const BoxDecoration(color: Colors.black),
+            ),
+          ),
         ),
       ),
       barrierDismissible: true,

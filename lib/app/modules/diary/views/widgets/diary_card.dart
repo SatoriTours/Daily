@@ -145,14 +145,24 @@ class _DiaryCardState extends State<DiaryCard> {
 
   /// 构建内容区域（文本、图片、标签）
   Widget _buildContentArea(BuildContext context) {
+    // 处理内容，移除#标签部分
+    String contentWithoutTags = _displayContent;
+    if (widget.diary.tags != null && widget.diary.tags!.isNotEmpty) {
+      // 移除所有#tag格式的内容
+      final List<String> tags = widget.diary.tags!.split(',');
+      for (final tag in tags) {
+        contentWithoutTags = contentWithoutTags.replaceAll('#$tag', '');
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Markdown渲染的日记内容
+          // Markdown渲染的日记内容，去掉标签
           MarkdownBody(
-            data: _displayContent,
+            data: contentWithoutTags,
             selectable: true,
             styleSheet: DiaryUtils.getMarkdownStyleSheet(context),
             softLineBreak: true,
@@ -190,9 +200,15 @@ class _DiaryCardState extends State<DiaryCard> {
             },
           ),
 
-          // 图片显示 - 移到了"显示更多"按钮前面
+          // 标签 - 移到"显示更多"按钮之前
+          if (widget.diary.tags != null && widget.diary.tags!.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildEnhancedTags(context),
+          ],
+
+          // 图片显示
           if (widget.diary.images != null && widget.diary.images!.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             DiaryImageGallery(imagesString: widget.diary.images!),
           ],
 
@@ -231,12 +247,36 @@ class _DiaryCardState extends State<DiaryCard> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
 
-          // 标签
-          if (widget.diary.tags != null && widget.diary.tags!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            DiaryTags(tagsString: widget.diary.tags!),
-          ],
+  /// 构建增强的标签显示
+  Widget _buildEnhancedTags(BuildContext context) {
+    final List<String> tags = widget.diary.tags!.split(',');
+
+    return Wrap(spacing: 8, runSpacing: 8, children: tags.map((tag) => _buildEnhancedTagItem(context, tag)).toList());
+  }
+
+  /// 构建增强的单个标签项
+  Widget _buildEnhancedTagItem(BuildContext context, String tag) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: DiaryStyle.accentColor(context).withAlpha(20),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: DiaryStyle.accentColor(context).withAlpha(50), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.tag, size: 14, color: DiaryStyle.accentColor(context)),
+          const SizedBox(width: 4),
+          Text(
+            tag,
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: DiaryStyle.accentColor(context)),
+          ),
         ],
       ),
     );

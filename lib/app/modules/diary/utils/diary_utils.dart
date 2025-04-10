@@ -10,6 +10,8 @@ class DiaryUtils {
   /// 在当前光标位置插入Markdown内容
   static void insertMarkdown(TextEditingController controller, String markdown) {
     final int currentPosition = controller.selection.baseOffset;
+    final int currentEndPosition = controller.selection.extentOffset;
+    final bool hasSelection = currentPosition != currentEndPosition;
 
     // 处理光标位置无效的情况
     if (currentPosition < 0) {
@@ -18,12 +20,79 @@ class DiaryUtils {
       return;
     }
 
-    // 在光标位置插入Markdown
-    final String newText =
-        controller.text.substring(0, currentPosition) + markdown + controller.text.substring(currentPosition);
+    // 如果有选中文本，则对选中的文本应用格式
+    if (hasSelection) {
+      final String selectedText = controller.text.substring(
+        currentPosition < currentEndPosition ? currentPosition : currentEndPosition,
+        currentPosition < currentEndPosition ? currentEndPosition : currentPosition,
+      );
 
-    controller.text = newText;
-    controller.selection = TextSelection.collapsed(offset: currentPosition + markdown.length);
+      // 应用不同的格式
+      String formattedText;
+      if (markdown == '**文本**') {
+        formattedText = '**$selectedText**';
+      } else if (markdown == '*文本*') {
+        formattedText = '*$selectedText*';
+      } else if (markdown == '`代码`') {
+        formattedText = '`$selectedText`';
+      } else if (markdown == '[链接文本](https://example.com)') {
+        // 检查选中的文本是否是URL
+        if (isUrl(selectedText)) {
+          formattedText = '[链接文本]($selectedText)';
+        } else {
+          formattedText = '[$selectedText](https://example.com)';
+        }
+      } else if (markdown == '# ') {
+        formattedText = '# $selectedText';
+      } else if (markdown == '> 引用文本') {
+        formattedText = '> $selectedText';
+      } else {
+        // 如果没有特殊处理的格式，则直接插入原始markdown
+        formattedText = markdown;
+      }
+
+      // 替换选中的文本
+      final newText = controller.text.replaceRange(
+        currentPosition < currentEndPosition ? currentPosition : currentEndPosition,
+        currentPosition < currentEndPosition ? currentEndPosition : currentPosition,
+        formattedText,
+      );
+
+      controller.text = newText;
+      // 更新光标位置
+      final newCursorPosition =
+          (currentPosition < currentEndPosition ? currentPosition : currentEndPosition) + formattedText.length;
+      controller.selection = TextSelection.collapsed(offset: newCursorPosition);
+    } else {
+      // 在光标位置插入Markdown
+      final String newText =
+          controller.text.substring(0, currentPosition) + markdown + controller.text.substring(currentPosition);
+
+      controller.text = newText;
+      controller.selection = TextSelection.collapsed(offset: currentPosition + markdown.length);
+    }
+  }
+
+  /// 检查文本是否为URL
+  static bool isUrl(String text) {
+    final urlPattern = RegExp(r'^(http|https)://[a-zA-Z0-9-_.]+\.[a-zA-Z]{2,}(:[0-9]+)?(/.*)?$', caseSensitive: false);
+    return urlPattern.hasMatch(text.trim());
+  }
+
+  /// 自动将粘贴的链接转换为Markdown链接格式
+  static String autoConvertLinks(String text) {
+    // 匹配URL模式
+    final RegExp urlRegex = RegExp(
+      r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})',
+      caseSensitive: false,
+    );
+
+    // 如果文本只包含一个URL且没有其他内容，则转换为Markdown链接
+    if (urlRegex.hasMatch(text) && urlRegex.stringMatch(text) == text) {
+      return '[链接]($text)';
+    }
+
+    return text;
   }
 
   /// 显示Markdown预览

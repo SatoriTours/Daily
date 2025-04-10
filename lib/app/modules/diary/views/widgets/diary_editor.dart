@@ -2,6 +2,7 @@ import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:flutter/services.dart'; // 导入用于访问剪贴板
 import 'dart:io';
 
 import '../../controllers/diary_controller.dart';
@@ -23,11 +24,108 @@ class DiaryEditor extends StatefulWidget {
 class _DiaryEditorState extends State<DiaryEditor> {
   final List<XFile> _selectedImages = [];
   List<String> _existingImages = []; // 存储已有的图片路径
+  // 用于撤销和重做的历史记录管理
+  final List<String> _undoHistory = [];
+  final List<String> _redoHistory = [];
+  String _lastText = '';
 
   @override
   void initState() {
     super.initState();
     _initializeEditor();
+
+    // 设置初始文本和历史
+    _lastText = widget.controller.contentController.text;
+    _undoHistory.add(_lastText);
+
+    // 监听文本变化以支持撤销和重做
+    widget.controller.contentController.addListener(_onTextChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.contentController.removeListener(_onTextChanged);
+    super.dispose();
+  }
+
+  /// 监听文本变化
+  void _onTextChanged() {
+    final String currentText = widget.controller.contentController.text;
+    if (currentText != _lastText) {
+      _undoHistory.add(currentText);
+      _redoHistory.clear(); // 新的变更会清除重做历史
+      if (_undoHistory.length > 100) {
+        // 限制历史记录长度
+        _undoHistory.removeAt(0);
+      }
+      _lastText = currentText;
+
+      // 强制更新状态，确保撤销/重做按钮状态正确
+      setState(() {});
+    }
+  }
+
+  /// 撤销操作
+  void _undo() {
+    if (_undoHistory.length > 1) {
+      final currentText = _undoHistory.removeLast();
+      _redoHistory.add(currentText);
+      final previousText = _undoHistory.last;
+      _lastText = previousText; // 更新最后的文本，避免触发监听器
+      widget.controller.contentController.text = previousText;
+
+      // 恢复光标位置
+      final int cursorPosition = widget.controller.contentController.selection.baseOffset;
+      widget.controller.contentController.selection = TextSelection.collapsed(
+        offset: cursorPosition < previousText.length ? cursorPosition : previousText.length,
+      );
+
+      // 强制更新状态
+      setState(() {});
+    }
+  }
+
+  /// 重做操作
+  void _redo() {
+    if (_redoHistory.isNotEmpty) {
+      final redoText = _redoHistory.removeLast();
+      _undoHistory.add(redoText);
+      _lastText = redoText; // 更新最后的文本，避免触发监听器
+      widget.controller.contentController.text = redoText;
+
+      // 恢复光标位置
+      final int cursorPosition = widget.controller.contentController.selection.baseOffset;
+      widget.controller.contentController.selection = TextSelection.collapsed(
+        offset: cursorPosition < redoText.length ? cursorPosition : redoText.length,
+      );
+
+      // 强制更新状态
+      setState(() {});
+    }
+  }
+
+  /// 处理粘贴操作
+  Future<void> _handlePaste() async {
+    final ClipboardData? clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+    if (clipboardData != null && clipboardData.text != null) {
+      final String pasteText = clipboardData.text!;
+      // 自动将链接转换为Markdown链接格式
+      final String convertedText = DiaryUtils.autoConvertLinks(pasteText);
+
+      // 获取当前光标位置
+      final int cursorPosition = widget.controller.contentController.selection.baseOffset;
+      if (cursorPosition >= 0) {
+        // 插入转换后的文本
+        final String currentText = widget.controller.contentController.text;
+        final String newText =
+            currentText.substring(0, cursorPosition) + convertedText + currentText.substring(cursorPosition);
+
+        widget.controller.contentController.text = newText;
+        widget.controller.contentController.selection = TextSelection.collapsed(
+          offset: cursorPosition + convertedText.length,
+        );
+      }
+    }
   }
 
   /// 初始化编辑器
@@ -47,8 +145,8 @@ class _DiaryEditorState extends State<DiaryEditor> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 8, left: 16, right: 16, top: 16),
+      height: MediaQuery.of(context).size.height * 0.9,
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 8, left: 16, right: 16, top: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -62,6 +160,9 @@ class _DiaryEditorState extends State<DiaryEditor> {
               textAlignVertical: TextAlignVertical.top,
               decoration: _getInputDecoration(context),
               style: TextStyle(fontSize: 16, height: 1.5, color: DiaryStyle.primaryTextColor(context)),
+              onTap: () {
+                // 在文本字段内点击时，可以记录当前位置供工具栏使用
+              },
             ),
           ),
 
@@ -89,11 +190,16 @@ class _DiaryEditorState extends State<DiaryEditor> {
       margin: const EdgeInsets.only(top: 8),
       child: Row(
         children: [
-          // Markdown 工具栏
+          // Markdown 工具栏 - 现在把撤销、重做和粘贴按钮也放进去
           Expanded(
             child: MarkdownToolbar(
               controller: widget.controller.contentController,
               onSave: null, // 不使用工具栏的保存功能
+              undoCallback: _undoHistory.length > 1 ? _undo : null,
+              redoCallback: _redoHistory.isNotEmpty ? _redo : null,
+              pasteCallback: _handlePaste,
+              canUndo: _undoHistory.length > 1,
+              canRedo: _redoHistory.isNotEmpty,
             ),
           ),
 
@@ -115,7 +221,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
     BuildContext context,
     IconData icon,
     String tooltip,
-    VoidCallback onPressed, {
+    VoidCallback? onPressed, {
     bool isAccent = false,
   }) {
     return Tooltip(
@@ -129,7 +235,12 @@ class _DiaryEditorState extends State<DiaryEditor> {
           icon: Icon(
             icon,
             size: 16,
-            color: isAccent ? DiaryStyle.accentColor(context) : DiaryStyle.primaryTextColor(context),
+            color:
+                onPressed == null
+                    ? DiaryStyle.primaryTextColor(context).withAlpha(77) // 禁用状态
+                    : isAccent
+                    ? DiaryStyle.accentColor(context)
+                    : DiaryStyle.primaryTextColor(context),
           ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
