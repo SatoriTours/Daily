@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/webpage_parser_service.dart';
@@ -82,12 +81,13 @@ class ShareDialogController extends GetxController {
     await ProcessingDialog.show(
       message: 'AI分析中...',
       onProcess: (updateMessage) async {
-        await WebpageParserService.i.saveWebpage(
+        final article = await WebpageParserService.i.saveWebpage(
           url: shareURL.value,
           comment: commentController.text,
           isUpdate: isUpdate.value,
           articleID: articleID.value,
         );
+        Get.find<ArticlesController>().updateArticle(article.id);
       },
     );
     backToPreviousStep();
@@ -138,7 +138,7 @@ class ShareDialogController extends GetxController {
 
   /// 导航至首页
   void _navigateToHome() {
-    Get.find<ArticlesController>().reloadArticles();
-    Get.offAllNamed(Routes.home);
+    logger.i('导航至首页');
+    Get.back(times: 2);
   }
 }
