@@ -1,7 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:daily_satori/app/models/diary_model.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app_exports.dart';
 import '../../utils/diary_utils.dart';
 import 'dart:math';
 
@@ -9,7 +8,6 @@ import 'dart:math';
 import 'diary_timestamp.dart';
 import 'diary_more_menu.dart';
 import 'diary_image_gallery.dart';
-import 'diary_tags.dart';
 
 /// 单个日记卡片组件 - 支持Markdown和图片
 class DiaryCard extends StatefulWidget {
@@ -39,63 +37,72 @@ class _DiaryCardState extends State<DiaryCard> {
   void initState() {
     super.initState();
     _initializeContent();
+    logger.d('初始化日记卡片: ID=${widget.diary.id}');
   }
 
   @override
   void didUpdateWidget(DiaryCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.diary.content != widget.diary.content) {
+      logger.d('日记卡片内容已更新: ID=${widget.diary.id}');
       _initializeContent();
     }
   }
 
+  /// 初始化卡片内容
   void _initializeContent() {
     // 判断内容是否足够长，需要展开按钮
     _needsExpand = widget.diary.content.length > _minExpandableLength;
 
     // 如果需要折叠且当前未展开，则截取部分内容
     if (_needsExpand && !_isExpanded) {
-      // 截取指定长度的文本
-      String truncated = widget.diary.content.substring(0, _maxCollapsedLength);
-
-      // 尝试在合适的位置截断（句号、逗号、换行等）
-      int breakPos = truncated.lastIndexOf('\n');
-      if (breakPos <= _maxCollapsedLength * 0.5) {
-        // 如果找不到合适的换行符，或者换行位置太靠前，则尝试查找句号或逗号
-        int periodPos = truncated.lastIndexOf('。');
-        int commaPos = truncated.lastIndexOf('，');
-        breakPos = max(periodPos, commaPos);
-
-        if (breakPos <= _maxCollapsedLength * 0.5) {
-          // 如果还是找不到合适的位置，或位置太靠前，则尝试找空格
-          int spacePos = truncated.lastIndexOf(' ');
-          if (spacePos > _maxCollapsedLength * 0.7) {
-            breakPos = spacePos;
-          } else {
-            // 实在找不到合适的位置，就使用最大长度
-            breakPos = _maxCollapsedLength;
-          }
-        }
-      }
-
-      _displayContent = '${widget.diary.content.substring(0, breakPos)}...';
+      _displayContent = _truncateContent(widget.diary.content);
     } else {
       _displayContent = widget.diary.content;
     }
   }
 
-  // 切换展开/折叠状态
+  /// 智能截断内容文本
+  String _truncateContent(String fullContent) {
+    // 截取指定长度的文本
+    String truncated = fullContent.substring(0, _maxCollapsedLength);
+
+    // 尝试在合适的位置截断（句号、逗号、换行等）
+    int breakPos = truncated.lastIndexOf('\n');
+    if (breakPos <= _maxCollapsedLength * 0.5) {
+      // 如果找不到合适的换行符，或者换行位置太靠前，则尝试查找句号或逗号
+      int periodPos = truncated.lastIndexOf('。');
+      int commaPos = truncated.lastIndexOf('，');
+      breakPos = max(periodPos, commaPos);
+
+      if (breakPos <= _maxCollapsedLength * 0.5) {
+        // 如果还是找不到合适的位置，或位置太靠前，则尝试找空格
+        int spacePos = truncated.lastIndexOf(' ');
+        if (spacePos > _maxCollapsedLength * 0.7) {
+          breakPos = spacePos;
+        } else {
+          // 实在找不到合适的位置，就使用最大长度
+          breakPos = _maxCollapsedLength;
+        }
+      }
+    }
+
+    return '${fullContent.substring(0, breakPos)}...';
+  }
+
+  /// 切换展开/折叠状态
   void _toggleExpand() {
     setState(() {
       _isExpanded = !_isExpanded;
       _initializeContent();
+      logger.d('切换日记展开状态: ID=${widget.diary.id}, 展开=${_isExpanded}');
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: DiaryStyle.cardColor(context),
         borderRadius: BorderRadius.circular(12),
@@ -112,7 +119,6 @@ class _DiaryCardState extends State<DiaryCard> {
             children: [
               // 顶部时间和更多菜单
               _buildHeader(context),
-
               // 日记内容区域
               _buildContentArea(context),
             ],
@@ -125,16 +131,15 @@ class _DiaryCardState extends State<DiaryCard> {
   /// 构建卡片头部区域（时间戳和菜单）
   Widget _buildHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 16, right: 8, top: 6, bottom: 0),
+      padding: const EdgeInsets.only(left: 16, right: 8, top: 10, bottom: 2),
       child: SizedBox(
-        height: 22,
+        height: 24,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // 时间戳组件
             DiaryTimestamp(timestamp: widget.diary.createdAt),
-
             // 更多菜单组件
             DiaryMoreMenu(onEdit: widget.onEdit, onDelete: widget.onDelete),
           ],
@@ -146,64 +151,20 @@ class _DiaryCardState extends State<DiaryCard> {
   /// 构建内容区域（文本、图片、标签）
   Widget _buildContentArea(BuildContext context) {
     // 处理内容，移除#标签部分
-    String contentWithoutTags = _displayContent;
-    if (widget.diary.tags != null && widget.diary.tags!.isNotEmpty) {
-      // 移除所有#tag格式的内容
-      final List<String> tags = widget.diary.tags!.split(',');
-      for (final tag in tags) {
-        contentWithoutTags = contentWithoutTags.replaceAll('#$tag', '');
-      }
-    }
+    final String contentWithoutTags = _removeTagsFromContent();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Markdown渲染的日记内容，去掉标签
-          MarkdownBody(
-            data: contentWithoutTags,
-            selectable: true,
-            styleSheet: DiaryUtils.getMarkdownStyleSheet(context),
-            softLineBreak: true,
-            fitContent: true,
-            shrinkWrap: true,
-            // ignore: deprecated_member_use
-            imageBuilder: (Uri uri, String? title, String? alt) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8.0),
-                  child: Image.network(
-                    uri.toString(),
-                    fit: BoxFit.contain,
-                    errorBuilder:
-                        (context, error, stackTrace) => Container(
-                          height: 150,
-                          decoration: BoxDecoration(
-                            color: DiaryStyle.tagBackgroundColor(context),
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: Center(
-                            child: Icon(Icons.broken_image_outlined, color: DiaryStyle.secondaryTextColor(context)),
-                          ),
-                        ),
-                  ),
-                ),
-              );
-            },
-            onTapLink: (text, href, title) {
-              // 实现点击超链接打开浏览器
-              if (href != null) {
-                DiaryUtils.launchURL(href);
-              }
-            },
-          ),
+          _buildMarkdownContent(context, contentWithoutTags),
 
-          // 标签 - 移到"显示更多"按钮之前
+          // 标签列表 - 移到"显示更多"按钮之前
           if (widget.diary.tags != null && widget.diary.tags!.isNotEmpty) ...[
             const SizedBox(height: 12),
-            _buildEnhancedTags(context),
+            _buildTags(context),
           ],
 
           // 图片显示
@@ -213,54 +174,78 @@ class _DiaryCardState extends State<DiaryCard> {
           ],
 
           // 显示"更多"按钮
-          if (_needsExpand)
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(top: 16.0), // 增加与文章内容的间距
-              padding: const EdgeInsets.symmetric(vertical: 6.0),
-              decoration: BoxDecoration(
-                color: DiaryStyle.accentColor(context).withAlpha(20),
-                borderRadius: BorderRadius.circular(6.0),
-              ),
-              child: GestureDetector(
-                onTap: _toggleExpand,
-                behavior: HitTestBehavior.opaque,
-                child: Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _isExpanded ? '收起内容' : '查看更多',
-                        style: TextStyle(
-                          color: DiaryStyle.accentColor(context),
-                          fontSize: 13.0,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Icon(
-                        _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                        size: 16.0,
-                        color: DiaryStyle.accentColor(context),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+          if (_needsExpand) _buildExpandToggleButton(context),
         ],
       ),
     );
   }
 
-  /// 构建增强的标签显示
-  Widget _buildEnhancedTags(BuildContext context) {
-    final List<String> tags = widget.diary.tags!.split(',');
-
-    return Wrap(spacing: 8, runSpacing: 8, children: tags.map((tag) => _buildEnhancedTagItem(context, tag)).toList());
+  /// 从内容中移除标签
+  String _removeTagsFromContent() {
+    String contentWithoutTags = _displayContent;
+    if (widget.diary.tags != null && widget.diary.tags!.isNotEmpty) {
+      // 移除所有#tag格式的内容
+      final List<String> tags = widget.diary.tags!.split(',');
+      for (final tag in tags) {
+        contentWithoutTags = contentWithoutTags.replaceAll('#$tag', '');
+      }
+    }
+    return contentWithoutTags;
   }
 
-  /// 构建增强的单个标签项
-  Widget _buildEnhancedTagItem(BuildContext context, String tag) {
+  /// 构建Markdown内容
+  Widget _buildMarkdownContent(BuildContext context, String content) {
+    return MarkdownBody(
+      data: content,
+      selectable: true,
+      styleSheet: DiaryUtils.getMarkdownStyleSheet(context),
+      softLineBreak: true,
+      fitContent: true,
+      shrinkWrap: true,
+      // ignore: deprecated_member_use
+      imageBuilder: (Uri uri, String? title, String? alt) {
+        return _buildMarkdownImage(context, uri);
+      },
+      onTapLink: (text, href, title) {
+        // 实现点击超链接打开浏览器
+        if (href != null) {
+          DiaryUtils.launchURL(href);
+        }
+      },
+    );
+  }
+
+  /// 构建Markdown图片
+  Widget _buildMarkdownImage(BuildContext context, Uri uri) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Image.network(
+          uri.toString(),
+          fit: BoxFit.contain,
+          errorBuilder:
+              (context, error, stackTrace) => Container(
+                height: 150,
+                decoration: BoxDecoration(
+                  color: DiaryStyle.tagBackgroundColor(context),
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+                child: Center(child: Icon(Icons.broken_image_outlined, color: DiaryStyle.secondaryTextColor(context))),
+              ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建标签列表
+  Widget _buildTags(BuildContext context) {
+    final List<String> tags = widget.diary.tags!.split(',');
+    return Wrap(spacing: 8, runSpacing: 8, children: tags.map((tag) => _buildTagItem(context, tag)).toList());
+  }
+
+  /// 构建单个标签项
+  Widget _buildTagItem(BuildContext context, String tag) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -278,6 +263,39 @@ class _DiaryCardState extends State<DiaryCard> {
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: DiaryStyle.accentColor(context)),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 构建展开/折叠按钮
+  Widget _buildExpandToggleButton(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 16.0),
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      decoration: BoxDecoration(
+        color: DiaryStyle.accentColor(context).withAlpha(20),
+        borderRadius: BorderRadius.circular(6.0),
+      ),
+      child: GestureDetector(
+        onTap: _toggleExpand,
+        behavior: HitTestBehavior.opaque,
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _isExpanded ? '收起内容' : '查看更多',
+                style: TextStyle(color: DiaryStyle.accentColor(context), fontSize: 13.0, fontWeight: FontWeight.w500),
+              ),
+              Icon(
+                _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                size: 16.0,
+                color: DiaryStyle.accentColor(context),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

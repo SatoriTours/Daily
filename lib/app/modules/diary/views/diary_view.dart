@@ -20,12 +20,14 @@ class DiaryView extends GetView<DiaryController> {
     return Scaffold(
       backgroundColor: DiaryStyle.backgroundColor(context),
       appBar: _buildAppBar(context),
-      body: Stack(children: [Obx(() => _buildMainContent(context)), _buildSearchBar(), _buildFloatingButton()]),
+      body: Stack(children: [Obx(() => _buildMainContent(context)), _buildSearchBar(), _buildFloatingButton(context)]),
     );
   }
 
   /// 构建主要内容区域
   Widget _buildMainContent(BuildContext context) {
+    logger.d('构建日记主内容区域');
+
     // 显示搜索结果状态
     if (controller.searchQuery.isNotEmpty) {
       return _buildFilterView(context, '搜索结果: "${controller.searchQuery.value}"');
@@ -49,26 +51,36 @@ class DiaryView extends GetView<DiaryController> {
 
   /// 构建过滤视图（搜索结果、标签过滤、日期过滤等）
   Widget _buildFilterView(BuildContext context, String filterText) {
+    logger.d('构建过滤视图: $filterText');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  filterText,
-                  style: TextStyle(fontSize: 14, color: DiaryStyle.secondaryTextColor(context)),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              _buildClearFilterButton(context),
-            ],
-          ),
-        ),
+        _buildFilterHeader(context, filterText),
         Expanded(child: DiaryList(controller: controller, onEditDiary: (diary) => _showEditDialog(context, diary))),
       ],
+    );
+  }
+
+  /// 构建过滤器头部
+  Widget _buildFilterHeader(BuildContext context, String filterText) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              filterText,
+              style: TextStyle(
+                fontSize: 14,
+                color: DiaryStyle.secondaryTextColor(context),
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          _buildClearFilterButton(context),
+        ],
+      ),
     );
   }
 
@@ -78,13 +90,16 @@ class DiaryView extends GetView<DiaryController> {
       onTap: () => controller.clearFilters(),
       borderRadius: BorderRadius.circular(20),
       child: Padding(
-        padding: const EdgeInsets.all(4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(FeatherIcons.x, size: 14, color: DiaryStyle.accentColor(context)),
             const SizedBox(width: 4),
-            Text('清除', style: TextStyle(fontSize: 12, color: DiaryStyle.accentColor(context))),
+            Text(
+              '清除',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: DiaryStyle.accentColor(context)),
+            ),
           ],
         ),
       ),
@@ -94,29 +109,26 @@ class DiaryView extends GetView<DiaryController> {
   /// 构建搜索栏
   Widget _buildSearchBar() {
     return Obx(() {
-      // 使用isSearchVisible来控制搜索栏的显示，而不是依赖于文本内容
-      final bool shouldShowSearchBar =
-          controller.isSearchVisible.value ||
-          controller.searchController.text.isNotEmpty ||
-          controller.searchQuery.isNotEmpty;
+      logger.d('更新搜索栏可见性');
+      final bool shouldShowSearchBar = controller.isSearchVisible.value || controller.searchQuery.isNotEmpty;
 
-      return Visibility(
-        visible: shouldShowSearchBar,
-        child: Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: DiarySearchBar(controller: controller, onClose: () => controller.enableSearch(false)),
-        ),
+      return AnimatedPositioned(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        top: shouldShowSearchBar ? 0 : -60,
+        left: 0,
+        right: 0,
+        height: 60,
+        child: DiarySearchBar(controller: controller, onClose: () => controller.enableSearch(false)),
       );
     });
   }
 
   /// 构建悬浮按钮
-  Widget _buildFloatingButton() {
+  Widget _buildFloatingButton(BuildContext context) {
     return Positioned(
       right: 24,
-      bottom: 16,
+      bottom: 24,
       child: SafeArea(bottom: true, right: true, child: DiaryFab(controller: controller)),
     );
   }
@@ -125,28 +137,41 @@ class DiaryView extends GetView<DiaryController> {
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return AppBar(
-      backgroundColor: isDark ? Color(0xFF121212) : Color(0xFF5E8BFF),
-      elevation: 0.5,
-      leading: IconButton(
-        icon: Icon(FeatherIcons.calendar, color: Colors.white, size: 20),
-        onPressed: () => _showCalendarDialog(context),
-      ),
+      backgroundColor: isDark ? const Color(0xFF121212) : DiaryStyle.accentColor(context),
+      elevation: 1,
+      leadingWidth: 48,
+      titleSpacing: 0,
+      leading: _buildAppBarButton(context, FeatherIcons.calendar, Colors.white, () => _showCalendarDialog(context)),
       title: GestureDetector(
         onDoubleTap: _scrollToTop,
-        child: Text('我的日记', style: TextStyle(fontSize: 18, color: Colors.white)),
+        child: const Text('我的日记', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.white)),
       ),
       actions: [
-        IconButton(icon: Icon(FeatherIcons.search, color: Colors.white, size: 20), onPressed: () => _activateSearch()),
-        IconButton(
-          icon: Icon(FeatherIcons.tag, color: Colors.white, size: 20),
-          onPressed: () => _showTagsDialog(context),
-        ),
+        _buildAppBarButton(context, FeatherIcons.search, Colors.white, _activateSearch),
+        _buildAppBarButton(context, FeatherIcons.tag, Colors.white, () => _showTagsDialog(context)),
       ],
+    );
+  }
+
+  /// 构建AppBar按钮
+  Widget _buildAppBarButton(BuildContext context, IconData icon, Color color, VoidCallback onPressed) {
+    return IconButton(
+      icon: Icon(icon, color: color, size: 20),
+      splashRadius: 24,
+      onPressed: onPressed,
+      padding: const EdgeInsets.all(12),
+      tooltip:
+          icon == FeatherIcons.calendar
+              ? '日历'
+              : icon == FeatherIcons.search
+              ? '搜索'
+              : '标签',
     );
   }
 
   /// 滚动到顶部
   void _scrollToTop() {
+    logger.d('双击标题，滚动到顶部');
     if (controller.scrollController.hasClients) {
       controller.scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     }
@@ -154,6 +179,7 @@ class DiaryView extends GetView<DiaryController> {
 
   /// 激活搜索
   void _activateSearch() {
+    logger.d('激活搜索功能');
     // 清除当前搜索内容
     controller.searchController.clear();
 
@@ -168,27 +194,48 @@ class DiaryView extends GetView<DiaryController> {
 
   /// 显示编辑对话框 - 支持Markdown和图片
   void _showEditDialog(BuildContext context, DiaryModel diary) {
+    logger.d('显示编辑对话框: ${diary.id}');
+
+    // 隐藏当前可能的键盘
+    FocusManager.instance.primaryFocus?.unfocus();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: DiaryStyle.bottomSheetColor(context),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (context) => DiaryEditDialog(diary: diary, controller: controller),
-    );
+    ).then((_) {
+      // 确保对话框关闭后键盘也被隐藏
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
   }
 
   /// 显示标签选择对话框 - 支持主题
   void _showTagsDialog(BuildContext context) {
+    logger.d('显示标签对话框');
+
+    // 隐藏当前可能的键盘
+    FocusManager.instance.primaryFocus?.unfocus();
+
     showModalBottomSheet(
       context: context,
       backgroundColor: DiaryStyle.bottomSheetColor(context),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (context) => DiaryTagsDialog(controller: controller),
-    );
+    ).then((_) {
+      // 确保对话框关闭后键盘也被隐藏
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
   }
 
   /// 显示日历选择对话框
   void _showCalendarDialog(BuildContext context) {
+    logger.d('显示日历对话框');
+
+    // 隐藏当前可能的键盘
+    FocusManager.instance.primaryFocus?.unfocus();
+
     // 如果已经有筛选，先清除
     if (controller.searchQuery.isNotEmpty ||
         controller.currentTag.isNotEmpty ||
@@ -202,6 +249,9 @@ class DiaryView extends GetView<DiaryController> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       isScrollControlled: true,
       builder: (context) => DiaryCalendarDialog(controller: controller),
-    );
+    ).then((_) {
+      // 确保对话框关闭后键盘也被隐藏
+      FocusManager.instance.primaryFocus?.unfocus();
+    });
   }
 }

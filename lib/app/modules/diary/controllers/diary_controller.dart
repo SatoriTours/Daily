@@ -34,10 +34,26 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
     _loadDiaries();
     _extractTags();
     _createImageDirectory(); // 创建图片目录
+
+    // 添加搜索控制器监听
+    searchController.addListener(_onSearchTextChanged);
+  }
+
+  /// 搜索文本变化处理
+  void _onSearchTextChanged() {
+    // 当用户在搜索框中输入文本但尚未提交搜索时
+    // 这里不触发实际搜索，只确保UI状态一致
+    if (isSearchVisible.value && searchController.text.isEmpty && searchQuery.isNotEmpty) {
+      // 如果搜索框可见，但文本被清空，且之前有搜索内容
+      // 则清空搜索结果
+      searchQuery.value = '';
+      _loadDiaries();
+    }
   }
 
   @override
   void onClose() {
+    searchController.removeListener(_onSearchTextChanged);
     scrollController.dispose();
     searchController.dispose();
     contentController.dispose();
@@ -63,6 +79,9 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
   /// 创建新日记
   Future<void> createDiary(String content, {String? tags, String? mood, String? images}) async {
     if (content.trim().isEmpty) return;
+
+    // 确保键盘隐藏
+    FocusManager.instance.primaryFocus?.unfocus();
 
     isLoading.value = true;
 
@@ -99,6 +118,9 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
 
   /// 更新日记
   Future<void> updateDiary(DiaryModel diary) async {
+    // 确保键盘隐藏
+    FocusManager.instance.primaryFocus?.unfocus();
+
     isLoading.value = true;
 
     // 获取原日记以比较图片变化

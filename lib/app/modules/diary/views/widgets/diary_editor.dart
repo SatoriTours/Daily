@@ -293,6 +293,9 @@ class _DiaryEditorState extends State<DiaryEditor> {
   /// 保存日记
   void _saveDiary() async {
     if (widget.controller.contentController.text.trim().isNotEmpty) {
+      // 先隐藏键盘
+      FocusManager.instance.primaryFocus?.unfocus();
+
       // 保存图片并获取路径列表
       final List<String> newImagePaths = await _saveImages();
 
@@ -323,6 +326,9 @@ class _DiaryEditorState extends State<DiaryEditor> {
           images: allImagePaths.isEmpty ? null : allImagePaths.join(','),
         );
       }
+
+      // 关闭底部弹窗前确保键盘已收起
+      await Future.delayed(const Duration(milliseconds: 100));
 
       // 关闭底部弹窗
       if (mounted) {
