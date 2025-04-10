@@ -4,7 +4,7 @@ description: "Daily Satori Tours"
 publish_to: 'none'
 
 
-version: 3.6.8
+version: 3.6.9
 
 environment:
   sdk: ^3.7.0
@@ -54,10 +54,10 @@ dependencies:
   dio: ^5.7.0
 
   # 文件选择
-  file_picker: ^9.2.1
+  file_picker: ^10.1.0
 
   # 权限判断
-  permission_handler: ^11.3.1
+  permission_handler: ^12.0.0+1
 
   # 引入 google 字体
   google_fonts: ^6.2.1
@@ -109,7 +109,7 @@ dependencies:
   # 分享
   # receive_sharing_intent: ^1.8.0
 
-  archive: ^3.4.10
+  archive: ^4.0.5
 
 dev_dependencies:
   flutter_test:
