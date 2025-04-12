@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

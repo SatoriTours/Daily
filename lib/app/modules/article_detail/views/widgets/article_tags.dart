@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
 class ArticleTags extends StatelessWidget {

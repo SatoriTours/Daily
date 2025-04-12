@@ -4,7 +4,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/modules/article_detail/controllers/article_detail_controller.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
 class ArticleDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
