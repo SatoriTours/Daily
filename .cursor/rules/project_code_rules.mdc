@@ -1,0 +1,126 @@
+# Daily应用项目代码规则
+
+你是一位专业的Flutter/Dart开发者，负责维护和扩展一个名为Daily的Flutter应用。请遵循以下规则编写和修改代码：
+
+## 目录结构规范
+
+项目遵循以下目录结构，新增代码必须放在正确的位置：
+
+```
+lib/
+├── app_exports.dart      # 统一导出应用级组件
+├── global.dart           # 全局变量和函数
+├── init_app.dart         # 应用初始化
+├── main.dart             # 应用入口
+├── app/
+│   ├── styles/           # 样式相关文件
+│   │   ├── app_styles.dart      # 应用通用样式
+│   │   ├── colors.dart          # 颜色定义
+│   │   ├── component_style.dart # 组件样式
+│   │   ├── dimensions.dart      # 尺寸和间距
+│   │   ├── font_style.dart      # 字体样式
+│   │   ├── theme.dart           # 主题定义
+│   │   └── index.dart           # 样式导出
+│   ├── components/       # 共享组件
+│   ├── services/         # 服务层实现
+│   ├── repositories/     # 数据仓库实现
+│   ├── modules/          # 功能模块
+│   │   └── {module_name}/    # 具体模块
+│   │       ├── bindings/     # 依赖注入
+│   │       ├── controllers/  # 控制器
+│   │       └── views/        # 视图
+│   ├── utils/            # 工具类
+│   ├── routes/           # 路由定义
+│   ├── objectbox/        # ObjectBox数据库
+│   └── models/           # 数据模型
+```
+
+## 样式使用规范
+
+1. **颜色使用规则**
+   - 禁止直接使用硬编码颜色值（如`Colors.blue`或`Color(0xFF000000)`）
+   - 必须从`app/styles/colors.dart`中引用预定义颜色
+   - 示例：`AppColors.primary`，`AppColors.background`
+
+2. **尺寸和间距规则**
+   - 所有尺寸、边距、内边距等必须使用`app/styles/dimensions.dart`中的常量
+   - 示例：`AppDimensions.paddingSmall`，`AppDimensions.borderRadiusNormal`
+
+3. **字体和文本样式规则**
+   - 文本样式必须从`app/styles/font_style.dart`引用
+   - 示例：`AppFontStyles.headingLarge`，`AppFontStyles.bodyMedium`
+
+4. **组件样式规则**
+   - 组件样式（如按钮、卡片等）必须使用`app/styles/component_style.dart`中的定义
+   - 示例：`ComponentStyles.primaryButton`，`ComponentStyles.defaultCard`
+
+5. **主题使用规则**
+   - 应用应通过主题来引用颜色和样式，避免硬编码
+   - 示例：`Theme.of(context).colorScheme.primary`，`Theme.of(context).textTheme.bodyLarge`
+
+## 代码风格规范
+
+1. **视图代码（View）规则**
+   - 每个视图类应当继承`GetView<Controller>`
+   - 复杂视图应拆分为多个小部件方法，每个方法应小于30行代码
+   - 每个方法必须添加文档注释，说明其功能
+   - Widget方法命名应使用`_build`前缀（如`_buildAppBar()`）
+   - 避免在build方法中进行复杂逻辑处理，逻辑应放在控制器中
+
+2. **控制器（Controller）规则**
+   - 控制器类应继承`GetxController`
+   - 状态变量应使用Rxn、RxBool、RxInt等响应式类型
+   - 方法名应采用动词开头的camelCase命名法
+   - 私有方法和变量使用下划线前缀
+   - 控制器应通过binding进行注册和依赖注入
+
+3. **组件（Component）规则**
+   - 可复用组件应放在`app/components`目录中
+   - 组件必须是无状态的（StatelessWidget）或使用GetX状态管理
+   - 每个组件必须有明确的文档注释，说明其用途、参数和示例
+   - 组件必须具有一致的API设计，尽量使用必需参数
+
+4. **代码格式规则**
+   - 使用2空格缩进
+   - 行宽限制为100个字符
+   - 使用尾随逗号改善格式化
+   - 类的属性和方法之间应有一个空行分隔
+   - 相关的导入语句应分组，并有注释分隔
+
+5. **命名规范**
+   - 类名使用PascalCase（如HomeController）
+   - 变量和方法使用camelCase（如getUserData）
+   - 私有成员使用下划线前缀（如_privateMethod）
+   - 常量使用kPascalCase（如kDefaultTimeout）或ALL_CAPS（如MAX_RETRY_COUNT）
+   - 布尔变量应以is、has、can等开头（如isLoading）
+
+6. **注释规范**
+   - 所有公开API必须有文档注释（///）
+   - 复杂逻辑必须有行内注释说明（//）
+   - 每个类必须在顶部有文档注释，说明其用途
+   - TODO和FIXME注释必须包含相关说明和责任人
+
+## RESTful API使用规范
+
+API的结构遵循以下模式：
+- `/api/v2/auth/*`：身份认证相关API
+- `/api/v2/articles/*`：文章管理API
+- `/api/v2/diary/*`：日记管理API
+- `/api/v2/upload`：文件上传API
+
+所有API调用必须通过服务层进行，不应在视图或控制器中直接发起HTTP请求。
+
+## 状态管理规范
+
+1. 使用GetX进行状态管理
+2. 使用Reactive（.obs）变量管理UI状态
+3. 保持控制器职责单一，复杂逻辑应拆分为多个控制器
+4. 使用GetX服务进行全局状态管理
+
+## 其他规范
+
+1. 不使用直接的context在异步操作中，而是使用GetX的无context解决方案
+2. 错误处理必须全面，避免空引用和未捕获异常
+3. 国际化文本必须使用GetX的翻译机制
+4. 性能优化：合理使用StatelessWidget和const构造器
+5. 图片和资源文件必须按照类型组织在assets目录下对应子目录中
