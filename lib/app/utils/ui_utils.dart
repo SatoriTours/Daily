@@ -90,4 +90,35 @@ class UIUtils {
       ),
     );
   }
+
+  /// 显示信息对话框
+  static Future<void> showDialog({
+    required String title,
+    required String message,
+    String buttonText = '确定',
+    Function()? onConfirmed,
+  }) async {
+    await Get.dialog<bool>(
+      AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Get.close();
+              onConfirmed?.call();
+            },
+            child: Text(buttonText),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 隐藏加载提示
+  static void hideLoading() {
+    if (Get.isDialogOpen ?? false) {
+      Get.close();
+    }
+  }
 }

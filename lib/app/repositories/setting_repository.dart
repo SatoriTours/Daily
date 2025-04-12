@@ -180,5 +180,28 @@ class SettingRepository {
     }
   }
 
+  /// 重置所有设置到默认值
+  static Future<void> resetAllSettings() async {
+    try {
+      // 获取所有设置键
+      final keys = getKeys();
+
+      // 保留某些系统关键设置，如设备ID等
+      final keysToPreserve = <String>{'device_id', 'installation_id'};
+
+      // 删除非保留的设置
+      for (final key in keys) {
+        if (!keysToPreserve.contains(key)) {
+          await remove(key);
+        }
+      }
+
+      logger.i("[设置仓储] 设置已重置为默认值");
+    } catch (e) {
+      logger.e("[设置仓储] 重置设置失败: $e");
+      rethrow;
+    }
+  }
+
   // 内部方法，已经存在，所以这里只是为了表示我们在使用它
 }
