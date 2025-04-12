@@ -1,4 +1,5 @@
 import 'package:daily_satori/app/services/file_service.dart';
+import 'package:get/get.dart' as getx;
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:daily_satori/app/models/diary_model.dart';
@@ -8,6 +9,7 @@ import 'package:daily_satori/app/services/web_service/api_utils/auth_middleware.
 import 'package:daily_satori/app/services/web_service/api_utils/request_utils.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/response_utils.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/session_manager.dart';
+import 'package:daily_satori/app/modules/diary/controllers/diary_controller.dart' as app_controller;
 
 /// 日记控制器
 class DiaryController {
@@ -189,6 +191,9 @@ class DiaryController {
         return ResponseUtils.serverError('日记创建失败');
       }
 
+      // 刷新日记列表
+      _refreshDiaryList();
+
       // 转换为JSON格式
       final diaryJson = _diaryToJson(newDiary);
 
@@ -237,6 +242,9 @@ class DiaryController {
       // 保存更新
       diaryRepository.save(existingDiary);
 
+      // 刷新日记列表
+      _refreshDiaryList();
+
       // 转换为JSON格式
       final diaryJson = _diaryToJson(existingDiary);
 
@@ -262,6 +270,9 @@ class DiaryController {
         return ResponseUtils.error('日记不存在或删除失败', status: 404);
       }
 
+      // 刷新日记列表
+      _refreshDiaryList();
+
       return ResponseUtils.success({'success': true});
     } catch (e) {
       logger.e('删除日记失败: $e');
@@ -280,5 +291,10 @@ class DiaryController {
       'createdAt': diary.createdAt.toIso8601String(),
       'updatedAt': diary.updatedAt.toIso8601String(),
     };
+  }
+
+  void _refreshDiaryList() {
+    var controller = getx.Get.find<app_controller.DiaryController>();
+    controller.loadDiaries();
   }
 }

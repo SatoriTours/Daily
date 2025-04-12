@@ -68,7 +68,11 @@ class AppHttpServer {
     // 图片文件目录
     final imagesDir = FileService.i.imagesBasePath;
     final imagesHandler = createStaticHandler(imagesDir, serveFilesOutsidePath: true);
+    final diaryImagesDir = FileService.i.diaryImagesBasePath;
+    final diaryImagesHandler = createStaticHandler(diaryImagesDir, serveFilesOutsidePath: true);
+
     _router.mount('/images', imagesHandler);
+    _router.mount('/diary_images', diaryImagesHandler);
 
     // 内置静态资源
     _router.mount('/assets', _assetHandler);
@@ -157,8 +161,12 @@ class AppHttpServer {
   }
 
   /// 生成标准响应
-  shelf.Response _response(int code, String msg, {int status = 200}) {
-    final body = jsonEncode({"code": code, "msg": msg});
+  shelf.Response _response(int code, String msg, {int status = 200, dynamic data}) {
+    final body = jsonEncode({
+      "code": code,
+      "msg": msg,
+      "data": data ?? (code == 0 ? {"success": true} : null),
+    });
     return shelf.Response(status, body: body, headers: {'Content-Type': 'application/json; charset=utf-8'});
   }
 

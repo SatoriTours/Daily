@@ -217,11 +217,9 @@ class AppWebSocketTunnel {
     try {
       if (messageID != null) {
         // 结构化错误响应
-        final errorData = {
-          "http_code": 500,
-          "content-type": "application/json",
-          "body": jsonEncode({"error": errorMessage}),
-        };
+        final standardErrorBody = {"code": 500, "msg": errorMessage, "data": null};
+
+        final errorData = {"http_code": 500, "content-type": "application/json", "body": jsonEncode(standardErrorBody)};
 
         final errorResponse = {"message_id": messageID, "data": jsonEncode(errorData)};
 
