@@ -119,7 +119,7 @@
   "code": 0,
   "msg": "成功",
   "data": {
-    "data": [
+    "items": [
       {
         "id": 1,
         "title": "文章标题",
@@ -162,7 +162,7 @@
   "code": 0,
   "msg": "成功",
   "data": {
-    "data": [
+    "items": [
       // 匹配的文章列表
     ],
     "pagination": {
@@ -382,7 +382,7 @@
   "code": 0,
   "msg": "成功",
   "data": {
-    "data": [
+    "items": [
       {
         "id": 1,
         "content": "今天的日记内容...",
@@ -423,7 +423,7 @@
   "code": 0,
   "msg": "成功",
   "data": {
-    "data": [
+    "items": [
       // 匹配的日记列表
     ],
     "pagination": {

@@ -74,7 +74,7 @@ class ArticleController {
 
       // 返回带分页信息的响应
       return ResponseUtils.success({
-        'data': articlesJson,
+        'items': articlesJson,
         'pagination': {
           'page': page,
           'pageSize': ArticleRepository.pageSize,
@@ -111,7 +111,7 @@ class ArticleController {
 
       // 返回带分页信息的响应
       return ResponseUtils.success({
-        'data': articlesJson,
+        'items': articlesJson,
         'pagination': {
           'page': page,
           'pageSize': ArticleRepository.pageSize,
@@ -284,11 +284,8 @@ class ArticleController {
   Map<String, dynamic> _articleToJson(ArticleModel article) {
     return {
       'id': article.id,
-      'title': article.title,
-      'aiTitle': article.aiTitle,
-      'content': article.content,
-      'aiContent': article.aiContent,
-      'htmlContent': article.htmlContent,
+      'title': article.showTitle(),
+      'content': article.showContent(),
       'aiMarkdownContent': article.aiMarkdownContent,
       'url': article.url,
       'isFavorite': article.isFavorite,

@@ -33,7 +33,22 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       ),
       centerTitle: true,
       backgroundColor: colorScheme.surface,
-      actions: [_buildSaveButton()],
+      actions: [_buildResetButton(), _buildSaveButton()],
+    );
+  }
+
+  /// 构建恢复按钮
+  Widget _buildResetButton() {
+    logger.d('构建恢复按钮');
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: TextButton(
+        onPressed: () {
+          logger.i('点击恢复按钮');
+          controller.resetConfig();
+        },
+        child: const Text('恢复'),
+      ),
     );
   }
 
@@ -87,19 +102,21 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       context: context,
       title: "AI服务提供商",
       icon: Icons.cloud,
-      child: SelectionField(
-        value: controller.apiPresets[controller.selectedApiPresetIndex].name,
-        onTap:
-            () => _showSelectionBottomSheet(
-              context: context,
-              title: '选择AI服务提供商',
-              items: controller.apiPresets.map((e) => e.name).toList(),
-              selectedValue: controller.apiPresets[controller.selectedApiPresetIndex].name,
-              onSelected: (index) {
-                logger.i('选择API提供商: ${controller.apiPresets[index].name}');
-                controller.updateApiAddress(index);
-              },
-            ),
+      child: Obx(
+        () => SelectionField(
+          value: controller.apiPresets[controller.selectedApiPresetIndex].name,
+          onTap:
+              () => _showSelectionBottomSheet(
+                context: context,
+                title: '选择AI服务提供商',
+                items: controller.apiPresets.map((e) => e.name).toList(),
+                selectedValue: controller.apiPresets[controller.selectedApiPresetIndex].name,
+                onSelected: (index) {
+                  logger.i('选择API提供商: ${controller.apiPresets[index].name}');
+                  controller.updateApiAddress(index);
+                },
+              ),
+        ),
       ),
     );
   }
@@ -238,8 +255,15 @@ class FormTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final bool isPassword;
+  final Function(String)? onChanged;
 
-  const FormTextField({super.key, required this.controller, required this.hintText, this.isPassword = false});
+  const FormTextField({
+    super.key,
+    required this.controller,
+    required this.hintText,
+    this.isPassword = false,
+    this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -258,6 +282,7 @@ class FormTextField extends StatelessWidget {
         filled: true,
         fillColor: colorScheme.surfaceVariant.withValues(alpha: 0.3),
       ),
+      onChanged: onChanged,
     );
   }
 }

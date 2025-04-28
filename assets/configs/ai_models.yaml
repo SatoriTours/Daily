@@ -6,6 +6,12 @@ ai_models:
       - gpt-4
       - gpt-4-turbo
       - gpt-4-vision
+  - name: DeepSeek API
+    apiAddress: https://api.deepseek.com
+    models:
+      - deepseek-v3
+      - deepseek-coder
+      - deepseek-chat
   - name: 阿里云百炼
     apiAddress: https://dashscope.aliyuncs.com/compatible-mode/v1
     models:

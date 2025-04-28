@@ -27,11 +27,13 @@ class AIConfigEditController extends GetxController {
   final _selectedApiPresetIndex = 0.obs;
   final _isEditMode = false.obs;
   final _modelName = ''.obs;
+  final _apiToken = ''.obs;
 
   /// Getters for reactive variables
   int get selectedApiPresetIndex => _selectedApiPresetIndex.value;
   bool get isEditMode => _isEditMode.value;
   String get modelName => _modelName.value;
+  String get apiToken => _apiToken.value;
 
   /// 是否显示自定义API地址
   bool get isCustomApiAddress => selectedApiPresetIndex == apiPresets.length - 1;
@@ -60,6 +62,15 @@ class AIConfigEditController extends GetxController {
     apiAddressController = TextEditingController();
     apiTokenController = TextEditingController();
     modelNameController = TextEditingController();
+
+    // 添加监听器以更新响应式变量
+    apiTokenController.addListener(() {
+      _apiToken.value = apiTokenController.text;
+    });
+
+    modelNameController.addListener(() {
+      _modelName.value = modelNameController.text;
+    });
   }
 
   /// 从配置初始化表单
@@ -68,6 +79,7 @@ class AIConfigEditController extends GetxController {
 
     nameController.text = aiConfig!.name;
     apiTokenController.text = aiConfig!.apiToken;
+    _apiToken.value = aiConfig!.apiToken;
 
     updateApiAddressByUrl(aiConfig!.apiAddress);
     updateModelName(aiConfig!.modelName);
@@ -89,6 +101,19 @@ class AIConfigEditController extends GetxController {
 
     _selectedApiPresetIndex.value = index;
     apiAddressController.text = apiPresets[index].apiAddress;
+
+    // 重置模型名称为第一个可用模型或空
+    if (availableModels.isNotEmpty) {
+      updateModelName(availableModels[0]);
+    } else {
+      updateModelName('');
+    }
+
+    // 如果不是自定义API地址，清空API令牌
+    if (!isCustomApiAddress) {
+      apiTokenController.text = '';
+      _apiToken.value = '';
+    }
   }
 
   /// 更新模型名称
@@ -138,6 +163,23 @@ class AIConfigEditController extends GetxController {
     } catch (e) {
       Get.snackbar('错误', '保存配置失败: $e', snackPosition: SnackPosition.top, backgroundColor: Colors.red.withAlpha(200));
       return false;
+    }
+  }
+
+  /// 重置表单到原始状态
+  void resetConfig() {
+    if (aiConfig == null) {
+      // 如果是新建模式，清空所有字段
+      nameController.clear();
+      apiTokenController.clear();
+      apiAddressController.clear();
+      modelNameController.clear();
+      _selectedApiPresetIndex.value = 0;
+      _modelName.value = '';
+      _apiToken.value = '';
+    } else {
+      // 如果是编辑模式，恢复到原始配置
+      _initializeFromConfig();
     }
   }
 

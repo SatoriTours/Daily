@@ -85,7 +85,7 @@ class DiaryController {
 
       // 返回带分页信息的响应
       return ResponseUtils.success({
-        'data': diariesJson,
+        'items': diariesJson,
         'pagination': {
           'page': page,
           'pageSize': DiaryRepository.pageSize,
@@ -123,7 +123,7 @@ class DiaryController {
 
       // 返回带分页信息的响应
       return ResponseUtils.success({
-        'data': diariesJson,
+        'items': diariesJson,
         'pagination': {
           'page': page,
           'pageSize': DiaryRepository.pageSize,
