@@ -14,7 +14,6 @@ class BooksView extends GetView<BooksController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(context),
-      drawer: BookDrawer(controller: controller),
       body: _buildBody(context),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
@@ -107,7 +106,7 @@ class BooksView extends GetView<BooksController> {
             child: InkWell(
               onTap: () {
                 controller.selectedBook.value = null;
-                controller.allViewpoints.clear();
+                controller.loadAllViewpoints();
                 Navigator.pop(context);
               },
               borderRadius: BorderRadius.circular(20),
@@ -143,11 +142,9 @@ class BooksView extends GetView<BooksController> {
         } else {
           // 选择"所有书籍"选项
           controller.selectedBook.value = null;
-          controller.allViewpoints.clear();
-          // 这里需要实现加载所有观点的逻辑
-          // TODO: 实现加载所有观点的逻辑
+          controller.loadAllViewpoints();
+          Navigator.pop(context);
         }
-        Navigator.pop(context);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -228,13 +225,10 @@ class BooksView extends GetView<BooksController> {
 
   /// 构建观点内容
   Widget _buildViewpointContent() {
-    final context = Get.context!;
-    final book = controller.selectedBook.value;
-    if (book == null) return const SizedBox();
-
+    // 如果选择了特定书籍，显示书籍信息头部
+    // 如果是"所有书籍"模式，直接显示观点内容
     return Column(
       children: [
-        _buildBookInfoHeader(context, book),
         Expanded(
           child: PageView.builder(
             controller: PageController(initialPage: controller.currentViewpointIndex.value),
@@ -255,51 +249,6 @@ class BooksView extends GetView<BooksController> {
           ),
         ),
       ],
-    );
-  }
-
-  /// 构建书籍信息头部
-  Widget _buildBookInfoHeader(BuildContext context, BookModel book) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Icon(Icons.auto_stories, color: AppColors.primary(context)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => _showBookDetails(context, book),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          book.title,
-                          style: Get.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.underline,
-                            decorationColor: AppColors.primary(context).withValues(alpha: 0.5),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Icon(Icons.info_outline, size: 16, color: AppColors.primary(context)),
-                    ],
-                  ),
-                ),
-              ),
-              Obx(
-                () => Text(
-                  '${controller.currentViewpointIndex.value + 1}/${controller.allViewpoints.length}',
-                  style: Get.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
-                ),
-              ),
-            ],
-          ),
-          const Divider(height: 24),
-        ],
-      ),
     );
   }
 

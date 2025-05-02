@@ -1,11 +1,7 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/modules/books/controllers/books_controller.dart';
-import 'package:daily_satori/app/modules/books/views/widgets/book_info.dart';
-import 'package:daily_satori/app/modules/books/views/widgets/feeling_input.dart';
 import 'package:daily_satori/app/modules/books/views/widgets/viewpoint_card.dart';
-import 'package:daily_satori/app/modules/books/views/widgets/viewpoint_navigation.dart';
-import 'package:daily_satori/app/styles/dimensions.dart';
 import 'package:daily_satori/app/styles/colors.dart';
 
 /// 观点内容组件
@@ -61,13 +57,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
   Widget build(BuildContext context) {
     if (widget.viewpoints.isEmpty) return const SizedBox();
 
-    return Column(
-      children: [
-        _buildHeader(context),
-        Expanded(child: _buildViewpointPageView()),
-        FeelingInput(controller: widget.controller),
-      ],
-    );
+    return Column(children: [_buildHeader(context), Expanded(child: _buildViewpointPageView())]);
   }
 
   /// 构建水平滑动的观点视图
@@ -84,7 +74,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           child: ViewpointCard(
             viewpoint: viewpoint,
-            onDelete: widget.onDeleteViewpoint != null ? () => widget.onDeleteViewpoint!(viewpoint) : null,
+            onDelete: widget.onDeleteViewpoint != null ? () => widget.onDeleteViewpoint!(viewpoint) : () {},
           ),
         );
       },

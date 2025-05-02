@@ -294,4 +294,14 @@ class BookService {
       return false;
     }
   }
+
+  /// 保存观点
+  Future<int> saveViewpoint(BookViewpointModel viewpoint) async {
+    try {
+      return await BookRepository.saveViewpoint(viewpoint);
+    } catch (e, stackTrace) {
+      logger.e('保存观点失败', error: e, stackTrace: stackTrace);
+      return 0;
+    }
+  }
 }

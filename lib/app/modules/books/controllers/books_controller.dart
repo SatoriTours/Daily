@@ -11,10 +11,8 @@ class BooksController extends BaseController {
   final addBookFormKey = GlobalKey<FormState>();
   final addCategoryFormKey = GlobalKey<FormState>();
 
-  // 书籍和分类数据
+  // 书籍数据
   final books = <BookModel>[].obs;
-  final categories = <BookCategoryModel>[].obs;
-  final selectedCategoryIndex = RxInt(-1); // -1表示全部书籍
 
   // 所有观点和当前观点
   final allViewpoints = <BookViewpointModel>[].obs;
@@ -31,12 +29,13 @@ class BooksController extends BaseController {
   // 表单控制器
   final bookNameController = TextEditingController();
   final categoryNameController = TextEditingController();
+  final categoryDescriptionController = TextEditingController();
   final feelingController = TextEditingController();
 
   @override
   void onInit() {
     super.onInit();
-    loadBooksAndCategories();
+    loadBooks();
     loadAllViewpoints();
   }
 
@@ -44,23 +43,20 @@ class BooksController extends BaseController {
   void onClose() {
     bookNameController.dispose();
     categoryNameController.dispose();
+    categoryDescriptionController.dispose();
     feelingController.dispose();
     super.onClose();
   }
 
-  /// 加载书籍和分类数据
-  Future<void> loadBooksAndCategories() async {
+  /// 加载所有书籍
+  Future<void> loadBooks() async {
     try {
       isLoadingBooks.value = true;
-
-      // 获取所有书籍和分类
       books.value = await _bookService.getBooks();
-      categories.value = await _bookService.getCategories();
-
       isLoadingBooks.value = false;
     } catch (e, stackTrace) {
       isLoadingBooks.value = false;
-      logger.e('加载书籍和分类失败', error: e, stackTrace: stackTrace);
+      logger.e('加载书籍失败', error: e, stackTrace: stackTrace);
       Get.snackbar('加载失败', '无法加载书籍数据，请稍后重试');
     }
   }
@@ -74,11 +70,10 @@ class BooksController extends BaseController {
       final viewpoints = await BookRepository.getAllViewpoints();
       allViewpoints.value = viewpoints;
 
-      // 如果有观点，选择第一个，并更新当前书籍
+      // 如果有观点，选择第一个
       if (allViewpoints.isNotEmpty) {
         currentViewpointIndex.value = 0;
         updateSelectedBookFromViewpoint(allViewpoints.first);
-        feelingController.text = allViewpoints.first.feeling;
       }
 
       isLoadingViewpoints.value = false;
@@ -96,51 +91,6 @@ class BooksController extends BaseController {
     selectedBook.value = book;
   }
 
-  /// 选择书籍分类
-  void selectCategory(int index) {
-    selectedCategoryIndex.value = index;
-    // 如果是全部类别，不筛选
-    if (index == -1) {
-      loadAllViewpoints();
-      return;
-    }
-
-    // 筛选当前分类的观点
-    final category = categories[index];
-    filterViewpointsByCategory(category.name);
-  }
-
-  /// 根据分类过滤观点
-  Future<void> filterViewpointsByCategory(String category) async {
-    try {
-      isLoadingViewpoints.value = true;
-
-      // 先筛选出该分类的书籍
-      final categoryBooks = await _bookService.getBooksByCategory(category);
-      books.value = categoryBooks;
-
-      // 获取这些书籍的所有观点
-      final categoryBookIds = categoryBooks.map((book) => book.id).toList();
-      final viewpoints = await BookRepository.getViewpointsByBookIds(categoryBookIds);
-      allViewpoints.value = viewpoints;
-
-      isLoadingViewpoints.value = false;
-
-      // 如果有观点，选择第一个并更新当前书籍
-      if (allViewpoints.isNotEmpty) {
-        currentViewpointIndex.value = 0;
-        updateSelectedBookFromViewpoint(allViewpoints.first);
-        feelingController.text = allViewpoints.first.feeling;
-      } else {
-        selectedBook.value = null;
-        feelingController.clear();
-      }
-    } catch (e, stackTrace) {
-      isLoadingViewpoints.value = false;
-      logger.e('筛选观点失败: $category', error: e, stackTrace: stackTrace);
-    }
-  }
-
   /// 选择书籍
   Future<void> selectBook(BookModel book) async {
     try {
@@ -152,166 +102,15 @@ class BooksController extends BaseController {
       allViewpoints.value = viewpoints;
       isLoadingViewpoints.value = false;
 
-      // 如果有观点，选择第一个
+      // 重置观点索引
       if (allViewpoints.isNotEmpty) {
         currentViewpointIndex.value = 0;
-        feelingController.text = allViewpoints.first.feeling;
-      } else {
-        feelingController.clear();
       }
     } catch (e, stackTrace) {
       isLoadingViewpoints.value = false;
       logger.e('选择书籍失败: ${book.title}', error: e, stackTrace: stackTrace);
+      Get.snackbar('加载失败', '无法加载书籍观点，请稍后重试');
     }
-  }
-
-  /// 添加书籍
-  Future<void> addBook() async {
-    if (addBookFormKey.currentState?.validate() != true) return;
-
-    try {
-      final bookName = bookNameController.text.trim();
-      if (bookName.isEmpty) return;
-
-      isProcessing.value = true;
-      final selectedCategory = selectedCategoryIndex.value >= 0 ? categories[selectedCategoryIndex.value].name : '';
-
-      final book = await _bookService.addBook(bookName, category: selectedCategory);
-      if (book != null) {
-        bookNameController.clear();
-        Get.back(); // 关闭对话框
-
-        // 更新书籍列表并选择新添加的书籍
-        await loadBooksAndCategories();
-        selectBook(book);
-
-        Get.snackbar('添加成功', '书籍《${book.title}》已添加到书架');
-      } else {
-        Get.snackbar('添加失败', '无法添加书籍，请稍后重试');
-      }
-
-      isProcessing.value = false;
-    } catch (e, stackTrace) {
-      isProcessing.value = false;
-      logger.e('添加书籍失败', error: e, stackTrace: stackTrace);
-      Get.snackbar('添加失败', '发生错误，请稍后重试');
-    }
-  }
-
-  /// 添加分类
-  Future<void> addCategory() async {
-    if (addCategoryFormKey.currentState?.validate() != true) return;
-
-    try {
-      final categoryName = categoryNameController.text.trim();
-      if (categoryName.isEmpty) return;
-
-      isProcessing.value = true;
-
-      // 检查分类是否已存在
-      final existingCategory = categories.firstWhereOrNull((c) => c.name == categoryName);
-      if (existingCategory != null) {
-        Get.snackbar('添加失败', '分类"$categoryName"已存在');
-        isProcessing.value = false;
-        return;
-      }
-
-      // 保存分类
-      final category = BookCategoryModel.create(name: categoryName);
-      final categoryId = await _bookService.saveCategory(category);
-
-      if (categoryId > 0) {
-        categoryNameController.clear();
-        Get.back(); // 关闭对话框
-
-        // 获取推荐书籍
-        final recommendedBooks = await _bookService.getRecommendedBooksByCategory(categoryName);
-
-        // 更新分类列表
-        await loadBooksAndCategories();
-
-        // 设置当前分类为新添加的分类
-        final newCategoryIndex = categories.indexWhere((c) => c.name == categoryName);
-        if (newCategoryIndex >= 0) {
-          selectCategory(newCategoryIndex);
-        }
-
-        final message =
-            recommendedBooks.isEmpty
-                ? '分类"$categoryName"已添加'
-                : '分类"$categoryName"已添加，并自动添加了${recommendedBooks.length}本相关书籍';
-
-        Get.snackbar('添加成功', message);
-      } else {
-        Get.snackbar('添加失败', '无法添加分类，请稍后重试');
-      }
-
-      isProcessing.value = false;
-    } catch (e, stackTrace) {
-      isProcessing.value = false;
-      logger.e('添加分类失败', error: e, stackTrace: stackTrace);
-      Get.snackbar('添加失败', '发生错误，请稍后重试');
-    }
-  }
-
-  /// 切换到下一个观点
-  void nextViewpoint() {
-    if (allViewpoints.isEmpty) return;
-
-    if (currentViewpointIndex.value < allViewpoints.length - 1) {
-      currentViewpointIndex.value++;
-      final viewpoint = allViewpoints[currentViewpointIndex.value];
-      feelingController.text = viewpoint.feeling;
-      // 更新当前书籍
-      updateSelectedBookFromViewpoint(viewpoint);
-    }
-  }
-
-  /// 切换到上一个观点
-  void previousViewpoint() {
-    if (allViewpoints.isEmpty) return;
-
-    if (currentViewpointIndex.value > 0) {
-      currentViewpointIndex.value--;
-      final viewpoint = allViewpoints[currentViewpointIndex.value];
-      feelingController.text = viewpoint.feeling;
-      // 更新当前书籍
-      updateSelectedBookFromViewpoint(viewpoint);
-    }
-  }
-
-  /// 保存当前观点的感悟
-  Future<void> saveFeeling() async {
-    if (allViewpoints.isEmpty || currentViewpointIndex.value >= allViewpoints.length) return;
-
-    try {
-      final feeling = feelingController.text.trim();
-      final viewpoint = allViewpoints[currentViewpointIndex.value];
-
-      if (feeling == viewpoint.feeling) return; // 如果感悟没变，不保存
-
-      final result = await _bookService.updateViewpointFeeling(viewpoint.id, feeling);
-      if (result) {
-        // 更新本地数据
-        viewpoint.feeling = feeling;
-        allViewpoints[currentViewpointIndex.value] = viewpoint;
-
-        Get.snackbar('保存成功', '感悟已保存');
-      }
-    } catch (e, stackTrace) {
-      logger.e('保存感悟失败', error: e, stackTrace: stackTrace);
-      Get.snackbar('保存失败', '无法保存感悟，请稍后重试');
-    }
-  }
-
-  /// 打开左侧抽屉栏
-  void openDrawer() {
-    scaffoldKey.currentState?.openDrawer();
-  }
-
-  /// 关闭抽屉栏
-  void closeDrawer() {
-    scaffoldKey.currentState?.closeDrawer();
   }
 
   /// 显示添加书籍对话框
@@ -346,36 +145,36 @@ class BooksController extends BaseController {
     );
   }
 
-  /// 显示添加分类对话框
-  void showAddCategoryDialog() {
-    categoryNameController.clear();
-    Get.dialog(
-      AlertDialog(
-        title: const Text('添加分类'),
-        content: Form(
-          key: addCategoryFormKey,
-          child: TextFormField(
-            controller: categoryNameController,
-            decoration: const InputDecoration(labelText: '分类名称', hintText: '请输入分类名称'),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return '请输入分类名称';
-              }
-              return null;
-            },
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: Get.back, child: const Text('取消')),
-          Obx(
-            () => TextButton(
-              onPressed: isProcessing.value ? null : addCategory,
-              child: isProcessing.value ? const CircularProgressIndicator.adaptive() : const Text('添加'),
-            ),
-          ),
-        ],
-      ),
-    );
+  /// 添加书籍
+  Future<void> addBook() async {
+    if (addBookFormKey.currentState?.validate() != true) return;
+
+    try {
+      final bookName = bookNameController.text.trim();
+      if (bookName.isEmpty) return;
+
+      isProcessing.value = true;
+      final book = await _bookService.addBook(bookName);
+
+      if (book != null) {
+        bookNameController.clear();
+        Get.back(); // 关闭对话框
+
+        // 更新书籍列表并选择新添加的书籍
+        await loadBooks();
+        selectBook(book);
+
+        Get.snackbar('添加成功', '书籍《${book.title}》已添加到书架');
+      } else {
+        Get.snackbar('添加失败', '无法添加书籍，请稍后重试');
+      }
+
+      isProcessing.value = false;
+    } catch (e, stackTrace) {
+      isProcessing.value = false;
+      logger.e('添加书籍失败', error: e, stackTrace: stackTrace);
+      Get.snackbar('添加失败', '发生错误，请稍后重试');
+    }
   }
 
   /// 删除书籍
@@ -397,16 +196,10 @@ class BooksController extends BaseController {
         // 同时删除该书籍的所有观点
         allViewpoints.removeWhere((v) => v.bookId == bookId);
 
-        // 如果删除的是当前选中的书籍，选择另一个观点或清空选择
+        // 如果删除的是当前选中的书籍，清空选择并重新加载所有观点
         if (selectedBook.value?.id == bookId) {
-          if (allViewpoints.isNotEmpty) {
-            currentViewpointIndex.value = 0;
-            updateSelectedBookFromViewpoint(allViewpoints.first);
-            feelingController.text = allViewpoints.first.feeling;
-          } else {
-            selectedBook.value = null;
-            feelingController.clear();
-          }
+          selectedBook.value = null;
+          loadAllViewpoints();
         }
 
         Get.snackbar('删除成功', '书籍《${book.title}》已删除');
@@ -444,16 +237,9 @@ class BooksController extends BaseController {
         if (allViewpoints.isEmpty) {
           currentViewpointIndex.value = 0;
           selectedBook.value = null;
-          feelingController.clear();
         } else if (currentViewpointIndex.value >= allViewpoints.length) {
           currentViewpointIndex.value = allViewpoints.length - 1;
-          final newViewpoint = allViewpoints[currentViewpointIndex.value];
-          updateSelectedBookFromViewpoint(newViewpoint);
-          feelingController.text = newViewpoint.feeling;
-        } else {
-          final newViewpoint = allViewpoints[currentViewpointIndex.value];
-          updateSelectedBookFromViewpoint(newViewpoint);
-          feelingController.text = newViewpoint.feeling;
+          updateSelectedBookFromViewpoint(allViewpoints[currentViewpointIndex.value]);
         }
 
         Get.snackbar('删除成功', '观点"${viewpoint.title}"已删除');
@@ -466,6 +252,147 @@ class BooksController extends BaseController {
       isProcessing.value = false;
       logger.e('删除观点失败', error: e, stackTrace: stackTrace);
       Get.snackbar('删除失败', '发生错误，请稍后重试');
+    }
+  }
+
+  /// 显示添加分类对话框
+  void showAddCategoryDialog() {
+    categoryNameController.clear();
+    categoryDescriptionController.clear();
+    Get.dialog(
+      AlertDialog(
+        title: const Text('添加分类'),
+        content: Form(
+          key: addCategoryFormKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: categoryNameController,
+                decoration: const InputDecoration(labelText: '分类名称', hintText: '请输入分类名称'),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return '请输入分类名称';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: categoryDescriptionController,
+                decoration: const InputDecoration(labelText: '分类描述', hintText: '请输入分类描述（可选）'),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: Get.back, child: const Text('取消')),
+          Obx(
+            () => TextButton(
+              onPressed: isProcessing.value ? null : addCategory,
+              child: isProcessing.value ? const CircularProgressIndicator.adaptive() : const Text('添加'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 添加分类
+  Future<void> addCategory() async {
+    if (addCategoryFormKey.currentState?.validate() != true) return;
+
+    try {
+      final categoryName = categoryNameController.text.trim();
+      if (categoryName.isEmpty) return;
+
+      isProcessing.value = true;
+      final category = BookCategoryModel.create(
+        name: categoryName,
+        description: categoryDescriptionController.text.trim(),
+      );
+
+      final categoryId = await _bookService.saveCategory(category);
+      if (categoryId > 0) {
+        categoryNameController.clear();
+        categoryDescriptionController.clear();
+        Get.back(); // 关闭对话框
+
+        Get.snackbar('添加成功', '分类"$categoryName"已添加');
+      } else {
+        Get.snackbar('添加失败', '无法添加分类，请稍后重试');
+      }
+
+      isProcessing.value = false;
+    } catch (e, stackTrace) {
+      isProcessing.value = false;
+      logger.e('添加分类失败', error: e, stackTrace: stackTrace);
+      Get.snackbar('添加失败', '发生错误，请稍后重试');
+    }
+  }
+
+  /// 关闭抽屉
+  void closeDrawer() {
+    if (scaffoldKey.currentState?.isDrawerOpen == true) {
+      scaffoldKey.currentState?.closeDrawer();
+    }
+  }
+
+  /// 保存感悟
+  Future<void> saveFeeling() async {
+    try {
+      final feeling = feelingController.text.trim();
+      if (feeling.isEmpty) return;
+
+      final currentViewpoint =
+          currentViewpointIndex.value < allViewpoints.length ? allViewpoints[currentViewpointIndex.value] : null;
+
+      if (currentViewpoint != null) {
+        isProcessing.value = true;
+
+        // 更新观点的感悟
+        final updatedViewpoint = BookViewpointModel.create(
+          id: currentViewpoint.id,
+          bookId: currentViewpoint.bookId,
+          title: currentViewpoint.title,
+          content: currentViewpoint.content,
+          example: currentViewpoint.example,
+          feeling: feeling,
+          createAt: currentViewpoint.createAt,
+        );
+
+        final result = await _bookService.saveViewpoint(updatedViewpoint);
+
+        if (result > 0) {
+          // 更新本地数据
+          allViewpoints[currentViewpointIndex.value] = updatedViewpoint;
+          feelingController.clear();
+          Get.snackbar('保存成功', '感悟已保存');
+        } else {
+          Get.snackbar('保存失败', '无法保存感悟，请稍后重试');
+        }
+
+        isProcessing.value = false;
+      }
+    } catch (e, stackTrace) {
+      isProcessing.value = false;
+      logger.e('保存感悟失败', error: e, stackTrace: stackTrace);
+      Get.snackbar('保存失败', '发生错误，请稍后重试');
+    }
+  }
+
+  /// 前往上一个观点
+  void previousViewpoint() {
+    if (currentViewpointIndex.value > 0) {
+      currentViewpointIndex.value--;
+    }
+  }
+
+  /// 前往下一个观点
+  void nextViewpoint() {
+    if (currentViewpointIndex.value < allViewpoints.length - 1) {
+      currentViewpointIndex.value++;
     }
   }
 }
