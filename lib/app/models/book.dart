@@ -1,6 +1,7 @@
 import 'package:daily_satori/app/objectbox/book.dart';
 import 'package:daily_satori/app/objectbox/book_viewpoint.dart';
 import 'package:daily_satori/app/objectbox/book_category.dart';
+import 'package:daily_satori/app/repositories/book_repository.dart';
 
 /// 书籍模型
 ///
@@ -148,6 +149,9 @@ class BookViewpointModel {
   /// 更新日期
   DateTime get updateAt => __entity.updateAt;
   set updateAt(DateTime value) => __entity.updateAt = value;
+
+  /// 关联的书籍
+  BookModel? get book => BookRepository.getBookById(bookId);
 
   /// 构造函数，通过实体创建模型
   BookViewpointModel(this.__entity);

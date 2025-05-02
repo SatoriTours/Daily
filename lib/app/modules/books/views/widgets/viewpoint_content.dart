@@ -72,10 +72,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
         final viewpoint = widget.viewpoints[index];
         return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: ViewpointCard(
-            viewpoint: viewpoint,
-            onDelete: widget.onDeleteViewpoint != null ? () => widget.onDeleteViewpoint!(viewpoint) : () {},
-          ),
+          child: ViewpointCard(viewpoint: viewpoint, book: widget.book),
         );
       },
     );

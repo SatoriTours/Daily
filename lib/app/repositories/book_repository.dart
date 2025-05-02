@@ -26,6 +26,12 @@ class BookRepository {
     return _box.query(Book_.title.equals(title)).build().findFirst() != null;
   }
 
+  /// 通过ID获取书籍
+  static BookModel? getBookById(int id) {
+    final book = _box.query(Book_.id.equals(id)).build().findFirst();
+    return book != null ? BookModel(book) : null;
+  }
+
   /// 获取书籍列表
   static Future<List<BookModel>> getBooks() async {
     try {
