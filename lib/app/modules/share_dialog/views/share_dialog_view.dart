@@ -16,33 +16,37 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: true,
-      appBar: _buildAppBar(context),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: Dimensions.paddingPage,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildArticleInfo(context),
-                      Dimensions.verticalSpacerL,
-                      _buildCommentSection(context),
-                      Dimensions.verticalSpacerL,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Padding(padding: Dimensions.paddingPage, child: _buildSaveButton(context)),
-          ],
+    return Scaffold(resizeToAvoidBottomInset: true, appBar: _buildAppBar(context), body: _buildBody(context));
+  }
+
+  // 构建主体内容
+  Widget _buildBody(BuildContext context) {
+    return SafeArea(child: Column(children: [_buildScrollableContent(context), _buildBottomButton(context)]));
+  }
+
+  // 构建可滚动内容区域
+  Widget _buildScrollableContent(BuildContext context) {
+    return Expanded(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: Dimensions.paddingPage,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildArticleInfo(context),
+              Dimensions.verticalSpacerL,
+              _buildCommentSection(context),
+              Dimensions.verticalSpacerL,
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  // 构建底部按钮区域
+  Widget _buildBottomButton(BuildContext context) {
+    return Padding(padding: Dimensions.paddingPage, child: _buildSaveButton(context));
   }
 
   // 构建顶部应用栏
