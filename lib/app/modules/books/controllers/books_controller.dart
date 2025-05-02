@@ -1,6 +1,5 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
-import 'package:daily_satori/app/services/book_service.dart';
 import 'package:daily_satori/app/repositories/book_repository.dart';
 
 /// 读书页面控制器
@@ -17,10 +16,12 @@ class BooksController extends BaseController {
   final categories = <BookCategoryModel>[].obs;
   final selectedCategoryIndex = RxInt(-1); // -1表示全部书籍
 
-  // 当前选中的书籍和观点
-  final selectedBook = Rx<BookModel?>(null);
-  final bookViewpoints = <BookViewpointModel>[].obs;
+  // 所有观点和当前观点
+  final allViewpoints = <BookViewpointModel>[].obs;
   final currentViewpointIndex = 0.obs;
+
+  // 当前选中的书籍
+  final selectedBook = Rx<BookModel?>(null);
 
   // 加载状态
   final isLoadingBooks = false.obs;
@@ -36,6 +37,7 @@ class BooksController extends BaseController {
   void onInit() {
     super.onInit();
     loadBooksAndCategories();
+    loadAllViewpoints();
   }
 
   @override
@@ -55,11 +57,6 @@ class BooksController extends BaseController {
       books.value = await _bookService.getBooks();
       categories.value = await _bookService.getCategories();
 
-      if (selectedBook.value == null && books.isNotEmpty) {
-        // 默认选中第一本书
-        selectBook(books.first);
-      }
-
       isLoadingBooks.value = false;
     } catch (e, stackTrace) {
       isLoadingBooks.value = false;
@@ -68,37 +65,79 @@ class BooksController extends BaseController {
     }
   }
 
+  /// 加载所有观点
+  Future<void> loadAllViewpoints() async {
+    try {
+      isLoadingViewpoints.value = true;
+
+      // 获取所有观点
+      final viewpoints = await BookRepository.getAllViewpoints();
+      allViewpoints.value = viewpoints;
+
+      // 如果有观点，选择第一个，并更新当前书籍
+      if (allViewpoints.isNotEmpty) {
+        currentViewpointIndex.value = 0;
+        updateSelectedBookFromViewpoint(allViewpoints.first);
+        feelingController.text = allViewpoints.first.feeling;
+      }
+
+      isLoadingViewpoints.value = false;
+    } catch (e, stackTrace) {
+      isLoadingViewpoints.value = false;
+      logger.e('加载观点失败', error: e, stackTrace: stackTrace);
+      Get.snackbar('加载失败', '无法加载观点数据，请稍后重试');
+    }
+  }
+
+  /// 根据观点更新当前选中的书籍
+  void updateSelectedBookFromViewpoint(BookViewpointModel viewpoint) {
+    final bookId = viewpoint.bookId;
+    final book = books.firstWhereOrNull((b) => b.id == bookId);
+    selectedBook.value = book;
+  }
+
   /// 选择书籍分类
   void selectCategory(int index) {
     selectedCategoryIndex.value = index;
     // 如果是全部类别，不筛选
     if (index == -1) {
-      loadBooksAndCategories();
+      loadAllViewpoints();
       return;
     }
 
-    // 筛选当前分类的书籍
+    // 筛选当前分类的观点
     final category = categories[index];
-    filterBooksByCategory(category.name);
+    filterViewpointsByCategory(category.name);
   }
 
-  /// 根据分类过滤书籍
-  Future<void> filterBooksByCategory(String category) async {
+  /// 根据分类过滤观点
+  Future<void> filterViewpointsByCategory(String category) async {
     try {
-      isLoadingBooks.value = true;
-      books.value = await _bookService.getBooksByCategory(category);
-      isLoadingBooks.value = false;
+      isLoadingViewpoints.value = true;
 
-      // 切换分类后，如果有书籍，选择第一本
-      if (books.isNotEmpty) {
-        selectBook(books.first);
+      // 先筛选出该分类的书籍
+      final categoryBooks = await _bookService.getBooksByCategory(category);
+      books.value = categoryBooks;
+
+      // 获取这些书籍的所有观点
+      final categoryBookIds = categoryBooks.map((book) => book.id).toList();
+      final viewpoints = await BookRepository.getViewpointsByBookIds(categoryBookIds);
+      allViewpoints.value = viewpoints;
+
+      isLoadingViewpoints.value = false;
+
+      // 如果有观点，选择第一个并更新当前书籍
+      if (allViewpoints.isNotEmpty) {
+        currentViewpointIndex.value = 0;
+        updateSelectedBookFromViewpoint(allViewpoints.first);
+        feelingController.text = allViewpoints.first.feeling;
       } else {
         selectedBook.value = null;
-        bookViewpoints.clear();
+        feelingController.clear();
       }
     } catch (e, stackTrace) {
-      isLoadingBooks.value = false;
-      logger.e('筛选书籍失败: $category', error: e, stackTrace: stackTrace);
+      isLoadingViewpoints.value = false;
+      logger.e('筛选观点失败: $category', error: e, stackTrace: stackTrace);
     }
   }
 
@@ -106,17 +145,20 @@ class BooksController extends BaseController {
   Future<void> selectBook(BookModel book) async {
     try {
       selectedBook.value = book;
-      bookViewpoints.clear();
-      currentViewpointIndex.value = 0;
 
-      // 加载书籍观点
+      // 筛选该书的所有观点
       isLoadingViewpoints.value = true;
       final viewpoints = await BookRepository.getViewpoints(book.id);
-      bookViewpoints.value = viewpoints;
+      allViewpoints.value = viewpoints;
       isLoadingViewpoints.value = false;
 
-      // 清空感悟输入
-      feelingController.clear();
+      // 如果有观点，选择第一个
+      if (allViewpoints.isNotEmpty) {
+        currentViewpointIndex.value = 0;
+        feelingController.text = allViewpoints.first.feeling;
+      } else {
+        feelingController.clear();
+      }
     } catch (e, stackTrace) {
       isLoadingViewpoints.value = false;
       logger.e('选择书籍失败: ${book.title}', error: e, stackTrace: stackTrace);
@@ -214,31 +256,37 @@ class BooksController extends BaseController {
 
   /// 切换到下一个观点
   void nextViewpoint() {
-    if (bookViewpoints.isEmpty) return;
+    if (allViewpoints.isEmpty) return;
 
-    if (currentViewpointIndex.value < bookViewpoints.length - 1) {
+    if (currentViewpointIndex.value < allViewpoints.length - 1) {
       currentViewpointIndex.value++;
-      feelingController.text = bookViewpoints[currentViewpointIndex.value].feeling;
+      final viewpoint = allViewpoints[currentViewpointIndex.value];
+      feelingController.text = viewpoint.feeling;
+      // 更新当前书籍
+      updateSelectedBookFromViewpoint(viewpoint);
     }
   }
 
   /// 切换到上一个观点
   void previousViewpoint() {
-    if (bookViewpoints.isEmpty) return;
+    if (allViewpoints.isEmpty) return;
 
     if (currentViewpointIndex.value > 0) {
       currentViewpointIndex.value--;
-      feelingController.text = bookViewpoints[currentViewpointIndex.value].feeling;
+      final viewpoint = allViewpoints[currentViewpointIndex.value];
+      feelingController.text = viewpoint.feeling;
+      // 更新当前书籍
+      updateSelectedBookFromViewpoint(viewpoint);
     }
   }
 
   /// 保存当前观点的感悟
   Future<void> saveFeeling() async {
-    if (bookViewpoints.isEmpty || currentViewpointIndex.value >= bookViewpoints.length) return;
+    if (allViewpoints.isEmpty || currentViewpointIndex.value >= allViewpoints.length) return;
 
     try {
       final feeling = feelingController.text.trim();
-      final viewpoint = bookViewpoints[currentViewpointIndex.value];
+      final viewpoint = allViewpoints[currentViewpointIndex.value];
 
       if (feeling == viewpoint.feeling) return; // 如果感悟没变，不保存
 
@@ -246,7 +294,7 @@ class BooksController extends BaseController {
       if (result) {
         // 更新本地数据
         viewpoint.feeling = feeling;
-        bookViewpoints[currentViewpointIndex.value] = viewpoint;
+        allViewpoints[currentViewpointIndex.value] = viewpoint;
 
         Get.snackbar('保存成功', '感悟已保存');
       }
@@ -346,13 +394,18 @@ class BooksController extends BaseController {
         // 更新本地数据
         books.removeWhere((b) => b.id == bookId);
 
-        // 如果删除的是当前选中的书籍，选择另一本书或清空选择
+        // 同时删除该书籍的所有观点
+        allViewpoints.removeWhere((v) => v.bookId == bookId);
+
+        // 如果删除的是当前选中的书籍，选择另一个观点或清空选择
         if (selectedBook.value?.id == bookId) {
-          if (books.isNotEmpty) {
-            selectBook(books.first);
+          if (allViewpoints.isNotEmpty) {
+            currentViewpointIndex.value = 0;
+            updateSelectedBookFromViewpoint(allViewpoints.first);
+            feelingController.text = allViewpoints.first.feeling;
           } else {
             selectedBook.value = null;
-            bookViewpoints.clear();
+            feelingController.clear();
           }
         }
 
@@ -374,24 +427,33 @@ class BooksController extends BaseController {
     try {
       isProcessing.value = true;
 
-      final viewpointIndex = bookViewpoints.indexWhere((v) => v.id == viewpointId);
+      final viewpointIndex = allViewpoints.indexWhere((v) => v.id == viewpointId);
       if (viewpointIndex < 0) {
         isProcessing.value = false;
         return;
       }
 
-      final viewpoint = bookViewpoints[viewpointIndex];
+      final viewpoint = allViewpoints[viewpointIndex];
       final result = await _bookService.deleteViewpoint(viewpointId);
 
       if (result) {
         // 更新本地数据
-        bookViewpoints.removeAt(viewpointIndex);
+        allViewpoints.removeAt(viewpointIndex);
 
         // 调整当前选中的观点索引
-        if (bookViewpoints.isEmpty) {
+        if (allViewpoints.isEmpty) {
           currentViewpointIndex.value = 0;
-        } else if (currentViewpointIndex.value >= bookViewpoints.length) {
-          currentViewpointIndex.value = bookViewpoints.length - 1;
+          selectedBook.value = null;
+          feelingController.clear();
+        } else if (currentViewpointIndex.value >= allViewpoints.length) {
+          currentViewpointIndex.value = allViewpoints.length - 1;
+          final newViewpoint = allViewpoints[currentViewpointIndex.value];
+          updateSelectedBookFromViewpoint(newViewpoint);
+          feelingController.text = newViewpoint.feeling;
+        } else {
+          final newViewpoint = allViewpoints[currentViewpointIndex.value];
+          updateSelectedBookFromViewpoint(newViewpoint);
+          feelingController.text = newViewpoint.feeling;
         }
 
         Get.snackbar('删除成功', '观点"${viewpoint.title}"已删除');

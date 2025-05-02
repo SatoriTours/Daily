@@ -15,9 +15,9 @@ class BookService {
   BookService._();
 
   Future<void> init() async {
-    if (!AppInfoUtils.isProduction) {
-      await BookRepository.deleteAllSync();
-    }
+    // if (!AppInfoUtils.isProduction) {
+    //   await BookRepository.deleteAllSync();
+    // }
   }
 
   final AiService _aiService = AiService.i;

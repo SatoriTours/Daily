@@ -114,6 +114,34 @@ class BookRepository {
     }
   }
 
+  /// 获取所有书籍观点
+  static Future<List<BookViewpointModel>> getAllViewpoints() async {
+    try {
+      final viewpoints = _viewpointBox.getAll();
+      return viewpoints.map((entity) => BookViewpointModel(entity)).toList();
+    } catch (e, stackTrace) {
+      logger.e('获取所有书籍观点失败', error: e, stackTrace: stackTrace);
+      return [];
+    }
+  }
+
+  /// 根据书籍ID列表获取观点
+  static Future<List<BookViewpointModel>> getViewpointsByBookIds(List<int> bookIds) async {
+    try {
+      if (bookIds.isEmpty) {
+        return [];
+      }
+
+      final query = _viewpointBox.query(BookViewpoint_.bookId.oneOf(bookIds)).build();
+      final viewpoints = query.find();
+      query.close();
+      return viewpoints.map((entity) => BookViewpointModel(entity)).toList();
+    } catch (e, stackTrace) {
+      logger.e('根据书籍ID列表获取观点失败', error: e, stackTrace: stackTrace);
+      return [];
+    }
+  }
+
   /// 获取书籍观点列表
   static Future<List<BookViewpointModel>> getViewpoints(int bookId) async {
     try {
