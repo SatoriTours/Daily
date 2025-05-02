@@ -12,6 +12,8 @@ import 'package:daily_satori/app/modules/backup_restore/bindings/backup_restore_
 import 'package:daily_satori/app/modules/backup_restore/views/backup_restore_view.dart';
 import 'package:daily_satori/app/modules/backup_settings/bindings/backup_settings_binding.dart';
 import 'package:daily_satori/app/modules/backup_settings/views/backup_settings_view.dart';
+import 'package:daily_satori/app/modules/books/bindings/books_binding.dart';
+import 'package:daily_satori/app/modules/books/views/books_view.dart';
 import 'package:daily_satori/app/modules/diary/bindings/diary_binding.dart';
 import 'package:daily_satori/app/modules/diary/views/diary_view.dart';
 import 'package:daily_satori/app/modules/home/bindings/home_binding.dart';
@@ -87,6 +89,12 @@ class AppPages {
       page: () => const PluginCenterView(),
       binding: PluginCenterBinding(),
       transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.books,
+      page: () => const BooksView(),
+      binding: BooksBinding(),
+      transition: Transition.noTransition,
     ),
   ];
 }

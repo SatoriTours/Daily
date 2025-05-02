@@ -12,7 +12,8 @@ class HomeController extends BaseController {
   /// 当前选中的页面索引
   /// 0: 文章页面
   /// 1: 日记页面
-  /// 2: 设置页面
+  /// 2: 读书页面
+  /// 3: 设置页面
   final currentIndex = 0.obs;
 
   @override

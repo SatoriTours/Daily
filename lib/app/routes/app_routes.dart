@@ -18,6 +18,7 @@ abstract class Routes {
   static const aiConfig = '/ai-config';
   static const aiConfigEdit = '/ai-config-edit';
   static const pluginCenter = '/plugin-center';
+  static const books = '/books';
 }
 
 /// 应用程序路由名称
@@ -59,4 +60,7 @@ abstract class RouteNames {
 
   /// 插件中心页面
   static const pluginCenter = 'PluginCenter';
+
+  /// 读书页面
+  static const books = 'Books';
 }

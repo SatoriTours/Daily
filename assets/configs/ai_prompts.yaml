@@ -102,4 +102,50 @@ ai_prompts:
         - 原生HTML标签,超长URL,连续感叹号
       5. 请只返回转换后的Markdown内容,不要添加任何解释或说明。
 
+  - key: book_recommend_by_category
+    content: |
+      请推荐{{category}}分类下最经典的10本书,并按以下JSON格式返回:
+      [
+        {
+          "title": "书名",
+          "author": "作者",
+          "introduction": "简短介绍",
+          "category": "{{category}}"
+        }
+      ]
+      只返回JSON数据,不要有其他内容。
+
+  - key: book_viewpoints
+    content: |
+      请提取《{{title}}》(作者:{{author}})这本书中20个最核心观点或名言名句, 并按以下JSON格式返回:
+      {
+        "viewpoints": [
+          {
+            "title": "核心观点",
+            "content": "观点解释",
+            "example": "案例或故事"
+          }
+        ]
+      }
+
+      要求：
+      1. 所有内容用中文给出,只返回JSON数据,不要有其他内容。
+      2. 核心观点, 用书中的一句话。
+      3. 观点解释尽量详细一些，使得人一看就能明白这个观点，而且不要以 “这句话的意思”这类的方式开头，直接给解释就行。
+      4. 案例或故事要完整(尽量包括时间、地点、人物、事件等)，要很生动
+
+  - key: book_info
+    content: |
+      请提供有关《{{title}}》这本书的详细信息,按以下JSON格式返回:
+      {
+        "title": "书名",
+        "author": "作者姓名",
+        "category": "书本分类",
+        "introduction": "书籍简介"
+      }
+
+      要求：
+      1. 所有内容用中文给出,只返回JSON数据,不要有其他内容。
+      2. 书籍简介尽量详细一些。
+
 

@@ -170,4 +170,36 @@ class AiService {
       return template;
     }
   }
+
+  /// 获取AI完成结果
+  ///
+  /// [prompt] 提示文本
+  /// [functionType] 功能类型，默认为0（通用配置）
+  Future<String> getCompletion(String prompt, {int functionType = 0}) async {
+    if (prompt.isEmpty) return '';
+
+    // 验证AI服务可用性
+    if (!isAiEnabled(functionType)) {
+      logger.i("[AI服务] 功能类型 $functionType 的AI服务未启用，跳过请求");
+      return '';
+    }
+
+    logger.i("[AI服务] 发送AI请求中...");
+
+    // 系统角色设置
+    const role = "你是一个帮助用户回答问题的AI助手。请严格按照用户的要求提供信息。如果要求JSON格式输出，请确保返回有效的JSON数据。";
+
+    // 发送请求
+    final response = await _sendRequest(role, prompt, functionType: functionType);
+
+    // 处理响应
+    final result = response?.choices.first.message.content ?? '';
+    if (result.isEmpty) {
+      logger.w("[AI服务] 请求失败，返回空结果");
+      return '';
+    }
+
+    logger.i("[AI服务] 请求完成");
+    return result;
+  }
 }

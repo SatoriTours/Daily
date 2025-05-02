@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/modules/books/bindings/books_binding.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart';
@@ -26,6 +27,7 @@ class HomeBinding extends Binding {
     ArticlesBinding().dependencies();
     DiaryBinding().dependencies();
     SettingsBinding().dependencies();
+    BooksBinding().dependencies();
 
     if (kDebugMode) {
       logger.i('子模块依赖初始化完成 [$_tag:${DateTime.now()}]');

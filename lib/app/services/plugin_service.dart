@@ -1,6 +1,7 @@
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
+import 'package:daily_satori/global.dart';
 import 'package:path/path.dart' as path;
 import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -102,8 +103,8 @@ class PluginService {
     // 1. 从数据库读取配置
     String configContent = SettingRepository.getSetting(settingKey);
 
-    // 2. 数据库无配置时，读取本地文件
-    if (configContent.isEmpty) {
+    // 2. 数据库无配置或者开发模式下，读取本地文件
+    if (configContent.isEmpty || !AppInfoUtils.isProduction) {
       try {
         configContent = await rootBundle.loadString(localPath);
         if (configContent.isNotEmpty) {
@@ -237,6 +238,11 @@ class PluginService {
   String getLongSummaryResult() => _aiPrompts['long_summary_result'] ?? '';
   String getCommonTags() => _aiPrompts['common_tags'] ?? '';
   String getHtmlToMarkdownRole() => _aiPrompts['html_to_markdown_role'] ?? '';
+
+  // 书籍相关提示词
+  String getBookRecommendByCategory() => _aiPrompts['book_recommend_by_category'] ?? '';
+  String getBookViewpoints() => _aiPrompts['book_viewpoints'] ?? '';
+  String getBookInfo() => _aiPrompts['book_info'] ?? '';
 
   /// 获取API提供商预设列表
   List<AiModel> getAiModels() => _aiModels;

@@ -7,7 +7,10 @@ class Diary {
 
   String content;
 
+  @Property(type: PropertyType.date)
   DateTime createdAt;
+
+  @Property(type: PropertyType.date)
   DateTime updatedAt;
 
   // 标签，用于分类日记内容
