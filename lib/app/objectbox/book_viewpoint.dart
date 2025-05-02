@@ -19,9 +19,6 @@ class BookViewpoint {
   /// 案例
   String example;
 
-  /// 个人感悟
-  String feeling;
-
   /// 创建日期
   @Property(type: PropertyType.date)
   DateTime createAt;
@@ -36,7 +33,6 @@ class BookViewpoint {
     required this.title,
     required this.content,
     this.example = '',
-    this.feeling = '',
     DateTime? createAt,
     DateTime? updateAt,
   }) : createAt = createAt ?? DateTime.now(),

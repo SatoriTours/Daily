@@ -32,6 +32,15 @@ class BooksView extends GetView<BooksController> {
         tooltip: '选择书籍',
       ),
       actions: [
+        Obx(
+          () =>
+              controller.isProcessing.value
+                  ? const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                  )
+                  : const SizedBox.shrink(),
+        ),
         IconButton(
           icon: const Icon(Icons.add, size: 20),
           onPressed: controller.showAddBookDialog,
@@ -217,48 +226,14 @@ class BooksView extends GetView<BooksController> {
   void _showDeleteBookDialog() {
     final book = controller.selectedBook.value;
     if (book == null) return;
-
-    Get.dialog(
-      AlertDialog(
-        title: const Text('删除书籍'),
-        content: Text('确定要删除《${book.title}》吗？\n此操作无法撤销，书籍相关的所有观点也将被删除。'),
-        actions: [
-          TextButton(onPressed: Get.back, child: const Text('取消')),
-          TextButton(
-            onPressed: () {
-              Get.back();
-              controller.deleteBook(book.id);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('删除'),
-          ),
-        ],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      barrierDismissible: true,
-    );
-  }
-
-  /// 显示删除观点确认对话框
-  void _showDeleteViewpointDialog(BuildContext context, BookViewpointModel viewpoint) {
-    Get.dialog(
-      AlertDialog(
-        title: const Text('删除观点'),
-        content: Text('确定要删除"${viewpoint.title}"观点吗？\n此操作无法撤销。'),
-        actions: [
-          TextButton(onPressed: Get.back, child: const Text('取消')),
-          TextButton(
-            onPressed: () {
-              Get.back();
-              controller.deleteViewpoint(viewpoint.id);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('删除'),
-          ),
-        ],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      barrierDismissible: true,
+    UIUtils.showConfirmation(
+      '删除书籍',
+      '确定要删除《${book.title}》吗？\n此操作无法撤销，书籍相关的所有观点也将被删除。',
+      confirmText: '删除',
+      cancelText: '取消',
+      onConfirmed: () {
+        controller.deleteBook(book.id);
+      },
     );
   }
 }

@@ -15,9 +15,9 @@ class BookService {
   BookService._();
 
   Future<void> init() async {
-    if (!AppInfoUtils.isProduction) {
-      await BookRepository.deleteAllSync();
-    }
+    // if (!AppInfoUtils.isProduction) {
+    //   await BookRepository.deleteAllSync();
+    // }
   }
 
   final AiService _aiService = AiService.i;
@@ -122,8 +122,16 @@ class BookService {
       final promptTemplate = _pluginService.getBookViewpoint();
       final prompt = _renderTemplate(promptTemplate, {'title': title, 'author': author, 'viewpoint': viewpoint});
 
-      final response = await _aiService.getCompletion(prompt);
-      final Map<String, dynamic> viewpointDetail = jsonDecode(response);
+      Map<String, dynamic> viewpointDetail;
+      try {
+        final response = await _aiService.getCompletion(prompt);
+        viewpointDetail = jsonDecode(response);
+      } catch (e, stackTrace) {
+        // 如果发生异常，再尝试一次
+        logger.w('获取观点详情失败，正在重试... ${stackTrace.toString()}', error: e, stackTrace: stackTrace);
+        final response = await _aiService.getCompletion(prompt);
+        viewpointDetail = jsonDecode(response);
+      }
 
       return BookViewpointModel.create(
         bookId: bookId,
@@ -142,28 +150,19 @@ class BookService {
   /// [title] 书名
   /// [category] 分类名（可选）
   /// 返回添加的书籍
-  Future<BookModel?> addBook(String title, {String category = ''}) async {
+  Future<BookModel?> addBook(String title) async {
     try {
       // 检查书籍是否已存在
-      final existingBooks = await BookRepository.getBooks();
-      BookModel? existingBook;
-      try {
-        existingBook = existingBooks.firstWhere((book) => book.title.toLowerCase() == title.toLowerCase());
-      } catch (_) {
-        // 没有找到匹配的书籍
-        existingBook = null;
-      }
+      final existingBooks = BookRepository.exists(title);
 
-      if (existingBook != null) {
-        return existingBook;
+      if (existingBooks) {
+        logger.i('书籍已存在: $title');
+        return null;
       }
 
       // 使用AI获取书籍详细信息和核心观点
       final promptTemplate = _pluginService.getBookInfo();
-      final prompt = _renderTemplate(promptTemplate, {
-        'title': title,
-        'category': category.isNotEmpty ? category : '适合的分类',
-      });
+      final prompt = _renderTemplate(promptTemplate, {'title': title});
 
       final response = await _aiService.getCompletion(prompt);
       final Map<String, dynamic> bookData = jsonDecode(response);
@@ -179,6 +178,7 @@ class BookService {
       // 保存书籍
       final bookId = await BookRepository.saveBook(book);
       if (bookId <= 0) {
+        logger.e('保存书籍失败: $title');
         return null;
       }
 
@@ -186,6 +186,7 @@ class BookService {
 
       // 获取并处理书籍的核心观点
       final List<dynamic> viewpointsData = bookData['viewpoints'] as List<dynamic>? ?? [];
+      logger.i('书籍观点: $viewpointsData');
 
       if (viewpointsData.isNotEmpty) {
         // 并发处理每个观点的详细信息
@@ -195,7 +196,7 @@ class BookService {
                 .map((viewpoint) => _processViewpoint(bookId, book.title, book.author, viewpoint as String))
                 .toList();
 
-        final List<BookViewpointModel?> viewpoints = await Future.wait(viewpointFutures);
+        final List<BookViewpointModel?> viewpoints = await Future.wait(viewpointFutures, eagerError: true);
 
         // 过滤掉为空的观点
         final List<BookViewpointModel> validViewpoints =
@@ -207,44 +208,11 @@ class BookService {
         }
       }
 
+      logger.i('添加书籍成功: ${book.title}');
       return book;
     } catch (e, stackTrace) {
       logger.e('添加书籍失败: $title, ${stackTrace.toString()}', error: e, stackTrace: stackTrace);
       return null;
-    }
-  }
-
-  /// 更新书籍观点的感悟
-  ///
-  /// [viewpointId] 观点ID
-  /// [feeling] 个人感悟
-  /// 返回是否更新成功
-  Future<bool> updateViewpointFeeling(int viewpointId, String feeling) async {
-    try {
-      // 获取观点
-      final viewpoints = await BookRepository.getViewpoints(-1);
-      BookViewpointModel? viewpoint;
-      try {
-        viewpoint = viewpoints.firstWhere((vp) => vp.id == viewpointId);
-      } catch (_) {
-        // 没有找到匹配的观点
-        viewpoint = null;
-      }
-
-      if (viewpoint == null) {
-        return false;
-      }
-
-      // 更新感悟
-      viewpoint.feeling = feeling;
-      viewpoint.updateAt = DateTime.now();
-
-      // 保存更新
-      final result = await BookRepository.saveViewpoint(viewpoint);
-      return result > 0;
-    } catch (e, stackTrace) {
-      logger.e('更新观点感悟失败: $viewpointId', error: e, stackTrace: stackTrace);
-      return false;
     }
   }
 

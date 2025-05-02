@@ -137,10 +137,6 @@ class BookViewpointModel {
   String get example => __entity.example;
   set example(String value) => __entity.example = value;
 
-  /// 个人感悟
-  String get feeling => __entity.feeling;
-  set feeling(String value) => __entity.feeling = value;
-
   /// 创建日期
   DateTime get createAt => __entity.createAt;
   set createAt(DateTime value) => __entity.createAt = value;
@@ -171,7 +167,6 @@ class BookViewpointModel {
          title: title,
          content: content,
          example: example,
-         feeling: feeling,
          createAt: createAt,
          updateAt: updateAt,
        );
@@ -208,7 +203,6 @@ class BookViewpointModel {
       'title': title,
       'content': content,
       'example': example,
-      'feeling': feeling,
       'createAt': createAt.toIso8601String(),
       'updateAt': updateAt.toIso8601String(),
     };

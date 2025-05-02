@@ -466,11 +466,6 @@ final _entities = <obx_int.ModelEntity>[
             type: 9,
             flags: 0),
         obx_int.ModelProperty(
-            id: const obx_int.IdUid(6, 8556367343012327499),
-            name: 'feeling',
-            type: 9,
-            flags: 0),
-        obx_int.ModelProperty(
             id: const obx_int.IdUid(7, 8943367424862014812),
             name: 'createAt',
             type: 10,
@@ -531,7 +526,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         7956543538869300588,
         5824504365206127781,
         5918625690410978937,
-        2718589743042196529
+        2718589743042196529,
+        8556367343012327499
       ],
       retiredRelationUids: const [
         4899483606642247262,
@@ -1060,14 +1056,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
           final titleOffset = fbb.writeString(object.title);
           final contentOffset = fbb.writeString(object.content);
           final exampleOffset = fbb.writeString(object.example);
-          final feelingOffset = fbb.writeString(object.feeling);
           fbb.startTable(9);
           fbb.addInt64(0, object.id);
           fbb.addInt64(1, object.bookId);
           fbb.addOffset(2, titleOffset);
           fbb.addOffset(3, contentOffset);
           fbb.addOffset(4, exampleOffset);
-          fbb.addOffset(5, feelingOffset);
           fbb.addInt64(6, object.createAt.millisecondsSinceEpoch);
           fbb.addInt64(7, object.updateAt.millisecondsSinceEpoch);
           fbb.finish(fbb.endTable());
@@ -1086,8 +1080,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
               .vTableGet(buffer, rootOffset, 10, '');
           final exampleParam = const fb.StringReader(asciiOptimization: true)
               .vTableGet(buffer, rootOffset, 12, '');
-          final feelingParam = const fb.StringReader(asciiOptimization: true)
-              .vTableGet(buffer, rootOffset, 14, '');
           final createAtParam = DateTime.fromMillisecondsSinceEpoch(
               const fb.Int64Reader().vTableGet(buffer, rootOffset, 16, 0));
           final updateAtParam = DateTime.fromMillisecondsSinceEpoch(
@@ -1098,7 +1090,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
               title: titleParam,
               content: contentParam,
               example: exampleParam,
-              feeling: feelingParam,
               createAt: createAtParam,
               updateAt: updateAtParam);
 
@@ -1406,15 +1397,11 @@ class BookViewpoint_ {
   static final example =
       obx.QueryStringProperty<BookViewpoint>(_entities[9].properties[4]);
 
-  /// See [BookViewpoint.feeling].
-  static final feeling =
-      obx.QueryStringProperty<BookViewpoint>(_entities[9].properties[5]);
-
   /// See [BookViewpoint.createAt].
   static final createAt =
-      obx.QueryDateProperty<BookViewpoint>(_entities[9].properties[6]);
+      obx.QueryDateProperty<BookViewpoint>(_entities[9].properties[5]);
 
   /// See [BookViewpoint.updateAt].
   static final updateAt =
-      obx.QueryDateProperty<BookViewpoint>(_entities[9].properties[7]);
+      obx.QueryDateProperty<BookViewpoint>(_entities[9].properties[6]);
 }

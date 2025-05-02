@@ -153,12 +153,15 @@ class BooksController extends BaseController {
           ),
         ),
         actions: [
-          TextButton(onPressed: Get.back, child: const Text('取消')),
-          Obx(
-            () => TextButton(
-              onPressed: isProcessing.value ? null : addBook,
-              child: isProcessing.value ? const CircularProgressIndicator.adaptive() : const Text('添加'),
-            ),
+          TextButton(onPressed: Get.close, child: const Text('取消')),
+          TextButton(
+            onPressed: () async {
+              Get.close();
+              isProcessing.value = true;
+              await addBook();
+              isProcessing.value = false;
+            },
+            child: const Text('添加'),
           ),
         ],
       ),
@@ -177,23 +180,15 @@ class BooksController extends BaseController {
       final book = await _bookService.addBook(bookName);
 
       if (book != null) {
-        bookNameController.clear();
-        Get.back(); // 关闭对话框
-
         // 更新书籍列表并选择新添加的书籍
-        await loadBooks();
-        selectBook(book);
-
-        Get.snackbar('添加成功', '书籍《${book.title}》已添加到书架');
+        await loadAllViewpoints();
+        UIUtils.showSuccess('书籍《${book.title}》已添加到书架');
       } else {
-        Get.snackbar('添加失败', '无法添加书籍，请稍后重试');
+        UIUtils.showError('无法添加书籍，请稍后重试');
       }
-
-      isProcessing.value = false;
     } catch (e, stackTrace) {
-      isProcessing.value = false;
       logger.e('添加书籍失败', error: e, stackTrace: stackTrace);
-      Get.snackbar('添加失败', '发生错误，请稍后重试');
+      UIUtils.showError('发生错误，请稍后重试');
     }
   }
 
@@ -212,53 +207,13 @@ class BooksController extends BaseController {
 
       await loadAllViewpoints();
 
-      Get.snackbar('删除成功', '书籍《${book.title}》已删除');
+      UIUtils.showSuccess('书籍《${book.title}》已删除');
 
       isProcessing.value = false;
     } catch (e, stackTrace) {
       isProcessing.value = false;
       logger.e('删除书籍失败', error: e, stackTrace: stackTrace);
-      Get.snackbar('删除失败', '发生错误，请稍后重试');
-    }
-  }
-
-  /// 删除观点
-  Future<void> deleteViewpoint(int viewpointId) async {
-    try {
-      isProcessing.value = true;
-
-      final viewpointIndex = allViewpoints.indexWhere((v) => v.id == viewpointId);
-      if (viewpointIndex < 0) {
-        isProcessing.value = false;
-        return;
-      }
-
-      final viewpoint = allViewpoints[viewpointIndex];
-      final result = await _bookService.deleteViewpoint(viewpointId);
-
-      if (result) {
-        // 更新本地数据
-        allViewpoints.removeAt(viewpointIndex);
-
-        // 调整当前选中的观点索引
-        if (allViewpoints.isEmpty) {
-          currentViewpointIndex.value = 0;
-          selectedBook.value = null;
-        } else if (currentViewpointIndex.value >= allViewpoints.length) {
-          currentViewpointIndex.value = allViewpoints.length - 1;
-          updateSelectedBookFromViewpoint(allViewpoints[currentViewpointIndex.value]);
-        }
-
-        Get.snackbar('删除成功', '观点"${viewpoint.title}"已删除');
-      } else {
-        Get.snackbar('删除失败', '无法删除观点，请稍后重试');
-      }
-
-      isProcessing.value = false;
-    } catch (e, stackTrace) {
-      isProcessing.value = false;
-      logger.e('删除观点失败', error: e, stackTrace: stackTrace);
-      Get.snackbar('删除失败', '发生错误，请稍后重试');
+      UIUtils.showError('发生错误，请稍后重试');
     }
   }
 
