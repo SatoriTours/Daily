@@ -1,7 +1,6 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/objectbox/book.dart';
-import 'package:daily_satori/app/objectbox/book_category.dart';
 import 'package:daily_satori/app/objectbox/book_viewpoint.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
@@ -14,9 +13,6 @@ class BookRepository {
 
   /// 获取Book的Box
   static Box<Book> get _box => ObjectboxService.i.box<Book>();
-
-  /// 获取BookCategory的Box
-  static Box<BookCategory> get _categoryBox => ObjectboxService.i.box<BookCategory>();
 
   /// 获取BookViewpoint的Box
   static Box<BookViewpoint> get _viewpointBox => ObjectboxService.i.box<BookViewpoint>();
@@ -79,45 +75,9 @@ class BookRepository {
   }
 
   /// 删除书籍
-  static Future<bool> deleteBook(int id) async {
-    try {
-      return _box.remove(id);
-    } catch (e, stackTrace) {
-      logger.e('删除书籍失败: $id', error: e, stackTrace: stackTrace);
-      return false;
-    }
-  }
-
-  /// 获取书籍分类列表
-  static Future<List<BookCategoryModel>> getCategories() async {
-    try {
-      final categories = _categoryBox.getAll();
-      return categories.map((entity) => BookCategoryModel(entity)).toList();
-    } catch (e, stackTrace) {
-      logger.e('获取书籍分类列表失败', error: e, stackTrace: stackTrace);
-      return [];
-    }
-  }
-
-  /// 保存书籍分类
-  static Future<int> saveCategory(BookCategoryModel category) async {
-    try {
-      final entity = category.toEntity();
-      return _categoryBox.put(entity);
-    } catch (e, stackTrace) {
-      logger.e('保存书籍分类失败: ${category.name}', error: e, stackTrace: stackTrace);
-      return 0;
-    }
-  }
-
-  /// 删除书籍分类
-  static Future<bool> deleteCategory(int id) async {
-    try {
-      return _categoryBox.remove(id);
-    } catch (e, stackTrace) {
-      logger.e('删除书籍分类失败: $id', error: e, stackTrace: stackTrace);
-      return false;
-    }
+  static Future<void> deleteBook(int id) async {
+    _box.removeAsync(id);
+    _viewpointBox.query(BookViewpoint_.bookId.equals(id)).build().remove();
   }
 
   /// 获取所有书籍观点
@@ -202,7 +162,6 @@ class BookRepository {
   /// 删除所有书籍
   static Future<void> deleteAllSync() async {
     await _box.removeAllAsync();
-    await _categoryBox.removeAllAsync();
     await _viewpointBox.removeAllAsync();
   }
 }

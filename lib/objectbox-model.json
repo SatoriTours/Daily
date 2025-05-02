@@ -410,35 +410,6 @@
       "relations": []
     },
     {
-      "id": "10:100888886065475619",
-      "lastPropertyId": "4:2718589743042196529",
-      "name": "BookCategory",
-      "properties": [
-        {
-          "id": "1:7956543538869300588",
-          "name": "id",
-          "type": 6,
-          "flags": 1
-        },
-        {
-          "id": "2:5824504365206127781",
-          "name": "name",
-          "type": 9
-        },
-        {
-          "id": "3:5918625690410978937",
-          "name": "description",
-          "type": 9
-        },
-        {
-          "id": "4:2718589743042196529",
-          "name": "createAt",
-          "type": 10
-        }
-      ],
-      "relations": []
-    },
-    {
       "id": "11:7263170726412899592",
       "lastPropertyId": "8:8945662529292125528",
       "name": "BookViewpoint",
@@ -494,10 +465,16 @@
   "lastSequenceId": "0:0",
   "modelVersion": 5,
   "modelVersionParserMinimum": 5,
-  "retiredEntityUids": [],
+  "retiredEntityUids": [
+    100888886065475619
+  ],
   "retiredIndexUids": [],
   "retiredPropertyUids": [
-    6112857799928721251
+    6112857799928721251,
+    7956543538869300588,
+    5824504365206127781,
+    5918625690410978937,
+    2718589743042196529
   ],
   "retiredRelationUids": [
     4899483606642247262,

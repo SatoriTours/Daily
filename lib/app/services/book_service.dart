@@ -15,9 +15,9 @@ class BookService {
   BookService._();
 
   Future<void> init() async {
-    // if (!AppInfoUtils.isProduction) {
-    //   await BookRepository.deleteAllSync();
-    // }
+    if (!AppInfoUtils.isProduction) {
+      await BookRepository.deleteAllSync();
+    }
   }
 
   final AiService _aiService = AiService.i;
@@ -31,16 +31,6 @@ class BookService {
   /// 按分类获取书籍
   Future<List<BookModel>> getBooksByCategory(String category) async {
     return BookRepository.getBooksByCategory(category);
-  }
-
-  /// 获取所有分类
-  Future<List<BookCategoryModel>> getCategories() async {
-    return BookRepository.getCategories();
-  }
-
-  /// 保存分类
-  Future<int> saveCategory(BookCategoryModel category) async {
-    return BookRepository.saveCategory(category);
   }
 
   /// 通过分类获取推荐书籍
@@ -142,8 +132,7 @@ class BookService {
         example: viewpointDetail['example'] as String,
       );
     } catch (e, stackTrace) {
-      logger.e('处理观点详情失败: $title - $viewpoint', error: e, stackTrace: stackTrace);
-      // 发生错误时，使用原始数据创建观点
+      logger.e('处理观点详情失败: $title - $viewpoint, ${stackTrace.toString()}', error: e, stackTrace: stackTrace);
       return null;
     }
   }
@@ -276,13 +265,8 @@ class BookService {
   }
 
   /// 删除书籍
-  Future<bool> deleteBook(int bookId) async {
-    try {
-      return await BookRepository.deleteBook(bookId);
-    } catch (e, stackTrace) {
-      logger.e('删除书籍失败', error: e, stackTrace: stackTrace);
-      return false;
-    }
+  Future<void> deleteBook(int bookId) async {
+    await BookRepository.deleteBook(bookId);
   }
 
   /// 删除观点

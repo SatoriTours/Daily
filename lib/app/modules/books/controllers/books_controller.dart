@@ -208,24 +208,11 @@ class BooksController extends BaseController {
         return;
       }
 
-      final result = await _bookService.deleteBook(bookId);
-      if (result) {
-        // 更新本地数据
-        books.removeWhere((b) => b.id == bookId);
+      await _bookService.deleteBook(bookId);
 
-        // 同时删除该书籍的所有观点
-        allViewpoints.removeWhere((v) => v.bookId == bookId);
+      await loadAllViewpoints();
 
-        // 如果删除的是当前选中的书籍，清空选择并重新加载所有观点
-        if (selectedBook.value?.id == bookId) {
-          selectedBook.value = null;
-          loadAllViewpoints();
-        }
-
-        Get.snackbar('删除成功', '书籍《${book.title}》已删除');
-      } else {
-        Get.snackbar('删除失败', '无法删除书籍，请稍后重试');
-      }
+      Get.snackbar('删除成功', '书籍《${book.title}》已删除');
 
       isProcessing.value = false;
     } catch (e, stackTrace) {

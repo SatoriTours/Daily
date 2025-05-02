@@ -17,7 +17,6 @@ import 'package:objectbox_flutter_libs/objectbox_flutter_libs.dart';
 import 'app/objectbox/ai_config.dart';
 import 'app/objectbox/article.dart';
 import 'app/objectbox/book.dart';
-import 'app/objectbox/book_category.dart';
 import 'app/objectbox/book_viewpoint.dart';
 import 'app/objectbox/diary.dart';
 import 'app/objectbox/image.dart';
@@ -436,35 +435,6 @@ final _entities = <obx_int.ModelEntity>[
       relations: <obx_int.ModelRelation>[],
       backlinks: <obx_int.ModelBacklink>[]),
   obx_int.ModelEntity(
-      id: const obx_int.IdUid(10, 100888886065475619),
-      name: 'BookCategory',
-      lastPropertyId: const obx_int.IdUid(4, 2718589743042196529),
-      flags: 0,
-      properties: <obx_int.ModelProperty>[
-        obx_int.ModelProperty(
-            id: const obx_int.IdUid(1, 7956543538869300588),
-            name: 'id',
-            type: 6,
-            flags: 1),
-        obx_int.ModelProperty(
-            id: const obx_int.IdUid(2, 5824504365206127781),
-            name: 'name',
-            type: 9,
-            flags: 0),
-        obx_int.ModelProperty(
-            id: const obx_int.IdUid(3, 5918625690410978937),
-            name: 'description',
-            type: 9,
-            flags: 0),
-        obx_int.ModelProperty(
-            id: const obx_int.IdUid(4, 2718589743042196529),
-            name: 'createAt',
-            type: 10,
-            flags: 0)
-      ],
-      relations: <obx_int.ModelRelation>[],
-      backlinks: <obx_int.ModelBacklink>[]),
-  obx_int.ModelEntity(
       id: const obx_int.IdUid(11, 7263170726412899592),
       name: 'BookViewpoint',
       lastPropertyId: const obx_int.IdUid(8, 8945662529292125528),
@@ -554,9 +524,15 @@ obx_int.ModelDefinition getObjectBoxModel() {
       lastIndexId: const obx_int.IdUid(6, 7022087712099044524),
       lastRelationId: const obx_int.IdUid(4, 6883695399629113204),
       lastSequenceId: const obx_int.IdUid(0, 0),
-      retiredEntityUids: const [],
+      retiredEntityUids: const [100888886065475619],
       retiredIndexUids: const [],
-      retiredPropertyUids: const [6112857799928721251],
+      retiredPropertyUids: const [
+        6112857799928721251,
+        7956543538869300588,
+        5824504365206127781,
+        5918625690410978937,
+        2718589743042196529
+      ],
       retiredRelationUids: const [
         4899483606642247262,
         6893224121746435434,
@@ -1072,47 +1048,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
 
           return object;
         }),
-    BookCategory: obx_int.EntityDefinition<BookCategory>(
-        model: _entities[9],
-        toOneRelations: (BookCategory object) => [],
-        toManyRelations: (BookCategory object) => {},
-        getId: (BookCategory object) => object.id,
-        setId: (BookCategory object, int id) {
-          object.id = id;
-        },
-        objectToFB: (BookCategory object, fb.Builder fbb) {
-          final nameOffset = fbb.writeString(object.name);
-          final descriptionOffset = fbb.writeString(object.description);
-          fbb.startTable(5);
-          fbb.addInt64(0, object.id);
-          fbb.addOffset(1, nameOffset);
-          fbb.addOffset(2, descriptionOffset);
-          fbb.addInt64(3, object.createAt.millisecondsSinceEpoch);
-          fbb.finish(fbb.endTable());
-          return object.id;
-        },
-        objectFromFB: (obx.Store store, ByteData fbData) {
-          final buffer = fb.BufferContext(fbData);
-          final rootOffset = buffer.derefObject(0);
-          final idParam =
-              const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
-          final nameParam = const fb.StringReader(asciiOptimization: true)
-              .vTableGet(buffer, rootOffset, 6, '');
-          final descriptionParam =
-              const fb.StringReader(asciiOptimization: true)
-                  .vTableGet(buffer, rootOffset, 8, '');
-          final createAtParam = DateTime.fromMillisecondsSinceEpoch(
-              const fb.Int64Reader().vTableGet(buffer, rootOffset, 10, 0));
-          final object = BookCategory(
-              id: idParam,
-              name: nameParam,
-              description: descriptionParam,
-              createAt: createAtParam);
-
-          return object;
-        }),
     BookViewpoint: obx_int.EntityDefinition<BookViewpoint>(
-        model: _entities[10],
+        model: _entities[9],
         toOneRelations: (BookViewpoint object) => [],
         toManyRelations: (BookViewpoint object) => {},
         getId: (BookViewpoint object) => object.id,
@@ -1447,56 +1384,37 @@ class Book_ {
       obx.QueryDateProperty<Book>(_entities[8].properties[8]);
 }
 
-/// [BookCategory] entity fields to define ObjectBox queries.
-class BookCategory_ {
-  /// See [BookCategory.id].
-  static final id =
-      obx.QueryIntegerProperty<BookCategory>(_entities[9].properties[0]);
-
-  /// See [BookCategory.name].
-  static final name =
-      obx.QueryStringProperty<BookCategory>(_entities[9].properties[1]);
-
-  /// See [BookCategory.description].
-  static final description =
-      obx.QueryStringProperty<BookCategory>(_entities[9].properties[2]);
-
-  /// See [BookCategory.createAt].
-  static final createAt =
-      obx.QueryDateProperty<BookCategory>(_entities[9].properties[3]);
-}
-
 /// [BookViewpoint] entity fields to define ObjectBox queries.
 class BookViewpoint_ {
   /// See [BookViewpoint.id].
   static final id =
-      obx.QueryIntegerProperty<BookViewpoint>(_entities[10].properties[0]);
+      obx.QueryIntegerProperty<BookViewpoint>(_entities[9].properties[0]);
 
   /// See [BookViewpoint.bookId].
   static final bookId =
-      obx.QueryIntegerProperty<BookViewpoint>(_entities[10].properties[1]);
+      obx.QueryIntegerProperty<BookViewpoint>(_entities[9].properties[1]);
 
   /// See [BookViewpoint.title].
   static final title =
-      obx.QueryStringProperty<BookViewpoint>(_entities[10].properties[2]);
+      obx.QueryStringProperty<BookViewpoint>(_entities[9].properties[2]);
 
   /// See [BookViewpoint.content].
   static final content =
-      obx.QueryStringProperty<BookViewpoint>(_entities[10].properties[3]);
+      obx.QueryStringProperty<BookViewpoint>(_entities[9].properties[3]);
 
   /// See [BookViewpoint.example].
   static final example =
-      obx.QueryStringProperty<BookViewpoint>(_entities[10].properties[4]);
+      obx.QueryStringProperty<BookViewpoint>(_entities[9].properties[4]);
 
   /// See [BookViewpoint.feeling].
   static final feeling =
-      obx.QueryStringProperty<BookViewpoint>(_entities[10].properties[5]);
+      obx.QueryStringProperty<BookViewpoint>(_entities[9].properties[5]);
 
   /// See [BookViewpoint.createAt].
   static final createAt =
-      obx.QueryDateProperty<BookViewpoint>(_entities[10].properties[6]);
+      obx.QueryDateProperty<BookViewpoint>(_entities[9].properties[6]);
 
   /// See [BookViewpoint.updateAt].
   static final updateAt =
-      obx.QueryDateProperty<BookViewpoint>(_entities[10].properties[7]);
+      obx.QueryDateProperty<BookViewpoint>(_entities[9].properties[7]);
 }

@@ -1,6 +1,5 @@
 import 'package:daily_satori/app/objectbox/book.dart';
 import 'package:daily_satori/app/objectbox/book_viewpoint.dart';
-import 'package:daily_satori/app/objectbox/book_category.dart';
 import 'package:daily_satori/app/repositories/book_repository.dart';
 
 /// 书籍模型
@@ -213,60 +212,5 @@ class BookViewpointModel {
       'createAt': createAt.toIso8601String(),
       'updateAt': updateAt.toIso8601String(),
     };
-  }
-}
-
-/// 书籍分类模型
-///
-/// 是对ObjectBox实体的包装，处理默认值问题
-class BookCategoryModel {
-  final BookCategory __entity;
-
-  /// ID
-  int get id => __entity.id;
-  set id(int value) => __entity.id = value;
-
-  /// 分类名称
-  String get name => __entity.name;
-  set name(String value) => __entity.name = value;
-
-  /// 分类描述
-  String get description => __entity.description;
-  set description(String value) => __entity.description = value;
-
-  /// 创建日期
-  DateTime get createAt => __entity.createAt;
-  set createAt(DateTime value) => __entity.createAt = value;
-
-  /// 构造函数，通过实体创建模型
-  BookCategoryModel(this.__entity);
-
-  /// 创建新模型，内部自动创建实体
-  BookCategoryModel.create({int id = 0, required String name, String description = '', DateTime? createAt})
-    : __entity = BookCategory(id: id, name: name, description: description, createAt: createAt);
-
-  /// 从ObjectBox实体创建模型
-  factory BookCategoryModel.fromEntity(BookCategory entity) {
-    return BookCategoryModel(entity);
-  }
-
-  /// 获取底层实体
-  BookCategory toEntity() {
-    return __entity;
-  }
-
-  /// 从JSON创建模型
-  factory BookCategoryModel.fromJson(Map<String, dynamic> json) {
-    return BookCategoryModel.create(
-      id: json['id'] as int? ?? 0,
-      name: json['name'] as String,
-      description: json['description'] as String? ?? '',
-      createAt: json['createAt'] != null ? DateTime.parse(json['createAt'] as String) : null,
-    );
-  }
-
-  /// 转换为JSON
-  Map<String, dynamic> toJson() {
-    return {'id': id, 'name': name, 'description': description, 'createAt': createAt.toIso8601String()};
   }
 }
