@@ -148,6 +148,7 @@ void _initNormalPriorityServices() {
   AppServiceManager.initService('MigrationService', () => MigrationService.i.init());
   AppServiceManager.initService('PluginService', () => PluginService.i.init());
   AppServiceManager.initService('WebService', () => WebService.i.init());
+  AppServiceManager.initService('BookService', () => BookService.i.init());
 }
 
 // 初始化低优先级服务，延迟执行

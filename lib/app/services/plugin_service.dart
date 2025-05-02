@@ -241,7 +241,7 @@ class PluginService {
 
   // 书籍相关提示词
   String getBookRecommendByCategory() => _aiPrompts['book_recommend_by_category'] ?? '';
-  String getBookViewpoints() => _aiPrompts['book_viewpoints'] ?? '';
+  String getBookViewpoint() => _aiPrompts['book_viewpoint'] ?? '';
   String getBookInfo() => _aiPrompts['book_info'] ?? '';
 
   /// 获取API提供商预设列表

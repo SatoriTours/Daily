@@ -1,6 +1,7 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/services/book_service.dart';
+import 'package:daily_satori/app/repositories/book_repository.dart';
 
 /// 读书页面控制器
 ///
@@ -30,8 +31,6 @@ class BooksController extends BaseController {
   final bookNameController = TextEditingController();
   final categoryNameController = TextEditingController();
   final feelingController = TextEditingController();
-
-  BooksController();
 
   @override
   void onInit() {
@@ -112,7 +111,7 @@ class BooksController extends BaseController {
 
       // 加载书籍观点
       isLoadingViewpoints.value = true;
-      final viewpoints = await _bookService.getBookViewpoints(book);
+      final viewpoints = await BookRepository.getViewpoints(book.id);
       bookViewpoints.value = viewpoints;
       isLoadingViewpoints.value = false;
 
