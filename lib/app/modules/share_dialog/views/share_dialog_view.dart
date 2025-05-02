@@ -17,20 +17,29 @@ class ShareDialogView extends GetView<ShareDialogController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: _buildAppBar(context),
       body: SafeArea(
-        child: Padding(
-          padding: Dimensions.paddingPage,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildArticleInfo(context),
-              Dimensions.verticalSpacerL,
-              _buildCommentSection(context),
-              Dimensions.verticalSpacerL,
-              _buildSaveButton(context),
-            ],
-          ),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: Dimensions.paddingPage,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildArticleInfo(context),
+                      Dimensions.verticalSpacerL,
+                      _buildCommentSection(context),
+                      Dimensions.verticalSpacerL,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(padding: Dimensions.paddingPage, child: _buildSaveButton(context)),
+          ],
         ),
       ),
     );
@@ -87,13 +96,11 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   // 构建备注信息区域
   Widget _buildCommentSection(BuildContext context) {
-    return Expanded(
-      child: LabeledSection(
-        icon: Icons.comment_outlined,
-        label: "备注信息",
-        showCardBackground: true,
-        child: CommentField(controller: controller.commentController, hintText: "添加备注信息（可选）"),
-      ),
+    return LabeledSection(
+      icon: Icons.comment_outlined,
+      label: "备注信息",
+      showCardBackground: true,
+      child: CommentField(controller: controller.commentController, hintText: "添加备注信息（可选）"),
     );
   }
 
