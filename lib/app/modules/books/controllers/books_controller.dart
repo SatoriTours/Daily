@@ -9,7 +9,6 @@ class BooksController extends BaseController {
   final BookService _bookService = BookService.i;
   final scaffoldKey = GlobalKey<ScaffoldState>();
   final addBookFormKey = GlobalKey<FormState>();
-  final addCategoryFormKey = GlobalKey<FormState>();
 
   // 书籍数据
   final books = <BookModel>[].obs;
@@ -28,13 +27,17 @@ class BooksController extends BaseController {
 
   // 表单控制器
   final bookNameController = TextEditingController();
-  final categoryNameController = TextEditingController();
-  final categoryDescriptionController = TextEditingController();
-  final feelingController = TextEditingController();
+
+  // 滚动控制器
+  final scrollController = ScrollController();
+
+  // 分页大小
+  final int _pageSize = 20;
 
   @override
   void onInit() {
     super.onInit();
+    _initScrollListener();
     loadBooks();
     loadAllViewpoints();
   }
@@ -42,10 +45,22 @@ class BooksController extends BaseController {
   @override
   void onClose() {
     bookNameController.dispose();
-    categoryNameController.dispose();
-    categoryDescriptionController.dispose();
-    feelingController.dispose();
+    scrollController.dispose();
     super.onClose();
+  }
+
+  /// 初始化滚动监听器
+  void _initScrollListener() {
+    scrollController.addListener(() {
+      if (!scrollController.hasClients) return;
+
+      final position = scrollController.position;
+      if (position.pixels == position.maxScrollExtent) {
+        _loadMoreViewpoints();
+      } else if (position.pixels == position.minScrollExtent) {
+        _loadPreviousViewpoints();
+      }
+    });
   }
 
   /// 加载所有书籍
@@ -105,6 +120,11 @@ class BooksController extends BaseController {
       // 重置观点索引
       if (allViewpoints.isNotEmpty) {
         currentViewpointIndex.value = 0;
+      }
+
+      // 滚动到顶部
+      if (scrollController.hasClients) {
+        scrollController.jumpTo(0);
       }
     } catch (e, stackTrace) {
       isLoadingViewpoints.value = false;
@@ -255,130 +275,10 @@ class BooksController extends BaseController {
     }
   }
 
-  /// 显示添加分类对话框
-  void showAddCategoryDialog() {
-    categoryNameController.clear();
-    categoryDescriptionController.clear();
-    Get.dialog(
-      AlertDialog(
-        title: const Text('添加分类'),
-        content: Form(
-          key: addCategoryFormKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: categoryNameController,
-                decoration: const InputDecoration(labelText: '分类名称', hintText: '请输入分类名称'),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return '请输入分类名称';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: categoryDescriptionController,
-                decoration: const InputDecoration(labelText: '分类描述', hintText: '请输入分类描述（可选）'),
-                maxLines: 3,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: Get.back, child: const Text('取消')),
-          Obx(
-            () => TextButton(
-              onPressed: isProcessing.value ? null : addCategory,
-              child: isProcessing.value ? const CircularProgressIndicator.adaptive() : const Text('添加'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 添加分类
-  Future<void> addCategory() async {
-    if (addCategoryFormKey.currentState?.validate() != true) return;
-
-    try {
-      final categoryName = categoryNameController.text.trim();
-      if (categoryName.isEmpty) return;
-
-      isProcessing.value = true;
-      final category = BookCategoryModel.create(
-        name: categoryName,
-        description: categoryDescriptionController.text.trim(),
-      );
-
-      final categoryId = await _bookService.saveCategory(category);
-      if (categoryId > 0) {
-        categoryNameController.clear();
-        categoryDescriptionController.clear();
-        Get.back(); // 关闭对话框
-
-        Get.snackbar('添加成功', '分类"$categoryName"已添加');
-      } else {
-        Get.snackbar('添加失败', '无法添加分类，请稍后重试');
-      }
-
-      isProcessing.value = false;
-    } catch (e, stackTrace) {
-      isProcessing.value = false;
-      logger.e('添加分类失败', error: e, stackTrace: stackTrace);
-      Get.snackbar('添加失败', '发生错误，请稍后重试');
-    }
-  }
-
   /// 关闭抽屉
   void closeDrawer() {
     if (scaffoldKey.currentState?.isDrawerOpen == true) {
       scaffoldKey.currentState?.closeDrawer();
-    }
-  }
-
-  /// 保存感悟
-  Future<void> saveFeeling() async {
-    try {
-      final feeling = feelingController.text.trim();
-      if (feeling.isEmpty) return;
-
-      final currentViewpoint =
-          currentViewpointIndex.value < allViewpoints.length ? allViewpoints[currentViewpointIndex.value] : null;
-
-      if (currentViewpoint != null) {
-        isProcessing.value = true;
-
-        // 更新观点的感悟
-        final updatedViewpoint = BookViewpointModel.create(
-          id: currentViewpoint.id,
-          bookId: currentViewpoint.bookId,
-          title: currentViewpoint.title,
-          content: currentViewpoint.content,
-          example: currentViewpoint.example,
-          feeling: feeling,
-          createAt: currentViewpoint.createAt,
-        );
-
-        final result = await _bookService.saveViewpoint(updatedViewpoint);
-
-        if (result > 0) {
-          // 更新本地数据
-          allViewpoints[currentViewpointIndex.value] = updatedViewpoint;
-          feelingController.clear();
-          Get.snackbar('保存成功', '感悟已保存');
-        } else {
-          Get.snackbar('保存失败', '无法保存感悟，请稍后重试');
-        }
-
-        isProcessing.value = false;
-      }
-    } catch (e, stackTrace) {
-      isProcessing.value = false;
-      logger.e('保存感悟失败', error: e, stackTrace: stackTrace);
-      Get.snackbar('保存失败', '发生错误，请稍后重试');
     }
   }
 
@@ -393,6 +293,72 @@ class BooksController extends BaseController {
   void nextViewpoint() {
     if (currentViewpointIndex.value < allViewpoints.length - 1) {
       currentViewpointIndex.value++;
+    }
+  }
+
+  /// 加载更多观点
+  Future<void> _loadMoreViewpoints() async {
+    if (allViewpoints.isEmpty || selectedBook.value == null) return;
+
+    isLoadingViewpoints.value = true;
+
+    try {
+      final lastId = allViewpoints.last.id;
+      logger.i('加载ID:$lastId之后的观点');
+
+      // 这里需要实现从BookRepository获取更多观点的逻辑
+      // 示例实现，根据实际情况可能需要修改
+      final bookId = selectedBook.value!.id;
+      final moreViewpoints = await _fetchViewpoints(bookId, lastId, false);
+
+      if (moreViewpoints.isNotEmpty) {
+        allViewpoints.addAll(moreViewpoints);
+      }
+    } finally {
+      isLoadingViewpoints.value = false;
+    }
+  }
+
+  /// 加载之前的观点
+  Future<void> _loadPreviousViewpoints() async {
+    if (allViewpoints.isEmpty || selectedBook.value == null) return;
+
+    isLoadingViewpoints.value = true;
+
+    try {
+      final firstId = allViewpoints.first.id;
+      logger.i('加载ID:$firstId之前的观点');
+
+      // 这里需要实现从BookRepository获取之前观点的逻辑
+      // 示例实现，根据实际情况可能需要修改
+      final bookId = selectedBook.value!.id;
+      final previousViewpoints = await _fetchViewpoints(bookId, firstId, true);
+
+      if (previousViewpoints.isNotEmpty) {
+        allViewpoints.insertAll(0, previousViewpoints);
+      }
+    } finally {
+      isLoadingViewpoints.value = false;
+    }
+  }
+
+  /// 获取特定范围的观点
+  Future<List<BookViewpointModel>> _fetchViewpoints(int bookId, int referenceId, bool isGreaterThan) async {
+    try {
+      // 这里需要扩展BookRepository的功能来支持分页加载
+      // 现在仅为示例，实际实现可能需要调整
+      final allBookViewpoints = await BookRepository.getViewpoints(bookId);
+
+      if (isGreaterThan) {
+        // 获取ID大于referenceId的观点（较新的）
+        return allBookViewpoints.where((v) => v.id > referenceId).take(_pageSize).toList();
+      } else {
+        // 获取ID小于referenceId的观点（较旧的）
+        return allBookViewpoints.where((v) => v.id < referenceId).take(_pageSize).toList();
+      }
+    } catch (e, stackTrace) {
+      logger.e('获取观点失败', error: e, stackTrace: stackTrace);
+      return [];
     }
   }
 }
