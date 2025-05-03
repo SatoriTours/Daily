@@ -35,7 +35,9 @@ class PluginService {
     await _loadAiModelsConfig();
 
     // 尝试更新配置, 不需要 await , 这个本来就是异步处理
-    _updateAllConfigs();
+    if (AppInfoUtils.isProduction) {
+      _updateAllConfigs();
+    }
   }
 
   /// 加载提示词配置

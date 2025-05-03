@@ -133,7 +133,10 @@ class BooksController extends BaseController {
   }
 
   /// 删除书籍
-  Future<void> deleteBook(int bookId) async {}
+  Future<void> deleteBook(int bookId) async {
+    await _bookService.deleteBook(bookId);
+    await loadAllViewpoints();
+  }
 
   /// 关闭抽屉
   void closeDrawer() {

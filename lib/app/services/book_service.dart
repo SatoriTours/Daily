@@ -40,7 +40,7 @@ class BookService {
   Future<List<BookModel>> getRecommendedBooksByCategory(String category) async {
     try {
       // 获取现有书籍，用于过滤已添加的书籍
-      final existingBooks = await BookRepository.getBooks();
+      final existingBooks = BookRepository.getBooks();
       final existingTitles = existingBooks.map((book) => book.title.toLowerCase()).toSet();
 
       // 使用AI获取该分类下最经典的10本书
@@ -125,6 +125,7 @@ class BookService {
       Map<String, dynamic> viewpointDetail;
       try {
         final response = await _aiService.getCompletion(prompt);
+        // logger.i('观点详情: $response');
         viewpointDetail = jsonDecode(response);
       } catch (e, stackTrace) {
         // 如果发生异常，再尝试一次
@@ -140,7 +141,7 @@ class BookService {
         example: viewpointDetail['example'] as String,
       );
     } catch (e, stackTrace) {
-      logger.e('处理观点详情失败: $title - $viewpoint, ${stackTrace.toString()}', error: e, stackTrace: stackTrace);
+      logger.e('处理观点详情失败: $title - $viewpoint}, ${stackTrace.toString()}', error: e, stackTrace: stackTrace);
       return null;
     }
   }
@@ -165,6 +166,7 @@ class BookService {
       final prompt = _renderTemplate(promptTemplate, {'title': title});
 
       final response = await _aiService.getCompletion(prompt);
+      // logger.i('书籍信息: $response');
       final Map<String, dynamic> bookData = jsonDecode(response);
 
       // 创建新书籍
