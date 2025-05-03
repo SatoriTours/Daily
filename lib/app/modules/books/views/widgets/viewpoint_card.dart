@@ -1,6 +1,7 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/styles/colors.dart';
+import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:intl/intl.dart';
 
 /// 观点卡片组件
@@ -21,14 +22,14 @@ class ViewpointCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             _buildTitle(),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             _buildViewpointBookInfo(context, book),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             _buildContent(),
-            if (viewpoint.example.isNotEmpty) ...[const SizedBox(height: 16), _buildExample(context)],
-            const SizedBox(height: 16),
+            if (viewpoint.example.isNotEmpty) ...[const SizedBox(height: 20), _buildExample(context)],
+            const SizedBox(height: 20),
             _buildFooter(context, book),
           ],
         ),
@@ -38,12 +39,12 @@ class ViewpointCard extends StatelessWidget {
 
   /// 构建标题
   Widget _buildTitle() {
-    return Text(viewpoint.title, style: Get.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold));
+    return Text(viewpoint.title, style: MyFontStyle.headlineSmall.copyWith(fontWeight: FontWeight.bold));
   }
 
   /// 构建内容
   Widget _buildContent() {
-    return Text(viewpoint.content, style: Get.textTheme.bodyMedium?.copyWith(height: 1.6));
+    return Text(viewpoint.content, style: MyFontStyle.bodyLarge.copyWith(height: 1.8));
   }
 
   /// 构建案例
@@ -55,11 +56,17 @@ class ViewpointCard extends StatelessWidget {
           children: [
             Icon(Icons.bookmark, size: 18, color: AppColors.primary(context)),
             const SizedBox(width: 8),
-            Text('书籍案例', style: Get.textTheme.bodySmall?.copyWith(color: AppColors.primary(context))),
+            Text(
+              '书籍案例',
+              style: MyFontStyle.labelMedium.copyWith(color: AppColors.primary(context), fontWeight: FontWeight.w600),
+            ),
           ],
         ),
-        const SizedBox(height: 12),
-        Text(viewpoint.example, style: Get.textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic)),
+        const SizedBox(height: 14),
+        Text(
+          viewpoint.example,
+          style: MyFontStyle.bodyMedium.copyWith(height: 1.6, color: AppColors.textSecondaryLight),
+        ),
       ],
     );
   }
@@ -71,7 +78,7 @@ class ViewpointCard extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Expanded(child: Text('添加时间：$formattedDate', style: Get.textTheme.bodySmall?.copyWith(color: Colors.grey))),
+        Expanded(child: Text('添加时间：$formattedDate', style: MyFontStyle.labelSmall.copyWith(color: Colors.grey))),
       ],
     );
   }
@@ -81,11 +88,11 @@ class ViewpointCard extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Icon(Icons.menu_book, size: 12, color: Colors.grey),
-        const SizedBox(width: 4),
+        Icon(Icons.menu_book, size: 14, color: Colors.grey),
+        const SizedBox(width: 6),
         Text(
           book != null ? '《${book.title}》· ${book.author}' : '未知书籍',
-          style: Get.textTheme.bodySmall?.copyWith(color: Colors.grey, fontStyle: FontStyle.italic),
+          style: MyFontStyle.bodySmall.copyWith(color: Colors.grey),
         ),
       ],
     );
