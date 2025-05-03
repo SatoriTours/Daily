@@ -56,7 +56,6 @@ class _ViewpointContentState extends State<ViewpointContent> {
   @override
   Widget build(BuildContext context) {
     if (widget.viewpoints.isEmpty) return const SizedBox();
-
     return Column(children: [_buildHeader(context), Expanded(child: _buildViewpointPageView())]);
   }
 
@@ -83,15 +82,16 @@ class _ViewpointContentState extends State<ViewpointContent> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Column(
-        children: [
-          _buildBookInfoRow(context),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            child: _isBookInfoExpanded ? _buildExpandedBookInfo(context) : const SizedBox(height: 0),
-          ),
-          const Divider(height: 24),
-        ],
+        children: [_buildBookInfoRow(context), _buildExpandedInfoSection(context), const Divider(height: 24)],
       ),
+    );
+  }
+
+  /// 构建展开信息过渡动画区域
+  Widget _buildExpandedInfoSection(BuildContext context) {
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      child: _isBookInfoExpanded ? _buildExpandedBookInfo(context) : const SizedBox(height: 0),
     );
   }
 
@@ -115,34 +115,47 @@ class _ViewpointContentState extends State<ViewpointContent> {
   Widget _buildBookBasicInfo(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      children: [_buildBookTitleRow(context), const SizedBox(height: 2), _buildAuthorInfo(context)],
+    );
+  }
+
+  /// 构建书籍标题行
+  Widget _buildBookTitleRow(BuildContext context) {
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                widget.book.title,
-                style: Get.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary(context),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Icon(
-              _isBookInfoExpanded ? Icons.expand_less : Icons.expand_more,
-              size: 20,
-              color: AppColors.primary(context),
-            ),
-          ],
+        Expanded(
+          child: Text(
+            widget.book.title,
+            style: Get.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: AppColors.primary(context)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        const SizedBox(height: 2),
-        Text('作者: ${widget.book.author}', style: Get.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+        _buildExpandIcon(context),
       ],
     );
   }
 
-  /// 构建导航按钮
+  /// 构建展开/收起图标
+  Widget _buildExpandIcon(BuildContext context) {
+    return Icon(
+      _isBookInfoExpanded ? Icons.expand_less : Icons.expand_more,
+      size: 20,
+      color: AppColors.primary(context),
+    );
+  }
+
+  /// 构建作者信息
+  Widget _buildAuthorInfo(BuildContext context) {
+    return Text(
+      '作者: ${widget.book.author}',
+      style: Get.textTheme.bodySmall,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  /// 构建导航按钮组
   Widget _buildNavigationButtons(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -195,21 +208,31 @@ class _ViewpointContentState extends State<ViewpointContent> {
     return Container(
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground(context).withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary(context).withValues(alpha: 0.1), width: 1),
-      ),
+      decoration: _buildExpandedInfoDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [_buildBookCover(context), const SizedBox(width: 16), _buildBookDetails(context)],
-          ),
+          _buildBookInfoTopRow(context),
           if (widget.book.introduction.isNotEmpty) _buildBookIntroduction(context),
         ],
       ),
+    );
+  }
+
+  /// 构建展开信息的装饰样式
+  BoxDecoration _buildExpandedInfoDecoration(BuildContext context) {
+    return BoxDecoration(
+      color: AppColors.cardBackground(context).withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: AppColors.primary(context).withValues(alpha: 0.1), width: 1),
+    );
+  }
+
+  /// 构建书籍信息顶部行（封面和详情）
+  Widget _buildBookInfoTopRow(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [_buildBookCover(context), const SizedBox(width: 16), _buildBookDetails(context)],
     );
   }
 
@@ -233,21 +256,44 @@ class _ViewpointContentState extends State<ViewpointContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(widget.book.title, style: Get.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          _buildBookTitle(context),
           const SizedBox(height: 8),
-          Text('作者：${widget.book.author}', style: Get.textTheme.bodyMedium),
+          _buildBookAuthor(context),
           const SizedBox(height: 4),
-          Text('分类：${widget.book.category}', style: Get.textTheme.bodyMedium),
-          if (widget.book.introduction.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text('简介', style: Get.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-          ],
+          _buildBookCategory(context),
+          _buildIntroductionTitle(context),
         ],
       ),
     );
   }
 
-  /// 构建书籍简介
+  /// 构建书籍标题
+  Widget _buildBookTitle(BuildContext context) {
+    return Text(widget.book.title, style: Get.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold));
+  }
+
+  /// 构建书籍作者信息
+  Widget _buildBookAuthor(BuildContext context) {
+    return Text('作者：${widget.book.author}', style: Get.textTheme.bodyMedium);
+  }
+
+  /// 构建书籍分类信息
+  Widget _buildBookCategory(BuildContext context) {
+    return Text('分类：${widget.book.category}', style: Get.textTheme.bodyMedium);
+  }
+
+  /// 构建简介标题（如果有简介）
+  Widget _buildIntroductionTitle(BuildContext context) {
+    if (widget.book.introduction.isEmpty) {
+      return const SizedBox();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Text('简介', style: Get.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+    );
+  }
+
+  /// 构建书籍简介内容
   Widget _buildBookIntroduction(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 12),
