@@ -24,7 +24,7 @@ class BookService {
   final PluginService _pluginService = PluginService.i;
 
   /// 获取所有书籍
-  Future<List<BookModel>> getBooks() async {
+  List<BookModel> getBooks() {
     return BookRepository.getBooks();
   }
 

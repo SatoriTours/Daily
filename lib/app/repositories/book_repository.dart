@@ -29,14 +29,9 @@ class BookRepository {
   }
 
   /// 获取书籍列表
-  static Future<List<BookModel>> getBooks() async {
-    try {
-      final books = _box.getAll();
-      return books.map((entity) => BookModel(entity)).toList();
-    } catch (e, stackTrace) {
-      logger.e('获取书籍列表失败', error: e, stackTrace: stackTrace);
-      return [];
-    }
+  static List<BookModel> getBooks() {
+    final books = _box.getAll();
+    return books.map((entity) => BookModel(entity)).toList();
   }
 
   /// 按分类获取书籍

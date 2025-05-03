@@ -48,17 +48,12 @@ class BooksView extends GetView<BooksController> {
           padding: const EdgeInsets.all(8),
           constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
         ),
-        Obx(
-          () =>
-              controller.selectedBook.value != null
-                  ? IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 20),
-                    onPressed: () => _showDeleteBookDialog(),
-                    tooltip: '删除书籍',
-                    padding: const EdgeInsets.all(8),
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                  )
-                  : const SizedBox.shrink(),
+        IconButton(
+          icon: const Icon(Icons.delete_outline, size: 20),
+          onPressed: () => _showDeleteBookDialog(),
+          tooltip: '删除书籍',
+          padding: const EdgeInsets.all(8),
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
         ),
       ],
       elevation: 1,
@@ -68,6 +63,7 @@ class BooksView extends GetView<BooksController> {
 
   /// 显示书籍过滤对话框
   void _showBooksFilterDialog(BuildContext context) {
+    final books = controller.getAllBooks();
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -98,22 +94,20 @@ class BooksView extends GetView<BooksController> {
 
               // 书籍列表
               Expanded(
-                child: Obx(() {
-                  return ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: controller.books.length + 1, // +1 用于"所有书籍"选项
-                    itemBuilder: (context, index) {
-                      // 第一项是"所有书籍"
-                      if (index == 0) {
-                        return _buildBookFilterItem(context, null, controller.selectedBook.value == null);
-                      }
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: books.length + 1, // +1 用于"所有书籍"选项
+                  itemBuilder: (context, index) {
+                    // 第一项是"所有书籍"
+                    if (index == 0) {
+                      return _buildBookFilterItem(context, null, controller.fliterBookID.value == -1);
+                    }
 
-                      // 其他项是具体的书籍
-                      final book = controller.books[index - 1];
-                      return _buildBookFilterItem(context, book, controller.selectedBook.value?.id == book.id);
-                    },
-                  );
-                }),
+                    // 其他项是具体的书籍
+                    final book = books[index - 1];
+                    return _buildBookFilterItem(context, book, controller.fliterBookID.value == book.id);
+                  },
+                ),
               ),
 
               const Divider(height: 1),
@@ -124,7 +118,7 @@ class BooksView extends GetView<BooksController> {
                 child: Center(
                   child: InkWell(
                     onTap: () {
-                      controller.selectedBook.value = null;
+                      controller.selectBook(-1);
                       controller.loadAllViewpoints();
                     },
                     borderRadius: BorderRadius.circular(20),
@@ -156,12 +150,12 @@ class BooksView extends GetView<BooksController> {
     return InkWell(
       onTap: () {
         if (book != null) {
-          controller.selectBook(book);
+          controller.selectBook(book.id);
         } else {
-          // 选择"所有书籍"选项
-          controller.selectedBook.value = null;
-          controller.loadAllViewpoints();
+          controller.selectBook(-1);
         }
+        controller.loadAllViewpoints();
+
         Navigator.pop(context);
       },
       child: Container(
@@ -187,10 +181,6 @@ class BooksView extends GetView<BooksController> {
   /// 构建页面主体
   Widget _buildBody(BuildContext context) {
     return Obx(() {
-      if (controller.isLoadingViewpoints.value && controller.allViewpoints.isEmpty) {
-        return const Center(child: CircularProgressIndicator());
-      }
-
       if (controller.allViewpoints.isEmpty) {
         return const Center(
           child: Column(
@@ -224,7 +214,7 @@ class BooksView extends GetView<BooksController> {
 
   /// 显示删除书籍确认对话框
   void _showDeleteBookDialog() {
-    final book = controller.selectedBook.value;
+    final book = controller.currentViewpoint().book;
     if (book == null) return;
     UIUtils.showConfirmation(
       '删除书籍',
