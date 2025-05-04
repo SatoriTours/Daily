@@ -23,7 +23,8 @@ class ListStyles {
       iconColor: isDark ? AppColors.onSurfaceVariantDark : AppColors.onSurfaceVariant,
       textColor: isDark ? AppColors.onSurfaceDark : AppColors.onSurface,
       selectedColor: isDark ? AppColors.primaryLight : AppColors.primary,
-      selectedTileColor: isDark ? AppColors.primaryLight.withOpacity(0.1) : AppColors.primary.withOpacity(0.1),
+      selectedTileColor:
+          isDark ? AppColors.primaryLight.withValues(alpha: 0.1) : AppColors.primary.withValues(alpha: 0.1),
     );
   }
 
@@ -34,7 +35,7 @@ class ListStyles {
     return BoxDecoration(
       color:
           isSelected
-              ? (isDark ? AppColors.primaryLight.withOpacity(0.1) : AppColors.primary.withOpacity(0.1))
+              ? (isDark ? AppColors.primaryLight.withValues(alpha: 0.1) : AppColors.primary.withValues(alpha: 0.1))
               : Colors.transparent,
       borderRadius: BorderRadius.circular(Dimensions.radiusS),
       border: hasBorder ? Border.all(color: isDark ? AppColors.outlineDark : AppColors.outline, width: 1) : null,

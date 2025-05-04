@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:daily_satori/app/styles/base/colors.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart';
 import 'package:daily_satori/app/styles/base/typography.dart';
-import 'package:daily_satori/app/styles/base/borders.dart';
 
 /// 输入框样式类
 /// 提供应用中各种输入框的样式定义，遵循 shadcn/ui 的设计风格
@@ -22,7 +21,10 @@ class InputStyles {
         color: isDark ? AppColors.onSurfaceVariantDark : AppColors.onSurfaceVariant,
       ),
       hintStyle: AppTypography.bodyMedium.copyWith(
-        color: isDark ? AppColors.onSurfaceVariantDark.withOpacity(0.7) : AppColors.onSurfaceVariant.withOpacity(0.7),
+        color:
+            isDark
+                ? AppColors.onSurfaceVariantDark.withValues(alpha: 0.7)
+                : AppColors.onSurfaceVariant.withValues(alpha: 0.7),
       ),
       helperStyle: AppTypography.captionText.copyWith(
         color: isDark ? AppColors.onSurfaceVariantDark : AppColors.onSurfaceVariant,
@@ -51,7 +53,7 @@ class InputStyles {
       disabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(Dimensions.radiusS),
         borderSide: BorderSide(
-          color: isDark ? AppColors.outlineDark.withOpacity(0.5) : AppColors.outline.withOpacity(0.5),
+          color: isDark ? AppColors.outlineDark.withValues(alpha: 0.5) : AppColors.outline.withValues(alpha: 0.5),
           width: 1.0,
         ),
       ),
@@ -100,7 +102,10 @@ class InputStyles {
       focusedErrorBorder: InputBorder.none,
       disabledBorder: InputBorder.none,
       hintStyle: AppTypography.bodyMedium.copyWith(
-        color: isDark ? AppColors.onSurfaceVariantDark.withOpacity(0.5) : AppColors.onSurfaceVariant.withOpacity(0.5),
+        color:
+            isDark
+                ? AppColors.onSurfaceVariantDark.withValues(alpha: 0.5)
+                : AppColors.onSurfaceVariant.withValues(alpha: 0.5),
       ),
     );
   }
@@ -118,7 +123,10 @@ class InputStyles {
       enabledBorder: InputBorder.none,
       focusedBorder: InputBorder.none,
       hintStyle: AppTypography.titleMedium.copyWith(
-        color: isDark ? AppColors.onSurfaceVariantDark.withOpacity(0.5) : AppColors.onSurfaceVariant.withOpacity(0.5),
+        color:
+            isDark
+                ? AppColors.onSurfaceVariantDark.withValues(alpha: 0.5)
+                : AppColors.onSurfaceVariant.withValues(alpha: 0.5),
       ),
     );
   }

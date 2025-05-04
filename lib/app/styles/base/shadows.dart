@@ -9,61 +9,61 @@ class AppShadows {
   // 浅色模式阴影
   /// 极小阴影 - 用于微妙的高度表现
   static List<BoxShadow> xsLight = [
-    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 1, offset: const Offset(0, 1)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 1, offset: const Offset(0, 1)),
   ];
 
   /// 小阴影 - 用于UI元素的基本高度
   static List<BoxShadow> sLight = [
-    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1)),
-    BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 3, offset: const Offset(0, 1)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, 1)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 3, offset: const Offset(0, 1)),
   ];
 
   /// 中等阴影 - 用于卡片、按钮等
   static List<BoxShadow> mLight = [
-    BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 6, offset: const Offset(0, 2)),
-    BoxShadow(color: Colors.black.withOpacity(0.13), blurRadius: 4, offset: const Offset(0, 3)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 6, offset: const Offset(0, 2)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.13), blurRadius: 4, offset: const Offset(0, 3)),
   ];
 
   /// 大阴影 - 用于弹出框、对话框等
   static List<BoxShadow> lLight = [
-    BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 8, offset: const Offset(0, 4)),
-    BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 10, offset: const Offset(0, 8)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 8, offset: const Offset(0, 4)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 8)),
   ];
 
   /// 特大阴影 - 用于模态框、抽屉等
   static List<BoxShadow> xlLight = [
-    BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 8)),
-    BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 25, offset: const Offset(0, 15)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 8)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 25, offset: const Offset(0, 15)),
   ];
 
   // 暗色模式阴影
   /// 极小阴影 - 用于微妙的高度表现（暗色模式）
   static List<BoxShadow> xsDark = [
-    BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 1, offset: const Offset(0, 1)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 1, offset: const Offset(0, 1)),
   ];
 
   /// 小阴影 - 用于UI元素的基本高度（暗色模式）
   static List<BoxShadow> sDark = [
-    BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 2, offset: const Offset(0, 1)),
-    BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 3, offset: const Offset(0, 1)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 2, offset: const Offset(0, 1)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 3, offset: const Offset(0, 1)),
   ];
 
   /// 中等阴影 - 用于卡片、按钮等（暗色模式）
   static List<BoxShadow> mDark = [
-    BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 6, offset: const Offset(0, 2)),
-    BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 3)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 6, offset: const Offset(0, 2)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 3)),
   ];
 
   /// 大阴影 - 用于弹出框、对话框等（暗色模式）
   static List<BoxShadow> lDark = [
-    BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
-    BoxShadow(color: Colors.black.withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 8)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 4)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 8)),
   ];
 
   /// 特大阴影 - 用于模态框、抽屉等（暗色模式）
   static List<BoxShadow> xlDark = [
-    BoxShadow(color: Colors.black.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 8)),
-    BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 25, offset: const Offset(0, 15)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 8)),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 25, offset: const Offset(0, 15)),
   ];
 
   /// 获取基于主题的阴影 - 极小

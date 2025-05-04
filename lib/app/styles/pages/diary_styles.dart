@@ -42,7 +42,9 @@ class DiaryStyles {
   /// 获取时间文本颜色
   static Color getTimeTextColor(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? AppColors.onSurfaceVariantDark.withOpacity(0.8) : AppColors.onSurfaceVariant.withOpacity(0.8);
+    return isDark
+        ? AppColors.onSurfaceVariantDark.withValues(alpha: 0.8)
+        : AppColors.onSurfaceVariant.withValues(alpha: 0.8);
   }
 
   /// 获取输入框背景颜色
@@ -54,7 +56,7 @@ class DiaryStyles {
   /// 获取标签背景颜色
   static Color getTagBackgroundColor(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? AppColors.primaryLight.withOpacity(0.15) : AppColors.primary.withOpacity(0.1);
+    return isDark ? AppColors.primaryLight.withValues(alpha: 0.15) : AppColors.primary.withValues(alpha: 0.1);
   }
 
   /// 获取标签文本颜色

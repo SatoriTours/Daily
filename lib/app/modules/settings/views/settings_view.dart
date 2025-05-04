@@ -220,11 +220,14 @@ class SettingsView extends GetView<SettingsController> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: textTheme.titleSmall),
-                  Text(subtitle, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(179))),
+                  Text(
+                    subtitle,
+                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 179)),
+                  ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: colorScheme.onSurface.withAlpha(77), size: 18),
+            Icon(Icons.chevron_right, color: colorScheme.onSurface.withValues(alpha: 77), size: 18),
           ],
         ),
       ),
@@ -572,11 +575,14 @@ class SettingsView extends GetView<SettingsController> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: textTheme.titleSmall),
-                  Text(subtitle, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(179))),
+                  Text(
+                    subtitle,
+                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 179)),
+                  ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: colorScheme.onSurface.withAlpha(77), size: 18),
+            Icon(Icons.chevron_right, color: colorScheme.onSurface.withValues(alpha: 77), size: 18),
           ],
         ),
       ),
@@ -599,9 +605,9 @@ class SettingsView extends GetView<SettingsController> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceVariant.withOpacity(0.5),
+        color: colorScheme.surfaceVariant.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.outline.withOpacity(0.2)),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -640,9 +646,9 @@ class SettingsView extends GetView<SettingsController> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: colorScheme.surfaceVariant.withOpacity(0.5),
+          color: colorScheme.surfaceVariant.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colorScheme.outline.withOpacity(0.2)),
+          border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [
@@ -650,7 +656,7 @@ class SettingsView extends GetView<SettingsController> {
             Dimensions.horizontalSpacerM,
             Text(title, style: textTheme.titleSmall?.copyWith(color: itemColor, fontWeight: FontWeight.w500)),
             const Spacer(),
-            Icon(Icons.chevron_right, color: colorScheme.onSurface.withOpacity(0.3), size: 18),
+            Icon(Icons.chevron_right, color: colorScheme.onSurface.withValues(alpha: 0.3), size: 18),
           ],
         ),
       ),

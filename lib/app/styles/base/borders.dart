@@ -42,7 +42,7 @@ class AppBorders {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(Dimensions.radiusS),
       borderSide: BorderSide(
-        color: isDark ? AppColors.outlineDark.withOpacity(0.5) : AppColors.outline.withOpacity(0.5),
+        color: isDark ? AppColors.outlineDark.withValues(alpha: 0.5) : AppColors.outline.withValues(alpha: 0.5),
         width: 1.0,
       ),
     );

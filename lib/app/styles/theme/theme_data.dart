@@ -3,11 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:daily_satori/app/styles/base/colors.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart';
 import 'package:daily_satori/app/styles/base/typography.dart';
-import 'package:daily_satori/app/styles/components/button_styles.dart';
-import 'package:daily_satori/app/styles/components/card_styles.dart';
-import 'package:daily_satori/app/styles/components/dialog_styles.dart';
-import 'package:daily_satori/app/styles/components/input_styles.dart';
-import 'package:daily_satori/app/styles/components/list_styles.dart';
 
 /// 应用主题数据
 /// 提供应用的主题配置，遵循统一的设计风格
@@ -28,19 +23,19 @@ class AppThemeData {
         brightness: brightness,
         primary: AppColors.primary,
         onPrimary: Colors.white,
-        primaryContainer: AppColors.primary.withOpacity(0.1),
+        primaryContainer: AppColors.primary.withValues(alpha: 0.1),
         onPrimaryContainer: AppColors.primary,
         secondary: Colors.teal,
         onSecondary: Colors.white,
-        secondaryContainer: Colors.teal.withOpacity(0.1),
+        secondaryContainer: Colors.teal.withValues(alpha: 0.1),
         onSecondaryContainer: Colors.teal,
         tertiary: Colors.amber,
         onTertiary: Colors.black,
-        tertiaryContainer: Colors.amber.withOpacity(0.1),
+        tertiaryContainer: Colors.amber.withValues(alpha: 0.1),
         onTertiaryContainer: Colors.amber.shade900,
         error: AppColors.error,
         onError: Colors.white,
-        errorContainer: AppColors.error.withOpacity(0.1),
+        errorContainer: AppColors.error.withValues(alpha: 0.1),
         onErrorContainer: AppColors.error,
         background: AppColors.background,
         onBackground: AppColors.onBackground,
@@ -51,7 +46,7 @@ class AppThemeData {
         outline: AppColors.outline,
         outlineVariant: AppColors.outlineVariant,
         shadow: Colors.black,
-        scrim: Colors.black.withOpacity(0.4),
+        scrim: Colors.black.withValues(alpha: 0.4),
         inverseSurface: Colors.grey.shade900,
         onInverseSurface: Colors.white,
         inversePrimary: AppColors.primaryLight,
@@ -98,9 +93,9 @@ class AppThemeData {
       // 滑块主题
       sliderTheme: SliderThemeData(
         activeTrackColor: AppColors.primary,
-        inactiveTrackColor: AppColors.primary.withOpacity(0.3),
+        inactiveTrackColor: AppColors.primary.withValues(alpha: 0.3),
         thumbColor: AppColors.primary,
-        overlayColor: AppColors.primary.withOpacity(0.2),
+        overlayColor: AppColors.primary.withValues(alpha: 0.2),
         valueIndicatorColor: AppColors.primary,
         valueIndicatorTextStyle: const TextStyle(color: Colors.white),
       ),
@@ -115,7 +110,7 @@ class AppThemeData {
         }),
         trackColor: MaterialStateProperty.resolveWith((states) {
           if (states.contains(MaterialState.selected)) {
-            return AppColors.primary.withOpacity(0.5);
+            return AppColors.primary.withValues(alpha: 0.5);
           }
           return Colors.grey.shade300;
         }),
@@ -150,7 +145,7 @@ class AppThemeData {
         fillColor: AppColors.surfaceContainer,
         contentPadding: Dimensions.paddingInput,
         labelStyle: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariant),
-        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariant.withOpacity(0.7)),
+        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariant.withValues(alpha: 0.7)),
         helperStyle: AppTypography.captionText.copyWith(color: AppColors.onSurfaceVariant),
         errorStyle: AppTypography.errorText.copyWith(color: AppColors.error),
         border: OutlineInputBorder(
@@ -175,7 +170,7 @@ class AppThemeData {
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.outline.withOpacity(0.5), width: 1.0),
+          borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.5), width: 1.0),
         ),
       ),
 
@@ -246,7 +241,7 @@ class AppThemeData {
         iconColor: AppColors.onSurfaceVariant,
         textColor: AppColors.onSurface,
         selectedColor: AppColors.primary,
-        selectedTileColor: AppColors.primary.withOpacity(0.1),
+        selectedTileColor: AppColors.primary.withValues(alpha: 0.1),
       ),
 
       // 分隔线主题
@@ -254,7 +249,7 @@ class AppThemeData {
 
       // 标签主题
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.primary.withOpacity(0.1),
+        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
         deleteIconColor: AppColors.onSurfaceVariant,
         disabledColor: Colors.grey.shade200,
         selectedColor: AppColors.primary,
@@ -297,19 +292,19 @@ class AppThemeData {
         brightness: brightness,
         primary: AppColors.primaryLight,
         onPrimary: Colors.black,
-        primaryContainer: AppColors.primaryLight.withOpacity(0.1),
+        primaryContainer: AppColors.primaryLight.withValues(alpha: 0.1),
         onPrimaryContainer: AppColors.primaryLight,
         secondary: Colors.tealAccent.shade100,
         onSecondary: Colors.black,
-        secondaryContainer: Colors.tealAccent.shade100.withOpacity(0.1),
+        secondaryContainer: Colors.tealAccent.shade100.withValues(alpha: 0.1),
         onSecondaryContainer: Colors.tealAccent.shade100,
         tertiary: Colors.amberAccent.shade100,
         onTertiary: Colors.black,
-        tertiaryContainer: Colors.amberAccent.shade100.withOpacity(0.1),
+        tertiaryContainer: Colors.amberAccent.shade100.withValues(alpha: 0.1),
         onTertiaryContainer: Colors.amberAccent.shade100,
         error: AppColors.errorDark,
         onError: Colors.black,
-        errorContainer: AppColors.errorDark.withOpacity(0.1),
+        errorContainer: AppColors.errorDark.withValues(alpha: 0.1),
         onErrorContainer: AppColors.errorDark,
         background: AppColors.backgroundDark,
         onBackground: AppColors.onBackgroundDark,
@@ -320,7 +315,7 @@ class AppThemeData {
         outline: AppColors.outlineDark,
         outlineVariant: AppColors.outlineVariantDark,
         shadow: Colors.black,
-        scrim: Colors.black.withOpacity(0.6),
+        scrim: Colors.black.withValues(alpha: 0.6),
         inverseSurface: Colors.grey.shade100,
         onInverseSurface: Colors.black,
         inversePrimary: AppColors.primary,
@@ -367,9 +362,9 @@ class AppThemeData {
       // 滑块主题
       sliderTheme: SliderThemeData(
         activeTrackColor: AppColors.primaryLight,
-        inactiveTrackColor: AppColors.primaryLight.withOpacity(0.3),
+        inactiveTrackColor: AppColors.primaryLight.withValues(alpha: 0.3),
         thumbColor: AppColors.primaryLight,
-        overlayColor: AppColors.primaryLight.withOpacity(0.2),
+        overlayColor: AppColors.primaryLight.withValues(alpha: 0.2),
         valueIndicatorColor: AppColors.primaryLight,
         valueIndicatorTextStyle: const TextStyle(color: Colors.black),
       ),
@@ -384,7 +379,7 @@ class AppThemeData {
         }),
         trackColor: MaterialStateProperty.resolveWith((states) {
           if (states.contains(MaterialState.selected)) {
-            return AppColors.primaryLight.withOpacity(0.5);
+            return AppColors.primaryLight.withValues(alpha: 0.5);
           }
           return Colors.grey.shade700;
         }),
@@ -419,7 +414,7 @@ class AppThemeData {
         fillColor: AppColors.surfaceContainerDark,
         contentPadding: Dimensions.paddingInput,
         labelStyle: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariantDark),
-        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariantDark.withOpacity(0.7)),
+        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariantDark.withValues(alpha: 0.7)),
         helperStyle: AppTypography.captionText.copyWith(color: AppColors.onSurfaceVariantDark),
         errorStyle: AppTypography.errorText.copyWith(color: AppColors.errorDark),
         border: OutlineInputBorder(
@@ -444,7 +439,7 @@ class AppThemeData {
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.outlineDark.withOpacity(0.5), width: 1.0),
+          borderSide: BorderSide(color: AppColors.outlineDark.withValues(alpha: 0.5), width: 1.0),
         ),
       ),
 
@@ -515,7 +510,7 @@ class AppThemeData {
         iconColor: AppColors.onSurfaceVariantDark,
         textColor: AppColors.onSurfaceDark,
         selectedColor: AppColors.primaryLight,
-        selectedTileColor: AppColors.primaryLight.withOpacity(0.1),
+        selectedTileColor: AppColors.primaryLight.withValues(alpha: 0.1),
       ),
 
       // 分隔线主题
@@ -523,7 +518,7 @@ class AppThemeData {
 
       // 标签主题
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.primaryLight.withOpacity(0.15),
+        backgroundColor: AppColors.primaryLight.withValues(alpha: 0.15),
         deleteIconColor: AppColors.onSurfaceVariantDark,
         disabledColor: Colors.grey.shade800,
         selectedColor: AppColors.primaryLight,

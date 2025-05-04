@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:daily_satori/app/styles/base/colors.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart';
 import 'package:daily_satori/app/styles/base/typography.dart';
-import 'package:daily_satori/app/styles/base/shadows.dart';
 
 /// 按钮样式类
 /// 提供应用中各种按钮的样式定义，遵循 shadcn/ui 的设计风格
@@ -37,7 +36,7 @@ class ButtonStyles {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ElevatedButton.styleFrom(
-      backgroundColor: isDark ? Colors.white.withOpacity(0.1) : AppColors.primary.withOpacity(0.1),
+      backgroundColor: isDark ? Colors.white.withValues(alpha: 0.1) : AppColors.primary.withValues(alpha: 0.1),
       foregroundColor: isDark ? Colors.white : AppColors.primary,
       elevation: 0,
       padding: Dimensions.paddingButton,

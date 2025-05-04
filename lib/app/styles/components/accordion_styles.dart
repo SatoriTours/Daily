@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:daily_satori/app/styles/base/colors.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart';
 import 'package:daily_satori/app/styles/base/typography.dart';
-import 'package:daily_satori/app/styles/base/borders.dart';
 
 /// 手风琴组件样式类
 /// 提供应用中折叠面板/手风琴组件的样式定义，参考shadcn/ui的设计风格

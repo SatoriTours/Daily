@@ -68,8 +68,8 @@ class ArticlesStyles {
     return AppTypography.getThemedStyle(
       context,
       AppTypography.captionText,
-      lightColor: AppColors.onSurfaceVariant.withOpacity(0.8),
-      darkColor: AppColors.onSurfaceVariantDark.withOpacity(0.8),
+      lightColor: AppColors.onSurfaceVariant.withValues(alpha: 0.8),
+      darkColor: AppColors.onSurfaceVariantDark.withValues(alpha: 0.8),
     );
   }
 
@@ -88,7 +88,7 @@ class ArticlesStyles {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return BoxDecoration(
-      color: isDark ? AppColors.primaryLight.withOpacity(0.15) : AppColors.primary.withOpacity(0.1),
+      color: isDark ? AppColors.primaryLight.withValues(alpha: 0.15) : AppColors.primary.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(Dimensions.radiusL),
     );
   }
