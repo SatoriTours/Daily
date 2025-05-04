@@ -76,6 +76,11 @@ class BookRepository {
     return viewpoints.map((entity) => BookViewpointModel(entity)).toList();
   }
 
+  static Future<List<BookViewpointModel>> getAllViewpointsAsync() async {
+    final viewpoints = await _viewpointBox.getAllAsync();
+    return viewpoints.map((entity) => BookViewpointModel(entity)).toList();
+  }
+
   /// 根据书籍ID列表获取观点
   static List<BookViewpointModel> getViewpointsByBookIds(List<int> bookIds) {
     if (bookIds.isEmpty) {
@@ -84,6 +89,18 @@ class BookRepository {
 
     final query = _viewpointBox.query(BookViewpoint_.bookId.oneOf(bookIds)).build();
     final viewpoints = query.find();
+    query.close();
+    return viewpoints.map((entity) => BookViewpointModel(entity)).toList();
+  }
+
+  /// 根据书籍ID列表获取观点
+  static Future<List<BookViewpointModel>> getViewpointsByBookIdsAsync(List<int> bookIds) async {
+    if (bookIds.isEmpty) {
+      return [];
+    }
+
+    final query = _viewpointBox.query(BookViewpoint_.bookId.oneOf(bookIds)).build();
+    final viewpoints = await query.findAsync();
     query.close();
     return viewpoints.map((entity) => BookViewpointModel(entity)).toList();
   }

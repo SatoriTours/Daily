@@ -5,7 +5,6 @@ import 'package:daily_satori/app/modules/articles/controllers/articles_controlle
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
-import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/repositories/tag_repository.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/utils/string_extensions.dart';

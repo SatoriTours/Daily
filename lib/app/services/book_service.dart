@@ -44,7 +44,7 @@ class BookService {
       final recommendedBooks = await _fetchRecommendedBooks(category, existingTitles);
 
       if (recommendedBooks.isNotEmpty) {
-        await BookRepository.saveBooks(recommendedBooks);
+        BookRepository.saveBooks(recommendedBooks);
       }
 
       return recommendedBooks;
@@ -197,7 +197,7 @@ class BookService {
       introduction: bookData['introduction'] as String,
     );
 
-    final bookId = await BookRepository.saveBook(book);
+    final bookId = BookRepository.saveBook(book);
     if (bookId <= 0) {
       logger.e('保存书籍失败: $title');
       return null;
@@ -271,7 +271,7 @@ class BookService {
   /// 删除观点
   Future<bool> deleteViewpoint(int viewpointId) async {
     try {
-      return await BookRepository.deleteViewpoint(viewpointId);
+      return BookRepository.deleteViewpoint(viewpointId);
     } catch (e, stackTrace) {
       logger.e('删除观点失败', error: e, stackTrace: stackTrace);
       return false;
@@ -281,7 +281,7 @@ class BookService {
   /// 保存观点
   Future<int> saveViewpoint(BookViewpointModel viewpoint) async {
     try {
-      return await BookRepository.saveViewpoint(viewpoint);
+      return BookRepository.saveViewpoint(viewpoint);
     } catch (e, stackTrace) {
       logger.e('保存观点失败', error: e, stackTrace: stackTrace);
       return 0;

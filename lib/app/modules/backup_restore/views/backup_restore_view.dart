@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
@@ -104,6 +105,8 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
   }
 
   Widget _buildRestoreButton(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 20.0),
@@ -153,7 +156,7 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
                         middleText: "需要重启应用以完成还原，点击确定重启应用",
                         contentPadding: const EdgeInsets.all(20),
                         confirmTextColor: Colors.white,
-                        buttonColor: Theme.of(context).primaryColor,
+                        buttonColor: colorScheme.primary,
                         onConfirm: () {
                           exit(0);
                         },

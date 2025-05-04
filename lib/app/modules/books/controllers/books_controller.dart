@@ -45,22 +45,17 @@ class BooksController extends BaseController {
 
   /// 加载所有观点
   Future<void> loadAllViewpoints() async {
-    try {
-      // 获取所有观点
-      logger.i('加载观点: bookID: ${fliterBookID.value}');
-      if (fliterBookID.value == -1) {
-        allViewpoints.value = await BookRepository.getAllViewpoints();
-      } else {
-        allViewpoints.value = await BookRepository.getViewpointsByBookIds([fliterBookID.value]);
-      }
+    // 获取所有观点
+    logger.i('加载观点: bookID: ${fliterBookID.value}');
+    if (fliterBookID.value == -1) {
+      allViewpoints.value = await BookRepository.getAllViewpointsAsync();
+    } else {
+      allViewpoints.value = await BookRepository.getViewpointsByBookIdsAsync([fliterBookID.value]);
+    }
 
-      // 如果有观点，选择第一个
-      if (allViewpoints.isNotEmpty) {
-        currentViewpointIndex.value = 0;
-      }
-    } catch (e, stackTrace) {
-      logger.e('加载观点失败', error: e, stackTrace: stackTrace);
-      Get.snackbar('加载失败', '无法加载观点数据，请稍后重试');
+    // 如果有观点，选择第一个
+    if (allViewpoints.isNotEmpty) {
+      currentViewpointIndex.value = 0;
     }
   }
 

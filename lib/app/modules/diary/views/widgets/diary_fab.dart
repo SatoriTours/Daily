@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app_exports.dart';
@@ -85,7 +84,7 @@ class _DiaryFabState extends State<DiaryFab> with SingleTickerProviderStateMixin
         end: Alignment.bottomRight,
         colors: [
           DiaryStyle.accentColor(context),
-          DiaryStyle.accentColor(context).withBlue((DiaryStyle.accentColor(context).blue * 0.85).toInt()),
+          DiaryStyle.accentColor(context).withBlue((DiaryStyle.accentColor(context).b * 0.85).toInt()),
         ],
       ),
       boxShadow: [

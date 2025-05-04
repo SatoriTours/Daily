@@ -95,7 +95,7 @@ class _DiaryCardState extends State<DiaryCard> {
     setState(() {
       _isExpanded = !_isExpanded;
       _initializeContent();
-      logger.d('切换日记展开状态: ID=${widget.diary.id}, 展开=${_isExpanded}');
+      logger.d('切换日记展开状态: ID=${widget.diary.id}, 展开=$_isExpanded');
     });
   }
 
