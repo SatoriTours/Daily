@@ -44,7 +44,7 @@ class ViewpointCard extends StatelessWidget {
 
   /// 构建内容
   Widget _buildContent() {
-    return Text(viewpoint.content, style: MyFontStyle.bodyLarge.copyWith(height: 1.8));
+    return Text(viewpoint.content, style: MyFontStyle.bodyLarge);
   }
 
   /// 构建案例
@@ -56,17 +56,11 @@ class ViewpointCard extends StatelessWidget {
           children: [
             Icon(Icons.bookmark, size: 18, color: AppColors.primary(context)),
             const SizedBox(width: 8),
-            Text(
-              '书籍案例',
-              style: MyFontStyle.labelMedium.copyWith(color: AppColors.primary(context), fontWeight: FontWeight.w600),
-            ),
+            Text('书籍案例', style: MyFontStyle.labelLarge.copyWith(color: AppColors.primary(context))),
           ],
         ),
         const SizedBox(height: 14),
-        Text(
-          viewpoint.example,
-          style: MyFontStyle.bodyMedium.copyWith(height: 1.6, color: AppColors.textSecondaryLight),
-        ),
+        Text(viewpoint.example, style: MyFontStyle.bodyLarge),
       ],
     );
   }

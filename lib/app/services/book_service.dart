@@ -14,18 +14,19 @@ class BookService {
 
   BookService._();
 
+  final AiService _aiService = AiService.i;
+  final PluginService _pluginService = PluginService.i;
+
+  /// 初始化
   Future<void> init() async {
     // if (!AppInfoUtils.isProduction) {
     //   await BookRepository.deleteAllSync();
     // }
   }
 
-  final AiService _aiService = AiService.i;
-  final PluginService _pluginService = PluginService.i;
-
   /// 获取所有书籍
   List<BookModel> getBooks() {
-    return BookRepository.getBooks();
+    return BookRepository.getAllBooks();
   }
 
   /// 按分类获取书籍
@@ -39,35 +40,9 @@ class BookService {
   /// 返回该分类下的推荐书籍列表
   Future<List<BookModel>> getRecommendedBooksByCategory(String category) async {
     try {
-      // 获取现有书籍，用于过滤已添加的书籍
-      final existingBooks = BookRepository.getBooks();
-      final existingTitles = existingBooks.map((book) => book.title.toLowerCase()).toSet();
+      final existingTitles = _getExistingBookTitles();
+      final recommendedBooks = await _fetchRecommendedBooks(category, existingTitles);
 
-      // 使用AI获取该分类下最经典的10本书
-      final promptTemplate = _pluginService.getBookRecommendByCategory();
-      final prompt = _renderTemplate(promptTemplate, {'category': category});
-
-      final response = await _aiService.getCompletion(prompt);
-      final List<dynamic> booksData = jsonDecode(response);
-
-      // 将推荐的书籍转换为Book对象
-      final List<BookModel> recommendedBooks = [];
-      for (final bookData in booksData) {
-        final title = bookData['title'] as String;
-        // 过滤已存在的书籍
-        if (!existingTitles.contains(title.toLowerCase())) {
-          recommendedBooks.add(
-            BookModel.create(
-              title: title,
-              author: bookData['author'] as String,
-              category: category,
-              introduction: bookData['introduction'] as String,
-            ),
-          );
-        }
-      }
-
-      // 保存推荐的书籍
       if (recommendedBooks.isNotEmpty) {
         await BookRepository.saveBooks(recommendedBooks);
       }
@@ -77,6 +52,41 @@ class BookService {
       logger.e('获取分类推荐书籍失败: $category', error: e, stackTrace: stackTrace);
       return [];
     }
+  }
+
+  /// 获取已存在的书籍标题集合
+  Set<String> _getExistingBookTitles() {
+    final existingBooks = BookRepository.getAllBooks();
+    return existingBooks.map((book) => book.title.toLowerCase()).toSet();
+  }
+
+  /// 从AI获取推荐书籍
+  Future<List<BookModel>> _fetchRecommendedBooks(String category, Set<String> existingTitles) async {
+    final promptTemplate = _pluginService.getBookRecommendByCategory();
+    final prompt = _renderTemplate(promptTemplate, {'category': category});
+
+    final response = await _aiService.getCompletion(prompt);
+    final List<dynamic> booksData = jsonDecode(response);
+
+    final List<BookModel> recommendedBooks = [];
+    for (final bookData in booksData) {
+      final title = bookData['title'] as String;
+      if (!existingTitles.contains(title.toLowerCase())) {
+        recommendedBooks.add(_createBookFromData(bookData, category));
+      }
+    }
+
+    return recommendedBooks;
+  }
+
+  /// 从数据创建书籍模型
+  BookModel _createBookFromData(dynamic bookData, String category) {
+    return BookModel.create(
+      title: bookData['title'] as String,
+      author: bookData['author'] as String,
+      category: category,
+      introduction: bookData['introduction'] as String,
+    );
   }
 
   /// 获取书籍的关键观点
@@ -118,21 +128,10 @@ class BookService {
   /// 返回处理后的观点模型
   Future<BookViewpointModel?> _processViewpoint(int bookId, String title, String author, String viewpoint) async {
     try {
-      // 获取观点的详细解读和案例
       final promptTemplate = _pluginService.getBookViewpoint();
       final prompt = _renderTemplate(promptTemplate, {'title': title, 'author': author, 'viewpoint': viewpoint});
 
-      Map<String, dynamic> viewpointDetail;
-      try {
-        final response = await _aiService.getCompletion(prompt);
-        // logger.i('观点详情: $response');
-        viewpointDetail = jsonDecode(response);
-      } catch (e, stackTrace) {
-        // 如果发生异常，再尝试一次
-        logger.w('获取观点详情失败，正在重试... ${stackTrace.toString()}', error: e, stackTrace: stackTrace);
-        final response = await _aiService.getCompletion(prompt);
-        viewpointDetail = jsonDecode(response);
-      }
+      final viewpointDetail = await _getViewpointDetailWithRetry(prompt);
 
       return BookViewpointModel.create(
         bookId: bookId,
@@ -141,8 +140,20 @@ class BookService {
         example: viewpointDetail['example'] as String,
       );
     } catch (e, stackTrace) {
-      logger.e('处理观点详情失败: $title - $viewpoint}, ${stackTrace.toString()}', error: e, stackTrace: stackTrace);
+      logger.e('处理观点详情失败: $title - $viewpoint', error: e, stackTrace: stackTrace);
       return null;
+    }
+  }
+
+  /// 获取观点详情并支持重试
+  Future<Map<String, dynamic>> _getViewpointDetailWithRetry(String prompt) async {
+    try {
+      final response = await _aiService.getCompletion(prompt);
+      return jsonDecode(response);
+    } catch (e, stackTrace) {
+      logger.w('获取观点详情失败，正在重试...', error: e, stackTrace: stackTrace);
+      final response = await _aiService.getCompletion(prompt);
+      return jsonDecode(response);
     }
   }
 
@@ -153,69 +164,87 @@ class BookService {
   /// 返回添加的书籍
   Future<BookModel?> addBook(String title) async {
     try {
-      // 检查书籍是否已存在
-      final existingBooks = BookRepository.exists(title);
-
-      if (existingBooks) {
+      if (BookRepository.exists(title)) {
         logger.i('书籍已存在: $title');
         return null;
       }
 
-      // 使用AI获取书籍详细信息和核心观点
-      final promptTemplate = _pluginService.getBookInfo();
-      final prompt = _renderTemplate(promptTemplate, {'title': title});
+      final book = await _createBookWithAI(title);
+      if (book == null) return null;
 
-      final response = await _aiService.getCompletion(prompt);
-      // logger.i('书籍信息: $response');
-      final Map<String, dynamic> bookData = jsonDecode(response);
-
-      // 创建新书籍
-      final book = BookModel.create(
-        title: bookData['title'] as String,
-        author: bookData['author'] as String,
-        category: bookData['category'] as String,
-        introduction: bookData['introduction'] as String,
-      );
-
-      // 保存书籍
-      final bookId = await BookRepository.saveBook(book);
-      if (bookId <= 0) {
-        logger.e('保存书籍失败: $title');
-        return null;
-      }
-
-      book.id = bookId;
-
-      // 获取并处理书籍的核心观点
-      final List<dynamic> viewpointsData = bookData['viewpoints'] as List<dynamic>? ?? [];
-      logger.i('书籍观点: $viewpointsData');
-
-      if (viewpointsData.isNotEmpty) {
-        // 并发处理每个观点的详细信息
-        final List<Future<BookViewpointModel?>> viewpointFutures =
-            viewpointsData
-                .take(20) // 限制最多处理20个观点
-                .map((viewpoint) => _processViewpoint(bookId, book.title, book.author, viewpoint as String))
-                .toList();
-
-        final List<BookViewpointModel?> viewpoints = await Future.wait(viewpointFutures, eagerError: true);
-
-        // 过滤掉为空的观点
-        final List<BookViewpointModel> validViewpoints =
-            viewpoints.where((viewpoint) => viewpoint != null).cast<BookViewpointModel>().toList();
-
-        // 保存处理后的观点
-        if (viewpoints.isNotEmpty) {
-          await BookRepository.saveViewpoints(validViewpoints);
-        }
-      }
+      await _processAndSaveViewpoints(book);
 
       logger.i('添加书籍成功: ${book.title}');
       return book;
     } catch (e, stackTrace) {
-      logger.e('添加书籍失败: $title, ${stackTrace.toString()}', error: e, stackTrace: stackTrace);
+      logger.e('添加书籍失败: $title', error: e, stackTrace: stackTrace);
       return null;
     }
+  }
+
+  /// 使用AI创建书籍对象
+  Future<BookModel?> _createBookWithAI(String title) async {
+    final promptTemplate = _pluginService.getBookInfo();
+    final prompt = _renderTemplate(promptTemplate, {'title': title});
+
+    final response = await _aiService.getCompletion(prompt);
+    final Map<String, dynamic> bookData = jsonDecode(response);
+
+    final book = BookModel.create(
+      title: bookData['title'] as String,
+      author: bookData['author'] as String,
+      category: bookData['category'] as String,
+      introduction: bookData['introduction'] as String,
+    );
+
+    final bookId = await BookRepository.saveBook(book);
+    if (bookId <= 0) {
+      logger.e('保存书籍失败: $title');
+      return null;
+    }
+
+    book.id = bookId;
+    return book;
+  }
+
+  /// 处理并保存书籍观点
+  Future<void> _processAndSaveViewpoints(BookModel book) async {
+    try {
+      final promptTemplate = _pluginService.getBookInfo();
+      final prompt = _renderTemplate(promptTemplate, {'title': book.title});
+
+      final response = await _aiService.getCompletion(prompt);
+      final bookData = jsonDecode(response);
+
+      final List<dynamic> viewpointsData = bookData['viewpoints'] as List<dynamic>? ?? [];
+      if (viewpointsData.isEmpty) return;
+
+      logger.i('书籍观点: $viewpointsData');
+      final validViewpoints = await _processViewpoints(book.id, book.title, book.author, viewpointsData);
+
+      if (validViewpoints.isNotEmpty) {
+        await BookRepository.saveViewpoints(validViewpoints);
+      }
+    } catch (e, stackTrace) {
+      logger.e('处理书籍观点失败: ${book.title}', error: e, stackTrace: stackTrace);
+    }
+  }
+
+  /// 处理多个观点
+  Future<List<BookViewpointModel>> _processViewpoints(
+    int bookId,
+    String title,
+    String author,
+    List<dynamic> viewpointsData,
+  ) async {
+    final List<Future<BookViewpointModel?>> viewpointFutures =
+        viewpointsData
+            .take(20) // 限制最多处理20个观点
+            .map((viewpoint) => _processViewpoint(bookId, title, author, viewpoint as String))
+            .toList();
+
+    final viewpoints = await Future.wait(viewpointFutures, eagerError: true);
+    return viewpoints.where((v) => v != null).cast<BookViewpointModel>().toList();
   }
 
   /// 渲染模板

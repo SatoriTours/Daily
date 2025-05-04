@@ -10,7 +10,7 @@ class MyFontStyle {
 
   // 基础字体样式配置
   static const double _height = 1.5;
-  static const double _letterSpacing = 0.5;
+  static const double _letterSpacing = 0.8;
   static const String _fontFamily = 'Lato';
 
   /// 字体系列
@@ -65,7 +65,7 @@ class MyFontStyle {
   static final titleSmall = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.43);
 
   // Body 样式
-  static final bodyLarge = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.5);
+  static final bodyLarge = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.6);
   static final bodyMedium = _createBaseStyle(fontSize: 15, fontWeight: FontWeight.w400, height: 1.47);
   static final bodySmall = _createBaseStyle(fontSize: 12, fontWeight: FontWeight.w400, height: 1.33);
 
