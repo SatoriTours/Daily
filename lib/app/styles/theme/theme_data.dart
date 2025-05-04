@@ -37,11 +37,9 @@ class AppThemeData {
         onError: Colors.white,
         errorContainer: AppColors.error.withValues(alpha: 0.1),
         onErrorContainer: AppColors.error,
-        background: AppColors.background,
-        onBackground: AppColors.onBackground,
         surface: AppColors.surface,
         onSurface: AppColors.onSurface,
-        surfaceVariant: AppColors.surfaceContainer,
+        surfaceContainerHighest: AppColors.surfaceContainer,
         onSurfaceVariant: AppColors.onSurfaceVariant,
         outline: AppColors.outline,
         outlineVariant: AppColors.outlineVariant,
@@ -102,14 +100,14 @@ class AppThemeData {
 
       // 开关主题
       switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primary;
           }
           return Colors.grey.shade400;
         }),
-        trackColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primary.withValues(alpha: 0.5);
           }
           return Colors.grey.shade300;
@@ -118,21 +116,21 @@ class AppThemeData {
 
       // 复选框主题
       checkboxTheme: CheckboxThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primary;
           }
           return Colors.transparent;
         }),
-        checkColor: MaterialStateProperty.all(Colors.white),
+        checkColor: WidgetStateProperty.all(Colors.white),
         side: BorderSide(color: AppColors.onSurfaceVariant, width: 1.5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
 
       // 单选按钮主题
       radioTheme: RadioThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primary;
           }
           return AppColors.onSurfaceVariant;
@@ -306,11 +304,9 @@ class AppThemeData {
         onError: Colors.black,
         errorContainer: AppColors.errorDark.withValues(alpha: 0.1),
         onErrorContainer: AppColors.errorDark,
-        background: AppColors.backgroundDark,
-        onBackground: AppColors.onBackgroundDark,
         surface: AppColors.surfaceDark,
         onSurface: AppColors.onSurfaceDark,
-        surfaceVariant: AppColors.surfaceContainerDark,
+        surfaceContainerHighest: AppColors.surfaceContainerDark,
         onSurfaceVariant: AppColors.onSurfaceVariantDark,
         outline: AppColors.outlineDark,
         outlineVariant: AppColors.outlineVariantDark,
@@ -371,14 +367,14 @@ class AppThemeData {
 
       // 开关主题
       switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primaryLight;
           }
           return Colors.grey.shade400;
         }),
-        trackColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primaryLight.withValues(alpha: 0.5);
           }
           return Colors.grey.shade700;
@@ -387,21 +383,21 @@ class AppThemeData {
 
       // 复选框主题
       checkboxTheme: CheckboxThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primaryLight;
           }
           return Colors.transparent;
         }),
-        checkColor: MaterialStateProperty.all(Colors.black),
+        checkColor: WidgetStateProperty.all(Colors.black),
         side: BorderSide(color: AppColors.onSurfaceVariantDark, width: 1.5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
 
       // 单选按钮主题
       radioTheme: RadioThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return AppColors.primaryLight;
           }
           return AppColors.onSurfaceVariantDark;

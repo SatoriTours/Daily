@@ -55,7 +55,7 @@ class CommentField extends StatelessWidget {
   /// [onSubmitted] 提交回调
   /// [contentPadding] 内容填充
   const CommentField({
-    Key? key,
+    super.key,
     required this.controller,
     this.hintText = "添加备注信息（可选）",
     this.minLines = 5,
@@ -65,7 +65,7 @@ class CommentField extends StatelessWidget {
     this.onChanged,
     this.onSubmitted,
     this.contentPadding,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +94,7 @@ class CommentField extends StatelessWidget {
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(Dimensions.radiusM), borderSide: BorderSide.none),
       contentPadding: contentPadding ?? Dimensions.paddingM,
       filled: true,
-      fillColor: Theme.of(context).colorScheme.surfaceVariant.withValues(alpha: 0.1),
+      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
     );
   }
 }

@@ -22,14 +22,14 @@ class FeatureIcon extends StatelessWidget {
   final double borderRadius;
 
   const FeatureIcon({
-    Key? key,
+    super.key,
     required this.icon,
     required this.iconColor,
     this.backgroundOpacity = 0.25,
     this.iconSize = 20,
     this.containerSize = 36,
     this.borderRadius = 10,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +37,7 @@ class FeatureIcon extends StatelessWidget {
       width: containerSize,
       height: containerSize,
       decoration: BoxDecoration(
-        color: iconColor.withAlpha((255 * backgroundOpacity).toInt()),
+        color: iconColor.withValues(alpha: backgroundOpacity),
         borderRadius: BorderRadius.circular(borderRadius),
       ),
       child: Icon(icon, color: iconColor, size: iconSize),

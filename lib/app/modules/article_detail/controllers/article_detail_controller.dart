@@ -107,11 +107,11 @@ class ArticleDetailController extends BaseController {
       return;
     }
 
-    final files = screenshots.map((path) => XFile(path)).toList();
-    final result = await Share.shareXFiles(files, text: '网页截图');
-
-    if (result.status == ShareResultStatus.success) {
-      logger.i("分享网页截图成功");
+    try {
+      await SharePlus.instance.share(ShareParams(files: screenshots.map((path) => XFile(path)).toList(), text: '网页截图'));
+      logger.i("分享网页截图完成");
+    } catch (e) {
+      logger.e("分享失败: $e");
     }
   }
 

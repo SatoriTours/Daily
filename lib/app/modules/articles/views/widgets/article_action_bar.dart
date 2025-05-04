@@ -38,15 +38,17 @@ class ArticleActionBar extends GetView<ArticlesController> {
         _buildActionButton(
           context,
           articleModel.isFavorite ? Icons.favorite : Icons.favorite_border,
-          articleModel.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant.withAlpha(179),
+          articleModel.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           () async {
             await articleModel.toggleFavorite();
             controller.updateArticle(articleModel.id);
           },
         ),
         const SizedBox(width: 8),
-        _buildActionButton(context, Icons.share, colorScheme.onSurfaceVariant.withAlpha(179), () {
-          Share.share(articleModel.url ?? '', subject: articleModel.aiTitle ?? articleModel.title ?? '');
+        _buildActionButton(context, Icons.share, colorScheme.onSurfaceVariant.withValues(alpha: 0.7), () async {
+          await SharePlus.instance.share(
+            ShareParams(text: articleModel.url ?? '', subject: articleModel.aiTitle ?? articleModel.title ?? ''),
+          );
         }),
       ],
     );

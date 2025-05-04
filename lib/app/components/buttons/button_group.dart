@@ -36,12 +36,12 @@ class ButtonGroup extends StatelessWidget {
   /// [direction] 布局方向
   /// [bottomPadding] 底部边距
   const ButtonGroup({
-    Key? key,
+    super.key,
     required this.children,
     this.spacing,
     this.direction = Axis.horizontal,
     this.bottomPadding = 24,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

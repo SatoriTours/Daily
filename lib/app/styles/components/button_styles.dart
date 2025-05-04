@@ -126,9 +126,9 @@ class ButtonStyles {
   static ButtonStyle getPrimarySmallStyle(BuildContext context) {
     final style = getPrimaryStyle(context);
     return style.copyWith(
-      padding: MaterialStateProperty.all(Dimensions.paddingButtonSmall),
-      minimumSize: MaterialStateProperty.all(getSmallSize()),
-      textStyle: MaterialStateProperty.all(AppTypography.buttonTextSmall),
+      padding: WidgetStateProperty.all(Dimensions.paddingButtonSmall),
+      minimumSize: WidgetStateProperty.all(getSmallSize()),
+      textStyle: WidgetStateProperty.all(AppTypography.buttonTextSmall),
     );
   }
 
@@ -136,9 +136,9 @@ class ButtonStyles {
   static ButtonStyle getSecondarySmallStyle(BuildContext context) {
     final style = getSecondaryStyle(context);
     return style.copyWith(
-      padding: MaterialStateProperty.all(Dimensions.paddingButtonSmall),
-      minimumSize: MaterialStateProperty.all(getSmallSize()),
-      textStyle: MaterialStateProperty.all(AppTypography.buttonTextSmall),
+      padding: WidgetStateProperty.all(Dimensions.paddingButtonSmall),
+      minimumSize: WidgetStateProperty.all(getSmallSize()),
+      textStyle: WidgetStateProperty.all(AppTypography.buttonTextSmall),
     );
   }
 
@@ -146,9 +146,9 @@ class ButtonStyles {
   static ButtonStyle getOutlinedSmallStyle(BuildContext context) {
     final style = getOutlinedStyle(context);
     return style.copyWith(
-      padding: MaterialStateProperty.all(Dimensions.paddingButtonSmall),
-      minimumSize: MaterialStateProperty.all(getSmallSize()),
-      textStyle: MaterialStateProperty.all(AppTypography.buttonTextSmall),
+      padding: WidgetStateProperty.all(Dimensions.paddingButtonSmall),
+      minimumSize: WidgetStateProperty.all(getSmallSize()),
+      textStyle: WidgetStateProperty.all(AppTypography.buttonTextSmall),
     );
   }
 
@@ -156,9 +156,9 @@ class ButtonStyles {
   static ButtonStyle getTextSmallStyle(BuildContext context) {
     final style = getTextStyle(context);
     return style.copyWith(
-      padding: MaterialStateProperty.all(Dimensions.paddingButtonSmall),
-      minimumSize: MaterialStateProperty.all(getSmallSize()),
-      textStyle: MaterialStateProperty.all(AppTypography.buttonTextSmall),
+      padding: WidgetStateProperty.all(Dimensions.paddingButtonSmall),
+      minimumSize: WidgetStateProperty.all(getSmallSize()),
+      textStyle: WidgetStateProperty.all(AppTypography.buttonTextSmall),
     );
   }
 
