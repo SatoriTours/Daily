@@ -76,8 +76,8 @@ dependencies:
 
   # 压缩文件
   flutter_archive: ^6.0.3
-  objectbox: ^4.1.0
-  objectbox_flutter_libs: ^4.1.0
+  objectbox: ^4.2.0
+  objectbox_flutter_libs: ^4.2.0
   photo_view: ^0.15.0
 
   # Markdown相关
@@ -112,6 +112,10 @@ dependencies:
   archive: ^4.0.5
   collection: ^1.19.1
 
+# 为了解决 template_expressions 和 objectbox 的冲突
+dependency_overrides:
+  pointycastle: ^4.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -120,11 +124,11 @@ dev_dependencies:
   flutter_lints: ^5.0.0
 
   # JSON序列化
-  json_serializable: ^6.8.0
+  json_serializable: ^6.9.5
 
   # 数据库 orm 框架
   build_runner: ^2.4.15
-  objectbox_generator: ^4.1.0
+  objectbox_generator: ^4.2.0
 
 flutter:
   # 使用 Material Design 设计
