@@ -1,8 +1,6 @@
 import 'package:objectbox/objectbox.dart';
-import 'package:json_annotation/json_annotation.dart';
 
 @Entity()
-@JsonSerializable()
 class BookViewpoint {
   @Id()
   int id = 0;

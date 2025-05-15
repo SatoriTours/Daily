@@ -166,7 +166,18 @@ class _DiaryEditorState extends State<DiaryEditor> {
             ),
           ),
 
-          // 已选图片预览
+          // 已有图片预览
+          if (_existingImages.isNotEmpty)
+            ImagePreview(
+              images: _existingImages,
+              onDelete: (index) {
+                setState(() {
+                  _existingImages.removeAt(index);
+                });
+              },
+            ),
+
+          // 新选择的图片预览
           if (_selectedImages.isNotEmpty)
             ImagePreview(
               images: _selectedImages.map((e) => e.path).toList(),
