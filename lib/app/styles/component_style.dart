@@ -12,10 +12,10 @@ class ComponentStyle {
   ComponentStyle._();
 
   /// 获取卡片主题
-  static CardTheme cardTheme(Brightness brightness) {
+  static CardThemeData cardTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
 
-    return CardTheme(
+    return CardThemeData(
       color: isDark ? AppColors.cardBackgroundDark : AppColors.cardBackgroundLight,
       elevation: isDark ? 1 : 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -294,12 +294,18 @@ class ComponentStyle {
 
   /// 文章内容容器样式
   static Padding articleContentContainer(BuildContext context, Widget child) {
-    return Padding(padding: Dimensions.paddingHorizontalL.copyWith(bottom: Dimensions.spacingM), child: child);
+    return Padding(
+      padding: Dimensions.paddingHorizontalL.copyWith(bottom: Dimensions.spacingM),
+      child: child,
+    );
   }
 
   /// 文章标签容器样式
   static Padding articleTagsContainer(BuildContext context, Widget child) {
-    return Padding(padding: Dimensions.paddingHorizontalL.copyWith(bottom: Dimensions.spacingM), child: child);
+    return Padding(
+      padding: Dimensions.paddingHorizontalL.copyWith(bottom: Dimensions.spacingM),
+      child: child,
+    );
   }
 
   /// 文章图片样式

@@ -51,13 +51,14 @@ class MyTheme {
         foregroundColor: Colors.white,
         elevation: isDark ? 1 : 2,
         centerTitle: true,
-        titleTextStyle:
-            isDark ? MyFontStyle.appBarTitleStyle.copyWith(color: Colors.white) : MyFontStyle.appBarTitleStyle,
+        titleTextStyle: isDark
+            ? MyFontStyle.appBarTitleStyle.copyWith(color: Colors.white)
+            : MyFontStyle.appBarTitleStyle,
         iconTheme: IconThemeData(color: Colors.white),
       ),
 
       // 卡片主题
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: isDark ? AppColors.cardBackgroundDark : AppColors.cardBackgroundLight,
         elevation: 2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
