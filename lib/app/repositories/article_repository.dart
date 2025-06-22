@@ -29,7 +29,6 @@ class ArticleRepository {
   }
 
   /// 获取每天文章数量统计
-  /// TODO: 优化此方法，使用objectbox的异步查询接口
   static Map<DateTime, int> getDailyArticleCounts() {
     final counts = <DateTime, int>{};
     final allArticles = ArticleRepository.getAll();
@@ -455,7 +454,6 @@ class ArticleRepository {
   /// 应用标签过滤
   static void _applyTagFilter(QueryBuilder<Article> queryBuilder, List<int>? tagIds) {
     if (tagIds != null && tagIds.isNotEmpty) {
-      // TODO: 重构此方法，不使用linkMany直接查询标签
       // 当前查询标签的实现需要引用Tag_类，但我们正在尝试移除所有对Tag的直接引用
       // 可能的解决方案：
       // 1. 使用原生SQL查询重写此功能

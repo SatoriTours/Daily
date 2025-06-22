@@ -38,14 +38,9 @@ class WebpageParserService {
       // 步骤2: 获取并保存网页内容
       await _processWebContentFetch(article);
 
-      // 步骤3: 处理AI任务
-      await _processAiTasks(article);
+      // 步骤3: 处理AI任务, 异步执行
+      _processAiTasks(article);
 
-      // 更新文章状态为完成
-      await ArticleRepository.updateField(article.id, ArticleFieldName.status, ArticleStatus.completed);
-
-      logger.i("[网页解析][API] ◀ 处理完成: #${article.id}");
-      _notifyUI(article.id);
       return article;
     } catch (e, stackTrace) {
       logger.e("[网页解析][API] 处理失败: $e");
@@ -166,6 +161,12 @@ class WebpageParserService {
 
       // 并行执行所有AI处理任务
       await Future.wait(tasks);
+
+      // 更新文章状态为完成
+      await ArticleRepository.updateField(article.id, ArticleFieldName.status, ArticleStatus.completed);
+
+      logger.i("[网页解析][API] ◀ 处理完成: #${article.id}");
+      _notifyUI(article.id);
 
       logger.i("[网页解析][AI处理] ◀ AI处理完成: #$articleId");
     } catch (e) {

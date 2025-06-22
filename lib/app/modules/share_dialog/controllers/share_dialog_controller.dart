@@ -81,13 +81,12 @@ class ShareDialogController extends GetxController {
     await ProcessingDialog.show(
       message: 'AI分析中...',
       onProcess: (updateMessage) async {
-        final article = await WebpageParserService.i.saveWebpage(
+        await WebpageParserService.i.saveWebpage(
           url: shareURL.value,
           comment: commentController.text,
           isUpdate: isUpdate.value,
           articleID: articleID.value,
         );
-        Get.find<ArticlesController>().updateArticle(article.id);
       },
     );
     backToPreviousStep();

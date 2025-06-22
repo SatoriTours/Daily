@@ -631,58 +631,55 @@ obx_int.ModelDefinition getObjectBoxModel() {
     Article: obx_int.EntityDefinition<Article>(
       model: _entities[0],
       toOneRelations: (Article object) => [],
-      toManyRelations:
-          (Article object) => {
-            obx_int.RelInfo<Article>.toMany(4, object.id): object.tags,
-            obx_int.RelInfo<Image>.toOneBacklink(
-                  4,
-                  object.id,
-                  (Image srcObject) => srcObject.article,
-                ):
-                object.images,
-            obx_int.RelInfo<Screenshot>.toOneBacklink(
-                  4,
-                  object.id,
-                  (Screenshot srcObject) => srcObject.article,
-                ):
-                object.screenshots,
-          },
+      toManyRelations: (Article object) => {
+        obx_int.RelInfo<Article>.toMany(4, object.id): object.tags,
+        obx_int.RelInfo<Image>.toOneBacklink(
+          4,
+          object.id,
+          (Image srcObject) => srcObject.article,
+        ): object.images,
+        obx_int.RelInfo<Screenshot>.toOneBacklink(
+          4,
+          object.id,
+          (Screenshot srcObject) => srcObject.article,
+        ): object.screenshots,
+      },
       getId: (Article object) => object.id,
       setId: (Article object, int id) {
         object.id = id;
       },
       objectToFB: (Article object, fb.Builder fbb) {
-        final titleOffset =
-            object.title == null ? null : fbb.writeString(object.title!);
-        final aiTitleOffset =
-            object.aiTitle == null ? null : fbb.writeString(object.aiTitle!);
-        final contentOffset =
-            object.content == null ? null : fbb.writeString(object.content!);
-        final aiContentOffset =
-            object.aiContent == null
-                ? null
-                : fbb.writeString(object.aiContent!);
-        final htmlContentOffset =
-            object.htmlContent == null
-                ? null
-                : fbb.writeString(object.htmlContent!);
-        final urlOffset =
-            object.url == null ? null : fbb.writeString(object.url!);
-        final commentOffset =
-            object.comment == null ? null : fbb.writeString(object.comment!);
+        final titleOffset = object.title == null
+            ? null
+            : fbb.writeString(object.title!);
+        final aiTitleOffset = object.aiTitle == null
+            ? null
+            : fbb.writeString(object.aiTitle!);
+        final contentOffset = object.content == null
+            ? null
+            : fbb.writeString(object.content!);
+        final aiContentOffset = object.aiContent == null
+            ? null
+            : fbb.writeString(object.aiContent!);
+        final htmlContentOffset = object.htmlContent == null
+            ? null
+            : fbb.writeString(object.htmlContent!);
+        final urlOffset = object.url == null
+            ? null
+            : fbb.writeString(object.url!);
+        final commentOffset = object.comment == null
+            ? null
+            : fbb.writeString(object.comment!);
         final statusOffset = fbb.writeString(object.status);
-        final coverImageOffset =
-            object.coverImage == null
-                ? null
-                : fbb.writeString(object.coverImage!);
-        final aiMarkdownContentOffset =
-            object.aiMarkdownContent == null
-                ? null
-                : fbb.writeString(object.aiMarkdownContent!);
-        final coverImageUrlOffset =
-            object.coverImageUrl == null
-                ? null
-                : fbb.writeString(object.coverImageUrl!);
+        final coverImageOffset = object.coverImage == null
+            ? null
+            : fbb.writeString(object.coverImage!);
+        final aiMarkdownContentOffset = object.aiMarkdownContent == null
+            ? null
+            : fbb.writeString(object.aiMarkdownContent!);
+        final coverImageUrlOffset = object.coverImageUrl == null
+            ? null
+            : fbb.writeString(object.coverImageUrl!);
         fbb.startTable(17);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, titleOffset);
@@ -763,38 +760,36 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final coverImageParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 30);
-        final pubDateParam =
-            pubDateValue == null
-                ? null
-                : DateTime.fromMillisecondsSinceEpoch(pubDateValue);
-        final updatedAtParam =
-            updatedAtValue == null
-                ? null
-                : DateTime.fromMillisecondsSinceEpoch(updatedAtValue);
-        final createdAtParam =
-            createdAtValue == null
-                ? null
-                : DateTime.fromMillisecondsSinceEpoch(createdAtValue);
-        final object = Article(
-            id: idParam,
-            title: titleParam,
-            aiTitle: aiTitleParam,
-            content: contentParam,
-            aiContent: aiContentParam,
-            htmlContent: htmlContentParam,
-            aiMarkdownContent: aiMarkdownContentParam,
-            url: urlParam,
-            isFavorite: isFavoriteParam,
-            comment: commentParam,
-            status: statusParam,
-            coverImage: coverImageParam,
-            pubDate: pubDateParam,
-            updatedAt: updatedAtParam,
-            createdAt: createdAtParam,
-          )
-          ..coverImageUrl = const fb.StringReader(
-            asciiOptimization: true,
-          ).vTableGetNullable(buffer, rootOffset, 34);
+        final pubDateParam = pubDateValue == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(pubDateValue);
+        final updatedAtParam = updatedAtValue == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(updatedAtValue);
+        final createdAtParam = createdAtValue == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(createdAtValue);
+        final object =
+            Article(
+                id: idParam,
+                title: titleParam,
+                aiTitle: aiTitleParam,
+                content: contentParam,
+                aiContent: aiContentParam,
+                htmlContent: htmlContentParam,
+                aiMarkdownContent: aiMarkdownContentParam,
+                url: urlParam,
+                isFavorite: isFavoriteParam,
+                comment: commentParam,
+                status: statusParam,
+                coverImage: coverImageParam,
+                pubDate: pubDateParam,
+                updatedAt: updatedAtParam,
+                createdAt: createdAtParam,
+              )
+              ..coverImageUrl = const fb.StringReader(
+                asciiOptimization: true,
+              ).vTableGetNullable(buffer, rootOffset, 34);
         obx_int.InternalToManyAccess.setRelInfo<Article>(
           object.tags,
           store,
@@ -830,10 +825,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
         object.id = id;
       },
       objectToFB: (Image object, fb.Builder fbb) {
-        final urlOffset =
-            object.url == null ? null : fbb.writeString(object.url!);
-        final pathOffset =
-            object.path == null ? null : fbb.writeString(object.path!);
+        final urlOffset = object.url == null
+            ? null
+            : fbb.writeString(object.url!);
+        final pathOffset = object.path == null
+            ? null
+            : fbb.writeString(object.path!);
         fbb.startTable(5);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, urlOffset);
@@ -877,8 +874,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
         object.id = id;
       },
       objectToFB: (Screenshot object, fb.Builder fbb) {
-        final pathOffset =
-            object.path == null ? null : fbb.writeString(object.path!);
+        final pathOffset = object.path == null
+            ? null
+            : fbb.writeString(object.path!);
         fbb.startTable(5);
         fbb.addInt64(0, object.id);
         fbb.addOffset(2, pathOffset);
@@ -912,20 +910,20 @@ obx_int.ModelDefinition getObjectBoxModel() {
     Tag: obx_int.EntityDefinition<Tag>(
       model: _entities[3],
       toOneRelations: (Tag object) => [],
-      toManyRelations:
-          (Tag object) => {
-            obx_int.RelInfo<Article>.toManyBacklink(4, object.id):
-                object.articles,
-          },
+      toManyRelations: (Tag object) => {
+        obx_int.RelInfo<Article>.toManyBacklink(4, object.id): object.articles,
+      },
       getId: (Tag object) => object.id,
       setId: (Tag object, int id) {
         object.id = id;
       },
       objectToFB: (Tag object, fb.Builder fbb) {
-        final nameOffset =
-            object.name == null ? null : fbb.writeString(object.name!);
-        final iconOffset =
-            object.icon == null ? null : fbb.writeString(object.icon!);
+        final nameOffset = object.name == null
+            ? null
+            : fbb.writeString(object.name!);
+        final iconOffset = object.icon == null
+            ? null
+            : fbb.writeString(object.icon!);
         fbb.startTable(4);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
@@ -966,10 +964,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
         object.id = id;
       },
       objectToFB: (Setting object, fb.Builder fbb) {
-        final keyOffset =
-            object.key == null ? null : fbb.writeString(object.key!);
-        final valueOffset =
-            object.value == null ? null : fbb.writeString(object.value!);
+        final keyOffset = object.key == null
+            ? null
+            : fbb.writeString(object.key!);
+        final valueOffset = object.value == null
+            ? null
+            : fbb.writeString(object.value!);
         fbb.startTable(4);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, keyOffset);
@@ -1007,12 +1007,15 @@ obx_int.ModelDefinition getObjectBoxModel() {
       },
       objectToFB: (Diary object, fb.Builder fbb) {
         final contentOffset = fbb.writeString(object.content);
-        final tagsOffset =
-            object.tags == null ? null : fbb.writeString(object.tags!);
-        final moodOffset =
-            object.mood == null ? null : fbb.writeString(object.mood!);
-        final imagesOffset =
-            object.images == null ? null : fbb.writeString(object.images!);
+        final tagsOffset = object.tags == null
+            ? null
+            : fbb.writeString(object.tags!);
+        final moodOffset = object.mood == null
+            ? null
+            : fbb.writeString(object.mood!);
+        final imagesOffset = object.images == null
+            ? null
+            : fbb.writeString(object.images!);
         fbb.startTable(8);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, contentOffset);
@@ -1074,8 +1077,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
       },
       objectToFB: (SessionEntity object, fb.Builder fbb) {
         final sessionIdOffset = fbb.writeString(object.sessionId);
-        final usernameOffset =
-            object.username == null ? null : fbb.writeString(object.username!);
+        final usernameOffset = object.username == null
+            ? null
+            : fbb.writeString(object.username!);
         fbb.startTable(7);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, sessionIdOffset);
