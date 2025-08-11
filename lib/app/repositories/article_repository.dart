@@ -641,6 +641,42 @@ class ArticleRepository {
       return false;
     }
   }
+
+  /// ====== 兼容接口所需的统计/删除方法 ======
+  /// 获取文章总数
+  static Future<int> count() async {
+    try {
+      return _box.count();
+    } catch (e) {
+      logger.e('统计文章数量失败: $e');
+      return 0;
+    }
+  }
+
+  /// 根据状态统计文章数量
+  static Future<int> countByStatus(String status) async {
+    try {
+      final query = _box.query(Article_.status.equals(status)).build();
+      try {
+        return query.count();
+      } finally {
+        query.close();
+      }
+    } catch (e) {
+      logger.e('统计状态文章数量失败: $e');
+      return 0;
+    }
+  }
+
+  /// 删除文章（兼容方法）
+  static Future<bool> delete(int id) async {
+    try {
+      return _box.remove(id);
+    } catch (e) {
+      logger.e('删除文章失败: $e');
+      return false;
+    }
+  }
 }
 
 /// 获取文章数据库字段名

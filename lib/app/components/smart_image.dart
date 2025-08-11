@@ -100,7 +100,7 @@ class SmartImage extends StatelessWidget {
       fit: fit,
       width: width,
       height: height,
-      errorBuilder: (_, __, ___) {
+      errorBuilder: (_, _, _) {
         return _hasValidNetworkUrl ? _buildNetworkImage(context) : _buildErrorWidget(context);
       },
     );

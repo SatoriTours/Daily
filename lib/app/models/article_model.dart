@@ -114,6 +114,12 @@ class ArticleModel {
   /// 标签列表
   List<Tag> get tags => _entity.tags;
 
+  /// 标签ID列表（便于快速过滤）
+  List<int> get tagIds => tags.map((t) => t.id).toList();
+
+  /// 摘要（优先 AI 内容，其次原始内容）
+  String get summary => aiContent ?? content ?? '';
+
   /// 获取主图路径
   String getHeaderImagePath() {
     if (_entity.coverImage != null && _entity.coverImage!.isNotEmpty) {

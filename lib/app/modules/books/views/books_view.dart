@@ -138,11 +138,11 @@ class BooksView extends GetView<BooksController> {
         itemBuilder: (context, index) {
           // 第一项是"所有书籍"
           if (index == 0) {
-            return _buildBookFilterItem(context, null, controller.fliterBookID.value == -1);
+            return _buildBookFilterItem(context, null, controller.filterBookID.value == -1);
           }
           // 其他项是具体的书籍
           final book = books[index - 1];
-          return _buildBookFilterItem(context, book, controller.fliterBookID.value == book.id);
+          return _buildBookFilterItem(context, book, controller.filterBookID.value == book.id);
         },
       ),
     );

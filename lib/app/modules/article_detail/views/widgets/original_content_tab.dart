@@ -57,7 +57,7 @@ class OriginalContentTab extends StatelessWidget {
       child: Html(
         data: htmlContent,
         style: HtmlStyles.getStyles(Get.context!),
-        onLinkTap: (url, _, __) => _handleLinkTap(null, url, null),
+        onLinkTap: (url, _, _) => _handleLinkTap(null, url, null),
         shrinkWrap: true,
       ),
     );

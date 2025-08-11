@@ -15,7 +15,7 @@ class BooksController extends BaseController {
   final currentViewpointIndex = 0.obs;
 
   // 当前选中的书籍
-  final fliterBookID = (-1).obs;
+  final filterBookID = (-1).obs;
 
   final isProcessing = false.obs;
 
@@ -46,11 +46,11 @@ class BooksController extends BaseController {
   /// 加载所有观点
   Future<void> loadAllViewpoints() async {
     // 获取所有观点
-    logger.i('加载观点: bookID: ${fliterBookID.value}');
-    if (fliterBookID.value == -1) {
+    logger.i('加载观点: bookID: ${filterBookID.value}');
+    if (filterBookID.value == -1) {
       allViewpoints.value = await BookRepository.getAllViewpointsAsync();
     } else {
-      allViewpoints.value = await BookRepository.getViewpointsByBookIdsAsync([fliterBookID.value]);
+      allViewpoints.value = await BookRepository.getViewpointsByBookIdsAsync([filterBookID.value]);
     }
 
     // 如果有观点，选择第一个
@@ -61,7 +61,7 @@ class BooksController extends BaseController {
 
   /// 选择书籍
   Future<void> selectBook(int bookID) async {
-    fliterBookID.value = bookID;
+    filterBookID.value = bookID;
   }
 
   BookViewpointModel currentViewpoint() {

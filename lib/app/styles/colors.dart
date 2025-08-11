@@ -128,4 +128,10 @@ class AppColors {
 
   // 获取AppBar背景色
   static Color appBarBackground(BuildContext context) => getColor(context, primaryLight, appBarBackgroundDark);
+
+  // === 兼容旧代码的辅助方法 ===
+  // 旧代码使用 AppColors.border / secondary / searchBackground
+  static Color border(BuildContext context) => divider(context);
+  static Color secondary(BuildContext context) => textSecondary(context);
+  static Color searchBackground(BuildContext context) => cardBackground(context);
 }

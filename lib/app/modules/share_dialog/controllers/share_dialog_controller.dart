@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/webpage_parser_service.dart';
 import 'package:daily_satori/app/components/dialogs/processing_dialog.dart';
