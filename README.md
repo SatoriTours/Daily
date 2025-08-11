@@ -29,6 +29,14 @@
 * 插件机制：通过独立仓库（示例见 plugin 仓库）扩展提示词 / 处理逻辑
 * 应用内更新：检测新版本并提示升级
 
+## 📸 界面预览
+
+| 文章列表 | AI 解读 | Markdown 阅读 | 日记记录 |
+|-----------|---------|---------------|----------|
+| ![文章列表](docs/images/文章列表.jpg) | ![AI解读](docs/images/AI解读.jpg) | ![Markdown](docs/images/markdown.jpg) | ![日记](docs/images/日记.jpg) |
+
+> 如需更多截图或英文版 README，可提交 Issue 说明需求。
+
 ## 🏗️ 技术概述
 * Flutter + GetX 路由/状态
 * 数据：ObjectBox（主存储）+ 部分 SQLite 使用场景
