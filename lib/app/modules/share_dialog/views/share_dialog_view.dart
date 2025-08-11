@@ -91,22 +91,10 @@ class ShareDialogView extends GetView<ShareDialogController> {
       label: '标题',
       child: TextField(
         controller: controller.titleController,
-        maxLines: 2,
+        maxLines: 3,
         decoration: _inputDecoration(context, '输入或修改标题'),
         inputFormatters: [LengthLimitingTextInputFormatter(120)],
       ),
-    );
-  }
-
-  Widget _buildTagsSection(BuildContext context) {
-    return _buildFieldWrapper(
-      context,
-      icon: Icons.tag,
-      label: '标签',
-      child: Obx(() {
-        final tags = List<String>.from(controller.tagList); // 使用副本避免构建中修改
-        return _TagChipsEditor(tags: tags, onAdd: controller.addTag, onRemove: controller.removeTag);
-      }),
     );
   }
 
@@ -137,8 +125,6 @@ class ShareDialogView extends GetView<ShareDialogController> {
       _buildArticleURL(context),
       Dimensions.verticalSpacerM,
       _buildTitleSection(context),
-      Dimensions.verticalSpacerM,
-      _buildTagsSection(context),
       Dimensions.verticalSpacerM,
       _buildCommentSection(context),
     ];
@@ -195,79 +181,4 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   // 构建保存按钮
   // 底部按钮已移除，使用 AppBar 保存
-}
-
-// 标签 Chips 编辑器
-class _TagChipsEditor extends StatefulWidget {
-  final List<String> tags;
-  final ValueChanged<String> onAdd;
-  final ValueChanged<String> onRemove;
-  const _TagChipsEditor({required this.tags, required this.onAdd, required this.onRemove});
-
-  @override
-  State<_TagChipsEditor> createState() => _TagChipsEditorState();
-}
-
-class _TagChipsEditorState extends State<_TagChipsEditor> {
-  final TextEditingController _input = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
-
-  @override
-  void dispose() {
-    _input.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  void _commitInput() {
-    final text = _input.text.trim();
-    if (text.isEmpty) return;
-    widget.onAdd(text);
-    _input.clear();
-    _focusNode.requestFocus();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        for (final tag in widget.tags)
-          Chip(
-            label: Text(tag),
-            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-            onDeleted: () => widget.onRemove(tag),
-            deleteIcon: const Icon(Icons.close, size: 16),
-            labelStyle: MyFontStyle.bodyMedium.copyWith(fontSize: 14, fontWeight: FontWeight.w500),
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        SizedBox(
-          width: 180,
-          child: TextField(
-            controller: _input,
-            focusNode: _focusNode,
-            decoration: InputDecoration(
-              isDense: false,
-              hintText: widget.tags.isEmpty ? '添加标签' : '继续输入…',
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(22), borderSide: BorderSide.none),
-              filled: true,
-              fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.10),
-            ),
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _commitInput(),
-            onChanged: (v) {
-              if (v.endsWith(',') || v.endsWith('，') || v.endsWith(' ')) {
-                _input.text = v.substring(0, v.length - 1);
-                _commitInput();
-              }
-            },
-          ),
-        ),
-      ],
-    );
-  }
 }

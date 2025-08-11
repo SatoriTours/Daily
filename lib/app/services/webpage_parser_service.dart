@@ -2,11 +2,10 @@ import 'dart:async';
 import 'package:daily_satori/app/components/webview/headless_webview.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 
-import 'package:daily_satori/app/services/ai_service/ai_service.dart';
+import 'package:daily_satori/app/services/ai_service/ai_article_processor.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
-import 'package:daily_satori/app/repositories/tag_repository.dart';
-import 'package:daily_satori/app/services/http_service.dart';
+// 清理未使用的依赖（AI 具体处理已在 AiArticleProcessor 内）
 import 'package:daily_satori/app/utils/string_extensions.dart';
 import 'package:daily_satori/global.dart';
 import 'package:get/get.dart';
@@ -113,11 +112,11 @@ class WebpageParserService {
         throw Exception("网页标题为空");
       }
 
-      if (result.htmlContent.isEmpty || result.htmlContent.length < 100) {
+      if (result.htmlContent.isEmpty || result.htmlContent.length < AiArticleConstants.minHtmlLength) {
         throw Exception("HTML内容为空或过短(${result.htmlContent.length}字节)");
       }
 
-      if (result.textContent.isEmpty || result.textContent.length < 50) {
+      if (result.textContent.isEmpty || result.textContent.length < AiArticleConstants.minTextLength) {
         throw Exception("文本内容为空或过短(${result.textContent.length}字节)");
       }
 
@@ -152,15 +151,7 @@ class WebpageParserService {
 
     try {
       // 创建任务列表
-      final List<Future<void>> tasks = [
-        _processTitle(updatedArticle),
-        _processSummary(updatedArticle),
-        _processMarkdown(updatedArticle),
-        _processImage(updatedArticle),
-      ];
-
-      // 并行执行所有AI处理任务
-      await Future.wait(tasks);
+      await AiArticleProcessor.i.processAll(updatedArticle);
 
       // 更新文章状态为完成
       await ArticleRepository.updateField(article.id, ArticleFieldName.status, ArticleStatus.completed);
@@ -178,148 +169,7 @@ class WebpageParserService {
 
   // ====================== AI处理相关方法 ======================
 
-  /// 处理标题：翻译和概括
-  Future<void> _processTitle(ArticleModel article) async {
-    final articleId = article.id;
-    final title = article.title ?? '';
-
-    if (title.isEmpty) {
-      logger.w("[网页解析][AI:标题] 标题为空，跳过处理 #$articleId");
-      return;
-    }
-
-    logger.i("[网页解析][AI:标题] ▶ 开始处理标题 #$articleId");
-
-    var aiTitle = title;
-    try {
-      if (!StringUtils.isChinese((title))) {
-        aiTitle = await AiService.i.translate(title.trim());
-      }
-
-      // 如果标题太长，进行概括
-      if (aiTitle.length >= 50) {
-        logger.d("[网页解析][AI:标题] 标题太长，进行概括 #$articleId");
-        aiTitle = await AiService.i.summarizeOneLine(aiTitle);
-      }
-
-      if (aiTitle.isEmpty) {
-        logger.w("[网页解析][AI:标题] 处理结果为空 #$articleId");
-        return;
-      }
-
-      await ArticleRepository.updateField(articleId, ArticleFieldName.aiTitle, aiTitle);
-      logger.i("[网页解析][AI:标题] ◀ 标题处理成功 #$articleId");
-    } catch (e) {
-      logger.e("[网页解析][AI:标题] 处理失败 #$articleId: $e");
-      throw Exception("处理标题失败: $e");
-    }
-  }
-
-  /// 处理摘要和标签
-  Future<void> _processSummary(ArticleModel article) async {
-    final articleId = article.id;
-    final content = article.content ?? '';
-
-    if (content.isEmpty) {
-      logger.w("[网页解析][AI:摘要] 内容为空，跳过处理 #$articleId");
-      return;
-    }
-
-    logger.i("[网页解析][AI:摘要] ▶ 开始处理摘要 #$articleId");
-
-    try {
-      final (summary, tags) = await AiService.i.summarize(content.trim());
-
-      if (summary.isEmpty) {
-        logger.w("[网页解析][AI:摘要] 处理结果为空 #$articleId");
-        return;
-      }
-
-      await ArticleRepository.updateField(articleId, ArticleFieldName.aiContent, summary);
-      await _saveTags(article, tags);
-
-      logger.i("[网页解析][AI:摘要] ◀ 摘要处理成功，提取了 ${tags.length} 个标签 #$articleId");
-    } catch (e) {
-      logger.e("[网页解析][AI:摘要] 处理失败 #$articleId: $e");
-      throw Exception("处理摘要失败: $e");
-    }
-  }
-
-  /// 处理Markdown转换
-  Future<void> _processMarkdown(ArticleModel article) async {
-    final articleId = article.id;
-    final htmlContent = article.htmlContent ?? '';
-
-    if (htmlContent.isEmpty) {
-      logger.w("[网页解析][AI:Markdown] HTML内容为空，跳过处理 #$articleId");
-      return;
-    }
-
-    logger.i("[网页解析][AI:Markdown] ▶ 开始处理Markdown #$articleId");
-
-    try {
-      final markdown = await AiService.i.convertHtmlToMarkdown(htmlContent);
-
-      if (markdown.isEmpty) {
-        logger.w("[网页解析][AI:Markdown] 处理结果为空 #$articleId");
-        return;
-      }
-
-      await ArticleRepository.updateField(articleId, ArticleFieldName.aiMarkdownContent, markdown);
-      logger.i("[网页解析][AI:Markdown] ◀ Markdown处理成功 #$articleId");
-    } catch (e) {
-      logger.e("[网页解析][AI:Markdown] 处理失败 #$articleId: $e");
-      throw Exception("处理Markdown失败: $e");
-    }
-  }
-
-  /// 处理图片下载
-  Future<void> _processImage(ArticleModel article) async {
-    final articleId = article.id;
-    final imageUrl = article.coverImageUrl ?? '';
-
-    if (imageUrl.isEmpty) {
-      logger.w("[网页解析][AI:图片] 图片URL为空，跳过处理 #$articleId");
-      return;
-    }
-
-    logger.i("[网页解析][AI:图片] ▶ 开始处理图片 #$articleId: $imageUrl");
-
-    try {
-      final imagePath = await HttpService.i.downloadImage(imageUrl);
-
-      if (imagePath.isNotEmpty) {
-        await ArticleRepository.updateField(articleId, ArticleFieldName.coverImage, imagePath);
-        logger.i("[网页解析][AI:图片] ◀ 图片处理成功 #$articleId");
-      } else {
-        logger.w("[网页解析][AI:图片] 图片下载结果为空 #$articleId");
-      }
-    } catch (e) {
-      logger.e("[网页解析][AI:图片] 处理失败 #$articleId: $e");
-      throw Exception("处理图片失败: $e");
-    }
-  }
-
-  /// 保存标签到文章
-  Future<void> _saveTags(ArticleModel article, List<String> tagNames) async {
-    if (tagNames.isEmpty) return;
-
-    final articleId = article.id;
-    logger.d("[网页解析][标签] ▶ 开始保存 ${tagNames.length} 个标签 #$articleId");
-
-    try {
-      article.tags.clear();
-
-      for (var tagName in tagNames) {
-        await TagRepository.addTagToArticle(article, tagName);
-      }
-
-      logger.d("[网页解析][标签] ◀ 标签保存完成 #$articleId");
-    } catch (e) {
-      logger.e("[网页解析][标签] 保存标签失败 #$articleId: $e");
-      // 标签失败不阻止主流程
-    }
-  }
+  // 旧 AI 处理方法已抽取到 AiArticleProcessor
 
   // ====================== 文章创建与更新 ======================
 
