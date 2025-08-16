@@ -95,6 +95,7 @@ class ShareDialogController extends GetxController {
 
   /// 保存按钮点击
   Future<void> onSaveButtonPressed() async {
+    logger.i('[ShareDialog] 点击保存: isUpdate=${isUpdate.value}, refreshAndAnalyze=${refreshAndAnalyze.value}');
     // 如果是更新并且选择不重新抓取/AI分析，则只做字段更新
     if (isUpdate.value && !refreshAndAnalyze.value) {
       await _updateArticleFieldsOnly();
@@ -105,12 +106,17 @@ class ShareDialogController extends GetxController {
     await ProcessingDialog.show(
       message: 'AI分析中...',
       onProcess: (updateMessage) async {
-        await WebpageParserService.i.saveWebpage(
+        final saved = await WebpageParserService.i.saveWebpage(
           url: shareURL.value,
           comment: commentController.text,
           isUpdate: isUpdate.value,
           articleID: articleID.value,
         );
+        // 新增模式：保存后拿到新文章ID，便于应用手动字段覆盖
+        if (articleID.value <= 0 && saved.id > 0) {
+          articleID.value = saved.id;
+          logger.i('[ShareDialog] 新增文章保存完成，ID=${articleID.value}');
+        }
       },
     );
     // 保存后再应用用户手动输入的标题与标签（避免被抓取/AI覆盖）
@@ -125,7 +131,12 @@ class ShareDialogController extends GetxController {
     if (article == null) return;
 
     // 更新标题（优先用户填写的原始标题，不动 aiTitle）
-    article.title = titleController.text.trim();
+    final manualTitle = titleController.text.trim();
+    if (manualTitle.isNotEmpty) {
+      article.title = manualTitle;
+      // 用户显式编辑标题后，清空 aiTitle，避免 showTitle() 继续优先显示 AI 标题
+      article.aiTitle = '';
+    }
     article.comment = commentController.text.trim();
 
     // 处理标签
@@ -157,6 +168,8 @@ class ShareDialogController extends GetxController {
     final manualTitle = titleController.text.trim();
     if (manualTitle.isNotEmpty && manualTitle != article.title) {
       article.title = manualTitle;
+      // 手动标题覆盖后，确保不再使用 AI 标题展示
+      article.aiTitle = '';
       changed = true;
     }
 

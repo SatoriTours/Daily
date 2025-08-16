@@ -8,7 +8,7 @@ version: 3.6.20
 
 environment:
   sdk: ^3.8.1
-  flutter: ^3.32.4
+  flutter: ^3.32.8
 
 dependencies:
   flutter:
@@ -37,8 +37,8 @@ dependencies:
   logger: ^2.4.0
 
   # 分享相关
-  android_intent_plus: ^5.3.0
-  share_plus: ^11.0.0
+  android_intent_plus: ^5.3.1
+  share_plus: ^11.1.0
 
   # 浏览器
   flutter_inappwebview: ^6.2.0-beta.2
@@ -54,7 +54,7 @@ dependencies:
   dio: ^5.7.0
 
   # 文件选择
-  file_picker: ^10.1.9
+  file_picker: ^10.3.1
 
   # 权限判断
   permission_handler: ^12.0.0+1
@@ -66,7 +66,7 @@ dependencies:
   flutter_settings_screens: ^0.3.4
 
   # 获取软件包信息
-  package_info_plus: ^8.1.0
+  package_info_plus: ^8.3.1
 
   # 打开文件
   open_file: ^3.5.9
@@ -84,7 +84,7 @@ dependencies:
   flutter_markdown: ^0.7.7
 
   # 图片选择
-  image_picker: ^1.0.4
+  image_picker: ^1.2.0
 
   # 模板表达式
   template_expressions: ^3.3.1+2
@@ -98,7 +98,7 @@ dependencies:
   web_socket_channel: ^3.0.2
 
   # 网络连接
-  connectivity_plus: ^6.1.2
+  connectivity_plus: ^6.1.5
   url_launcher: ^6.3.1
   flutter_html: ^3.0.0
 

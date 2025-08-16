@@ -29,11 +29,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
         padding: Dimensions.paddingPage,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (controller.isUpdate.value) _buildRefreshInlineSwitch(context),
-            _buildFormCard(context),
-            Dimensions.verticalSpacerM,
-          ],
+          children: [_buildFormCard(context), Dimensions.verticalSpacerM],
         ),
       ),
     );
@@ -41,7 +37,31 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   // 构建底部按钮区域
   Widget _buildBottomButton(BuildContext context) {
-    return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4), width: 0.6)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(onPressed: () => Get.back(), child: const Text('取消')),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => controller.onSaveButtonPressed(),
+                child: Obx(() => Text(controller.isUpdate.value ? '保存修改' : '保存')),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // 构建顶部应用栏
@@ -49,13 +69,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
     return AppBar(
       title: Obx(() => Text(controller.isUpdate.value ? '更新文章' : '保存链接', style: MyFontStyle.appBarTitleStyle)),
       automaticallyImplyLeading: !controller.isUpdate.value,
-      actions: [
-        IconButton(
-          tooltip: '保存',
-          icon: const Icon(Icons.check_rounded),
-          onPressed: () => controller.onSaveButtonPressed(),
-        ),
-      ],
+      // 底部已提供保存按钮，这里不再显示右上角保存
     );
   }
 
@@ -98,23 +112,16 @@ class ShareDialogView extends GetView<ShareDialogController> {
     );
   }
 
-  // 顶部紧凑开关（更新模式）
+  // 重新抓取并AI分析开关（更新模式，美化版）
   Widget _buildRefreshInlineSwitch(BuildContext context) {
     return Obx(
-      () => Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Row(
-          children: [
-            Switch(value: controller.refreshAndAnalyze.value, onChanged: (v) => controller.refreshAndAnalyze.value = v),
-            const SizedBox(width: 4),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => controller.refreshAndAnalyze.value = !controller.refreshAndAnalyze.value,
-                child: Text('重新抓取并AI分析', style: MyFontStyle.bodyMedium),
-              ),
-            ),
-          ],
-        ),
+      () => SwitchListTile.adaptive(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        title: Text('重新抓取并AI分析', style: MyFontStyle.bodySmall),
+        value: controller.refreshAndAnalyze.value,
+        onChanged: (v) => controller.refreshAndAnalyze.value = v,
       ),
     );
   }
@@ -123,7 +130,8 @@ class ShareDialogView extends GetView<ShareDialogController> {
   Widget _buildFormCard(BuildContext context) {
     final children = <Widget>[
       _buildArticleURL(context),
-      Dimensions.verticalSpacerM,
+      const SizedBox(height: 8),
+      if (controller.isUpdate.value) ...[_buildRefreshInlineSwitch(context), const SizedBox(height: 8)],
       _buildTitleSection(context),
       Dimensions.verticalSpacerM,
       _buildCommentSection(context),
@@ -180,5 +188,5 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   // 构建保存按钮
-  // 底部按钮已移除，使用 AppBar 保存
+  // 保存与取消按钮已移动到底部操作区
 }
