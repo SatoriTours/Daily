@@ -131,6 +131,8 @@ class WebpageParserService {
       await ArticleRepository.update(article);
 
       logger.i("[网页解析][内容获取] ◀ 网页内容获取成功: #$articleId");
+      // 抓取阶段完成后也通知 UI，一方面展示“处理中”，另一方面让详情页先看到最新抓取内容
+      _notifyUI(articleId);
     } catch (e) {
       logger.e("[网页解析][内容获取] 获取失败: #$articleId, $e");
       await _markArticleAsFailed(articleId, "网页内容获取失败: $e");

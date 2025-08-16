@@ -159,4 +159,40 @@ class ArticleModel {
   Future<void> save() async {
     await ArticleRepository.update(this);
   }
+
+  /// 将其他 ArticleModel 的字段复制到当前实例（保留当前对象引用）
+  void copyFrom(ArticleModel other) {
+    title = other.title;
+    aiTitle = other.aiTitle;
+    content = other.content;
+    aiContent = other.aiContent;
+    htmlContent = other.htmlContent;
+    aiMarkdownContent = other.aiMarkdownContent;
+    url = other.url;
+    isFavorite = other.isFavorite;
+    comment = other.comment;
+    status = other.status;
+    coverImage = other.coverImage;
+    coverImageUrl = other.coverImageUrl;
+    pubDate = other.pubDate;
+    createdAt = other.createdAt;
+    updatedAt = other.updatedAt;
+
+    // 同步关联集合（简单替换）
+    try {
+      tags
+        ..clear()
+        ..addAll(other.tags);
+    } catch (_) {}
+    try {
+      images
+        ..clear()
+        ..addAll(other.images);
+    } catch (_) {}
+    try {
+      screenshots
+        ..clear()
+        ..addAll(other.screenshots);
+    } catch (_) {}
+  }
 }

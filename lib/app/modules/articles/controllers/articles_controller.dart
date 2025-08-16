@@ -147,8 +147,29 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
 
     final index = articles.indexWhere((item) => item.id == id);
     if (index != -1) {
-      articles[index] = article;
+      // 就地合并，保持对象引用不变，其他页面引用会自动感知
+      articles[index].copyFrom(article);
+      // 触发 Rx 刷新
+      articles.refresh();
     }
+  }
+
+  /// 合并/插入文章（用于新增或外部更新回写）
+  void mergeArticle(ArticleModel model) {
+    final index = articles.indexWhere((item) => item.id == model.id);
+    if (index == -1) {
+      articles.insert(0, model);
+    } else {
+      articles[index].copyFrom(model);
+    }
+    articles.refresh();
+  }
+
+  /// 获取某篇文章的共享引用（详情/编辑页应持有此引用而非自行查询）
+  ArticleModel? getRef(int id) {
+    final index = articles.indexWhere((item) => item.id == id);
+    if (index == -1) return null;
+    return articles[index];
   }
 
   /// 获取标题
@@ -232,17 +253,16 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     bool? favorite = onlyFavorite.value ? true : null;
     List<int>? tagIds = tagId.value > 0 ? [tagId.value] : null;
     DateTime? startDate = selectedFilterDate.value;
-    DateTime? endDate =
-        selectedFilterDate.value != null
-            ? DateTime(
-              selectedFilterDate.value!.year,
-              selectedFilterDate.value!.month,
-              selectedFilterDate.value!.day,
-              23,
-              59,
-              59,
-            )
-            : null;
+    DateTime? endDate = selectedFilterDate.value != null
+        ? DateTime(
+            selectedFilterDate.value!.year,
+            selectedFilterDate.value!.month,
+            selectedFilterDate.value!.day,
+            23,
+            59,
+            59,
+          )
+        : null;
 
     isLoading.value = true;
 

@@ -1,6 +1,7 @@
 import 'package:share_plus/share_plus.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/utils/string_extensions.dart';
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 
 class ArticleDetailController extends BaseController {
   /// 当前文章模型
@@ -8,6 +9,9 @@ class ArticleDetailController extends BaseController {
 
   /// 文章标签字符串,以逗号分隔
   final tags = ''.obs;
+
+  /// 触发界面重建的计数器（监听列表变更后自增）
+  final rebuildTick = 0.obs;
 
   @override
   void onInit() {
@@ -18,7 +22,11 @@ class ArticleDetailController extends BaseController {
       articleModel = argument;
     } else if (argument is int) {
       // 如果参数是ID，则根据ID查找文章
-      final foundArticleModel = ArticleRepository.find(argument);
+      ArticleModel? ref;
+      if (Get.isRegistered<ArticlesController>()) {
+        ref = Get.find<ArticlesController>().getRef(argument);
+      }
+      final foundArticleModel = ref ?? ArticleRepository.find(argument);
       if (foundArticleModel != null) {
         articleModel = foundArticleModel;
       } else {
@@ -29,6 +37,15 @@ class ArticleDetailController extends BaseController {
     }
 
     loadTags();
+
+    // 监听列表更新，自动刷新详情界面显示与标签
+    if (Get.isRegistered<ArticlesController>()) {
+      final ac = Get.find<ArticlesController>();
+      ever<List<ArticleModel>>(ac.articles, (_) {
+        rebuildTick.value++;
+        loadTags();
+      });
+    }
   }
 
   /// 加载并格式化文章标签

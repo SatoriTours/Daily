@@ -8,6 +8,8 @@ import 'package:get/get.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/webpage_parser_service.dart';
 import 'package:daily_satori/app/components/dialogs/processing_dialog.dart';
+import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
+import 'package:daily_satori/app/routes/app_pages.dart';
 
 /// 分享对话框控制器
 /// 管理网页内容的保存和更新
@@ -30,6 +32,10 @@ class ShareDialogController extends GetxController {
   final TextEditingController commentController = TextEditingController();
   final TextEditingController titleController = TextEditingController();
   final TextEditingController tagsController = TextEditingController();
+
+  // 标题编辑追踪：用于区分“本次会话是否改过标题”
+  String _initialTitleText = '';
+  final RxBool titleEdited = false.obs;
 
   @override
   void onInit() {
@@ -68,6 +74,13 @@ class ShareDialogController extends GetxController {
       shareURL.value = args['shareURL'];
       logger.i("初始化分享链接: ${shareURL.value}");
     }
+
+    // 初始化完成后，记录初始标题并监听编辑变化
+    _initialTitleText = titleController.text;
+    titleController.addListener(() {
+      final now = titleController.text.trim();
+      titleEdited.value = now != _initialTitleText.trim();
+    });
   }
 
   /// 加载文章信息
@@ -130,9 +143,9 @@ class ShareDialogController extends GetxController {
     final article = ArticleRepository.find(articleID.value);
     if (article == null) return;
 
-    // 更新标题（优先用户填写的原始标题，不动 aiTitle）
+    // 仅当本次编辑过标题时才覆盖并清空 aiTitle
     final manualTitle = titleController.text.trim();
-    if (manualTitle.isNotEmpty) {
+    if (titleEdited.value && manualTitle.isNotEmpty) {
       article.title = manualTitle;
       // 用户显式编辑标题后，清空 aiTitle，避免 showTitle() 继续优先显示 AI 标题
       article.aiTitle = '';
@@ -155,6 +168,10 @@ class ShareDialogController extends GetxController {
 
     article.updatedAt = DateTime.now().toUtc();
     await article.save();
+    // 同步列表控制器中的共享模型
+    if (Get.isRegistered<ArticlesController>()) {
+      Get.find<ArticlesController>().updateArticle(article.id);
+    }
     logger.i('文章字段已更新(无重新抓取): ${article.id}');
   }
 
@@ -166,7 +183,7 @@ class ShareDialogController extends GetxController {
 
     bool changed = false;
     final manualTitle = titleController.text.trim();
-    if (manualTitle.isNotEmpty && manualTitle != article.title) {
+    if (titleEdited.value && manualTitle.isNotEmpty && manualTitle != article.title) {
       article.title = manualTitle;
       // 手动标题覆盖后，确保不再使用 AI 标题展示
       article.aiTitle = '';
@@ -194,6 +211,9 @@ class ShareDialogController extends GetxController {
     if (changed) {
       article.updatedAt = DateTime.now().toUtc();
       await article.save();
+      if (Get.isRegistered<ArticlesController>()) {
+        Get.find<ArticlesController>().updateArticle(article.id);
+      }
       logger.i('已应用手动标题/标签修改: ${article.id}');
     }
   }
@@ -267,7 +287,7 @@ class ShareDialogController extends GetxController {
   /// 点击取消按钮
   void backToPreviousStep() {
     if (isUpdate.value) {
-      _navigateToHome();
+      _navigateToDetail();
     } else {
       _backToPreviousApp();
     }
@@ -284,9 +304,21 @@ class ShareDialogController extends GetxController {
     }
   }
 
-  /// 导航至首页
-  void _navigateToHome() {
-    logger.i('导航至首页');
-    Get.back(times: 2);
+  /// 导航到文章详情页（更新模式下调用）
+  void _navigateToDetail() {
+    if (articleID.value <= 0) {
+      // 没有有效ID则仅关闭当前页
+      Get.back();
+      return;
+    }
+
+    // 统一替换当前路由为文章详情，避免因 previousRoute 识别异常导致回到列表
+    dynamic arg = articleID.value;
+    if (Get.isRegistered<ArticlesController>()) {
+      final ref = Get.find<ArticlesController>().getRef(articleID.value);
+      if (ref != null) arg = ref;
+    }
+    logger.i('跳转到文章详情页: ${articleID.value}');
+    Get.offNamed(Routes.articleDetail, arguments: arg);
   }
 }
