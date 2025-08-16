@@ -1,15 +1,8 @@
 import 'dart:async';
-import 'package:daily_satori/app/repositories/article_repository.dart';
-import 'package:daily_satori/app/repositories/tag_repository.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/webpage_parser_service.dart';
+import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/components/dialogs/processing_dialog.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
-import 'package:daily_satori/app/routes/app_pages.dart';
 
 /// 分享对话框控制器
 /// 管理网页内容的保存和更新
@@ -143,36 +136,15 @@ class ShareDialogController extends GetxController {
     final article = ArticleRepository.find(articleID.value);
     if (article == null) return;
 
-    // 仅当本次编辑过标题时才覆盖并清空 aiTitle
-    final manualTitle = titleController.text.trim();
-    if (titleEdited.value && manualTitle.isNotEmpty) {
-      article.title = manualTitle;
-      // 用户显式编辑标题后，清空 aiTitle，避免 showTitle() 继续优先显示 AI 标题
-      article.aiTitle = '';
-    }
+    // 标题与备注
+    _setTitleIfEdited(article);
     article.comment = commentController.text.trim();
 
-    // 处理标签
-    final rawTags = tagsController.text.trim();
-    final tagNames = _getEffectiveTagNames(rawTags);
+    // 标签：替换模式
+    final tagNames = _getEffectiveTagNames(tagsController.text.trim());
+    await _replaceTags(article, tagNames);
 
-    // 清空并重新添加
-    try {
-      article.tags.clear();
-      for (final name in tagNames) {
-        await TagRepository.addTagToArticle(article, name);
-      }
-    } catch (e) {
-      logger.w('更新标签失败: $e');
-    }
-
-    article.updatedAt = DateTime.now().toUtc();
-    await article.save();
-    // 同步列表控制器中的共享模型
-    if (Get.isRegistered<ArticlesController>()) {
-      Get.find<ArticlesController>().updateArticle(article.id);
-    }
-    logger.i('文章字段已更新(无重新抓取): ${article.id}');
+    await _saveAndNotify(article, log: '文章字段已更新(无重新抓取)');
   }
 
   /// 在重新抓取并AI分析后应用用户手动输入字段
@@ -182,39 +154,17 @@ class ShareDialogController extends GetxController {
     if (article == null) return;
 
     bool changed = false;
-    final manualTitle = titleController.text.trim();
-    if (titleEdited.value && manualTitle.isNotEmpty && manualTitle != article.title) {
-      article.title = manualTitle;
-      // 手动标题覆盖后，确保不再使用 AI 标题展示
-      article.aiTitle = '';
-      changed = true;
-    }
+    changed = _setTitleIfEdited(article) || changed;
 
     // 标签
     final rawTags = tagsController.text.trim();
     if (rawTags.isNotEmpty || tagList.isNotEmpty) {
       final tagNames = _getEffectiveTagNames(rawTags);
-      try {
-        // 合并现有标签与手动标签（保留AI生成）
-        final existing = article.tags.map((t) => t.name ?? '').where((e) => e.isNotEmpty).toSet();
-        for (final name in tagNames) {
-          if (!existing.contains(name)) {
-            await TagRepository.addTagToArticle(article, name);
-          }
-        }
-        changed = true;
-      } catch (e) {
-        logger.w('应用手动标签失败: $e');
-      }
+      changed = await _mergeTags(article, tagNames) || changed;
     }
 
     if (changed) {
-      article.updatedAt = DateTime.now().toUtc();
-      await article.save();
-      if (Get.isRegistered<ArticlesController>()) {
-        Get.find<ArticlesController>().updateArticle(article.id);
-      }
-      logger.i('已应用手动标题/标签修改: ${article.id}');
+      await _saveAndNotify(article, log: '已应用手动标题/标签修改');
     }
   }
 
@@ -320,5 +270,58 @@ class ShareDialogController extends GetxController {
     }
     logger.i('跳转到文章详情页: ${articleID.value}');
     Get.offNamed(Routes.articleDetail, arguments: arg);
+  }
+
+  // ===== 私有通用方法（提炼复用） =====
+
+  /// 如果用户在本次会话中编辑过标题，则覆盖标题并清空 aiTitle；返回是否有修改
+  bool _setTitleIfEdited(dynamic article) {
+    final manualTitle = titleController.text.trim();
+    if (titleEdited.value && manualTitle.isNotEmpty && manualTitle != (article.title ?? '')) {
+      article.title = manualTitle;
+      article.aiTitle = '';
+      return true;
+    }
+    return false;
+  }
+
+  /// 用传入的标签集合替换当前文章标签
+  Future<void> _replaceTags(dynamic article, List<String> tagNames) async {
+    try {
+      article.tags.clear();
+      for (final name in tagNames) {
+        await TagRepository.addTagToArticle(article, name);
+      }
+    } catch (e) {
+      logger.w('更新标签失败: $e');
+    }
+  }
+
+  /// 把传入标签与现有标签合并（不重复），返回是否有新增
+  Future<bool> _mergeTags(dynamic article, List<String> tagNames) async {
+    try {
+      final existing = article.tags.map((t) => t.name ?? '').where((e) => e.isNotEmpty).toSet();
+      var added = false;
+      for (final name in tagNames) {
+        if (!existing.contains(name)) {
+          await TagRepository.addTagToArticle(article, name);
+          added = true;
+        }
+      }
+      return added;
+    } catch (e) {
+      logger.w('应用手动标签失败: $e');
+      return false;
+    }
+  }
+
+  /// 保存文章并通知列表页面刷新，同时记录日志前缀
+  Future<void> _saveAndNotify(dynamic article, {String log = '已更新'}) async {
+    article.updatedAt = DateTime.now().toUtc();
+    await article.save();
+    if (Get.isRegistered<ArticlesController>()) {
+      Get.find<ArticlesController>().updateArticle(article.id);
+    }
+    logger.i('$log: ${article.id}');
   }
 }

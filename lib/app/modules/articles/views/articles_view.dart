@@ -55,7 +55,7 @@ class ArticlesView extends GetView<ArticlesController> {
   /// 构建过滤指示器部分
   Widget _buildFilterIndicatorSection(BuildContext context) {
     return Obx(() {
-      if (!_shouldShowFilterIndicator()) return const SizedBox.shrink();
+      if (!controller.hasActiveFilters()) return const SizedBox.shrink();
 
       logger.d('显示过滤指示器: ${controller.getTitle()}');
       return _FilterIndicator(title: controller.getTitle(), onClear: controller.clearAllFilters);
@@ -73,19 +73,14 @@ class ArticlesView extends GetView<ArticlesController> {
     });
   }
 
-  /// 判断是否应该显示过滤指示器
-  bool _shouldShowFilterIndicator() {
-    return controller.searchController.text.isNotEmpty ||
-        controller.tagName.value.isNotEmpty ||
-        controller.onlyFavorite.value ||
-        controller.selectedFilterDate.value != null;
-  }
+  // 已由 controller.hasActiveFilters 提供判断
 
   /// 构建应用栏
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      backgroundColor:
-          Theme.of(context).brightness == Brightness.dark ? const Color(0xFF121212) : const Color(0xFF5E8BFF),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? const Color(0xFF121212)
+          : const Color(0xFF5E8BFF),
       elevation: 0.5,
       leading: _buildCalendarButton(context),
       title: _buildAppBarTitle(),
@@ -135,11 +130,10 @@ class ArticlesView extends GetView<ArticlesController> {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_horiz, color: Colors.white, size: 20),
       onSelected: (value) => _handleMenuSelection(value, context),
-      itemBuilder:
-          (context) => [
-            _buildPopupMenuItem(context, 'tags', FeatherIcons.tag, '标签筛选'),
-            _buildFavoriteMenuItem(context),
-          ],
+      itemBuilder: (context) => [
+        _buildPopupMenuItem(context, 'tags', FeatherIcons.tag, '标签筛选'),
+        _buildFavoriteMenuItem(context),
+      ],
     );
   }
 
@@ -177,7 +171,13 @@ class ArticlesView extends GetView<ArticlesController> {
   }) {
     return PopupMenuItem(
       value: value,
-      child: Row(children: [Icon(icon, size: 20, color: iconColor), const SizedBox(width: 8), Text(text)]),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: iconColor),
+          const SizedBox(width: 8),
+          Text(text),
+        ],
+      ),
     );
   }
 
@@ -207,7 +207,7 @@ class ArticlesView extends GetView<ArticlesController> {
 
   /// 显示日历选择对话框
   void _showCalendarDialog(BuildContext context) {
-    if (_shouldShowFilterIndicator()) {
+    if (controller.hasActiveFilters()) {
       logger.d('清除现有过滤条件');
       controller.clearAllFilters();
     }
@@ -240,7 +240,9 @@ class _FilterIndicator extends StatelessWidget {
       decoration: BoxDecoration(color: colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
       child: Row(
         children: [
-          Expanded(child: Text('已过滤: $title', style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurface))),
+          Expanded(
+            child: Text('已过滤: $title', style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurface)),
+          ),
           InkWell(
             onTap: onClear,
             borderRadius: BorderRadius.circular(4),

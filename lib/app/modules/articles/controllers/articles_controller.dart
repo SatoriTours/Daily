@@ -73,18 +73,9 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     isSearchVisible.toggle();
 
     if (isSearchVisible.value) {
-      // 如果开启搜索，清空文本并准备接收输入
-      searchController.clear();
-      // 延迟一下再激活焦点，确保UI已经构建完成
-      Future.delayed(const Duration(milliseconds: 100), () {
-        searchFocusNode.requestFocus();
-      });
+      _prepareSearchFocus();
     } else {
-      // 如果关闭搜索，并且搜索框有内容，则清除并重新加载文章
-      if (searchController.text.isNotEmpty) {
-        searchController.clear();
-        reloadArticles();
-      }
+      _clearSearchIfNeeded();
     }
   }
 
@@ -116,10 +107,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
   void filterByDate(DateTime date) {
     final selectedDay = DateTime(date.year, date.month, date.day);
     selectedFilterDate.value = selectedDay;
-    tagId.value = -1;
-    tagName.value = '';
-    onlyFavorite.value = false;
-    searchController.clear();
+    _resetOtherFilters();
     reloadArticles();
   }
 
@@ -198,6 +186,14 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     return '全部文章';
   }
 
+  /// 是否存在任一过滤条件（供视图判断显示“已过滤”指示）
+  bool hasActiveFilters() {
+    return searchController.text.isNotEmpty ||
+        tagName.value.isNotEmpty ||
+        onlyFavorite.value ||
+        selectedFilterDate.value != null;
+  }
+
   /// 获取每天文章数量统计
   Map<DateTime, int> getDailyArticleCounts() {
     return ArticleRepository.getDailyArticleCounts();
@@ -253,16 +249,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     bool? favorite = onlyFavorite.value ? true : null;
     List<int>? tagIds = tagId.value > 0 ? [tagId.value] : null;
     DateTime? startDate = selectedFilterDate.value;
-    DateTime? endDate = selectedFilterDate.value != null
-        ? DateTime(
-            selectedFilterDate.value!.year,
-            selectedFilterDate.value!.month,
-            selectedFilterDate.value!.day,
-            23,
-            59,
-            59,
-          )
-        : null;
+    DateTime? endDate = selectedFilterDate.value != null ? _endOfDay(selectedFilterDate.value!) : null;
 
     isLoading.value = true;
 
@@ -282,37 +269,57 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     }
   }
 
-  /// 加载更多文章
-  Future<void> _loadMoreArticles() async {
+  /// 加载更多文章（向后）
+  Future<void> _loadMoreArticles() async => _loadAdjacentArticles(loadAfter: true);
+
+  /// 加载之前的文章（向前）
+  Future<void> _loadPreviousArticles() async => _loadAdjacentArticles(loadAfter: false);
+
+  /// 通用相邻分页加载逻辑
+  Future<void> _loadAdjacentArticles({required bool loadAfter}) async {
     if (articles.isEmpty) return;
 
     isLoading.value = true;
-
     try {
-      final articleId = articles.last.id;
-      logger.i('加载ID:$articleId之后的$_pageSize篇文章');
+      final anchorId = loadAfter ? articles.last.id : articles.first.id;
+      logger.i(loadAfter ? '加载ID:$anchorId之后的$_pageSize篇文章' : '加载ID:$anchorId之前的$_pageSize篇文章');
 
-      final newArticles = _fetchArticles(articleId, false);
-      articles.addAll(newArticles);
+      final newArticles = _fetchArticles(anchorId, loadAfter ? false : true);
+      if (loadAfter) {
+        articles.addAll(newArticles);
+      } else {
+        articles.insertAll(0, newArticles);
+      }
     } finally {
       isLoading.value = false;
     }
   }
 
-  /// 加载之前的文章
-  Future<void> _loadPreviousArticles() async {
-    if (articles.isEmpty) return;
+  // ==== 私有小工具 ====
 
-    isLoading.value = true;
+  void _prepareSearchFocus() {
+    // 如果开启搜索，清空文本并准备接收输入
+    searchController.clear();
+    // 延迟一下再激活焦点，确保UI已经构建完成
+    Future.delayed(const Duration(milliseconds: 100), () {
+      searchFocusNode.requestFocus();
+    });
+  }
 
-    try {
-      final articleId = articles.first.id;
-      logger.i('加载ID:$articleId之前的$_pageSize篇文章');
-
-      final newArticles = _fetchArticles(articleId, true);
-      articles.insertAll(0, newArticles);
-    } finally {
-      isLoading.value = false;
+  void _clearSearchIfNeeded() {
+    // 如果关闭搜索，并且搜索框有内容，则清除并重新加载文章
+    if (searchController.text.isNotEmpty) {
+      searchController.clear();
+      reloadArticles();
     }
   }
+
+  void _resetOtherFilters() {
+    tagId.value = -1;
+    tagName.value = '';
+    onlyFavorite.value = false;
+    searchController.clear();
+  }
+
+  DateTime _endOfDay(DateTime date) => DateTime(date.year, date.month, date.day, 23, 59, 59);
 }

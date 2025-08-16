@@ -37,26 +37,26 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
               return Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                 child: Card(
-                  color: colorScheme.primaryContainer.withOpacity(0.18),
+                  color: colorScheme.primaryContainer.withValues(alpha: 0.18),
                   elevation: 1,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // 左侧细色条，低调强调
                         Container(
-                          width: 4,
-                          height: 36,
+                          width: 6,
+                          height: 48,
                           decoration: BoxDecoration(
-                            color: colorScheme.primary.withOpacity(0.55),
-                            borderRadius: BorderRadius.circular(2),
+                            color: colorScheme.primary.withValues(alpha: 0.55),
+                            borderRadius: BorderRadius.circular(3),
                           ),
                         ),
+                        const SizedBox(width: 12),
+                        Icon(Icons.hourglass_bottom, size: 22, color: colorScheme.primary.withValues(alpha: 0.95)),
                         const SizedBox(width: 10),
-                        Icon(Icons.hourglass_bottom, size: 18, color: colorScheme.primary.withOpacity(0.9)),
-                        const SizedBox(width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,8 +78,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
                                 borderRadius: BorderRadius.circular(4),
                                 child: LinearProgressIndicator(
                                   minHeight: 4,
-                                  backgroundColor: colorScheme.onSurfaceVariant.withOpacity(0.22),
-                                  color: colorScheme.primary.withOpacity(0.85),
+                                  backgroundColor: colorScheme.onSurfaceVariant.withValues(alpha: 0.22),
+                                  color: colorScheme.primary.withValues(alpha: 0.85),
                                 ),
                               ),
                             ],
