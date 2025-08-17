@@ -12,6 +12,7 @@ import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'widgets/articles_tags_dialog.dart';
 import 'widgets/articles_list.dart';
 import 'widgets/article_calendar_dialog.dart';
+import 'package:daily_satori/app/styles/font_style.dart';
 
 /// 文章列表页面
 /// 负责展示文章列表、搜索、过滤等功能
@@ -108,7 +109,7 @@ class ArticlesView extends GetView<ArticlesController> {
         logger.d('双击标题，滚动到顶部');
         _scrollToTop();
       },
-      child: Obx(() => Text(controller.getTitle(), style: const TextStyle(fontSize: 18, color: Colors.white))),
+      child: Obx(() => Text(controller.getTitle(), style: MyFontStyle.appBarTitleStyle)),
     );
   }
 

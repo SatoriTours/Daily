@@ -3,6 +3,7 @@ import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:intl/intl.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
+import 'package:daily_satori/app/styles/font_style.dart';
 
 import '../controllers/diary_controller.dart';
 import 'widgets/diary_list.dart';
@@ -143,10 +144,7 @@ class DiaryView extends GetView<DiaryController> {
       backgroundColorLight: DiaryStyle.accentColor(context),
       elevation: 1,
       leading: _buildAppBarButton(context, FeatherIcons.calendar, Colors.white, () => _showCalendarDialog(context)),
-      title: const Text(
-        '我的日记',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.white),
-      ),
+      title: Text('我的日记', style: MyFontStyle.appBarTitleStyle),
       onTitleDoubleTap: _scrollToTop,
       actions: [
         _buildAppBarButton(context, FeatherIcons.search, Colors.white, _activateSearch),

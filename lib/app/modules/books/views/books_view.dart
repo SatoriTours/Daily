@@ -28,19 +28,14 @@ class BooksView extends GetView<BooksController> {
       leading: _buildAppBarLeading(context),
       actions: _buildAppBarActions(),
       elevation: 1,
-      backgroundColorLight: Theme.of(context).scaffoldBackgroundColor,
-      backgroundColorDark: Theme.of(context).scaffoldBackgroundColor,
-      foregroundColor: AppColors.primary(context),
-      centerTitle: false,
+      // 使用 SAppBar 默认的主题主色背景与白色前景
+      centerTitle: true,
     );
   }
 
   /// 构建应用栏标题
   Widget _buildAppBarTitle(BuildContext context) {
-    return Text(
-      '读书悟道',
-      style: MyFontStyle.titleLarge.copyWith(fontWeight: FontWeight.w600, color: AppColors.primary(context)),
-    );
+    return Text('读书悟道', style: MyFontStyle.appBarTitleStyle);
   }
 
   /// 构建应用栏左侧按钮
