@@ -4,6 +4,17 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+// 签名配置：支持 key.properties 或环境变量；缺失 keystore 时回退到 debug 签名
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+def fallbackKeystorePath = "${projectDir}/../release-key.jks"
+def configuredKeystorePath = keystorePropertiesFile.exists() ? keystoreProperties.getProperty('storeFile', fallbackKeystorePath) : fallbackKeystorePath
+def releaseKeystoreFile = file(configuredKeystorePath)
+def hasReleaseKeystore = releaseKeystoreFile.exists()
+
 android {
     namespace = "tours.satori.daily"
     compileSdk = flutter.compileSdkVersion
@@ -12,12 +23,12 @@ android {
     ndkVersion = "27.0.12077973"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_19
-        targetCompatibility = JavaVersion.VERSION_19
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_19
+    jvmTarget = "17"
     }
 
     defaultConfig {
@@ -33,10 +44,17 @@ android {
 
     signingConfigs {
         release {
-            keyAlias System.getenv("KEY_ALIAS")
-            keyPassword System.getenv("KEY_PASSWORD")
-            storeFile file("${projectDir}/../release-key.jks")
-            storePassword System.getenv("STORE_PASSWORD")
+            if (keystorePropertiesFile.exists()) {
+                keyAlias keystoreProperties.getProperty('keyAlias')
+                keyPassword keystoreProperties.getProperty('keyPassword')
+                storeFile file(keystoreProperties.getProperty('storeFile', fallbackKeystorePath))
+                storePassword keystoreProperties.getProperty('storePassword')
+            } else {
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+                storeFile releaseKeystoreFile
+                storePassword System.getenv("STORE_PASSWORD")
+            }
         }
     }
 
@@ -44,8 +62,8 @@ android {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
-            // signingConfig = signingConfigs.debug
-            signingConfig signingConfigs.release
+            // 若找不到 release keystore，则使用 debug 签名以避免阻塞构建
+            signingConfig hasReleaseKeystore || keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
             minifyEnabled true
         }
         debug {
@@ -59,6 +77,7 @@ android {
         }
     }
 }
+
 
 // Tell Gradle to exclude the objectbox-android dependency
 // that is added by objectbox_flutter_libs for debug builds.
