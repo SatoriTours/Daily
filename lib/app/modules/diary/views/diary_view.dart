@@ -2,6 +2,7 @@ import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:intl/intl.dart';
+import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 
 import '../controllers/diary_controller.dart';
 import 'widgets/diary_list.dart';
@@ -56,7 +57,9 @@ class DiaryView extends GetView<DiaryController> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildFilterHeader(context, filterText),
-        Expanded(child: DiaryList(controller: controller, onEditDiary: (diary) => _showEditDialog(context, diary))),
+        Expanded(
+          child: DiaryList(controller: controller, onEditDiary: (diary) => _showEditDialog(context, diary)),
+        ),
       ],
     );
   }
@@ -135,21 +138,21 @@ class DiaryView extends GetView<DiaryController> {
 
   /// 构建AppBar
   PreferredSizeWidget _buildAppBar(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return AppBar(
-      backgroundColor: isDark ? const Color(0xFF121212) : DiaryStyle.accentColor(context),
+    return SAppBar(
+      backgroundColorDark: const Color(0xFF121212),
+      backgroundColorLight: DiaryStyle.accentColor(context),
       elevation: 1,
-      leadingWidth: 48,
-      titleSpacing: 0,
       leading: _buildAppBarButton(context, FeatherIcons.calendar, Colors.white, () => _showCalendarDialog(context)),
-      title: GestureDetector(
-        onDoubleTap: _scrollToTop,
-        child: const Text('我的日记', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.white)),
+      title: const Text(
+        '我的日记',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.white),
       ),
+      onTitleDoubleTap: _scrollToTop,
       actions: [
         _buildAppBarButton(context, FeatherIcons.search, Colors.white, _activateSearch),
         _buildAppBarButton(context, FeatherIcons.tag, Colors.white, () => _showTagsDialog(context)),
       ],
+      foregroundColor: Colors.white,
     );
   }
 
@@ -160,12 +163,11 @@ class DiaryView extends GetView<DiaryController> {
       splashRadius: 24,
       onPressed: onPressed,
       padding: const EdgeInsets.all(12),
-      tooltip:
-          icon == FeatherIcons.calendar
-              ? '日历'
-              : icon == FeatherIcons.search
-              ? '搜索'
-              : '标签',
+      tooltip: icon == FeatherIcons.calendar
+          ? '日历'
+          : icon == FeatherIcons.search
+          ? '搜索'
+          : '标签',
     );
   }
 

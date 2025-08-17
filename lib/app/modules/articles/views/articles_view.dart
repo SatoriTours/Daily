@@ -8,6 +8,7 @@ import 'package:daily_satori/app/components/empty_states/articles_empty_view.dar
 import 'package:daily_satori/app/styles/app_theme.dart';
 
 import 'widgets/articles_search_bar.dart';
+import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'widgets/articles_tags_dialog.dart';
 import 'widgets/articles_list.dart';
 import 'widgets/article_calendar_dialog.dart';
@@ -77,15 +78,15 @@ class ArticlesView extends GetView<ArticlesController> {
 
   /// 构建应用栏
   PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark
-          ? const Color(0xFF121212)
-          : const Color(0xFF5E8BFF),
+    return SAppBar(
+      backgroundColorDark: const Color(0xFF121212),
+      backgroundColorLight: const Color(0xFF5E8BFF),
       elevation: 0.5,
       leading: _buildCalendarButton(context),
       title: _buildAppBarTitle(),
       centerTitle: true,
       actions: _buildAppBarActions(context),
+      foregroundColor: Colors.white,
     );
   }
 

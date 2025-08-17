@@ -4,6 +4,7 @@ import 'package:daily_satori/app/modules/books/views/widgets/widgets.dart';
 import 'package:daily_satori/app/styles/colors.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 
 /// 读书页面
 ///
@@ -22,12 +23,15 @@ class BooksView extends GetView<BooksController> {
 
   /// 构建应用栏
   PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
+    return SAppBar(
       title: _buildAppBarTitle(context),
       leading: _buildAppBarLeading(context),
       actions: _buildAppBarActions(),
       elevation: 1,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColorLight: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColorDark: Theme.of(context).scaffoldBackgroundColor,
+      foregroundColor: AppColors.primary(context),
+      centerTitle: false,
     );
   }
 
@@ -56,13 +60,12 @@ class BooksView extends GetView<BooksController> {
   /// 构建处理中指示器
   Widget _buildProcessingIndicator() {
     return Obx(
-      () =>
-          controller.isProcessing.value
-              ? const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-              )
-              : const SizedBox.shrink(),
+      () => controller.isProcessing.value
+          ? const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          : const SizedBox.shrink(),
     );
   }
 
@@ -95,18 +98,17 @@ class BooksView extends GetView<BooksController> {
       context: context,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder:
-          (context) => Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildFilterDialogHeader(context),
-              const Divider(height: 1),
-              _buildFilterDialogList(context, books),
-              const Divider(height: 1),
-              _buildFilterDialogFooter(context),
-            ],
-          ),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildFilterDialogHeader(context),
+          const Divider(height: 1),
+          _buildFilterDialogList(context, books),
+          const Divider(height: 1),
+          _buildFilterDialogFooter(context),
+        ],
+      ),
     );
   }
 
@@ -178,8 +180,9 @@ class BooksView extends GetView<BooksController> {
   /// 构建单个书籍过滤项
   Widget _buildBookFilterItem(BuildContext context, BookModel? book, bool isSelected) {
     final backgroundColor = isSelected ? AppColors.primary(context).withValues(alpha: 51) : Colors.transparent;
-    final textColor =
-        isSelected ? AppColors.primary(context) : Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+    final textColor = isSelected
+        ? AppColors.primary(context)
+        : Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
 
     return InkWell(
       onTap: () {
