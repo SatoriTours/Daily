@@ -28,7 +28,9 @@ class HttpService {
   /// [url] 图片URL
   /// 返回本地保存路径,失败返回空字符串
   Future<String> downloadImage(String url) async {
-    if (url.isEmpty) return '';
+    if (url.isEmpty) {
+      return '';
+    }
 
     final imageName = FileService.i.generateFileNameByUrl(url);
     final imagePath = FileService.i.getImagePath(imageName);
@@ -40,7 +42,9 @@ class HttpService {
   /// [url] 文件URL
   /// 返回本地保存路径,失败返回空字符串
   Future<String> downloadFile(String url) async {
-    if (url.isEmpty) return '';
+    if (url.isEmpty) {
+      return '';
+    }
 
     final fileName = url.split('/').last;
     final filePath = FileService.i.getDownloadPath(fileName);
@@ -111,9 +115,13 @@ class HttpService {
 
   // 简单魔数校验常见图片格式
   bool _looksLikeSupportedImage(List<int> bytes) {
-    if (bytes.length < 12) return false;
+    if (bytes.length < 12) {
+      return false;
+    }
     // JPEG: FF D8 FF
-    if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return true;
+    if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) {
+      return true;
+    }
     // PNG: 89 50 4E 47 0D 0A 1A 0A
     if (bytes[0] == 0x89 &&
         bytes[1] == 0x50 &&
@@ -122,16 +130,18 @@ class HttpService {
         bytes[4] == 0x0D &&
         bytes[5] == 0x0A &&
         bytes[6] == 0x1A &&
-        bytes[7] == 0x0A)
+        bytes[7] == 0x0A) {
       return true;
+    }
     // GIF: 'GIF87a' or 'GIF89a'
     if (bytes[0] == 0x47 &&
         bytes[1] == 0x49 &&
         bytes[2] == 0x46 &&
         bytes[3] == 0x38 &&
         (bytes[4] == 0x37 || bytes[4] == 0x39) &&
-        bytes[5] == 0x61)
+        bytes[5] == 0x61) {
       return true;
+    }
     // WebP: RIFF....WEBP
     if (bytes[0] == 0x52 &&
         bytes[1] == 0x49 &&
@@ -140,8 +150,9 @@ class HttpService {
         bytes[8] == 0x57 &&
         bytes[9] == 0x45 &&
         bytes[10] == 0x42 &&
-        bytes[11] == 0x50)
+        bytes[11] == 0x50) {
       return true;
+    }
     return false;
   }
 

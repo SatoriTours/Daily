@@ -308,7 +308,7 @@ class ShareDialogController extends GetxController {
         }
       }
       if (added) {
-        final merged = [...existing, ...tagNames].toSet().toList();
+        final merged = {...existing, ...tagNames}.toList();
         await TagRepository.setTagsForArticle(article.id, merged);
       }
       return added;
