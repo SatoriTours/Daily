@@ -35,10 +35,12 @@ class WebpageParserService {
       final article = await _processArticleInitialization(url, comment, isUpdate, articleID);
 
       // 步骤2: 获取并保存网页内容
-      await _processWebContentFetch(article);
+      final fetched = await _processWebContentFetch(article);
 
-      // 步骤3: 处理AI任务, 异步执行
-      _processAiTasks(article);
+      // 步骤3: 处理AI任务（仅在抓取成功时），异步执行
+      if (fetched) {
+        _processAiTasks(article);
+      }
 
       return article;
     } catch (e, stackTrace) {
@@ -53,6 +55,9 @@ class WebpageParserService {
         }
       }
 
+      // 返回已有文章（若有），避免抛错到 UI
+      final fallback = ArticleRepository.find(articleID);
+      if (fallback != null) return fallback;
       throw Exception("保存网页失败: $e");
     }
   }
@@ -98,7 +103,7 @@ class WebpageParserService {
   }
 
   /// 处理网页内容获取阶段：获取标题、内容和封面图
-  Future<void> _processWebContentFetch(ArticleModel article) async {
+  Future<bool> _processWebContentFetch(ArticleModel article) async {
     final articleId = article.id;
     logger.i("[网页解析][内容获取] ▶ 开始获取网页内容: #$articleId, URL: ${article.url}");
 
@@ -133,10 +138,11 @@ class WebpageParserService {
       logger.i("[网页解析][内容获取] ◀ 网页内容获取成功: #$articleId");
       // 抓取阶段完成后也通知 UI，一方面展示“处理中”，另一方面让详情页先看到最新抓取内容
       _notifyUI(articleId);
+      return true;
     } catch (e) {
       logger.e("[网页解析][内容获取] 获取失败: #$articleId, $e");
       await _markArticleAsFailed(articleId, "网页内容获取失败: $e");
-      throw Exception("获取网页内容失败: $e");
+      return false;
     }
   }
 
@@ -165,7 +171,7 @@ class WebpageParserService {
     } catch (e) {
       logger.e("[网页解析][AI处理] 处理失败: #$articleId, $e");
       await _markArticleAsFailed(articleId, "AI处理失败: $e");
-      throw Exception("AI处理失败: $e");
+      // 不再抛出异常，避免未捕获的 Future 错误
     }
   }
 

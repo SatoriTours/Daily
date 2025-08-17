@@ -1,6 +1,7 @@
 import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/models/tag_model.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
@@ -64,7 +65,9 @@ class TagRepository {
       // 添加标签到文章
       article.tags.add(tagModel.entity);
 
-      // 更新已保存
+      // 立即持久化变更，避免后续仅更新单字段导致关系未保存
+      await ObjectboxService.i.box<Article>().putAsync(article);
+
       logger.i("[添加标签] 已添加标签 '$tagName' 到文章 ${articleModel.title}");
       return true;
     } catch (e) {

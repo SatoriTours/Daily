@@ -2,8 +2,6 @@ import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/migration_service/migration_task.dart';
 import 'package:daily_satori/app/services/migration_service/migration_tasks.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
-import 'package:objectbox/objectbox.dart';
 
 /// 迁移服务，用于处理数据模型和文件存储的迁移工作
 ///
@@ -73,17 +71,21 @@ class MigrationService {
         if (shouldRun) {
           logger.i("🔄 [迁移服务] 执行迁移任务 v${task.version}: ${task.description}");
 
-          // 使用ObjectBox事务确保迁移任务和版本更新的原子性
-          await ObjectboxService.i.store.runInTransaction(TxMode.write, () async {
-            // 执行迁移任务
+          // 注意：ObjectBox 不支持在事务中执行 async 函数
+          // 这里改为：先执行迁移（包含可能的异步文件/数据库操作），
+          // 迁移成功后再单独更新版本号。
+          try {
+            // 执行迁移任务（可能包含异步操作）
             await task.migrate();
 
-            // 更新最新版本号
+            // 仅在迁移成功后更新版本号
             latestVersion = task.version;
-
-            // 更新数据库版本
             await _updateDbVersion(latestVersion);
-          });
+          } catch (e, st) {
+            logger.e("❌ [迁移服务] 迁移任务 v${task.version} 失败: $e", stackTrace: st);
+            // 发生错误，不更新版本号，继续下一个任务（或根据需要可中断）
+            continue;
+          }
 
           logger.i("✅ [迁移服务] 迁移任务 v${task.version} 完成");
         } else {

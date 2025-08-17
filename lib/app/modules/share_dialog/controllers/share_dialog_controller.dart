@@ -292,6 +292,8 @@ class ShareDialogController extends GetxController {
       for (final name in tagNames) {
         await TagRepository.addTagToArticle(article, name);
       }
+      // 持久化标签关系
+      await ArticleRepository.update(article);
     } catch (e) {
       logger.w('更新标签失败: $e');
     }
@@ -307,6 +309,10 @@ class ShareDialogController extends GetxController {
           await TagRepository.addTagToArticle(article, name);
           added = true;
         }
+      }
+      if (added) {
+        // 持久化标签关系
+        await ArticleRepository.update(article);
       }
       return added;
     } catch (e) {

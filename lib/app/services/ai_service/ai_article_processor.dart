@@ -106,6 +106,8 @@ class AiArticleProcessor {
       for (final t in tagNames) {
         await TagRepository.addTagToArticle(article, t);
       }
+      // 持久化标签关系变更，确保详情页可见
+      await ArticleRepository.update(article);
       logger.d('[AI:标签] 保存 ${tagNames.length} 个');
     } catch (e) {
       logger.e('[AI:标签] 失败: $e');
