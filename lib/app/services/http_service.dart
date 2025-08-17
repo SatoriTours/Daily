@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 
 import 'package:daily_satori/app/services/file_service.dart';
@@ -18,11 +19,9 @@ class HttpService {
 
   Future<void> init() async {
     logger.i("[初始化服务] HttpService");
-    _dio = Dio(BaseOptions(
-      connectTimeout: _timeoutDuration,
-      receiveTimeout: _timeoutDuration,
-      sendTimeout: _timeoutDuration,
-    ));
+    _dio = Dio(
+      BaseOptions(connectTimeout: _timeoutDuration, receiveTimeout: _timeoutDuration, sendTimeout: _timeoutDuration),
+    );
   }
 
   /// 下载图片
@@ -57,9 +56,39 @@ class HttpService {
     try {
       final response = await dio.download(url, savePath);
 
-      // 不支持SVG格式
-      if (response.headers.value('content-type')?.contains('svg') == true) {
-        logger.i("下载文件失败: 不支持SVG格式");
+      final contentType = (response.headers.value('content-type') ?? '').toLowerCase();
+
+      // 仅接受图片类型，排除 svg/avif（避免本地解码失败）
+      final isImage = contentType.startsWith('image/');
+      final isSvg = contentType.contains('svg');
+      final isAvif = contentType.contains('avif');
+      if (!isImage || isSvg || isAvif) {
+        _safeDelete(savePath);
+        logger.i("下载文件失败: 不受支持的内容类型 $contentType");
+        return false;
+      }
+
+      // 基础文件校验：存在且非空
+      final file = File(savePath);
+      if (!await file.exists()) {
+        logger.i("下载文件失败: 文件不存在");
+        return false;
+      }
+      final length = await file.length();
+      if (length < 16) {
+        _safeDelete(savePath);
+        logger.i("下载文件失败: 文件过小($length 字节)");
+        return false;
+      }
+
+      // 魔数校验：JPEG/PNG/GIF/WebP 之一
+      final raf = await file.open();
+      final bytes = await raf.read(16);
+      await raf.close();
+
+      if (!_looksLikeSupportedImage(bytes)) {
+        _safeDelete(savePath);
+        logger.i("下载文件失败: 文件签名非受支持图片");
         return false;
       }
 
@@ -68,6 +97,52 @@ class HttpService {
       logger.i("下载文件失败: $e");
       return false;
     }
+  }
+
+  // 删除无效文件
+  void _safeDelete(String path) {
+    try {
+      final f = File(path);
+      if (f.existsSync()) {
+        f.deleteSync();
+      }
+    } catch (_) {}
+  }
+
+  // 简单魔数校验常见图片格式
+  bool _looksLikeSupportedImage(List<int> bytes) {
+    if (bytes.length < 12) return false;
+    // JPEG: FF D8 FF
+    if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return true;
+    // PNG: 89 50 4E 47 0D 0A 1A 0A
+    if (bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47 &&
+        bytes[4] == 0x0D &&
+        bytes[5] == 0x0A &&
+        bytes[6] == 0x1A &&
+        bytes[7] == 0x0A)
+      return true;
+    // GIF: 'GIF87a' or 'GIF89a'
+    if (bytes[0] == 0x47 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x38 &&
+        (bytes[4] == 0x37 || bytes[4] == 0x39) &&
+        bytes[5] == 0x61)
+      return true;
+    // WebP: RIFF....WEBP
+    if (bytes[0] == 0x52 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x46 &&
+        bytes[8] == 0x57 &&
+        bytes[9] == 0x45 &&
+        bytes[10] == 0x42 &&
+        bytes[11] == 0x50)
+      return true;
+    return false;
   }
 
   /// 获取文本内容

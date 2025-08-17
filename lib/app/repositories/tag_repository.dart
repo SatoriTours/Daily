@@ -76,6 +76,27 @@ class TagRepository {
     }
   }
 
+  /// 为文章设置完整的标签集合（覆盖式），并持久化
+  static Future<void> setTagsForArticle(int articleId, List<String> tagNames) async {
+    try {
+      final articleBox = ObjectboxService.i.box<Article>();
+      final article = articleBox.get(articleId);
+      if (article == null) return;
+
+      // 清空并重建标签集合
+      article.tags.clear();
+      for (final name in tagNames) {
+        final tag = findOrCreate(name).entity;
+        article.tags.add(tag);
+      }
+
+      // 仅基于最新实体持久化，避免覆盖其它并发更新字段
+      await articleBox.putAsync(article);
+    } catch (e) {
+      logger.e('[设置文章标签] 失败: $e');
+    }
+  }
+
   /// 创建或查找标签
   static TagModel findOrCreate(String name, {String? icon}) {
     var tagModel = findByName(name);

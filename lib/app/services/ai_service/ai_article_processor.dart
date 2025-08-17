@@ -102,12 +102,8 @@ class AiArticleProcessor {
   Future<void> _saveTags(ArticleModel article, List<String> tagNames) async {
     if (tagNames.isEmpty) return;
     try {
-      article.tags.clear();
-      for (final t in tagNames) {
-        await TagRepository.addTagToArticle(article, t);
-      }
-      // 持久化标签关系变更，确保详情页可见
-      await ArticleRepository.update(article);
+      // 覆盖式设置标签，避免覆盖文章其它字段
+      await TagRepository.setTagsForArticle(article.id, tagNames);
       logger.d('[AI:标签] 保存 ${tagNames.length} 个');
     } catch (e) {
       logger.e('[AI:标签] 失败: $e');

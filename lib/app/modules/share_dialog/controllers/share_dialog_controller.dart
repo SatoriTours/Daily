@@ -275,7 +275,7 @@ class ShareDialogController extends GetxController {
   // ===== 私有通用方法（提炼复用） =====
 
   /// 如果用户在本次会话中编辑过标题，则覆盖标题并清空 aiTitle；返回是否有修改
-  bool _setTitleIfEdited(dynamic article) {
+  bool _setTitleIfEdited(ArticleModel article) {
     final manualTitle = titleController.text.trim();
     if (titleEdited.value && manualTitle.isNotEmpty && manualTitle != (article.title ?? '')) {
       article.title = manualTitle;
@@ -286,33 +286,30 @@ class ShareDialogController extends GetxController {
   }
 
   /// 用传入的标签集合替换当前文章标签
-  Future<void> _replaceTags(dynamic article, List<String> tagNames) async {
+  Future<void> _replaceTags(ArticleModel article, List<String> tagNames) async {
     try {
-      article.tags.clear();
-      for (final name in tagNames) {
-        await TagRepository.addTagToArticle(article, name);
-      }
-      // 持久化标签关系
-      await ArticleRepository.update(article);
+      await TagRepository.setTagsForArticle(article.id, tagNames);
     } catch (e) {
       logger.w('更新标签失败: $e');
     }
   }
 
   /// 把传入标签与现有标签合并（不重复），返回是否有新增
-  Future<bool> _mergeTags(dynamic article, List<String> tagNames) async {
+  Future<bool> _mergeTags(ArticleModel article, List<String> tagNames) async {
     try {
-      final existing = article.tags.map((t) => t.name ?? '').where((e) => e.isNotEmpty).toSet();
+      final Set<String> existing = article.tags
+          .map<String>((t) => (t.name ?? '').toString())
+          .where((String e) => e.isNotEmpty)
+          .toSet();
       var added = false;
       for (final name in tagNames) {
         if (!existing.contains(name)) {
-          await TagRepository.addTagToArticle(article, name);
           added = true;
         }
       }
       if (added) {
-        // 持久化标签关系
-        await ArticleRepository.update(article);
+        final merged = [...existing, ...tagNames].toSet().toList();
+        await TagRepository.setTagsForArticle(article.id, merged);
       }
       return added;
     } catch (e) {
@@ -322,7 +319,7 @@ class ShareDialogController extends GetxController {
   }
 
   /// 保存文章并通知列表页面刷新，同时记录日志前缀
-  Future<void> _saveAndNotify(dynamic article, {String log = '已更新'}) async {
+  Future<void> _saveAndNotify(ArticleModel article, {String log = '已更新'}) async {
     article.updatedAt = DateTime.now().toUtc();
     await article.save();
     if (Get.isRegistered<ArticlesController>()) {
