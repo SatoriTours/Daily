@@ -109,7 +109,7 @@ class ArticleDetailAppBar extends StatelessWidget implements PreferredSizeWidget
           await controller.deleteArticle();
           Get.find<ArticlesController>().removeArticle(controller.articleModel.id);
           Get.back();
-          Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+          UIUtils.showSuccess('删除成功', title: '提示');
         },
         child: Text('删除', style: TextStyle(color: colorScheme.error)),
       ),

@@ -3,6 +3,7 @@ import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
 import '../controllers/ai_config_edit_controller.dart';
 
@@ -105,17 +106,16 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       child: Obx(
         () => SelectionField(
           value: controller.apiPresets[controller.selectedApiPresetIndex].name,
-          onTap:
-              () => _showSelectionBottomSheet(
-                context: context,
-                title: '选择AI服务提供商',
-                items: controller.apiPresets.map((e) => e.name).toList(),
-                selectedValue: controller.apiPresets[controller.selectedApiPresetIndex].name,
-                onSelected: (index) {
-                  logger.i('选择API提供商: ${controller.apiPresets[index].name}');
-                  controller.updateApiAddress(index);
-                },
-              ),
+          onTap: () => _showSelectionBottomSheet(
+            context: context,
+            title: '选择AI服务提供商',
+            items: controller.apiPresets.map((e) => e.name).toList(),
+            selectedValue: controller.apiPresets[controller.selectedApiPresetIndex].name,
+            onSelected: (index) {
+              logger.i('选择API提供商: ${controller.apiPresets[index].name}');
+              controller.updateApiAddress(index);
+            },
+          ),
         ),
       ),
     );
@@ -129,10 +129,9 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       title: "模型名称",
       icon: Icons.smart_toy,
       child: Obx(
-        () =>
-            controller.isCustomApiAddress
-                ? FormTextField(controller: controller.modelNameController, hintText: "输入模型名称")
-                : SelectionField(value: controller.modelName, onTap: () => _showModelSelectionBottomSheet(context)),
+        () => controller.isCustomApiAddress
+            ? FormTextField(controller: controller.modelNameController, hintText: "输入模型名称")
+            : SelectionField(value: controller.modelName, onTap: () => _showModelSelectionBottomSheet(context)),
       ),
     );
   }
@@ -178,7 +177,11 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [FormSectionHeader(title: title, icon: icon), const SizedBox(height: 12), child],
+        children: [
+          FormSectionHeader(title: title, icon: icon),
+          const SizedBox(height: 12),
+          child,
+        ],
       ),
     );
   }
@@ -220,10 +223,11 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       context: context,
       isScrollControlled: true,
       backgroundColor: colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder:
-          (context) =>
-              SelectionBottomSheet(title: title, items: items, selectedValue: selectedValue, onSelected: onSelected),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+      ),
+      builder: (context) =>
+          SelectionBottomSheet(title: title, items: items, selectedValue: selectedValue, onSelected: onSelected),
     );
   }
 }
@@ -311,7 +315,9 @@ class SelectionField extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Expanded(child: Text(value, style: textTheme.bodyLarge, overflow: TextOverflow.ellipsis)),
+            Expanded(
+              child: Text(value, style: textTheme.bodyLarge, overflow: TextOverflow.ellipsis),
+            ),
             Icon(Icons.arrow_drop_down, color: colorScheme.onSurface.withValues(alpha: 0.5)),
           ],
         ),
@@ -362,8 +368,8 @@ class SelectionBottomSheet extends StatelessWidget {
                 physics: const ClampingScrollPhysics(),
                 padding: EdgeInsets.zero,
                 itemCount: items.length,
-                itemBuilder:
-                    (context, index) => _buildSelectionItem(context, items[index], items[index] == selectedValue, () {
+                itemBuilder: (context, index) =>
+                    _buildSelectionItem(context, items[index], items[index] == selectedValue, () {
                       onSelected(index);
                       Navigator.pop(context);
                     }),

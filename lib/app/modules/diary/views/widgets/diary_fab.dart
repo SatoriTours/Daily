@@ -3,6 +3,7 @@ import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app_exports.dart';
 
 import '../../controllers/diary_controller.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 import 'diary_editor.dart';
 
 /// 日记悬浮按钮组件
@@ -126,7 +127,9 @@ class _DiaryFabState extends State<DiaryFab> with SingleTickerProviderStateMixin
       context: context,
       isScrollControlled: true,
       backgroundColor: DiaryStyle.bottomSheetColor(context),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+      ),
       builder: (context) => DiaryEditor(controller: widget.controller),
     );
   }

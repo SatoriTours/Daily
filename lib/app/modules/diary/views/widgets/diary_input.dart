@@ -5,6 +5,7 @@ import 'package:feather_icons/feather_icons.dart';
 
 import '../../controllers/diary_controller.dart';
 import 'diary_editor.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
 /// 日记输入组件 - 支持Markdown和图片
 class DiaryInput extends StatelessWidget {
@@ -64,7 +65,9 @@ class DiaryInput extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: DiaryStyle.bottomSheetColor(context),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+      ),
       builder: (context) => DiaryEditor(controller: controller),
     );
   }

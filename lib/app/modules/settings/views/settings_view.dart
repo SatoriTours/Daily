@@ -1,7 +1,8 @@
 import 'package:daily_satori/app/components/common/feature_icon.dart';
 import 'package:daily_satori/app/styles/app_styles.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/styles/dimensions.dart';
+import 'package:daily_satori/app/styles/components/button_styles.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -50,7 +51,10 @@ class SettingsView extends GetView<SettingsController> {
         decoration: BoxDecoration(color: colorScheme.primary, borderRadius: BorderRadius.circular(10)),
         child: Icon(Icons.article, color: colorScheme.onPrimary),
       ),
-      children: [Dimensions.verticalSpacerM, Text('您的个性化阅读助手，支持文章收藏、AI内容分析和日记管理。', style: textTheme.bodyMedium)],
+      children: [
+        Dimensions.verticalSpacerM,
+        Text('您的个性化阅读助手，支持文章收藏、AI内容分析和日记管理。', style: textTheme.bodyMedium),
+      ],
     );
   }
 
@@ -267,118 +271,115 @@ class SettingsView extends GetView<SettingsController> {
       context: context,
       isScrollControlled: true,
       backgroundColor: colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder:
-          (context) => Container(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL))),
+      builder: (context) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 标题
+            Row(
               children: [
-                // 标题
-                Row(
-                  children: [
-                    FeatureIcon(
-                      icon: Icons.cleaning_services_rounded,
-                      iconColor: Colors.orange,
-                      containerSize: 36,
-                      iconSize: 20,
-                    ),
-                    Dimensions.horizontalSpacerM,
-                    Text('清理与维护', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                    const Spacer(),
-                    IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),
-                  ],
+                FeatureIcon(
+                  icon: Icons.cleaning_services_rounded,
+                  iconColor: Colors.orange,
+                  containerSize: 36,
+                  iconSize: 20,
                 ),
-                Dimensions.verticalSpacerM,
-
-                // 存储分析
-                _buildCleanupSection(
-                  context: context,
-                  title: '存储分析',
-                  subtitle: '分析应用占用的存储空间',
-                  icon: Icons.storage_rounded,
-                  color: Colors.blue,
-                  onTap: () {
-                    Navigator.pop(context);
-                    controller.analyzeStorage();
-                  },
-                ),
-
-                // 清除缓存
-                _buildCleanupSection(
-                  context: context,
-                  title: '清除缓存',
-                  subtitle: '清除应用临时文件和缓存数据',
-                  icon: Icons.delete_sweep_rounded,
-                  color: Colors.red,
-                  onTap: () {
-                    Navigator.pop(context);
-                    controller.clearCache();
-                  },
-                ),
-
-                // 数据库优化
-                _buildCleanupSection(
-                  context: context,
-                  title: '数据库优化',
-                  subtitle: '优化数据库结构，提升应用性能',
-                  icon: Icons.build_rounded,
-                  color: Colors.deepPurple,
-                  onTap: () {
-                    Navigator.pop(context);
-                    controller.optimizeDatabase();
-                  },
-                ),
-
-                // 恢复出厂设置
-                _buildCleanupSection(
-                  context: context,
-                  title: '恢复出厂设置',
-                  subtitle: '将应用恢复到初始状态（不会删除数据）',
-                  icon: Icons.restart_alt_rounded,
-                  color: Colors.deepOrange,
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showFactoryResetConfirmDialog(context);
-                  },
-                ),
-
-                Dimensions.verticalSpacerM,
-                Text(
-                  '提示：定期清理缓存可以释放存储空间，数据库优化可以提高应用运行速度。',
-                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.5)),
-                ),
+                Dimensions.horizontalSpacerM,
+                Text('清理与维护', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                const Spacer(),
+                IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),
               ],
             ),
-          ),
+            Dimensions.verticalSpacerM,
+
+            // 存储分析
+            _buildCleanupSection(
+              context: context,
+              title: '存储分析',
+              subtitle: '分析应用占用的存储空间',
+              icon: Icons.storage_rounded,
+              color: Colors.blue,
+              onTap: () {
+                Navigator.pop(context);
+                controller.analyzeStorage();
+              },
+            ),
+
+            // 清除缓存
+            _buildCleanupSection(
+              context: context,
+              title: '清除缓存',
+              subtitle: '清除应用临时文件和缓存数据',
+              icon: Icons.delete_sweep_rounded,
+              color: Colors.red,
+              onTap: () {
+                Navigator.pop(context);
+                controller.clearCache();
+              },
+            ),
+
+            // 数据库优化
+            _buildCleanupSection(
+              context: context,
+              title: '数据库优化',
+              subtitle: '优化数据库结构，提升应用性能',
+              icon: Icons.build_rounded,
+              color: Colors.deepPurple,
+              onTap: () {
+                Navigator.pop(context);
+                controller.optimizeDatabase();
+              },
+            ),
+
+            // 恢复出厂设置
+            _buildCleanupSection(
+              context: context,
+              title: '恢复出厂设置',
+              subtitle: '将应用恢复到初始状态（不会删除数据）',
+              icon: Icons.restart_alt_rounded,
+              color: Colors.deepOrange,
+              onTap: () {
+                Navigator.pop(context);
+                _showFactoryResetConfirmDialog(context);
+              },
+            ),
+
+            Dimensions.verticalSpacerM,
+            Text(
+              '提示：定期清理缓存可以释放存储空间，数据库优化可以提高应用运行速度。',
+              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.5)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   void _showFactoryResetConfirmDialog(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('确认恢复出厂设置'),
-            content: const Text('这将重置所有应用设置，但不会删除您的数据。此操作不可撤销，是否继续？'),
-            actions: [
-              TextButton(
-                child: Text('取消', style: TextStyle(color: colorScheme.onSurface)),
-                onPressed: () => Navigator.pop(context),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('确认重置'),
-                onPressed: () {
-                  Navigator.pop(context);
-                  controller.factoryReset();
-                },
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('确认恢复出厂设置'),
+        content: const Text('这将重置所有应用设置，但不会删除您的数据。此操作不可撤销，是否继续？'),
+        actions: [
+          TextButton(
+            style: ButtonStyles.getTextStyle(context),
+            child: const Text('取消'),
+            onPressed: () => Navigator.pop(context),
           ),
+          ElevatedButton(
+            style: ButtonStyles.getDangerStyle(context),
+            child: const Text('确认重置'),
+            onPressed: () {
+              Navigator.pop(context);
+              controller.factoryReset();
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -391,161 +392,160 @@ class SettingsView extends GetView<SettingsController> {
       context: context,
       isScrollControlled: true,
       backgroundColor: colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder:
-          (context) => Container(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+      shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
+      builder: (context) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 标题
+            Row(
               children: [
-                // 标题
-                Row(
-                  children: [
-                    FeatureIcon(icon: Icons.language_rounded, iconColor: primaryColor, containerSize: 36, iconSize: 20),
-                    Dimensions.horizontalSpacerM,
-                    Text('Web服务器', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                    const Spacer(),
-                    IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),
-                  ],
-                ),
-                Dimensions.verticalSpacerM,
-
-                // 本地访问地址
-                _buildInfoCard(
-                  context: context,
-                  title: 'HTTP服务器地址',
-                  content: Obx(
-                    () => Text(
-                      controller.webServiceAddress.value,
-                      style: textTheme.bodyMedium?.copyWith(color: primaryColor, fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                  icon: Icons.language_rounded,
-                  action: IconButton(
-                    icon: Icon(Icons.copy_rounded, size: 18, color: primaryColor),
-                    onPressed: () {
-                      controller.copyWebServiceAddress();
-                      UIUtils.showSuccess('已复制到剪贴板');
-                    },
-                    tooltip: '复制',
-                  ),
-                ),
-                Dimensions.verticalSpacerM,
-
-                // WebSocket远程访问地址
-                _buildInfoCard(
-                  context: context,
-                  title: 'WebSocket远程访问',
-                  content: Obx(
-                    () => Text(
-                      controller.webAccessUrl.value,
-                      style: textTheme.bodyMedium?.copyWith(color: primaryColor, fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                  icon: Icons.wifi_rounded,
-                  action: IconButton(
-                    icon: Icon(Icons.copy_rounded, size: 18, color: primaryColor),
-                    onPressed: () {
-                      controller.copyWebAccessUrl();
-                      UIUtils.showSuccess('已复制到剪贴板');
-                    },
-                    tooltip: '复制',
-                  ),
-                ),
-                Dimensions.verticalSpacerM,
-
-                // WebSocket连接状态
-                _buildInfoCard(
-                  context: context,
-                  title: 'WebSocket连接状态',
-                  content: Obx(
-                    () => Row(
-                      children: [
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: controller.isWebSocketConnected.value ? Colors.green : Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        Dimensions.horizontalSpacerS,
-                        Text(
-                          controller.isWebSocketConnected.value ? '已连接' : '未连接',
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: controller.isWebSocketConnected.value ? Colors.green : Colors.red,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  icon: Icons.network_check_rounded,
-                ),
-                Dimensions.verticalSpacerM,
-
-                // 密码设置
-                _buildWebServerSetting(
-                  context: context,
-                  title: '服务器密码',
-                  icon: Icons.password_rounded,
-                  onTap: () => _showPasswordSettingDialog(context),
-                ),
-
-                // 重启服务器
-                _buildWebServerSetting(
-                  context: context,
-                  title: '重启服务',
-                  icon: Icons.refresh_rounded,
-                  onTap: () => controller.restartWebService(),
-                ),
-
-                Dimensions.verticalSpacerM,
-                Text(
-                  '提示：确保设备在同一WiFi网络下才能访问HTTP服务器地址。WebSocket远程访问允许在任何网络环境下连接到您的应用。',
-                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.5)),
-                ),
+                FeatureIcon(icon: Icons.language_rounded, iconColor: primaryColor, containerSize: 36, iconSize: 20),
+                Dimensions.horizontalSpacerM,
+                Text('Web服务器', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                const Spacer(),
+                IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),
               ],
             ),
-          ),
+            Dimensions.verticalSpacerM,
+
+            // 本地访问地址
+            _buildInfoCard(
+              context: context,
+              title: 'HTTP服务器地址',
+              content: Obx(
+                () => Text(
+                  controller.webServiceAddress.value,
+                  style: textTheme.bodyMedium?.copyWith(color: primaryColor, fontWeight: FontWeight.w500),
+                ),
+              ),
+              icon: Icons.language_rounded,
+              action: IconButton(
+                icon: Icon(Icons.copy_rounded, size: 18, color: primaryColor),
+                onPressed: () {
+                  controller.copyWebServiceAddress();
+                  UIUtils.showSuccess('已复制到剪贴板');
+                },
+                tooltip: '复制',
+              ),
+            ),
+            Dimensions.verticalSpacerM,
+
+            // WebSocket远程访问地址
+            _buildInfoCard(
+              context: context,
+              title: 'WebSocket远程访问',
+              content: Obx(
+                () => Text(
+                  controller.webAccessUrl.value,
+                  style: textTheme.bodyMedium?.copyWith(color: primaryColor, fontWeight: FontWeight.w500),
+                ),
+              ),
+              icon: Icons.wifi_rounded,
+              action: IconButton(
+                icon: Icon(Icons.copy_rounded, size: 18, color: primaryColor),
+                onPressed: () {
+                  controller.copyWebAccessUrl();
+                  UIUtils.showSuccess('已复制到剪贴板');
+                },
+                tooltip: '复制',
+              ),
+            ),
+            Dimensions.verticalSpacerM,
+
+            // WebSocket连接状态
+            _buildInfoCard(
+              context: context,
+              title: 'WebSocket连接状态',
+              content: Obx(
+                () => Row(
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: controller.isWebSocketConnected.value ? Colors.green : Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    Dimensions.horizontalSpacerS,
+                    Text(
+                      controller.isWebSocketConnected.value ? '已连接' : '未连接',
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: controller.isWebSocketConnected.value ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              icon: Icons.network_check_rounded,
+            ),
+            Dimensions.verticalSpacerM,
+
+            // 密码设置
+            _buildWebServerSetting(
+              context: context,
+              title: '服务器密码',
+              icon: Icons.password_rounded,
+              onTap: () => _showPasswordSettingDialog(context),
+            ),
+
+            // 重启服务器
+            _buildWebServerSetting(
+              context: context,
+              title: '重启服务',
+              icon: Icons.refresh_rounded,
+              onTap: () => controller.restartWebService(),
+            ),
+
+            Dimensions.verticalSpacerM,
+            Text(
+              '提示：确保设备在同一WiFi网络下才能访问HTTP服务器地址。WebSocket远程访问允许在任何网络环境下连接到您的应用。',
+              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.5)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   void _showPasswordSettingDialog(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
     final controller = TextEditingController(text: this.controller.getWebServerPassword());
 
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('设置服务器密码'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('设置Web服务器访问密码，为空则不需要密码'),
-                Dimensions.verticalSpacerM,
-                TextField(
-                  controller: controller,
-                  decoration: const InputDecoration(labelText: '密码', border: OutlineInputBorder()),
-                ),
-              ],
+      builder: (context) => AlertDialog(
+        title: const Text('设置服务器密码'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('设置Web服务器访问密码，为空则不需要密码'),
+            Dimensions.verticalSpacerM,
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(labelText: '密码', border: OutlineInputBorder()),
             ),
-            actions: [
-              TextButton(
-                child: Text('取消', style: TextStyle(color: colorScheme.onSurface)),
-                onPressed: () => Navigator.pop(context),
-              ),
-              ElevatedButton(
-                child: const Text('保存'),
-                onPressed: () {
-                  Navigator.pop(context);
-                  this.controller.saveWebServerPassword(controller.text);
-                },
-              ),
-            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            style: ButtonStyles.getTextStyle(context),
+            child: const Text('取消'),
+            onPressed: () => Navigator.pop(context),
           ),
+          ElevatedButton(
+            style: ButtonStyles.getPrimaryStyle(context),
+            child: const Text('保存'),
+            onPressed: () {
+              Navigator.pop(context);
+              this.controller.saveWebServerPassword(controller.text);
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -616,7 +616,10 @@ class SettingsView extends GetView<SettingsController> {
             children: [
               Icon(icon, size: 18, color: cardColor),
               Dimensions.horizontalSpacerS,
-              Text(title, style: textTheme.labelMedium?.copyWith(color: cardColor, fontWeight: FontWeight.w600)),
+              Text(
+                title,
+                style: textTheme.labelMedium?.copyWith(color: cardColor, fontWeight: FontWeight.w600),
+              ),
               const Spacer(),
               if (action != null) action,
             ],
@@ -654,7 +657,10 @@ class SettingsView extends GetView<SettingsController> {
           children: [
             Icon(icon, size: 20, color: itemColor),
             Dimensions.horizontalSpacerM,
-            Text(title, style: textTheme.titleSmall?.copyWith(color: itemColor, fontWeight: FontWeight.w500)),
+            Text(
+              title,
+              style: textTheme.titleSmall?.copyWith(color: itemColor, fontWeight: FontWeight.w500),
+            ),
             const Spacer(),
             Icon(Icons.chevron_right, color: colorScheme.onSurface.withValues(alpha: 0.3), size: 18),
           ],

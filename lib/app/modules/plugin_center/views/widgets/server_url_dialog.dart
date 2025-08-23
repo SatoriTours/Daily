@@ -1,6 +1,8 @@
 import 'package:daily_satori/app/modules/plugin_center/controllers/plugin_center_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:daily_satori/app/styles/components/button_styles.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart';
 
 /// 服务器URL设置对话框
 class ServerUrlDialog {
@@ -10,32 +12,30 @@ class ServerUrlDialog {
   /// 显示服务器URL设置对话框
   static Future<void> show(BuildContext context, PluginCenterController controller) async {
     final textController = TextEditingController(text: controller.pluginServerUrl.value);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Get.dialog(
       AlertDialog(
         title: const Text('插件服务器设置', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
         contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('设置插件服务器URL地址:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-            const SizedBox(height: 12),
+            Dimensions.verticalSpacerS,
             _buildUrlTextField(textController),
-            const SizedBox(height: 8),
-            _buildHintText(),
+            Dimensions.verticalSpacerXs,
+            _buildHintText(colorScheme),
           ],
         ),
         actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('取消', style: TextStyle(fontWeight: FontWeight.w500)),
+            style: ButtonStyles.getTextStyle(context),
+            child: const Text('取消'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -45,11 +45,8 @@ class ServerUrlDialog {
               }
               Navigator.of(context).pop();
             },
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('保存', style: TextStyle(fontWeight: FontWeight.w500)),
+            style: ButtonStyles.getPrimaryStyle(context),
+            child: const Text('保存'),
           ),
         ],
       ),
@@ -62,10 +59,13 @@ class ServerUrlDialog {
       controller: controller,
       decoration: InputDecoration(
         hintText: 'https://example.com/plugins',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(width: 1)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          borderSide: const BorderSide(width: 1),
+        ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.blue.shade700, width: 2),
+          borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          borderSide: const BorderSide(width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         prefixIcon: const Icon(Icons.link),
@@ -79,22 +79,22 @@ class ServerUrlDialog {
   }
 
   /// 构建提示文本
-  static Widget _buildHintText() {
+  static Widget _buildHintText(ColorScheme colorScheme) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.blue.withAlpha(13),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.withAlpha(51), width: 1),
+        color: colorScheme.primary.withAlpha(26),
+        borderRadius: BorderRadius.circular(Dimensions.radiusS),
+        border: Border.all(color: colorScheme.primary.withAlpha(77), width: 1),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+          Icon(Icons.info_outline, size: 16, color: colorScheme.primary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               '服务器URL应指向包含插件配置文件的目录',
-              style: TextStyle(fontSize: 12, color: Colors.blue.shade700, height: 1.3),
+              style: TextStyle(fontSize: 12, color: colorScheme.primary, height: 1.3),
             ),
           ),
         ],

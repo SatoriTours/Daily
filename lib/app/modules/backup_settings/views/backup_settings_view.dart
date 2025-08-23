@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
+import 'package:daily_satori/app/styles/components/button_styles.dart';
 
 import '../controllers/backup_settings_controller.dart';
 
@@ -39,7 +40,10 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
         children: [
           Icon(Icons.folder_open_rounded, size: 64, color: colorScheme.primary.withValues(alpha: 0.8)),
           const SizedBox(height: 24),
-          Text('请选择备份目录', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: colorScheme.onSurface)),
+          Text(
+            '请选择备份目录',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: colorScheme.onSurface),
+          ),
           const SizedBox(height: 12),
           Text(
             '选择一个文件夹存储您的应用数据备份',
@@ -50,12 +54,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
             onPressed: () => controller.selectBackupDirectory(),
             icon: const Icon(Icons.create_new_folder_rounded),
             label: const Text('选择备份目录'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
+            style: ButtonStyles.getPrimaryStyle(context),
           ),
         ],
       ),
@@ -84,16 +83,15 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
 
           // 立即备份按钮
           Obx(
-            () =>
-                controller.isBackingUp.value
-                    ? _buildBackupProgress(context)
-                    : _buildActionButton(
-                      context,
-                      title: '立即备份',
-                      icon: Icons.backup_rounded,
-                      color: colorScheme.primary,
-                      onTap: () => _onBackupPressed(context),
-                    ),
+            () => controller.isBackingUp.value
+                ? _buildBackupProgress(context)
+                : _buildActionButton(
+                    context,
+                    title: '立即备份',
+                    icon: Icons.backup_rounded,
+                    color: colorScheme.primary,
+                    onTap: () => _onBackupPressed(context),
+                  ),
           ),
           const SizedBox(height: 16),
 
@@ -161,7 +159,10 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
             children: [
               const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
               const SizedBox(width: 12),
-              Text('正在备份...', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: colorScheme.primary)),
+              Text(
+                '正在备份...',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: colorScheme.primary),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -234,10 +235,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
               onPressed: () => controller.selectBackupDirectory(),
               icon: const Icon(Icons.edit_rounded, size: 18),
               label: const Text('修改'),
-              style: TextButton.styleFrom(
-                foregroundColor: colorScheme.primary,
-                textStyle: const TextStyle(fontSize: 14),
-              ),
+              style: ButtonStyles.getTextStyle(context),
             ),
           ),
         ],
@@ -268,7 +266,10 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
           children: [
             Icon(icon, size: 24, color: color),
             const SizedBox(width: 16),
-            Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: color)),
+            Text(
+              title,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: color),
+            ),
             const Spacer(),
             Icon(Icons.arrow_forward_ios_rounded, size: 16, color: color.withValues(alpha: 0.6)),
           ],
@@ -283,7 +284,10 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
 
     return Padding(
       padding: const EdgeInsets.only(left: 4),
-      child: Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: colorScheme.onSurface)),
+      child: Text(
+        title,
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: colorScheme.onSurface),
+      ),
     );
   }
 

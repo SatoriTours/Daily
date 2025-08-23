@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/components/button_styles.dart';
+// snackbar 样式通过 UIUtils 统一封装使用
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
@@ -24,81 +26,82 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
         child: Obx(() {
           return controller.backupList.isEmpty
               ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.backup_outlined, size: 64, color: Colors.grey),
-                    const SizedBox(height: 16),
-                    const Text("暂无备份信息", style: TextStyle(fontSize: 16, color: Colors.grey)),
-                  ],
-                ),
-              )
-              : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.restore, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          '可用备份文件（${controller.backupList.length}）',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.backup_outlined, size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      const Text("暂无备份信息", style: TextStyle(fontSize: 16, color: Colors.grey)),
+                    ],
                   ),
-                  Expanded(
-                    child: ListView.separated(
-                      itemCount: controller.backupList.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        return Obx(() {
-                          bool isSelected = controller.selectedBackupIndex.value == index;
-                          return Card(
-                            elevation: isSelected ? 2 : 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              side: BorderSide(
-                                color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
-                                width: 1.5,
-                              ),
-                            ),
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              leading: Icon(
-                                Icons.history,
-                                color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
-                              ),
-                              title: Text(
-                                '备份 ${index + 1}',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.restore, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            '可用备份文件（${controller.backupList.length}）',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: controller.backupList.length,
+                        separatorBuilder: (context, index) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          return Obx(() {
+                            bool isSelected = controller.selectedBackupIndex.value == index;
+                            return Card(
+                              elevation: isSelected ? 2 : 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: BorderSide(
+                                  color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
+                                  width: 1.5,
                                 ),
                               ),
-                              subtitle: Text(
-                                '创建时间: ${controller.getBackupTime(controller.backupList[index])}',
-                                style: const TextStyle(fontSize: 13),
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                leading: Icon(
+                                  Icons.history,
+                                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey,
+                                ),
+                                title: Text(
+                                  '备份 ${index + 1}',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  '创建时间: ${controller.getBackupTime(controller.backupList[index])}',
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                                trailing: isSelected
+                                    ? Icon(Icons.check_circle, color: Theme.of(context).primaryColor)
+                                    : null,
+                                selected: isSelected,
+                                selectedTileColor: Theme.of(context).primaryColor.withValues(alpha: 0.05),
+                                onTap: () {
+                                  controller.selectedBackupIndex.value = index;
+                                },
                               ),
-                              trailing:
-                                  isSelected ? Icon(Icons.check_circle, color: Theme.of(context).primaryColor) : null,
-                              selected: isSelected,
-                              selectedTileColor: Theme.of(context).primaryColor.withValues(alpha: 0.05),
-                              onTap: () {
-                                controller.selectedBackupIndex.value = index;
-                              },
-                            ),
-                          );
-                        });
-                      },
+                            );
+                          });
+                        },
+                      ),
                     ),
-                  ),
-                  _buildRestoreButton(context),
-                ],
-              );
+                    _buildRestoreButton(context),
+                  ],
+                );
         }),
       ),
     );
@@ -114,59 +117,34 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
         () => ElevatedButton.icon(
           icon: const Icon(Icons.restore_rounded),
           label: const Text("还原选中的备份", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            elevation: 0,
-            disabledBackgroundColor: Colors.grey.shade300,
-            disabledForegroundColor: Colors.grey.shade600,
-          ),
-          onPressed:
-              controller.selectedBackupIndex.value >= 0
-                  ? () async {
-                    final result = await controller.restoreBackup();
-                    if (result) {
-                      Get.snackbar(
-                        '还原成功',
-                        '备份文件已成功还原',
-                        snackPosition: SnackPosition.top,
-                        backgroundColor: Colors.green.shade100,
-                        colorText: Colors.green.shade800,
-                        borderRadius: 8,
-                        margin: const EdgeInsets.all(8),
-                        icon: const Icon(Icons.check_circle, color: Colors.green),
-                      );
-                    } else {
-                      Get.snackbar(
-                        '还原失败',
-                        '备份文件不存在或已损坏',
-                        snackPosition: SnackPosition.top,
-                        backgroundColor: Colors.red.shade100,
-                        colorText: Colors.red.shade800,
-                        borderRadius: 8,
-                        margin: const EdgeInsets.all(8),
-                        icon: const Icon(Icons.error, color: Colors.red),
-                      );
-                    }
-
-                    if (AppInfoUtils.isProduction && result) {
-                      Get.defaultDialog(
-                        title: "重启应用",
-                        titleStyle: const TextStyle(fontWeight: FontWeight.w600),
-                        middleText: "需要重启应用以完成还原，点击确定重启应用",
-                        contentPadding: const EdgeInsets.all(20),
-                        confirmTextColor: Colors.white,
-                        buttonColor: colorScheme.primary,
-                        onConfirm: () {
-                          exit(0);
-                        },
-                        onCancel: () {
-                          Navigator.pop(Get.context!);
-                        },
-                      );
-                    }
+          style: ButtonStyles.getPrimaryStyle(context),
+          onPressed: controller.selectedBackupIndex.value >= 0
+              ? () async {
+                  final result = await controller.restoreBackup();
+                  if (result) {
+                    UIUtils.showSuccess('备份文件已成功还原', title: '还原成功');
+                  } else {
+                    UIUtils.showError('备份文件不存在或已损坏', title: '还原失败');
                   }
-                  : null,
+
+                  if (AppInfoUtils.isProduction && result) {
+                    Get.defaultDialog(
+                      title: "重启应用",
+                      titleStyle: const TextStyle(fontWeight: FontWeight.w600),
+                      middleText: "需要重启应用以完成还原，点击确定重启应用",
+                      contentPadding: const EdgeInsets.all(20),
+                      confirmTextColor: Colors.white,
+                      buttonColor: colorScheme.primary,
+                      onConfirm: () {
+                        exit(0);
+                      },
+                      onCancel: () {
+                        Navigator.pop(Get.context!);
+                      },
+                    );
+                  }
+                }
+              : null,
         ),
       ),
     );

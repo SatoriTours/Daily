@@ -14,6 +14,7 @@ import 'widgets/article_calendar_dialog.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/app/components/indicators/s_filter_indicator.dart';
 import 'package:daily_satori/app/components/menus/s_popup_menu_item.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart';
 
 /// 文章列表页面
 /// 负责展示文章列表、搜索、过滤等功能
@@ -182,7 +183,7 @@ class ArticlesView extends GetView<ArticlesController> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
       builder: (context) => const ArticlesTagsDialog(),
     );
   }
@@ -197,7 +198,7 @@ class ArticlesView extends GetView<ArticlesController> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
       isScrollControlled: true,
       builder: (context) => const ArticleCalendarDialog(),
     );

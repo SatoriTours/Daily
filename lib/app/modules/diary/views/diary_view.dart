@@ -13,6 +13,7 @@ import 'widgets/diary_edit_dialog.dart';
 import 'widgets/diary_search_bar.dart';
 import 'widgets/diary_calendar_dialog.dart';
 import 'widgets/diary_fab.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
 /// 日记页面
 class DiaryView extends GetView<DiaryController> {
@@ -170,7 +171,9 @@ class DiaryView extends GetView<DiaryController> {
       context: context,
       isScrollControlled: true,
       backgroundColor: DiaryStyle.bottomSheetColor(context),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+      ),
       builder: (context) => DiaryEditDialog(diary: diary, controller: controller),
     ).then((_) {
       // 确保对话框关闭后键盘也被隐藏
@@ -188,7 +191,9 @@ class DiaryView extends GetView<DiaryController> {
     showModalBottomSheet(
       context: context,
       backgroundColor: DiaryStyle.bottomSheetColor(context),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+      ),
       builder: (context) => DiaryTagsDialog(controller: controller),
     ).then((_) {
       // 确保对话框关闭后键盘也被隐藏
@@ -213,7 +218,9 @@ class DiaryView extends GetView<DiaryController> {
     showModalBottomSheet(
       context: context,
       backgroundColor: DiaryStyle.bottomSheetColor(context),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+      ),
       isScrollControlled: true,
       builder: (context) => DiaryCalendarDialog(controller: controller),
     ).then((_) {

@@ -3,6 +3,7 @@ import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/repositories/ai_config_repository.dart';
 import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:flutter/material.dart';
+import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:get/get.dart';
 
 /// AI配置编辑控制器
@@ -125,19 +126,18 @@ class AIConfigEditController extends GetxController {
   /// 保存配置
   Future<bool> saveConfig() async {
     try {
-      final configToSave =
-          isEditMode
-              ? aiConfig!
-              : AIConfigModel(
-                AIConfig(
-                  name: nameController.text,
-                  apiAddress: apiAddressController.text,
-                  apiToken: apiTokenController.text,
-                  modelName: modelNameController.text,
-                  functionType: 0, // 默认为通用配置
-                  inheritFromGeneral: true,
-                ),
-              );
+      final configToSave = isEditMode
+          ? aiConfig!
+          : AIConfigModel(
+              AIConfig(
+                name: nameController.text,
+                apiAddress: apiAddressController.text,
+                apiToken: apiTokenController.text,
+                modelName: modelNameController.text,
+                functionType: 0, // 默认为通用配置
+                inheritFromGeneral: true,
+              ),
+            );
 
       // 如果是编辑模式，直接更新现有配置的属性
       // 如果是新建模式，上面已经创建了包含所有属性的对象，不需要再次设置
@@ -161,7 +161,7 @@ class AIConfigEditController extends GetxController {
       Get.back();
       return true;
     } catch (e) {
-      Get.snackbar('错误', '保存配置失败: $e', snackPosition: SnackPosition.top, backgroundColor: Colors.red.withAlpha(200));
+      UIUtils.showError('保存配置失败: $e', title: '错误');
       return false;
     }
   }

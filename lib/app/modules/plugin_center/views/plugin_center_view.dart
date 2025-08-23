@@ -5,6 +5,8 @@ import 'package:daily_satori/app/modules/plugin_center/views/widgets/update_stat
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:daily_satori/app/styles/components/button_styles.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
 /// 插件中心视图
 class PluginCenterView extends GetView<PluginCenterController> {
@@ -42,7 +44,7 @@ class PluginCenterView extends GetView<PluginCenterController> {
     }
 
     if (controller.plugins.isEmpty) {
-      return _buildEmptyView();
+      return _buildEmptyView(context);
     }
 
     return Column(
@@ -69,7 +71,7 @@ class PluginCenterView extends GetView<PluginCenterController> {
   }
 
   /// 构建空视图
-  Widget _buildEmptyView() {
+  Widget _buildEmptyView(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -84,7 +86,10 @@ class PluginCenterView extends GetView<PluginCenterController> {
             onPressed: controller.loadPluginData,
             icon: const Icon(Icons.refresh),
             label: const Text('刷新'),
-            style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+            style: ButtonStyles.getPrimaryStyle(context).copyWith(
+              padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+              minimumSize: WidgetStateProperty.all(Size.fromHeight(base_dim.Dimensions.buttonHeightSmall)),
+            ),
           ),
         ],
       ),

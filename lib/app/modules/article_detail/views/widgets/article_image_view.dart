@@ -9,6 +9,7 @@ import 'package:daily_satori/app/modules/article_detail/controllers/article_deta
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/components/smart_image.dart';
+import 'package:daily_satori/app/utils/ui_utils.dart';
 
 class ArticleImageView extends StatelessWidget {
   final String imagePath;
@@ -63,7 +64,7 @@ class ArticleImageView extends StatelessWidget {
                       await controller.deleteImage(images[initialIndex]);
                       Get.back();
                       Get.back();
-                      Get.snackbar("提示", "删除成功", snackPosition: SnackPosition.top, backgroundColor: Colors.green);
+                      UIUtils.showSuccess('删除成功', title: '提示');
                     },
                     child: Text("确认", style: TextStyle(color: Colors.red)),
                   ),
@@ -71,7 +72,10 @@ class ArticleImageView extends StatelessWidget {
                 );
               },
             ),
-            IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Get.back()),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: () => Get.back(),
+            ),
           ],
         ),
         backgroundColor: Colors.black,

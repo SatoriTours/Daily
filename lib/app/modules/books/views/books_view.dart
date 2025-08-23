@@ -5,6 +5,7 @@ import 'package:daily_satori/app/styles/colors.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
 /// 读书页面
 ///
@@ -92,7 +93,9 @@ class BooksView extends GetView<BooksController> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+      ),
       builder: (context) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,

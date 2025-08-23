@@ -20,6 +20,7 @@ export 'components/input_styles.dart';
 export 'components/list_styles.dart';
 export 'components/dialog_styles.dart';
 export 'components/accordion_styles.dart';
+export 'components/snackbar_styles.dart';
 
 // 页面特定样式
 export 'pages/diary_styles.dart';

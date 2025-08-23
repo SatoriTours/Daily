@@ -49,11 +49,16 @@ class ShareDialogView extends GetView<ShareDialogController> {
         child: Row(
           children: [
             Expanded(
-              child: OutlinedButton(onPressed: () => Get.back(), child: const Text('取消')),
+              child: TextButton(
+                style: ButtonStyles.getTextStyle(context),
+                onPressed: () => Get.back(),
+                child: const Text('取消'),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: OutlinedButton(
+              child: ElevatedButton(
+                style: ButtonStyles.getPrimaryStyle(context),
                 onPressed: () => controller.onSaveButtonPressed(),
                 child: Obx(() => Text(controller.isUpdate.value ? '保存修改' : '保存')),
               ),
