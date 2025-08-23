@@ -21,6 +21,7 @@ class FileService {
   late String _screenshotsBasePath;
   late String _downloadsPath;
   late String _publicPath;
+  late String _tempPath;
 
   // Getters
   String get imagesBasePath => _imagesBasePath;
@@ -28,6 +29,7 @@ class FileService {
   String get screenshotsBasePath => _screenshotsBasePath;
   String get downloadsPath => _downloadsPath;
   String get publicPath => _publicPath;
+  String get tempPath => _tempPath;
   String get dbPath => path.join(_appPath, ObjectboxService.dbDir);
   String get appPath => _appPath;
 
@@ -40,6 +42,7 @@ class FileService {
     _screenshotsBasePath = await createDirectory('screenshots');
     _downloadsPath = await createDirectory('downloads');
     _publicPath = await createDirectory('public');
+    _tempPath = (await getTemporaryDirectory()).path;
 
     // 确保公共静态资源目录存在
     await _initializePublicDirectory();
@@ -58,6 +61,15 @@ class FileService {
 
   // 获取下载文件路径
   String getDownloadPath(String fileName) => path.join(_downloadsPath, fileName);
+
+  // 获取临时下载文件路径（更适合通过 FileProvider 对外共享/安装）
+  Future<String> getTempDownloadPath(String fileName) async {
+    final dir = Directory(path.join(_tempPath, 'downloads'));
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    return path.join(dir.path, fileName);
+  }
 
   // 获取图片路径
   String getImagePath(String imageName) => path.join(_imagesBasePath, imageName);

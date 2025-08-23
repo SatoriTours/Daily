@@ -82,9 +82,12 @@ class AppUpgradeService {
       title: '检测到新版本',
       message: '当前版本 [$_currentVersion], 最新版本 [$_latestVersion]\n请确认是否下载更新',
       onConfirm: () async {
-        if (!await _requestInstallPermission()) {
-          UIUtils.showError('需要安装权限才能继续');
-          return;
+        // 仅 Android 需要安装未知来源权限
+        if (GetPlatform.isAndroid) {
+          if (!await _requestInstallPermission()) {
+            UIUtils.showError('需要安装权限才能继续');
+            return;
+          }
         }
 
         UIUtils.showLoading();
@@ -92,9 +95,20 @@ class AppUpgradeService {
           final appFilePath = await HttpService.i.downloadFile(_downloadURL);
           logger.i("下载文件到: $appFilePath");
 
-          if (appFilePath.isNotEmpty) {
-            final result = await OpenFile.open(appFilePath);
-            logger.i("打开文件结果: ${result.type} ${result.message}");
+          if (appFilePath.isEmpty) {
+            UIUtils.showError('下载失败，请检查网络后重试');
+            return;
+          }
+
+          // 指定 APK 的 MIME，其他类型走默认
+          final isApk = appFilePath.toLowerCase().endsWith('.apk');
+          final result = await OpenFile.open(
+            appFilePath,
+            type: isApk ? 'application/vnd.android.package-archive' : null,
+          );
+          logger.i("打开文件结果: ${result.type} ${result.message}");
+          if (result.type != ResultType.done) {
+            UIUtils.showError('打开安装文件失败: ${result.message}');
           }
         } catch (e) {
           logger.e("下载或安装失败: $e");

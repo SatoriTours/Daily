@@ -17,8 +17,8 @@ class HttpService implements AppService {
   @override
   ServicePriority get priority => ServicePriority.critical;
 
-  // 超时时间常量
-  static const _timeoutDuration = Duration(seconds: 3);
+  // 基础网络超时时间（非大文件下载场景）
+  static const _timeoutDuration = Duration(seconds: 12);
 
   // Dio 实例
   late final Dio _dio;
@@ -28,7 +28,13 @@ class HttpService implements AppService {
   Future<void> init() async {
     logger.i("[初始化服务] HttpService");
     _dio = Dio(
-      BaseOptions(connectTimeout: _timeoutDuration, receiveTimeout: _timeoutDuration, sendTimeout: _timeoutDuration),
+      BaseOptions(
+        connectTimeout: _timeoutDuration,
+        receiveTimeout: _timeoutDuration,
+        sendTimeout: _timeoutDuration,
+        followRedirects: true,
+        maxRedirects: 5,
+      ),
     );
   }
 
@@ -55,15 +61,39 @@ class HttpService implements AppService {
     }
 
     final fileName = url.split('/').last;
-    final filePath = FileService.i.getDownloadPath(fileName);
+    // APK 优先下载到临时目录，避免外部存储权限限制 & 提高安装器可访问性
+    final isApk = fileName.toLowerCase().endsWith('.apk');
+    final savePath = isApk
+        ? await FileService.i.getTempDownloadPath(fileName)
+        : FileService.i.getDownloadPath(fileName);
 
-    return await _downloadAnyFile(url, filePath) ? filePath : '';
+    // 先尝试直链下载，失败则尝试 ghproxy 镜像（仅 GitHub 资源）
+    final ok = await _downloadAnyFile(url, savePath);
+    if (ok) return savePath;
+
+    if (url.contains('github.com') && !url.contains('mirror.ghproxy.com')) {
+      final mirrorUrl = 'https://mirror.ghproxy.com/$url';
+      if (await _downloadAnyFile(mirrorUrl, savePath)) {
+        return savePath;
+      }
+    }
+
+    return '';
   }
 
   /// 内部下载图片方法（带图片类型与魔数校验）
   Future<bool> _downloadImageFile(String url, String savePath) async {
     try {
-      final response = await dio.download(url, savePath);
+      final response = await dio.download(
+        url,
+        savePath,
+        options: Options(
+          // 大文件图片下载使用更长超时（注意：Options 不支持 connectTimeout 覆写）
+          receiveTimeout: const Duration(minutes: 5),
+          sendTimeout: const Duration(minutes: 1),
+          followRedirects: true,
+        ),
+      );
 
       final contentType = (response.headers.value('content-type') ?? '').toLowerCase();
 
@@ -118,6 +148,9 @@ class HttpService implements AppService {
           responseType: ResponseType.bytes,
           followRedirects: true,
           validateStatus: (code) => code != null && code < 400,
+          // APK 等大文件下载使用更长超时（注意：Options 不支持 connectTimeout 覆写）
+          receiveTimeout: const Duration(minutes: 15),
+          sendTimeout: const Duration(minutes: 2),
         ),
       );
 
