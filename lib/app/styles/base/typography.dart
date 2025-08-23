@@ -27,8 +27,8 @@ class AppTypography {
     double? letterSpacing,
     String? fontFamily,
   }) {
-    return GoogleFonts.getFont(
-      fontFamily ?? AppTypography.fontFamily,
+    return TextStyle(
+      fontFamily: fontFamily ?? AppTypography.fontFamily,
       fontSize: fontSize,
       fontWeight: fontWeight,
       height: height ?? _height,
@@ -41,10 +41,9 @@ class AppTypography {
   /// 获取当前主题下的文本样式
   static TextStyle getThemedStyle(BuildContext context, TextStyle baseStyle, {Color? lightColor, Color? darkColor}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor =
-        isDark
-            ? (darkColor ?? Theme.of(context).textTheme.bodyLarge?.color)
-            : (lightColor ?? Theme.of(context).textTheme.bodyLarge?.color);
+    final textColor = isDark
+        ? (darkColor ?? Theme.of(context).textTheme.bodyLarge?.color)
+        : (lightColor ?? Theme.of(context).textTheme.bodyLarge?.color);
 
     return baseStyle.copyWith(color: textColor);
   }

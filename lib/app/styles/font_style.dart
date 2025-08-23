@@ -14,7 +14,7 @@ class MyFontStyle {
   static const String _fontFamily = 'Lato';
 
   /// 字体系列
-  static String get fontFamily => GoogleFonts.lato().fontFamily!;
+  static String get fontFamily => GoogleFonts.lato().fontFamily ?? _fontFamily;
 
   // 创建基础文本样式
   static TextStyle _createBaseStyle({
@@ -25,8 +25,8 @@ class MyFontStyle {
     double? height,
     double? letterSpacing,
   }) {
-    return GoogleFonts.getFont(
-      _fontFamily,
+    return TextStyle(
+      fontFamily: _fontFamily,
       fontSize: fontSize,
       fontWeight: fontWeight,
       height: height ?? _height,

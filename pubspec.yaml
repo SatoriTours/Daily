@@ -148,6 +148,36 @@ flutter:
     - assets/website/
     - assets/configs/
 
+  # 注册应用内置字体，避免生产环境禁用 GoogleFonts 运行时拉取导致找不到字体
+  fonts:
+    - family: Lato
+      fonts:
+        - asset: assets/fonts/google/Lato-Thin.ttf
+          weight: 100
+        - asset: assets/fonts/google/Lato-ThinItalic.ttf
+          weight: 100
+          style: italic
+        - asset: assets/fonts/google/Lato-Light.ttf
+          weight: 300
+        - asset: assets/fonts/google/Lato-LightItalic.ttf
+          weight: 300
+          style: italic
+        - asset: assets/fonts/google/Lato-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/google/Lato-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: assets/fonts/google/Lato-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/google/Lato-BoldItalic.ttf
+          weight: 700
+          style: italic
+        - asset: assets/fonts/google/Lato-Black.ttf
+          weight: 900
+        - asset: assets/fonts/google/Lato-BlackItalic.ttf
+          weight: 900
+          style: italic
+
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

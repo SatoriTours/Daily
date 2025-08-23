@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:google_fonts/google_fonts.dart';
-
 import 'package:daily_satori/app/styles/colors.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 
@@ -10,7 +8,7 @@ class MyTheme {
   MyTheme._();
 
   // 获取字体系列
-  static String get _fontFamily => GoogleFonts.lato().fontFamily!;
+  static String get _fontFamily => 'Lato';
 
   // 创建基础主题
   static ThemeData _createBaseTheme(ThemeData base, Brightness brightness) {
