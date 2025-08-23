@@ -42,7 +42,7 @@ class HttpService implements AppService {
     final imageName = FileService.i.generateFileNameByUrl(url);
     final imagePath = FileService.i.getImagePath(imageName);
 
-    return await _downloadFile(url, imagePath) ? imagePath : '';
+    return await _downloadImageFile(url, imagePath) ? imagePath : '';
   }
 
   /// 下载文件
@@ -56,14 +56,11 @@ class HttpService implements AppService {
     final fileName = url.split('/').last;
     final filePath = FileService.i.getDownloadPath(fileName);
 
-    return await _downloadFile(url, filePath) ? filePath : '';
+    return await _downloadAnyFile(url, filePath) ? filePath : '';
   }
 
-  /// 内部下载方法
-  /// [url] 下载URL
-  /// [savePath] 保存路径
-  /// 返回是否下载成功
-  Future<bool> _downloadFile(String url, String savePath) async {
+  /// 内部下载图片方法（带图片类型与魔数校验）
+  Future<bool> _downloadImageFile(String url, String savePath) async {
     try {
       final response = await dio.download(url, savePath);
 
@@ -102,6 +99,52 @@ class HttpService implements AppService {
         logger.i("下载文件失败: 文件签名非受支持图片");
         return false;
       }
+
+      return true;
+    } catch (e) {
+      logger.i("下载文件失败: $e");
+      return false;
+    }
+  }
+
+  /// 通用文件下载（不限制为图片类型），做基础校验：存在且非空
+  Future<bool> _downloadAnyFile(String url, String savePath) async {
+    try {
+      await dio.download(
+        url,
+        savePath,
+        options: Options(
+          responseType: ResponseType.bytes,
+          followRedirects: true,
+          validateStatus: (code) => code != null && code < 400,
+        ),
+      );
+
+      // 基础文件校验：存在且非空
+      final file = File(savePath);
+      if (!await file.exists()) {
+        logger.i("下载文件失败: 文件不存在");
+        return false;
+      }
+      final length = await file.length();
+      if (length < 16) {
+        _safeDelete(savePath);
+        logger.i("下载文件失败: 文件过小($length 字节)");
+        return false;
+      }
+
+      // 简单检查是否下载到了 HTML 错误页
+      try {
+        final raf = await file.open();
+        final head = await raf.read(64);
+        await raf.close();
+        final headStr = String.fromCharCodes(head).toLowerCase();
+        if (headStr.contains('<html') || headStr.contains('github') && headStr.contains('error')) {
+          _safeDelete(savePath);
+          logger.i("下载文件失败: 看起来是错误页而非二进制文件");
+          return false;
+        }
+      } catch (_) {}
 
       return true;
     } catch (e) {

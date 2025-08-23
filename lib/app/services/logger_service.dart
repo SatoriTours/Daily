@@ -73,7 +73,8 @@ class SatoriPrinter extends LogPrinter {
   List<String> log(LogEvent event) {
     final levelTag = _levelToTag(event.level);
     final message = event.message.toString();
-    final caller = _callerTag(); // 形如 [PluginService+93]
+    // 优先使用事件自带的堆栈（若调用端传入 `stackTrace: StackTrace.current`，定位更准确）
+    final caller = _callerTag(event.stackTrace); // 形如 [PluginService+93]
 
     final lines = <String>['[$levelTag] $message     <= $caller'];
 
@@ -115,37 +116,53 @@ class SatoriPrinter extends LogPrinter {
 
   /// 解析调用栈，提取 类名 与 行号。
   /// 返回形如 "[PluginService+93]" 的前缀。
-  String _callerTag() {
-    final st = StackTrace.current.toString();
+  ///
+  /// 优先解析调用端传入的 [captured] 堆栈，没有则回退为当前堆栈。
+  String _callerTag([StackTrace? captured]) {
+    final st = (captured ?? StackTrace.current).toString();
     final lines = st.split('\n');
 
-    // 过滤出第一个来自本项目且不是 logger 自身的帧
-    // 常见帧格式：
-    // #4      PluginService._loadConfigContent (package:daily_satori/app/services/plugin_service.dart:93:11)
-    final framePattern = RegExp(r'#\d+\s+([^\s]+)\s+\((?:package:|file:).+?:(\d+):\d+\)');
+    // 优先：从本项目 package 帧中提取 文件名 + 行号
+    // 典型帧：
+    // #4      Some.fn (package:daily_satori/app/modules/diary/views/diary_view.dart:83:11)
+    final projectPath = 'package:daily_satori/';
+    final fileLocPattern = RegExp(r'\((?:package:|file:)([^:]+):(\d+):\d+\)');
 
     for (final line in lines) {
       if (line.contains('logger_service.dart')) continue; // 跳过本文件
       if (line.contains('package:logger/')) continue; // 跳过 logger 内部
-      if (!line.contains('daily_satori')) continue; // 限定为本项目（基于包名）
+      if (line.contains('package:get/')) continue; // 跳过 GetX/Obx 等
+      if (line.contains('package:flutter/')) continue; // 跳过 Flutter 框架
 
-      final m = framePattern.firstMatch(line);
+      if (line.contains(projectPath)) {
+        final m = fileLocPattern.firstMatch(line);
+        if (m != null) {
+          final filePath = m.group(1) ?? '';
+          final lineNo = m.group(2) ?? '0';
+
+          // 提取文件名并转为 PascalCase 作为“类名”展示
+          final fileName = filePath.split('/').last; // e.g. diary_view.dart
+          final base = fileName.endsWith('.dart') ? fileName.substring(0, fileName.length - 5) : fileName;
+          final classLike = _toPascalCase(base);
+          return '[$classLike+$lineNo]';
+        }
+      }
+    }
+
+    // 次选：退回到函数限定名（ClassName.method）解析
+    final fnPattern = RegExp(r'#\d+\s+([^\s]+)\s+\((?:package:|file:).+?:(\d+):\d+\)');
+    for (final line in lines) {
+      if (line.contains('logger_service.dart')) continue;
+      if (line.contains('package:logger/')) continue;
+      if (line.contains('package:get/')) continue;
+      if (line.contains('package:flutter/')) continue;
+
+      final m = fnPattern.firstMatch(line);
       if (m != null) {
         final qualified = m.group(1) ?? '';
         final lineNo = m.group(2) ?? '0';
-
-        // qualified 可能是 ClassName.method 或者 顶层函数名
-        String className;
-        if (qualified.contains('.')) {
-          className = qualified.split('.').first;
-        } else {
-          // 顶层函数，退化为函数名
-          className = qualified;
-        }
-
-        // 清理匿名闭包显示
+        String className = qualified.contains('.') ? qualified.split('.').first : qualified;
         className = className.replaceAll('<anonymous closure>', 'closure');
-
         return '[$className+$lineNo]';
       }
     }
@@ -161,5 +178,18 @@ class SatoriPrinter extends LogPrinter {
     final ls = st.toString().trim().split('\n');
     if (ls.isEmpty) return '';
     return ls.take(maxLines).join('\n');
+  }
+
+  String _toPascalCase(String s) {
+    if (s.isEmpty) return s;
+    // 支持下划线与中划线分隔
+    final parts = s.split(RegExp(r'[_-]+'));
+    final buf = StringBuffer();
+    for (final p in parts) {
+      if (p.isEmpty) continue;
+      buf.write(p[0].toUpperCase());
+      if (p.length > 1) buf.write(p.substring(1));
+    }
+    return buf.toString();
   }
 }

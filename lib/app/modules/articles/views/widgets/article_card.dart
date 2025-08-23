@@ -17,8 +17,6 @@ class ArticleCard extends GetView<ArticlesController> {
 
   @override
   Widget build(BuildContext context) {
-    logger.d('构建文章卡片: ${articleModel.id}');
-
     return Card(
       margin: EdgeInsets.zero,
       elevation: 1,

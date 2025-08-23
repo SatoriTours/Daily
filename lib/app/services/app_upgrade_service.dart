@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart' show Options;
 import 'package:get/get.dart';
 import 'package:open_file/open_file.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -14,6 +15,8 @@ class AppUpgradeService {
 
   // 常量定义
   static const String _githubReleaseAPI = 'https://api.github.com/repos/SatoriTours/Daily/releases/latest';
+  static const String _githubReleaseAPI_Mirror =
+      'https://mirror.ghproxy.com/https://api.github.com/repos/SatoriTours/Daily/releases/latest';
 
   // 版本信息
   late String _currentVersion;
@@ -105,23 +108,68 @@ class AppUpgradeService {
 
   // 获取当前版本号
   Future<void> _getCurrentVersion() async {
-    _currentVersion = await AppInfoUtils.getVersion();
+    _currentVersion = _normalizeVersion(await AppInfoUtils.getVersion());
   }
 
   // 从Github获取最新版本信息
   Future<void> _getLatestVersionFromGithub() async {
     try {
-      final response = await HttpService.i.dio.get(_githubReleaseAPI);
-      if (response.statusCode == 200) {
-        final data = response.data;
-        _latestVersion = data['tag_name'] as String;
-        _downloadURL = data['assets'][0]['browser_download_url'] as String;
-      } else {
-        throw Exception('获取版本信息失败: ${response.statusCode}');
+      final data = await _fetchLatestReleaseJsonWithFallback();
+      _latestVersion = _normalizeVersion(data['tag_name'] as String);
+
+      // 优先选择 APK 资源，其次回退到第一个资源
+      final assets = (data['assets'] as List?) ?? const [];
+      if (assets.isEmpty) {
+        throw Exception('发布中未找到可下载资源');
       }
+      String? apkUrl;
+      for (final a in assets) {
+        final url = a['browser_download_url'] as String?;
+        if (url != null && url.toLowerCase().endsWith('.apk')) {
+          apkUrl = url;
+          break;
+        }
+      }
+      _downloadURL = apkUrl ?? (assets.first['browser_download_url'] as String);
     } catch (e) {
       logger.e("获取Github版本信息失败: $e");
       rethrow;
     }
+  }
+
+  // 依次尝试官方与镜像 API，返回 release JSON
+  Future<Map<String, dynamic>> _fetchLatestReleaseJsonWithFallback() async {
+    final headers = const {
+      'User-Agent': 'DailyApp/UpgradeChecker (+https://github.com/SatoriTours/Daily)',
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    };
+
+    Future<Map<String, dynamic>> doGet(String url) async {
+      final resp = await HttpService.i.dio.get(url, options: Options(headers: headers));
+      if (resp.statusCode == 200 && resp.data is Map<String, dynamic>) {
+        return Map<String, dynamic>.from(resp.data);
+      }
+      throw Exception('获取版本信息失败: ${resp.statusCode}');
+    }
+
+    // 尝试主站
+    try {
+      return await doGet(_githubReleaseAPI);
+    } catch (e) {
+      logger.w("GitHub 主站获取失败，尝试镜像: $e");
+      // 尝试镜像
+      return await doGet(_githubReleaseAPI_Mirror);
+    }
+  }
+
+  // 版本标准化（去掉前缀 v/V）
+  String _normalizeVersion(String v) {
+    if (v.isEmpty) return v;
+    final trimmed = v.trim();
+    if (trimmed.startsWith('v') || trimmed.startsWith('V')) {
+      return trimmed.substring(1);
+    }
+    return trimmed;
   }
 }
