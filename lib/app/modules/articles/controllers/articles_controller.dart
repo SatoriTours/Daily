@@ -162,28 +162,18 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
 
   /// 获取标题
   String getTitle() {
-    // 搜索过滤
-    if (searchController.text.isNotEmpty) {
-      return '搜索: "${searchController.text}"';
-    }
+    final hasSearch = searchController.text.isNotEmpty;
+    final hasTag = tagName.value.isNotEmpty;
+    final hasFavorite = onlyFavorite.value;
+    final hasDate = selectedFilterDate.value != null;
 
-    // 标签过滤
-    if (tagName.value.isNotEmpty) {
-      return '标签: ${tagName.value}';
-    }
-
-    // 收藏过滤
-    if (onlyFavorite.value) {
-      return '收藏文章';
-    }
-
-    // 日期过滤
-    if (selectedFilterDate.value != null) {
-      return '按日期筛选';
-    }
-
-    // 默认标题
-    return '全部文章';
+    return switch ((hasSearch, hasTag, hasFavorite, hasDate)) {
+      (true, _, _, _) => '搜索: "${searchController.text}"',
+      (_, true, _, _) => '标签: ${tagName.value}',
+      (_, _, true, _) => '收藏文章',
+      (_, _, _, true) => '按日期筛选',
+      _ => '全部文章',
+    };
   }
 
   /// 是否存在任一过滤条件（供视图判断显示“已过滤”指示）
@@ -199,11 +189,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     return ArticleRepository.getDailyArticleCounts();
   }
 
-  /// 检查剪贴板
-  Future<void> checkClipboard() async {
-    logger.i('检查剪切板内容');
-    await ClipboardUtils.checkAndNavigateToShareDialog();
-  }
+  // 剪贴板检查逻辑已抽离到全局 ClipboardMonitorService，不再在页面 Controller 中实现
 
   // ==== 私有方法 ====
 
@@ -226,7 +212,6 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
 
   void _loadInitialData() {
     reloadArticles();
-    checkClipboard();
     AppUpgradeService.i.checkAndDownloadInbackend();
   }
 
@@ -240,7 +225,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
       await reloadArticles();
     }
 
-    await checkClipboard();
+    // 剪贴板检查由 ClipboardMonitorService 在应用层统一处理
   }
 
   /// 获取过滤后的文章列表

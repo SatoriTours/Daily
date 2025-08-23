@@ -17,6 +17,7 @@ export 'objectbox_service.dart';
 export 'plugin_service.dart';
 export 'setting_service/setting_service.dart';
 export 'share_receive_service.dart';
+export 'clipboard_monitor_service.dart';
 export 'time_service.dart';
 export 'web_service/web_service.dart';
 export 'ai_config_service.dart';

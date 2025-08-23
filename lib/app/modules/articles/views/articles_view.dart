@@ -5,7 +5,6 @@ import 'package:feather_icons/feather_icons.dart';
 
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/components/empty_states/articles_empty_view.dart';
-// removed unused app_theme import
 
 import 'widgets/articles_search_bar.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
@@ -14,6 +13,7 @@ import 'widgets/articles_list.dart';
 import 'widgets/article_calendar_dialog.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/app/components/indicators/s_filter_indicator.dart';
+import 'package:daily_satori/app/components/menus/s_popup_menu_item.dart';
 
 /// 文章列表页面
 /// 负责展示文章列表、搜索、过滤等功能
@@ -134,7 +134,7 @@ class ArticlesView extends GetView<ArticlesController> {
       icon: const Icon(Icons.more_horiz, color: Colors.white, size: 20),
       onSelected: (value) => _handleMenuSelection(value, context),
       itemBuilder: (context) => [
-        _buildPopupMenuItem(context, 'tags', FeatherIcons.tag, '标签筛选'),
+        SPopupMenuItem<String>(value: 'tags', icon: FeatherIcons.tag, text: '标签筛选'),
         _buildFavoriteMenuItem(context),
       ],
     );
@@ -155,32 +155,11 @@ class ArticlesView extends GetView<ArticlesController> {
 
   /// 构建收藏菜单项
   PopupMenuItem<String> _buildFavoriteMenuItem(BuildContext context) {
-    return _buildPopupMenuItem(
-      context,
-      'favorite',
-      controller.onlyFavorite.value ? Icons.favorite : Icons.favorite_border,
-      controller.onlyFavorite.value ? '显示全部文章' : '只看收藏文章',
+    return SPopupMenuItem<String>(
+      value: 'favorite',
+      icon: controller.onlyFavorite.value ? Icons.favorite : Icons.favorite_border,
+      text: controller.onlyFavorite.value ? '显示全部文章' : '只看收藏文章',
       iconColor: controller.onlyFavorite.value ? Colors.red : null,
-    );
-  }
-
-  /// 构建菜单项
-  PopupMenuItem<String> _buildPopupMenuItem(
-    BuildContext context,
-    String value,
-    IconData icon,
-    String text, {
-    Color? iconColor,
-  }) {
-    return PopupMenuItem(
-      value: value,
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: iconColor),
-          const SizedBox(width: 8),
-          Text(text),
-        ],
-      ),
     );
   }
 

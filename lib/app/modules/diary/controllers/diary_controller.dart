@@ -324,22 +324,21 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
     // 应用过滤条件
     if (searchQuery.isNotEmpty) {
       // 按内容搜索
-      diaries.value =
-          allDiaries.where((d) => d.content.toLowerCase().contains(searchQuery.value.toLowerCase())).toList();
+      diaries.value = allDiaries
+          .where((d) => d.content.toLowerCase().contains(searchQuery.value.toLowerCase()))
+          .toList();
     } else if (currentTag.isNotEmpty) {
       // 按标签筛选
-      diaries.value =
-          allDiaries
-              .where((d) => d.tags != null && d.tags!.toLowerCase().contains(currentTag.value.toLowerCase()))
-              .toList();
+      diaries.value = allDiaries
+          .where((d) => d.tags != null && d.tags!.toLowerCase().contains(currentTag.value.toLowerCase()))
+          .toList();
     } else if (selectedFilterDate.value != null) {
       // 按日期筛选
       final filterDate = selectedFilterDate.value!;
-      diaries.value =
-          allDiaries.where((d) {
-            final diaryDate = DateTime(d.createdAt.year, d.createdAt.month, d.createdAt.day);
-            return diaryDate.isAtSameMomentAs(filterDate);
-          }).toList();
+      diaries.value = allDiaries.where((d) {
+        final diaryDate = DateTime(d.createdAt.year, d.createdAt.month, d.createdAt.day);
+        return diaryDate.isAtSameMomentAs(filterDate);
+      }).toList();
     } else {
       // 全部加载
       diaries.value = allDiaries;
@@ -371,7 +370,6 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
   }
 
   Future<void> _handleAppResume() async {
-    logger.i('检查剪切板内容');
-    await ClipboardUtils.checkAndNavigateToShareDialog();
+    // 剪贴板检查由 ClipboardMonitorService 在应用层统一处理
   }
 }

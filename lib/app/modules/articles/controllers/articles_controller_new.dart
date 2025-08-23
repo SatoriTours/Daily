@@ -118,10 +118,7 @@ class ArticlesController extends BaseListController<ArticleModel> with WidgetsBi
     return ArticleRepository.getDailyArticleCounts();
   }
 
-  /// 检查剪贴板
-  Future<void> checkClipboard() async {
-    await ClipboardUtils.checkAndNavigateToShareDialog();
-  }
+  // 剪贴板检查逻辑已移动到全局 ClipboardMonitorService
 
   /// 从列表中移除文章
   void removeArticle(int id) {
@@ -149,7 +146,6 @@ class ArticlesController extends BaseListController<ArticleModel> with WidgetsBi
 
   void _loadInitialData() {
     loadInitialData();
-    checkClipboard();
     AppUpgradeService.i.checkAndDownloadInbackend();
   }
 
@@ -161,6 +157,6 @@ class ArticlesController extends BaseListController<ArticleModel> with WidgetsBi
       await refreshData();
     }
 
-    await checkClipboard();
+    // 剪贴板检查由 ClipboardMonitorService 在应用层统一处理
   }
 }

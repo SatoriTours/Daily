@@ -156,4 +156,5 @@ void _initLowPriorityServices() {
   // 延迟执行的低优先级服务
   AppServiceManager.initService('AppUpgradeService', () => AppUpgradeService.i.init());
   AppServiceManager.initService('ShareReceiveService', () => ShareReceiveService.i.init());
+  AppServiceManager.initService('ClipboardMonitorService', () => ClipboardMonitorService.i.init());
 }
