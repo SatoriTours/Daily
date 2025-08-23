@@ -28,6 +28,7 @@ class LoggerService implements AppService {
   @override
   ServicePriority get priority => ServicePriority.critical;
 
+  @override
   Future<void> init() async {
     // 仅通过 name 字段携带品牌标识，避免消息体重复 [Satori]
     log('[初始化服务] LoggerService', name: _logName);
@@ -89,29 +90,17 @@ class SatoriPrinter extends LogPrinter {
   }
 
   String _levelToTag(Level level) {
-    switch (level) {
-      case Level.trace:
-      case Level.verbose:
-        return 'V';
-      case Level.all:
-        return 'V';
-      case Level.debug:
-        return 'D';
-      case Level.info:
-        return 'I';
-      case Level.warning:
-        return 'W';
-      case Level.error:
-        return 'E';
-      case Level.fatal:
-        return 'F';
-      case Level.wtf:
-        return 'F';
-      case Level.off:
-        return '-';
-      case Level.nothing:
-        return '-';
-    }
+    // 避免使用已弃用的枚举，统一映射到当前级别集合
+    if (level == Level.trace || level == Level.all) return 'V';
+    if (level == Level.debug) return 'D';
+    if (level == Level.info) return 'I';
+    if (level == Level.warning) return 'W';
+    if (level == Level.error) return 'E';
+    // 兼容较新的严重级别
+    if (level == Level.fatal) return 'F';
+    if (level == Level.off) return '-';
+    // 其它或未来值
+    return '?';
   }
 
   /// 解析调用栈，提取 类名 与 行号。

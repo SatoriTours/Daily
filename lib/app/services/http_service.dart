@@ -24,6 +24,7 @@ class HttpService implements AppService {
   late final Dio _dio;
   Dio get dio => _dio;
 
+  @override
   Future<void> init() async {
     logger.i("[初始化服务] HttpService");
     _dio = Dio(

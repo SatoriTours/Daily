@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:daily_satori/app/services/service_registry.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/services.dart';
 
 // 应用加载好前执行

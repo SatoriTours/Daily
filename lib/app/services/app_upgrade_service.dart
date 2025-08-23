@@ -14,8 +14,8 @@ class AppUpgradeService {
   static AppUpgradeService get i => _instance;
 
   // 常量定义
-  static const String _githubReleaseAPI = 'https://api.github.com/repos/SatoriTours/Daily/releases/latest';
-  static const String _githubReleaseAPI_Mirror =
+  static const String _githubReleaseApi = 'https://api.github.com/repos/SatoriTours/Daily/releases/latest';
+  static const String _githubReleaseApiMirror =
       'https://mirror.ghproxy.com/https://api.github.com/repos/SatoriTours/Daily/releases/latest';
 
   // 版本信息
@@ -155,11 +155,11 @@ class AppUpgradeService {
 
     // 尝试主站
     try {
-      return await doGet(_githubReleaseAPI);
+      return await doGet(_githubReleaseApi);
     } catch (e) {
       logger.w("GitHub 主站获取失败，尝试镜像: $e");
       // 尝试镜像
-      return await doGet(_githubReleaseAPI_Mirror);
+      return await doGet(_githubReleaseApiMirror);
     }
   }
 

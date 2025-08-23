@@ -43,6 +43,7 @@ class SettingService implements AppService {
   };
 
   // MARK: - 初始化方法
+  @override
   Future<void> init() async {
     logger.i("[设置服务] 初始化");
     await SettingRepository.initDefaultSettings(defaultSettings);

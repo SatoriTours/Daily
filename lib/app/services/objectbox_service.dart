@@ -45,6 +45,7 @@ class ObjectboxService implements AppService {
   // MARK: - 初始化与释放
 
   /// 初始化 ObjectBox 服务
+  @override
   Future<void> init() async {
     logger.i("[存储服务] 初始化");
 

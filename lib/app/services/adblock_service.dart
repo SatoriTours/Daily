@@ -52,6 +52,7 @@ class ADBlockService implements AppService {
   List<RegExp> get regexExceptionRules => _regexExceptionRules;
 
   // 初始化服务
+  @override
   Future<void> init() async {
     logger.i("[初始化服务] ADBlockService");
     await _loadRules();

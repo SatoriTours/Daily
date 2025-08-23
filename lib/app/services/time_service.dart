@@ -16,6 +16,7 @@ class TimeService implements AppService {
   ServicePriority get priority => ServicePriority.critical;
 
   /// 初始化时间服务
+  @override
   Future<void> init() async {
     logger.i("[初始化服务] TimeService");
     // 设置相对时间本地化为中文

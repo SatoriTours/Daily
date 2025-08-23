@@ -17,6 +17,7 @@ class FlutterService implements AppService {
   /// 初始化 Flutter 服务
   ///
   /// 确保 Flutter 绑定初始化完成,为后续操作做准备
+  @override
   Future<void> init() async {
     logger.i("[初始化服务] FlutterService");
     WidgetsFlutterBinding.ensureInitialized();
