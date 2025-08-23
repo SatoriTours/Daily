@@ -9,6 +9,12 @@ class ClipboardUtils {
   // 用于记录上次处理过的剪贴板内容
   static String _lastProcessedText = '';
 
+  /// 手动标记某个 URL 已处理，避免后续重复提示
+  static void markUrlProcessed(String url) {
+    if (url.isEmpty) return;
+    _lastProcessedText = url;
+  }
+
   /// 获取剪贴板文本
   static Future<String> getText() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
@@ -94,6 +100,13 @@ class ClipboardUtils {
     bool Function(String url)? urlValidator,
     bool showConfirmation = true,
   }) async {
+    // 如果分享页面已打开，则不再触发二次确认或导航，避免与当前流程冲突
+    try {
+      if (Get.currentRoute == Routes.shareDialog) {
+        logger.i('当前已在分享页面，跳过剪贴板提示');
+        return;
+      }
+    } catch (_) {}
     await checkForUrl(
       onUrlDetected: (url) {
         // 统一的URL处理逻辑：导航到分享对话框

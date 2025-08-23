@@ -5,7 +5,7 @@ import 'package:feather_icons/feather_icons.dart';
 
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/components/empty_states/articles_empty_view.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
+// removed unused app_theme import
 
 import 'widgets/articles_search_bar.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
@@ -13,6 +13,7 @@ import 'widgets/articles_tags_dialog.dart';
 import 'widgets/articles_list.dart';
 import 'widgets/article_calendar_dialog.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/components/indicators/s_filter_indicator.dart';
 
 /// 文章列表页面
 /// 负责展示文章列表、搜索、过滤等功能
@@ -60,7 +61,7 @@ class ArticlesView extends GetView<ArticlesController> {
       if (!controller.hasActiveFilters()) return const SizedBox.shrink();
 
       logger.d('显示过滤指示器: ${controller.getTitle()}');
-      return _FilterIndicator(title: controller.getTitle(), onClear: controller.clearAllFilters);
+      return SFilterIndicator(title: controller.getTitle(), onClear: controller.clearAllFilters);
     });
   }
 
@@ -224,37 +225,4 @@ class ArticlesView extends GetView<ArticlesController> {
   }
 }
 
-/// 过滤指示器组件
-class _FilterIndicator extends StatelessWidget {
-  final String title;
-  final VoidCallback onClear;
-
-  const _FilterIndicator({required this.title, required this.onClear});
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(color: colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text('已过滤: $title', style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurface)),
-          ),
-          InkWell(
-            onTap: onClear,
-            borderRadius: BorderRadius.circular(4),
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Text('清除', style: textTheme.labelMedium?.copyWith(color: colorScheme.primary)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// 本地的 _FilterIndicator 已抽取为通用组件 SFilterIndicator

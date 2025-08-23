@@ -66,6 +66,8 @@ class ShareDialogController extends GetxController {
     if (args.containsKey('shareURL') && args['shareURL'] != null) {
       shareURL.value = args['shareURL'];
       logger.i("初始化分享链接: ${shareURL.value}");
+      // 标记该 URL 已处理，避免剪贴板检测产生重复确认弹窗
+      ClipboardUtils.markUrlProcessed(shareURL.value);
     }
 
     // 初始化完成后，记录初始标题并监听编辑变化

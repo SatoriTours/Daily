@@ -4,6 +4,7 @@ import 'package:daily_satori/app_exports.dart';
 import 'package:intl/intl.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/components/indicators/s_filter_indicator.dart';
 
 import '../controllers/diary_controller.dart';
 import 'widgets/diary_list.dart';
@@ -67,46 +68,12 @@ class DiaryView extends GetView<DiaryController> {
 
   /// 构建过滤器头部
   Widget _buildFilterHeader(BuildContext context, String filterText) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              filterText,
-              style: TextStyle(
-                fontSize: 14,
-                color: DiaryStyle.secondaryTextColor(context),
-                fontWeight: FontWeight.w500,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          _buildClearFilterButton(context),
-        ],
-      ),
-    );
-  }
-
-  /// 构建清除过滤按钮
-  Widget _buildClearFilterButton(BuildContext context) {
-    return InkWell(
-      onTap: () => controller.clearFilters(),
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(FeatherIcons.x, size: 14, color: DiaryStyle.accentColor(context)),
-            const SizedBox(width: 4),
-            Text(
-              '清除',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: DiaryStyle.accentColor(context)),
-            ),
-          ],
-        ),
-      ),
+    return SFilterIndicator(
+      title: filterText,
+      prefix: '',
+      onClear: controller.clearFilters,
+      // 调整与现有布局相近的外边距
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
     );
   }
 
