@@ -3,17 +3,24 @@ import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_provider.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/utils/random_utils.dart';
 
 /// 设置服务类
 ///
 /// 只提供设置键常量和初始化方法
 /// 不再提供任何业务逻辑或代理方法，所有设置操作应直接调用 SettingRepository
-class SettingService {
+class SettingService implements AppService {
   // MARK: - 单例实现
   SettingService._privateConstructor();
   static final SettingService _instance = SettingService._privateConstructor();
   static SettingService get i => _instance;
+
+  @override
+  String get serviceName => 'SettingService';
+
+  @override
+  ServicePriority get priority => ServicePriority.critical;
 
   // MARK: - 设置键常量
   static String openAITokenKey = 'openai_token';
@@ -41,4 +48,7 @@ class SettingService {
     await SettingRepository.initDefaultSettings(defaultSettings);
     await Settings.init(cacheProvider: SettingProvider());
   }
+
+  @override
+  void dispose() {}
 }

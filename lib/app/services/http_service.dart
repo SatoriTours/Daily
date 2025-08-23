@@ -3,12 +3,19 @@ import 'package:dio/dio.dart';
 
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
-class HttpService {
+class HttpService implements AppService {
   // 单例模式
   HttpService._();
   static final HttpService _instance = HttpService._();
   static HttpService get i => _instance;
+
+  @override
+  String get serviceName => 'HttpService';
+
+  @override
+  ServicePriority get priority => ServicePriority.critical;
 
   // 超时时间常量
   static const _timeoutDuration = Duration(seconds: 3);
@@ -168,4 +175,7 @@ class HttpService {
       return '';
     }
   }
+
+  @override
+  void dispose() {}
 }

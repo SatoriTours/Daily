@@ -9,12 +9,19 @@ import 'package:path_provider/path_provider.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/utils/app_info_utils.dart';
 import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
-class ADBlockService {
+class ADBlockService implements AppService {
   // 单例模式
   ADBlockService._();
   static final ADBlockService _instance = ADBlockService._();
   static ADBlockService get i => _instance;
+
+  @override
+  String get serviceName => 'ADBlockService';
+
+  @override
+  ServicePriority get priority => ServicePriority.high;
 
   // 常量定义
   static const String _easylistUrl = 'https://easylist-downloads.adblockplus.org/v3/full/easylistchina+easylist.txt';
@@ -50,6 +57,9 @@ class ADBlockService {
     await _loadRules();
     logger.i('广告拦截规则加载完成');
   }
+
+  @override
+  void dispose() {}
 
   // 加载规则
   Future<void> _loadRules() async {

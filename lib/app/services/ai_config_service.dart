@@ -1,15 +1,22 @@
 import 'package:daily_satori/app/models/models.dart';
 import 'package:daily_satori/app/repositories/ai_config_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
 /// AI配置服务类
 ///
 /// 负责提供AI配置的业务逻辑
-class AIConfigService {
+class AIConfigService implements AppService {
   // MARK: - 单例实现
   AIConfigService._privateConstructor();
   static final AIConfigService _instance = AIConfigService._privateConstructor();
   static AIConfigService get i => _instance;
+
+  @override
+  String get serviceName => 'AIConfigService';
+
+  @override
+  ServicePriority get priority => ServicePriority.high;
 
   // MARK: - 方法
 
@@ -78,4 +85,7 @@ class AIConfigService {
     final config = getDefaultConfig(functionType);
     return config?.modelName ?? "";
   }
+
+  @override
+  void dispose() {}
 }

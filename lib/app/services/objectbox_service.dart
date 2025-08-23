@@ -9,15 +9,22 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:daily_satori/objectbox.g.dart';
 import 'package:daily_satori/app/utils/app_info_utils.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
 /// 对象存储服务类
 ///
 /// 负责管理ObjectBox数据库的初始化、访问和操作
-class ObjectboxService {
+class ObjectboxService implements AppService {
   // MARK: - 单例实现
   ObjectboxService._();
   static final ObjectboxService _instance = ObjectboxService._();
   static ObjectboxService get i => _instance;
+
+  @override
+  String get serviceName => 'ObjectboxService';
+
+  @override
+  ServicePriority get priority => ServicePriority.critical;
 
   // MARK: - 常量
 
@@ -59,6 +66,7 @@ class ObjectboxService {
   }
 
   /// 释放资源
+  @override
   void dispose() {
     _store.close();
     if (!AppInfoUtils.isProduction && Admin.isAvailable()) {
