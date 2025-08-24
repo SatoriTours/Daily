@@ -280,7 +280,6 @@ class BooksView extends GetView<BooksController> {
 
   /// 悬浮“记感想”按钮，始终可见不被遮挡
   Widget _buildFloatingQuickJournal(BuildContext context) {
-    if (controller.allViewpoints.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
     final bg = theme.colorScheme.primary;
     final fg = theme.colorScheme.onPrimary;
@@ -300,29 +299,34 @@ class BooksView extends GetView<BooksController> {
   }
 
   void _openJournalForCurrent(BuildContext context) {
-    final idx = controller.currentViewpointIndex.value;
-    if (idx < 0 || idx >= controller.allViewpoints.length) return;
-    final vp = controller.allViewpoints[idx];
-    final book = vp.book;
-    if (book == null) return;
-
     final diaryController = Get.find<DiaryController>();
-    final title = vp.title.trim();
-    final bookTitle = book.title.trim();
-    final author = book.author.trim();
 
-    final buffer = StringBuffer();
-    buffer.writeln('观点：$title');
-    if (bookTitle.isNotEmpty) {
-      buffer.writeln('来源：《$bookTitle》${author.isNotEmpty ? ' · $author' : ''}');
+    // 若当前有观点，拼装带来源的模板；否则提供空白感悟模板
+    String preset = '';
+    if (controller.allViewpoints.isNotEmpty) {
+      final idx = controller.currentViewpointIndex.value.clamp(0, controller.allViewpoints.length - 1);
+      final vp = controller.allViewpoints[idx];
+      final book = vp.book;
+      final title = vp.title.trim();
+      final bookTitle = (book?.title ?? '').trim();
+      final author = (book?.author ?? '').trim();
+
+      final buffer = StringBuffer();
+      buffer.writeln('观点：$title');
+      if (bookTitle.isNotEmpty) {
+        buffer.writeln('来源：《$bookTitle》${author.isNotEmpty ? ' · $author' : ''}');
+      }
+      buffer.writeln();
+      buffer.writeln('[](app://books/viewpoint/${vp.id})');
+      preset = buffer.toString();
+    } else {
+      preset = '读书感悟：\n\n';
     }
-    buffer.writeln();
-    buffer.writeln('[](app://books/viewpoint/${vp.id})');
 
     diaryController.contentController
       ..clear()
-      ..text = buffer.toString()
-      ..selection = TextSelection.collapsed(offset: buffer.length);
+      ..text = preset
+      ..selection = TextSelection.collapsed(offset: preset.length);
 
     showModalBottomSheet(
       context: context,
