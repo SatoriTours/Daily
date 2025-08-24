@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/utils/ui_utils.dart';
 
 /// 日记卡片的更多操作菜单
 class DiaryMoreMenu extends StatelessWidget {
@@ -19,29 +20,28 @@ class DiaryMoreMenu extends StatelessWidget {
       tooltip: '更多选项',
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      itemBuilder:
-          (context) => [
-            PopupMenuItem<String>(
-              value: 'edit',
-              child: Row(
-                children: [
-                  Icon(FeatherIcons.edit2, size: 16, color: DiaryStyle.accentColor(context)),
-                  const SizedBox(width: 8),
-                  Text('编辑日记'),
-                ],
-              ),
-            ),
-            PopupMenuItem<String>(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(FeatherIcons.trash2, size: 16, color: Colors.red),
-                  const SizedBox(width: 8),
-                  Text('删除日记', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
-          ],
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'edit',
+          child: Row(
+            children: [
+              Icon(FeatherIcons.edit2, size: 16, color: DiaryStyle.accentColor(context)),
+              const SizedBox(width: 8),
+              Text('编辑日记'),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(FeatherIcons.trash2, size: 16, color: Colors.red),
+              const SizedBox(width: 8),
+              Text('删除日记', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
       onSelected: (value) {
         if (value == 'edit') {
           onEdit();
@@ -54,23 +54,12 @@ class DiaryMoreMenu extends StatelessWidget {
 
   /// 显示删除确认对话框
   void _showDeleteConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('确认删除'),
-            content: Text('你确定要删除这条日记吗？此操作无法撤销。'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: Text('取消')),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  onDelete();
-                },
-                child: Text('删除', style: TextStyle(color: Colors.red)),
-              ),
-            ],
-          ),
+    UIUtils.showConfirmation(
+      '确认删除',
+      '你确定要删除这条日记吗？此操作无法撤销。',
+      confirmText: '删除',
+      cancelText: '取消',
+      onConfirmed: onDelete,
     );
   }
 }
