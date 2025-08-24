@@ -6,6 +6,7 @@ import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
+import 'package:daily_satori/app/components/menus/s_popup_menu_item.dart';
 
 /// 读书页面
 ///
@@ -27,7 +28,7 @@ class BooksView extends GetView<BooksController> {
     return SAppBar(
       title: _buildAppBarTitle(context),
       leading: _buildAppBarLeading(context),
-      actions: _buildAppBarActions(),
+      actions: _buildAppBarActions(context),
       elevation: 1,
       // 使用 SAppBar 默认的主题主色背景与白色前景
       centerTitle: true,
@@ -49,20 +50,8 @@ class BooksView extends GetView<BooksController> {
   }
 
   /// 构建应用栏右侧按钮
-  List<Widget> _buildAppBarActions() {
-    return [_buildProcessingIndicator(), _buildAddBookButton(), _buildDeleteBookButton()];
-  }
-
-  /// 构建处理中指示器
-  Widget _buildProcessingIndicator() {
-    return Obx(
-      () => controller.isProcessing.value
-          ? const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-            )
-          : const SizedBox.shrink(),
-    );
+  List<Widget> _buildAppBarActions(BuildContext context) {
+    return [_buildAddBookButton(), _buildMoreMenu(context)];
   }
 
   /// 构建添加书籍按钮
@@ -76,15 +65,28 @@ class BooksView extends GetView<BooksController> {
     );
   }
 
-  /// 构建删除书籍按钮
-  Widget _buildDeleteBookButton() {
-    return IconButton(
-      icon: const Icon(Icons.delete_outline, size: 20),
-      onPressed: () => _showDeleteBookDialog(),
-      tooltip: '删除书籍',
-      padding: const EdgeInsets.all(8),
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+  /// 构建更多菜单（三点）
+  Widget _buildMoreMenu(BuildContext context) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_horiz, size: 20),
+      onSelected: (value) => _handleMoreMenuSelection(value, context),
+      itemBuilder: (context) => [
+        SPopupMenuItem<String>(value: 'refresh', icon: Icons.refresh, text: '刷新书籍内容'),
+        SPopupMenuItem<String>(value: 'delete', icon: Icons.delete_outline, text: '删除当前书籍'),
+      ],
     );
+  }
+
+  /// 处理更多菜单选择
+  void _handleMoreMenuSelection(String value, BuildContext context) {
+    switch (value) {
+      case 'refresh':
+        _confirmAndRefreshBook();
+        break;
+      case 'delete':
+        _showDeleteBookDialog();
+        break;
+    }
   }
 
   /// 显示书籍过滤对话框
@@ -177,10 +179,14 @@ class BooksView extends GetView<BooksController> {
 
   /// 构建单个书籍过滤项
   Widget _buildBookFilterItem(BuildContext context, BookModel? book, bool isSelected) {
-    final backgroundColor = isSelected ? AppColors.primary(context).withValues(alpha: 51) : Colors.transparent;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final backgroundColor = isSelected
+        ? AppColors.primary(context).withValues(alpha: isDark ? 0.25 : 0.08)
+        : Colors.transparent;
     final textColor = isSelected
-        ? AppColors.primary(context)
-        : Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black;
+        ? (isDark ? Colors.white : AppColors.primary(context))
+        : theme.textTheme.bodyLarge?.color ?? Colors.black;
 
     return InkWell(
       onTap: () {
@@ -215,7 +221,7 @@ class BooksView extends GetView<BooksController> {
             ),
           ),
         ),
-        if (isSelected) Icon(Icons.check_circle, color: AppColors.primary(context), size: 20),
+        if (isSelected) Icon(Icons.check_circle, color: textColor, size: 20),
       ],
     );
   }
@@ -276,5 +282,42 @@ class BooksView extends GetView<BooksController> {
         controller.deleteBook(book.id);
       },
     );
+  }
+
+  /// 确认并刷新当前书籍（带加载提示）
+  void _confirmAndRefreshBook() {
+    final viewpoints = controller.allViewpoints;
+    if (viewpoints.isEmpty) {
+      UIUtils.showError('暂无可刷新的书籍');
+      return;
+    }
+    final book = controller.currentViewpoint().book;
+    if (book == null) {
+      UIUtils.showError('未找到当前书籍');
+      return;
+    }
+
+    UIUtils.showConfirmation(
+      '刷新书籍',
+      '将重新拉取《${book.title}》的观点内容，这可能需要一些时间。是否继续？',
+      confirmText: '刷新',
+      cancelText: '取消',
+      onConfirmed: () {
+        _doRefreshBook(book);
+      },
+    );
+  }
+
+  /// 执行刷新逻辑并展示更友好的进度提示
+  Future<void> _doRefreshBook(BookModel book) async {
+    UIUtils.showLoading(tips: '正在刷新《${book.title}》...');
+    try {
+      await controller.refreshBook(book.id);
+      UIUtils.hideLoading();
+      UIUtils.showSuccess('《${book.title}》已刷新');
+    } catch (e) {
+      UIUtils.hideLoading();
+      UIUtils.showError('刷新失败，请稍后重试');
+    }
   }
 }

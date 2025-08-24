@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:daily_satori/app_exports.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart' as p;
 
 class BackupRestoreController extends BaseController {
   var selectedBackupIndex = 0.obs;
@@ -20,30 +21,43 @@ class BackupRestoreController extends BaseController {
     final directory = Directory(backupDir);
 
     if (await directory.exists()) {
-      var entities = await directory.list().toList();
-      entities.sort((a, b) => b.path.compareTo(a.path)); // 根据文件名倒序排序
+      // 仅收集符合命名规范的备份目录，并按目录名倒序
+      const prefix = 'daily_satori_backup_';
+      final entities = await directory
+          .list()
+          .where((e) => e is Directory && p.basename(e.path).startsWith(prefix))
+          .toList();
+
+      entities.sort((a, b) => p.basename(b.path).compareTo(p.basename(a.path))); // 根据目录名倒序排序
+
       for (var entity in entities) {
-        logger.i("得等到目录 ${entity.path}");
-        if (entity is Directory && entity.path.contains('daily_satori_backup_')) {
-          String dirName = entity.path.split('_').last;
-          backupList.add(dirName);
-        }
+        final base = p.basename(entity.path);
+        final name = base.substring(prefix.length); // 提取时间戳部分
+        backupList.add(name);
       }
     }
 
     logger.i("加载备份列表完成, 获取 ${backupList.length} 个备份");
+    // 调整默认选中项
+    selectedBackupIndex.value = backupList.isNotEmpty ? 0 : -1;
   }
 
   String? getBackupTime(String backupName) {
-    RegExp regExp = RegExp(r'(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})');
-    Match? match = regExp.firstMatch(backupName);
-    String? dateStr = match?.group(1);
-    String formattedDateStr = dateStr!.replaceAllMapped(
-      RegExp(r'T(\d{2})-(\d{2})-(\d{2})'),
-      (match) => 'T${match[1]}:${match[2]}:${match[3]}',
-    );
-    DateTime dateTime = DateTime.parse(formattedDateStr);
-    return DateFormat('yyyy年MM月dd日 HH:mm:ss').format(dateTime);
+    try {
+      final regExp = RegExp(r'(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2})');
+      final match = regExp.firstMatch(backupName);
+      final dateStr = match?.group(1);
+      if (dateStr == null) return null;
+
+      final formattedDateStr = dateStr.replaceAllMapped(
+        RegExp(r'T(\d{2})-(\d{2})-(\d{2})'),
+        (m) => 'T${m[1]}:${m[2]}:${m[3]}',
+      );
+      final dateTime = DateTime.parse(formattedDateStr);
+      return DateFormat('yyyy年MM月dd日 HH:mm:ss').format(dateTime);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<bool> restoreBackup() async {
