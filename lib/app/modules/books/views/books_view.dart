@@ -229,6 +229,8 @@ class BooksView extends GetView<BooksController> {
   /// 构建页面主体
   Widget _buildBody(BuildContext context) {
     return Obx(() {
+      // 读取当前索引以触发重建，从而使 PageView 使用新的 initialPage
+      final _ = controller.currentViewpointIndex.value;
       if (controller.allViewpoints.isEmpty) {
         return _buildEmptyView();
       }
@@ -253,7 +255,7 @@ class BooksView extends GetView<BooksController> {
   /// 构建观点列表
   Widget _buildViewpointList() {
     return PageView.builder(
-      controller: PageController(initialPage: controller.currentViewpointIndex.value),
+      controller: controller.pageController,
       onPageChanged: (index) {
         controller.currentViewpointIndex.value = index;
       },

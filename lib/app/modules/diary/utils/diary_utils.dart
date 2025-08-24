@@ -4,6 +4,9 @@ import 'package:intl/intl.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/modules/home/controllers/home_controller.dart';
+import 'package:daily_satori/app/modules/books/controllers/books_controller.dart';
+import 'package:get/get.dart';
 
 /// 日记模块的工具类
 class DiaryUtils {
@@ -99,56 +102,54 @@ class DiaryUtils {
   static void showMarkdownPreview(BuildContext context, String content) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(
-              '预览',
-              style: TextStyle(color: DiaryStyle.primaryTextColor(context), fontWeight: FontWeight.w600),
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 400,
-              child: Markdown(
-                data: content,
-                styleSheet: getMarkdownStyleSheet(context),
-                softLineBreak: true,
-                selectable: true,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                // ignore: deprecated_member_use
-                imageBuilder: (Uri uri, String? title, String? alt) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: Image.network(
-                        uri.toString(),
-                        fit: BoxFit.contain,
-                        errorBuilder:
-                            (context, error, stackTrace) => Container(
-                              height: 150,
-                              decoration: BoxDecoration(
-                                color: DiaryStyle.tagBackgroundColor(context),
-                                borderRadius: BorderRadius.circular(8.0),
-                              ),
-                              child: Center(
-                                child: Icon(Icons.broken_image_outlined, color: DiaryStyle.secondaryTextColor(context)),
-                              ),
-                            ),
+      builder: (context) => AlertDialog(
+        title: Text(
+          '预览',
+          style: TextStyle(color: DiaryStyle.primaryTextColor(context), fontWeight: FontWeight.w600),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: Markdown(
+            data: content,
+            styleSheet: getMarkdownStyleSheet(context),
+            softLineBreak: true,
+            selectable: true,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            // ignore: deprecated_member_use
+            imageBuilder: (Uri uri, String? title, String? alt) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8.0),
+                  child: Image.network(
+                    uri.toString(),
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: DiaryStyle.tagBackgroundColor(context),
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      child: Center(
+                        child: Icon(Icons.broken_image_outlined, color: DiaryStyle.secondaryTextColor(context)),
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('关闭', style: TextStyle(color: DiaryStyle.accentColor(context))),
-              ),
-            ],
-            backgroundColor: DiaryStyle.bottomSheetColor(context),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
+              );
+            },
           ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('关闭', style: TextStyle(color: DiaryStyle.accentColor(context))),
+          ),
+        ],
+        backgroundColor: DiaryStyle.bottomSheetColor(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
     );
   }
 
@@ -282,6 +283,22 @@ class DiaryUtils {
       }
     } catch (e) {
       logger.e('打开链接出错: $e');
+    }
+  }
+
+  /// 打开读书页并定位到指定观点
+  static Future<void> openBookViewpoint(int viewpointId) async {
+    logger.d('打开读书观点: ID=$viewpointId');
+    try {
+      // 切换到底部导航的“读书”页（索引：文章0、日记1、读书2、我的3）
+      final home = Get.find<HomeController>();
+      home.changePage(2);
+
+      // 交给读书控制器处理查找与跳转
+      final books = Get.find<BooksController>();
+      await books.openViewpointById(viewpointId);
+    } catch (e) {
+      logger.e('打开读书观点失败: $e');
     }
   }
 }

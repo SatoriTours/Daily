@@ -3,6 +3,10 @@ import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/modules/books/controllers/books_controller.dart';
 import 'package:daily_satori/app/modules/books/views/widgets/viewpoint_card.dart';
 import 'package:daily_satori/app/styles/colors.dart';
+import 'package:daily_satori/app/modules/diary/controllers/diary_controller.dart';
+import 'package:daily_satori/app/modules/diary/views/widgets/diary_editor.dart';
+import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
 /// 观点内容组件
 class ViewpointContent extends StatefulWidget {
@@ -56,7 +60,12 @@ class _ViewpointContentState extends State<ViewpointContent> {
   @override
   Widget build(BuildContext context) {
     if (widget.viewpoints.isEmpty) return const SizedBox();
-    return Column(children: [_buildHeader(context), Expanded(child: _buildViewpointPageView())]);
+    return Column(
+      children: [
+        _buildHeader(context),
+        Expanded(child: _buildViewpointPageView()),
+      ],
+    );
   }
 
   /// 构建水平滑动的观点视图
@@ -106,8 +115,69 @@ class _ViewpointContentState extends State<ViewpointContent> {
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(children: [Expanded(child: _buildBookBasicInfo(context)), _buildNavigationButtons(context)]),
+        child: Row(
+          children: [
+            Expanded(child: _buildBookBasicInfo(context)),
+            _buildQuickJournalButton(context),
+            const SizedBox(width: 8),
+            _buildNavigationButtons(context),
+          ],
+        ),
       ),
+    );
+  }
+
+  /// 顶部“记感想”按钮，减少滚动
+  Widget _buildQuickJournalButton(BuildContext context) {
+    final primary = AppColors.primary(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        minimumSize: const Size(0, 0),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        side: BorderSide(color: primary.withValues(alpha: isDark ? 0.9 : 0.6)),
+        foregroundColor: primary,
+        shape: const StadiumBorder(),
+      ),
+      onPressed: _openJournalForCurrentViewpoint,
+      icon: const Icon(Icons.edit_note, size: 16),
+      label: const Text('记感想', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+    );
+  }
+
+  void _openJournalForCurrentViewpoint() {
+    final idx = widget.controller.currentViewpointIndex.value;
+    if (idx < 0 || idx >= widget.viewpoints.length) return;
+    final vp = widget.viewpoints[idx];
+
+    final diaryController = Get.find<DiaryController>();
+    final title = vp.title.trim();
+    final bookTitle = widget.book.title.trim();
+    final author = widget.book.author.trim();
+
+    final buffer = StringBuffer();
+    buffer.writeln('观点：$title');
+    if (bookTitle.isNotEmpty) {
+      buffer.writeln('来源：《$bookTitle》${author.isNotEmpty ? ' · $author' : ''}');
+    }
+    buffer.writeln();
+    // 添加隐藏深链，供来源胶囊识别与回跳使用
+    buffer.writeln('[](app://books/viewpoint/${vp.id})');
+
+    diaryController.contentController
+      ..clear()
+      ..text = buffer.toString()
+      ..selection = TextSelection.collapsed(offset: buffer.length);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: DiaryStyle.bottomSheetColor(context),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+      ),
+      builder: (context) => DiaryEditor(controller: diaryController),
     );
   }
 

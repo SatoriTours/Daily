@@ -24,6 +24,8 @@ class BooksController extends BaseController {
 
   // 滚动控制器
   final scrollController = ScrollController();
+  // 读书观点翻页控制器（持久化，避免 initialPage 不生效问题）
+  final PageController pageController = PageController();
 
   @override
   void onInit() {
@@ -35,6 +37,7 @@ class BooksController extends BaseController {
   void onClose() {
     bookNameController.dispose();
     scrollController.dispose();
+    pageController.dispose();
     super.onClose();
   }
 
@@ -55,7 +58,7 @@ class BooksController extends BaseController {
 
     // 如果有观点，选择第一个
     if (allViewpoints.isNotEmpty) {
-      currentViewpointIndex.value = 0;
+      goToViewpointIndex(0);
     }
   }
 
@@ -167,5 +170,65 @@ class BooksController extends BaseController {
         if (index >= 0) currentViewpointIndex.value = index;
       }
     } catch (_) {}
+  }
+
+  /// 通过观点ID打开并定位（用于深链跳转）
+  Future<void> openViewpointById(int viewpointId) async {
+    logger.d('BooksController: 打开读书观点 ID=$viewpointId');
+    try {
+      // 优先通过仓库拿到观点，确保知道它属于哪本书
+      final vp = BookRepository.getViewpointById(viewpointId);
+      if (vp != null) {
+        // 若当前筛选不是该书，切换筛选
+        if (filterBookID.value != vp.bookId && vp.bookId != 0) {
+          await selectBook(vp.bookId);
+        }
+      }
+
+      // 加载观点列表（根据当前筛选）
+      await loadAllViewpoints();
+
+      // 在当前列表中定位索引
+      var idx = allViewpoints.indexWhere((v) => v.id == viewpointId);
+      if (idx < 0) {
+        // 兜底：切回“全部”视图再尝试
+        if (filterBookID.value != -1) {
+          filterBookID.value = -1;
+          await loadAllViewpoints();
+          idx = allViewpoints.indexWhere((v) => v.id == viewpointId);
+        }
+      }
+
+      if (idx >= 0) {
+        goToViewpointIndex(idx);
+      } else {
+        logger.w('BooksController: 未在观点列表中找到ID=$viewpointId');
+      }
+    } catch (e, st) {
+      logger.e('BooksController: 打开读书观点失败', error: e, stackTrace: st);
+    }
+  }
+
+  /// 前往指定的观点索引，并更新状态
+  void goToViewpointIndex(int index, {bool animate = false}) {
+    currentViewpointIndex.value = index;
+    if (!pageController.hasClients) {
+      // 视图尚未挂载，延迟到下一帧尝试
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!pageController.hasClients) return;
+        if (animate) {
+          pageController.animateToPage(index, duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+        } else {
+          pageController.jumpToPage(index);
+        }
+      });
+      return;
+    }
+
+    if (animate) {
+      pageController.animateToPage(index, duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+    } else {
+      pageController.jumpToPage(index);
+    }
   }
 }

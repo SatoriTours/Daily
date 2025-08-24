@@ -154,7 +154,7 @@ class AppUpgradeService {
 
   // 依次尝试官方与镜像 API，返回 release JSON
   Future<Map<String, dynamic>> _fetchLatestReleaseJsonWithFallback() async {
-    Map<String, String> _buildHeaders() {
+    Map<String, String> buildHeaders() {
       final base = <String, String>{
         'User-Agent': 'DailyApp/UpgradeChecker (+https://github.com/SatoriTours/Daily)',
         'Accept': 'application/vnd.github+json',
@@ -171,7 +171,7 @@ class AppUpgradeService {
     }
 
     Future<Map<String, dynamic>> doGet(String url) async {
-      final resp = await HttpService.i.dio.get(url, options: Options(headers: _buildHeaders()));
+      final resp = await HttpService.i.dio.get(url, options: Options(headers: buildHeaders()));
       if (resp.statusCode == 200 && resp.data is Map<String, dynamic>) {
         return Map<String, dynamic>.from(resp.data);
       }

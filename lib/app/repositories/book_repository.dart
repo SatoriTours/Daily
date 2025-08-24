@@ -128,6 +128,12 @@ class BookRepository {
     return _viewpointBox.remove(id);
   }
 
+  /// 根据ID获取单个观点
+  static BookViewpointModel? getViewpointById(int id) {
+    final vp = _viewpointBox.get(id);
+    return vp != null ? BookViewpointModel(vp) : null;
+  }
+
   /// 用新观点替换某本书的所有观点
   static Future<void> replaceViewpointsForBook(int bookId, List<BookViewpointModel> newViewpoints) async {
     // 先删除旧的
