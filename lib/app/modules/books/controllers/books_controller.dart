@@ -153,4 +153,19 @@ class BooksController extends BaseController {
       currentViewpointIndex.value++;
     }
   }
+
+  /// 刷新当前书籍内容（重新抓取信息与观点）
+  Future<void> refreshBook(int bookId) async {
+    try {
+      final ok = await _bookService.refreshBook(bookId);
+      if (!ok) return;
+      await loadAllViewpoints();
+
+      // 刷新后如果当前过滤的是该书或查看全部，则跳到该书第一条观点
+      if (filterBookID.value == -1 || filterBookID.value == bookId) {
+        final index = allViewpoints.indexWhere((v) => v.bookId == bookId);
+        if (index >= 0) currentViewpointIndex.value = index;
+      }
+    } catch (_) {}
+  }
 }

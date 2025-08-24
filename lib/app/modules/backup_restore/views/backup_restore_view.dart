@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:daily_satori/global.dart';
-import 'package:daily_satori/app/utils/dialog_utils.dart';
 
 import '../controllers/backup_restore_controller.dart';
 

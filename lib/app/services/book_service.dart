@@ -237,11 +237,10 @@ class BookService {
     String author,
     List<dynamic> viewpointsData,
   ) async {
-    final List<Future<BookViewpointModel?>> viewpointFutures =
-        viewpointsData
-            .take(20) // 限制最多处理20个观点
-            .map((viewpoint) => _processViewpoint(bookId, title, author, viewpoint as String))
-            .toList();
+    final List<Future<BookViewpointModel?>> viewpointFutures = viewpointsData
+        .take(20) // 限制最多处理20个观点
+        .map((viewpoint) => _processViewpoint(bookId, title, author, viewpoint as String))
+        .toList();
 
     final viewpoints = await Future.wait(viewpointFutures, eagerError: true);
     return viewpoints.where((v) => v != null).cast<BookViewpointModel>().toList();
@@ -285,6 +284,40 @@ class BookService {
     } catch (e, stackTrace) {
       logger.e('保存观点失败', error: e, stackTrace: stackTrace);
       return 0;
+    }
+  }
+
+  /// 刷新书籍内容：重新拉取书籍信息与观点，并替换原观点
+  Future<bool> refreshBook(int bookId) async {
+    final book = BookRepository.getBookById(bookId);
+    if (book == null) return false;
+
+    try {
+      // 重新获取书籍信息
+      final promptTemplate = _pluginService.getBookInfo();
+      final prompt = _renderTemplate(promptTemplate, {'title': book.title});
+      final response = await _aiService.getCompletion(prompt);
+      final Map<String, dynamic> bookData = jsonDecode(response);
+
+      // 更新书籍基础信息
+      book.author = bookData['author'] as String? ?? book.author;
+      book.category = bookData['category'] as String? ?? book.category;
+      book.introduction = bookData['introduction'] as String? ?? book.introduction;
+      book.updateAt = DateTime.now();
+      BookRepository.updateBook(book);
+
+      // 解析观点并替换
+      final List<dynamic> viewpointsData = bookData['viewpoints'] as List<dynamic>? ?? [];
+      List<BookViewpointModel> viewpoints = [];
+      if (viewpointsData.isNotEmpty) {
+        viewpoints = await _processViewpoints(book.id, book.title, book.author, viewpointsData);
+      }
+
+      await BookRepository.replaceViewpointsForBook(book.id, viewpoints);
+      return true;
+    } catch (e, st) {
+      logger.e('刷新书籍失败: ${book.title}', error: e, stackTrace: st);
+      return false;
     }
   }
 }

@@ -50,6 +50,12 @@ class BookRepository {
     return _bookBox.put(entity);
   }
 
+  /// 更新书籍
+  static int updateBook(BookModel book) {
+    final entity = book.toEntity();
+    return _bookBox.put(entity);
+  }
+
   /// 批量保存书籍
   static List<int> saveBooks(List<BookModel> books) {
     final entities = books.map((book) => book.toEntity()).toList();
@@ -120,5 +126,15 @@ class BookRepository {
   /// 删除书籍观点
   static bool deleteViewpoint(int id) {
     return _viewpointBox.remove(id);
+  }
+
+  /// 用新观点替换某本书的所有观点
+  static Future<void> replaceViewpointsForBook(int bookId, List<BookViewpointModel> newViewpoints) async {
+    // 先删除旧的
+    await _viewpointBox.query(BookViewpoint_.bookId.equals(bookId)).build().removeAsync();
+    if (newViewpoints.isEmpty) return;
+    // 再插入新的
+    final entities = newViewpoints.map((v) => v.toEntity()).toList();
+    await _viewpointBox.putManyAsync(entities);
   }
 }

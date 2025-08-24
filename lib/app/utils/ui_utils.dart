@@ -73,25 +73,45 @@ class UIUtils {
     Function()? onCanceled,
   }) async {
     await Get.dialog<bool>(
-      AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Get.close();
-              onCanceled?.call();
-            },
-            child: Text(cancelText),
-          ),
-          TextButton(
-            onPressed: () {
-              Get.close();
-              onConfirmed?.call();
-            },
-            child: Text(confirmText),
-          ),
-        ],
+      Builder(
+        builder: (context) {
+          return AlertDialog(
+            title: Text(title),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(message),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildFilledButton(
+                        context,
+                        text: cancelText,
+                        onPressed: () {
+                          Get.close();
+                          onCanceled?.call();
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildFilledButton(
+                        context,
+                        text: confirmText,
+                        onPressed: () {
+                          Get.close();
+                          onConfirmed?.call();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -104,18 +124,25 @@ class UIUtils {
     Function()? onConfirmed,
   }) async {
     await Get.dialog<bool>(
-      AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Get.close();
-              onConfirmed?.call();
-            },
-            child: Text(buttonText),
-          ),
-        ],
+      Builder(
+        builder: (context) {
+          return AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            actionsAlignment: MainAxisAlignment.end,
+            actions: [
+              _buildFilledButton(
+                context,
+                text: buttonText,
+                onPressed: () {
+                  Get.close();
+                  onConfirmed?.call();
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -125,5 +152,13 @@ class UIUtils {
     if (Get.isDialogOpen ?? false) {
       Get.close();
     }
+  }
+
+  static Widget _buildFilledButton(BuildContext context, {required String text, required VoidCallback onPressed}) {
+    return FilledButton(
+      style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+      onPressed: onPressed,
+      child: Text(text),
+    );
   }
 }
