@@ -5,8 +5,11 @@ import 'package:daily_satori/app/styles/colors.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
-import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 import 'package:daily_satori/app/components/menus/s_popup_menu_item.dart';
+import 'package:daily_satori/app/modules/diary/controllers/diary_controller.dart';
+import 'package:daily_satori/app/modules/diary/views/widgets/diary_editor.dart';
+import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
 /// 读书页面
 ///
@@ -19,6 +22,7 @@ class BooksView extends GetView<BooksController> {
     return Scaffold(
       appBar: _buildAppBar(context),
       body: _buildBody(context),
+      floatingActionButton: _buildFloatingQuickJournal(context),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
@@ -257,7 +261,7 @@ class BooksView extends GetView<BooksController> {
     return PageView.builder(
       controller: controller.pageController,
       onPageChanged: (index) {
-        controller.currentViewpointIndex.value = index;
+        controller.goToViewpointIndex(index);
       },
       itemCount: controller.allViewpoints.length,
       itemBuilder: (context, index) {
@@ -267,6 +271,63 @@ class BooksView extends GetView<BooksController> {
           child: ViewpointCard(viewpoint: viewpoint, book: viewpoint.book),
         );
       },
+    );
+  }
+
+  /// 悬浮“记感想”按钮，始终可见不被遮挡
+  Widget _buildFloatingQuickJournal(BuildContext context) {
+    if (controller.allViewpoints.isEmpty) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final bg = theme.colorScheme.primary;
+    final fg = theme.colorScheme.onPrimary;
+
+    return FloatingActionButton.small(
+      heroTag: 'books_quick_journal',
+      tooltip: '记感想',
+      onPressed: () => _openJournalForCurrent(context),
+      backgroundColor: bg,
+      foregroundColor: fg,
+      elevation: 4,
+      hoverElevation: 6,
+      focusElevation: 5,
+      highlightElevation: 6,
+      child: Icon(Icons.edit_note, color: fg, size: 20),
+    );
+  }
+
+  void _openJournalForCurrent(BuildContext context) {
+    final idx = controller.currentViewpointIndex.value;
+    if (idx < 0 || idx >= controller.allViewpoints.length) return;
+    final vp = controller.allViewpoints[idx];
+    final book = vp.book;
+    if (book == null) return;
+
+    final diaryController = Get.find<DiaryController>();
+    final title = vp.title.trim();
+    final bookTitle = book.title.trim();
+    final author = book.author.trim();
+
+    final buffer = StringBuffer();
+    buffer.writeln('观点：$title');
+    if (bookTitle.isNotEmpty) {
+      buffer.writeln('来源：《$bookTitle》${author.isNotEmpty ? ' · $author' : ''}');
+    }
+    buffer.writeln();
+    buffer.writeln('[](app://books/viewpoint/${vp.id})');
+
+    diaryController.contentController
+      ..clear()
+      ..text = buffer.toString()
+      ..selection = TextSelection.collapsed(offset: buffer.length);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: DiaryStyle.bottomSheetColor(context),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+      ),
+      builder: (context) => DiaryEditor(controller: diaryController),
     );
   }
 
