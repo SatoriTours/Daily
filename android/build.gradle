@@ -6,9 +6,9 @@ allprojects {
 }
 
 rootProject.buildDir = "../build"
-subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
+// 仅为 app 模块自定义构建目录，避免插件项目跨盘符构建导致 Gradle 路径根不一致
+project(":app").buildDir = "${rootProject.buildDir}/app"
+
 subprojects {
     project.evaluationDependsOn(":app")
 }

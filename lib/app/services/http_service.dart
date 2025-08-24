@@ -36,6 +36,10 @@ class HttpService implements AppService {
         maxRedirects: 5,
       ),
     );
+
+    // 如需全局 HTTP 代理（例如企业网络或调试抓包），可在运行环境中设置：
+    // - 环境变量 HTTP_PROXY/HTTPS_PROXY（系统级）
+    // - 或基于 Dio 的自定义 adapter/proxy（此处不默认启用）
   }
 
   /// 下载图片

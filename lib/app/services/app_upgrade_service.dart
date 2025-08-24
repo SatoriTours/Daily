@@ -1,4 +1,5 @@
-import 'package:dio/dio.dart' show Options;
+import 'dart:io';
+import 'package:dio/dio.dart' show DioException, Options;
 import 'package:get/get.dart';
 import 'package:open_file/open_file.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -153,14 +154,24 @@ class AppUpgradeService {
 
   // 依次尝试官方与镜像 API，返回 release JSON
   Future<Map<String, dynamic>> _fetchLatestReleaseJsonWithFallback() async {
-    final headers = const {
-      'User-Agent': 'DailyApp/UpgradeChecker (+https://github.com/SatoriTours/Daily)',
-      'Accept': 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    };
+    Map<String, String> _buildHeaders() {
+      final base = <String, String>{
+        'User-Agent': 'DailyApp/UpgradeChecker (+https://github.com/SatoriTours/Daily)',
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      };
+
+      // 可选：支持通过环境变量提供 GitHub Token，以避免 403（未认证限流）。
+      // Windows/macOS/Linux 桌面端可生效；移动端通常无此环境变量。
+      final token = Platform.environment['GITHUB_TOKEN'] ?? Platform.environment['DS_GITHUB_TOKEN'];
+      if (token != null && token.trim().isNotEmpty) {
+        base['Authorization'] = 'Bearer ${token.trim()}';
+      }
+      return base;
+    }
 
     Future<Map<String, dynamic>> doGet(String url) async {
-      final resp = await HttpService.i.dio.get(url, options: Options(headers: headers));
+      final resp = await HttpService.i.dio.get(url, options: Options(headers: _buildHeaders()));
       if (resp.statusCode == 200 && resp.data is Map<String, dynamic>) {
         return Map<String, dynamic>.from(resp.data);
       }
@@ -171,7 +182,17 @@ class AppUpgradeService {
     try {
       return await doGet(_githubReleaseApi);
     } catch (e) {
-      logger.w("GitHub 主站获取失败，尝试镜像: $e");
+      // 403 多见于未携带 Token 导致的未认证限流；此时降级到镜像，不再用告警级别噪声提示。
+      if (e is DioException) {
+        final code = e.response?.statusCode;
+        if (code == 403) {
+          logger.i("GitHub 主站返回 403（可能触发未认证限流），已自动切换镜像获取版本信息。");
+        } else {
+          logger.w("GitHub 主站获取失败（HTTP $code），尝试镜像: ${e.message}");
+        }
+      } else {
+        logger.w("GitHub 主站获取失败，尝试镜像: $e");
+      }
       // 尝试镜像
       return await doGet(_githubReleaseApiMirror);
     }
