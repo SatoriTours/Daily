@@ -287,7 +287,7 @@ class BooksView extends GetView<BooksController> {
 
     return FloatingActionButton.small(
       heroTag: 'books_quick_journal',
-      tooltip: '记感想',
+      tooltip: '添加感悟',
       onPressed: () => _openJournalForCurrent(context),
       backgroundColor: bg,
       foregroundColor: fg,

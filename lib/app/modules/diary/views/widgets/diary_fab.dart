@@ -51,6 +51,7 @@ class _DiaryFabState extends State<DiaryFab> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return ScaleTransition(
       scale: _scaleAnimation,
       child: Material(
@@ -65,7 +66,7 @@ class _DiaryFabState extends State<DiaryFab> with SingleTickerProviderStateMixin
             child: Center(
               child: RotationTransition(
                 turns: _rotationAnimation,
-                child: const Icon(FeatherIcons.plus, size: 18, color: Colors.white),
+                child: Icon(FeatherIcons.plus, size: 18, color: theme.colorScheme.onPrimary),
               ),
             ),
           ),
@@ -76,21 +77,15 @@ class _DiaryFabState extends State<DiaryFab> with SingleTickerProviderStateMixin
 
   /// 构建FAB装饰
   BoxDecoration _buildFabDecoration(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return BoxDecoration(
       shape: BoxShape.circle,
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          DiaryStyle.accentColor(context),
-          DiaryStyle.accentColor(context).withBlue((DiaryStyle.accentColor(context).b * 0.85).toInt()),
-        ],
-      ),
+      color: theme.colorScheme.primary,
       boxShadow: [
         BoxShadow(
-          color: DiaryStyle.accentColor(context).withAlpha(isDark ? 30 : 50),
+          color: theme.colorScheme.primary.withAlpha(isDark ? 30 : 50),
           blurRadius: 8,
           spreadRadius: 0,
           offset: const Offset(0, 2),
