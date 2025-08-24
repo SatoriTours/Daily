@@ -75,6 +75,7 @@ class BooksView extends GetView<BooksController> {
       icon: const Icon(Icons.more_horiz, size: 20),
       onSelected: (value) => _handleMoreMenuSelection(value, context),
       itemBuilder: (context) => [
+        SPopupMenuItem<String>(value: 'shuffle', icon: Icons.shuffle, text: '换一换'),
         SPopupMenuItem<String>(value: 'refresh', icon: Icons.refresh, text: '刷新书籍内容'),
         SPopupMenuItem<String>(value: 'delete', icon: Icons.delete_outline, text: '删除当前书籍'),
       ],
@@ -86,6 +87,9 @@ class BooksView extends GetView<BooksController> {
     switch (value) {
       case 'refresh':
         _confirmAndRefreshBook();
+        break;
+      case 'shuffle':
+        controller.refreshRecommendations();
         break;
       case 'delete':
         _showDeleteBookDialog();

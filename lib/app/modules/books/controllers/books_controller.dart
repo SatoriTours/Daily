@@ -1,6 +1,8 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/repositories/book_repository.dart';
+import 'dart:async';
+import 'dart:math';
 
 /// 读书页面控制器
 ///
@@ -27,6 +29,13 @@ class BooksController extends BaseController {
   // 读书观点翻页控制器（持久化，避免 initialPage 不生效问题）
   final PageController pageController = PageController();
 
+  // 随机推荐相关：模式、种子、时间与定时器
+  DisplayMode _mode = DisplayMode.allRandom; // 默认：所有书籍随机10条
+  int? _deepLinkSeedViewpointId; // 深链模式下需要优先展示的观点
+  Timer? _autoRefreshTimer; // 12小时自动刷新定时器
+  final Random _rand = Random();
+  static const int _kRandomCount = 10;
+
   @override
   void onInit() {
     super.onInit();
@@ -38,6 +47,7 @@ class BooksController extends BaseController {
     bookNameController.dispose();
     scrollController.dispose();
     pageController.dispose();
+    _autoRefreshTimer?.cancel();
     super.onClose();
   }
 
@@ -48,23 +58,45 @@ class BooksController extends BaseController {
 
   /// 加载所有观点
   Future<void> loadAllViewpoints() async {
-    // 获取所有观点
-    logger.i('加载观点: bookID: ${filterBookID.value}');
+    logger.i('加载观点: bookID: ${filterBookID.value}, mode: $_mode');
     if (filterBookID.value == -1) {
-      allViewpoints.value = await BookRepository.getAllViewpointsAsync();
+      // 所有书籍：根据模式选择随机数据
+      final all = await BookRepository.getAllViewpointsAsync();
+      if (all.isEmpty) {
+        allViewpoints.clear();
+        return;
+      }
+      if (_mode == DisplayMode.deepLinkMix && _deepLinkSeedViewpointId != null) {
+        allViewpoints.value = _buildDeepLinkMix(all, _deepLinkSeedViewpointId!);
+        goToViewpointIndex(0);
+      } else {
+        _mode = DisplayMode.allRandom; // 兜底为全量随机
+        allViewpoints.value = _pickRandom(all, _kRandomCount);
+        goToViewpointIndex(0);
+      }
+      _touchShuffleTimeAndSchedule();
     } else {
+      // 某本书：展示该书全部
+      _mode = DisplayMode.bookSpecific;
       allViewpoints.value = await BookRepository.getViewpointsByBookIdsAsync([filterBookID.value]);
-    }
-
-    // 如果有观点，选择第一个
-    if (allViewpoints.isNotEmpty) {
-      goToViewpointIndex(0);
+      if (allViewpoints.isNotEmpty) {
+        goToViewpointIndex(0);
+      }
+      _cancelAutoRefreshIfAny(); // 书内全部不参与12小时自动刷新
     }
   }
 
   /// 选择书籍
   Future<void> selectBook(int bookID) async {
     filterBookID.value = bookID;
+    // 切换筛选时重置模式与种子
+    if (bookID == -1) {
+      _mode = DisplayMode.allRandom;
+      _deepLinkSeedViewpointId = null;
+    } else {
+      _mode = DisplayMode.bookSpecific;
+      _deepLinkSeedViewpointId = null;
+    }
   }
 
   BookViewpointModel currentViewpoint() {
@@ -174,36 +206,13 @@ class BooksController extends BaseController {
 
   /// 通过观点ID打开并定位（用于深链跳转）
   Future<void> openViewpointById(int viewpointId) async {
-    logger.d('BooksController: 打开读书观点 ID=$viewpointId');
+    logger.d('BooksController: 深链进入，构建种子+随机列表 ID=$viewpointId');
     try {
-      // 优先通过仓库拿到观点，确保知道它属于哪本书
-      final vp = BookRepository.getViewpointById(viewpointId);
-      if (vp != null) {
-        // 若当前筛选不是该书，切换筛选
-        if (filterBookID.value != vp.bookId && vp.bookId != 0) {
-          await selectBook(vp.bookId);
-        }
-      }
-
-      // 加载观点列表（根据当前筛选）
-      await loadAllViewpoints();
-
-      // 在当前列表中定位索引
-      var idx = allViewpoints.indexWhere((v) => v.id == viewpointId);
-      if (idx < 0) {
-        // 兜底：切回“全部”视图再尝试
-        if (filterBookID.value != -1) {
-          filterBookID.value = -1;
-          await loadAllViewpoints();
-          idx = allViewpoints.indexWhere((v) => v.id == viewpointId);
-        }
-      }
-
-      if (idx >= 0) {
-        goToViewpointIndex(idx);
-      } else {
-        logger.w('BooksController: 未在观点列表中找到ID=$viewpointId');
-      }
+      // 切换到“所有书籍”随机模式，并设置深链种子
+      await selectBook(-1);
+      _mode = DisplayMode.deepLinkMix;
+      _deepLinkSeedViewpointId = viewpointId;
+      await loadAllViewpoints(); // 会把种子放在第一个，并滚到该页
     } catch (e, st) {
       logger.e('BooksController: 打开读书观点失败', error: e, stackTrace: st);
     }
@@ -231,4 +240,65 @@ class BooksController extends BaseController {
       pageController.jumpToPage(index);
     }
   }
+
+  // --- 刷新与随机相关 ---
+
+  /// 手动刷新推荐列表（在“所有书籍”或“深链混合”模式下）
+  Future<void> refreshRecommendations() async {
+    if (filterBookID.value != -1) {
+      // 指定书籍模式：按原逻辑重载
+      await loadAllViewpoints();
+      return;
+    }
+    // 重新执行当前模式的随机逻辑
+    await loadAllViewpoints();
+  }
+
+  /// 内部：更新上次随机时间并安排自动刷新
+  void _touchShuffleTimeAndSchedule() {
+    _scheduleAutoRefresh();
+  }
+
+  void _scheduleAutoRefresh() {
+    _cancelAutoRefreshIfAny();
+    if (filterBookID.value != -1) return; // 仅在“所有/深链”模式下自动刷新
+
+    // 12小时后自动刷新
+    const duration = Duration(hours: 12);
+    _autoRefreshTimer = Timer(duration, () async {
+      try {
+        await refreshRecommendations();
+      } catch (_) {}
+    });
+  }
+
+  void _cancelAutoRefreshIfAny() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = null;
+  }
+
+  /// 从全集中随机选取 n 条（不足则返回全部），顺序随机
+  List<BookViewpointModel> _pickRandom(List<BookViewpointModel> all, int n) {
+    final pool = List<BookViewpointModel>.from(all);
+    pool.shuffle(_rand);
+    if (pool.length <= n) return pool;
+    return pool.take(n).toList();
+  }
+
+  /// 深链模式：指定种子观点 + 其余随机凑满 n 条
+  List<BookViewpointModel> _buildDeepLinkMix(List<BookViewpointModel> all, int seedId) {
+    final seed = all.firstWhereOrNull((v) => v.id == seedId);
+    if (seed == null) {
+      // 找不到种子则退回全量随机
+      return _pickRandom(all, _kRandomCount);
+    }
+    final others = all.where((v) => v.id != seedId).toList();
+    others.shuffle(_rand);
+    final take = max(0, _kRandomCount - 1);
+    final mixed = <BookViewpointModel>[seed, ...others.take(take)];
+    return mixed;
+  }
 }
+
+/// 展示模式
+enum DisplayMode { allRandom, deepLinkMix, bookSpecific }
