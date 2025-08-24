@@ -145,7 +145,9 @@ class AppUpgradeService {
           break;
         }
       }
-      _downloadURL = apkUrl ?? (assets.first['browser_download_url'] as String);
+      // 优先使用 jsDelivr 作为国内下载源（若可转换）；否则用原始 GitHub 直链
+      final rawUrl = apkUrl ?? (assets.first['browser_download_url'] as String);
+      _downloadURL = _toJsDelivrIfPossible(rawUrl) ?? rawUrl;
     } catch (e) {
       logger.e("获取Github版本信息失败: $e");
       rethrow;
@@ -153,6 +155,32 @@ class AppUpgradeService {
   }
 
   // 依次尝试官方与镜像 API，返回 release JSON
+
+  // 将 GitHub releases/download 直链转换为 jsDelivr（仅当可解析时返回，否则返回 null）
+  // 形如：https://github.com/{owner}/{repo}/releases/download/{tag}/{file}
+  // 转为：https://cdn.jsdelivr.net/gh/{owner}/{repo}@{tag}/{file}
+  // 注意：如果文件并不在仓库对应 tag 的源码树中（仅作为 Release 附件上传），jsDelivr 可能无法提供；
+  // 此时下载会失败，HttpService 会继续回退到原始直链或 ghproxy。
+  String? _toJsDelivrIfPossible(String url) {
+    try {
+      final uri = Uri.parse(url);
+      if (uri.host != 'github.com') return null;
+      final seg = uri.pathSegments;
+      // 期望 path: owner/repo/releases/download/tag/file...
+      final i = seg.indexOf('releases');
+      if (i <= 1 || i + 2 >= seg.length) return null;
+      if (seg[i + 1] != 'download') return null;
+      final owner = seg[i - 2];
+      final repo = seg[i - 1];
+      final tag = seg[i + 2];
+      final filePath = seg.sublist(i + 3).join('/');
+      if (owner.isEmpty || repo.isEmpty || tag.isEmpty || filePath.isEmpty) return null;
+      return 'https://cdn.jsdelivr.net/gh/$owner/$repo@$tag/$filePath';
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>> _fetchLatestReleaseJsonWithFallback() async {
     Map<String, String> buildHeaders() {
       final base = <String, String>{
