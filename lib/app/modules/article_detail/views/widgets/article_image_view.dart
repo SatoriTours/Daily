@@ -10,6 +10,7 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/components/smart_image.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
+import 'package:daily_satori/app/services/file_service.dart';
 
 class ArticleImageView extends StatelessWidget {
   final String imagePath;
@@ -102,13 +103,14 @@ class ArticleImageView extends StatelessWidget {
   }
 
   ImageProvider _getImageProvider(String path) {
-    if (File(path).existsSync()) {
-      return FileImage(File(path));
+    final resolved = FileService.i.resolveLocalMediaPath(path);
+    if (File(resolved).existsSync()) {
+      return FileImage(File(resolved));
     } else if (networkUrl != null && networkUrl!.isNotEmpty) {
       return NetworkImage(networkUrl!);
     } else if (controller.articleModel.coverImageUrl != null && controller.articleModel.coverImageUrl!.isNotEmpty) {
       return NetworkImage(controller.articleModel.coverImageUrl!);
     }
-    return FileImage(File(path)); // 这里会报错，但会被errorBuilder处理
+    return FileImage(File(resolved)); // 这里会报错，但会被errorBuilder处理
   }
 }

@@ -134,4 +134,52 @@ class FileService {
   String convertLocalPathToWebPath(String localPath) {
     return localPath.replaceAll(appPath, '');
   }
+
+  // 解析并修复存储的本地媒体路径
+  // 用于恢复后旧绝对路径无法直接访问的情况
+  String resolveLocalMediaPath(String storedPath) {
+    if (storedPath.isEmpty) return storedPath;
+
+    final normalized = path.normalize(storedPath);
+
+    // 若文件本身就存在，直接返回
+    if (File(normalized).existsSync()) return normalized;
+
+    // 分割为通用段，查找关键目录
+    final segments = normalized.split(RegExp(r"[\\/]+"));
+    final lowerSegments = segments.map((e) => e.toLowerCase()).toList();
+
+    int idx = lowerSegments.indexWhere((s) => s == 'diary_images');
+    if (idx != -1) {
+      final rel = path.joinAll(segments.sublist(idx + 1));
+      final candidate = path.join(_diaryImagesBasePath, rel);
+      if (File(candidate).existsSync()) return candidate;
+
+      // 尝试仅使用文件名（可能路径结构不同）
+      final baseOnly = path.join(_diaryImagesBasePath, path.basename(rel));
+      if (File(baseOnly).existsSync()) return baseOnly;
+    }
+
+    idx = lowerSegments.indexWhere((s) => s == 'images');
+    if (idx != -1) {
+      final rel = path.joinAll(segments.sublist(idx + 1));
+      final candidate = path.join(_imagesBasePath, rel);
+      if (File(candidate).existsSync()) return candidate;
+
+      final baseOnly = path.join(_imagesBasePath, path.basename(rel));
+      if (File(baseOnly).existsSync()) return baseOnly;
+    }
+
+    // 若原路径为相对路径，尝试拼接到两个根目录
+    if (path.isRelative(normalized)) {
+      final candidate1 = path.join(_diaryImagesBasePath, normalized);
+      if (File(candidate1).existsSync()) return candidate1;
+
+      final candidate2 = path.join(_imagesBasePath, normalized);
+      if (File(candidate2).existsSync()) return candidate2;
+    }
+
+    // 最后兜底，返回原路径（由调用方决定回退到网络或占位）
+    return storedPath;
+  }
 }

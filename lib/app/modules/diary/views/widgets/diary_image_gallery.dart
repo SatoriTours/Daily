@@ -5,6 +5,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:get/get.dart';
 import 'dart:io';
+import 'package:daily_satori/app/services/file_service.dart';
 
 /// 日记图片画廊组件
 class DiaryImageGallery extends StatelessWidget {
@@ -23,14 +24,15 @@ class DiaryImageGallery extends StatelessWidget {
         itemCount: images.length,
         itemBuilder: (context, index) {
           final String imagePath = images[index];
-          final file = File(imagePath);
+          final resolved = FileService.i.resolveLocalMediaPath(imagePath);
+          final file = File(resolved);
 
           // 检查文件是否存在
           if (!file.existsSync()) {
             return _buildPlaceholder(context);
           }
 
-          return _buildImageItem(context, imagePath, file, index, images);
+          return _buildImageItem(context, resolved, file, index, images);
         },
       ),
     );
@@ -96,7 +98,8 @@ class DiaryImageGallery extends StatelessWidget {
               itemCount: images.length,
               builder: (BuildContext context, int index) {
                 final imagePath = images[index];
-                final file = File(imagePath);
+                final resolved = FileService.i.resolveLocalMediaPath(imagePath);
+                final file = File(resolved);
 
                 if (!file.existsSync()) {
                   return PhotoViewGalleryPageOptions.customChild(
@@ -109,19 +112,18 @@ class DiaryImageGallery extends StatelessWidget {
                   initialScale: PhotoViewComputedScale.contained,
                   minScale: PhotoViewComputedScale.contained,
                   maxScale: PhotoViewComputedScale.covered * 5.0,
-                  heroAttributes: PhotoViewHeroAttributes(tag: imagePath),
+                  heroAttributes: PhotoViewHeroAttributes(tag: resolved),
                   errorBuilder: (context, error, stackTrace) {
                     return Center(child: Icon(FeatherIcons.alertCircle, color: Colors.white70, size: 48));
                   },
                 );
               },
-              loadingBuilder:
-                  (context, event) => Center(
-                    child: CircularProgressIndicator(
-                      value: event == null ? 0 : event.cumulativeBytesLoaded / (event.expectedTotalBytes ?? 1),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white70),
-                    ),
-                  ),
+              loadingBuilder: (context, event) => Center(
+                child: CircularProgressIndicator(
+                  value: event == null ? 0 : event.cumulativeBytesLoaded / (event.expectedTotalBytes ?? 1),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white70),
+                ),
+              ),
               backgroundDecoration: const BoxDecoration(color: Colors.black),
             ),
           ),

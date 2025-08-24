@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app/styles/component_style.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:daily_satori/app/services/file_service.dart';
 
 /// 智能图片组件
 ///
@@ -95,8 +96,9 @@ class SmartImage extends StatelessWidget {
 
   /// 构建本地图片组件
   Widget _buildLocalImage(BuildContext context) {
+    final resolved = FileService.i.resolveLocalMediaPath(localPath!);
     return Image.file(
-      File(localPath!),
+      File(resolved),
       fit: fit,
       width: width,
       height: height,

@@ -14,6 +14,9 @@ import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/global.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
+import 'package:daily_satori/app/repositories/diary_repository.dart';
+import 'package:daily_satori/app/models/diary_model.dart';
+import 'package:daily_satori/app/repositories/article_repository.dart';
 
 /// 备份项配置类，定义备份内容和目标
 class BackupItem {
@@ -214,6 +217,10 @@ class BackupService {
         await _extractZipFile(zipFile, destinationPath);
       }
 
+      // 解压完成后，修正数据库中保存的本地图片路径
+      await _fixDiaryImagePaths();
+      await _fixArticleImagePaths();
+
       logger.i("恢复备份完成: $backupFolder => $appDocDir");
       Get.back();
       return true;
@@ -240,5 +247,117 @@ class BackupService {
         Directory(path.join(destinationPath, filename)).createSync(recursive: true);
       }
     }
+  }
+
+  /// 修复日记图片的绝对路径，将旧路径中的“diary_images/...”相对部分映射到当前目录
+  Future<void> _fixDiaryImagePaths() async {
+    try {
+      final List<DiaryModel> diaries = DiaryRepository.i.getAll();
+      if (diaries.isEmpty) return;
+
+      final newBase = FileService.i.diaryImagesBasePath; // 当前设备的图片根目录
+
+      for (final diary in diaries) {
+        final images = diary.images;
+        if (images == null || images.trim().isEmpty) continue;
+
+        final parts = images.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        bool changed = false;
+        final fixed = <String>[];
+
+        for (final p0 in parts) {
+          final normalized = path.normalize(p0);
+          // 兼容不同分隔符，定位到 diary_images 段
+          final segments = normalized.split(RegExp(r"[\\/]+"));
+          final idx = segments.indexWhere((s) => s.toLowerCase() == 'diary_images');
+          if (idx != -1) {
+            final relSegments = segments.sublist(idx + 1);
+            final relPath = path.joinAll(relSegments);
+            final mapped = path.join(newBase, relPath);
+            if (mapped != p0) changed = true;
+            fixed.add(mapped);
+          } else {
+            // 若未定位到标记目录且原路径是相对路径，则按相对路径拼接
+            if (path.isRelative(normalized)) {
+              final mapped = path.join(newBase, normalized);
+              if (mapped != p0) changed = true;
+              fixed.add(mapped);
+            } else {
+              // 保持原样
+              fixed.add(p0);
+            }
+          }
+        }
+
+        if (changed) {
+          diary.images = fixed.join(',');
+          DiaryRepository.i.save(diary);
+        }
+      }
+      logger.i('恢复后已修复日记图片路径');
+    } catch (e) {
+      logger.w('修复日记图片路径时出错: $e');
+    }
+  }
+
+  /// 修复文章本地图片路径（封面与图片表），将旧路径映射到当前 images 目录
+  Future<void> _fixArticleImagePaths() async {
+    try {
+      final articles = ArticleRepository.getAll();
+      if (articles.isEmpty) return;
+
+      final newBase = FileService.i.imagesBasePath;
+
+      for (final am in articles) {
+        bool changed = false;
+
+        // 修复封面路径
+        final cover = am.coverImage;
+        if (cover != null && cover.trim().isNotEmpty) {
+          final mapped = _mapToNewBase(cover, newBase, marker: 'images');
+          if (mapped != cover) {
+            am.coverImage = mapped;
+            changed = true;
+          }
+        }
+
+        // 修复关联图片表路径
+        try {
+          final images = am.images; // List<obx_image.Image>
+          for (final img in images) {
+            final path0 = img.path;
+            if (path0 != null && path0.trim().isNotEmpty) {
+              final mapped = _mapToNewBase(path0, newBase, marker: 'images');
+              if (mapped != path0) {
+                img.path = mapped;
+                changed = true;
+              }
+            }
+          }
+        } catch (_) {}
+
+        if (changed) {
+          await am.save();
+        }
+      }
+      logger.i('恢复后已修复文章相关图片路径');
+    } catch (e) {
+      logger.w('修复文章图片路径时出错: $e');
+    }
+  }
+
+  /// 将任意旧路径映射到新根目录（根据标记目录名提取相对路径）
+  String _mapToNewBase(String oldPath, String newBase, {required String marker}) {
+    final normalized = path.normalize(oldPath);
+    final segments = normalized.split(RegExp(r"[\\/]+"));
+    final idx = segments.indexWhere((s) => s.toLowerCase() == marker.toLowerCase());
+    if (idx != -1) {
+      final rel = path.joinAll(segments.sublist(idx + 1));
+      return path.join(newBase, rel);
+    }
+    if (path.isRelative(normalized)) {
+      return path.join(newBase, normalized);
+    }
+    return oldPath;
   }
 }
