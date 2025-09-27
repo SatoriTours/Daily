@@ -70,9 +70,6 @@ ai_prompts:
     content: |
       {{summary}}
 
-
-
-
       {{keyPoints}}
 
   - key: common_tags
