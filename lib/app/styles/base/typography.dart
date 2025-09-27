@@ -8,8 +8,8 @@ class AppTypography {
   AppTypography._();
 
   // 基础字体样式配置
-  static const double _height = 1.5;
-  static const double _letterSpacing = 0.5;
+  static const double _height = 1.8;
+  static const double _letterSpacing = 0.15;
 
   /// 获取主要字体 (Lato)
   static String get fontFamily => GoogleFonts.lato().fontFamily ?? 'Lato';
@@ -76,13 +76,13 @@ class AppTypography {
   static final titleSmall = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.43);
 
   /// 正文样式 - 大号
-  static final bodyLarge = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.5);
+  static final bodyLarge = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.9);
 
   /// 正文样式 - 中号
-  static final bodyMedium = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.5);
+  static final bodyMedium = _createBaseStyle(fontSize: 15, fontWeight: FontWeight.w400, height: 1.9);
 
   /// 正文样式 - 小号
-  static final bodySmall = _createBaseStyle(fontSize: 12, fontWeight: FontWeight.w400, height: 1.5);
+  static final bodySmall = _createBaseStyle(fontSize: 13, fontWeight: FontWeight.w400, height: 1.8);
 
   /// 标签样式 - 大号
   static final labelLarge = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.43);
@@ -127,10 +127,10 @@ class AppTypography {
   static final chipText = _createBaseStyle(fontSize: 12, fontWeight: FontWeight.w500, height: 1.33);
 
   /// 列表项标题样式
-  static final listItemTitle = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.4);
+  static final listItemTitle = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.5);
 
   /// 列表项副标题样式
-  static final listItemSubtitle = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.4);
+  static final listItemSubtitle = _createBaseStyle(fontSize: 15, fontWeight: FontWeight.w400, height: 1.6);
 
   /// 卡片标题样式
   static final cardTitle = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.4);
@@ -139,13 +139,13 @@ class AppTypography {
   static final cardSubtitle = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.4);
 
   /// 卡片内容样式
-  static final cardContent = _createBaseStyle(fontSize: 14, fontWeight: FontWeight.w400, height: 1.6);
+  static final cardContent = _createBaseStyle(fontSize: 15, fontWeight: FontWeight.w400, height: 1.8);
 
   /// 对话框标题样式
-  static final dialogTitle = _createBaseStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 1.3);
+  static final dialogTitle = _createBaseStyle(fontSize: 20, fontWeight: FontWeight.w600, height: 1.4);
 
   /// 对话框内容样式
-  static final dialogContent = _createBaseStyle(fontSize: 16, fontWeight: FontWeight.w400, height: 1.5);
+  static final dialogContent = _createBaseStyle(fontSize: 15, fontWeight: FontWeight.w400, height: 1.8);
 
   /// 小提示文本样式
   static final captionText = _createBaseStyle(

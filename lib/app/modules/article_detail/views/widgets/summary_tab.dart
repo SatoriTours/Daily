@@ -21,7 +21,7 @@ class SummaryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.symmetric(vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -30,19 +30,19 @@ class SummaryTab extends StatelessWidget {
 
           // 标题区域
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
             child: Text(controller.articleModel.showTitle(), style: AppTheme.getTextTheme(context).headlineSmall),
           ),
 
           // 标签区域
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Obx(() => ArticleTags(tags: controller.tags.value)),
           ),
 
           // 内容区域
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
             child: Text(controller.articleModel.showContent(), style: AppTheme.getTextTheme(context).bodyMedium),
           ),
 
@@ -77,12 +77,12 @@ class SummaryTab extends StatelessWidget {
     final textTheme = AppTheme.getTextTheme(context);
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('评论', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           Text(controller.articleModel.comment ?? '', style: textTheme.bodyMedium),
         ],
       ),

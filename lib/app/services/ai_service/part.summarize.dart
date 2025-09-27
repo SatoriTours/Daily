@@ -102,22 +102,8 @@ extension PartSummarize on AiService {
   String _formatLongSummary(AiSummaryResult result) {
     return _renderTemplate(PluginService.i.getLongSummaryResult(), {
       'summary': result.summary,
-      'keyContents': _formatNumberedList(result.keyContents),
-      'cases': _formatNumberedList(result.cases),
+      'keyPoints': result.keyPoints.join('\n'),
     }).trim();
-  }
-
-  /// 格式化编号列表
-  String _formatNumberedList(List<String> items) {
-    if (items.isEmpty) return '';
-
-    return items
-        .asMap()
-        .entries
-        .map((entry) {
-          return '${entry.key + 1}. ${entry.value}';
-        })
-        .join('\n');
   }
 
   /// 获取短文本摘要系统提示
@@ -136,28 +122,24 @@ extension PartSummarize on AiService {
 ///
 /// 用于解析AI返回的JSON格式摘要数据
 class AiSummaryResult {
-  /// 摘要内容
-  final String summary;
-
-  /// 关键内容点列表
-  final List<String> keyContents;
-
-  /// 案例列表
-  final List<String> cases;
+  /// 关键要点列表
+  final List<String> keyPoints;
 
   /// 标签列表
   final List<String> tags;
 
+  /// 简要摘要（用于短文本）
+  final String summary;
+
   /// 构造函数
-  AiSummaryResult({required this.summary, required this.keyContents, required this.cases, required this.tags});
+  AiSummaryResult({required this.keyPoints, required this.tags, this.summary = ''});
 
   /// 从JSON构造
   factory AiSummaryResult.fromJson(Map<String, dynamic> json) {
     return AiSummaryResult(
-      summary: json['summary'] as String,
-      keyContents: List<String>.from(json['key_contents'] ?? []),
-      cases: List<String>.from(json['cases'] ?? []),
-      tags: List<String>.from(json['tags']),
+      keyPoints: List<String>.from(json['key_points'] ?? []),
+      tags: List<String>.from(json['tags'] ?? []),
+      summary: (json['summary'] ?? '').toString(),
     );
   }
 }

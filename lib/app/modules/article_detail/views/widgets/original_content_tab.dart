@@ -35,7 +35,7 @@ class OriginalContentTab extends StatelessWidget {
     }
 
     return SingleChildScrollView(
-      padding: Dimensions.paddingPage,
+      padding: const EdgeInsets.all(24),
       child: MarkdownBody(
         data: markdownContent,
         selectable: true,
@@ -53,7 +53,7 @@ class OriginalContentTab extends StatelessWidget {
     }
 
     return SingleChildScrollView(
-      padding: Dimensions.paddingPage,
+      padding: const EdgeInsets.all(24),
       child: Html(
         data: htmlContent,
         style: HtmlStyles.getStyles(Get.context!),

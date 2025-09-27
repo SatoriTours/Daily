@@ -16,7 +16,7 @@ class MarkdownStyles {
 
     return MarkdownStyleSheet(
       // 文本样式
-      p: textTheme.bodyMedium?.copyWith(height: 1.8, letterSpacing: 0.2),
+      p: textTheme.bodyMedium,
 
       // 标题样式
       h1: textTheme.headlineMedium?.copyWith(
@@ -44,7 +44,6 @@ class MarkdownStyles {
       blockquote: textTheme.bodyMedium?.copyWith(
         color: colorScheme.onSurface,
         fontStyle: FontStyle.italic,
-        height: 1.6,
       ),
       blockquoteDecoration: BoxDecoration(
         border: Border(left: BorderSide(color: colorScheme.primary.withAlpha(70), width: 4)),
@@ -56,9 +55,6 @@ class MarkdownStyles {
       code: textTheme.bodySmall?.copyWith(
         fontFamily: 'monospace',
         backgroundColor: colorScheme.surfaceContainerHighest.withAlpha(50),
-        letterSpacing: -0.2,
-        height: 1.5,
-        fontSize: (textTheme.bodySmall?.fontSize ?? 12) * 0.95,
       ),
       codeblockDecoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withAlpha(70),
@@ -67,7 +63,7 @@ class MarkdownStyles {
       codeblockPadding: const EdgeInsets.all(12),
 
       // 列表样式
-      listBullet: textTheme.bodyMedium?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.bold),
+      listBullet: textTheme.bodyMedium?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.w600),
       listIndent: 24,
 
       // 表格样式
@@ -90,14 +86,14 @@ class MarkdownStyles {
       ),
 
       // 段落间距
-      h1Padding: const EdgeInsets.only(top: 32, bottom: 16),
-      h2Padding: const EdgeInsets.only(top: 28, bottom: 14),
-      h3Padding: const EdgeInsets.only(top: 24, bottom: 12),
-      h4Padding: const EdgeInsets.only(top: 20, bottom: 10),
-      h5Padding: const EdgeInsets.only(top: 16, bottom: 8),
-      h6Padding: const EdgeInsets.only(top: 12, bottom: 6),
-      pPadding: const EdgeInsets.only(bottom: 16),
-      listBulletPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      h1Padding: const EdgeInsets.only(top: 32, bottom: 20),
+      h2Padding: const EdgeInsets.only(top: 28, bottom: 18),
+      h3Padding: const EdgeInsets.only(top: 24, bottom: 16),
+      h4Padding: const EdgeInsets.only(top: 20, bottom: 14),
+      h5Padding: const EdgeInsets.only(top: 16, bottom: 12),
+      h6Padding: const EdgeInsets.only(top: 12, bottom: 8),
+      pPadding: const EdgeInsets.only(bottom: 24),
+      listBulletPadding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
     );
   }
 }
