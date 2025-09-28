@@ -9,6 +9,7 @@ import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/app/utils/string_extensions.dart';
 import 'package:daily_satori/global.dart';
 import 'package:get/get.dart';
+import 'package:daily_satori/app/modules/article_detail/controllers/article_detail_controller.dart';
 
 /// 网页解析服务 - 负责网页内容获取、AI处理和持久化
 class WebpageParserService {
@@ -286,6 +287,14 @@ class WebpageParserService {
       if (Get.isRegistered<ArticlesController>()) {
         Get.find<ArticlesController>().updateArticle(articleId);
         logger.d("[网页解析][UI] 已通知UI更新文章 #$articleId");
+      }
+      // 若详情页正在展示该文章，尝试触发其刷新
+      if (Get.isRegistered<ArticleDetailController>()) {
+        final c = Get.find<ArticleDetailController>();
+        if (c.articleModel.id == articleId) {
+          // 赋值自身以触发 Obx 刷新（等价于 refresh）
+          c.article.value = c.article.value;
+        }
       }
     } catch (e) {
       // 控制器不存在时静默处理

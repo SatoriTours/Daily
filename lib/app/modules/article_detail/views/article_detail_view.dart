@@ -15,102 +15,110 @@ import 'widgets/tab_bar_widget.dart';
 class ArticleDetailView extends GetView<ArticleDetailController> {
   const ArticleDetailView({super.key});
 
+  // 根构建：提供 Tab 数量与 Scaffold
   @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        // 顶部应用栏
-        appBar: ArticleDetailAppBar(controller: controller),
-        // 主体内容
-        body: Column(
-          children: [
-            // 更明显的处理中横幅（AI运行中显示）
-            Obx(() {
-              final _ = controller.rebuildTick.value; // 监听列表更新
-              final status = controller.articleModel.status;
-              final processing = status == ArticleStatus.pending || status == ArticleStatus.webContentFetched;
-              if (!processing) return const SizedBox.shrink();
+  Widget build(BuildContext context) => DefaultTabController(length: 2, child: _buildScaffold(context));
 
-              final colorScheme = Theme.of(context).colorScheme;
-              final textTheme = Theme.of(context).textTheme;
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                child: Card(
-                  color: colorScheme.primaryContainer.withValues(alpha: 0.18),
-                  elevation: 1,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // 左侧细色条，低调强调
-                        Container(
-                          width: 6,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: colorScheme.primary.withValues(alpha: 0.55),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Icon(Icons.hourglass_bottom, size: 22, color: colorScheme.primary.withValues(alpha: 0.95)),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'AI处理中…',
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.onSurface,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '正在整理标题、摘要与Markdown，完成后将自动更新本页',
-                                style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                              ),
-                              const SizedBox(height: 8),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: LinearProgressIndicator(
-                                  minHeight: 4,
-                                  backgroundColor: colorScheme.onSurfaceVariant.withValues(alpha: 0.22),
-                                  color: colorScheme.primary.withValues(alpha: 0.85),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
+  // 页面骨架：AppBar + Body
+  Widget _buildScaffold(BuildContext context) => Scaffold(
+    appBar: ArticleDetailAppBar(controller: controller),
+    body: _buildBody(context),
+  );
 
-            // 内容区域
-            Expanded(
-              child: Obx(() {
-                // 读取 rebuildTick 以触发重建
-                final _ = controller.rebuildTick.value;
-                return TabBarView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    SummaryTab(controller: controller),
-                    OriginalContentTab(controller: controller),
-                  ],
-                );
-              }),
-            ),
-            // 底部标签栏
-            const ArticleTabBar(),
-          ],
-        ),
+  // 页面主体：横幅 + 内容 + TabBar
+  Widget _buildBody(BuildContext context) =>
+      Column(children: [_buildProcessingBanner(context), _buildTabs(), const ArticleTabBar()]);
+
+  // 内容区域：监听文章变化刷新标签页
+  Widget _buildTabs() => Expanded(
+    child: Obx(() {
+      controller.article.value; // 触发重建
+      return TabBarView(
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          SummaryTab(controller: controller),
+          OriginalContentTab(controller: controller),
+        ],
+      );
+    }),
+  );
+
+  // 处理中横幅：仅在 AI 处理中显示
+  Widget _buildProcessingBanner(BuildContext context) => Obx(() {
+    final st = controller.article.value?.status ?? controller.articleModel.status;
+    final busy = st == ArticleStatus.pending || st == ArticleStatus.webContentFetched;
+    return busy ? _buildBannerCard(context) : const SizedBox.shrink();
+  });
+
+  // 横幅卡片容器
+  Widget _buildBannerCard(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+    child: Card(
+      color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.18),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: _buildBannerRow(context),
       ),
+    ),
+  );
+
+  // 横幅主体行
+  Widget _buildBannerRow(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _buildBannerLeadStripe(context),
+        _gapW(12),
+        Icon(Icons.hourglass_bottom, size: 22, color: cs.primary.withValues(alpha: 0.95)),
+        _gapW(10),
+        Expanded(child: _buildBannerTexts(context)),
+      ],
     );
   }
+
+  // 左侧强调条
+  Widget _buildBannerLeadStripe(BuildContext context) => Container(
+    width: 6,
+    height: 48,
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(3),
+    ),
+  );
+
+  // 文本与进度条
+  Widget _buildBannerTexts(BuildContext context) {
+    final tt = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'AI处理中…',
+          style: tt.bodyMedium?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600),
+        ),
+        _gapH(4),
+        Text('正在整理标题、摘要与Markdown，完成后将自动更新本页', style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+        _gapH(8),
+        _buildLoadingBar(context),
+      ],
+    );
+  }
+
+  // 线性进度条
+  Widget _buildLoadingBar(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(4),
+    child: LinearProgressIndicator(
+      minHeight: 4,
+      backgroundColor: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.22),
+      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.85),
+    ),
+  );
+
+  // 水平/垂直间距
+  Widget _gapW(double w) => SizedBox(width: w);
+  Widget _gapH(double h) => SizedBox(height: h);
 }

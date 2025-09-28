@@ -7,11 +7,11 @@ class ArticleDetailController extends BaseController {
   /// 当前文章模型
   late ArticleModel articleModel;
 
+  /// 响应式文章引用（用于与列表共享引用时触发视图刷新）
+  final Rxn<ArticleModel> article = Rxn<ArticleModel>();
+
   /// 文章标签字符串,以逗号分隔
   final tags = ''.obs;
-
-  /// 触发界面重建的计数器（监听列表变更后自增）
-  final rebuildTick = 0.obs;
 
   @override
   void onInit() {
@@ -20,6 +20,7 @@ class ArticleDetailController extends BaseController {
     final argument = Get.arguments;
     if (argument is ArticleModel) {
       articleModel = argument;
+      article.value = articleModel;
     } else if (argument is int) {
       // 如果参数是ID，则根据ID查找文章
       ArticleModel? ref;
@@ -29,6 +30,7 @@ class ArticleDetailController extends BaseController {
       final foundArticleModel = ref ?? ArticleRepository.find(argument);
       if (foundArticleModel != null) {
         articleModel = foundArticleModel;
+        article.value = articleModel;
       } else {
         throw ArgumentError('Article not found with ID: $argument');
       }
@@ -38,12 +40,19 @@ class ArticleDetailController extends BaseController {
 
     loadTags();
 
-    // 监听列表更新，自动刷新详情界面显示与标签
+    // 监听列表更新：保持本地 article 引用最新，刷新标签等派生数据
     if (Get.isRegistered<ArticlesController>()) {
       final ac = Get.find<ArticlesController>();
       ever<List<ArticleModel>>(ac.articles, (_) {
-        rebuildTick.value++;
+        final updated = ac.getRef(articleModel.id) ?? ArticleRepository.find(articleModel.id);
+        if (updated != null) {
+          // 尽量保持对象引用一致
+          articleModel = updated;
+          article.value = updated;
+        }
         loadTags();
+        // 处理列表内对象原地 copyFrom 的情况，强制通知视图刷新
+        article.refresh();
       });
     }
   }
@@ -89,6 +98,11 @@ class ArticleDetailController extends BaseController {
     // 保存Markdown内容到文章模型
     articleModel.aiMarkdownContent = markdown;
     await ArticleRepository.update(articleModel);
+    // 刷新本地与列表视图
+    article.refresh();
+    if (Get.isRegistered<ArticlesController>()) {
+      Get.find<ArticlesController>().updateArticle(articleModel.id);
+    }
 
     logger.i("Markdown内容生成并保存成功");
     UIUtils.showSuccess('保存成功');
@@ -136,5 +150,9 @@ class ArticleDetailController extends BaseController {
   Future<void> deleteImage(String imagePath) async {
     articleModel.images.removeWhere((image) => image.path == imagePath);
     await ArticleRepository.update(articleModel);
+    article.refresh();
+    if (Get.isRegistered<ArticlesController>()) {
+      Get.find<ArticlesController>().updateArticle(articleModel.id);
+    }
   }
 }
