@@ -93,7 +93,9 @@ dependencies {
     // e.g. check https://github.com/objectbox/objectbox-dart/releases
     // Warning: when ObjectBox for Dart updates check if <version>
     // needs to be updated.
-    debugImplementation("io.objectbox:objectbox-android-objectbrowser:4.3.0")
+    debugImplementation("io.objectbox:objectbox-android-objectbrowser:5.0.1")
+    releaseImplementation("io.objectbox:objectbox-android:5.0.1")
+
 }
 
 flutter {
