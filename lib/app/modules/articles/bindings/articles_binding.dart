@@ -6,6 +6,9 @@ import '../controllers/articles_controller.dart';
 class ArticlesBinding extends Binding {
   @override
   List<Bind> dependencies() {
-    return [Bind.lazyPut<ArticlesController>(() => ArticlesController())];
+    // 使用 lazyPut 确保控制器只在需要时创建
+    return [
+      Bind.lazyPut<ArticlesController>(() => ArticlesController()),
+    ];
   }
 }

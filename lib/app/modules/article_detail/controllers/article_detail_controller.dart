@@ -3,7 +3,7 @@ import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/utils/string_extensions.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 
-class ArticleDetailController extends BaseController {
+class ArticleDetailController extends BaseGetXController {
   /// 当前文章模型
   late ArticleModel articleModel;
 
@@ -13,9 +13,29 @@ class ArticleDetailController extends BaseController {
   /// 文章标签字符串,以逗号分隔
   final tags = ''.obs;
 
+  /// 状态服务
+  late final ArticleStateService _articleStateService;
+
   @override
   void onInit() {
     super.onInit();
+    _articleStateService = Get.find<ArticleStateService>();
+    _loadArticle();
+    _initStateServices();
+    loadTags();
+  }
+
+  void _initStateServices() {
+    // 监听文章更新
+    _articleStateService.listenArticleUpdates(articleModel.id, (updatedArticle) {
+      articleModel = updatedArticle;
+      article.value = updatedArticle;
+      loadTags();
+      article.refresh();
+    });
+  }
+
+  void _loadArticle() {
     // 获取传入的参数
     final argument = Get.arguments;
     if (argument is ArticleModel) {
@@ -38,23 +58,8 @@ class ArticleDetailController extends BaseController {
       throw ArgumentError('Invalid argument type: ${argument.runtimeType}');
     }
 
-    loadTags();
-
-    // 监听列表更新：保持本地 article 引用最新，刷新标签等派生数据
-    if (Get.isRegistered<ArticlesController>()) {
-      final ac = Get.find<ArticlesController>();
-      ever<List<ArticleModel>>(ac.articles, (_) {
-        final updated = ac.getRef(articleModel.id) ?? ArticleRepository.find(articleModel.id);
-        if (updated != null) {
-          // 尽量保持对象引用一致
-          articleModel = updated;
-          article.value = updated;
-        }
-        loadTags();
-        // 处理列表内对象原地 copyFrom 的情况，强制通知视图刷新
-        article.refresh();
-      });
-    }
+    // 设置为活跃文章
+    _articleStateService.setActiveArticle(articleModel);
   }
 
   /// 加载并格式化文章标签
@@ -65,6 +70,8 @@ class ArticleDetailController extends BaseController {
   /// 删除当前文章
   Future<void> deleteArticle() async {
     await ArticleRepository.deleteArticle(articleModel.id);
+    // 清除活跃文章状态
+    _articleStateService.clearActiveArticle();
   }
 
   /// 生成文章的Markdown内容
@@ -81,31 +88,36 @@ class ArticleDetailController extends BaseController {
       return;
     }
 
-    logger.i("开始生成Markdown内容");
+    await safeExecute(
+      () async {
+        logger.i("开始生成Markdown内容");
 
-    // 使用AI服务将HTML转换为Markdown
-    final markdown = await AiService.i.convertHtmlToMarkdown(
-      articleModel.htmlContent!,
-      title: articleModel.title ?? articleModel.aiTitle,
-      updatedAt: articleModel.updatedAt,
+        // 使用AI服务将HTML转换为Markdown
+        final markdown = await AiService.i.convertHtmlToMarkdown(
+          articleModel.htmlContent!,
+          title: articleModel.title ?? articleModel.aiTitle,
+          updatedAt: articleModel.updatedAt,
+        );
+
+        if (markdown.isEmpty) {
+          throw Exception("Markdown内容生成失败");
+        }
+
+        // 保存Markdown内容到文章模型
+        articleModel.aiMarkdownContent = markdown;
+        await ArticleRepository.update(articleModel);
+        // 刷新本地与列表视图
+        article.refresh();
+        // 通知全局状态服务文章已更新
+        _articleStateService.notifyArticleUpdated(articleModel);
+
+        logger.i("Markdown内容生成并保存成功");
+        return markdown;
+      },
+      loadingMessage: "正在生成Markdown内容...",
+      errorMessage: "Markdown内容生成失败",
+      onSuccess: (_) => showSuccess('保存成功'),
     );
-
-    if (markdown.isEmpty) {
-      logger.e("Markdown内容生成失败");
-      return;
-    }
-
-    // 保存Markdown内容到文章模型
-    articleModel.aiMarkdownContent = markdown;
-    await ArticleRepository.update(articleModel);
-    // 刷新本地与列表视图
-    article.refresh();
-    if (Get.isRegistered<ArticlesController>()) {
-      Get.find<ArticlesController>().updateArticle(articleModel.id);
-    }
-
-    logger.i("Markdown内容生成并保存成功");
-    UIUtils.showSuccess('保存成功');
   }
 
   /// 获取文章内容图片列表(不含主图)
@@ -151,8 +163,7 @@ class ArticleDetailController extends BaseController {
     articleModel.images.removeWhere((image) => image.path == imagePath);
     await ArticleRepository.update(articleModel);
     article.refresh();
-    if (Get.isRegistered<ArticlesController>()) {
-      Get.find<ArticlesController>().updateArticle(articleModel.id);
-    }
+    // 通知全局状态服务文章已更新
+    _articleStateService.notifyArticleUpdated(articleModel);
   }
 }

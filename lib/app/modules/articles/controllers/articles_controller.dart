@@ -1,15 +1,18 @@
 import 'package:daily_satori/app_exports.dart';
 
 /// 文章列表控制器
-class ArticlesController extends BaseController with WidgetsBindingObserver {
+class ArticlesController extends BaseGetXController with WidgetsBindingObserver {
   /// UI状态
-  final isLoading = false.obs;
   final enableSearch = false.obs;
-  final isSearchVisible = false.obs;
   final onlyFavorite = false.obs;
   final tagId = (-1).obs;
   final tagName = ''.obs;
   final selectedFilterDate = Rx<DateTime?>(null);
+  final isSearchVisible = false.obs;
+
+  /// 状态服务
+  late final ArticleStateService _articleStateService;
+  late final AppStateService _appStateService;
 
   /// 文章数据
   final articles = <ArticleModel>[].obs;
@@ -30,6 +33,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
   @override
   void onInit() {
     super.onInit();
+    _initStateServices();
     _initScrollListener();
     _initLifecycleObserver();
     _loadInitialData();
@@ -70,7 +74,8 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
 
   /// 切换搜索状态
   void toggleSearchState() {
-    isSearchVisible.toggle();
+    _appStateService.toggleSearchBar();
+    isSearchVisible.value = _appStateService.isSearchBarVisible.value;
 
     if (isSearchVisible.value) {
       _prepareSearchFocus();
@@ -81,11 +86,14 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
 
   /// 执行搜索
   Future<void> searchArticles() async {
-    if (searchController.text.trim().isEmpty) {
+    final query = searchController.text.trim();
+    if (query.isEmpty) {
       clearAllFilters();
       return;
     }
 
+    // 设置全局搜索状态
+    _articleStateService.setGlobalSearch(query);
     reloadArticles();
   }
 
@@ -118,6 +126,7 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     onlyFavorite.value = false;
     selectedFilterDate.value = null;
     searchController.clear();
+    _articleStateService.clearGlobalSearch();
     reloadArticles();
   }
 
@@ -140,6 +149,9 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
       // 触发 Rx 刷新
       articles.refresh();
     }
+
+    // 通知全局状态服务文章已更新
+    _articleStateService.notifyArticleUpdated(article);
   }
 
   /// 合并/插入文章（用于新增或外部更新回写）
@@ -157,18 +169,24 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
   ArticleModel? getRef(int id) {
     final index = articles.indexWhere((item) => item.id == id);
     if (index == -1) return null;
+
+    // 设置为活跃文章
+    _articleStateService.setActiveArticle(articles[index]);
     return articles[index];
   }
 
   /// 获取标题
   String getTitle() {
-    final hasSearch = searchController.text.isNotEmpty;
+    final hasSearch = _articleStateService.globalSearchQuery.isNotEmpty || searchController.text.isNotEmpty;
+    final searchQuery = _articleStateService.globalSearchQuery.isNotEmpty
+        ? _articleStateService.globalSearchQuery.value
+        : searchController.text;
     final hasTag = tagName.value.isNotEmpty;
     final hasFavorite = onlyFavorite.value;
     final hasDate = selectedFilterDate.value != null;
 
     return switch ((hasSearch, hasTag, hasFavorite, hasDate)) {
-      (true, _, _, _) => '搜索: "${searchController.text}"',
+      (true, _, _, _) => '搜索: "$searchQuery"',
       (_, true, _, _) => '标签: ${tagName.value}',
       (_, _, true, _) => '收藏文章',
       (_, _, _, true) => '按日期筛选',
@@ -176,9 +194,10 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
     };
   }
 
-  /// 是否存在任一过滤条件（供视图判断显示“已过滤”指示）
+  /// 是否存在任一过滤条件（供视图判断显示"已过滤"指示）
   bool hasActiveFilters() {
-    return searchController.text.isNotEmpty ||
+    return _articleStateService.globalSearchQuery.isNotEmpty ||
+        searchController.text.isNotEmpty ||
         tagName.value.isNotEmpty ||
         onlyFavorite.value ||
         selectedFilterDate.value != null;
@@ -192,6 +211,36 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
   // 剪贴板检查逻辑已抽离到全局 ClipboardMonitorService，不再在页面 Controller 中实现
 
   // ==== 私有方法 ====
+
+  void _initStateServices() {
+    _articleStateService = Get.find<ArticleStateService>();
+    _appStateService = Get.find<AppStateService>();
+
+    // 监听全局搜索状态
+    ever(_articleStateService.globalSearchQuery, (query) {
+      if (query.isNotEmpty) {
+        searchController.text = query;
+        reloadArticles();
+      }
+    });
+
+    // 监听文章更新
+    everAll([
+      _articleStateService.articleUpdates,
+    ], (_) {
+      _refreshArticleUpdates();
+    });
+  }
+
+  void _refreshArticleUpdates() {
+    // 检查是否有需要更新的文章
+    for (final articleId in _articleStateService.articleUpdates.keys) {
+      final updatedArticle = _articleStateService.getArticleUpdate(articleId);
+      if (updatedArticle != null) {
+        updateArticle(articleId);
+      }
+    }
+  }
 
   void _initScrollListener() {
     scrollController.addListener(() {
@@ -230,7 +279,10 @@ class ArticlesController extends BaseController with WidgetsBindingObserver {
 
   /// 获取过滤后的文章列表
   List<ArticleModel> _fetchArticles([int? referenceId, bool? isGreaterThan]) {
-    String? keyword = searchController.text.trim().isNotEmpty ? searchController.text.trim() : null;
+    // 优先使用全局搜索，其次是本地搜索
+    String? keyword = _articleStateService.globalSearchQuery.isNotEmpty
+        ? _articleStateService.globalSearchQuery.trim()
+        : (searchController.text.trim().isNotEmpty ? searchController.text.trim() : null);
     bool? favorite = onlyFavorite.value ? true : null;
     List<int>? tagIds = tagId.value > 0 ? [tagId.value] : null;
     DateTime? startDate = selectedFilterDate.value;

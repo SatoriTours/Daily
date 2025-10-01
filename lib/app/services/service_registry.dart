@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:get/get.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/flutter_service.dart';
@@ -21,6 +22,10 @@ import 'package:daily_satori/app/services/book_service.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/share_receive_service.dart';
 import 'package:daily_satori/app/services/clipboard_monitor_service.dart';
+import 'package:daily_satori/app/services/state/app_state_service.dart';
+import 'package:daily_satori/app/services/state/article_state_service.dart';
+import 'package:daily_satori/app/services/state/diary_state_service.dart';
+import 'package:daily_satori/app/services/navigation_service.dart';
 
 class ServiceStatus {
   final AppService service;
@@ -105,6 +110,42 @@ class ServiceRegistry {
     );
 
     // 高优先级
+    register(
+      FunctionAppService(
+        serviceName: 'AppStateService',
+        priority: ServicePriority.high,
+        onInit: () async {
+          Get.put(AppStateService());
+        },
+      ),
+    );
+    register(
+      FunctionAppService(
+        serviceName: 'ArticleStateService',
+        priority: ServicePriority.high,
+        onInit: () async {
+          Get.put(ArticleStateService());
+        },
+      ),
+    );
+    register(
+      FunctionAppService(
+        serviceName: 'DiaryStateService',
+        priority: ServicePriority.high,
+        onInit: () async {
+          Get.put(DiaryStateService());
+        },
+      ),
+    );
+    register(
+      FunctionAppService(
+        serviceName: 'NavigationService',
+        priority: ServicePriority.high,
+        onInit: () async {
+          Get.put(NavigationService());
+        },
+      ),
+    );
     register(
       FunctionAppService(
         serviceName: 'FontService',

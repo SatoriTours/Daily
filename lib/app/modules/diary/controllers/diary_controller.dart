@@ -4,14 +4,16 @@ import 'package:image_picker/image_picker.dart';
 import '../utils/diary_utils.dart';
 
 /// 日记列表控制器
-class DiaryController extends BaseController with WidgetsBindingObserver {
+class DiaryController extends BaseGetXController with WidgetsBindingObserver {
   /// UI状态
-  final isLoading = false.obs;
   final selectedDate = DateTime.now().obs;
   final searchQuery = ''.obs;
-  final currentTag = ''.obs;
   final isSearchVisible = false.obs;
   final selectedFilterDate = Rx<DateTime?>(null); // 添加日期过滤状态
+  final currentTag = ''.obs;
+
+  /// 状态服务
+  late final DiaryStateService _diaryStateService;
 
   /// 日记数据
   final diaries = <DiaryModel>[].obs;
@@ -31,12 +33,52 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
   @override
   void onInit() {
     super.onInit();
+    _initStateServices();
     _loadDiaries();
     _extractTags();
     _createImageDirectory(); // 创建图片目录
 
     // 添加搜索控制器监听
     searchController.addListener(_onSearchTextChanged);
+  }
+
+  void _initStateServices() {
+    _diaryStateService = Get.find<DiaryStateService>();
+
+    // 监听全局标签过滤
+    ever(_diaryStateService.globalTagFilter, (tag) {
+      if (tag.isNotEmpty) {
+        currentTag.value = tag;
+        _loadDiaries();
+      }
+    });
+
+    // 监听全局日期过滤
+    ever(_diaryStateService.globalDateFilter, (date) {
+      selectedFilterDate.value = date;
+      _loadDiaries();
+    });
+
+    // 监听日记更新
+    everAll([
+      _diaryStateService.diaryUpdates,
+    ], (_) {
+      _refreshDiaryUpdates();
+    });
+  }
+
+  void _refreshDiaryUpdates() {
+    // 检查是否有需要更新的日记
+    for (final diaryId in _diaryStateService.diaryUpdates.keys) {
+      final updatedDiary = _diaryStateService.getDiaryUpdate(diaryId);
+      if (updatedDiary != null) {
+        final index = diaries.indexWhere((item) => item.id == diaryId);
+        if (index != -1) {
+          diaries[index] = updatedDiary;
+          diaries.refresh();
+        }
+      }
+    }
   }
 
   /// 搜索文本变化处理
@@ -140,6 +182,9 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
     diary.updatedAt = DateTime.now();
     DiaryRepository.i.save(diary);
 
+    // 通知全局状态服务日记已更新
+    _diaryStateService.notifyDiaryUpdated(diary);
+
     // 重新加载日记列表
     await _loadDiaries();
 
@@ -149,14 +194,15 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
   /// 按标签筛选
   void filterByTag(String tag) {
     currentTag.value = tag;
+    // 设置全局标签过滤
+    _diaryStateService.setGlobalTagFilter(tag);
     _loadDiaries();
   }
 
   /// 按日期筛选
   void filterByDate(DateTime date) {
-    // 将时间设置为当天的起始时间
-    final selectedDay = DateTime(date.year, date.month, date.day);
-    selectedFilterDate.value = selectedDay;
+    // 设置全局日期过滤
+    _diaryStateService.setGlobalDateFilter(date);
     _loadDiaries();
   }
 
@@ -182,7 +228,8 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
     searchQuery.value = '';
     searchController.clear();
     isSearchVisible.value = false;
-    selectedFilterDate.value = null; // 清除日期过滤
+    // 清除全局过滤状态
+    _diaryStateService.clearAllFilters();
     _loadDiaries();
   }
 
@@ -327,13 +374,25 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
       diaries.value = allDiaries
           .where((d) => d.content.toLowerCase().contains(searchQuery.value.toLowerCase()))
           .toList();
+    } else if (_diaryStateService.globalTagFilter.isNotEmpty) {
+      // 按全局标签筛选
+      diaries.value = allDiaries
+          .where((d) => d.tags != null && d.tags!.toLowerCase().contains(_diaryStateService.globalTagFilter.value.toLowerCase()))
+          .toList();
     } else if (currentTag.isNotEmpty) {
-      // 按标签筛选
+      // 按本地标签筛选
       diaries.value = allDiaries
           .where((d) => d.tags != null && d.tags!.toLowerCase().contains(currentTag.value.toLowerCase()))
           .toList();
+    } else if (_diaryStateService.globalDateFilter.value != null) {
+      // 按全局日期筛选
+      final filterDate = _diaryStateService.globalDateFilter.value!;
+      diaries.value = allDiaries.where((d) {
+        final diaryDate = DateTime(d.createdAt.year, d.createdAt.month, d.createdAt.day);
+        return diaryDate.isAtSameMomentAs(filterDate);
+      }).toList();
     } else if (selectedFilterDate.value != null) {
-      // 按日期筛选
+      // 按本地日期筛选
       final filterDate = selectedFilterDate.value!;
       diaries.value = allDiaries.where((d) {
         final diaryDate = DateTime(d.createdAt.year, d.createdAt.month, d.createdAt.day);
