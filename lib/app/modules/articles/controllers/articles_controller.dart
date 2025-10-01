@@ -223,23 +223,6 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
         reloadArticles();
       }
     });
-
-    // 监听文章更新
-    everAll([
-      _articleStateService.articleUpdates,
-    ], (_) {
-      _refreshArticleUpdates();
-    });
-  }
-
-  void _refreshArticleUpdates() {
-    // 检查是否有需要更新的文章
-    for (final articleId in _articleStateService.articleUpdates.keys) {
-      final updatedArticle = _articleStateService.getArticleUpdate(articleId);
-      if (updatedArticle != null) {
-        updateArticle(articleId);
-      }
-    }
   }
 
   void _initScrollListener() {

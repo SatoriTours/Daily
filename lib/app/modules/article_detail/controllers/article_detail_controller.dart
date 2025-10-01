@@ -26,20 +26,29 @@ class ArticleDetailController extends BaseGetXController {
   }
 
   void _initStateServices() {
-    // 监听文章更新
-    _articleStateService.listenArticleUpdates(articleModel.id, (updatedArticle) {
-      articleModel = updatedArticle;
-      article.value = updatedArticle;
-      loadTags();
-      article.refresh();
+    // 只监听活跃文章变化 - 这将捕获所有状态更新
+    // notifyArticleUpdated 会同时更新 activeArticle，所以不需要再监听 articleUpdates
+    ever(_articleStateService.activeArticle, (activeArticle) {
+      if (activeArticle != null && activeArticle.id == articleModel.id) {
+        logger.d("[ArticleDetail] 检测到活跃文章更新: ${activeArticle.id}, 状态: ${activeArticle.status}");
+        articleModel = activeArticle;
+        article.value = activeArticle;
+        loadTags();
+      }
     });
   }
 
   void _loadArticle() {
     // 获取传入的参数
     final argument = Get.arguments;
+    ArticleModel? foundArticleModel;
+
     if (argument is ArticleModel) {
-      articleModel = argument;
+      // 即使传入的是 ArticleModel，也从数据库重新获取最新状态
+      // 避免使用可能过期的对象（特别是从 share dialog 跳转过来时）
+      foundArticleModel = ArticleRepository.find(argument.id);
+      foundArticleModel ??= argument;
+      articleModel = foundArticleModel;
       article.value = articleModel;
     } else if (argument is int) {
       // 如果参数是ID，则根据ID查找文章
@@ -47,7 +56,7 @@ class ArticleDetailController extends BaseGetXController {
       if (Get.isRegistered<ArticlesController>()) {
         ref = Get.find<ArticlesController>().getRef(argument);
       }
-      final foundArticleModel = ref ?? ArticleRepository.find(argument);
+      foundArticleModel = ref ?? ArticleRepository.find(argument);
       if (foundArticleModel != null) {
         articleModel = foundArticleModel;
         article.value = articleModel;

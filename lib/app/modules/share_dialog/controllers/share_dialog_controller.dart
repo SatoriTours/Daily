@@ -265,12 +265,16 @@ class ShareDialogController extends GetxController {
     }
 
     // 统一替换当前路由为文章详情，避免因 previousRoute 识别异常导致回到列表
-    dynamic arg = articleID.value;
-    if (Get.isRegistered<ArticlesController>()) {
-      final ref = Get.find<ArticlesController>().getRef(articleID.value);
-      if (ref != null) arg = ref;
+    // 从数据库重新获取最新的文章状态，确保显示正确的处理状态
+    final freshArticle = ArticleRepository.find(articleID.value);
+    dynamic arg = freshArticle ?? articleID.value;
+
+    // 同时更新 ArticleStateService 的活跃文章，确保状态同步
+    if (freshArticle != null && Get.isRegistered<ArticleStateService>()) {
+      Get.find<ArticleStateService>().setActiveArticle(freshArticle);
     }
-    logger.i('跳转到文章详情页: ${articleID.value}');
+
+    logger.i('跳转到文章详情页: ${articleID.value}, 状态: ${freshArticle?.status}');
     Get.offNamed(Routes.articleDetail, arguments: arg);
   }
 
@@ -324,9 +328,17 @@ class ShareDialogController extends GetxController {
   Future<void> _saveAndNotify(ArticleModel article, {String log = '已更新'}) async {
     article.updatedAt = DateTime.now().toUtc();
     await article.save();
+
+    // 通知文章控制器更新
     if (Get.isRegistered<ArticlesController>()) {
       Get.find<ArticlesController>().updateArticle(article.id);
     }
+
+    // 通知全局状态服务文章已更新
+    if (Get.isRegistered<ArticleStateService>()) {
+      Get.find<ArticleStateService>().notifyArticleUpdated(article);
+    }
+
     logger.i('$log: ${article.id}');
   }
 }

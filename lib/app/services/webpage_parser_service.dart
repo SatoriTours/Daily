@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'package:flutter/widgets.dart';
 import 'package:daily_satori/app/components/webview/headless_webview.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 
 import 'package:daily_satori/app/services/ai_service/ai_article_processor.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/state/article_state_service.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
 // 清理未使用的依赖（AI 具体处理已在 AiArticleProcessor 内）
 import 'package:daily_satori/app/utils/string_extensions.dart';
@@ -284,20 +286,41 @@ class WebpageParserService {
   /// 通知UI更新
   void _notifyUI(int articleId) {
     try {
+      final article = ArticleRepository.find(articleId);
+      if (article == null) return;
+
+      // 通知文章控制器更新
       if (Get.isRegistered<ArticlesController>()) {
         Get.find<ArticlesController>().updateArticle(articleId);
         logger.d("[网页解析][UI] 已通知UI更新文章 #$articleId");
       }
-      // 若详情页正在展示该文章，尝试触发其刷新
+
+      // 通知全局状态服务文章已更新
+      if (Get.isRegistered<ArticleStateService>()) {
+        Get.find<ArticleStateService>().notifyArticleUpdated(article);
+        logger.d("[网页解析][UI] 已通知ArticleStateService更新文章 #$articleId");
+      }
+
+      // 若详情页正在展示该文章，直接更新控制器中的文章数据
       if (Get.isRegistered<ArticleDetailController>()) {
         final c = Get.find<ArticleDetailController>();
         if (c.articleModel.id == articleId) {
-          // 赋值自身以触发 Obx 刷新（等价于 refresh）
-          c.article.value = c.article.value;
+          logger.d("[网页解析][UI] 检测到详情页正在显示文章 #$articleId");
+
+          // 使用 SchedulerBinding 确保更新在下一帧执行，避免时序问题
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            // 直接更新控制器中的文章模型和响应式引用
+            c.articleModel = article;
+            c.article.value = article;
+            // 刷新标签显示
+            c.loadTags();
+            logger.d("[网页解析][UI] 已在下一帧更新详情页控制器 #$articleId，状态: ${article.status}");
+          });
         }
       }
     } catch (e) {
       // 控制器不存在时静默处理
+      logger.e("[网页解析][UI] 通知UI更新失败: $e");
     }
   }
 }

@@ -9,10 +9,7 @@ class ArticleStateService extends GetxService {
   final RxInt _activeArticleId = RxInt(-1);
 
   /// 当前活跃的文章引用
-  final Rxn<ArticleModel> _activeArticle = Rxn<ArticleModel>();
-
-  /// 文章更新通知流（用于通知其他页面文章已更新）
-  final RxMap<int, ArticleModel> articleUpdates = RxMap<int, ArticleModel>();
+  final Rxn<ArticleModel> activeArticle = Rxn<ArticleModel>();
 
   /// 全局搜索状态
   final RxString globalSearchQuery = ''.obs;
@@ -22,45 +19,31 @@ class ArticleStateService extends GetxService {
   int get activeArticleId => _activeArticleId.value;
 
   /// 获取当前活跃的文章
-  ArticleModel? get activeArticle => _activeArticle.value;
+  ArticleModel? get activeArticleValue => activeArticle.value;
 
   /// 设置活跃文章
   void setActiveArticle(ArticleModel article) {
     _activeArticleId.value = article.id;
-    _activeArticle.value = article;
+    activeArticle.value = article;
     logger.i('设置活跃文章: ${article.title} (ID: ${article.id})');
   }
 
   /// 清除活跃文章
   void clearActiveArticle() {
     _activeArticleId.value = -1;
-    _activeArticle.value = null;
+    activeArticle.value = null;
     logger.i('清除活跃文章');
   }
 
   /// 通知文章更新
   void notifyArticleUpdated(ArticleModel article) {
-    articleUpdates[article.id] = article;
     logger.i('通知文章更新: ${article.title} (ID: ${article.id})');
 
     // 如果是当前活跃文章，更新活跃文章引用
     if (_activeArticleId.value == article.id) {
-      _activeArticle.value = article;
+      activeArticle.value = article;
+      logger.d('已更新活跃文章引用，状态: ${article.status}');
     }
-  }
-
-  /// 获取文章更新通知
-  ArticleModel? getArticleUpdate(int articleId) {
-    return articleUpdates.remove(articleId);
-  }
-
-  /// 监听特定文章的更新
-  void listenArticleUpdates(int articleId, Function(ArticleModel) onUpdate) {
-    ever<Map<int, ArticleModel>>(articleUpdates, (updates) {
-      if (updates.containsKey(articleId)) {
-        onUpdate(updates[articleId]!);
-      }
-    });
   }
 
   /// 设置全局搜索
@@ -85,9 +68,8 @@ class ArticleStateService extends GetxService {
 
   @override
   void onClose() {
-    articleUpdates.clear();
     _activeArticleId.close();
-    _activeArticle.close();
+    activeArticle.close();
     globalSearchQuery.close();
     isGlobalSearchActive.close();
     super.onClose();
