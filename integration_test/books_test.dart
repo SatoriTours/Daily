@@ -4,34 +4,34 @@ import 'package:get/get.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:daily_satori/main.dart' as app;
-import 'package:daily_satori/app/services/logger_service.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   group('Daily Satori 读书管理功能测试', () {
     setUpAll(() async {
-      try {
-        await LoggerService.i.init();
-      } catch (e) {
-      debugPrint('LoggerService already initialized: $e');
-      }
+      // LoggerService will be initialized by the app automatically
     });
 
     setUp(() async {
       Get.reset();
     });
 
+    tearDownAll(() async {
+      // Clean up any remaining resources
+      Get.reset();
+    });
+
     testWidgets('读书页面导航和基本UI测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到读书页面
-        final booksNavFinder = find.text('读书').first;
+        final booksNavFinder = find.text('读书');
         if (booksNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(booksNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(booksNavFinder.first);
+          await tester.pumpAndSettle();
           debugPrint('✅ 成功导航到读书页面');
 
           // 检查基本UI元素
@@ -61,14 +61,14 @@ void main() {
 
     testWidgets('书籍列表功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到读书页面
-        final booksNavFinder = find.text('读书').first;
+        final booksNavFinder = find.text('读书');
         if (booksNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(booksNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(booksNavFinder.first);
+          await tester.pumpAndSettle();
 
           // 测试列表滚动
           final listViewFinder = find.byType(ListView);
@@ -119,14 +119,14 @@ void main() {
 
     testWidgets('书籍搜索功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到读书页面
-        final booksNavFinder = find.text('读书').first;
+        final booksNavFinder = find.text('读书');
         if (booksNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(booksNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(booksNavFinder.first);
+          await tester.pumpAndSettle();
 
           // 查找搜索框
           final searchFieldFinder = find.byType(TextField);
@@ -137,7 +137,7 @@ void main() {
 
             // 测试搜索功能
             await tester.enterText(searchFieldFinder.first, '测试书籍');
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 搜索输入功能正常');
 
             // 清空搜索
@@ -157,14 +157,14 @@ void main() {
 
     testWidgets('添加书籍功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到读书页面
-        final booksNavFinder = find.text('读书').first;
+        final booksNavFinder = find.text('读书');
         if (booksNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(booksNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(booksNavFinder.first);
+          await tester.pumpAndSettle();
 
           // 查找添加按钮
           final fabFinder = find.byType(FloatingActionButton);
@@ -184,7 +184,7 @@ void main() {
           }
 
           await tester.tap(addBookButton);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.pumpAndSettle();
           debugPrint('✅ 成功点击添加书籍按钮');
 
           // 检查是否打开了添加书籍对话框或页面
@@ -218,7 +218,7 @@ void main() {
             final confirmButtonFinder = find.text('确定');
             if (confirmButtonFinder.evaluate().isNotEmpty) {
               await tester.tap(confirmButtonFinder.first);
-              await tester.pumpAndSettle(const Duration(seconds: 2));
+              await tester.pumpAndSettle();
               debugPrint('✅ 确认添加书籍功能正常');
             }
 
@@ -243,14 +243,14 @@ void main() {
 
     testWidgets('书籍详情和观点管理测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到读书页面
-        final booksNavFinder = find.text('读书').first;
+        final booksNavFinder = find.text('读书');
         if (booksNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(booksNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(booksNavFinder.first);
+          await tester.pumpAndSettle();
 
           // 查找书籍卡片或列表项
           final cardFinder = find.byType(Card);
@@ -259,12 +259,12 @@ void main() {
           if (cardFinder.evaluate().isNotEmpty) {
             // 点击第一本书籍卡片
             await tester.tap(cardFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 3));
+            await tester.pumpAndSettle();
             debugPrint('✅ 成功点击书籍卡片');
           } else if (listItemFinder.evaluate().isNotEmpty) {
             // 点击第一个列表项
             await tester.tap(listItemFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 3));
+            await tester.pumpAndSettle();
             debugPrint('✅ 成功点击书籍列表项');
           } else {
             debugPrint('⚠️ 未找到可点击的书籍项');
@@ -272,7 +272,7 @@ void main() {
           }
 
           // 检查是否进入了书籍详情页面
-          await tester.pumpAndSettle(const Duration(seconds: 2));
+          await tester.pumpAndSettle();
 
           // 查找观点相关的UI元素
           final viewpointTextFinder = find.textContaining('观点');
@@ -284,7 +284,7 @@ void main() {
 
           if (addViewpointFinder.evaluate().isNotEmpty) {
             await tester.tap(addViewpointFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 成功打开添加观点界面');
 
             // 测试观点输入
@@ -301,7 +301,7 @@ void main() {
             final saveViewpointFinder = find.text('保存');
             if (saveViewpointFinder.evaluate().isNotEmpty) {
               await tester.tap(saveViewpointFinder.first);
-              await tester.pumpAndSettle(const Duration(seconds: 2));
+              await tester.pumpAndSettle();
               debugPrint('✅ 观点保存功能正常');
             }
           }
@@ -320,14 +320,14 @@ void main() {
 
     testWidgets('书籍筛选和排序功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到读书页面
-        final booksNavFinder = find.text('读书').first;
+        final booksNavFinder = find.text('读书');
         if (booksNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(booksNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(booksNavFinder.first);
+          await tester.pumpAndSettle();
 
           // 查找筛选或排序按钮
           final filterButtonFinder = find.byIcon(Icons.filter);
@@ -336,19 +336,19 @@ void main() {
 
           if (filterButtonFinder.evaluate().isNotEmpty) {
             await tester.tap(filterButtonFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 打开了筛选菜单');
           }
 
           if (sortButtonFinder.evaluate().isNotEmpty) {
             await tester.tap(sortButtonFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 打开了排序菜单');
           }
 
           if (moreButtonFinder.evaluate().isNotEmpty) {
             await tester.tap(moreButtonFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 打开了更多选项菜单');
 
             // 查找菜单项
@@ -370,14 +370,14 @@ void main() {
 
     testWidgets('读书页面数据持久性测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到读书页面
-        final booksNavFinder = find.text('读书').first;
+        final booksNavFinder = find.text('读书');
         if (booksNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(booksNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(booksNavFinder.first);
+          await tester.pumpAndSettle();
 
           // 执行一些操作
           final scrollableFinder = find.byType(Scrollable);
@@ -390,11 +390,11 @@ void main() {
           final diaryNavFinder = find.text('日记').first;
           if (diaryNavFinder.evaluate().isNotEmpty) {
             await tester.tap(diaryNavFinder);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
 
             // 返回读书页面
-            await tester.tap(booksNavFinder);
-            await tester.pumpAndSettle(const Duration(seconds: 3));
+            await tester.tap(booksNavFinder.first);
+            await tester.pumpAndSettle();
 
             debugPrint('✅ 读书页面数据持久性测试通过');
           }

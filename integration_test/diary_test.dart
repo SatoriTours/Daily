@@ -4,34 +4,34 @@ import 'package:get/get.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:daily_satori/main.dart' as app;
-import 'package:daily_satori/app/services/logger_service.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   group('Daily Satori 日记功能测试', () {
     setUpAll(() async {
-      try {
-        await LoggerService.i.init();
-      } catch (e) {
-        debugPrint('LoggerService already initialized: $e');
-      }
+      // LoggerService will be initialized by the app automatically
     });
 
     setUp(() async {
       Get.reset();
     });
 
+    tearDownAll(() async {
+      // Clean up any remaining resources
+      Get.reset();
+    });
+
     testWidgets('日记页面导航和基本UI测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到日记页面
-        final diaryNavFinder = find.text('日记').first;
+        final diaryNavFinder = find.text('日记');
         if (diaryNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(diaryNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(diaryNavFinder.first);
+          await tester.pumpAndSettle();
           debugPrint('✅ 成功导航到日记页面');
 
           // 检查基本UI结构
@@ -63,14 +63,14 @@ void main() {
 
     testWidgets('日记列表滚动和查看测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到日记页面
-        final diaryNavFinder = find.text('日记').first;
+        final diaryNavFinder = find.text('日记');
         if (diaryNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(diaryNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(diaryNavFinder.first);
+          await tester.pumpAndSettle();
 
           // 查找日记列表
           final listViewFinder = find.byType(ListView);
@@ -98,14 +98,14 @@ void main() {
 
               // 点击第一个日记卡片
               await tester.tap(cardFinder.first);
-              await tester.pumpAndSettle(const Duration(seconds: 2));
+              await tester.pumpAndSettle();
               debugPrint('✅ 日记卡片点击正常');
             } else if (listItemFinder.evaluate().isNotEmpty) {
               debugPrint('✅ 找到日记列表项');
 
               // 点击第一个日记列表项
               await tester.tap(listItemFinder.first);
-              await tester.pumpAndSettle(const Duration(seconds: 2));
+              await tester.pumpAndSettle();
               debugPrint('✅ 日记列表项点击正常');
             }
 
@@ -126,14 +126,14 @@ void main() {
 
     testWidgets('创建新日记功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到日记页面
-        final diaryNavFinder = find.text('日记').first;
+        final diaryNavFinder = find.text('日记');
         if (diaryNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(diaryNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(diaryNavFinder.first);
+          await tester.pumpAndSettle();
 
           // 查找创建日记的按钮
           final fabFinder = find.byType(FloatingActionButton);
@@ -150,11 +150,11 @@ void main() {
           }
 
           await tester.tap(createDiaryButton);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.pumpAndSettle();
           debugPrint('✅ 成功点击创建日记按钮');
 
           // 检查是否进入了日记编辑页面
-          await tester.pumpAndSettle(const Duration(seconds: 2));
+          await tester.pumpAndSettle();
 
           // 查找标题输入框
           final titleFieldFinder = find.byType(TextField);
@@ -180,7 +180,7 @@ void main() {
           final saveButtonFinder = find.text('保存');
           if (saveButtonFinder.evaluate().isNotEmpty) {
             await tester.tap(saveButtonFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 3));
+            await tester.pumpAndSettle();
             debugPrint('✅ 日记保存功能正常');
           }
 
@@ -198,14 +198,14 @@ void main() {
 
     testWidgets('日记搜索和筛选功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到日记页面
-        final diaryNavFinder = find.text('日记').first;
+        final diaryNavFinder = find.text('日记');
         if (diaryNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(diaryNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(diaryNavFinder.first);
+          await tester.pumpAndSettle();
 
           // 查找搜索框
           final searchFieldFinder = find.byType(TextField);
@@ -216,7 +216,7 @@ void main() {
 
             // 测试搜索功能
             await tester.enterText(searchFieldFinder.first, '测试');
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 日记搜索输入功能正常');
 
             // 清空搜索
@@ -234,19 +234,19 @@ void main() {
 
           if (filterButtonFinder.evaluate().isNotEmpty) {
             await tester.tap(filterButtonFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 打开了日记筛选菜单');
           }
 
           if (sortButtonFinder.evaluate().isNotEmpty) {
             await tester.tap(sortButtonFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 打开了日记排序菜单');
           }
 
           if (calendarButtonFinder.evaluate().isNotEmpty) {
             await tester.tap(calendarButtonFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 打开了日历选择器');
 
             // 关闭日历
@@ -261,14 +261,14 @@ void main() {
 
     testWidgets('日记标签管理功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到日记页面
-        final diaryNavFinder = find.text('日记').first;
+        final diaryNavFinder = find.text('日记');
         if (diaryNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(diaryNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(diaryNavFinder.first);
+          await tester.pumpAndSettle();
 
           // 查找标签相关的UI元素
           final tagChipFinder = find.byType(Chip);
@@ -279,13 +279,13 @@ void main() {
 
             // 点击第一个标签
             await tester.tap(tagChipFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 标签点击功能正常');
           }
 
           if (tagButtonFinder.evaluate().isNotEmpty) {
             await tester.tap(tagButtonFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 打开了标签管理界面');
 
             // 测试标签输入
@@ -310,26 +310,26 @@ void main() {
 
     testWidgets('日记图片功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到日记页面
-        final diaryNavFinder = find.text('日记').first;
+        final diaryNavFinder = find.text('日记');
         if (diaryNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(diaryNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(diaryNavFinder.first);
+          await tester.pumpAndSettle();
 
           // 点击创建日记按钮
           final fabFinder = find.byType(FloatingActionButton);
           if (fabFinder.evaluate().isNotEmpty) {
             await tester.tap(fabFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 3));
+            await tester.pumpAndSettle();
 
             // 查找图片添加按钮
             final imageButtonFinder = find.byIcon(Icons.image);
             if (imageButtonFinder.evaluate().isNotEmpty) {
               await tester.tap(imageButtonFinder.first);
-              await tester.pumpAndSettle(const Duration(seconds: 2));
+              await tester.pumpAndSettle();
               debugPrint('✅ 找到图片添加按钮');
 
               // 注意：在真实测试中，这里可能会弹出图片选择器
@@ -348,7 +348,7 @@ void main() {
 
             // 点击图片
             await tester.tap(imageFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 图片点击功能正常');
 
             // 返回
@@ -365,14 +365,14 @@ void main() {
 
     testWidgets('日记编辑和删除功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到日记页面
-        final diaryNavFinder = find.text('日记').first;
+        final diaryNavFinder = find.text('日记');
         if (diaryNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(diaryNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(diaryNavFinder.first);
+          await tester.pumpAndSettle();
 
           // 查找日记项
           final cardFinder = find.byType(Card);
@@ -388,14 +388,14 @@ void main() {
 
             // 长按日记项
             await tester.longPress(diaryItem);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 日记长按菜单功能正常');
 
             // 查找编辑选项
             final editOptionFinder = find.text('编辑');
             if (editOptionFinder.evaluate().isNotEmpty) {
               await tester.tap(editOptionFinder.first);
-              await tester.pumpAndSettle(const Duration(seconds: 3));
+              await tester.pumpAndSettle();
               debugPrint('✅ 日记编辑功能正常');
 
               // 测试编辑内容
@@ -415,7 +415,7 @@ void main() {
 
             // 再次长按测试删除
             await tester.longPress(diaryItem);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
 
             final deleteOptionFinder = find.text('删除');
             if (deleteOptionFinder.evaluate().isNotEmpty) {
@@ -435,14 +435,14 @@ void main() {
 
     testWidgets('日记数据持久性测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到日记页面
-        final diaryNavFinder = find.text('日记').first;
+        final diaryNavFinder = find.text('日记');
         if (diaryNavFinder.evaluate().isNotEmpty) {
-          await tester.tap(diaryNavFinder);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.tap(diaryNavFinder.first);
+          await tester.pumpAndSettle();
 
           // 执行一些操作（滚动、搜索等）
           final scrollableFinder = find.byType(Scrollable);
@@ -455,11 +455,11 @@ void main() {
           final homeNavFinder = find.text('首页').first;
           if (homeNavFinder.evaluate().isNotEmpty) {
             await tester.tap(homeNavFinder);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
 
             // 再次切换回日记页面
-            await tester.tap(diaryNavFinder);
-            await tester.pumpAndSettle(const Duration(seconds: 3));
+            await tester.tap(diaryNavFinder.first);
+            await tester.pumpAndSettle();
 
             debugPrint('✅ 日记数据持久性测试通过');
           }

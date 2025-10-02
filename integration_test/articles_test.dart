@@ -4,34 +4,34 @@ import 'package:get/get.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:daily_satori/main.dart' as app;
-import 'package:daily_satori/app/services/logger_service.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   group('Daily Satori 文章管理功能测试', () {
     setUpAll(() async {
-      try {
-        await LoggerService.i.init();
-      } catch (e) {
-        debugPrint('LoggerService already initialized: $e');
-      }
+      // LoggerService will be initialized by the app automatically
     });
 
     setUp(() async {
       Get.reset();
     });
 
+    tearDownAll(() async {
+      // Clean up any remaining resources
+      Get.reset();
+    });
+
     testWidgets('文章页面导航和基本UI测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到文章页面
         final articlesNavFinder = find.text('文章');
         if (articlesNavFinder.evaluate().isNotEmpty) {
           await tester.tap(articlesNavFinder.first);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.pumpAndSettle();
           debugPrint('✅ 成功导航到文章页面');
 
           // 检查基本UI结构
@@ -63,14 +63,14 @@ void main() {
 
     testWidgets('文章列表滚动和查看测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到文章页面
         final articlesNavFinder = find.text('文章');
         if (articlesNavFinder.evaluate().isNotEmpty) {
           await tester.tap(articlesNavFinder.first);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.pumpAndSettle();
 
           // 查找文章列表
           final listViewFinder = find.byType(ListView);
@@ -105,7 +105,7 @@ void main() {
 
               // 点击第一篇文章
               await tester.tap(articleCardFinder.first);
-              await tester.pumpAndSettle(const Duration(seconds: 3));
+              await tester.pumpAndSettle();
               debugPrint('✅ 文章卡片点击功能正常');
 
               // 返回文章列表
@@ -128,14 +128,14 @@ void main() {
 
     testWidgets('文章搜索功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到文章页面
         final articlesNavFinder = find.text('文章');
         if (articlesNavFinder.evaluate().isNotEmpty) {
           await tester.tap(articlesNavFinder.first);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.pumpAndSettle();
 
           // 查找搜索框
           final searchFieldFinder = find.byType(TextField);
@@ -146,7 +146,7 @@ void main() {
 
             // 测试搜索功能
             await tester.enterText(searchFieldFinder.first, '测试搜索');
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 文章搜索输入功能正常');
 
             // 清空搜索
@@ -171,14 +171,14 @@ void main() {
 
     testWidgets('文章筛选和排序功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到文章页面
         final articlesNavFinder = find.text('文章');
         if (articlesNavFinder.evaluate().isNotEmpty) {
           await tester.tap(articlesNavFinder.first);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.pumpAndSettle();
 
           // 查找筛选按钮
           final filterButtonFinder = find.byIcon(Icons.filter);
@@ -187,7 +187,7 @@ void main() {
 
           if (filterButtonFinder.evaluate().isNotEmpty) {
             await tester.tap(filterButtonFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 打开了文章筛选菜单');
 
             // 查找筛选选项
@@ -203,7 +203,7 @@ void main() {
 
           if (sortButtonFinder.evaluate().isNotEmpty) {
             await tester.tap(sortButtonFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 打开了文章排序菜单');
 
             // 关闭排序菜单
@@ -213,7 +213,7 @@ void main() {
 
           if (moreButtonFinder.evaluate().isNotEmpty) {
             await tester.tap(moreButtonFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 打开了更多选项菜单');
 
             // 查找菜单项
@@ -234,21 +234,21 @@ void main() {
 
     testWidgets('文章详情页面功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到文章页面
         final articlesNavFinder = find.text('文章');
         if (articlesNavFinder.evaluate().isNotEmpty) {
           await tester.tap(articlesNavFinder.first);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.pumpAndSettle();
 
           // 查找文章卡片
           final articleCardFinder = find.byType(Card);
           if (articleCardFinder.evaluate().isNotEmpty) {
             // 点击第一篇文章
             await tester.tap(articleCardFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 3));
+            await tester.pumpAndSettle();
             debugPrint('✅ 成功进入文章详情页面');
 
             // 检查文章详情页面基本元素
@@ -306,27 +306,27 @@ void main() {
 
     testWidgets('文章刷新功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到文章页面
         final articlesNavFinder = find.text('文章');
         if (articlesNavFinder.evaluate().isNotEmpty) {
           await tester.tap(articlesNavFinder.first);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.pumpAndSettle();
 
           // 查找刷新按钮
           final refreshButtonFinder = find.byIcon(Icons.refresh);
           if (refreshButtonFinder.evaluate().isNotEmpty) {
             await tester.tap(refreshButtonFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 5));
+            await tester.pumpAndSettle();
             debugPrint('✅ 文章刷新功能正常');
           } else {
             // 测试下拉刷新
             final listViewFinder = find.byType(ListView);
             if (listViewFinder.evaluate().isNotEmpty) {
               await tester.drag(listViewFinder.first, const Offset(0, 300));
-              await tester.pumpAndSettle(const Duration(seconds: 3));
+              await tester.pumpAndSettle();
               debugPrint('✅ 下拉刷新功能正常');
             }
           }
@@ -338,14 +338,14 @@ void main() {
 
     testWidgets('文章标签管理功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到文章页面
         final articlesNavFinder = find.text('文章');
         if (articlesNavFinder.evaluate().isNotEmpty) {
           await tester.tap(articlesNavFinder.first);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.pumpAndSettle();
 
           // 查找标签相关的UI元素
           final tagChipFinder = find.byType(Chip);
@@ -356,13 +356,13 @@ void main() {
 
             // 点击第一个标签
             await tester.tap(tagChipFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 标签点击筛选功能正常');
           }
 
           if (tagButtonFinder.evaluate().isNotEmpty) {
             await tester.tap(tagButtonFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 打开了标签管理界面');
 
             // 测试标签选择
@@ -385,28 +385,28 @@ void main() {
 
     testWidgets('文章分享功能测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到文章页面
         final articlesNavFinder = find.text('文章');
         if (articlesNavFinder.evaluate().isNotEmpty) {
           await tester.tap(articlesNavFinder.first);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.pumpAndSettle();
 
           // 查找文章卡片
           final articleCardFinder = find.byType(Card);
           if (articleCardFinder.evaluate().isNotEmpty) {
             // 长按文章卡片
             await tester.longPress(articleCardFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
             debugPrint('✅ 文章长按菜单功能正常');
 
             // 查找分享选项
             final shareOptionFinder = find.text('分享');
             if (shareOptionFinder.evaluate().isNotEmpty) {
               await tester.tap(shareOptionFinder.first);
-              await tester.pumpAndSettle(const Duration(seconds: 2));
+              await tester.pumpAndSettle();
               debugPrint('✅ 文章分享功能正常');
 
               // 关闭分享界面
@@ -426,14 +426,14 @@ void main() {
 
     testWidgets('文章数据持久性测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到文章页面
         final articlesNavFinder = find.text('文章');
         if (articlesNavFinder.evaluate().isNotEmpty) {
           await tester.tap(articlesNavFinder.first);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.pumpAndSettle();
 
           // 执行一些操作
           final listViewFinder = find.byType(ListView);
@@ -446,11 +446,11 @@ void main() {
           final homeNavFinder = find.text('首页');
           if (homeNavFinder.evaluate().isNotEmpty) {
             await tester.tap(homeNavFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 2));
+            await tester.pumpAndSettle();
 
             // 返回文章页面
             await tester.tap(articlesNavFinder.first);
-            await tester.pumpAndSettle(const Duration(seconds: 3));
+            await tester.pumpAndSettle();
 
             debugPrint('✅ 文章数据持久性测试通过');
           }
@@ -462,14 +462,14 @@ void main() {
 
     testWidgets('文章离线状态测试', (WidgetTester tester) async {
       app.main();
-      await tester.pumpAndSettle(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
 
       try {
         // 导航到文章页面
         final articlesNavFinder = find.text('文章');
         if (articlesNavFinder.evaluate().isNotEmpty) {
           await tester.tap(articlesNavFinder.first);
-          await tester.pumpAndSettle(const Duration(seconds: 3));
+          await tester.pumpAndSettle();
 
           // 检查是否有网络状态指示器
           final networkIndicatorFinder = find.textContaining('网络');
