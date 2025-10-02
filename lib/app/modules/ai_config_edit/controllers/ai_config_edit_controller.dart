@@ -29,12 +29,16 @@ class AIConfigEditController extends GetxController {
   final _isEditMode = false.obs;
   final _modelName = ''.obs;
   final _apiToken = ''.obs;
+  final _name = ''.obs;
+  final _initialized = false.obs;
 
   /// Getters for reactive variables
   int get selectedApiPresetIndex => _selectedApiPresetIndex.value;
   bool get isEditMode => _isEditMode.value;
   String get modelName => _modelName.value;
   String get apiToken => _apiToken.value;
+  String get name => _name.value;
+  bool get isInitialized => _initialized.value;
 
   /// 是否显示自定义API地址
   bool get isCustomApiAddress => selectedApiPresetIndex == apiPresets.length - 1;
@@ -46,8 +50,14 @@ class AIConfigEditController extends GetxController {
     return models;
   }
 
+  /// 检查表单是否有效
+  bool get isFormValid {
+    if (!isInitialized) return false;
+    return name.trim().isNotEmpty && modelName.trim().isNotEmpty && apiToken.trim().isNotEmpty;
+  }
+
   /// 构造函数
-  AIConfigEditController() : aiConfig = Get.arguments['aiConfig'], apiPresets = PluginService.i.getAiModels();
+  AIConfigEditController() : aiConfig = Get.arguments?['aiConfig'], apiPresets = PluginService.i.getAiModels();
 
   @override
   void onInit() {
@@ -55,6 +65,7 @@ class AIConfigEditController extends GetxController {
     _initTextControllers();
     _initializeFromConfig();
     _isEditMode.value = aiConfig != null;
+    _initialized.value = true;
   }
 
   /// 初始化控制器
@@ -65,6 +76,10 @@ class AIConfigEditController extends GetxController {
     modelNameController = TextEditingController();
 
     // 添加监听器以更新响应式变量
+    nameController.addListener(() {
+      _name.value = nameController.text;
+    });
+
     apiTokenController.addListener(() {
       _apiToken.value = apiTokenController.text;
     });
@@ -79,6 +94,7 @@ class AIConfigEditController extends GetxController {
     if (aiConfig == null) return;
 
     nameController.text = aiConfig!.name;
+    _name.value = aiConfig!.name;
     apiTokenController.text = aiConfig!.apiToken;
     _apiToken.value = aiConfig!.apiToken;
 
@@ -125,6 +141,12 @@ class AIConfigEditController extends GetxController {
 
   /// 保存配置
   Future<bool> saveConfig() async {
+    // 验证表单
+    if (!isFormValid) {
+      UIUtils.showError('请填写完整的配置信息', title: '验证失败');
+      return false;
+    }
+
     try {
       final configToSave = isEditMode
           ? aiConfig!
@@ -177,6 +199,7 @@ class AIConfigEditController extends GetxController {
       _selectedApiPresetIndex.value = 0;
       _modelName.value = '';
       _apiToken.value = '';
+      _name.value = '';
     } else {
       // 如果是编辑模式，恢复到原始配置
       _initializeFromConfig();

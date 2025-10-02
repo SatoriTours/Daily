@@ -18,6 +18,7 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       backgroundColor: AppTheme.getColorScheme(context).surface,
       appBar: _buildAppBar(context),
       body: _buildBody(context),
+      bottomNavigationBar: _buildBottomActionBar(context),
     );
   }
 
@@ -34,36 +35,47 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       ),
       centerTitle: true,
       backgroundColor: colorScheme.surface,
-      actions: [_buildResetButton(), _buildSaveButton()],
     );
   }
 
-  /// 构建恢复按钮
-  Widget _buildResetButton() {
-    logger.d('构建恢复按钮');
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: TextButton(
-        onPressed: () {
-          logger.i('点击恢复按钮');
-          controller.resetConfig();
-        },
-        child: const Text('恢复'),
+  /// 构建底部操作栏
+  Widget _buildBottomActionBar(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        border: Border(top: BorderSide(color: colorScheme.outline.withValues(alpha: 0.2), width: 1)),
       ),
-    );
-  }
-
-  /// 构建保存按钮
-  Widget _buildSaveButton() {
-    logger.d('构建保存按钮');
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: TextButton(
-        onPressed: () {
-          logger.i('点击保存按钮');
-          controller.saveConfig();
-        },
-        child: const Text('保存'),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: TextButton(
+                onPressed: () {
+                  logger.i('点击恢复按钮');
+                  controller.resetConfig();
+                },
+                child: const Text('恢复'),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Obx(
+                () => ElevatedButton(
+                  onPressed: controller.isFormValid
+                      ? () {
+                          logger.i('点击保存按钮');
+                          controller.saveConfig();
+                        }
+                      : null,
+                  child: const Text('保存'),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
