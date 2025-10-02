@@ -120,6 +120,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  # 集成测试
+  integration_test:
+    sdk: flutter
+
   # 代码规范
   flutter_lints: ^6.0.0
 
