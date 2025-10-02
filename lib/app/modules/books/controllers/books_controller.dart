@@ -10,7 +10,6 @@ import 'dart:math';
 class BooksController extends BaseController {
   final BookService _bookService = BookService.i;
   final scaffoldKey = GlobalKey<ScaffoldState>();
-  final addBookFormKey = GlobalKey<FormState>();
 
   // 所有观点和当前观点
   final allViewpoints = <BookViewpointModel>[].obs;
@@ -20,9 +19,6 @@ class BooksController extends BaseController {
   final filterBookID = (-1).obs;
 
   final isProcessing = false.obs;
-
-  // 表单控制器
-  final bookNameController = TextEditingController();
 
   // 滚动控制器
   final scrollController = ScrollController();
@@ -44,7 +40,6 @@ class BooksController extends BaseController {
 
   @override
   void onClose() {
-    bookNameController.dispose();
     scrollController.dispose();
     pageController.dispose();
     _autoRefreshTimer?.cancel();
@@ -59,45 +54,63 @@ class BooksController extends BaseController {
   /// 加载所有观点
   Future<void> loadAllViewpoints() async {
     logger.i('加载观点: bookID: ${filterBookID.value}, mode: $_mode');
+
     if (filterBookID.value == -1) {
-      // 所有书籍：根据模式选择随机数据
-      final all = await BookRepository.getAllViewpointsAsync();
-      if (all.isEmpty) {
-        allViewpoints.clear();
-        return;
-      }
-      if (_mode == DisplayMode.deepLinkMix && _deepLinkSeedViewpointId != null) {
-        allViewpoints.value = _buildDeepLinkMix(all, _deepLinkSeedViewpointId!);
-        goToViewpointIndex(0);
-      } else {
-        _mode = DisplayMode.allRandom; // 兜底为全量随机
-        allViewpoints.value = _pickRandom(all, _kRandomCount);
-        goToViewpointIndex(0);
-      }
-      _touchShuffleTimeAndSchedule();
+      await _loadAllBooksViewpoints();
     } else {
-      // 某本书：展示该书全部
-      _mode = DisplayMode.bookSpecific;
-      allViewpoints.value = await BookRepository.getViewpointsByBookIdsAsync([filterBookID.value]);
+      await _loadSpecificBookViewpoints();
+    }
+  }
 
-      // 如果该书没有观点，尝试重新获取
-      if (allViewpoints.isEmpty) {
-        logger.i('书籍 ${filterBookID.value} 没有观点，尝试重新获取...');
-        try {
-          final success = await _bookService.refreshBook(filterBookID.value);
-          if (success) {
-            allViewpoints.value = await BookRepository.getViewpointsByBookIdsAsync([filterBookID.value]);
-            logger.i('重新获取书籍观点成功，共 ${allViewpoints.length} 条');
-          }
-        } catch (e) {
-          logger.e('重新获取书籍观点失败', error: e);
-        }
-      }
+  /// 加载所有书籍的观点（随机模式）
+  Future<void> _loadAllBooksViewpoints() async {
+    final allViewpoints = await BookRepository.getAllViewpointsAsync();
+    if (allViewpoints.isEmpty) {
+      this.allViewpoints.clear();
+      return;
+    }
 
-      if (allViewpoints.isNotEmpty) {
-        goToViewpointIndex(0);
+    _setRandomModeViewpoints(allViewpoints);
+    goToViewpointIndex(0);
+    _touchShuffleTimeAndSchedule();
+  }
+
+  /// 根据模式设置随机观点
+  void _setRandomModeViewpoints(List<BookViewpointModel> allViewpoints) {
+    if (_mode == DisplayMode.deepLinkMix && _deepLinkSeedViewpointId != null) {
+      this.allViewpoints.value = _buildDeepLinkMix(allViewpoints, _deepLinkSeedViewpointId!);
+    } else {
+      _mode = DisplayMode.allRandom; // 兜底为全量随机
+      this.allViewpoints.value = _pickRandom(allViewpoints, _kRandomCount);
+    }
+  }
+
+  /// 加载特定书籍的观点
+  Future<void> _loadSpecificBookViewpoints() async {
+    _mode = DisplayMode.bookSpecific;
+    allViewpoints.value = await BookRepository.getViewpointsByBookIdsAsync([filterBookID.value]);
+
+    if (allViewpoints.isEmpty) {
+      await _tryRefreshBookViewpoints();
+    }
+
+    if (allViewpoints.isNotEmpty) {
+      goToViewpointIndex(0);
+    }
+    _cancelAutoRefreshIfAny();
+  }
+
+  /// 尝试重新获取书籍观点
+  Future<void> _tryRefreshBookViewpoints() async {
+    logger.i('书籍 ${filterBookID.value} 没有观点，尝试重新获取...');
+    try {
+      final success = await _bookService.refreshBook(filterBookID.value);
+      if (success) {
+        allViewpoints.value = await BookRepository.getViewpointsByBookIdsAsync([filterBookID.value]);
+        logger.i('重新获取书籍观点成功，共 ${allViewpoints.length} 条');
       }
-      _cancelAutoRefreshIfAny(); // 书内全部不参与12小时自动刷新
+    } catch (e) {
+      logger.e('重新获取书籍观点失败', error: e);
     }
   }
 
@@ -121,54 +134,27 @@ class BooksController extends BaseController {
   }
 
   /// 显示添加书籍对话框
-  void showAddBookDialog() {
-    bookNameController.clear();
-    Get.dialog(
-      AlertDialog(
-        title: const Text('添加书籍'),
-        content: Form(
-          key: addBookFormKey,
-          child: TextFormField(
-            controller: bookNameController,
-            decoration: const InputDecoration(labelText: '书名', hintText: '请输入书名'),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return '请输入书名';
-              }
-              return null;
-            },
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: Get.close, child: const Text('取消')),
-          TextButton(
-            onPressed: () async {
-              if (addBookFormKey.currentState?.validate() != true) return;
-              Get.close();
-              isProcessing.value = true;
-              await addBook();
-              isProcessing.value = false;
-            },
-            child: const Text('添加'),
-          ),
-        ],
-      ),
+  Future<void> showAddBookDialog() async {
+    final bookName = await DialogUtils.showInputDialog(
+      title: '添加书籍',
+      hintText: '请输入书名',
+      confirmText: '添加',
+      cancelText: '取消',
     );
+
+    if (bookName != null && bookName.trim().isNotEmpty) {
+      isProcessing.value = true;
+      await _addBookWithName(bookName.trim());
+      isProcessing.value = false;
+    }
   }
 
-  /// 添加书籍
-  Future<void> addBook() async {
-    if (addBookFormKey.currentState?.validate() != true) return;
-
+  /// 根据书名添加书籍
+  Future<void> _addBookWithName(String bookName) async {
     try {
-      final bookName = bookNameController.text.trim();
-      if (bookName.isEmpty) return;
-
-      isProcessing.value = true;
       final book = await _bookService.addBook(bookName);
 
       if (book != null) {
-        // 更新书籍列表并选择新添加的书籍
         await loadAllViewpoints();
         UIUtils.showSuccess('书籍《${book.title}》已添加到书架');
       } else {
