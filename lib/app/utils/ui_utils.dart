@@ -41,7 +41,7 @@ class UIUtils {
   }
 
   /// 显示全屏加载提示
-  static void showLoading({String tips = '', Color barrierColor = Colors.transparent}) {
+  static void showLoading({String tips = '', Color barrierColor = const Color(0x80000000)}) {
     final context = Get.context;
     final textTheme = context != null ? AppTheme.getTextTheme(context) : null;
 

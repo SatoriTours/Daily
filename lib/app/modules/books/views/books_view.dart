@@ -341,8 +341,22 @@ class BooksView extends GetView<BooksController> {
 
   /// 显示删除书籍确认对话框
   void _showDeleteBookDialog() {
-    final book = controller.currentViewpoint().book;
-    if (book == null) return;
+    BookModel? book;
+
+    // 尝试从当前观点获取书籍
+    final currentViewpoint = controller.currentViewpoint();
+    if (currentViewpoint?.book != null) {
+      book = currentViewpoint!.book;
+    } else if (controller.filterBookID.value != -1) {
+      // 如果没有当前观点但有选中的书籍，直接获取书籍信息
+      final books = controller.getAllBooks();
+      book = books.where((b) => b.id == controller.filterBookID.value).firstOrNull;
+    }
+
+    if (book == null) {
+      UIUtils.showError('未找到可删除的书籍，请先选择一本书');
+      return;
+    }
 
     UIUtils.showConfirmation(
       '删除书籍',
@@ -350,21 +364,35 @@ class BooksView extends GetView<BooksController> {
       confirmText: '删除',
       cancelText: '取消',
       onConfirmed: () {
-        controller.deleteBook(book.id);
+        controller.deleteBook(book!.id);
       },
     );
   }
 
   /// 确认并刷新当前书籍（带加载提示）
   void _confirmAndRefreshBook() {
-    final viewpoints = controller.allViewpoints;
-    if (viewpoints.isEmpty) {
-      UIUtils.showError('暂无可刷新的书籍');
-      return;
+    BookModel? book;
+
+    // 尝试从当前观点获取书籍
+    final currentViewpoint = controller.currentViewpoint();
+    if (currentViewpoint?.book != null) {
+      book = currentViewpoint!.book;
+    } else if (controller.filterBookID.value != -1) {
+      // 如果没有当前观点但有选中的书籍，直接获取书籍信息
+      final books = controller.getAllBooks();
+      book = books.where((b) => b.id == controller.filterBookID.value).firstOrNull;
     }
-    final book = controller.currentViewpoint().book;
+
     if (book == null) {
-      UIUtils.showError('未找到当前书籍');
+      // 尝试刷新任意一本书（刷新第一本）
+      final books = controller.getAllBooks();
+      if (books.isNotEmpty) {
+        book = books.first;
+      }
+    }
+
+    if (book == null) {
+      UIUtils.showError('未找到可刷新的书籍，请先添加书籍');
       return;
     }
 
@@ -374,7 +402,7 @@ class BooksView extends GetView<BooksController> {
       confirmText: '刷新',
       cancelText: '取消',
       onConfirmed: () {
-        _doRefreshBook(book);
+        _doRefreshBook(book!);
       },
     );
   }

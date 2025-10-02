@@ -79,6 +79,21 @@ class BooksController extends BaseController {
       // 某本书：展示该书全部
       _mode = DisplayMode.bookSpecific;
       allViewpoints.value = await BookRepository.getViewpointsByBookIdsAsync([filterBookID.value]);
+
+      // 如果该书没有观点，尝试重新获取
+      if (allViewpoints.isEmpty) {
+        logger.i('书籍 ${filterBookID.value} 没有观点，尝试重新获取...');
+        try {
+          final success = await _bookService.refreshBook(filterBookID.value);
+          if (success) {
+            allViewpoints.value = await BookRepository.getViewpointsByBookIdsAsync([filterBookID.value]);
+            logger.i('重新获取书籍观点成功，共 ${allViewpoints.length} 条');
+          }
+        } catch (e) {
+          logger.e('重新获取书籍观点失败', error: e);
+        }
+      }
+
       if (allViewpoints.isNotEmpty) {
         goToViewpointIndex(0);
       }
@@ -99,8 +114,10 @@ class BooksController extends BaseController {
     }
   }
 
-  BookViewpointModel currentViewpoint() {
-    return allViewpoints[currentViewpointIndex.value];
+  BookViewpointModel? currentViewpoint() {
+    if (allViewpoints.isEmpty) return null;
+    final index = currentViewpointIndex.value.clamp(0, allViewpoints.length - 1);
+    return allViewpoints[index];
   }
 
   /// 显示添加书籍对话框
@@ -126,6 +143,7 @@ class BooksController extends BaseController {
           TextButton(onPressed: Get.close, child: const Text('取消')),
           TextButton(
             onPressed: () async {
+              if (addBookFormKey.currentState?.validate() != true) return;
               Get.close();
               isProcessing.value = true;
               await addBook();

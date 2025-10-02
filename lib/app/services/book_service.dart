@@ -66,7 +66,8 @@ class BookService {
     final prompt = _renderTemplate(promptTemplate, {'category': category});
 
     final response = await _aiService.getCompletion(prompt);
-    final List<dynamic> booksData = jsonDecode(response);
+    final cleanedResponse = _cleanJsonResponse(response);
+    final List<dynamic> booksData = jsonDecode(cleanedResponse);
 
     final List<BookModel> recommendedBooks = [];
     for (final bookData in booksData) {
@@ -104,7 +105,8 @@ class BookService {
       });
 
       final response = await _aiService.getCompletion(prompt);
-      final Map<String, dynamic> viewpointData = jsonDecode(response);
+      final cleanedResponse = _cleanJsonResponse(response);
+      final Map<String, dynamic> viewpointData = jsonDecode(cleanedResponse);
 
       // 将观点数据转换为BookViewpoint对象
       return BookViewpointModel.create(
@@ -149,11 +151,13 @@ class BookService {
   Future<Map<String, dynamic>> _getViewpointDetailWithRetry(String prompt) async {
     try {
       final response = await _aiService.getCompletion(prompt);
-      return jsonDecode(response);
+      final cleanedResponse = _cleanJsonResponse(response);
+      return jsonDecode(cleanedResponse);
     } catch (e, stackTrace) {
       logger.w('获取观点详情失败，正在重试...', error: e, stackTrace: stackTrace);
       final response = await _aiService.getCompletion(prompt);
-      return jsonDecode(response);
+      final cleanedResponse = _cleanJsonResponse(response);
+      return jsonDecode(cleanedResponse);
     }
   }
 
@@ -188,7 +192,8 @@ class BookService {
     final prompt = _renderTemplate(promptTemplate, {'title': title});
 
     final response = await _aiService.getCompletion(prompt);
-    final Map<String, dynamic> bookData = jsonDecode(response);
+    final cleanedResponse = _cleanJsonResponse(response);
+    final Map<String, dynamic> bookData = jsonDecode(cleanedResponse);
 
     final book = BookModel.create(
       title: bookData['title'] as String,
@@ -214,7 +219,10 @@ class BookService {
       final prompt = _renderTemplate(promptTemplate, {'title': book.title});
 
       final response = await _aiService.getCompletion(prompt);
-      final bookData = jsonDecode(response);
+
+      // 尝试清理和解析JSON响应
+      final cleanedResponse = _cleanJsonResponse(response);
+      final bookData = jsonDecode(cleanedResponse);
 
       final List<dynamic> viewpointsData = bookData['viewpoints'] as List<dynamic>? ?? [];
       if (viewpointsData.isEmpty) return;
@@ -262,6 +270,27 @@ class BookService {
     }
   }
 
+  /// 清理JSON响应中的格式错误
+  String _cleanJsonResponse(String response) {
+    // 移除可能的代码块标记
+    response = response.trim();
+    if (response.startsWith('```json')) {
+      response = response.substring(7).trim();
+    }
+    if (response.startsWith('```')) {
+      response = response.substring(3).trim();
+    }
+    if (response.endsWith('```')) {
+      response = response.substring(0, response.length - 3).trim();
+    }
+
+    // 修复常见的JSON格式错误
+    // 1. 移除字符串值末尾的多余引号
+    response = response.replaceAll(RegExp(r'""\s*(?=[,\]}])'), '"');
+
+    return response;
+  }
+
   /// 删除书籍
   Future<void> deleteBook(int bookId) async {
     await BookRepository.deleteBook(bookId);
@@ -297,7 +326,8 @@ class BookService {
       final promptTemplate = _pluginService.getBookInfo();
       final prompt = _renderTemplate(promptTemplate, {'title': book.title});
       final response = await _aiService.getCompletion(prompt);
-      final Map<String, dynamic> bookData = jsonDecode(response);
+      final cleanedResponse = _cleanJsonResponse(response);
+      final Map<String, dynamic> bookData = jsonDecode(cleanedResponse);
 
       // 更新书籍基础信息
       book.author = bookData['author'] as String? ?? book.author;
