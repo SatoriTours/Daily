@@ -65,7 +65,7 @@ void main() {
       expect(find.text('读书'), findsOneWidget);
       expect(find.text('设置'), findsOneWidget);
 
-      print('✅ 应用基本渲染正常');
+      debugPrint('✅ 应用基本渲染正常');
 
       // 测试底部导航点击
       await tester.tap(find.text('文章'));
@@ -83,7 +83,7 @@ void main() {
       await tester.tap(find.text('首页'));
       await tester.pumpAndSettle();
 
-      print('✅ 底部导航正常');
+      debugPrint('✅ 底部导航正常');
 
       // 验证图标存在
       expect(find.byIcon(Icons.article), findsAtLeastNWidgets(1));
@@ -92,8 +92,8 @@ void main() {
       expect(find.byIcon(Icons.menu_book), findsOneWidget);
       expect(find.byIcon(Icons.settings), findsOneWidget);
 
-      print('✅ 图标显示正常');
-      print('✅ 快速测试完成');
+      debugPrint('✅ 图标显示正常');
+      debugPrint('✅ 快速测试完成');
     });
 
     testWidgets('列表显示测试', (WidgetTester tester) async {
@@ -145,13 +145,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      print('✅ 列表显示和滚动正常');
+      debugPrint('✅ 列表显示和滚动正常');
 
       // 测试点击列表项
       await tester.tap(find.text('测试文章 2'));
       await tester.pumpAndSettle();
 
-      print('✅ 列表项点击正常');
+      debugPrint('✅ 列表项点击正常');
     });
 
     testWidgets('输入和按钮测试', (WidgetTester tester) async {
@@ -224,7 +224,7 @@ void main() {
       await tester.tap(find.byKey(const Key('image_button')));
       await tester.pumpAndSettle();
 
-      print('✅ 输入和按钮功能正常');
+      debugPrint('✅ 输入和按钮功能正常');
     });
   });
 }

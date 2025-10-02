@@ -1,6 +1,3 @@
-/// 测试配置文件
-/// 用于集成测试的环境配置和通用工具
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';

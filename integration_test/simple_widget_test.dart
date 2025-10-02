@@ -24,7 +24,7 @@ void main() {
       // 验证应用加载
       expect(find.text('测试页面'), findsOneWidget);
       expect(find.text('Daily Satori 基础测试'), findsOneWidget);
-      print('✅ 基础应用渲染正常');
+      debugPrint('✅ 基础应用渲染正常');
     });
 
     testWidgets('基础UI组件测试', (WidgetTester tester) async {
@@ -76,7 +76,7 @@ void main() {
       expect(find.byKey(const Key('list_item_1')), findsOneWidget);
       expect(find.byKey(const Key('list_item_2')), findsOneWidget);
 
-      print('✅ 基础UI组件渲染正常');
+      debugPrint('✅ 基础UI组件渲染正常');
 
       // 测试按钮点击
       await tester.tap(find.byKey(const Key('test_button')));
@@ -90,7 +90,7 @@ void main() {
       await tester.tap(find.byKey(const Key('list_item_1')));
       await tester.pumpAndSettle();
 
-      print('✅ 基础交互功能正常');
+      debugPrint('✅ 基础交互功能正常');
     });
 
     testWidgets('滚动测试', (WidgetTester tester) async {
@@ -120,7 +120,7 @@ void main() {
       expect(find.byKey(const Key('item_1')), findsOneWidget);
       expect(find.byKey(const Key('item_5')), findsOneWidget);
 
-      print('✅ 初始项目渲染正常');
+      debugPrint('✅ 初始项目渲染正常');
 
       // 向下滚动
       await tester.fling(
@@ -132,7 +132,7 @@ void main() {
 
       // 验证滚动后的项目
       expect(find.byKey(const Key('item_10')), findsOneWidget);
-      print('✅ 向下滚动正常');
+      debugPrint('✅ 向下滚动正常');
 
       // 向上滚动
       await tester.fling(
@@ -144,9 +144,9 @@ void main() {
 
       // 验证回到顶部
       expect(find.byKey(const Key('item_0')), findsOneWidget);
-      print('✅ 向上滚动正常');
+      debugPrint('✅ 向上滚动正常');
 
-      print('✅ 滚动测试完成');
+      debugPrint('✅ 滚动测试完成');
     });
 
     testWidgets('文本输入测试', (WidgetTester tester) async {
@@ -201,7 +201,7 @@ void main() {
       expect(find.text('测试标题'), findsOneWidget);
       expect(find.text('这是测试内容'), findsOneWidget);
 
-      print('✅ 文本输入功能正常');
+      debugPrint('✅ 文本输入功能正常');
 
       // 测试清空文本
       await tester.tap(find.byKey(const Key('title_field')));
@@ -211,7 +211,7 @@ void main() {
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
 
-      print('✅ 文本输入测试完成');
+      debugPrint('✅ 文本输入测试完成');
     });
   });
 }

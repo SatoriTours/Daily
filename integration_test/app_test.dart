@@ -3,10 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:integration_test/integration_test.dart';
 
-import '../lib/main.dart' as app;
-import '../lib/app/routes/app_pages.dart';
-import '../lib/app/services/logger_service.dart';
-import 'test_config.dart';
+import 'package:daily_satori/main.dart' as app;
+import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

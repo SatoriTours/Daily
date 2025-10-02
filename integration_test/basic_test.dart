@@ -100,7 +100,7 @@ void main() {
         expect(find.text('测试文章 $i'), findsOneWidget);
       }
 
-      print('✅ 所有基础组件渲染正常');
+      debugPrint('✅ 所有基础组件渲染正常');
     });
 
     testWidgets('交互功能测试', (WidgetTester tester) async {
@@ -190,7 +190,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('测试搜索'), findsOneWidget);
-      print('✅ 搜索输入功能正常');
+      debugPrint('✅ 搜索输入功能正常');
 
       // 测试按钮点击
       await tester.tap(find.byKey(const Key('filter_button')));
@@ -199,25 +199,25 @@ void main() {
       await tester.tap(find.byKey(const Key('refresh_button')));
       await tester.pumpAndSettle();
 
-      print('✅ 按钮点击功能正常');
+      debugPrint('✅ 按钮点击功能正常');
 
       // 测试FAB点击
       await tester.tap(find.byKey(const Key('add_item_fab')));
       await tester.pumpAndSettle();
 
-      print('✅ FAB点击功能正常');
+      debugPrint('✅ FAB点击功能正常');
 
       // 测试列表项点击
       await tester.tap(find.byKey(const Key('item_3')));
       await tester.pumpAndSettle();
 
-      print('✅ 列表项点击功能正常');
+      debugPrint('✅ 列表项点击功能正常');
 
       // 测试操作按钮点击
       await tester.tap(find.byKey(const Key('action_3')));
       await tester.pumpAndSettle();
 
-      print('✅ 操作按钮点击功能正常');
+      debugPrint('✅ 操作按钮点击功能正常');
     });
 
     testWidgets('滚动和动态内容测试', (WidgetTester tester) async {
@@ -286,7 +286,7 @@ void main() {
       expect(find.byKey(const Key('card_0')), findsOneWidget);
       expect(find.byKey(const Key('card_5')), findsOneWidget);
       expect(find.byKey(const Key('card_10')), findsOneWidget);
-      print('✅ 初始项目渲染正常');
+      debugPrint('✅ 初始项目渲染正常');
 
       // 向下滚动
       await tester.fling(
@@ -299,7 +299,7 @@ void main() {
       // 验证滚动后的项目
       expect(find.byKey(const Key('card_30')), findsOneWidget);
       expect(find.byKey(const Key('card_50')), findsOneWidget);
-      print('✅ 向下滚动正常');
+      debugPrint('✅ 向下滚动正常');
 
       // 继续向下滚动
       await tester.fling(
@@ -311,7 +311,7 @@ void main() {
 
       // 验证更远的项目
       expect(find.byKey(const Key('card_80')), findsOneWidget);
-      print('✅ 长距离滚动正常');
+      debugPrint('✅ 长距离滚动正常');
 
       // 向上滚动到顶部
       await tester.fling(
@@ -323,13 +323,13 @@ void main() {
 
       // 验证回到顶部
       expect(find.byKey(const Key('card_0')), findsOneWidget);
-      print('✅ 回到顶部正常');
+      debugPrint('✅ 回到顶部正常');
 
       // 测试点击"回到顶部"按钮
       await tester.tap(find.byKey(const Key('scroll_to_top')));
       await tester.pumpAndSettle();
 
-      print('✅ 滚动测试完成');
+      debugPrint('✅ 滚动测试完成');
     });
 
     testWidgets('表单输入和验证测试', (WidgetTester tester) async {
@@ -436,7 +436,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('测试日记标题'), findsOneWidget);
-      print('✅ 标题输入正常');
+      debugPrint('✅ 标题输入正常');
 
       // 测试长文本输入
       await tester.tap(find.byKey(const Key('content_input')));
@@ -449,7 +449,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('这是一段超过10个字符的测试内容，用于验证表单验证功能是否正常工作。'), findsOneWidget);
-      print('✅ 内容输入正常');
+      debugPrint('✅ 内容输入正常');
 
       // 测试下拉选择
       await tester.tap(find.byKey(const Key('category_input')));
@@ -458,7 +458,7 @@ void main() {
       await tester.tap(find.text('学习'));
       await tester.pumpAndSettle();
 
-      print('✅ 分类选择正常');
+      debugPrint('✅ 分类选择正常');
 
       // 测试按钮点击
       await tester.tap(find.byKey(const Key('save_button')));
@@ -467,8 +467,8 @@ void main() {
       await tester.tap(find.byKey(const Key('cancel_button')));
       await tester.pumpAndSettle();
 
-      print('✅ 按钮交互正常');
-      print('✅ 表单测试完成');
+      debugPrint('✅ 按钮交互正常');
+      debugPrint('✅ 表单测试完成');
     });
   });
 }

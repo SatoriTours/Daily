@@ -1,6 +1,3 @@
-/// 图片选择测试辅助工具
-/// 用于模拟图片选择功能在集成测试中的行为
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
