@@ -47,6 +47,14 @@ echo "📱 使用设备: $DEVICE_ID"
 echo "📦 安装依赖..."
 flutter pub get
 
+# 预构建APK以避免重复构建
+echo "🔨 预构建APK..."
+flutter build apk --debug -d $DEVICE_ID
+PREBUILD_RESULT=$?
+if [ $PREBUILD_RESULT -ne 0 ]; then
+    echo "⚠️ 预构建失败，将在各个测试中单独构建"
+fi
+
 # 运行不同类型的测试
 echo ""
 echo "🧪 开始运行测试..."
@@ -70,8 +78,12 @@ run_test() {
 
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
 
-    # 确保超时时间格式正确
-    if [[ ! $timeout =~ s$ ]]; then
+    # 确保超时时间格式正确 (flutter test 需要秒数)
+    if [[ $timeout =~ ms$ ]]; then
+        # 如果是毫秒，转换为秒
+        timeout=$(( ${timeout%ms} / 1000 ))s
+    elif [[ ! $timeout =~ s$ ]]; then
+        # 如果没有单位，假设是秒
         timeout="${timeout}s"
     fi
 
