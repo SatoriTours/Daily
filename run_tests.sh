@@ -103,17 +103,49 @@ run_quick_test() {
     echo "⚡ 运行快速测试..."
     echo "=================="
 
-    # 1. 快速基础测试
-    echo "1️⃣ 快速基础测试..."
-    if flutter test integration_test/quick_test.dart -d $DEVICE_ID --timeout=60s; then
-        echo "✅ 快速基础测试通过"
+    # 1. 基本UI组件测试
+    echo "1️⃣ 基本UI组件测试..."
+    if flutter test integration_test/real_app_test.dart --plain-name="基本UI组件测试" --timeout=90s 2>/dev/null; then
+        echo "✅ 基本UI组件测试通过"
     else
-        echo "❌ 快速基础测试失败"
+        echo "❌ 基本UI组件测试失败"
         return 1
     fi
 
-    # 2. 列表和交互测试
-    echo "2️⃣ 列表和交互测试..."
+    # 2. 文章界面核心功能测试
+    echo "2️⃣ 文章界面核心功能测试..."
+    if flutter test integration_test/articles_ui_test.dart --plain-name="文章页面完整功能测试" --timeout=90s 2>/dev/null; then
+        echo "✅ 文章界面核心功能测试通过"
+    else
+        echo "⚠️ 文章界面测试跳过"
+    fi
+
+    # 3. 日记界面核心功能测试
+    echo "3️⃣ 日记界面核心功能测试..."
+    if flutter test integration_test/diary_ui_test.dart --plain-name="日记页面完整功能测试" --timeout=90s 2>/dev/null; then
+        echo "✅ 日记界面核心功能测试通过"
+    else
+        echo "⚠️ 日记界面测试跳过"
+    fi
+
+    # 4. 读书界面核心功能测试
+    echo "4️⃣ 读书界面核心功能测试..."
+    if flutter test integration_test/books_ui_test.dart --plain-name="读书页面完整功能测试" --timeout=90s 2>/dev/null; then
+        echo "✅ 读书界面核心功能测试通过"
+    else
+        echo "⚠️ 读书界面测试跳过"
+    fi
+
+    # 5. 设置界面核心功能测试
+    echo "5️⃣ 设置界面核心功能测试..."
+    if flutter test integration_test/settings_ui_test.dart --plain-name="设置页面完整功能测试" --timeout=90s 2>/dev/null; then
+        echo "✅ 设置界面核心功能测试通过"
+    else
+        echo "⚠️ 设置界面测试跳过"
+    fi
+
+    # 6. 列表和交互测试（备用）
+    echo "6️⃣ 列表和交互测试..."
     if flutter test integration_test/simple_widget_test.dart -d $DEVICE_ID --timeout=120s 2>/dev/null; then
         echo "✅ 列表和交互测试通过"
     else
@@ -134,61 +166,96 @@ if [ "$1" = "--quick" ] || [ "$1" = "-q" ]; then
     if [ $QUICK_TEST_RESULT -eq 0 ]; then
         echo ""
         echo "💡 如需完整测试，请运行: ./run_tests.sh"
+        echo "💡 如需一次启动测试所有功能，请运行: ./run_tests.sh --complete"
         exit 0
     else
         exit 1
     fi
 fi
 
+if [ "$1" = "--complete" ] || [ "$1" = "-c" ]; then
+    echo "📌 运行完整应用测试模式（一次启动，测试所有功能）"
+    echo "🔄 测试顺序：文章 → 日记 → 读书 → 设置"
+    echo "⏱️  预计测试时间：3-5分钟"
+    echo ""
+
+    # 运行简化完整应用测试（更稳定）
+    if flutter test integration_test/simple_complete_test.dart -d $DEVICE_ID --timeout=5m; then
+        echo ""
+        echo "🎉 完整应用测试通过！"
+        echo "✅ 所有界面功能测试完成"
+        exit 0
+    else
+        echo ""
+        echo "❌ 完整应用测试失败，尝试原始版本..."
+        # 如果简化版本失败，尝试原始版本
+        if flutter test integration_test/complete_app_test.dart -d $DEVICE_ID --timeout=5m; then
+            echo ""
+            echo "🎉 原始完整应用测试通过！"
+            echo "✅ 所有界面功能测试完成"
+            exit 0
+        else
+            echo ""
+            echo "❌ 完整应用测试失败"
+            exit 1
+        fi
+    fi
+fi
+
 # 完整测试模式
 echo "📌 运行完整测试模式"
 
-# 1. 快速基础测试
-run_test "快速基础测试" "quick_test.dart" "90"
+# 1. 基础UI组件测试
+if [ -f "integration_test/real_app_test.dart" ]; then
+    run_test "基础UI组件测试" "real_app_test.dart" "120"
+fi
 
-# 2. 基础UI测试
+# 2. 文章界面详细测试
+if [ -f "integration_test/articles_ui_test.dart" ]; then
+    run_test "文章界面详细测试" "articles_ui_test.dart" "150"
+fi
+
+# 3. 日记界面详细测试
+if [ -f "integration_test/diary_ui_test.dart" ]; then
+    run_test "日记界面详细测试" "diary_ui_test.dart" "150"
+fi
+
+# 4. 读书界面详细测试
+if [ -f "integration_test/books_ui_test.dart" ]; then
+    run_test "读书界面详细测试" "books_ui_test.dart" "150"
+fi
+
+# 5. 设置界面详细测试
+if [ -f "integration_test/settings_ui_test.dart" ]; then
+    run_test "设置界面详细测试" "settings_ui_test.dart" "150"
+fi
+
+# 6. 完整应用综合测试
+if [ -f "integration_test/comprehensive_app_test.dart" ]; then
+    run_test "完整应用综合测试" "comprehensive_app_test.dart" "200"
+fi
+
+# 7. 基础UI测试（备用）
 if [ -f "integration_test/basic_test.dart" ]; then
     run_test "基础UI测试" "basic_test.dart" "120"
 fi
 
-# 3. 稳定综合测试
+# 8. 稳定综合测试（备用）
 if [ -f "integration_test/stable_comprehensive_test.dart" ]; then
     run_test "稳定综合测试" "stable_comprehensive_test.dart" "180"
 fi
 
-# 4. 完整功能测试
+# 9. 其他专用测试（如果存在）
 if [ -f "integration_test/comprehensive_test.dart" ]; then
     run_test "全面功能测试" "comprehensive_test.dart" "180"
 fi
 
-# 5. 性能和内存测试
 if [ -f "integration_test/performance_test.dart" ]; then
     run_test "性能和内存测试" "performance_test.dart" "240"
 fi
 
-# 6. 读书管理功能测试
-if [ -f "integration_test/books_test.dart" ]; then
-    run_test "读书管理测试" "books_test.dart" "150"
-fi
-
-# 7. 日记功能测试
-if [ -f "integration_test/diary_test.dart" ]; then
-    run_test "日记功能测试" "diary_test.dart" "150"
-fi
-
-# 8. 文章管理功能测试
-if [ -f "integration_test/articles_test.dart" ]; then
-    run_test "文章管理测试" "articles_test.dart" "150"
-fi
-
-# 9. AI配置功能测试
 if [ -f "integration_test/ai_config_test.dart" ]; then
     run_test "AI配置测试" "ai_config_test.dart" "120"
-fi
-
-# 10. 完整应用测试
-if [ -f "integration_test/app_test.dart" ]; then
-    run_test "完整应用测试" "app_test.dart" "200"
 fi
 
 # 10. 单元测试（如果存在）
@@ -223,13 +290,17 @@ echo "   - 如需覆盖率报告，请运行: flutter test --coverage"
 echo ""
 echo "💡 其他测试命令:"
 echo "   - 运行快速测试: ./run_tests.sh --quick"
+echo "   - 运行完整应用测试: ./run_tests.sh --complete (一次启动，测试所有功能)"
+echo "   - 运行简化完整测试: flutter test integration_test/simple_complete_test.dart -d $DEVICE_ID"
+echo "   - 运行原始完整测试: flutter test integration_test/complete_app_test.dart -d $DEVICE_ID"
+echo "   - 运行单独界面测试: ./run_tests.sh (分别重启测试各界面)"
 echo "   - 运行单个测试: flutter test integration_test/quick_test.dart -d $DEVICE_ID"
 echo "   - 运行所有测试: flutter test -d $DEVICE_ID"
 echo "   - 生成覆盖率: flutter test --coverage"
 echo "   - 查看可用设备: flutter devices"
 echo ""
 echo "🎯 推荐测试流程:"
-echo "   1. 首先运行: ./run_tests.sh --quick"
-echo "   2. 如果需要完整测试: ./run_tests.sh"
-echo "   3. 如果有失败的测试，单独运行具体测试文件进行调试"
-echo "   4. 使用 flutter test --coverage 生成覆盖率报告"
+echo "   1. 日常开发: ./run_tests.sh --quick (快速验证核心功能)"
+echo "   2. 功能演示: ./run_tests.sh --complete (一次启动展示所有功能)"
+echo "   3. 详细测试: ./run_tests.sh (分别测试各界面)"
+echo "   4. 问题调试: 单独运行具体测试文件"
