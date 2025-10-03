@@ -22,12 +22,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   // 页面骨架：AppBar + Body
   Widget _buildScaffold(BuildContext context) => Scaffold(
     appBar: ArticleDetailAppBar(controller: controller),
-    body: _buildBody(context),
+    body: Column(children: [_buildProcessingBanner(context), _buildTabs(), const ArticleTabBar()]),
   );
-
-  // 页面主体：横幅 + 内容 + TabBar
-  Widget _buildBody(BuildContext context) =>
-      Column(children: [_buildProcessingBanner(context), _buildTabs(), const ArticleTabBar()]);
 
   // 内容区域：监听文章变化刷新标签页
   Widget _buildTabs() => Expanded(

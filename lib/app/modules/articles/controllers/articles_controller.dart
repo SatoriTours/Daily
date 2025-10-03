@@ -2,13 +2,11 @@ import 'package:daily_satori/app_exports.dart';
 
 /// 文章列表控制器
 class ArticlesController extends BaseGetXController with WidgetsBindingObserver {
-  /// UI状态
-  final enableSearch = false.obs;
+  /// 过滤状态
   final onlyFavorite = false.obs;
   final tagId = (-1).obs;
   final tagName = ''.obs;
   final selectedFilterDate = Rx<DateTime?>(null);
-  final isSearchVisible = false.obs;
 
   /// 状态服务
   late final ArticleStateService _articleStateService;
@@ -75,9 +73,8 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
   /// 切换搜索状态
   void toggleSearchState() {
     _appStateService.toggleSearchBar();
-    isSearchVisible.value = _appStateService.isSearchBarVisible.value;
 
-    if (isSearchVisible.value) {
+    if (_appStateService.isSearchBarVisible.value) {
       _prepareSearchFocus();
     } else {
       _clearSearchIfNeeded();
@@ -177,15 +174,11 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
 
   /// 获取标题
   String getTitle() {
-    final hasSearch = _articleStateService.globalSearchQuery.isNotEmpty || searchController.text.isNotEmpty;
     final searchQuery = _articleStateService.globalSearchQuery.isNotEmpty
         ? _articleStateService.globalSearchQuery.value
         : searchController.text;
-    final hasTag = tagName.value.isNotEmpty;
-    final hasFavorite = onlyFavorite.value;
-    final hasDate = selectedFilterDate.value != null;
 
-    return switch ((hasSearch, hasTag, hasFavorite, hasDate)) {
+    return switch ((_articleStateService.globalSearchQuery.isNotEmpty, tagName.value.isNotEmpty, onlyFavorite.value, selectedFilterDate.value != null)) {
       (true, _, _, _) => '搜索: "$searchQuery"',
       (_, true, _, _) => '标签: ${tagName.value}',
       (_, _, true, _) => '收藏文章',
@@ -197,7 +190,6 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
   /// 是否存在任一过滤条件（供视图判断显示"已过滤"指示）
   bool hasActiveFilters() {
     return _articleStateService.globalSearchQuery.isNotEmpty ||
-        searchController.text.isNotEmpty ||
         tagName.value.isNotEmpty ||
         onlyFavorite.value ||
         selectedFilterDate.value != null;
@@ -262,24 +254,16 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
 
   /// 获取过滤后的文章列表
   List<ArticleModel> _fetchArticles([int? referenceId, bool? isGreaterThan]) {
-    // 优先使用全局搜索，其次是本地搜索
-    String? keyword = _articleStateService.globalSearchQuery.isNotEmpty
-        ? _articleStateService.globalSearchQuery.trim()
-        : (searchController.text.trim().isNotEmpty ? searchController.text.trim() : null);
-    bool? favorite = onlyFavorite.value ? true : null;
-    List<int>? tagIds = tagId.value > 0 ? [tagId.value] : null;
-    DateTime? startDate = selectedFilterDate.value;
-    DateTime? endDate = selectedFilterDate.value != null ? _endOfDay(selectedFilterDate.value!) : null;
+    final query = _buildQueryParams();
 
     isLoading.value = true;
-
     try {
       return ArticleRepository.where(
-        keyword: keyword,
-        isFavorite: favorite,
-        tagIds: tagIds,
-        startDate: startDate,
-        endDate: endDate,
+        keyword: query.keyword,
+        isFavorite: query.favorite,
+        tagIds: query.tagIds,
+        startDate: query.startDate,
+        endDate: query.endDate,
         referenceId: referenceId,
         isGreaterThan: isGreaterThan,
         pageSize: _pageSize,
@@ -287,6 +271,22 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
     } finally {
       isLoading.value = false;
     }
+  }
+
+  /// 构建查询参数
+  QueryParams _buildQueryParams() {
+    // 优先使用全局搜索，其次是本地搜索
+    String? keyword = _articleStateService.globalSearchQuery.isNotEmpty
+        ? _articleStateService.globalSearchQuery.trim()
+        : (searchController.text.trim().isNotEmpty ? searchController.text.trim() : null);
+
+    return QueryParams(
+      keyword: keyword,
+      favorite: onlyFavorite.value ? true : null,
+      tagIds: tagId.value > 0 ? [tagId.value] : null,
+      startDate: selectedFilterDate.value,
+      endDate: selectedFilterDate.value != null ? _endOfDay(selectedFilterDate.value!) : null,
+    );
   }
 
   /// 加载更多文章（向后）
@@ -342,4 +342,21 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
   }
 
   DateTime _endOfDay(DateTime date) => DateTime(date.year, date.month, date.day, 23, 59, 59);
+}
+
+/// 查询参数封装类
+class QueryParams {
+  final String? keyword;
+  final bool? favorite;
+  final List<int>? tagIds;
+  final DateTime? startDate;
+  final DateTime? endDate;
+
+  QueryParams({
+    this.keyword,
+    this.favorite,
+    this.tagIds,
+    this.startDate,
+    this.endDate,
+  });
 }

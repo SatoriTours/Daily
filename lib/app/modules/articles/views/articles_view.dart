@@ -5,6 +5,7 @@ import 'package:feather_icons/feather_icons.dart';
 
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/components/empty_states/articles_empty_view.dart';
+import 'package:daily_satori/app/services/state/app_state_service.dart';
 
 import 'widgets/articles_search_bar.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
@@ -49,8 +50,8 @@ class ArticlesView extends GetView<ArticlesController> {
   /// 构建搜索栏部分
   Widget _buildSearchBarSection() {
     return Obx(() {
-      final bool shouldShowSearchBar = controller.isSearchVisible.value || controller.searchController.text.isNotEmpty;
-      if (!shouldShowSearchBar) return const SizedBox.shrink();
+      final appStateService = Get.find<AppStateService>();
+      if (!appStateService.isSearchBarVisible.value) return const SizedBox.shrink();
       logger.d('显示搜索栏');
       return const ArticlesSearchBar();
     });

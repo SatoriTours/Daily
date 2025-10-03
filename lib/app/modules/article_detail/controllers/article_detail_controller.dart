@@ -39,40 +39,31 @@ class ArticleDetailController extends BaseGetXController {
   }
 
   void _loadArticle() {
-    // 获取传入的参数
     final argument = Get.arguments;
-    ArticleModel? foundArticleModel;
 
     if (argument is ArticleModel) {
-      // 即使传入的是 ArticleModel，也从数据库重新获取最新状态
-      // 避免使用可能过期的对象（特别是从 share dialog 跳转过来时）
-      foundArticleModel = ArticleRepository.find(argument.id);
-      foundArticleModel ??= argument;
-      articleModel = foundArticleModel;
-      article.value = articleModel;
+      // 从数据库重新获取最新状态
+      articleModel = ArticleRepository.find(argument.id) ?? argument;
     } else if (argument is int) {
-      // 如果参数是ID，则根据ID查找文章
-      ArticleModel? ref;
-      if (Get.isRegistered<ArticlesController>()) {
-        ref = Get.find<ArticlesController>().getRef(argument);
-      }
-      foundArticleModel = ref ?? ArticleRepository.find(argument);
-      if (foundArticleModel != null) {
-        articleModel = foundArticleModel;
-        article.value = articleModel;
-      } else {
+      // 通过ID查找文章，优先从列表控制器获取引用
+      final articleRef = Get.isRegistered<ArticlesController>()
+          ? Get.find<ArticlesController>().getRef(argument)
+          : ArticleRepository.find(argument);
+
+      if (articleRef == null) {
         throw ArgumentError('Article not found with ID: $argument');
       }
+      articleModel = articleRef;
     } else {
       throw ArgumentError('Invalid argument type: ${argument.runtimeType}');
     }
 
-    // 设置为活跃文章
+    article.value = articleModel;
     _articleStateService.setActiveArticle(articleModel);
   }
 
   /// 加载并格式化文章标签
-  Future<void> loadTags() async {
+  void loadTags() {
     tags.value = articleModel.tags.map((tag) => "#${tag.name}").join(', ');
   }
 
@@ -132,10 +123,7 @@ class ArticleDetailController extends BaseGetXController {
   /// 获取文章内容图片列表(不含主图)
   List<String> getArticleImages() {
     final images = _getValidImagePaths(articleModel.images);
-    if (images.isNotEmpty) {
-      images.removeAt(0); // 移除主图
-    }
-    return images;
+    return images.length > 1 ? images.sublist(1) : [];
   }
 
   /// 获取文章截图列表

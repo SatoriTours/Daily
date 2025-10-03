@@ -6,7 +6,7 @@ import 'package:daily_satori/app/modules/articles/controllers/articles_controlle
 
 /// 分享对话框控制器
 /// 管理网页内容的保存和更新
-class ShareDialogController extends GetxController {
+class ShareDialogController extends BaseGetXController {
   static const platform = MethodChannel('android/back/desktop');
 
   // 状态变量
@@ -46,16 +46,13 @@ class ShareDialogController extends GetxController {
 
   /// 初始化默认值
   void _initDefaultValues() async {
-    // 从路由参数中获取初始值
-    final Map<String, dynamic> args = Get.arguments ?? {};
+    final args = Get.arguments ?? {};
 
-    // 初始化文章ID - 优先级最高，决定是新增还是更新模式
-
+    // 初始化文章ID - 决定是新增还是更新模式
     if (args.containsKey('articleID') && args['articleID'] != null) {
       articleID.value = args['articleID'];
       isUpdate.value = true;
       logger.i("初始化文章ID: ${articleID.value}, 模式: 更新");
-
       await _loadArticleInfo();
     } else {
       isUpdate.value = false;
@@ -66,15 +63,13 @@ class ShareDialogController extends GetxController {
     if (args.containsKey('shareURL') && args['shareURL'] != null) {
       shareURL.value = args['shareURL'];
       logger.i("初始化分享链接: ${shareURL.value}");
-      // 标记该 URL 已处理，避免剪贴板检测产生重复确认弹窗
       ClipboardUtils.markUrlProcessed(shareURL.value);
     }
 
-    // 初始化完成后，记录初始标题并监听编辑变化
+    // 记录初始标题并监听编辑变化
     _initialTitleText = titleController.text;
     titleController.addListener(() {
-      final now = titleController.text.trim();
-      titleEdited.value = now != _initialTitleText.trim();
+      titleEdited.value = titleController.text.trim() != _initialTitleText.trim();
     });
   }
 
@@ -104,32 +99,37 @@ class ShareDialogController extends GetxController {
   /// 保存按钮点击
   Future<void> onSaveButtonPressed() async {
     logger.i('[ShareDialog] 点击保存: isUpdate=${isUpdate.value}, refreshAndAnalyze=${refreshAndAnalyze.value}');
-    // 如果是更新并且选择不重新抓取/AI分析，则只做字段更新
-    if (isUpdate.value && !refreshAndAnalyze.value) {
-      await _updateArticleFieldsOnly();
-      backToPreviousStep();
-      return;
-    }
 
-    await ProcessingDialog.show(
-      message: 'AI分析中...',
-      onProcess: (updateMessage) async {
-        final saved = await WebpageParserService.i.saveWebpage(
-          url: shareURL.value,
-          comment: commentController.text,
-          isUpdate: isUpdate.value,
-          articleID: articleID.value,
-        );
-        // 新增模式：保存后拿到新文章ID，便于应用手动字段覆盖
-        if (articleID.value <= 0 && saved.id > 0) {
-          articleID.value = saved.id;
-          logger.i('[ShareDialog] 新增文章保存完成，ID=${articleID.value}');
+    await safeExecute(
+      () async {
+        // 如果是更新并且选择不重新抓取/AI分析，则只做字段更新
+        if (isUpdate.value && !refreshAndAnalyze.value) {
+          await _updateArticleFieldsOnly();
+        } else {
+          await ProcessingDialog.show(
+            message: 'AI分析中...',
+            onProcess: (updateMessage) async {
+              final saved = await WebpageParserService.i.saveWebpage(
+                url: shareURL.value,
+                comment: commentController.text,
+                isUpdate: isUpdate.value,
+                articleID: articleID.value,
+              );
+              // 新增模式：保存后拿到新文章ID
+              if (articleID.value <= 0 && saved.id > 0) {
+                articleID.value = saved.id;
+                logger.i('[ShareDialog] 新增文章保存完成，ID=${articleID.value}');
+              }
+            },
+          );
+          // 保存后再应用用户手动输入的标题与标签
+          await _applyManualFieldsPostProcess();
         }
       },
+      loadingMessage: '保存中...',
+      errorMessage: '保存失败',
+      onSuccess: (_) => backToPreviousStep(),
     );
-    // 保存后再应用用户手动输入的标题与标签（避免被抓取/AI覆盖）
-    await _applyManualFieldsPostProcess();
-    backToPreviousStep();
   }
 
   /// 仅更新标题/标签/备注，不重新抓取网页与AI处理
@@ -172,10 +172,8 @@ class ShareDialogController extends GetxController {
 
   /// 计算有效标签集合（优先使用 tagList，如果为空再基于原始文本解析）
   List<String> _getEffectiveTagNames(String rawText) {
-    if (tagList.isNotEmpty) {
-      return tagList.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList();
-    }
-    return rawText.split(RegExp(r'[，,]')).map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList();
+    final source = tagList.isNotEmpty ? tagList : rawText.split(RegExp(r'[，,]'));
+    return source.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList();
   }
 
   /// 添加标签（Chips 编辑器调用）
@@ -259,17 +257,14 @@ class ShareDialogController extends GetxController {
   /// 导航到文章详情页（更新模式下调用）
   void _navigateToDetail() {
     if (articleID.value <= 0) {
-      // 没有有效ID则仅关闭当前页
       Get.back();
       return;
     }
 
-    // 统一替换当前路由为文章详情，避免因 previousRoute 识别异常导致回到列表
-    // 从数据库重新获取最新的文章状态，确保显示正确的处理状态
     final freshArticle = ArticleRepository.find(articleID.value);
-    dynamic arg = freshArticle ?? articleID.value;
+    final arg = freshArticle ?? articleID.value;
 
-    // 同时更新 ArticleStateService 的活跃文章，确保状态同步
+    // 更新活跃文章状态
     if (freshArticle != null && Get.isRegistered<ArticleStateService>()) {
       Get.find<ArticleStateService>().setActiveArticle(freshArticle);
     }
