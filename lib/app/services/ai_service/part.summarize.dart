@@ -101,6 +101,7 @@ extension PartSummarize on AiService {
   /// 格式化长文本摘要
   String _formatLongSummary(AiSummaryResult result) {
     return _renderTemplate(PluginService.i.getLongSummaryResult(), {
+      'title': result.title.isNotEmpty ? result.title : '文章分析',
       'summary': result.summary,
       'keyPoints': result.keyPoints.join('\n'),
     }).trim();
@@ -122,6 +123,9 @@ extension PartSummarize on AiService {
 ///
 /// 用于解析AI返回的JSON格式摘要数据
 class AiSummaryResult {
+  /// 文章标题
+  final String title;
+
   /// 关键要点列表
   final List<String> keyPoints;
 
@@ -132,12 +136,13 @@ class AiSummaryResult {
   final String summary;
 
   /// 构造函数
-  AiSummaryResult({required this.keyPoints, required this.tags, this.summary = ''});
+  AiSummaryResult({this.title = '', required this.keyPoints, required this.tags, this.summary = ''});
 
   /// 从JSON构造
   factory AiSummaryResult.fromJson(Map<String, dynamic> json) {
     return AiSummaryResult(
-      keyPoints: List<String>.from(json['key_points'] ?? []),
+      title: (json['title'] ?? '').toString(),
+      keyPoints: List<String>.from(json['key_points'] ?? json['keyPoints'] ?? []),
       tags: List<String>.from(json['tags'] ?? []),
       summary: (json['summary'] ?? '').toString(),
     );

@@ -143,13 +143,14 @@ List<ArticleModel> articles = [];
 我们创建了专门的状态服务来管理跨页面的全局状态：
 
 - **AppStateService**: 管理应用级别状态（导航状态、加载状态、错误/成功消息等）
-- **ArticleStateService**: 管理文章相关全局状态（活跃文章引用、文章更新通知、全局搜索）
+- **ArticleStateService**: 管理文章相关全局状态（活跃文章引用、文章更新事件总线、全局搜索）
 - **DiaryStateService**: 管理日记相关全局状态（活跃日记引用、日记更新通知、全局过滤）
 
 ```dart
-// ✅ 正确：使用状态服务管理全局状态
+// ✅ 正确：使用状态服务管理全局状态和事件总线
 class ArticleStateService extends GetxService {
   final Rxn<ArticleModel> activeArticle = Rxn<ArticleModel>();
+  final Rx<ArticleUpdateEvent> articleUpdateEvent = Rx<ArticleUpdateEvent>(ArticleUpdateEvent.none());
   final RxString globalSearchQuery = ''.obs;
 
   void setActiveArticle(ArticleModel article) {
@@ -160,6 +161,18 @@ class ArticleStateService extends GetxService {
     if (activeArticle.value?.id == article.id) {
       activeArticle.value = article;
     }
+    articleUpdateEvent.value = ArticleUpdateEvent.updated(article);
+  }
+
+  void notifyArticleCreated(ArticleModel article) {
+    articleUpdateEvent.value = ArticleUpdateEvent.created(article);
+  }
+
+  void notifyArticleDeleted(int articleId) {
+    if (activeArticle.value?.id == articleId) {
+      clearActiveArticle();
+    }
+    articleUpdateEvent.value = ArticleUpdateEvent.deleted(articleId);
   }
 }
 
@@ -184,6 +197,86 @@ if (Get.isRegistered<ArticlesController>()) {
 _articleStateService.notifyArticleUpdated(article);
 ```
 
+### 事件总线模式约束
+
+**必须使用事件总线进行跨页面状态同步**
+
+对于需要跨多个页面同步状态的场景，必须使用事件总线模式，而不是直接的状态更新。
+
+```dart
+// ✅ 正确：使用事件总线模式
+class ArticleStateService extends GetxService {
+  final Rx<ArticleUpdateEvent> articleUpdateEvent = Rx<ArticleUpdateEvent>(ArticleUpdateEvent.none());
+
+  void notifyArticleUpdated(ArticleModel article) {
+    articleUpdateEvent.value = ArticleUpdateEvent.updated(article);
+  }
+}
+
+// 控制器监听事件
+class ArticlesController extends BaseGetXController {
+  void _initStateServices() {
+    ever(_articleStateService.articleUpdateEvent, (event) {
+      if (event.affectsArticle(articleId)) {
+        // 处理更新
+      }
+    });
+  }
+}
+
+// ❌ 错误：直接更新状态或查找其他控制器
+class ShareDialogController extends BaseGetXController {
+  void saveArticle() {
+    // 错误：直接查找其他控制器
+    if (Get.isRegistered<ArticlesController>()) {
+      Get.find<ArticlesController>().updateArticle(article.id);
+    }
+  }
+}
+```
+
+**事件类型定义规范**
+
+事件类型必须明确定义，包含完整的事件信息和类型检查方法。
+
+```dart
+/// 文章更新事件类型
+enum ArticleEventType {
+  none,
+  created,
+  updated,
+  deleted,
+}
+
+/// 文章更新事件
+class ArticleUpdateEvent {
+  final ArticleEventType type;
+  final ArticleModel? article;
+  final int? articleId;
+
+  const ArticleUpdateEvent._({
+    required this.type,
+    this.article,
+    this.articleId,
+  });
+
+  factory ArticleUpdateEvent.none() => const ArticleUpdateEvent._(type: ArticleEventType.none);
+  factory ArticleUpdateEvent.created(ArticleModel article) => ArticleUpdateEvent._(type: ArticleEventType.created, article: article);
+  factory ArticleUpdateEvent.updated(ArticleModel article) => ArticleUpdateEvent._(type: ArticleEventType.updated, article: article);
+  factory ArticleUpdateEvent.deleted(int articleId) => ArticleUpdateEvent._(type: ArticleEventType.deleted, articleId: articleId);
+
+  /// 检查是否影响指定文章
+  bool affectsArticle(int articleId) {
+    return switch (type) {
+      ArticleEventType.created => article?.id == articleId,
+      ArticleEventType.updated => article?.id == articleId,
+      ArticleEventType.deleted => this.articleId == articleId,
+      ArticleEventType.none => false,
+    };
+  }
+}
+```
+
 **状态共享模式对比**
 
 **之前的紧耦合方式**:
@@ -195,16 +288,25 @@ if (Get.isRegistered<ArticlesController>()) {
 }
 ```
 
-**现在的松耦合方式**:
+**现在的松耦合方式（事件总线模式）**:
 ```dart
-// 发布更新通知
+// 发布更新事件
 _articleStateService.notifyArticleUpdated(article);
 
-// 其他页面监听更新
-_articleStateService.listenArticleUpdates(id, (updated) {
-  // 处理更新
+// 其他页面监听事件流
+_articleStateService.articleUpdateEvent.listen((event) {
+  if (event.affectsArticle(articleId)) {
+    // 处理更新
+  }
 });
 ```
+
+**事件总线模式优势**:
+- **完全解耦**: 控制器之间零依赖
+- **事件驱动**: 基于事件的状态同步
+- **类型安全**: 明确定义的事件类型
+- **性能优化**: 避免不必要的数据库查询
+- **可扩展性**: 新页面只需监听事件流
 
 ### 3. 依赖注入约束
 
@@ -605,6 +707,8 @@ flutter analyze
 3. **更好的用户体验**: 统一的加载状态和错误处理
 4. **更好的开发体验**: 类型安全的导航和统一的API
 5. **更好的性能**: GetX 的智能依赖管理和响应式更新
+6. **更好的扩展性**: 事件总线模式支持新功能的无缝集成
+7. **更好的架构**: 事件驱动的状态同步，避免循环依赖
 
 ## 🔍 检查清单
 
@@ -613,6 +717,7 @@ flutter analyze
 ### 架构约束
 - [ ] 是否继承 `BaseGetXController`
 - [ ] 是否使用状态服务而非直接控制器查找
+- [ ] 是否使用事件总线模式进行跨页面状态同步
 - [ ] 是否使用 `NavigationService` 进行导航
 - [ ] 是否在 `ServiceRegistry` 中注册服务
 
@@ -622,6 +727,8 @@ flutter analyze
 - [ ] 是否使用 `Get.put()` 或 `Get.lazyPut()` 注册依赖
 - [ ] 是否避免控制器之间直接相互查找
 - [ ] 是否使用状态服务进行跨页面状态共享
+- [ ] 是否使用事件总线模式替代直接状态更新
+- [ ] 是否明确定义事件类型和检查方法
 
 ### 代码质量检查
 - [ ] 是否执行了 `flutter analyze` 检查

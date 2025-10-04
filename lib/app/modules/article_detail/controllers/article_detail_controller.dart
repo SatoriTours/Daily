@@ -26,14 +26,39 @@ class ArticleDetailController extends BaseGetXController {
   }
 
   void _initStateServices() {
-    // 只监听活跃文章变化 - 这将捕获所有状态更新
-    // notifyArticleUpdated 会同时更新 activeArticle，所以不需要再监听 articleUpdates
+    // 监听活跃文章变化
     ever(_articleStateService.activeArticle, (activeArticle) {
       if (activeArticle != null && activeArticle.id == articleModel.id) {
         logger.d("[ArticleDetail] 检测到活跃文章更新: ${activeArticle.id}, 状态: ${activeArticle.status}");
         articleModel = activeArticle;
         article.value = activeArticle;
         loadTags();
+      }
+    });
+
+    // 监听文章更新事件流
+    ever(_articleStateService.articleUpdateEvent, (event) {
+      if (event.affectsArticle(articleModel.id)) {
+        logger.d("[ArticleDetail] 检测到文章事件: $event");
+
+        switch (event.type) {
+          case ArticleEventType.updated:
+            if (event.article != null) {
+              articleModel = event.article!;
+              article.value = event.article!;
+              loadTags();
+            }
+            break;
+          case ArticleEventType.deleted:
+            // 如果文章被删除，返回上一页
+            logger.i("[ArticleDetail] 文章已被删除，返回列表");
+            Get.back();
+            break;
+          case ArticleEventType.created:
+          case ArticleEventType.none:
+            // 不需要处理
+            break;
+        }
       }
     });
   }
@@ -69,7 +94,10 @@ class ArticleDetailController extends BaseGetXController {
 
   /// 删除当前文章
   Future<void> deleteArticle() async {
-    await ArticleRepository.deleteArticle(articleModel.id);
+    final articleId = articleModel.id;
+    await ArticleRepository.deleteArticle(articleId);
+    // 通知文章删除
+    _articleStateService.notifyArticleDeleted(articleId);
     // 清除活跃文章状态
     _articleStateService.clearActiveArticle();
   }

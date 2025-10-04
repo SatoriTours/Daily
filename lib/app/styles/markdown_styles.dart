@@ -41,10 +41,7 @@ class MarkdownStyles {
       strong: TextStyle(fontWeight: FontWeight.w700, color: colorScheme.onSurface),
 
       // 引用样式
-      blockquote: textTheme.bodyMedium?.copyWith(
-        color: colorScheme.onSurface,
-        fontStyle: FontStyle.italic,
-      ),
+      blockquote: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface, fontStyle: FontStyle.italic),
       blockquoteDecoration: BoxDecoration(
         border: Border(left: BorderSide(color: colorScheme.primary.withAlpha(70), width: 4)),
         color: colorScheme.surfaceContainerHighest.withAlpha(30),
@@ -85,15 +82,16 @@ class MarkdownStyles {
         decorationColor: colorScheme.primary.withAlpha(40),
       ),
 
-      // 段落间距
+      // 段落间距 - 优化列表项间距
       h1Padding: const EdgeInsets.only(top: 32, bottom: 20),
       h2Padding: const EdgeInsets.only(top: 28, bottom: 18),
       h3Padding: const EdgeInsets.only(top: 24, bottom: 16),
       h4Padding: const EdgeInsets.only(top: 20, bottom: 14),
       h5Padding: const EdgeInsets.only(top: 16, bottom: 12),
       h6Padding: const EdgeInsets.only(top: 12, bottom: 8),
-      pPadding: const EdgeInsets.only(bottom: 24),
-      listBulletPadding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
+      pPadding: const EdgeInsets.only(bottom: 16),
+      // 减小列表项间距，使其更紧凑
+      listBulletPadding: const EdgeInsets.only(bottom: 4),
     );
   }
 }

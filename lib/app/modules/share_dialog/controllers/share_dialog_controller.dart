@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/components/dialogs/processing_dialog.dart';
-import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 
 /// 分享对话框控制器
 /// 管理网页内容的保存和更新
@@ -26,13 +25,17 @@ class ShareDialogController extends BaseGetXController {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController tagsController = TextEditingController();
 
-  // 标题编辑追踪：用于区分“本次会话是否改过标题”
+  // 标题编辑追踪：用于区分"本次会话是否改过标题"
   String _initialTitleText = '';
   final RxBool titleEdited = false.obs;
+
+  // 状态服务
+  late final ArticleStateService _articleStateService;
 
   @override
   void onInit() {
     super.onInit();
+    _articleStateService = Get.find<ArticleStateService>();
     _initDefaultValues();
   }
 
@@ -119,6 +122,8 @@ class ShareDialogController extends BaseGetXController {
               if (articleID.value <= 0 && saved.id > 0) {
                 articleID.value = saved.id;
                 logger.i('[ShareDialog] 新增文章保存完成，ID=${articleID.value}');
+                // 通知文章创建
+                _articleStateService.notifyArticleCreated(saved);
               }
             },
           );
@@ -319,20 +324,13 @@ class ShareDialogController extends BaseGetXController {
     }
   }
 
-  /// 保存文章并通知列表页面刷新，同时记录日志前缀
+  /// 保存文章并通知状态服务，同时记录日志前缀
   Future<void> _saveAndNotify(ArticleModel article, {String log = '已更新'}) async {
     article.updatedAt = DateTime.now().toUtc();
     await article.save();
 
-    // 通知文章控制器更新
-    if (Get.isRegistered<ArticlesController>()) {
-      Get.find<ArticlesController>().updateArticle(article.id);
-    }
-
     // 通知全局状态服务文章已更新
-    if (Get.isRegistered<ArticleStateService>()) {
-      Get.find<ArticleStateService>().notifyArticleUpdated(article);
-    }
+    _articleStateService.notifyArticleUpdated(article);
 
     logger.i('$log: ${article.id}');
   }

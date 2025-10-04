@@ -34,13 +34,60 @@ class OriginalContentTab extends StatelessWidget {
       return _buildEmptyState(message: "尚未生成Markdown内容", showGenerateButton: true);
     }
 
+    final context = Get.context!;
+    final textTheme = AppTheme.getTextTheme(context);
+    final colorScheme = AppTheme.getColorScheme(context);
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: MarkdownBody(
-        data: markdownContent,
-        selectable: true,
-        styleSheet: MarkdownStyles.getStyleSheet(Get.context!),
-        onTapLink: _handleLinkTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题区域
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [colorScheme.primaryContainer.withAlpha(30), colorScheme.surface],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  controller.articleModel.showTitle(),
+                  style: textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    height: 1.3,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  height: 3,
+                  width: 60,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [colorScheme.primary, colorScheme.primary.withAlpha(0)]),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Markdown内容区域
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: MarkdownBody(
+              data: markdownContent,
+              selectable: true,
+              styleSheet: MarkdownStyles.getStyleSheet(context),
+              onTapLink: _handleLinkTap,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -52,13 +99,60 @@ class OriginalContentTab extends StatelessWidget {
       return _buildEmptyState(message: "无法加载原文内容", showGenerateButton: false);
     }
 
+    final context = Get.context!;
+    final textTheme = AppTheme.getTextTheme(context);
+    final colorScheme = AppTheme.getColorScheme(context);
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Html(
-        data: htmlContent,
-        style: HtmlStyles.getStyles(Get.context!),
-        onLinkTap: (url, _, _) => _handleLinkTap(null, url, null),
-        shrinkWrap: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题区域
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [colorScheme.primaryContainer.withAlpha(30), colorScheme.surface],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  controller.articleModel.showTitle(),
+                  style: textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    height: 1.3,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  height: 3,
+                  width: 60,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [colorScheme.primary, colorScheme.primary.withAlpha(0)]),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // HTML内容区域
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Html(
+              data: htmlContent,
+              style: HtmlStyles.getStyles(context),
+              onLinkTap: (url, _, _) => _handleLinkTap(null, url, null),
+              shrinkWrap: true,
+            ),
+          ),
+        ],
       ),
     );
   }

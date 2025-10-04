@@ -33,21 +33,39 @@ class AiArticleProcessor {
   Future<void> _processTitle(ArticleModel article) async {
     final articleId = article.id;
     final title = article.title ?? '';
-    if (title.isEmpty) {
-      logger.w('[AI:标题] 空标题 跳过 #$articleId');
-      return;
-    }
+    final content = article.content ?? '';
+
     try {
-      var aiTitle = title;
-      if (!StringUtils.isChinese(title)) {
-        aiTitle = await AiService.i.translate(title.trim());
+      String aiTitle = '';
+
+      // 如果原文有标题，处理标题
+      if (title.isNotEmpty) {
+        aiTitle = title;
+        // 如果标题不是中文，翻译它
+        if (!StringUtils.isChinese(title)) {
+          aiTitle = await AiService.i.translate(title.trim());
+        }
+        // 如果标题过长，总结它
+        if (aiTitle.length >= AiArticleConstants.longTitleThreshold) {
+          aiTitle = await AiService.i.summarizeOneLine(aiTitle);
+        }
       }
-      if (aiTitle.length >= AiArticleConstants.longTitleThreshold) {
-        aiTitle = await AiService.i.summarizeOneLine(aiTitle);
+      // 如果原文没有标题，通过内容生成标题
+      else if (content.isNotEmpty) {
+        logger.i('[AI:标题] 原文无标题，通过内容生成 #$articleId');
+        aiTitle = await AiService.i.summarizeOneLine(content.trim());
+      } else {
+        logger.w('[AI:标题] 无标题且无内容 跳过 #$articleId');
+        return;
       }
-      if (aiTitle.isEmpty) return;
+
+      if (aiTitle.isEmpty) {
+        logger.w('[AI:标题] 生成结果为空 #$articleId');
+        return;
+      }
+
       await ArticleRepository.updateField(articleId, ArticleFieldName.aiTitle, aiTitle);
-      logger.d('[AI:标题] 完成 #$articleId');
+      logger.d('[AI:标题] 完成 #$articleId: $aiTitle');
     } catch (e) {
       logger.e('[AI:标题] 失败 #$articleId: $e');
     }

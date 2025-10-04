@@ -146,9 +146,6 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
       // 触发 Rx 刷新
       articles.refresh();
     }
-
-    // 通知全局状态服务文章已更新
-    _articleStateService.notifyArticleUpdated(article);
   }
 
   /// 合并/插入文章（用于新增或外部更新回写）
@@ -213,6 +210,32 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
       if (query.isNotEmpty) {
         searchController.text = query;
         reloadArticles();
+      }
+    });
+
+    // 监听文章更新事件
+    ever(_articleStateService.articleUpdateEvent, (event) {
+      logger.d("[Articles] 检测到文章事件: $event");
+
+      switch (event.type) {
+        case ArticleEventType.created:
+          if (event.article != null) {
+            mergeArticle(event.article!);
+          }
+          break;
+        case ArticleEventType.updated:
+          if (event.article != null) {
+            updateArticle(event.article!.id);
+          }
+          break;
+        case ArticleEventType.deleted:
+          if (event.articleId != null) {
+            removeArticle(event.articleId!);
+          }
+          break;
+        case ArticleEventType.none:
+          // 不需要处理
+          break;
       }
     });
   }

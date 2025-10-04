@@ -1,5 +1,67 @@
 import 'package:daily_satori/app_exports.dart';
 
+/// 文章更新事件类型
+enum ArticleEventType {
+  none,
+  created,
+  updated,
+  deleted,
+}
+
+/// 文章更新事件
+class ArticleUpdateEvent {
+  final ArticleEventType type;
+  final ArticleModel? article;
+  final int? articleId;
+
+  const ArticleUpdateEvent._({
+    required this.type,
+    this.article,
+    this.articleId,
+  });
+
+  /// 无事件
+  factory ArticleUpdateEvent.none() => const ArticleUpdateEvent._(type: ArticleEventType.none);
+
+  /// 文章创建事件
+  factory ArticleUpdateEvent.created(ArticleModel article) => ArticleUpdateEvent._(
+        type: ArticleEventType.created,
+        article: article,
+      );
+
+  /// 文章更新事件
+  factory ArticleUpdateEvent.updated(ArticleModel article) => ArticleUpdateEvent._(
+        type: ArticleEventType.updated,
+        article: article,
+      );
+
+  /// 文章删除事件
+  factory ArticleUpdateEvent.deleted(int articleId) => ArticleUpdateEvent._(
+        type: ArticleEventType.deleted,
+        articleId: articleId,
+      );
+
+  /// 检查是否影响指定文章
+  bool affectsArticle(int articleId) {
+    return switch (type) {
+      ArticleEventType.created => article?.id == articleId,
+      ArticleEventType.updated => article?.id == articleId,
+      ArticleEventType.deleted => this.articleId == articleId,
+      ArticleEventType.none => false,
+    };
+  }
+
+  @override
+  String toString() {
+    return switch (type) {
+      ArticleEventType.created => 'ArticleUpdateEvent.created(${article?.id})',
+      ArticleEventType.updated => 'ArticleUpdateEvent.updated(${article?.id})',
+      ArticleEventType.deleted => 'ArticleUpdateEvent.deleted($articleId)',
+      ArticleEventType.none => 'ArticleUpdateEvent.none',
+    };
+  }
+}
+
 /// 全局文章状态管理服务
 ///
 /// 负责管理文章相关的全局状态，包括当前选中的文章、
@@ -10,6 +72,9 @@ class ArticleStateService extends GetxService {
 
   /// 当前活跃的文章引用
   final Rxn<ArticleModel> activeArticle = Rxn<ArticleModel>();
+
+  /// 文章更新事件流（用于跨页面同步）
+  final Rx<ArticleUpdateEvent> articleUpdateEvent = Rx<ArticleUpdateEvent>(ArticleUpdateEvent.none());
 
   /// 全局搜索状态
   final RxString globalSearchQuery = ''.obs;
@@ -44,6 +109,30 @@ class ArticleStateService extends GetxService {
       activeArticle.value = article;
       logger.d('已更新活跃文章引用，状态: ${article.status}');
     }
+
+    // 发布文章更新事件
+    articleUpdateEvent.value = ArticleUpdateEvent.updated(article);
+  }
+
+  /// 通知文章删除
+  void notifyArticleDeleted(int articleId) {
+    logger.i('通知文章删除: ID: $articleId');
+
+    // 如果是当前活跃文章，清除活跃文章引用
+    if (_activeArticleId.value == articleId) {
+      clearActiveArticle();
+    }
+
+    // 发布文章删除事件
+    articleUpdateEvent.value = ArticleUpdateEvent.deleted(articleId);
+  }
+
+  /// 通知文章创建
+  void notifyArticleCreated(ArticleModel article) {
+    logger.i('通知文章创建: ${article.title} (ID: ${article.id})');
+
+    // 发布文章创建事件
+    articleUpdateEvent.value = ArticleUpdateEvent.created(article);
   }
 
   /// 设置全局搜索

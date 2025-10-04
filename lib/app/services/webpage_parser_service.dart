@@ -165,10 +165,10 @@ class WebpageParserService {
       await AiArticleProcessor.i.processAll(updatedArticle);
 
       // 更新文章状态为完成
-      await ArticleRepository.updateField(article.id, ArticleFieldName.status, ArticleStatus.completed);
+      await ArticleRepository.updateField(articleId, ArticleFieldName.status, ArticleStatus.completed);
 
-      logger.i("[网页解析][API] ◀ 处理完成: #${article.id}");
-      _notifyUI(article.id);
+      logger.i("[网页解析][API] ◀ 处理完成: #$articleId");
+      _notifyUI(articleId);
 
       logger.i("[网页解析][AI处理] ◀ AI处理完成: #$articleId");
     } catch (e) {
