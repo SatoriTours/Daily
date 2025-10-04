@@ -41,10 +41,7 @@ class SummaryTab extends StatelessWidget {
           ),
 
           // 内容区域（优化格式化显示）
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-            child: _buildFormattedContent(context),
-          ),
+          Padding(padding: const EdgeInsets.fromLTRB(24, 16, 24, 24), child: _buildFormattedContent(context)),
 
           // 评论区域（如果有）
           if (_hasComment) _buildCommentSection(context),
@@ -67,44 +64,39 @@ class SummaryTab extends StatelessWidget {
       children: [
         // 如果有独立的摘要部分，先显示
         if (sections['summary']?.isNotEmpty ?? false) ...[
-          Text(
-            sections['summary']!,
-            style: textTheme.bodyLarge?.copyWith(
-              height: 1.8,
-              color: colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 32),
+          Text(sections['summary']!, style: textTheme.bodyLarge?.copyWith(height: 1.8, color: colorScheme.onSurface)),
+          if (sections['hasKeyPoints'] == true) const SizedBox(height: 32),
         ],
 
         // 核心观点部分
-        if (sections['hasKeyPoints'] == true) ...[
+        if (sections['hasKeyPoints'] == true && (sections['keyPoints'] as List).isNotEmpty) ...[
           Text(
             '核心观点',
-            style: textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: colorScheme.primary,
-            ),
+            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
           ),
           const SizedBox(height: 20),
-          ...sections['keyPoints'].map<Widget>((point) => _buildKeyPoint(context, point)),
-        ] else ...[
-          // 如果没有核心观点结构，直接显示内容
-          Text(
-            content,
-            style: textTheme.bodyMedium?.copyWith(height: 1.8),
-          ),
+          // 使用带索引的方式构建核心观点列表
+          ...sections['keyPoints'].asMap().entries.map<Widget>((entry) => _buildKeyPoint(context, entry)),
+        ],
+
+        // 如果既没有摘要也没有核心观点，显示原始内容
+        if ((sections['summary']?.isEmpty ?? true) &&
+            (sections['hasKeyPoints'] == false || (sections['keyPoints'] as List).isEmpty)) ...[
+          Text(content, style: textTheme.bodyLarge?.copyWith(height: 1.8)),
         ],
       ],
     );
   }
 
-  /// 构建单个核心观点
-  Widget _buildKeyPoint(BuildContext context, String point) {
+  /// 构建单个核心观点（使用数字编号）
+  Widget _buildKeyPoint(BuildContext context, MapEntry<int, String> indexedPoint) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
-    // 移除编号前缀（如 "1. "）
+    final index = indexedPoint.key;
+    final point = indexedPoint.value;
+
+    // 移除编号前缀（如 "1. "），因为我们会自己添加
     final cleanPoint = point.replaceFirst(RegExp(r'^\d+\.\s*'), '');
 
     return Padding(
@@ -112,25 +104,22 @@ class SummaryTab extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 装饰性圆点
+          // 数字序号（圆形背景）
           Container(
-            margin: const EdgeInsets.only(top: 8, right: 16),
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: colorScheme.primary,
-              shape: BoxShape.circle,
+            margin: const EdgeInsets.only(top: 2, right: 16),
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(color: colorScheme.primary, shape: BoxShape.circle),
+            child: Center(
+              child: Text(
+                '${index + 1}',
+                style: textTheme.labelLarge?.copyWith(color: colorScheme.onPrimary, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
           // 观点内容
           Expanded(
-            child: Text(
-              cleanPoint,
-              style: textTheme.bodyLarge?.copyWith(
-                height: 1.8,
-                color: colorScheme.onSurface,
-              ),
-            ),
+            child: Text(cleanPoint, style: textTheme.bodyLarge?.copyWith(height: 1.8, color: colorScheme.onSurface)),
           ),
         ],
       ),
@@ -139,20 +128,17 @@ class SummaryTab extends StatelessWidget {
 
   /// 解析内容，分离出不同部分
   Map<String, dynamic> _parseContent(String content) {
-    final result = <String, dynamic>{
-      'summary': '',
-      'keyPoints': <String>[],
-      'hasKeyPoints': false,
-    };
+    final result = <String, dynamic>{'summary': '', 'keyPoints': <String>[], 'hasKeyPoints': false};
 
-    // 检查是否包含"核心观点"标题
+    // 先检查是否包含"核心观点"标题（在清理前检查）
     if (content.contains('## 核心观点') || content.contains('核心观点')) {
       result['hasKeyPoints'] = true;
 
       // 分割内容
       final parts = content.split(RegExp(r'##?\s*核心观点'));
       if (parts.length > 1) {
-        result['summary'] = parts[0].trim();
+        // 清理摘要部分的Markdown标记
+        result['summary'] = _cleanMarkdownHeaders(parts[0]).trim();
 
         // 提取核心观点列表
         final keyPointsSection = parts[1].trim();
@@ -166,9 +152,25 @@ class SummaryTab extends StatelessWidget {
           }
         }
       }
+    } else {
+      // 如果没有核心观点结构，清理整个内容的Markdown标记
+      result['summary'] = _cleanMarkdownHeaders(content);
     }
 
     return result;
+  }
+
+  /// 清理Markdown标题标记
+  String _cleanMarkdownHeaders(String content) {
+    // 移除一级标题 #
+    var cleaned = content.replaceAll(RegExp(r'^#\s+', multiLine: true), '');
+    // 移除二级标题 ##
+    cleaned = cleaned.replaceAll(RegExp(r'^##\s+', multiLine: true), '');
+    // 移除三级标题 ###
+    cleaned = cleaned.replaceAll(RegExp(r'^###\s+', multiLine: true), '');
+    // 移除多余的空行
+    cleaned = cleaned.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    return cleaned.trim();
   }
 
   /// 判断是否有头图

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:daily_satori/app/styles/component_style.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:daily_satori/app/services/file_service.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 
 /// 智能图片组件
 ///
@@ -116,7 +117,13 @@ class SmartImage extends StatelessWidget {
       width: width,
       height: height,
       placeholder: (context, url) => _buildLoadingWidget(context),
-      errorWidget: (context, url, error) => _buildErrorWidget(context),
+      errorWidget: (context, url, error) {
+        // 只在非404错误时记录日志
+        if (!error.toString().contains('404')) {
+          logger.w('图片加载失败: $url, 错误: $error');
+        }
+        return _buildErrorWidget(context);
+      },
     );
   }
 
