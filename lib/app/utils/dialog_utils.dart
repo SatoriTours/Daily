@@ -47,7 +47,6 @@ class DialogUtils {
           TextButton(
             onPressed: () {
               Get.back(result: false);
-              Get.close();
               if (onCancel != null) onCancel();
             },
             child: Text(cancelText),
@@ -55,7 +54,6 @@ class DialogUtils {
           TextButton(
             onPressed: () {
               Get.back(result: true);
-              Get.close();
               if (onConfirm != null) onConfirm();
             },
             child: Text(confirmText),
@@ -86,7 +84,10 @@ class DialogUtils {
         ),
         actions: [
           TextButton(onPressed: () => Get.back(), child: Text(cancelText)),
-          TextButton(onPressed: () => Get.back(result: controller.text), child: Text(confirmText)),
+          TextButton(
+            onPressed: () => Get.back(result: controller.text),
+            child: Text(confirmText),
+          ),
         ],
       ),
     );

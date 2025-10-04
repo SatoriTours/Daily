@@ -34,15 +34,19 @@ class AppUpgradeService {
 
   // 检查并下载新版本(带UI提示)
   Future<void> checkAndDownload() async {
-    UIUtils.showLoading();
+    UIUtils.showLoading(tips: '正在检查更新...');
     try {
       if (await check()) {
+        Get.back(); // 关闭 loading
         await _downAndInstallApp();
       } else {
+        Get.back(); // 关闭 loading
         UIUtils.showSuccess('当前已是最新版本');
       }
-    } finally {
-      Get.close();
+    } catch (e) {
+      Get.back(); // 关闭 loading
+      logger.e("检查更新失败: $e");
+      UIUtils.showError('检查更新失败，请稍后重试');
     }
   }
 
@@ -91,12 +95,13 @@ class AppUpgradeService {
           }
         }
 
-        UIUtils.showLoading();
+        UIUtils.showLoading(tips: '正在下载更新包...');
         try {
           final appFilePath = await HttpService.i.downloadFile(_downloadURL);
           logger.i("下载文件到: $appFilePath");
 
           if (appFilePath.isEmpty) {
+            Get.back(); // 关闭 loading
             UIUtils.showError('下载失败，请检查网络后重试');
             return;
           }
@@ -107,15 +112,18 @@ class AppUpgradeService {
             appFilePath,
             type: isApk ? 'application/vnd.android.package-archive' : null,
           );
+          Get.back(); // 关闭 loading
+
           logger.i("打开文件结果: ${result.type} ${result.message}");
           if (result.type != ResultType.done) {
             UIUtils.showError('打开安装文件失败: ${result.message}');
+          } else {
+            UIUtils.showSuccess('安装包已准备就绪，请按提示完成安装');
           }
         } catch (e) {
+          Get.back(); // 关闭 loading
           logger.e("下载或安装失败: $e");
           UIUtils.showError("更新失败，请稍后重试");
-        } finally {
-          Get.close();
         }
       },
     );

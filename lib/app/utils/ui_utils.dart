@@ -47,8 +47,10 @@ class UIUtils {
             mainAxisSize: MainAxisSize.min,
             children: [
               const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text(tips, style: textTheme?.bodyMedium ?? AppTypography.bodyMedium),
+              if (tips.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(tips, style: textTheme?.bodyMedium ?? AppTypography.bodyMedium),
+              ],
             ],
           ),
         ),
