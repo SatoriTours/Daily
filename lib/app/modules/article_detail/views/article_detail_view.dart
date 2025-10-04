@@ -43,78 +43,34 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   Widget _buildProcessingBanner(BuildContext context) => Obx(() {
     final st = controller.article.value?.status ?? controller.articleModel.status;
     final busy = st == ArticleStatus.pending || st == ArticleStatus.webContentFetched;
-    return busy ? _buildBannerCard(context) : const SizedBox.shrink();
+    return busy ? _buildSlimBanner(context) : const SizedBox.shrink();
   });
 
-  // 横幅卡片容器
-  Widget _buildBannerCard(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-    child: Card(
-      color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.18),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: _buildBannerRow(context),
-      ),
-    ),
-  );
-
-  // 横幅主体行
-  Widget _buildBannerRow(BuildContext context) {
+  // 简洁横幅：仅显示一条带图标和文字的细条
+  Widget _buildSlimBanner(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        _buildBannerLeadStripe(context),
-        _gapW(12),
-        Icon(Icons.hourglass_bottom, size: 22, color: cs.primary.withValues(alpha: 0.95)),
-        _gapW(10),
-        Expanded(child: _buildBannerTexts(context)),
-      ],
-    );
-  }
-
-  // 左侧强调条
-  Widget _buildBannerLeadStripe(BuildContext context) => Container(
-    width: 6,
-    height: 48,
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.55),
-      borderRadius: BorderRadius.circular(3),
-    ),
-  );
-
-  // 文本与进度条
-  Widget _buildBannerTexts(BuildContext context) {
     final tt = Theme.of(context).textTheme;
-    final cs = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'AI处理中…',
-          style: tt.bodyMedium?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600),
-        ),
-        _gapH(4),
-        Text('正在整理标题、摘要与Markdown，完成后将自动更新本页', style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-        _gapH(8),
-        _buildLoadingBar(context),
-      ],
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: cs.primaryContainer.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: cs.primary.withValues(alpha: 0.2), width: 0.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary.withValues(alpha: 0.7)),
+          ),
+          const SizedBox(width: 10),
+          Text('AI整理中', style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.75), fontSize: 13)),
+        ],
+      ),
     );
   }
-
-  // 线性进度条
-  Widget _buildLoadingBar(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(4),
-    child: LinearProgressIndicator(
-      minHeight: 4,
-      backgroundColor: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.22),
-      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.85),
-    ),
-  );
-
-  // 水平/垂直间距
-  Widget _gapW(double w) => SizedBox(width: w);
-  Widget _gapH(double h) => SizedBox(height: h);
 }
