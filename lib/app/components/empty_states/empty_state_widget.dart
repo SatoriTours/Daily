@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
-import 'package:daily_satori/app/styles/colors.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
 
 /// 通用空状态提示组件
 ///
@@ -26,20 +25,16 @@ import 'package:daily_satori/app/styles/font_style.dart';
 class EmptyStateWidget extends StatelessWidget {
   /// 空状态图标
   final IconData icon;
-
   /// 主标题文本
   final String title;
-
   /// 副标题文本
   ///
   /// 可选，如果为 null 则不显示
   final String? subtitle;
-
   /// 操作按钮
   ///
   /// 可选，如果为 null 则不显示
   final Widget? action;
-
   /// 创建一个空状态提示组件
   ///
   /// [icon] 显示的图标
@@ -47,7 +42,6 @@ class EmptyStateWidget extends StatelessWidget {
   /// [subtitle] 可选的副标题文本
   /// [action] 可选的操作按钮
   const EmptyStateWidget({super.key, required this.icon, required this.title, this.subtitle, this.action});
-
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -66,27 +60,23 @@ class EmptyStateWidget extends StatelessWidget {
       ),
     );
   }
-
   /// 构建图标
   Widget _buildIcon(BuildContext context) {
-    return Icon(icon, size: 64, color: AppColors.textSecondary(context).withAlpha(128));
+    return Icon(icon, size: 64, color: AppColors.getOnSurfaceVariant(context).withAlpha(128));
   }
-
   /// 构建主标题
   Widget _buildTitle(BuildContext context) {
-    return Text(title, style: MyFontStyle.emptyStateStyleThemed(context), textAlign: TextAlign.center);
+    return Text(title, style: AppTypography.bodyLarge, textAlign: TextAlign.center);
   }
-
   /// 构建副标题
   Widget _buildSubtitle(BuildContext context) {
     return Column(
       children: [
         const SizedBox(height: 8),
-        Text(subtitle!, style: MyFontStyle.cardSubtitleStyleThemed(context), textAlign: TextAlign.center),
+        Text(subtitle!, style: AppTypography.bodyMedium, textAlign: TextAlign.center),
       ],
     );
   }
-
   /// 构建操作按钮
   Widget _buildAction() {
     return Column(children: [const SizedBox(height: 24), action!]);

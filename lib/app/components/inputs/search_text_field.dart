@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'package:daily_satori/app/styles/component_style.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 搜索输入框组件
 ///
@@ -68,7 +67,6 @@ class SearchTextField extends StatelessWidget {
     this.isVisible = true,
     this.margin,
   });
-
   @override
   Widget build(BuildContext context) {
     return AnimatedSlide(
@@ -85,11 +83,16 @@ class SearchTextField extends StatelessWidget {
       margin: margin ?? const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: TextField(
         controller: controller,
-        decoration: ComponentStyle.searchInputDecoration(
-          context,
-          hintText: hintText,
-          onClear: onClear,
-          controller: controller,
+        decoration: InputStyles.getSearchDecoration(context, hintText: hintText).copyWith(
+          suffixIcon: controller.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    controller.clear();
+                    onClear?.call();
+                  },
+                )
+              : null,
         ),
         onSubmitted: onSubmitted,
       ),

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'package:daily_satori/app/styles/colors.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 自定义按钮组件
 ///
@@ -54,37 +52,38 @@ class CustomButton extends StatelessWidget {
     this.isPrimary = true,
     this.isFullWidth = false,
   });
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: isFullWidth ? double.infinity : null,
-      child: ElevatedButton(onPressed: onPressed, style: _buildButtonStyle(context), child: _buildButtonContent()),
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: _buildButtonStyle(context),
+        child: _buildButtonContent(context),
+      ),
     );
   }
 
   /// 构建按钮样式
   ButtonStyle _buildButtonStyle(BuildContext context) {
     if (isPrimary) {
-      return ElevatedButton.styleFrom(backgroundColor: AppColors.primary(context), foregroundColor: Colors.white);
+      return ElevatedButton.styleFrom(backgroundColor: AppColors.getPrimary(context), foregroundColor: Colors.white);
     }
-
     return ElevatedButton.styleFrom(
-      backgroundColor:
-          Theme.of(context).brightness == Brightness.dark ? AppColors.cardBackground(context) : Colors.white,
-      foregroundColor: AppColors.primary(context),
-      side: BorderSide(color: AppColors.primary(context)),
+      backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.getSurface(context) : Colors.white,
+      foregroundColor: AppColors.getPrimary(context),
+      side: BorderSide(color: AppColors.getPrimary(context)),
     );
   }
 
   /// 构建按钮内容
-  Widget _buildButtonContent() {
+  Widget _buildButtonContent(BuildContext context) {
     return Row(
       mainAxisSize: isFullWidth ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (icon != null) ...[Icon(icon), const SizedBox(width: 8)],
-        Text(label, style: MyFontStyle.buttonTextStyle),
+        Text(label, style: AppTypography.labelLarge),
       ],
     );
   }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:daily_satori/app/routes/app_pages.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/init_app.dart';
 
 /// 应用程序入口点

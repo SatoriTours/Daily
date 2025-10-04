@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
-import 'package:daily_satori/app/styles/colors.dart';
-import 'package:daily_satori/app/styles/dimensions.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
 
 /// 带标签的内容区域组件
 ///
@@ -20,28 +18,20 @@ import 'package:daily_satori/app/styles/font_style.dart';
 class LabeledSection extends StatelessWidget {
   /// 图标数据
   final IconData icon;
-
   /// 标签文本
   final String label;
-
   /// 内容组件
   final Widget child;
-
   /// 是否显示卡片背景
   final bool showCardBackground;
-
   /// 标签文本样式
   final TextStyle? labelStyle;
-
   /// 图标颜色，默认使用主题色
   final Color? iconColor;
-
   /// 图标大小
   final double? iconSize;
-
   /// 内容区域外边距
   final EdgeInsetsGeometry? contentPadding;
-
   /// 创建一个带标签的内容区域
   ///
   /// [icon] 显示的图标
@@ -63,7 +53,6 @@ class LabeledSection extends StatelessWidget {
     this.iconSize,
     this.contentPadding,
   });
-
   @override
   Widget build(BuildContext context) {
     final mainContent = Column(
@@ -73,15 +62,12 @@ class LabeledSection extends StatelessWidget {
         if (contentPadding != null) Padding(padding: contentPadding!, child: child) else child,
       ],
     );
-
     if (!showCardBackground) {
       return mainContent;
     }
-
     // 如果需要卡片背景，使用Container包装内容
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
     return Container(
       padding: Dimensions.paddingCard,
       decoration: BoxDecoration(
@@ -94,7 +80,6 @@ class LabeledSection extends StatelessWidget {
       child: mainContent,
     );
   }
-
   /// 构建头部（图标+标签）
   Widget _buildHeader(BuildContext context) {
     return Padding(
@@ -102,13 +87,13 @@ class LabeledSection extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, size: iconSize ?? Dimensions.iconSizeS, color: iconColor ?? AppColors.primary(context)),
+          Icon(icon, size: iconSize ?? Dimensions.iconSizeS, color: iconColor ?? AppColors.getPrimary(context)),
           Dimensions.horizontalSpacerS,
           Text(
             label,
             style:
                 labelStyle ??
-                MyFontStyle.bodyLarge.copyWith(color: AppColors.textSecondary(context), fontWeight: FontWeight.w500),
+                AppTypography.bodyLarge.copyWith(color: AppColors.getOnSurfaceVariant(context), fontWeight: FontWeight.w500),
           ),
         ],
       ),

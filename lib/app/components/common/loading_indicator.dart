@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'package:daily_satori/app/styles/colors.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 自定义加载指示器
 ///
@@ -23,18 +21,14 @@ class LoadingIndicator extends StatelessWidget {
   ///
   /// [message] 可选的加载提示文本
   const LoadingIndicator({super.key, this.message});
-
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary(context))),
-          if (message != null) ...[
-            const SizedBox(height: 16),
-            Text(message!, style: MyFontStyle.loadingTipsStyleThemed(context)),
-          ],
+          CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context))),
+          if (message != null) ...[const SizedBox(height: 16), Text(message!, style: AppTypography.bodyMedium)],
         ],
       ),
     );

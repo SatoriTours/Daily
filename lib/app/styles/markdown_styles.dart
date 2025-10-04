@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/styles/dimensions.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart';
 
 /// Markdown样式类
 ///

@@ -1,10 +1,7 @@
 import 'package:daily_satori/app/components/common/feature_icon.dart';
-import 'package:daily_satori/app/styles/app_styles.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/styles/dimensions.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import '../controllers/ai_config_controller.dart';
 
 /// AI配置页面
@@ -15,7 +12,6 @@ import '../controllers/ai_config_controller.dart';
 /// - 日记总结：分析和生成日记内容
 class AIConfigView extends GetView<AIConfigController> {
   const AIConfigView({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,15 +38,12 @@ class AIConfigView extends GetView<AIConfigController> {
   Widget _buildBody(BuildContext context) {
     return Obx(() {
       if (controller.isLoading.value) {
-        return AppStyles.loadingState(context);
+        return StyleGuide.getLoadingState(context);
       }
-
       final allConfigs = controller.configs;
-
       if (allConfigs.isEmpty) {
         return _buildEmptyState(context);
       }
-
       return _buildConfigList(context, allConfigs);
     });
   }
@@ -80,7 +73,6 @@ class AIConfigView extends GetView<AIConfigController> {
   /// 构建配置卡片
   Widget _buildConfigCard(BuildContext context, dynamic config) {
     final color = _getTypeColor(config.functionType);
-
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
@@ -173,12 +165,10 @@ class AIConfigView extends GetView<AIConfigController> {
 /// AI配置信息对话框
 class AIConfigInfoDialog extends StatelessWidget {
   const AIConfigInfoDialog({super.key});
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
-
     return AlertDialog(
       title: _buildDialogTitle(context, colorScheme, textTheme),
       content: _buildDialogContent(context, colorScheme, textTheme),
@@ -228,7 +218,6 @@ class AIConfigInfoDialog extends StatelessWidget {
   Widget _buildInfoItem(BuildContext context, String title, String description) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -1,9 +1,8 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/modules/books/controllers/books_controller.dart';
 import 'package:daily_satori/app/modules/books/views/widgets/widgets.dart';
-import 'package:daily_satori/app/styles/colors.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/models/book.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/components/menus/s_popup_menu_item.dart';
 import 'package:daily_satori/app/modules/diary/controllers/diary_controller.dart';
@@ -16,7 +15,6 @@ import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 /// 展示所有书籍观点，包含书籍过滤功能
 class BooksView extends GetView<BooksController> {
   const BooksView({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -26,7 +24,6 @@ class BooksView extends GetView<BooksController> {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
-
   /// 构建应用栏
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return SAppBar(
@@ -38,12 +35,10 @@ class BooksView extends GetView<BooksController> {
       centerTitle: true,
     );
   }
-
   /// 构建应用栏标题
   Widget _buildAppBarTitle(BuildContext context) {
-    return Text('读书悟道', style: MyFontStyle.appBarTitleStyle);
+    return Text('读书悟道', style: AppTypography.titleLarge);
   }
-
   /// 构建应用栏左侧按钮
   Widget _buildAppBarLeading(BuildContext context) {
     return IconButton(
@@ -52,12 +47,10 @@ class BooksView extends GetView<BooksController> {
       tooltip: '选择书籍',
     );
   }
-
   /// 构建应用栏右侧按钮
   List<Widget> _buildAppBarActions(BuildContext context) {
     return [_buildAddBookButton(), _buildMoreMenu(context)];
   }
-
   /// 构建添加书籍按钮
   Widget _buildAddBookButton() {
     return IconButton(
@@ -68,7 +61,6 @@ class BooksView extends GetView<BooksController> {
       constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
     );
   }
-
   /// 构建更多菜单（三点）
   Widget _buildMoreMenu(BuildContext context) {
     return PopupMenuButton<String>(
@@ -81,7 +73,6 @@ class BooksView extends GetView<BooksController> {
       ],
     );
   }
-
   /// 处理更多菜单选择
   void _handleMoreMenuSelection(String value, BuildContext context) {
     switch (value) {
@@ -96,7 +87,6 @@ class BooksView extends GetView<BooksController> {
         break;
     }
   }
-
   /// 显示书籍过滤对话框
   void _showBooksFilterDialog(BuildContext context) {
     final books = controller.getAllBooks();
@@ -119,7 +109,6 @@ class BooksView extends GetView<BooksController> {
       ),
     );
   }
-
   /// 构建过滤对话框标题
   Widget _buildFilterDialogHeader(BuildContext context) {
     return Padding(
@@ -127,7 +116,7 @@ class BooksView extends GetView<BooksController> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('选择书籍', style: MyFontStyle.titleMedium),
+          Text('选择书籍', style: AppTypography.titleMedium),
           IconButton(
             icon: const Icon(Icons.close, size: 20),
             onPressed: () => Navigator.pop(context),
@@ -138,7 +127,6 @@ class BooksView extends GetView<BooksController> {
       ),
     );
   }
-
   /// 构建过滤对话框列表
   Widget _buildFilterDialogList(BuildContext context, List<BookModel> books) {
     return Expanded(
@@ -157,7 +145,6 @@ class BooksView extends GetView<BooksController> {
       ),
     );
   }
-
   /// 构建过滤对话框底部
   Widget _buildFilterDialogFooter(BuildContext context) {
     return Padding(
@@ -174,9 +161,9 @@ class BooksView extends GetView<BooksController> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.clear, size: 16, color: AppColors.primary(context)),
+                Icon(Icons.clear, size: 16, color: AppColors.getPrimary(context)),
                 const SizedBox(width: 8),
-                Text('查看所有观点', style: MyFontStyle.bodyMedium.copyWith(color: AppColors.primary(context))),
+                Text('查看所有观点', style: AppTypography.bodyMedium.copyWith(color: AppColors.getPrimary(context))),
               ],
             ),
           ),
@@ -184,18 +171,16 @@ class BooksView extends GetView<BooksController> {
       ),
     );
   }
-
   /// 构建单个书籍过滤项
   Widget _buildBookFilterItem(BuildContext context, BookModel? book, bool isSelected) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final backgroundColor = isSelected
-        ? AppColors.primary(context).withValues(alpha: isDark ? 0.25 : 0.08)
+        ? AppColors.getPrimary(context).withValues(alpha: isDark ? 0.25 : 0.08)
         : Colors.transparent;
     final textColor = isSelected
-        ? (isDark ? Colors.white : AppColors.primary(context))
+        ? (isDark ? Colors.white : AppColors.getPrimary(context))
         : theme.textTheme.bodyLarge?.color ?? Colors.black;
-
     return InkWell(
       onTap: () {
         if (book != null) {
@@ -213,7 +198,6 @@ class BooksView extends GetView<BooksController> {
       ),
     );
   }
-
   /// 构建过滤项内容
   Widget _buildFilterItemContent(BookModel? book, Color textColor, bool isSelected, BuildContext context) {
     return Row(
@@ -223,7 +207,7 @@ class BooksView extends GetView<BooksController> {
         Expanded(
           child: Text(
             book?.title ?? '所有书籍',
-            style: MyFontStyle.bodyMedium.copyWith(
+            style: AppTypography.bodyMedium.copyWith(
               color: textColor,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),
@@ -233,7 +217,6 @@ class BooksView extends GetView<BooksController> {
       ],
     );
   }
-
   /// 构建页面主体
   Widget _buildBody(BuildContext context) {
     return Obx(() {
@@ -245,7 +228,6 @@ class BooksView extends GetView<BooksController> {
       return _buildViewpointList();
     });
   }
-
   /// 构建空视图
   Widget _buildEmptyView() {
     return Center(
@@ -254,12 +236,11 @@ class BooksView extends GetView<BooksController> {
         children: [
           const Icon(Icons.auto_stories, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          Text('暂无观点，请先添加书籍', style: MyFontStyle.titleMedium),
+          Text('暂无观点，请先添加书籍', style: AppTypography.titleMedium),
         ],
       ),
     );
   }
-
   /// 构建观点列表
   Widget _buildViewpointList() {
     return PageView.builder(
@@ -277,13 +258,11 @@ class BooksView extends GetView<BooksController> {
       },
     );
   }
-
   /// 悬浮“记感想”按钮，始终可见不被遮挡
   Widget _buildFloatingQuickJournal(BuildContext context) {
     final theme = Theme.of(context);
     final bg = theme.colorScheme.primary;
     final fg = theme.colorScheme.onPrimary;
-
     return FloatingActionButton.small(
       heroTag: 'books_quick_journal',
       tooltip: '添加感悟',
@@ -297,10 +276,8 @@ class BooksView extends GetView<BooksController> {
       child: Icon(Icons.edit_note, color: fg, size: 20),
     );
   }
-
   void _openJournalForCurrent(BuildContext context) {
     final diaryController = Get.find<DiaryController>();
-
     // 若当前有观点，拼装带来源的模板；否则提供空白感悟模板
     String preset = '';
     if (controller.allViewpoints.isNotEmpty) {
@@ -310,7 +287,6 @@ class BooksView extends GetView<BooksController> {
       final title = vp.title.trim();
       final bookTitle = (book?.title ?? '').trim();
       final author = (book?.author ?? '').trim();
-
       final buffer = StringBuffer();
       buffer.writeln('观点：$title');
       if (bookTitle.isNotEmpty) {
@@ -322,12 +298,10 @@ class BooksView extends GetView<BooksController> {
     } else {
       preset = '读书感悟：\n\n';
     }
-
     diaryController.contentController
       ..clear()
       ..text = preset
       ..selection = TextSelection.collapsed(offset: preset.length);
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -338,11 +312,9 @@ class BooksView extends GetView<BooksController> {
       builder: (context) => DiaryEditor(controller: diaryController),
     );
   }
-
   /// 显示删除书籍确认对话框
   void _showDeleteBookDialog() {
     BookModel? book;
-
     // 尝试从当前观点获取书籍
     final currentViewpoint = controller.currentViewpoint();
     if (currentViewpoint?.book != null) {
@@ -352,12 +324,10 @@ class BooksView extends GetView<BooksController> {
       final books = controller.getAllBooks();
       book = books.where((b) => b.id == controller.filterBookID.value).firstOrNull;
     }
-
     if (book == null) {
       UIUtils.showError('未找到可删除的书籍，请先选择一本书');
       return;
     }
-
     UIUtils.showConfirmation(
       '删除书籍',
       '确定要删除《${book.title}》吗？\n此操作无法撤销，书籍相关的所有观点也将被删除。',
@@ -368,11 +338,9 @@ class BooksView extends GetView<BooksController> {
       },
     );
   }
-
   /// 确认并刷新当前书籍（带加载提示）
   void _confirmAndRefreshBook() {
     BookModel? book;
-
     // 尝试从当前观点获取书籍
     final currentViewpoint = controller.currentViewpoint();
     if (currentViewpoint?.book != null) {
@@ -382,7 +350,6 @@ class BooksView extends GetView<BooksController> {
       final books = controller.getAllBooks();
       book = books.where((b) => b.id == controller.filterBookID.value).firstOrNull;
     }
-
     if (book == null) {
       // 尝试刷新任意一本书（刷新第一本）
       final books = controller.getAllBooks();
@@ -390,12 +357,10 @@ class BooksView extends GetView<BooksController> {
         book = books.first;
       }
     }
-
     if (book == null) {
       UIUtils.showError('未找到可刷新的书籍，请先添加书籍');
       return;
     }
-
     UIUtils.showConfirmation(
       '刷新书籍',
       '将重新拉取《${book.title}》的观点内容，这可能需要一些时间。是否继续？',
@@ -406,7 +371,6 @@ class BooksView extends GetView<BooksController> {
       },
     );
   }
-
   /// 执行刷新逻辑并展示更友好的进度提示
   Future<void> _doRefreshBook(BookModel book) async {
     UIUtils.showLoading(tips: '正在刷新《${book.title}》...');

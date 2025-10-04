@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
-import 'package:daily_satori/app/styles/colors.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
 
 /// 自定义标签组件
 ///
@@ -23,16 +22,12 @@ import 'package:daily_satori/app/styles/font_style.dart';
 class CustomChip extends StatelessWidget {
   /// 标签文本
   final String label;
-
   /// 可选的标签图标
   final IconData? icon;
-
   /// 标签点击回调
   final VoidCallback? onTap;
-
   /// 是否处于选中状态
   final bool isSelected;
-
   /// 创建一个自定义标签
   ///
   /// [label] 标签显示的文本
@@ -40,7 +35,6 @@ class CustomChip extends StatelessWidget {
   /// [onTap] 标签点击回调
   /// [isSelected] 是否处于选中状态，默认为 false
   const CustomChip({super.key, required this.label, this.icon, this.onTap, this.isSelected = false});
-
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -53,24 +47,20 @@ class CustomChip extends StatelessWidget {
       ),
     );
   }
-
   /// 获取背景颜色
   Color _getBackgroundColor(BuildContext context) {
-    return isSelected ? AppColors.primary(context) : AppColors.primary(context).withAlpha(26);
+    return isSelected ? AppColors.getPrimary(context) : AppColors.getPrimary(context).withAlpha(26);
   }
-
   /// 构建图标
   Widget? _buildIcon(BuildContext context) {
     if (icon == null) return null;
-
-    return Icon(icon, size: 16, color: isSelected ? Colors.white : AppColors.primary(context));
+    return Icon(icon, size: 16, color: isSelected ? Colors.white : AppColors.getPrimary(context));
   }
-
   /// 构建标签文本
   Widget _buildLabel(BuildContext context) {
     return Text(
       label,
-      style: MyFontStyle.chipTextStyle.copyWith(color: isSelected ? Colors.white : AppColors.primary(context)),
+      style: AppTypography.labelSmall.copyWith(color: isSelected ? Colors.white : AppColors.getPrimary(context)),
     );
   }
 }

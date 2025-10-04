@@ -37,7 +37,7 @@ class LeftBarView extends GetView<LeftBarController> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('欢迎使用 Daily Satori', style: textTheme.headlineSmall),
+          Text('欢迎使用 Daily Satori', style: textTheme.headlineMedium),
           const SizedBox(height: 4),
           Text(
             '您的个人阅读助手',
@@ -127,7 +127,9 @@ class LeftBarView extends GetView<LeftBarController> {
     final colorScheme = AppTheme.getColorScheme(context);
 
     if (controller.tags.isEmpty) {
-      return Center(child: Text('暂无标签', style: TextStyle(color: colorScheme.onSurfaceVariant)));
+      return Center(
+        child: Text('暂无标签', style: TextStyle(color: colorScheme.onSurfaceVariant)),
+      );
     }
 
     return ListView.builder(

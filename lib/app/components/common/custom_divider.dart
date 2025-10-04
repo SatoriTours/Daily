@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:daily_satori/app/styles/component_style.dart';
-
 /// 自定义分隔线
 ///
 /// 一个可自定义高度和缩进的分隔线组件。
@@ -37,9 +35,15 @@ class CustomDivider extends StatelessWidget {
   /// [indent] 起始缩进，默认为 0.0
   /// [endIndent] 结束缩进，默认为 0.0
   const CustomDivider({super.key, this.height = 1.0, this.indent = 0.0, this.endIndent = 0.0});
-
   @override
   Widget build(BuildContext context) {
-    return ComponentStyle.customDivider(context, height: height, indent: indent, endIndent: endIndent);
+    final colorScheme = Theme.of(context).colorScheme;
+    return Divider(
+      height: height,
+      thickness: height,
+      color: colorScheme.outline.withValues(alpha: 0.5),
+      indent: indent,
+      endIndent: endIndent,
+    );
   }
 }

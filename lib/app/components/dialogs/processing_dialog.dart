@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:daily_satori/app/styles/colors.dart';
-import 'package:daily_satori/app/styles/dimensions.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 处理中对话框
 ///
@@ -25,14 +23,12 @@ class ProcessingDialog {
     final messageRx = message.obs;
     final isCompleted = false.obs;
     final completer = Completer<T?>();
-
     // 显示对话框
     Get.dialog(
       _ProcessingDialogWidget(message: messageRx, isCompleted: isCompleted),
       barrierDismissible: barrierDismissible,
       barrierColor: Colors.black54,
     );
-
     // 设置超时
     Timer? timeoutTimer;
     if (timeout != null) {
@@ -43,21 +39,17 @@ class ProcessingDialog {
         }
       });
     }
-
     try {
       // 执行处理函数
       final result = await onProcess((newMessage) {
         messageRx.value = newMessage;
       });
-
       // 显示完成状态
       isCompleted.value = true;
       await Future.delayed(const Duration(milliseconds: 800));
-
       if (Get.isDialogOpen ?? false) {
         Get.back();
       }
-
       completer.complete(result);
       return result;
     } catch (e) {
@@ -71,14 +63,11 @@ class ProcessingDialog {
     }
   }
 }
-
 /// 处理中对话框组件
 class _ProcessingDialogWidget extends StatelessWidget {
   final RxString message;
   final RxBool isCompleted;
-
   const _ProcessingDialogWidget({required this.message, required this.isCompleted});
-
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -89,7 +78,7 @@ class _ProcessingDialogWidget extends StatelessWidget {
           width: 160,
           padding: Dimensions.paddingCard,
           decoration: BoxDecoration(
-            color: AppColors.cardBackground(context),
+            color: AppColors.getSurface(context),
             borderRadius: BorderRadius.circular(Dimensions.radiusL),
             boxShadow: [
               BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 4)),
@@ -112,7 +101,7 @@ class _ProcessingDialogWidget extends StatelessWidget {
                     height: 60,
                     child: CircularProgressIndicator(
                       strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary(context)),
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
                     ),
                   );
                 }
@@ -122,7 +111,7 @@ class _ProcessingDialogWidget extends StatelessWidget {
                 () => Text(
                   message.value,
                   textAlign: TextAlign.center,
-                  style: MyFontStyle.bodyMedium.copyWith(color: AppColors.textPrimary(context)),
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context)),
                 ),
               ),
             ],

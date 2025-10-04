@@ -1,0 +1,155 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/components/snackbar_styles.dart';
+
+
+
+/// UI工具类
+class UIUtils {
+  // 私有构造函数，防止实例化
+  UIUtils._();
+  /// 显示成功提示（统一样式）
+  static void showSuccess(String content, {String title = '成功'}) {
+    showSnackBar(title, content, isError: false);
+  }
+  /// 显示错误提示（统一样式）
+  static void showError(String content, {String title = '错误'}) {
+    showSnackBar(title, content, isError: true);
+  }
+  /// 显示通用提示条
+  static void showSnackBar(String title, String message, {bool isError = false, Duration? duration}) {
+    final context = Get.context;
+    final bg = context != null
+        ? SnackbarStyles.getBackgroundColor(context, isError: isError)
+        : (isError ? Colors.red.withAlpha(204) : Colors.green.withAlpha(204));
+    Get.snackbar(
+      title,
+      message,
+      snackPosition: SnackPosition.top,
+      backgroundColor: bg,
+      colorText: context != null ? SnackbarStyles.getTextColor(context) : Colors.white,
+      duration: duration ?? SnackbarStyles.getDuration(),
+      margin: SnackbarStyles.getMargin(),
+      borderRadius: SnackbarStyles.getBorderRadius(),
+      icon: SnackbarStyles.getIcon(isError: isError),
+    );
+  }
+  /// 显示全屏加载提示
+  static void showLoading({String tips = '', Color barrierColor = const Color(0x80000000)}) {
+    final context = Get.context;
+    final textTheme = context != null ? AppTheme.getTextTheme(context) : null;
+    Get.dialog(
+      PopScope(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(tips, style: textTheme?.bodyMedium ?? MyFontStyle.loadingTipsStyle),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+      barrierColor: barrierColor,
+    );
+  }
+  /// 显示确认对话框
+  static Future<void> showConfirmation(
+    String title,
+    String message, {
+    String confirmText = '同意',
+    String cancelText = '取消',
+    Function()? onConfirmed,
+    Function()? onCanceled,
+  }) async {
+    await Get.dialog<bool>(
+      Builder(
+        builder: (context) {
+          return AlertDialog(
+            title: Text(title),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(message),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildFilledButton(
+                        context,
+                        text: cancelText,
+                        onPressed: () {
+                          Get.close();
+                          onCanceled?.call();
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildFilledButton(
+                        context,
+                        text: confirmText,
+                        onPressed: () {
+                          Get.close();
+                          onConfirmed?.call();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+  /// 显示信息对话框
+  static Future<void> showDialog({
+    required String title,
+    required String message,
+    String buttonText = '确定',
+    Function()? onConfirmed,
+  }) async {
+    await Get.dialog<bool>(
+      Builder(
+        builder: (context) {
+          return AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            actionsAlignment: MainAxisAlignment.end,
+            actions: [
+              _buildFilledButton(
+                context,
+                text: buttonText,
+                onPressed: () {
+                  Get.close();
+                  onConfirmed?.call();
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+  /// 隐藏加载提示
+  static void hideLoading() {
+    if (Get.isDialogOpen ?? false) {
+      Get.close();
+    }
+  }
+  static Widget _buildFilledButton(BuildContext context, {required String text, required VoidCallback onPressed}) {
+    return FilledButton(
+      style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+      onPressed: onPressed,
+      child: Text(text),
+    );
+  }
+}

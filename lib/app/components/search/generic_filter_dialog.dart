@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:daily_satori/app/styles/colors.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 通用过滤对话框
 /// 支持日期、标签、收藏等过滤条件
@@ -15,7 +14,6 @@ class GenericFilterDialog extends StatefulWidget {
   final ValueChanged<List<int>> onTagsSelected;
   final ValueChanged<bool> onFavoriteChanged;
   final VoidCallback onClearAll;
-
   const GenericFilterDialog({
     super.key,
     this.initialSelectedDate,
@@ -28,16 +26,13 @@ class GenericFilterDialog extends StatefulWidget {
     required this.onFavoriteChanged,
     required this.onClearAll,
   });
-
   @override
   State<GenericFilterDialog> createState() => _GenericFilterDialogState();
 }
-
 class _GenericFilterDialogState extends State<GenericFilterDialog> {
   late DateTime? selectedDate;
   late List<int> selectedTags;
   late bool isFavorite;
-
   @override
   void initState() {
     super.initState();
@@ -45,7 +40,6 @@ class _GenericFilterDialogState extends State<GenericFilterDialog> {
     selectedTags = List.from(widget.initialSelectedTags);
     isFavorite = widget.initialIsFavorite;
   }
-
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -80,22 +74,20 @@ class _GenericFilterDialogState extends State<GenericFilterDialog> {
       ),
     );
   }
-
   Widget _buildHeader(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('过滤条件', style: MyFontStyle.titleLarge.copyWith(fontWeight: FontWeight.bold)),
+        Text('过滤条件', style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold)),
         IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
       ],
     );
   }
-
   Widget _buildDateFilter(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('日期', style: MyFontStyle.titleMedium.copyWith(fontWeight: FontWeight.w600)),
+        Text('日期', style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
@@ -116,19 +108,19 @@ class _GenericFilterDialogState extends State<GenericFilterDialog> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.cardBackground(context),
+              color: AppColors.getSurface(context),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border(context)),
+              border: Border.all(color: AppColors.getOutline(context)),
             ),
             child: Row(
               children: [
-                Icon(Icons.calendar_today, size: 16, color: AppColors.secondary(context)),
+                Icon(Icons.calendar_today, size: 16, color: AppColors.getOnSurfaceVariant(context)),
                 const SizedBox(width: 8),
                 Text(
                   selectedDate != null
                       ? '${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}'
                       : '选择日期',
-                  style: MyFontStyle.bodyMedium,
+                  style: AppTypography.bodyMedium,
                 ),
                 if (selectedDate != null) ...[
                   const Spacer(),
@@ -149,12 +141,11 @@ class _GenericFilterDialogState extends State<GenericFilterDialog> {
       ],
     );
   }
-
   Widget _buildTagsFilter(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('标签', style: MyFontStyle.titleMedium.copyWith(fontWeight: FontWeight.w600)),
+        Text('标签', style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -163,7 +154,6 @@ class _GenericFilterDialogState extends State<GenericFilterDialog> {
             final tag = widget.availableTags[index];
             final tagId = widget.availableTagIds[index];
             final isSelected = selectedTags.contains(tagId);
-
             return FilterChip(
               label: Text(tag),
               selected: isSelected,
@@ -177,16 +167,15 @@ class _GenericFilterDialogState extends State<GenericFilterDialog> {
                 });
                 widget.onTagsSelected(selectedTags);
               },
-              backgroundColor: AppColors.cardBackground(context),
-              selectedColor: AppColors.primary(context).withValues(alpha: 0.2),
-              labelStyle: MyFontStyle.bodySmall,
+              backgroundColor: AppColors.getSurface(context),
+              selectedColor: AppColors.getPrimary(context).withValues(alpha: 0.2),
+              labelStyle: AppTypography.bodySmall,
             );
           }),
         ),
       ],
     );
   }
-
   Widget _buildFavoriteFilter(BuildContext context) {
     return Row(
       children: [
@@ -199,11 +188,10 @@ class _GenericFilterDialogState extends State<GenericFilterDialog> {
             widget.onFavoriteChanged(isFavorite);
           },
         ),
-        Text('仅显示收藏', style: MyFontStyle.bodyMedium),
+        Text('仅显示收藏', style: AppTypography.bodyMedium),
       ],
     );
   }
-
   Widget _buildActions(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -218,25 +206,21 @@ class _GenericFilterDialogState extends State<GenericFilterDialog> {
             widget.onClearAll();
             Navigator.pop(context);
           },
-          child: Text('清除全部', style: MyFontStyle.bodyMedium.copyWith(color: AppColors.error(context))),
+          child: Text('清除全部', style: AppTypography.bodyMedium.copyWith(color: AppColors.getError(context))),
         ),
         ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('确定')),
       ],
     );
   }
 }
-
 /// 过滤配置辅助类
 class FilterConfig {
   final DateTime? date;
   final List<int> tags;
   final bool isFavorite;
   final String? keyword;
-
   const FilterConfig({this.date, this.tags = const [], this.isFavorite = false, this.keyword});
-
   bool get hasActiveFilters => date != null || tags.isNotEmpty || isFavorite || keyword?.isNotEmpty == true;
-
   FilterConfig copyWith({DateTime? date, List<int>? tags, bool? isFavorite, String? keyword}) {
     return FilterConfig(
       date: date ?? this.date,
@@ -245,7 +229,6 @@ class FilterConfig {
       keyword: keyword ?? this.keyword,
     );
   }
-
   @override
   String toString() {
     return 'FilterConfig(date: $date, tags: $tags, isFavorite: $isFavorite, keyword: $keyword)';

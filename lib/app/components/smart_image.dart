@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/component_style.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
@@ -68,7 +67,6 @@ class SmartImage extends StatelessWidget {
     this.errorIconSize = 24.0,
     this.onTap,
   });
-
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
@@ -87,11 +85,9 @@ class SmartImage extends StatelessWidget {
     if (_hasValidLocalPath) {
       return _buildLocalImage(context);
     }
-
     if (_hasValidNetworkUrl) {
       return _buildNetworkImage(context);
     }
-
     return _buildErrorWidget(context);
   }
 
@@ -139,15 +135,15 @@ class SmartImage extends StatelessWidget {
 
   /// 构建错误占位符
   Widget _buildErrorWidget(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: width,
       height: height,
-      decoration: ComponentStyle.imageContainerDecoration(context),
-      child: Icon(
-        Icons.image_not_supported,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-        size: errorIconSize,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(borderRadius),
       ),
+      child: Icon(Icons.image_not_supported, color: colorScheme.onSurfaceVariant, size: errorIconSize),
     );
   }
 

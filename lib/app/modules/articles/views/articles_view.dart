@@ -2,26 +2,22 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:feather_icons/feather_icons.dart';
-
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/components/empty_states/articles_empty_view.dart';
 import 'package:daily_satori/app/services/state/app_state_service.dart';
-
 import 'widgets/articles_search_bar.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'widgets/articles_tags_dialog.dart';
 import 'widgets/articles_list.dart';
 import 'widgets/article_calendar_dialog.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/components/indicators/s_filter_indicator.dart';
 import 'package:daily_satori/app/components/menus/s_popup_menu_item.dart';
-import 'package:daily_satori/app/styles/base/dimensions.dart';
 
 /// 文章列表页面
 /// 负责展示文章列表、搜索、过滤等功能
 class ArticlesView extends GetView<ArticlesController> {
   const ArticlesView({super.key});
-
   @override
   Widget build(BuildContext context) {
     logger.i('构建文章列表页面');
@@ -61,7 +57,6 @@ class ArticlesView extends GetView<ArticlesController> {
   Widget _buildFilterIndicatorSection(BuildContext context) {
     return Obx(() {
       if (!controller.hasActiveFilters()) return const SizedBox.shrink();
-
       logger.d('显示过滤指示器: ${controller.getTitle()}');
       return SFilterIndicator(title: controller.getTitle(), onClear: controller.clearAllFilters);
     });
@@ -79,7 +74,6 @@ class ArticlesView extends GetView<ArticlesController> {
   }
 
   // 已由 controller.hasActiveFilters 提供判断
-
   /// 构建应用栏
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return SAppBar(
@@ -112,7 +106,7 @@ class ArticlesView extends GetView<ArticlesController> {
         logger.d('双击标题，滚动到顶部');
         _scrollToTop();
       },
-      child: Obx(() => Text(controller.getTitle(), style: MyFontStyle.appBarTitleStyle)),
+      child: Obx(() => Text(controller.getTitle(), style: AppTypography.titleLarge)),
     );
   }
 
@@ -195,7 +189,6 @@ class ArticlesView extends GetView<ArticlesController> {
       logger.d('清除现有过滤条件');
       controller.clearAllFilters();
     }
-
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -205,5 +198,4 @@ class ArticlesView extends GetView<ArticlesController> {
     );
   }
 }
-
 // 本地的 _FilterIndicator 已抽取为通用组件 SFilterIndicator

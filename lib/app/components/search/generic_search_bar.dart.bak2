@@ -1,0 +1,138 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:daily_satori/app/styles/index.dart';
+
+/// 通用搜索栏组件
+/// 支持搜索、过滤、清除等功能
+class GenericSearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final String hintText;
+  final ValueChanged<String> onSearch;
+  final VoidCallback onClear;
+  final bool isSearchVisible;
+  final VoidCallback onToggleSearch;
+  final bool showFilterButton;
+  final VoidCallback? onFilterTap;
+  final Color? backgroundColor;
+  final double? height;
+  final EdgeInsetsGeometry? padding;
+  const GenericSearchBar({
+    super.key,
+    required this.controller,
+    required this.focusNode,
+    this.hintText = '搜索...',
+    required this.onSearch,
+    required this.onClear,
+    required this.isSearchVisible,
+    required this.onToggleSearch,
+    this.showFilterButton = true,
+    this.onFilterTap,
+    this.backgroundColor,
+    this.height,
+    this.padding,
+  });
+  @override
+  Widget build(BuildContext context) {
+    if (!isSearchVisible) {
+      return _buildCollapsedSearchBar(context);
+    }
+    return _buildExpandedSearchBar(context);
+  }
+  /// 收起状态的搜索栏
+  Widget _buildCollapsedSearchBar(BuildContext context) {
+    return Container(
+      height: height ?? 48,
+      padding: padding ?? const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          if (showFilterButton && onFilterTap != null) ...[_buildFilterButton(context), const SizedBox(width: 8)],
+          Expanded(
+            child: InkWell(
+              onTap: onToggleSearch,
+              borderRadius: BorderRadius.circular(24),
+              child: Container(
+                height: 40,
+                decoration: BoxDecoration(
+                  color: backgroundColor ?? AppColors.searchBackground(context),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(Icons.search, size: 20, color: AppColors.secondary(context)),
+                    const SizedBox(width: 8),
+                    Text(hintText, style: MyFontStyle.bodyMedium.copyWith(color: AppColors.secondary(context))),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  /// 展开状态的搜索栏
+  Widget _buildExpandedSearchBar(BuildContext context) {
+    return Container(
+      height: height ?? 48,
+      padding: padding ?? const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: backgroundColor ?? AppColors.searchBackground(context),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                children: [
+                  IconButton(icon: const Icon(Icons.arrow_back, size: 20), onPressed: onToggleSearch, tooltip: '返回'),
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        hintText: hintText,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                        isDense: true,
+                      ),
+                      onSubmitted: onSearch,
+                      autofocus: true,
+                    ),
+                  ),
+                  if (controller.text.isNotEmpty)
+                    IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: () {
+                        controller.clear();
+                        onClear();
+                      },
+                      tooltip: '清除',
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.search, size: 20),
+                    onPressed: () => onSearch(controller.text),
+                    tooltip: '搜索',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (showFilterButton && onFilterTap != null) ...[const SizedBox(width: 8), _buildFilterButton(context)],
+        ],
+      ),
+    );
+  }
+  /// 过滤按钮
+  Widget _buildFilterButton(BuildContext context) {
+    return Tooltip(
+      message: '过滤',
+      child: IconButton(
+        icon: Icon(Icons.filter_list, size: 24, color: AppColors.primary(context)),
+        onPressed: onFilterTap,
+      ),
+    );
+  }
+}

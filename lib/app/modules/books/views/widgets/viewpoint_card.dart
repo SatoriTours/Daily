@@ -1,17 +1,14 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
-import 'package:daily_satori/app/styles/colors.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:intl/intl.dart';
-// ...existing imports...
 
+// ...existing imports...
 /// 观点卡片组件
 class ViewpointCard extends StatelessWidget {
   final BookViewpointModel viewpoint;
   final BookModel? book;
-
   const ViewpointCard({super.key, required this.viewpoint, required this.book});
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -40,12 +37,12 @@ class ViewpointCard extends StatelessWidget {
 
   /// 构建标题
   Widget _buildTitle() {
-    return Text(viewpoint.title, style: MyFontStyle.headlineSmall.copyWith(fontWeight: FontWeight.bold));
+    return Text(viewpoint.title, style: AppTypography.headingMedium.copyWith(fontWeight: FontWeight.bold));
   }
 
   /// 构建内容
   Widget _buildContent() {
-    return SelectableText(viewpoint.content, style: MyFontStyle.bodyLarge.copyWith(height: 1.5));
+    return SelectableText(viewpoint.content, style: AppTypography.bodyLarge.copyWith(height: 1.5));
   }
 
   /// 构建案例
@@ -55,13 +52,13 @@ class ViewpointCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(Icons.bookmark, size: 18, color: AppColors.primary(context)),
+            Icon(Icons.bookmark, size: 18, color: AppColors.getPrimary(context)),
             const SizedBox(width: 8),
-            Text('书籍案例', style: MyFontStyle.labelLarge.copyWith(color: AppColors.primary(context))),
+            Text('书籍案例', style: AppTypography.labelLarge.copyWith(color: AppColors.getPrimary(context))),
           ],
         ),
         const SizedBox(height: 14),
-        Text(viewpoint.example, style: MyFontStyle.bodyLarge),
+        Text(viewpoint.example, style: AppTypography.bodyLarge),
       ],
     );
   }
@@ -69,7 +66,6 @@ class ViewpointCard extends StatelessWidget {
   /// 构建底部
   Widget _buildFooter(BuildContext context, BookModel? book) {
     final formattedDate = DateFormat('yyyy-MM-dd').format(viewpoint.createAt);
-
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -78,7 +74,7 @@ class ViewpointCard extends StatelessWidget {
             children: [
               const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
               const SizedBox(width: 6),
-              Text(formattedDate, style: MyFontStyle.labelSmall.copyWith(color: Colors.grey)),
+              Text(formattedDate, style: AppTypography.labelSmall.copyWith(color: Colors.grey)),
             ],
           ),
         ),
@@ -95,7 +91,7 @@ class ViewpointCard extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           book != null ? '《${book.title}》· ${book.author}' : '未知书籍',
-          style: MyFontStyle.bodySmall.copyWith(color: Colors.grey),
+          style: AppTypography.bodySmall.copyWith(color: Colors.grey),
         ),
       ],
     );

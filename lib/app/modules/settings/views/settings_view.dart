@@ -1,12 +1,8 @@
 import 'package:daily_satori/app/components/common/feature_icon.dart';
-import 'package:daily_satori/app/styles/app_styles.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/styles/components/button_styles.dart';
-import 'package:daily_satori/app/styles/base/dimensions.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import '../controllers/settings_controller.dart';
@@ -18,7 +14,6 @@ import '../controllers/settings_controller.dart';
 /// 3. 系统设置：Web服务器、版本更新等
 class SettingsView extends GetView<SettingsController> {
   const SettingsView({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -32,7 +27,7 @@ class SettingsView extends GetView<SettingsController> {
           IconButton(icon: const Icon(Icons.info_outline), tooltip: '关于', onPressed: () => _showAboutDialog(context)),
         ],
       ),
-      body: Obx(() => controller.isLoading.value ? AppStyles.loadingState(context) : _buildSettingsList(context)),
+      body: Obx(() => controller.isLoading.value ? StyleGuide.getLoadingState(context) : _buildSettingsList(context)),
     );
   }
 
@@ -40,7 +35,6 @@ class SettingsView extends GetView<SettingsController> {
   void _showAboutDialog(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
-
     showAboutDialog(
       context: context,
       applicationName: 'Daily Satori',
@@ -164,7 +158,6 @@ class SettingsView extends GetView<SettingsController> {
   }) {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -210,7 +203,6 @@ class SettingsView extends GetView<SettingsController> {
   }) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
-
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -242,7 +234,6 @@ class SettingsView extends GetView<SettingsController> {
   Widget _buildVersionInfo(BuildContext context) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
-
     return Center(
       child: Column(
         children: [
@@ -266,7 +257,6 @@ class SettingsView extends GetView<SettingsController> {
   void _showCleanupDialog(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -294,7 +284,6 @@ class SettingsView extends GetView<SettingsController> {
               ],
             ),
             Dimensions.verticalSpacerM,
-
             // 存储分析
             _buildCleanupSection(
               context: context,
@@ -307,7 +296,6 @@ class SettingsView extends GetView<SettingsController> {
                 controller.analyzeStorage();
               },
             ),
-
             // 清除缓存
             _buildCleanupSection(
               context: context,
@@ -320,7 +308,6 @@ class SettingsView extends GetView<SettingsController> {
                 controller.clearCache();
               },
             ),
-
             // 数据库优化
             _buildCleanupSection(
               context: context,
@@ -333,7 +320,6 @@ class SettingsView extends GetView<SettingsController> {
                 controller.optimizeDatabase();
               },
             ),
-
             // 恢复出厂设置
             _buildCleanupSection(
               context: context,
@@ -346,7 +332,6 @@ class SettingsView extends GetView<SettingsController> {
                 _showFactoryResetConfirmDialog(context);
               },
             ),
-
             Dimensions.verticalSpacerM,
             Text(
               '提示：定期清理缓存可以释放存储空间，数据库优化可以提高应用运行速度。',
@@ -387,7 +372,6 @@ class SettingsView extends GetView<SettingsController> {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
     final primaryColor = colorScheme.primary;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -410,7 +394,6 @@ class SettingsView extends GetView<SettingsController> {
               ],
             ),
             Dimensions.verticalSpacerM,
-
             // 本地访问地址
             _buildInfoCard(
               context: context,
@@ -432,7 +415,6 @@ class SettingsView extends GetView<SettingsController> {
               ),
             ),
             Dimensions.verticalSpacerM,
-
             // WebSocket远程访问地址
             _buildInfoCard(
               context: context,
@@ -454,7 +436,6 @@ class SettingsView extends GetView<SettingsController> {
               ),
             ),
             Dimensions.verticalSpacerM,
-
             // WebSocket连接状态
             _buildInfoCard(
               context: context,
@@ -484,7 +465,6 @@ class SettingsView extends GetView<SettingsController> {
               icon: Icons.network_check_rounded,
             ),
             Dimensions.verticalSpacerM,
-
             // 密码设置
             _buildWebServerSetting(
               context: context,
@@ -492,7 +472,6 @@ class SettingsView extends GetView<SettingsController> {
               icon: Icons.password_rounded,
               onTap: () => _showPasswordSettingDialog(context),
             ),
-
             // 重启服务器
             _buildWebServerSetting(
               context: context,
@@ -500,7 +479,6 @@ class SettingsView extends GetView<SettingsController> {
               icon: Icons.refresh_rounded,
               onTap: () => controller.restartWebService(),
             ),
-
             Dimensions.verticalSpacerM,
             Text(
               '提示：确保设备在同一WiFi网络下才能访问HTTP服务器地址。WebSocket远程访问允许在任何网络环境下连接到您的应用。',
@@ -514,7 +492,6 @@ class SettingsView extends GetView<SettingsController> {
 
   void _showPasswordSettingDialog(BuildContext context) {
     final controller = TextEditingController(text: this.controller.getWebServerPassword());
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -560,7 +537,6 @@ class SettingsView extends GetView<SettingsController> {
   }) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
-
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -601,7 +577,6 @@ class SettingsView extends GetView<SettingsController> {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
     final cardColor = color ?? colorScheme.primary;
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -642,7 +617,6 @@ class SettingsView extends GetView<SettingsController> {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
     final itemColor = color ?? colorScheme.primary;
-
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),

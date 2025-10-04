@@ -31,7 +31,7 @@ class SummaryTab extends StatelessWidget {
           // 标题区域
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-            child: Text(controller.articleModel.showTitle(), style: AppTheme.getTextTheme(context).headlineSmall),
+            child: Text(controller.articleModel.showTitle(), style: AppTheme.getTextTheme(context).headlineMedium),
           ),
 
           // 标签区域

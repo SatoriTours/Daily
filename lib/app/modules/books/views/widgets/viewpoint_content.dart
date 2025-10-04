@@ -2,7 +2,7 @@ import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/modules/books/controllers/books_controller.dart';
 import 'package:daily_satori/app/modules/books/views/widgets/viewpoint_card.dart';
-import 'package:daily_satori/app/styles/colors.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/modules/diary/controllers/diary_controller.dart';
 import 'package:daily_satori/app/modules/diary/views/widgets/diary_editor.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
@@ -15,7 +15,6 @@ class ViewpointContent extends StatefulWidget {
   final BookModel book;
   final int currentIndex;
   final Function(BookViewpointModel viewpoint)? onDeleteViewpoint;
-
   const ViewpointContent({
     super.key,
     required this.controller,
@@ -24,21 +23,17 @@ class ViewpointContent extends StatefulWidget {
     required this.currentIndex,
     this.onDeleteViewpoint,
   });
-
   @override
   State<ViewpointContent> createState() => _ViewpointContentState();
 }
-
 class _ViewpointContentState extends State<ViewpointContent> {
   bool _isBookInfoExpanded = false;
   late PageController _pageController;
-
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: widget.currentIndex);
   }
-
   @override
   void didUpdateWidget(ViewpointContent oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -50,13 +45,11 @@ class _ViewpointContentState extends State<ViewpointContent> {
       );
     }
   }
-
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
   }
-
   @override
   Widget build(BuildContext context) {
     if (widget.viewpoints.isEmpty) return const SizedBox();
@@ -67,7 +60,6 @@ class _ViewpointContentState extends State<ViewpointContent> {
       ],
     );
   }
-
   /// 构建水平滑动的观点视图
   Widget _buildViewpointPageView() {
     return PageView.builder(
@@ -85,7 +77,6 @@ class _ViewpointContentState extends State<ViewpointContent> {
       },
     );
   }
-
   /// 构建顶部区域
   Widget _buildHeader(BuildContext context) {
     return Container(
@@ -95,7 +86,6 @@ class _ViewpointContentState extends State<ViewpointContent> {
       ),
     );
   }
-
   /// 构建展开信息过渡动画区域
   Widget _buildExpandedInfoSection(BuildContext context) {
     return AnimatedSize(
@@ -103,7 +93,6 @@ class _ViewpointContentState extends State<ViewpointContent> {
       child: _isBookInfoExpanded ? _buildExpandedBookInfo(context) : const SizedBox(height: 0),
     );
   }
-
   /// 构建书籍信息行
   Widget _buildBookInfoRow(BuildContext context) {
     return InkWell(
@@ -126,10 +115,9 @@ class _ViewpointContentState extends State<ViewpointContent> {
       ),
     );
   }
-
   /// 顶部“记感想”按钮，减少滚动
   Widget _buildQuickJournalButton(BuildContext context) {
-    final primary = AppColors.primary(context);
+    final primary = AppColors.getPrimary(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return OutlinedButton.icon(
       style: OutlinedButton.styleFrom(
@@ -145,17 +133,14 @@ class _ViewpointContentState extends State<ViewpointContent> {
       label: const Text('记感想', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
     );
   }
-
   void _openJournalForCurrentViewpoint() {
     final idx = widget.controller.currentViewpointIndex.value;
     if (idx < 0 || idx >= widget.viewpoints.length) return;
     final vp = widget.viewpoints[idx];
-
     final diaryController = Get.find<DiaryController>();
     final title = vp.title.trim();
     final bookTitle = widget.book.title.trim();
     final author = widget.book.author.trim();
-
     final buffer = StringBuffer();
     buffer.writeln('观点：$title');
     if (bookTitle.isNotEmpty) {
@@ -164,12 +149,10 @@ class _ViewpointContentState extends State<ViewpointContent> {
     buffer.writeln();
     // 添加隐藏深链，供来源胶囊识别与回跳使用
     buffer.writeln('[](app://books/viewpoint/${vp.id})');
-
     diaryController.contentController
       ..clear()
       ..text = buffer.toString()
       ..selection = TextSelection.collapsed(offset: buffer.length);
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -180,7 +163,6 @@ class _ViewpointContentState extends State<ViewpointContent> {
       builder: (context) => DiaryEditor(controller: diaryController),
     );
   }
-
   /// 构建书籍基本信息
   Widget _buildBookBasicInfo(BuildContext context) {
     return Column(
@@ -188,7 +170,6 @@ class _ViewpointContentState extends State<ViewpointContent> {
       children: [_buildBookTitleRow(context), const SizedBox(height: 2), _buildAuthorInfo(context)],
     );
   }
-
   /// 构建书籍标题行
   Widget _buildBookTitleRow(BuildContext context) {
     return Row(
@@ -196,7 +177,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
         Expanded(
           child: Text(
             widget.book.title,
-            style: Get.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: AppColors.primary(context)),
+            style: Get.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: AppColors.getPrimary(context)),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -205,16 +186,14 @@ class _ViewpointContentState extends State<ViewpointContent> {
       ],
     );
   }
-
   /// 构建展开/收起图标
   Widget _buildExpandIcon(BuildContext context) {
     return Icon(
       _isBookInfoExpanded ? Icons.expand_less : Icons.expand_more,
       size: 20,
-      color: AppColors.primary(context),
+      color: AppColors.getPrimary(context),
     );
   }
-
   /// 构建作者信息
   Widget _buildAuthorInfo(BuildContext context) {
     return Text(
@@ -224,7 +203,6 @@ class _ViewpointContentState extends State<ViewpointContent> {
       overflow: TextOverflow.ellipsis,
     );
   }
-
   /// 构建导航按钮组
   Widget _buildNavigationButtons(BuildContext context) {
     return Row(
@@ -232,7 +210,6 @@ class _ViewpointContentState extends State<ViewpointContent> {
       children: [_buildPreviousButton(context), _buildPageCounter(context), _buildNextButton(context)],
     );
   }
-
   /// 构建上一页按钮
   Widget _buildPreviousButton(BuildContext context) {
     final bool canGoPrevious = widget.currentIndex > 0;
@@ -240,7 +217,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
       icon: Icon(
         Icons.arrow_back_ios,
         size: 16,
-        color: canGoPrevious ? AppColors.primary(context) : Colors.grey.withValues(alpha: 0.3),
+        color: canGoPrevious ? AppColors.getPrimary(context) : Colors.grey.withValues(alpha: 0.3),
       ),
       onPressed: canGoPrevious ? widget.controller.previousViewpoint : null,
       padding: EdgeInsets.zero,
@@ -248,7 +225,6 @@ class _ViewpointContentState extends State<ViewpointContent> {
       visualDensity: VisualDensity.compact,
     );
   }
-
   /// 构建页码计数器
   Widget _buildPageCounter(BuildContext context) {
     return Text(
@@ -256,7 +232,6 @@ class _ViewpointContentState extends State<ViewpointContent> {
       style: Get.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
     );
   }
-
   /// 构建下一页按钮
   Widget _buildNextButton(BuildContext context) {
     final bool canGoNext = widget.currentIndex < widget.viewpoints.length - 1;
@@ -264,7 +239,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
       icon: Icon(
         Icons.arrow_forward_ios,
         size: 16,
-        color: canGoNext ? AppColors.primary(context) : Colors.grey.withValues(alpha: 0.3),
+        color: canGoNext ? AppColors.getPrimary(context) : Colors.grey.withValues(alpha: 0.3),
       ),
       onPressed: canGoNext ? widget.controller.nextViewpoint : null,
       padding: EdgeInsets.zero,
@@ -272,7 +247,6 @@ class _ViewpointContentState extends State<ViewpointContent> {
       visualDensity: VisualDensity.compact,
     );
   }
-
   /// 构建展开的书籍详细信息
   Widget _buildExpandedBookInfo(BuildContext context) {
     return Container(
@@ -288,16 +262,14 @@ class _ViewpointContentState extends State<ViewpointContent> {
       ),
     );
   }
-
   /// 构建展开信息的装饰样式
   BoxDecoration _buildExpandedInfoDecoration(BuildContext context) {
     return BoxDecoration(
-      color: AppColors.cardBackground(context).withValues(alpha: 0.5),
+      color: AppColors.getSurface(context).withValues(alpha: 0.5),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.primary(context).withValues(alpha: 0.1), width: 1),
+      border: Border.all(color: AppColors.getPrimary(context).withValues(alpha: 0.1), width: 1),
     );
   }
-
   /// 构建书籍信息顶部行（封面和详情）
   Widget _buildBookInfoTopRow(BuildContext context) {
     return Row(
@@ -305,21 +277,19 @@ class _ViewpointContentState extends State<ViewpointContent> {
       children: [_buildBookCover(context), const SizedBox(width: 16), _buildBookDetails(context)],
     );
   }
-
   /// 构建书籍封面
   Widget _buildBookCover(BuildContext context) {
     return Container(
       width: 80,
       height: 120,
       decoration: BoxDecoration(
-        color: AppColors.cardBackground(context),
+        color: AppColors.getSurface(context),
         borderRadius: BorderRadius.circular(8),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))],
       ),
-      child: Center(child: Icon(Icons.menu_book, size: 36, color: AppColors.primary(context).withValues(alpha: 0.5))),
+      child: Center(child: Icon(Icons.menu_book, size: 36, color: AppColors.getPrimary(context).withValues(alpha: 0.5))),
     );
   }
-
   /// 构建书籍详细信息
   Widget _buildBookDetails(BuildContext context) {
     return Expanded(
@@ -336,22 +306,18 @@ class _ViewpointContentState extends State<ViewpointContent> {
       ),
     );
   }
-
   /// 构建书籍标题
   Widget _buildBookTitle(BuildContext context) {
     return Text(widget.book.title, style: Get.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold));
   }
-
   /// 构建书籍作者信息
   Widget _buildBookAuthor(BuildContext context) {
     return Text('作者：${widget.book.author}', style: Get.textTheme.bodyMedium);
   }
-
   /// 构建书籍分类信息
   Widget _buildBookCategory(BuildContext context) {
     return Text('分类：${widget.book.category}', style: Get.textTheme.bodyMedium);
   }
-
   /// 构建简介标题（如果有简介）
   Widget _buildIntroductionTitle(BuildContext context) {
     if (widget.book.introduction.isEmpty) {
@@ -362,7 +328,6 @@ class _ViewpointContentState extends State<ViewpointContent> {
       child: Text('简介', style: Get.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
     );
   }
-
   /// 构建书籍简介内容
   Widget _buildBookIntroduction(BuildContext context) {
     return Padding(

@@ -919,15 +919,15 @@ Daily Satori 采用基于 **Design Tokens** 的现代化样式系统，遵循以
 ```
 lib/app/styles/
 ├── index.dart                 # 统一导出入口 ✅ 必须使用
-├── base/                      # 基础设计 Tokens
-│   ├── colors.dart           # 颜色系统
-│   ├── dimensions.dart       # 尺寸、间距、圆角
-│   ├── typography.dart       # 字体样式
+├── base/                      # 基础设计 Tokens ✅ 推荐使用
+│   ├── colors.dart           # 颜色系统 (新API)
+│   ├── dimensions.dart       # 尺寸、间距、圆角 (新API)
+│   ├── typography.dart       # 字体样式 (AppTypography)
 │   ├── opacities.dart        # 透明度常量
 │   ├── shadows.dart          # 阴影样式
 │   ├── borders.dart          # 边框常量
 │   └── border_styles.dart    # 边框样式工具
-├── components/               # 组件样式
+├── components/               # 组件样式 ✅ 推荐使用
 │   ├── button_styles.dart    # 按钮样式
 │   ├── card_styles.dart      # 卡片样式
 │   ├── input_styles.dart     # 输入框样式
@@ -938,9 +938,41 @@ lib/app/styles/
 │   ├── articles_styles.dart
 │   └── diary_styles.dart
 ├── style_guide.dart          # 样式应用指南 ✅ 推荐使用
-└── theme/                    # 主题定义
-    └── app_theme.dart
+├── theme/                    # 主题定义
+│   └── app_theme.dart
+│
+├── ⚠️ 以下文件已废弃，仅为兼容旧代码保留 ⚠️
+├── colors.dart               # [废弃] 使用 base/colors.dart
+├── dimensions.dart           # [废弃] 使用 base/dimensions.dart
+├── font_style.dart           # [废弃] 使用 base/typography.dart
+├── theme.dart                # [废弃] 使用 theme/app_theme.dart
+├── component_style.dart      # [废弃] 使用 components/
+└── app_styles.dart           # [废弃] 使用 StyleGuide
 ```
+
+**重要说明**：
+- ✅ **新代码必须使用**: `base/`, `components/`, `StyleGuide`
+- ⚠️ **旧代码逐步迁移**: 根目录下的 `colors.dart`, `font_style.dart` 等已标记为 `@Deprecated`
+- 📦 **统一导入**: 使用 `import 'package:daily_satori/app/styles/index.dart';` 导入所有样式类
+
+### 迁移指南 (旧API → 新API)
+
+| 旧API (废弃) | 新API (推荐) | 说明 |
+|------------|------------|------|
+| `MyFontStyle.titleLarge` | `AppTypography.titleLarge(context)` | 字体需要context |
+| `MyFontStyle.bodyMedium` | `AppTypography.bodyMedium(context)` | 自动适配主题 |
+| `AppColors.primaryLight` | `AppColors.getPrimary(context)` | 新API使用getter方法 |
+| `AppColors.textPrimaryLight` | `AppColors.getOnSurface(context)` | 语义化命名 |
+| `Dimensions.spacingM` | `Dimensions.spacingM` | 大部分常量保持一致 |
+| `ComponentStyle.cardTheme()` | `CardStyles.*` | 使用 components/card_styles.dart |
+| `AppStyles.cardDecoration()` | `StyleGuide.cardDecoration(context)` | 使用 StyleGuide |
+| `AppStyles.loadingState()` | `StyleGuide.loadingIndicator(context)` | 统一命名规范 |
+
+**迁移步骤**：
+1. 将 `import 'app/styles/colors.dart'` 改为 `import 'app/styles/index.dart'`
+2. 替换旧的类名和方法调用
+3. 为需要context的方法传递 `BuildContext context`
+4. 测试编译和运行
 
 ### 基础 Tokens 使用规范
 

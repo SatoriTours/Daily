@@ -1,13 +1,11 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 加载观点组件
 class LoadingViewpoints extends StatelessWidget {
   final BookModel book;
-
   const LoadingViewpoints({super.key, required this.book});
-
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -16,7 +14,7 @@ class LoadingViewpoints extends StatelessWidget {
         children: [
           const Icon(Icons.auto_stories, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          Text('正在为《${book.title}》提取观点...', style: MyFontStyle.titleMedium),
+          Text('正在为《${book.title}》提取观点...', style: AppTypography.titleMedium),
           const SizedBox(height: 16),
           const CircularProgressIndicator(),
         ],

@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-
 import 'package:get/get.dart';
-
-import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/styles/font_style.dart';
-import 'package:daily_satori/app/styles/components/snackbar_styles.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// UI工具类
 class UIUtils {
@@ -44,7 +40,6 @@ class UIUtils {
   static void showLoading({String tips = '', Color barrierColor = const Color(0x80000000)}) {
     final context = Get.context;
     final textTheme = context != null ? AppTheme.getTextTheme(context) : null;
-
     Get.dialog(
       PopScope(
         child: Center(
@@ -53,7 +48,7 @@ class UIUtils {
             children: [
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
-              Text(tips, style: textTheme?.bodyMedium ?? MyFontStyle.loadingTipsStyle),
+              Text(tips, style: textTheme?.bodyMedium ?? AppTypography.bodyMedium),
             ],
           ),
         ),
