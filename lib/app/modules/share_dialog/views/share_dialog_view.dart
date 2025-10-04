@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:daily_satori/app/modules/share_dialog/controllers/share_dialog_controller.dart';
-import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app/components/inputs/comment_field.dart';
 import 'package:flutter/services.dart';
 
 /// 分享页面视图
@@ -17,20 +15,38 @@ class ShareDialogView extends GetView<ShareDialogController> {
     return Scaffold(resizeToAvoidBottomInset: true, appBar: _buildAppBar(context), body: _buildBody(context));
   }
 
-  // 构建主体内容
-  Widget _buildBody(BuildContext context) {
-    return SafeArea(child: Column(children: [_buildScrollableContent(context), _buildBottomButton(context)]));
+  // 构建顶部应用栏
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      title: Obx(() => Text(controller.isUpdate.value ? '更新文章' : '保存链接', style: MyFontStyle.appBarTitleStyle)),
+      automaticallyImplyLeading: !controller.isUpdate.value,
+      elevation: 0,
+    );
   }
 
-  // 构建可滚动内容区域
-  Widget _buildScrollableContent(BuildContext context) {
-    return Expanded(
-      child: SingleChildScrollView(
-        padding: Dimensions.paddingPage,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [_buildFormCard(context), Dimensions.verticalSpacerM],
-        ),
+  // 构建主体内容
+  Widget _buildBody(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildLinkSection(context),
+                  const SizedBox(height: 20),
+                  if (controller.isUpdate.value) ...[_buildRefreshSwitch(context), const SizedBox(height: 20)],
+                  _buildTitleSection(context),
+                  const SizedBox(height: 20),
+                  _buildCommentSection(context),
+                ],
+              ),
+            ),
+          ),
+          _buildBottomButton(context),
+        ],
       ),
     );
   }
@@ -38,29 +54,53 @@ class ShareDialogView extends GetView<ShareDialogController> {
   // 构建底部按钮区域
   Widget _buildBottomButton(BuildContext context) {
     final theme = Theme.of(context);
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4), width: 0.6)),
-        ),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2), width: 0.5)),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
         child: Row(
           children: [
             Expanded(
-              child: TextButton(
-                style: ButtonStyles.getTextStyle(context),
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  side: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.3), width: 0.8),
+                  foregroundColor: theme.colorScheme.onSurface,
+                ),
                 onPressed: () => Get.back(),
-                child: const Text('取消'),
+                child: Text('取消', style: MyFontStyle.bodyMedium.copyWith(fontSize: 15, fontWeight: FontWeight.w500)),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: ElevatedButton(
-                style: ButtonStyles.getPrimaryStyle(context),
-                onPressed: () => controller.onSaveButtonPressed(),
-                child: Obx(() => Text(controller.isUpdate.value ? '保存修改' : '保存')),
+              flex: 2,
+              child: Obx(
+                () => FilledButton(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    elevation: 1,
+                  ),
+                  onPressed: () => controller.onSaveButtonPressed(),
+                  child: Text(
+                    controller.isUpdate.value ? '保存修改' : '保存',
+                    style: MyFontStyle.bodyMedium.copyWith(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ),
               ),
             ),
           ],
@@ -69,129 +109,186 @@ class ShareDialogView extends GetView<ShareDialogController> {
     );
   }
 
-  // 构建顶部应用栏
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      title: Obx(() => Text(controller.isUpdate.value ? '更新文章' : '保存链接', style: MyFontStyle.appBarTitleStyle)),
-      automaticallyImplyLeading: !controller.isUpdate.value,
-      // 底部已提供保存按钮，这里不再显示右上角保存
-    );
-  }
-
-  // 构建文章URL区域
-  Widget _buildArticleURL(BuildContext context) {
-    return _buildFieldWrapper(
-      context,
-      icon: Icons.link_rounded,
-      label: '链接',
-      child: SelectableText(controller.shareURL.value, style: MyFontStyle.bodySmall, maxLines: 2),
-    );
-  }
-
-  // 构建备注信息区域
-  Widget _buildCommentSection(BuildContext context) {
-    return _buildFieldWrapper(
-      context,
-      icon: Icons.comment_outlined,
-      label: '备注',
-      child: CommentField(
-        controller: controller.commentController,
-        hintText: '添加备注信息（可选）',
-        minLines: 4,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      ),
-    );
-  }
-
-  Widget _buildTitleSection(BuildContext context) {
-    return _buildFieldWrapper(
-      context,
-      icon: Icons.title,
-      label: '标题',
-      child: TextField(
-        controller: controller.titleController,
-        maxLines: 3,
-        decoration: _inputDecoration(context, '输入或修改标题'),
-        inputFormatters: [LengthLimitingTextInputFormatter(120)],
-      ),
-    );
-  }
-
-  // 重新抓取并AI分析开关（更新模式，美化版）
-  Widget _buildRefreshInlineSwitch(BuildContext context) {
-    return Obx(
-      () => SwitchListTile.adaptive(
-        dense: true,
-        contentPadding: EdgeInsets.zero,
-        visualDensity: VisualDensity.compact,
-        title: Text('重新抓取并AI分析', style: MyFontStyle.bodySmall),
-        value: controller.refreshAndAnalyze.value,
-        onChanged: (v) => controller.refreshAndAnalyze.value = v,
-      ),
-    );
-  }
-
-  // 统一表单卡片
-  Widget _buildFormCard(BuildContext context) {
-    final children = <Widget>[
-      _buildArticleURL(context),
-      const SizedBox(height: 8),
-      if (controller.isUpdate.value) ...[_buildRefreshInlineSwitch(context), const SizedBox(height: 8)],
-      _buildTitleSection(context),
-      Dimensions.verticalSpacerM,
-      _buildCommentSection(context),
-    ];
+  // 构建链接区域（简洁版）
+  Widget _buildLinkSection(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-      decoration: BoxDecoration(
-        color: isDark
-            ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.18)
-            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(Dimensions.radiusM),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4), width: 0.6),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
-    );
-  }
-
-  // 包裹字段标签与控件的统一行
-  Widget _buildFieldWrapper(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required Widget child,
-  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+            Icon(Icons.link_rounded, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
             const SizedBox(width: 8),
-            Text(label, style: MyFontStyle.titleSmall.copyWith(fontSize: 15, fontWeight: FontWeight.w600)),
+            Text('链接', style: MyFontStyle.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
           ],
         ),
-        const SizedBox(height: 8),
-        child,
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25), width: 0.5),
+          ),
+          child: SelectableText(
+            controller.shareURL.value,
+            style: MyFontStyle.bodySmall.copyWith(fontSize: 13, color: theme.colorScheme.onSurfaceVariant, height: 1.4),
+            maxLines: 2,
+          ),
+        ),
       ],
     );
   }
 
-  InputDecoration _inputDecoration(BuildContext context, String hint) {
+  // 构建重新抓取开关（优化版）
+  Widget _buildRefreshSwitch(BuildContext context) {
     final theme = Theme.of(context);
-    return InputDecoration(
-      isDense: false,
-      hintText: hint,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS), borderSide: BorderSide.none),
-      filled: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+    return Obx(
+      () => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: controller.refreshAndAnalyze.value
+              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.15)
+              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: controller.refreshAndAnalyze.value
+                ? theme.colorScheme.primary.withValues(alpha: 0.3)
+                : theme.colorScheme.outlineVariant.withValues(alpha: 0.25),
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.refresh_rounded,
+              size: 18,
+              color: controller.refreshAndAnalyze.value
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '重新抓取并AI分析',
+                style: MyFontStyle.bodyMedium.copyWith(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: controller.refreshAndAnalyze.value
+                      ? theme.colorScheme.onSurface
+                      : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+                ),
+              ),
+            ),
+            Switch.adaptive(
+              value: controller.refreshAndAnalyze.value,
+              onChanged: (v) => controller.refreshAndAnalyze.value = v,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  // 构建保存按钮
-  // 保存与取消按钮已移动到底部操作区
+  // 构建标题区域
+  Widget _buildTitleSection(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.title_rounded, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
+            const SizedBox(width: 8),
+            Text('标题', style: MyFontStyle.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: controller.titleController,
+          maxLines: null,
+          minLines: 2,
+          maxLength: 120,
+          style: MyFontStyle.bodyMedium.copyWith(fontSize: 15, height: 1.5),
+          decoration: InputDecoration(
+            hintText: '输入或修改文章标题',
+            hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3), width: 0.5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25), width: 0.5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.6), width: 1),
+            ),
+            filled: true,
+            fillColor: theme.colorScheme.surface,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            counterStyle: MyFontStyle.bodySmall.copyWith(
+              fontSize: 11,
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+            ),
+          ),
+          inputFormatters: [LengthLimitingTextInputFormatter(120)],
+        ),
+      ],
+    );
+  }
+
+  // 构建备注区域
+  Widget _buildCommentSection(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.comment_outlined, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
+            const SizedBox(width: 8),
+            Text('备注', style: MyFontStyle.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 6),
+            Text(
+              '（可选）',
+              style: MyFontStyle.bodySmall.copyWith(
+                fontSize: 12,
+                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: controller.commentController,
+          maxLines: null,
+          minLines: 4,
+          style: MyFontStyle.bodyMedium.copyWith(fontSize: 14, height: 1.6),
+          decoration: InputDecoration(
+            hintText: '添加备注信息，记录你的想法...',
+            hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3), width: 0.5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25), width: 0.5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.6), width: 1),
+            ),
+            filled: true,
+            fillColor: theme.colorScheme.surface,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          ),
+        ),
+      ],
+    );
+  }
 }
