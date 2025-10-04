@@ -12,6 +12,8 @@ export 'base/dimensions.dart';
 export 'base/typography.dart';
 export 'base/borders.dart';
 export 'base/shadows.dart';
+export 'base/opacities.dart';
+export 'base/border_styles.dart';
 
 // 组件样式
 export 'components/button_styles.dart';
@@ -33,3 +35,6 @@ export 'theme/theme_data.dart';
 // 特殊样式
 export 'markdown_styles.dart';
 export 'html_styles.dart';
+
+// 风格指南
+export 'style_guide.dart';

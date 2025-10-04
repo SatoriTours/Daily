@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/styles/font_style.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -18,7 +18,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
   // 构建顶部应用栏
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      title: Obx(() => Text(controller.isUpdate.value ? '更新文章' : '保存链接', style: MyFontStyle.appBarTitleStyle)),
+      title: Obx(() => Text(controller.isUpdate.value ? '更新文章' : '保存链接', style: AppTypography.appBarTitle)),
       automaticallyImplyLeading: !controller.isUpdate.value,
       elevation: 0,
     );
@@ -31,15 +31,15 @@ class ShareDialogView extends GetView<ShareDialogController> {
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              padding: Dimensions.paddingPage,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildLinkSection(context),
-                  const SizedBox(height: 20),
-                  if (controller.isUpdate.value) ...[_buildRefreshSwitch(context), const SizedBox(height: 20)],
+                  Dimensions.verticalSpacerL,
+                  if (controller.isUpdate.value) ...[_buildRefreshSwitch(context), Dimensions.verticalSpacerL],
                   _buildTitleSection(context),
-                  const SizedBox(height: 20),
+                  Dimensions.verticalSpacerL,
                   _buildCommentSection(context),
                 ],
               ),
@@ -53,15 +53,14 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   // 构建底部按钮区域
   Widget _buildBottomButton(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+      padding: Dimensions.paddingBottomForm,
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2), width: 0.5)),
+        color: AppColors.getSurface(context),
+        border: BorderStyles.getTopBorder(AppColors.getOutline(context), opacity: Opacities.medium),
         boxShadow: [
           BoxShadow(
-            color: theme.colorScheme.shadow.withValues(alpha: 0.03),
+            color: Colors.black.withValues(alpha: Opacities.ultraLow),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -73,32 +72,21 @@ class ShareDialogView extends GetView<ShareDialogController> {
           children: [
             Expanded(
               child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  side: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.3), width: 0.8),
-                  foregroundColor: theme.colorScheme.onSurface,
-                ),
+                style: StyleGuide.getOutlinedButtonStyle(context),
                 onPressed: () => Get.back(),
-                child: Text('取消', style: MyFontStyle.bodyMedium.copyWith(fontSize: 15, fontWeight: FontWeight.w500)),
+                child: Text('取消', style: AppTypography.buttonText),
               ),
             ),
-            const SizedBox(width: 12),
+            Dimensions.horizontalSpacerM,
             Expanded(
               flex: 2,
               child: Obx(
                 () => FilledButton(
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    backgroundColor: theme.colorScheme.primary,
-                    foregroundColor: theme.colorScheme.onPrimary,
-                    elevation: 1,
-                  ),
+                  style: StyleGuide.getPrimaryButtonStyle(context),
                   onPressed: () => controller.onSaveButtonPressed(),
                   child: Text(
                     controller.isUpdate.value ? '保存修改' : '保存',
-                    style: MyFontStyle.bodyMedium.copyWith(fontSize: 15, fontWeight: FontWeight.w600),
+                    style: AppTypography.buttonText.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -111,29 +99,31 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   // 构建链接区域（简洁版）
   Widget _buildLinkSection(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(Icons.link_rounded, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
-            const SizedBox(width: 8),
-            Text('链接', style: MyFontStyle.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            Icon(Icons.link_rounded, size: Dimensions.iconSizeS, color: AppColors.getPrimary(context).withValues(alpha: Opacities.mediumOpaque)),
+            Dimensions.horizontalSpacerS,
+            Text('链接', style: AppTypography.titleSmall),
           ],
         ),
-        const SizedBox(height: 10),
+        Dimensions.verticalSpacerS,
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: Dimensions.paddingInput,
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25), width: 0.5),
+            color: AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.high),
+            borderRadius: BorderRadius.circular(Dimensions.radiusS),
+            border: Border.all(color: AppColors.getOutlineVariant(context).withValues(alpha: Opacities.mediumHigh), width: BorderStyles.extraThin),
           ),
           child: SelectableText(
             controller.shareURL.value,
-            style: MyFontStyle.bodySmall.copyWith(fontSize: 13, color: theme.colorScheme.onSurfaceVariant, height: 1.4),
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.getOnSurfaceVariant(context),
+              height: 1.4,
+            ),
             maxLines: 2,
           ),
         ),
@@ -172,7 +162,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
             Expanded(
               child: Text(
                 '重新抓取并AI分析',
-                style: MyFontStyle.bodyMedium.copyWith(
+                style: AppTypography.bodyMedium.copyWith(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: controller.refreshAndAnalyze.value
@@ -202,7 +192,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
           children: [
             Icon(Icons.title_rounded, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
             const SizedBox(width: 8),
-            Text('标题', style: MyFontStyle.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text('标题', style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
           ],
         ),
         const SizedBox(height: 10),
@@ -211,7 +201,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
           maxLines: null,
           minLines: 2,
           maxLength: 120,
-          style: MyFontStyle.bodyMedium.copyWith(fontSize: 15, height: 1.5),
+          style: AppTypography.bodyMedium.copyWith(fontSize: 15, height: 1.5),
           decoration: InputDecoration(
             hintText: '输入或修改文章标题',
             hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
@@ -230,7 +220,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
             filled: true,
             fillColor: theme.colorScheme.surface,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            counterStyle: MyFontStyle.bodySmall.copyWith(
+            counterStyle: AppTypography.bodySmall.copyWith(
               fontSize: 11,
               color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
             ),
@@ -251,11 +241,11 @@ class ShareDialogView extends GetView<ShareDialogController> {
           children: [
             Icon(Icons.comment_outlined, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
             const SizedBox(width: 8),
-            Text('备注', style: MyFontStyle.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text('备注', style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
             const SizedBox(width: 6),
             Text(
               '（可选）',
-              style: MyFontStyle.bodySmall.copyWith(
+              style: AppTypography.bodySmall.copyWith(
                 fontSize: 12,
                 color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
               ),
@@ -267,7 +257,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
           controller: controller.commentController,
           maxLines: null,
           minLines: 4,
-          style: MyFontStyle.bodyMedium.copyWith(fontSize: 14, height: 1.6),
+          style: AppTypography.bodyMedium.copyWith(fontSize: 14, height: 1.6),
           decoration: InputDecoration(
             hintText: '添加备注信息，记录你的想法...',
             hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),

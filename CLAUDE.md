@@ -17,7 +17,7 @@
 - **系统集成**: url_launcher, connectivity_plus, share_plus, permission_handler
 - **媒体处理**: image_picker, flutter_markdown
 - **数据处理**: archive
-- **UI 框架**: 自定义主题 `AppTheme`, `app/styles/theme`, `components/*`
+- **UI 框架**: 自定义主题 `AppTheme`, `app/styles/`, `StyleGuide`, `components/*`
 
 ## 🏗️ 系统架构
 
@@ -532,6 +532,245 @@ void checkForUpdates() {
 }
 ```
 
+## 🎨 统一风格系统约束
+
+### 风格系统架构
+
+Daily Satori 采用分层风格系统，确保 UI 一致性和可维护性：
+
+1. **基础样式层** (`app/styles/base/`): 定义颜色、字体、尺寸等基础常量
+2. **组件样式层** (`app/styles/components/`): 提供按钮、卡片、输入框等组件样式
+3. **风格指南层** (`StyleGuide`): 提供高级设计模式和统一的应用方法
+
+### 基础样式约束
+
+**必须使用统一的样式常量**
+
+```dart
+// ✅ 正确：使用 Dimensions 常量
+Dimensions.paddingPage
+Dimensions.verticalSpacerL
+Dimensions.horizontalSpacerM
+Dimensions.radiusM
+
+// ❌ 错误：硬编码数值
+const EdgeInsets.fromLTRB(20, 16, 20, 16)
+const SizedBox(height: 20)
+const BorderRadius.circular(12)
+```
+
+**必须使用主题感知的颜色**
+
+```dart
+// ✅ 正确：使用 AppColors 获取主题颜色
+AppColors.getSurface(context)
+AppColors.getPrimary(context)
+AppColors.getOnSurfaceVariant(context)
+
+// ❌ 错误：硬编码颜色
+Colors.white
+Colors.black
+Color(0xFF666666)
+```
+
+**必须使用统一的字体样式**
+
+```dart
+// ✅ 正确：使用 AppTypography 字体样式
+AppTypography.appBarTitle
+AppTypography.titleSmall
+AppTypography.bodyMedium
+AppTypography.buttonText
+
+// ❌ 错误：硬编码字体样式
+TextStyle(fontSize: 16, fontWeight: FontWeight.w600)
+TextStyle(fontSize: 14, color: Colors.grey)
+```
+
+### 风格指南约束
+
+**必须使用 StyleGuide 进行高级样式应用**
+
+```dart
+// ✅ 正确：使用 StyleGuide 方法
+StyleGuide.getPrimaryButtonStyle(context)
+StyleGuide.getCardDecoration(context)
+StyleGuide.getInputDecoration(context, hintText: '请输入')
+StyleGuide.getEmptyState(context, message: '暂无数据')
+
+// ❌ 错误：手动构建样式
+ButtonStyle(
+  backgroundColor: MaterialStateProperty.all(AppColors.getPrimary(context)),
+  // ...
+)
+BoxDecoration(
+  color: AppColors.getSurface(context),
+  borderRadius: BorderRadius.circular(12),
+  // ...
+)
+```
+
+### 样式系统层次结构
+
+**基础常量 → 组件样式 → 风格指南**
+
+```dart
+// 1. 基础常量 (Dimensions, AppColors, AppTypography)
+Dimensions.paddingPage
+AppColors.getPrimary(context)
+AppTypography.bodyMedium
+
+// 2. 组件样式 (ButtonStyles, CardStyles, InputStyles)
+ButtonStyles.getPrimaryStyle(context)
+CardStyles.getStandardStyle(context)
+
+// 3. 风格指南 (StyleGuide)
+StyleGuide.getPrimaryButtonStyle(context)  // 内部调用 ButtonStyles
+StyleGuide.getCardDecoration(context)      // 内部调用 CardStyles
+```
+
+### 页面布局约束
+
+**必须使用统一的页面布局模式**
+
+```dart
+// ✅ 正确：使用 StyleGuide 标准布局
+StyleGuide.getStandardPageLayout(
+  context: context,
+  child: Column(children: [...]),
+  hasAppBar: true,
+  hasPadding: true,
+)
+
+// ✅ 正确：使用标准列表布局
+StyleGuide.getStandardListLayout(
+  context: context,
+  children: itemWidgets,
+  padding: Dimensions.paddingPage,
+)
+
+// ❌ 错误：手动构建布局
+Scaffold(
+  backgroundColor: AppColors.getBackground(context),
+  body: SafeArea(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(children: [...]),
+    ),
+  ),
+)
+```
+
+### 状态组件约束
+
+**必须使用统一的空状态、加载状态和错误状态**
+
+```dart
+// ✅ 正确：使用 StyleGuide 状态组件
+StyleGuide.getEmptyState(
+  context,
+  message: '暂无数据',
+  icon: Icons.inbox_outlined,
+  action: ElevatedButton(...),
+)
+
+StyleGuide.getLoadingState(context, message: '加载中...')
+
+StyleGuide.getErrorState(
+  context,
+  message: '加载失败',
+  onRetry: () => _retry(),
+)
+
+// ❌ 错误：手动构建状态组件
+Center(
+  child: Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(Icons.error_outline, size: 48, color: Colors.grey),
+      Text('暂无数据', style: TextStyle(color: Colors.grey)),
+    ],
+  ),
+)
+```
+
+### 间距系统约束
+
+**必须使用统一的间距系统**
+
+```dart
+// ✅ 正确：使用 Dimensions 间距常量
+Dimensions.verticalSpacerS  // 小间距 (8px)
+Dimensions.verticalSpacerM  // 中间距 (16px)
+Dimensions.verticalSpacerL  // 大间距 (24px)
+Dimensions.verticalSpacerXl // 超大间距 (32px)
+
+Dimensions.horizontalSpacerS
+Dimensions.horizontalSpacerM
+Dimensions.horizontalSpacerL
+
+// ❌ 错误：硬编码间距
+const SizedBox(height: 8)
+const SizedBox(height: 16)
+const SizedBox(width: 12)
+```
+
+### 圆角系统约束
+
+**必须使用统一的圆角系统**
+
+```dart
+// ✅ 正确：使用 Dimensions 圆角常量
+Dimensions.radiusS      // 小圆角 (8px)
+Dimensions.radiusM      // 中圆角 (12px)
+Dimensions.radiusL      // 大圆角 (16px)
+Dimensions.radiusCircular // 圆形 (50%)
+
+// ❌ 错误：硬编码圆角
+BorderRadius.circular(8)
+BorderRadius.circular(12)
+BorderRadius.circular(16)
+```
+
+### 图标尺寸约束
+
+**必须使用统一的图标尺寸系统**
+
+```dart
+// ✅ 正确：使用 Dimensions 图标尺寸
+Dimensions.iconSizeS    // 小图标 (16px)
+Dimensions.iconSizeM    // 中图标 (20px)
+Dimensions.iconSizeL    // 大图标 (24px)
+Dimensions.iconSizeXl   // 超大图标 (32px)
+Dimensions.iconSizeXxl  // 巨大图标 (48px)
+
+// ❌ 错误：硬编码图标尺寸
+Icon(Icons.star, size: 16)
+Icon(Icons.star, size: 24)
+Icon(Icons.star, size: 32)
+```
+
+### 导入规范
+
+**必须使用统一的样式导入**
+
+```dart
+// ✅ 正确：使用 app/styles/index.dart 聚合导出
+import 'package:daily_satori/app/styles/index.dart';
+
+// 然后使用：
+Dimensions.paddingPage
+AppColors.getPrimary(context)
+AppTypography.bodyMedium
+StyleGuide.getPrimaryButtonStyle(context)
+
+// ❌ 错误：单独导入每个样式文件
+import 'package:daily_satori/app/styles/base/dimensions.dart';
+import 'package:daily_satori/app/styles/base/colors.dart';
+import 'package:daily_satori/app/styles/base/typography.dart';
+import 'package:daily_satori/app/styles/style_guide.dart';
+```
+
 ## 🎨 UI 约束与响应式
 
 ### 响应式 UI 约束
@@ -663,6 +902,647 @@ import 'package:daily_satori/app_exports.dart';
 - 避免在 `build` 中执行重计算
 - 长任务放入 Service/Repository 层
 
+## 🎨 样式系统规范
+
+### 设计原则
+
+Daily Satori 采用基于 **Design Tokens** 的现代化样式系统，遵循以下核心原则：
+
+1. **一致性优先**: 所有UI组件必须使用统一的样式系统
+2. **语义化设计**: 使用有意义的命名而非具体数值
+3. **主题感知**: 所有样式自动适配亮色/暗色主题
+4. **可维护性**: 单一来源的样式定义，避免重复
+5. **可扩展性**: 易于添加新的样式变体
+
+### 样式系统架构
+
+```
+lib/app/styles/
+├── index.dart                 # 统一导出入口 ✅ 必须使用
+├── base/                      # 基础设计 Tokens
+│   ├── colors.dart           # 颜色系统
+│   ├── dimensions.dart       # 尺寸、间距、圆角
+│   ├── typography.dart       # 字体样式
+│   ├── opacities.dart        # 透明度常量
+│   ├── shadows.dart          # 阴影样式
+│   ├── borders.dart          # 边框常量
+│   └── border_styles.dart    # 边框样式工具
+├── components/               # 组件样式
+│   ├── button_styles.dart    # 按钮样式
+│   ├── card_styles.dart      # 卡片样式
+│   ├── input_styles.dart     # 输入框样式
+│   ├── list_styles.dart      # 列表样式
+│   ├── dialog_styles.dart    # 对话框样式
+│   └── ...
+├── pages/                    # 页面特定样式
+│   ├── articles_styles.dart
+│   └── diary_styles.dart
+├── style_guide.dart          # 样式应用指南 ✅ 推荐使用
+└── theme/                    # 主题定义
+    └── app_theme.dart
+```
+
+### 基础 Tokens 使用规范
+
+#### 1. 颜色系统 (AppColors)
+
+**✅ 正确做法**：
+```dart
+// 使用主题感知方法
+color: AppColors.getPrimary(context)
+color: AppColors.getSurface(context)
+color: AppColors.getOnSurfaceVariant(context)
+
+// 使用预定义颜色
+color: AppColors.primary
+color: AppColors.success
+color: AppColors.error
+```
+
+**❌ 错误做法**：
+```dart
+// 硬编码颜色
+color: Color(0xFF5E8BFF)
+color: Colors.blue
+color: Color.fromRGBO(94, 139, 255, 1.0)
+
+// 手动判断主题
+color: isDark ? Color(0xFF...) : Color(0xFF...)
+```
+
+**可用颜色方法**：
+- `AppColors.getPrimary(context)` - 主色
+- `AppColors.getBackground(context)` - 背景色
+- `AppColors.getSurface(context)` - 表面色
+- `AppColors.getSurfaceContainer(context)` - 容器背景色
+- `AppColors.getSurfaceContainerHighest(context)` - 高亮容器色
+- `AppColors.getOnSurface(context)` - 表面上文本色
+- `AppColors.getOnSurfaceVariant(context)` - 次要文本色
+- `AppColors.getOutline(context)` - 边框色
+- `AppColors.getOutlineVariant(context)` - 次要边框色
+- `AppColors.getError(context)` - 错误色
+- `AppColors.getSuccess(context)` - 成功色
+
+#### 2. 尺寸系统 (Dimensions)
+
+**间距常量**：
+```dart
+// ✅ 使用预定义间距
+Dimensions.spacingXs   // 4px
+Dimensions.spacingS    // 8px
+Dimensions.spacingM    // 16px
+Dimensions.spacingL    // 24px
+Dimensions.spacingXl   // 32px
+Dimensions.spacingXxl  // 48px
+
+// ❌ 硬编码数值
+const EdgeInsets.all(16)  // 错误
+SizedBox(height: 24)       // 错误
+```
+
+**内边距预设**：
+```dart
+// ✅ 使用预定义 EdgeInsets
+Dimensions.paddingPage         // 页面内边距 (20, 16)
+Dimensions.paddingCard         // 卡片内边距 (16)
+Dimensions.paddingButton       // 按钮内边距 (16, 12)
+Dimensions.paddingInput        // 输入框内边距 (14, 14)
+Dimensions.paddingListItem     // 列表项内边距 (16, 12)
+
+// 方向性内边距
+Dimensions.paddingHorizontalM  // 水平中等 (16, 0)
+Dimensions.paddingVerticalM    // 垂直中等 (0, 16)
+
+// ❌ 硬编码 EdgeInsets
+padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16)  // 错误
+padding: const EdgeInsets.all(16)  // 错误
+```
+
+**间隔组件**：
+```dart
+// ✅ 使用预定义间隔组件
+Dimensions.verticalSpacerXs   // SizedBox(height: 4)
+Dimensions.verticalSpacerS    // SizedBox(height: 8)
+Dimensions.verticalSpacerM    // SizedBox(height: 16)
+Dimensions.verticalSpacerL    // SizedBox(height: 24)
+Dimensions.verticalSpacerXl   // SizedBox(height: 32)
+
+Dimensions.horizontalSpacerS  // SizedBox(width: 8)
+Dimensions.horizontalSpacerM  // SizedBox(width: 16)
+
+// ❌ 硬编码间隔
+const SizedBox(height: 20)  // 错误
+const SizedBox(width: 12)   // 错误
+```
+
+**圆角系统**：
+```dart
+// ✅ 使用预定义圆角
+BorderRadius.circular(Dimensions.radiusXs)       // 4px
+BorderRadius.circular(Dimensions.radiusS)        // 8px
+BorderRadius.circular(Dimensions.radiusM)        // 12px
+BorderRadius.circular(Dimensions.radiusL)        // 16px
+BorderRadius.circular(Dimensions.radiusXl)       // 20px
+BorderRadius.circular(Dimensions.radiusCircular) // 9999px (完全圆形)
+
+// ❌ 硬编码圆角
+BorderRadius.circular(10)  // 错误
+BorderRadius.circular(15)  // 错误
+```
+
+**图标尺寸**：
+```dart
+// ✅ 使用预定义图标尺寸
+Icon(Icons.star, size: Dimensions.iconSizeXs)   // 12px
+Icon(Icons.star, size: Dimensions.iconSizeS)    // 16px
+Icon(Icons.star, size: Dimensions.iconSizeM)    // 20px
+Icon(Icons.star, size: Dimensions.iconSizeL)    // 24px
+Icon(Icons.star, size: Dimensions.iconSizeXl)   // 32px
+Icon(Icons.star, size: Dimensions.iconSizeXxl)  // 48px
+
+// ❌ 硬编码尺寸
+Icon(Icons.star, size: 18)  // 错误
+Icon(Icons.star, size: 22)  // 错误
+```
+
+#### 3. 字体系统 (AppTypography)
+
+**✅ 正确做法**：
+```dart
+// 标题系列
+style: AppTypography.headingLarge   // 32px, w600
+style: AppTypography.headingMedium  // 24px, w600
+style: AppTypography.headingSmall   // 20px, w600
+
+// 副标题系列
+style: AppTypography.titleLarge     // 18px, w600
+style: AppTypography.titleMedium    // 16px, w600
+style: AppTypography.titleSmall     // 14px, w500
+
+// 正文系列
+style: AppTypography.bodyLarge      // 16px, w400
+style: AppTypography.bodyMedium     // 15px, w400
+style: AppTypography.bodySmall      // 13px, w400
+
+// 标签系列
+style: AppTypography.labelLarge     // 14px, w500
+style: AppTypography.labelMedium    // 12px, w500
+style: AppTypography.labelSmall     // 11px, w500
+
+// 特殊用途
+style: AppTypography.buttonText     // 按钮文本
+style: AppTypography.appBarTitle    // AppBar标题
+style: AppTypography.chipText       // 标签文本
+```
+
+**❌ 错误做法**：
+```dart
+// 硬编码字体样式
+style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)  // 错误
+style: TextStyle(fontSize: 14)  // 错误
+
+// 过度使用 copyWith
+style: TextStyle(fontSize: 15, fontWeight: FontWeight.w400, height: 1.5)  // 错误
+```
+
+**样式微调**（仅在必要时使用）：
+```dart
+// ✅ 基于预定义样式微调
+style: AppTypography.bodyMedium.copyWith(
+  color: AppColors.getPrimary(context),  // 仅修改颜色
+)
+
+style: AppTypography.titleSmall.copyWith(
+  fontWeight: FontWeight.w600,  // 仅增加字重
+)
+
+// ❌ 大量属性修改
+style: AppTypography.bodyMedium.copyWith(
+  fontSize: 14,        // 错误：改变了预定义尺寸
+  fontWeight: FontWeight.w500,
+  height: 1.3,
+  letterSpacing: 0.5,
+)
+```
+
+#### 4. 透明度系统 (Opacities)
+
+**✅ 正确做法**：
+```dart
+// 使用预定义透明度
+color: AppColors.getPrimary(context).withValues(alpha: Opacities.low)         // 10%
+color: AppColors.getSurface(context).withValues(alpha: Opacities.medium)      // 20%
+color: AppColors.getOutline(context).withValues(alpha: Opacities.mediumHigh)  // 25%
+color: Colors.black.withValues(alpha: Opacities.extraLow)                     // 5%
+
+// 可用透明度常量
+Opacities.extraLow      // 0.05 (5%)
+Opacities.low           // 0.1  (10%)
+Opacities.mediumLow     // 0.15 (15%)
+Opacities.medium        // 0.2  (20%)
+Opacities.mediumHigh    // 0.25 (25%)
+Opacities.high          // 0.3  (30%)
+Opacities.half          // 0.5  (50%)
+Opacities.mediumOpaque  // 0.8  (80%)
+```
+
+**❌ 错误做法**：
+```dart
+// 硬编码透明度
+color: Colors.black.withValues(alpha: 0.15)  // 错误
+color: AppColors.primary.withValues(alpha: 0.3)  // 错误
+```
+
+#### 5. 阴影系统 (AppShadows)
+
+**✅ 正确做法**：
+```dart
+// 使用主题感知阴影
+boxShadow: AppShadows.getXsShadow(context)  // 极小阴影
+boxShadow: AppShadows.getSShadow(context)   // 小阴影
+boxShadow: AppShadows.getMShadow(context)   // 中等阴影（卡片）
+boxShadow: AppShadows.getLShadow(context)   // 大阴影（对话框）
+boxShadow: AppShadows.getXlShadow(context)  // 特大阴影（模态框）
+
+// 特定用途阴影
+boxShadow: AppShadows.getCardShadow(context)
+boxShadow: AppShadows.getButtonShadow(context)
+```
+
+**❌ 错误做法**：
+```dart
+// 硬编码阴影
+boxShadow: [
+  BoxShadow(
+    color: Colors.black.withOpacity(0.1),  // 错误
+    blurRadius: 8,
+    offset: Offset(0, 2),
+  ),
+]
+```
+
+#### 6. 边框系统 (BorderStyles)
+
+**✅ 正确做法**：
+```dart
+// 使用预定义边框样式
+border: Border.all(
+  color: AppColors.getOutline(context),
+  width: BorderStyles.extraThin,  // 0.5px
+)
+
+border: Border.all(
+  color: AppColors.getOutline(context),
+  width: BorderStyles.thin,  // 1.0px
+)
+
+// 使用边框工具方法
+border: BorderStyles.getTopBorder(
+  AppColors.getOutline(context),
+  opacity: Opacities.medium,
+)
+
+decoration: BorderStyles.getExtraThinBorderDecoration(
+  AppColors.getOutlineVariant(context),
+  radius: Dimensions.radiusS,
+)
+```
+
+**❌ 错误做法**：
+```dart
+// 硬编码边框
+border: Border.all(color: Colors.grey, width: 0.5)  // 错误
+border: Border.all(color: Color(0xFFE0E0E0), width: 1)  // 错误
+```
+
+### 组件样式使用规范
+
+#### 1. 按钮样式 (ButtonStyles)
+
+**✅ 正确做法**：
+```dart
+// 主要按钮
+ElevatedButton(
+  style: ButtonStyles.getPrimaryStyle(context),
+  onPressed: () {},
+  child: Text('确认'),
+)
+
+// 次要按钮
+ElevatedButton(
+  style: ButtonStyles.getSecondaryStyle(context),
+  onPressed: () {},
+  child: Text('取消'),
+)
+
+// 轮廓按钮
+OutlinedButton(
+  style: ButtonStyles.getOutlinedStyle(context),
+  onPressed: () {},
+  child: Text('了解更多'),
+)
+
+// 文本按钮
+TextButton(
+  style: ButtonStyles.getTextStyle(context),
+  onPressed: () {},
+  child: Text('跳过'),
+)
+
+// 危险操作按钮
+ElevatedButton(
+  style: ButtonStyles.getDangerStyle(context),
+  onPressed: () {},
+  child: Text('删除'),
+)
+```
+
+**❌ 错误做法**：
+```dart
+// 硬编码按钮样式
+ElevatedButton(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Color(0xFF5E8BFF),  // 错误
+    padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),  // 错误
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),  // 错误
+  ),
+  onPressed: () {},
+  child: Text('按钮'),
+)
+```
+
+#### 2. 输入框样式 (InputStyles)
+
+**✅ 正确做法**：
+```dart
+// 标准输入框
+TextField(
+  decoration: InputStyles.getInputDecoration(
+    context,
+    hintText: '请输入内容',
+  ),
+)
+
+// 搜索框
+TextField(
+  decoration: InputStyles.getSearchDecoration(
+    context,
+    hintText: '搜索文章...',
+  ),
+)
+
+// 无边框输入框（日记等）
+TextField(
+  decoration: InputStyles.getCleanInputDecoration(
+    context,
+    hintText: '记录你的想法...',
+  ),
+)
+
+// 标题输入框
+TextField(
+  style: AppTypography.titleMedium,
+  decoration: InputStyles.getTitleInputDecoration(
+    context,
+    hintText: '输入标题',
+  ),
+)
+```
+
+**❌ 错误做法**：
+```dart
+// 硬编码输入框样式
+TextField(
+  decoration: InputDecoration(
+    hintText: '输入内容',
+    filled: true,
+    fillColor: Color(0xFFF0F0F0),  // 错误
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),  // 错误
+    ),
+    contentPadding: EdgeInsets.all(14),  // 错误
+  ),
+)
+```
+
+### StyleGuide 高级应用
+
+`StyleGuide` 提供了更高级的样式应用方法，推荐优先使用：
+
+#### 1. 容器装饰
+
+**✅ 推荐做法**：
+```dart
+// 页面容器
+Container(
+  decoration: StyleGuide.getPageContainerDecoration(context),
+  child: content,
+)
+
+// 卡片
+Container(
+  decoration: StyleGuide.getCardDecoration(context),
+  child: content,
+)
+
+// 列表项
+Container(
+  decoration: StyleGuide.getListItemDecoration(context),
+  child: content,
+)
+```
+
+#### 2. 状态组件
+
+**✅ 推荐做法**：
+```dart
+// 空状态
+StyleGuide.getEmptyState(
+  context,
+  message: '暂无数据',
+  icon: Icons.inbox_outlined,
+  action: ElevatedButton(
+    onPressed: onRefresh,
+    child: Text('刷新'),
+  ),
+)
+
+// 加载状态
+StyleGuide.getLoadingState(context, message: '加载中...')
+
+// 错误状态
+StyleGuide.getErrorState(
+  context,
+  message: '加载失败',
+  onRetry: onRetry,
+)
+```
+
+#### 3. 页面布局
+
+**✅ 推荐做法**：
+```dart
+// 标准页面布局
+StyleGuide.getStandardPageLayout(
+  context: context,
+  child: content,
+  hasPadding: true,
+)
+
+// 列表布局
+StyleGuide.getStandardListLayout(
+  context: context,
+  children: listItems,
+)
+
+// 网格布局
+StyleGuide.getStandardGridLayout(
+  context: context,
+  children: gridItems,
+  crossAxisCount: 2,
+)
+```
+
+### 样式系统导入规范
+
+**✅ 唯一正确的导入方式**：
+```dart
+import 'package:daily_satori/app/styles/index.dart';
+
+// index.dart 已经导出所有样式相关类：
+// - AppColors
+// - Dimensions
+// - AppTypography
+// - Opacities
+// - AppShadows
+// - BorderStyles
+// - ButtonStyles
+// - InputStyles
+// - StyleGuide
+// - 等等...
+```
+
+**❌ 错误的导入方式**：
+```dart
+// 不要单独导入
+import 'package:daily_satori/app/styles/base/colors.dart';  // 错误
+import 'package:daily_satori/app/styles/base/dimensions.dart';  // 错误
+import 'package:daily_satori/app/styles/components/button_styles.dart';  // 错误
+```
+
+### 完整示例：符合规范的页面
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:daily_satori/app/styles/index.dart';
+
+class ExampleView extends StatelessWidget {
+  const ExampleView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.getBackground(context),
+      appBar: AppBar(
+        title: Text('示例页面', style: AppTypography.appBarTitle),
+      ),
+      body: SingleChildScrollView(
+        padding: Dimensions.paddingPage,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 页面标题
+            Text('欢迎使用', style: AppTypography.headingMedium),
+            Dimensions.verticalSpacerS,
+
+            // 页面描述
+            Text(
+              '这是一个符合样式规范的页面示例',
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.getOnSurfaceVariant(context),
+              ),
+            ),
+            Dimensions.verticalSpacerL,
+
+            // 卡片容器
+            Container(
+              padding: Dimensions.paddingCard,
+              decoration: StyleGuide.getCardDecoration(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('卡片标题', style: AppTypography.titleMedium),
+                  Dimensions.verticalSpacerS,
+                  Text(
+                    '卡片内容描述',
+                    style: AppTypography.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+            Dimensions.verticalSpacerL,
+
+            // 输入框
+            TextField(
+              decoration: InputStyles.getInputDecoration(
+                context,
+                hintText: '请输入内容',
+              ),
+            ),
+            Dimensions.verticalSpacerL,
+
+            // 按钮组
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: ButtonStyles.getOutlinedStyle(context),
+                    onPressed: () {},
+                    child: Text('取消', style: AppTypography.buttonText),
+                  ),
+                ),
+                Dimensions.horizontalSpacerM,
+                Expanded(
+                  child: ElevatedButton(
+                    style: ButtonStyles.getPrimaryStyle(context),
+                    onPressed: () {},
+                    child: Text('确认', style: AppTypography.buttonText),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+### 样式系统最佳实践
+
+1. **优先级顺序**：
+   - 第一优先：`StyleGuide` 高级方法
+   - 第二优先：组件样式类 (`ButtonStyles`, `InputStyles` 等)
+   - 第三优先：基础 Tokens (`Dimensions`, `AppColors`, `AppTypography`)
+   - 最后手段：`copyWith()` 微调（必须基于预定义样式）
+
+2. **主题适配**：
+   - 所有颜色必须通过 `AppColors.getXxx(context)` 获取
+   - 所有阴影必须通过 `AppShadows.getXxxShadow(context)` 获取
+   - 避免硬编码任何颜色值
+
+3. **可维护性**：
+   - 发现需要重复使用的样式组合时，添加到相应的样式类中
+   - 不要在多个页面中复制相同的样式代码
+   - 新增常用数值时，添加到 `Dimensions` 或相应常量类
+
+4. **扩展性**：
+   - 需要新的按钮变体时，添加到 `ButtonStyles`
+   - 需要新的输入框样式时，添加到 `InputStyles`
+   - 需要新的布局模式时，添加到 `StyleGuide`
+
 ## 📝 代码质量约束
 
 ### 强制代码分析检查
@@ -738,6 +1618,24 @@ flutter analyze
 - [ ] 是否使用响应式变量（`.obs`）
 - [ ] 是否使用 `Obx()` 包装动态 UI
 - [ ] 是否使用统一的消息方法
+
+### 样式系统检查
+- [ ] 是否使用 `import 'package:daily_satori/app/styles/index.dart';` 导入样式
+- [ ] 是否使用 `Dimensions` 常量而非硬编码数值
+- [ ] 是否使用 `AppColors.getXxx(context)` 而非硬编码颜色
+- [ ] 是否使用 `AppTypography` 字体样式而非 `TextStyle(...)`
+- [ ] 是否使用 `Opacities` 常量而非硬编码透明度
+- [ ] 是否使用 `AppShadows.getXxxShadow(context)` 而非硬编码阴影
+- [ ] 是否使用 `BorderStyles` 常量而非硬编码边框
+- [ ] 是否使用 `ButtonStyles.getXxxStyle(context)` 定义按钮
+- [ ] 是否使用 `InputStyles.getXxxDecoration(context)` 定义输入框
+- [ ] 是否优先使用 `StyleGuide` 高级方法
+- [ ] 是否使用统一的间距系统 (`verticalSpacerS/M/L/Xl`)
+- [ ] 是否使用统一的圆角系统 (`radiusS/M/L`)
+- [ ] 是否使用统一的图标尺寸系统 (`iconSizeS/M/L/Xl`)
+- [ ] 是否避免在页面中直接写 `EdgeInsets`、`BorderRadius`、`Color`
+- [ ] 是否避免使用 `copyWith` 大量修改预定义样式
+- [ ] 新增重复样式是否添加到样式系统而非复制代码
 
 ### 功能约束检查
 - [ ] 读书页 FAB 是否始终显示且行为正确
