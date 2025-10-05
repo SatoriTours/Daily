@@ -1,23 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/models/tag_model.dart';
-import 'package:daily_satori/app/repositories/tag_repository.dart';
-
-import '../../controllers/articles_controller.dart';
 
 /// 文章标签对话框
-class ArticlesTagsDialog extends GetView<ArticlesController> {
-  const ArticlesTagsDialog({super.key});
+///
+/// 纯展示组件,通过回调函数与外部交互
+class ArticlesTagsDialog extends StatelessWidget {
+  final List<TagModel> tags;
+  final int? selectedTagId;
+  final void Function(int tagId, String tagName) onTagSelected;
+  final VoidCallback onClearFilters;
+
+  const ArticlesTagsDialog({
+    super.key,
+    required this.tags,
+    this.selectedTagId,
+    required this.onTagSelected,
+    required this.onClearFilters,
+  });
 
   @override
   Widget build(BuildContext context) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
-
-    // 获取所有标签
-    final tags = TagRepository.all();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,7 +62,7 @@ class ArticlesTagsDialog extends GetView<ArticlesController> {
           child: Center(
             child: InkWell(
               onTap: () {
-                controller.clearAllFilters();
+                onClearFilters();
                 Navigator.pop(context);
               },
               borderRadius: BorderRadius.circular(20),
@@ -81,7 +87,7 @@ class ArticlesTagsDialog extends GetView<ArticlesController> {
   /// 构建单个标签项
   Widget _buildTagItem(BuildContext context, TagModel tag) {
     final colorScheme = AppTheme.getColorScheme(context);
-    final isSelected = controller.tagId.value == tag.id;
+    final isSelected = selectedTagId == tag.id;
 
     final backgroundColor = isSelected ? colorScheme.primary.withAlpha(51) : colorScheme.surfaceContainerHighest;
 
@@ -89,7 +95,7 @@ class ArticlesTagsDialog extends GetView<ArticlesController> {
 
     return InkWell(
       onTap: () {
-        controller.filterByTag(tag.id, tag.name ?? '');
+        onTagSelected(tag.id, tag.name ?? '');
         Navigator.pop(context);
       },
       borderRadius: BorderRadius.circular(16),

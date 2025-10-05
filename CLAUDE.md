@@ -627,7 +627,217 @@ _navigationService.toArticleDetail(article);
 - 页面创建必须绑定对应 Binding
 - 禁止在视图中 `Get.put` 业务 Controller
 
-## 📊 数据访问与仓储约定
+### 5. Widget 组件编写规范
+
+**Widget 组件设计原则**
+
+我们提倡将 Widget 组件设计为纯展示组件，遵循以下原则：
+
+1. **组件应该是 StatelessWidget 或 StatefulWidget，而不是 GetView**
+2. **通过参数接收数据，通过回调函数进行交互**
+3. **状态管理在父组件（View）中使用 Obx 控制**
+4. **通用组件放在 `lib/app/components`，模块特定组件放在模块的 `widgets/` 目录**
+
+**何时使用 StatelessWidget vs GetView**
+
+| 场景 | 使用 | 原因 |
+|------|------|------|
+| 纯展示组件 | `StatelessWidget` | 组件应该独立于特定控制器,可复用 |
+| 需要本地状态的组件 | `StatefulWidget` | 例如表单输入、动画状态等 |
+| 顶层页面视图 | `GetView<Controller>` | 页面级视图直接绑定控制器 |
+| 组件需要访问父级状态 | 通过参数传递 | 避免 GetX 嵌套和紧耦合 |
+
+**✅ 推荐的组件架构**
+
+```dart
+/// ❌ 错误示例：组件依赖 Controller
+class ArticleActionBar extends GetView<ArticlesController> {
+  final ArticleModel articleModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        IconButton(
+          icon: Icon(Icons.favorite),
+          onPressed: () {
+            // 直接访问 controller
+            controller.toggleFavorite(articleModel);
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// ✅ 正确示例：纯展示组件
+class ArticleActionBar extends StatelessWidget {
+  final ArticleModel articleModel;
+  final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onShare;
+
+  const ArticleActionBar({
+    super.key,
+    required this.articleModel,
+    this.onFavoriteToggle,
+    this.onShare,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        IconButton(
+          icon: Icon(
+            articleModel.isFavorite ? Icons.favorite : Icons.favorite_border,
+          ),
+          onPressed: onFavoriteToggle,
+        ),
+        IconButton(
+          icon: Icon(Icons.share),
+          onPressed: onShare,
+        ),
+      ],
+    );
+  }
+}
+```
+
+**在父组件中使用 Obx**
+
+```dart
+/// ✅ 正确：在 View 中用 Obx 包裹响应式部分
+class ArticlesView extends GetView<ArticlesController> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Obx(() {
+        return ArticlesList(
+          articles: controller.articles,  // 响应式数据
+          isLoading: controller.isLoading.value,
+          onArticleTap: (article) {
+            Get.toNamed(Routes.articleDetail, arguments: article);
+          },
+          onFavoriteToggle: (article) async {
+            await article.toggleFavorite();
+            controller.updateArticle(article.id);
+          },
+          onShare: (article) async {
+            await Share.share(article.url);
+          },
+        );
+      }),
+    );
+  }
+}
+
+/// ✅ 纯展示的列表组件
+class ArticlesList extends StatelessWidget {
+  final List<ArticleModel> articles;
+  final bool isLoading;
+  final void Function(ArticleModel) onArticleTap;
+  final void Function(ArticleModel) onFavoriteToggle;
+  final void Function(ArticleModel) onShare;
+
+  const ArticlesList({
+    super.key,
+    required this.articles,
+    required this.isLoading,
+    required this.onArticleTap,
+    required this.onFavoriteToggle,
+    required this.onShare,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      itemCount: articles.length,
+      itemBuilder: (context, index) {
+        final article = articles[index];
+        return ArticleCard(
+          articleModel: article,
+          onTap: () => onArticleTap(article),
+          onFavoriteToggle: () => onFavoriteToggle(article),
+          onShare: () => onShare(article),
+        );
+      },
+    );
+  }
+}
+```
+
+**组件位置规范**
+
+1. **通用组件** → `lib/app/components/`
+   - 可在多个模块复用的组件
+   - 例如：按钮、卡片、对话框、空状态视图
+
+2. **模块特定组件** → `lib/app/modules/[module]/views/widgets/`
+   - 仅在当前模块使用的组件
+   - 例如：文章卡片、日记编辑器
+
+3. **样式组件** → `lib/app/styles/components/`
+   - 提供样式定义的纯函数
+   - 例如：按钮样式、卡片装饰
+
+**组件拆分原则**
+
+1. **职责单一**：每个组件只负责一个明确的功能
+2. **合理粒度**：避免过度拆分，保持组件有意义的功能完整性
+3. **可复用性**：通用逻辑提取为组件，特定逻辑保留在页面
+4. **参数传递**：通过参数控制组件行为，而不是通过 GetX 查找
+
+**组件文档规范**
+
+每个组件应该包含清晰的文档注释：
+
+```dart
+/// 文章操作栏组件
+///
+/// 纯展示组件，提供收藏、分享等操作按钮
+/// 通过回调函数与外部交互
+///
+/// 示例:
+/// ```dart
+/// ArticleActionBar(
+///   articleModel: article,
+///   onFavoriteToggle: () => controller.toggleFavorite(article),
+///   onShare: () => Share.share(article.url),
+/// )
+/// ```
+class ArticleActionBar extends StatelessWidget {
+  /// 文章数据模型
+  final ArticleModel articleModel;
+
+  /// 收藏切换回调
+  final VoidCallback? onFavoriteToggle;
+
+  /// 分享回调
+  final VoidCallback? onShare;
+
+  const ArticleActionBar({
+    super.key,
+    required this.articleModel,
+    this.onFavoriteToggle,
+    this.onShare,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // ...
+  }
+}
+```
+
+**✅ Widget 组件最佳实践总结**
+
+1. **组件独立性**：Widget 组件不应该依赖特定的 Controller
+2. **参数传递**：数据通过参数传入，行为通过回调传出
+3. **状态管理**：响应式状态在父组件用 Obx 控制
+4. **组件位置**：通用组件放 `components/`，特定组件放 `widgets/`
+5. **文档完善**：提供清晰的组件文档和使用示例
+
+### 用户反馈约束
 
 ### 仓储模式
 - 仓储类均为静态方法风格 (`ArticleRepository.find()`, `ArticleRepository.update()`)
@@ -708,6 +918,26 @@ showSuccess("保存成功");
 showLoading("处理中...");
 
 // ❌ 错误：直接使用其他 UI 工具
+UIUtils.showError("失败");
+errorNotice("错误");
+```
+
+## 📊 数据访问与仓储约定
+
+### 仓储模式
+- 仓储类均为静态方法风格 (`ArticleRepository.find()`, `ArticleRepository.update()`)
+- 查询必须通过仓储，禁止在 UI/Controller 层直接访问 ObjectBox Box
+- 删除需清理关联 (如文章删除需清空 tags/images/screenshots)
+
+### 分页策略
+- 列表分页通过锚点 ID 与方向标记实现
+- 统一 pageSize 与排序规则 (按 `id` 倒序)
+- 防抖/去重处理滚动加载
+
+### 时间管理
+- 持久化时间统一存储为 UTC
+- 展示时使用 `DateTimeUtils.formatDateTimeToLocal` 本地化
+- `DateTimeUtils.nowToString()` 仅用于日志与非持久化场景
 UIUtils.showError("失败");
 errorNotice("错误");
 ```

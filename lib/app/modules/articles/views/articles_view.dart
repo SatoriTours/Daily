@@ -2,9 +2,12 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/components/empty_states/articles_empty_view.dart';
 import 'package:daily_satori/app/services/state/app_state_service.dart';
+import 'package:daily_satori/app/repositories/tag_repository.dart';
+import 'package:daily_satori/app/routes/app_pages.dart';
 import 'widgets/articles_search_bar.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'widgets/articles_tags_dialog.dart';
@@ -48,8 +51,18 @@ class ArticlesView extends GetView<ArticlesController> {
     return Obx(() {
       final appStateService = Get.find<AppStateService>();
       if (!appStateService.isSearchBarVisible.value) return const SizedBox.shrink();
+
       logger.d('显示搜索栏');
-      return const ArticlesSearchBar();
+      return ArticlesSearchBar(
+        searchController: controller.searchController,
+        searchFocusNode: controller.searchFocusNode,
+        onBack: controller.toggleSearchState,
+        onSearch: controller.searchArticles,
+        onClear: () {
+          controller.searchController.clear();
+          controller.clearAllFilters();
+        },
+      );
     });
   }
 
@@ -69,7 +82,31 @@ class ArticlesView extends GetView<ArticlesController> {
         logger.d('文章列表为空，显示空状态');
         return const Expanded(child: ArticlesEmptyView());
       }
-      return const Expanded(child: ArticlesList());
+
+      return Expanded(
+        child: ArticlesList(
+          articles: controller.articles,
+          isLoading: controller.isLoading.value,
+          scrollController: controller.scrollController,
+          onRefresh: controller.reloadArticles,
+          onArticleTap: (article) {
+            logger.d('点击文章卡片: ${article.id}');
+            Get.toNamed(Routes.articleDetail, arguments: article);
+          },
+          onFavoriteToggle: (article) async {
+            await article.toggleFavorite();
+            controller.updateArticle(article.id);
+          },
+          onShare: (article) async {
+            await SharePlus.instance.share(
+              ShareParams(
+                text: article.url ?? '',
+                subject: article.aiTitle ?? article.title ?? '',
+              ),
+            );
+          },
+        ),
+      );
     });
   }
 
@@ -175,11 +212,20 @@ class ArticlesView extends GetView<ArticlesController> {
   /// 显示标签选择对话框
   void _showTagsDialog(BuildContext context) {
     logger.d('显示标签对话框');
+    final tags = TagRepository.all();
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
-      builder: (context) => const ArticlesTagsDialog(),
+      builder: (context) => ArticlesTagsDialog(
+        tags: tags,
+        selectedTagId: controller.tagId.value,
+        onTagSelected: (tagId, tagName) {
+          controller.filterByTag(tagId, tagName);
+        },
+        onClearFilters: controller.clearAllFilters,
+      ),
     );
   }
 
@@ -189,12 +235,19 @@ class ArticlesView extends GetView<ArticlesController> {
       logger.d('清除现有过滤条件');
       controller.clearAllFilters();
     }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
       isScrollControlled: true,
-      builder: (context) => const ArticleCalendarDialog(),
+      builder: (context) => ArticleCalendarDialog(
+        articleCountMap: controller.getDailyArticleCounts(),
+        onDateSelected: (date) {
+          controller.filterByDate(date);
+        },
+        onShowAllArticles: controller.clearAllFilters,
+      ),
     );
   }
 }

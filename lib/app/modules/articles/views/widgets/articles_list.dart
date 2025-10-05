@@ -1,25 +1,38 @@
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
-
+import 'package:daily_satori/app/models/article_model.dart';
 import 'article_card.dart';
 
 /// 文章列表组件
-/// 负责展示文章列表和加载状态
-class ArticlesList extends GetView<ArticlesController> {
-  const ArticlesList({super.key});
+///
+/// 纯展示组件,负责展示文章列表和加载状态
+/// 通过回调函数与外部交互
+class ArticlesList extends StatelessWidget {
+  final List<ArticleModel> articles;
+  final bool isLoading;
+  final ScrollController scrollController;
+  final Future<void> Function() onRefresh;
+  final void Function(ArticleModel article) onArticleTap;
+  final void Function(ArticleModel article) onFavoriteToggle;
+  final void Function(ArticleModel article) onShare;
+
+  const ArticlesList({
+    super.key,
+    required this.articles,
+    required this.isLoading,
+    required this.scrollController,
+    required this.onRefresh,
+    required this.onArticleTap,
+    required this.onFavoriteToggle,
+    required this.onShare,
+  });
 
   @override
   Widget build(BuildContext context) {
     logger.d('构建文章列表组件');
     return RefreshIndicator(
-      onRefresh: () async {
-        logger.i('下拉刷新文章列表');
-        await controller.reloadArticles();
-      },
+      onRefresh: onRefresh,
       color: AppTheme.getColorScheme(context).primary,
       child: _buildListView(),
     );
@@ -27,33 +40,36 @@ class ArticlesList extends GetView<ArticlesController> {
 
   /// 构建列表视图
   Widget _buildListView() {
-    return Obx(() {
-      final itemCount = _calculateItemCount();
-      logger.d('文章列表项数量: $itemCount');
+    final itemCount = _calculateItemCount();
+    logger.d('文章列表项数量: $itemCount');
 
-      return ListView.builder(
-        controller: controller.scrollController,
-        itemCount: itemCount,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        // 使用 ListView.builder 的 separatorBuilder 会导致额外的 build 调用
-        // 所以我们在 itemBuilder 中处理间距
-        itemBuilder: (context, index) {
-          if (index == controller.articles.length) {
-            return _buildLoadingIndicator(context);
-          }
+    return ListView.builder(
+      controller: scrollController,
+      itemCount: itemCount,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      itemBuilder: (context, index) {
+        if (index == articles.length) {
+          return _buildLoadingIndicator(context);
+        }
 
-          return Padding(
-            padding: EdgeInsets.only(bottom: index < controller.articles.length - 1 ? 8.0 : 0),
-            child: ArticleCard(key: ValueKey(controller.articles[index].id), articleModel: controller.articles[index]),
-          );
-        },
-      );
-    });
+        final article = articles[index];
+        return Padding(
+          padding: EdgeInsets.only(bottom: index < articles.length - 1 ? 8.0 : 0),
+          child: ArticleCard(
+            key: ValueKey(article.id),
+            articleModel: article,
+            onTap: () => onArticleTap(article),
+            onFavoriteToggle: () => onFavoriteToggle(article),
+            onShare: () => onShare(article),
+          ),
+        );
+      },
+    );
   }
 
   /// 计算列表项总数
   int _calculateItemCount() {
-    return controller.articles.length + (controller.isLoading.value ? 1 : 0);
+    return articles.length + (isLoading ? 1 : 0);
   }
 
   /// 构建加载指示器

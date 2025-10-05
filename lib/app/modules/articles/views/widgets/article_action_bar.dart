@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:share_plus/share_plus.dart';
-
 import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 
 /// 文章操作栏组件
-class ArticleActionBar extends GetView<ArticlesController> {
+///
+/// 纯展示组件，通过回调函数与外部交互
+class ArticleActionBar extends StatelessWidget {
   final ArticleModel articleModel;
   final bool isProcessing;
+  final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onShare;
 
-  const ArticleActionBar({super.key, required this.articleModel, this.isProcessing = false});
+  const ArticleActionBar({
+    super.key,
+    required this.articleModel,
+    this.isProcessing = false,
+    this.onFavoriteToggle,
+    this.onShare,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -39,26 +45,24 @@ class ArticleActionBar extends GetView<ArticlesController> {
           context,
           articleModel.isFavorite ? Icons.favorite : Icons.favorite_border,
           articleModel.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-          () async {
-            await articleModel.toggleFavorite();
-            controller.updateArticle(articleModel.id);
-          },
+          onFavoriteToggle,
         ),
         const SizedBox(width: 8),
-        _buildActionButton(context, Icons.share, colorScheme.onSurfaceVariant.withValues(alpha: 0.7), () async {
-          await SharePlus.instance.share(
-            ShareParams(text: articleModel.url ?? '', subject: articleModel.aiTitle ?? articleModel.title ?? ''),
-          );
-        }),
+        _buildActionButton(context, Icons.share, colorScheme.onSurfaceVariant.withValues(alpha: 0.7), onShare),
       ],
     );
   }
 
-  Widget _buildActionButton(BuildContext context, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildActionButton(BuildContext context, IconData icon, Color color, VoidCallback? onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
-      child: Container(width: 28, height: 24, alignment: Alignment.center, child: Icon(icon, size: 16, color: color)),
+      child: Container(
+        width: 28,
+        height: 24,
+        alignment: Alignment.center,
+        child: Icon(icon, size: 16, color: color),
+      ),
     );
   }
 }

@@ -1,19 +1,21 @@
 import 'package:get_time_ago/get_time_ago.dart';
-
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/components/smart_image.dart';
-import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
+import 'package:daily_satori/app/components/article_info_item.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
-
-import 'article_info_item.dart';
 import 'article_action_bar.dart';
 
 /// 文章卡片组件
-/// 负责展示单个文章的信息，包括标题、图片、状态等
-class ArticleCard extends GetView<ArticlesController> {
+///
+/// 纯展示组件,负责展示单个文章的信息
+/// 通过回调函数与外部交互
+class ArticleCard extends StatelessWidget {
   final ArticleModel articleModel;
+  final VoidCallback? onTap;
+  final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onShare;
 
-  const ArticleCard({super.key, required this.articleModel});
+  const ArticleCard({super.key, required this.articleModel, this.onTap, this.onFavoriteToggle, this.onShare});
 
   @override
   Widget build(BuildContext context) {
@@ -43,10 +45,7 @@ class ArticleCard extends GetView<ArticlesController> {
   /// 构建主要内容
   Widget _buildMainContent(BuildContext context, bool isProcessing) {
     return InkWell(
-      onTap: () {
-        logger.d('点击文章卡片: ${articleModel.id}');
-        Get.toNamed(Routes.articleDetail, arguments: articleModel);
-      },
+      onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -150,7 +149,12 @@ class ArticleCard extends GetView<ArticlesController> {
             text: articleModel.createdAt != null ? GetTimeAgo.parse(articleModel.createdAt!, pattern: 'MM-dd') : '未知时间',
           ),
           const Spacer(),
-          ArticleActionBar(articleModel: articleModel, isProcessing: isProcessing),
+          ArticleActionBar(
+            articleModel: articleModel,
+            isProcessing: isProcessing,
+            onFavoriteToggle: onFavoriteToggle,
+            onShare: onShare,
+          ),
         ],
       ),
     );

@@ -1,13 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 
-import '../../controllers/articles_controller.dart';
-
 /// 文章搜索栏组件
-class ArticlesSearchBar extends GetView<ArticlesController> {
-  const ArticlesSearchBar({super.key});
+///
+/// 纯展示组件,通过回调函数与外部交互
+class ArticlesSearchBar extends StatefulWidget {
+  final TextEditingController searchController;
+  final FocusNode searchFocusNode;
+  final VoidCallback onBack;
+  final VoidCallback onSearch;
+  final VoidCallback onClear;
+
+  const ArticlesSearchBar({
+    super.key,
+    required this.searchController,
+    required this.searchFocusNode,
+    required this.onBack,
+    required this.onSearch,
+    required this.onClear,
+  });
+
+  @override
+  State<ArticlesSearchBar> createState() => _ArticlesSearchBarState();
+}
+
+class _ArticlesSearchBarState extends State<ArticlesSearchBar> {
+  @override
+  void initState() {
+    super.initState();
+    // 监听文本变化以更新清除按钮的显示
+    widget.searchController.addListener(() {
+      setState(() {});
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,10 +42,12 @@ class ArticlesSearchBar extends GetView<ArticlesController> {
 
     // 当搜索栏出现时自动聚焦
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusScope.of(context).requestFocus(controller.searchFocusNode);
-      controller.searchController.selection = TextSelection.fromPosition(
-        TextPosition(offset: controller.searchController.text.length),
-      );
+      if (widget.searchFocusNode.canRequestFocus) {
+        FocusScope.of(context).requestFocus(widget.searchFocusNode);
+        widget.searchController.selection = TextSelection.fromPosition(
+          TextPosition(offset: widget.searchController.text.length),
+        );
+      }
     });
 
     return Container(
@@ -33,13 +61,13 @@ class ArticlesSearchBar extends GetView<ArticlesController> {
         children: [
           IconButton(
             icon: Icon(FeatherIcons.arrowLeft, color: colorScheme.onSurface, size: 20),
-            onPressed: controller.toggleSearchState,
+            onPressed: widget.onBack,
             splashRadius: 20,
           ),
           Expanded(
             child: TextField(
-              controller: controller.searchController,
-              focusNode: controller.searchFocusNode,
+              controller: widget.searchController,
+              focusNode: widget.searchFocusNode,
               decoration: InputDecoration(
                 hintText: '搜索文章...',
                 hintStyle: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
@@ -49,23 +77,18 @@ class ArticlesSearchBar extends GetView<ArticlesController> {
               ),
               style: textTheme.bodyMedium,
               textInputAction: TextInputAction.search,
-              onSubmitted: (value) {
-                controller.searchArticles();
-              },
+              onSubmitted: (_) => widget.onSearch(),
             ),
           ),
           IconButton(
             icon: Icon(FeatherIcons.search, color: colorScheme.onSurface, size: 20),
-            onPressed: controller.searchArticles,
+            onPressed: widget.onSearch,
             splashRadius: 20,
           ),
-          if (controller.searchController.text.isNotEmpty)
+          if (widget.searchController.text.isNotEmpty)
             IconButton(
               icon: Icon(FeatherIcons.x, color: colorScheme.onSurface, size: 20),
-              onPressed: () {
-                controller.searchController.clear();
-                controller.clearAllFilters();
-              },
+              onPressed: widget.onClear,
               splashRadius: 20,
             ),
         ],

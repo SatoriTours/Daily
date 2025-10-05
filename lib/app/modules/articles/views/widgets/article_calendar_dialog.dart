@@ -1,32 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-
 import 'package:daily_satori/app/styles/app_theme.dart';
-import '../../controllers/articles_controller.dart';
 
 /// 文章日历对话框
+///
+/// 有状态组件,维护日历显示月份的内部状态
+/// 通过回调函数与外部交互
 class ArticleCalendarDialog extends StatefulWidget {
-  const ArticleCalendarDialog({super.key});
+  final Map<DateTime, int> articleCountMap;
+  final void Function(DateTime date) onDateSelected;
+  final VoidCallback onShowAllArticles;
+
+  const ArticleCalendarDialog({
+    super.key,
+    required this.articleCountMap,
+    required this.onDateSelected,
+    required this.onShowAllArticles,
+  });
 
   @override
   State<ArticleCalendarDialog> createState() => _ArticleCalendarDialogState();
 }
 
 class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
-  late final ArticlesController controller;
   late DateTime _selectedDate;
   late DateTime _displayedMonth;
-  late Map<DateTime, int> _articleCountMap;
 
   @override
   void initState() {
     super.initState();
-    controller = Get.find<ArticlesController>();
     _selectedDate = DateTime.now();
     _displayedMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
-    _articleCountMap = controller.getDailyArticleCounts();
   }
 
   @override
@@ -160,7 +165,7 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
             final date = DateTime(_displayedMonth.year, _displayedMonth.month, day);
 
             // 检查该日期是否有文章
-            final articleCount = _articleCountMap[DateTime(date.year, date.month, date.day)] ?? 0;
+            final articleCount = widget.articleCountMap[DateTime(date.year, date.month, date.day)] ?? 0;
 
             // 当前日期、选中日期的判断
             final isToday = _isToday(date);
@@ -173,7 +178,7 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
                 });
 
                 // 直接应用过滤并关闭对话框
-                controller.filterByDate(date);
+                widget.onDateSelected(date);
                 Navigator.pop(context);
               },
               child: _buildDayCell(context, day, articleCount, isToday, isSelected),
@@ -193,21 +198,20 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
       margin: const EdgeInsets.only(bottom: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children:
-            weekdays.map((day) {
-              final bool isWeekend = day == '六' || day == '日';
-              return Expanded(
-                child: Text(
-                  day,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isWeekend ? colorScheme.primary.withAlpha(180) : colorScheme.onSurfaceVariant,
-                    fontWeight: isWeekend ? FontWeight.w500 : FontWeight.normal,
-                  ),
-                ),
-              );
-            }).toList(),
+        children: weekdays.map((day) {
+          final bool isWeekend = day == '六' || day == '日';
+          return Expanded(
+            child: Text(
+              day,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: isWeekend ? colorScheme.primary.withAlpha(180) : colorScheme.onSurfaceVariant,
+                fontWeight: isWeekend ? FontWeight.w500 : FontWeight.normal,
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -287,7 +291,7 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
 
     return InkWell(
       onTap: () {
-        controller.clearAllFilters();
+        widget.onShowAllArticles();
         Navigator.pop(context);
       },
       child: Container(

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 
 /// 文章信息项组件
-class ArticleInfoItem extends GetView<ArticlesController> {
+///
+/// 这是一个纯展示组件，用于显示图标和文本信息
+/// 可以在多个地方复用（文章卡片、详情页等）
+class ArticleInfoItem extends StatelessWidget {
   final IconData icon;
   final String text;
 
