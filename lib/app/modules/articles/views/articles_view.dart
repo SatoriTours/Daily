@@ -86,7 +86,7 @@ class ArticlesView extends GetView<ArticlesController> {
       return Expanded(
         child: ArticlesList(
           articles: controller.articles,
-          isLoading: controller.isLoading.value,
+          isLoading: controller.isLoadingArticles.value,
           scrollController: controller.scrollController,
           onRefresh: controller.reloadArticles,
           onArticleTap: (article) {
@@ -99,10 +99,7 @@ class ArticlesView extends GetView<ArticlesController> {
           },
           onShare: (article) async {
             await SharePlus.instance.share(
-              ShareParams(
-                text: article.url ?? '',
-                subject: article.aiTitle ?? article.title ?? '',
-              ),
+              ShareParams(text: article.url ?? '', subject: article.aiTitle ?? article.title ?? ''),
             );
           },
         ),
@@ -251,4 +248,5 @@ class ArticlesView extends GetView<ArticlesController> {
     );
   }
 }
+
 // 本地的 _FilterIndicator 已抽取为通用组件 SFilterIndicator

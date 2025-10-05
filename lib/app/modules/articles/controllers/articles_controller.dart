@@ -12,8 +12,9 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
   late final ArticleStateService _articleStateService;
   late final AppStateService _appStateService;
 
-  /// 文章数据
-  final articles = <ArticleModel>[].obs;
+  /// 文章数据 - 引用自StateService
+  RxList<ArticleModel> get articles => _articleStateService.articles;
+  RxBool get isLoadingArticles => _articleStateService.isLoading;
 
   /// UI控制器
   final scrollController = ScrollController();
@@ -60,8 +61,14 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
     logger.i('重新加载文章列表');
     _lastRefreshTime = DateTime.now();
 
-    final newArticles = _fetchArticles();
-    articles.assignAll(newArticles);
+    final query = _buildQueryParams();
+    await _articleStateService.reloadArticles(
+      keyword: query.keyword,
+      favorite: query.favorite,
+      tagIds: query.tagIds,
+      startDate: query.startDate,
+      endDate: query.endDate,
+    );
 
     // 滚动到顶部
     if (scrollController.hasClients) {
@@ -129,44 +136,22 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
 
   /// 从列表中移除文章
   void removeArticle(int id) {
-    articles.removeWhere((article) => article.id == id);
+    _articleStateService.removeArticleFromList(id);
   }
 
   /// 更新列表中的文章
   void updateArticle(int id) {
-    final article = ArticleRepository.find(id);
-    if (article == null) return;
-
-    logger.i('更新文章状态 ${article.title}');
-
-    final index = articles.indexWhere((item) => item.id == id);
-    if (index != -1) {
-      // 就地合并，保持对象引用不变，其他页面引用会自动感知
-      articles[index].copyFrom(article);
-      // 触发 Rx 刷新
-      articles.refresh();
-    }
+    _articleStateService.updateArticleInList(id);
   }
 
   /// 合并/插入文章（用于新增或外部更新回写）
   void mergeArticle(ArticleModel model) {
-    final index = articles.indexWhere((item) => item.id == model.id);
-    if (index == -1) {
-      articles.insert(0, model);
-    } else {
-      articles[index].copyFrom(model);
-    }
-    articles.refresh();
+    _articleStateService.mergeArticle(model);
   }
 
   /// 获取某篇文章的共享引用（详情/编辑页应持有此引用而非自行查询）
   ArticleModel? getRef(int id) {
-    final index = articles.indexWhere((item) => item.id == id);
-    if (index == -1) return null;
-
-    // 设置为活跃文章
-    _articleStateService.setActiveArticle(articles[index]);
-    return articles[index];
+    return _articleStateService.getArticleRef(id);
   }
 
   /// 获取标题
@@ -281,24 +266,19 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
   }
 
   /// 获取过滤后的文章列表
-  List<ArticleModel> _fetchArticles([int? referenceId, bool? isGreaterThan]) {
+  Future<void> _loadArticlesWithQuery([int? referenceId, bool? isGreaterThan]) async {
     final query = _buildQueryParams();
 
-    isLoading.value = true;
-    try {
-      return ArticleRepository.where(
-        keyword: query.keyword,
-        isFavorite: query.favorite,
-        tagIds: query.tagIds,
-        startDate: query.startDate,
-        endDate: query.endDate,
-        referenceId: referenceId,
-        isGreaterThan: isGreaterThan,
-        pageSize: _pageSize,
-      );
-    } finally {
-      isLoading.value = false;
-    }
+    await _articleStateService.loadArticles(
+      keyword: query.keyword,
+      favorite: query.favorite,
+      tagIds: query.tagIds,
+      startDate: query.startDate,
+      endDate: query.endDate,
+      referenceId: referenceId,
+      isGreaterThan: isGreaterThan,
+      pageSize: _pageSize,
+    );
   }
 
   /// 构建查询参数
@@ -327,20 +307,10 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
   Future<void> _loadAdjacentArticles({required bool loadAfter}) async {
     if (articles.isEmpty) return;
 
-    isLoading.value = true;
-    try {
-      final anchorId = loadAfter ? articles.last.id : articles.first.id;
-      logger.i(loadAfter ? '加载ID:$anchorId之后的$_pageSize篇文章' : '加载ID:$anchorId之前的$_pageSize篇文章');
+    final anchorId = loadAfter ? articles.last.id : articles.first.id;
+    logger.i(loadAfter ? '加载ID:$anchorId之后的$_pageSize篇文章' : '加载ID:$anchorId之前的$_pageSize篇文章');
 
-      final newArticles = _fetchArticles(anchorId, loadAfter ? false : true);
-      if (loadAfter) {
-        articles.addAll(newArticles);
-      } else {
-        articles.insertAll(0, newArticles);
-      }
-    } finally {
-      isLoading.value = false;
-    }
+    await _loadArticlesWithQuery(anchorId, loadAfter ? false : true);
   }
 
   // ==== 私有小工具 ====
