@@ -37,7 +37,6 @@ class ShareDialogView extends GetView<ShareDialogController> {
                 children: [
                   _buildLinkSection(context),
                   Dimensions.verticalSpacerL,
-                  if (controller.isUpdate.value) ...[_buildRefreshSwitch(context), Dimensions.verticalSpacerL],
                   _buildTitleSection(context),
                   Dimensions.verticalSpacerL,
                   _buildCommentSection(context),
@@ -99,14 +98,52 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   // 构建链接区域（简洁版）
   Widget _buildLinkSection(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(Icons.link_rounded, size: Dimensions.iconSizeS, color: AppColors.getPrimary(context).withValues(alpha: Opacities.mediumOpaque)),
-            Dimensions.horizontalSpacerS,
-            Text('链接', style: AppTypography.titleSmall),
+            Icon(Icons.link_rounded, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
+            const SizedBox(width: 8),
+            Text('链接', style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            const Spacer(),
+            if (controller.isUpdate.value) ...[
+              Obx(
+                () => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.refresh_rounded,
+                      size: 14,
+                      color: controller.refreshAndAnalyze.value
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'AI分析',
+                      style: AppTypography.bodySmall.copyWith(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: controller.refreshAndAnalyze.value
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Transform.scale(
+                      scale: 0.8,
+                      child: Switch.adaptive(
+                        value: controller.refreshAndAnalyze.value,
+                        onChanged: (v) => controller.refreshAndAnalyze.value = v,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
         Dimensions.verticalSpacerS,
@@ -116,69 +153,18 @@ class ShareDialogView extends GetView<ShareDialogController> {
           decoration: BoxDecoration(
             color: AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.high),
             borderRadius: BorderRadius.circular(Dimensions.radiusS),
-            border: Border.all(color: AppColors.getOutlineVariant(context).withValues(alpha: Opacities.mediumHigh), width: BorderStyles.extraThin),
+            border: Border.all(
+              color: AppColors.getOutlineVariant(context).withValues(alpha: Opacities.mediumHigh),
+              width: BorderStyles.extraThin,
+            ),
           ),
           child: SelectableText(
             controller.shareURL.value,
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.getOnSurfaceVariant(context),
-              height: 1.4,
-            ),
+            style: AppTypography.bodySmall.copyWith(color: AppColors.getOnSurfaceVariant(context), height: 1.4),
             maxLines: 2,
           ),
         ),
       ],
-    );
-  }
-
-  // 构建重新抓取开关（优化版）
-  Widget _buildRefreshSwitch(BuildContext context) {
-    final theme = Theme.of(context);
-    return Obx(
-      () => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: controller.refreshAndAnalyze.value
-              ? theme.colorScheme.primaryContainer.withValues(alpha: 0.15)
-              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: controller.refreshAndAnalyze.value
-                ? theme.colorScheme.primary.withValues(alpha: 0.3)
-                : theme.colorScheme.outlineVariant.withValues(alpha: 0.25),
-            width: 0.5,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.refresh_rounded,
-              size: 18,
-              color: controller.refreshAndAnalyze.value
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                '重新抓取并AI分析',
-                style: AppTypography.bodyMedium.copyWith(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: controller.refreshAndAnalyze.value
-                      ? theme.colorScheme.onSurface
-                      : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
-                ),
-              ),
-            ),
-            Switch.adaptive(
-              value: controller.refreshAndAnalyze.value,
-              onChanged: (v) => controller.refreshAndAnalyze.value = v,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-          ],
-        ),
-      ),
     );
   }
 
