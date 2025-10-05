@@ -25,6 +25,9 @@ import 'package:daily_satori/app/services/clipboard_monitor_service.dart';
 import 'package:daily_satori/app/services/state/app_state_service.dart';
 import 'package:daily_satori/app/services/state/article_state_service.dart';
 import 'package:daily_satori/app/services/state/diary_state_service.dart';
+import 'package:daily_satori/app/services/state/books_state_service.dart';
+import 'package:daily_satori/app/services/state/ai_config_state_service.dart';
+import 'package:daily_satori/app/services/state/plugin_center_state_service.dart';
 import 'package:daily_satori/app/services/navigation_service.dart';
 
 class ServiceStatus {
@@ -134,6 +137,33 @@ class ServiceRegistry {
         priority: ServicePriority.high,
         onInit: () async {
           Get.put(DiaryStateService());
+        },
+      ),
+    );
+    register(
+      FunctionAppService(
+        serviceName: 'BooksStateService',
+        priority: ServicePriority.high,
+        onInit: () async {
+          Get.put(BooksStateService());
+        },
+      ),
+    );
+    register(
+      FunctionAppService(
+        serviceName: 'AIConfigStateService',
+        priority: ServicePriority.high,
+        onInit: () async {
+          Get.put(AIConfigStateService());
+        },
+      ),
+    );
+    register(
+      FunctionAppService(
+        serviceName: 'PluginCenterStateService',
+        priority: ServicePriority.high,
+        onInit: () async {
+          Get.put(PluginCenterStateService());
         },
       ),
     );

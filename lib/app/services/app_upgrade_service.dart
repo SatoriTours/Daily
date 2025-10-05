@@ -38,6 +38,13 @@ class AppUpgradeService {
     try {
       if (await check()) {
         Get.back(); // 关闭 loading
+        
+        // 检查是否为生产环境
+        if (!AppInfoUtils.isProduction) {
+          UIUtils.showSuccess('当前为调试版本，无法自动更新\n请前往 GitHub 下载最新版本', title: '提示');
+          return;
+        }
+        
         await _downAndInstallApp();
       } else {
         Get.back(); // 关闭 loading

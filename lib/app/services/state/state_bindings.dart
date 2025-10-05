@@ -11,6 +11,9 @@ class StateServicesBinding extends Binding {
       Bind.put<AppStateService>(AppStateService()),
       Bind.put<ArticleStateService>(ArticleStateService()),
       Bind.put<DiaryStateService>(DiaryStateService()),
+      Bind.put<BooksStateService>(BooksStateService()),
+      Bind.put<AIConfigStateService>(AIConfigStateService()),
+      Bind.put<PluginCenterStateService>(PluginCenterStateService()),
     ];
   }
 }
@@ -24,6 +27,9 @@ class StateServiceInitializer {
     Get.put(AppStateService());
     Get.put(ArticleStateService());
     Get.put(DiaryStateService());
+    Get.put(BooksStateService());
+    Get.put(AIConfigStateService());
+    Get.put(PluginCenterStateService());
 
     // 记录初始化完成
     logger.i('状态服务初始化完成');
