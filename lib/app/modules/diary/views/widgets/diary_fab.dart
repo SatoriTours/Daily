@@ -1,16 +1,14 @@
-import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app_exports.dart';
 
-import '../../controllers/diary_controller.dart';
-import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
-import 'diary_editor.dart';
-
 /// 日记悬浮按钮组件
+///
+/// 纯展示组件,通过参数接收回调函数
 class DiaryFab extends StatefulWidget {
-  final DiaryController controller;
+  /// 点击FAB回调
+  final VoidCallback onPressed;
 
-  const DiaryFab({super.key, required this.controller});
+  const DiaryFab({super.key, required this.onPressed});
 
   @override
   State<DiaryFab> createState() => _DiaryFabState();
@@ -96,9 +94,9 @@ class _DiaryFabState extends State<DiaryFab> with SingleTickerProviderStateMixin
 
   /// 处理FAB点击
   void _handleFabPressed() {
-    logger.d('点击悬浮按钮，显示编辑器');
+    logger.d('点击悬浮按钮');
     _playPressAnimation();
-    _showExpandedEditor(context);
+    widget.onPressed();
   }
 
   /// 播放按钮按下动画
@@ -110,22 +108,5 @@ class _DiaryFabState extends State<DiaryFab> with SingleTickerProviderStateMixin
         }
       });
     });
-  }
-
-  /// 显示扩展编辑器
-  void _showExpandedEditor(BuildContext context) {
-    // 清空内容控制器
-    widget.controller.contentController.clear();
-
-    // 显示底部编辑器模态框
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: DiaryStyle.bottomSheetColor(context),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
-      ),
-      builder: (context) => DiaryEditor(controller: widget.controller),
-    );
   }
 }

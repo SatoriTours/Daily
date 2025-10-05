@@ -2,14 +2,29 @@ import 'package:daily_satori/app_exports.dart';
 
 /// 全局日记状态管理服务
 ///
-/// 负责管理日记相关的全局状态，包括当前选中日记、
-/// 标签过滤状态等，避免控制器之间的紧耦合
+/// 负责管理日记相关的全局状态和数据，包括：
+/// - 日记列表数据缓存
+/// - 当前选中日记
+/// - 标签和日期过滤状态
+/// - 避免控制器之间的紧耦合
 class DiaryStateService extends GetxService {
+  // ===== 数据层（唯一数据源） =====
+
+  /// 日记列表数据
+  final RxList<DiaryModel> diaries = <DiaryModel>[].obs;
+
+  /// 加载状态
+  final RxBool isLoading = false.obs;
+
+  // ===== 当前活跃日记 =====
+
   /// 当前活跃的日记ID
   final RxInt _activeDiaryId = RxInt(-1);
 
   /// 当前活跃的日记引用
   final Rxn<DiaryModel> _activeDiary = Rxn<DiaryModel>();
+
+  // ===== 过滤状态 =====
 
   /// 全局标签过滤状态
   final RxString globalTagFilter = ''.obs;
@@ -18,13 +33,84 @@ class DiaryStateService extends GetxService {
   final Rx<DateTime?> globalDateFilter = Rx<DateTime?>(null);
 
   /// 日记更新通知流
-  final RxMap<int, DiaryModel> diaryUpdates = RxMap<int, DiaryModel>();
+  final RxMap<int, DiaryModel> diaryUpdates = <int, DiaryModel>{}.obs;
+
+  // ===== Getters =====
 
   /// 获取当前活跃的日记ID
   int get activeDiaryId => _activeDiaryId.value;
 
   /// 获取当前活跃的日记
   DiaryModel? get activeDiary => _activeDiary.value;
+
+  // ===== 数据操作方法 =====
+
+  /// 加载日记列表
+  Future<void> loadDiaries({String? keyword, String? tag, DateTime? date}) async {
+    isLoading.value = true;
+    try {
+      logger.i('加载日记列表: keyword=$keyword, tag=$tag, date=$date');
+
+      List<DiaryModel> result;
+
+      if (keyword != null && keyword.isNotEmpty) {
+        // 按关键词搜索
+        result = DiaryRepository.i.searchByContent(keyword);
+      } else if (tag != null && tag.isNotEmpty) {
+        // 按标签过滤
+        result = DiaryRepository.i.searchByTag(tag);
+      } else if (date != null) {
+        // 按日期过滤
+        result = DiaryRepository.i.getByDate(date);
+      } else {
+        // 获取所有日记
+        result = DiaryRepository.i.getAll();
+      }
+
+      diaries.assignAll(result);
+      logger.d('日记列表加载完成: ${diaries.length}条');
+    } catch (e) {
+      logger.e('加载日记列表失败', error: e);
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// 更新列表中的日记
+  void updateDiaryInList(int id) {
+    final diary = DiaryRepository.i.getById(id);
+    if (diary == null) return;
+
+    final index = diaries.indexWhere((d) => d.id == id);
+    if (index != -1) {
+      diaries[index] = diary;
+    }
+    logger.d('更新列表中的日记: ID=$id');
+  }
+
+  /// 从列表中移除日记
+  void removeDiaryFromList(int id) {
+    diaries.removeWhere((item) => item.id == id);
+    logger.d('从列表移除日记: ID=$id');
+  }
+
+  /// 添加日记到列表
+  void addDiaryToList(DiaryModel diary) {
+    diaries.insert(0, diary); // 添加到列表开头
+    logger.d('添加日记到列表: ID=${diary.id}');
+  }
+
+  /// 获取日记引用
+  DiaryModel? getDiaryRef(int id) {
+    final index = diaries.indexWhere((item) => item.id == id);
+    if (index != -1) {
+      setActiveDiary(diaries[index]);
+      return diaries[index];
+    }
+    return DiaryRepository.i.getById(id);
+  }
+
+  // ===== 活跃日记管理 =====
 
   /// 设置活跃日记
   void setActiveDiary(DiaryModel diary) {

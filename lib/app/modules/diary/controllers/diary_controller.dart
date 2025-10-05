@@ -15,8 +15,9 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
   /// 状态服务
   late final DiaryStateService _diaryStateService;
 
-  /// 日记数据
-  final diaries = <DiaryModel>[].obs;
+  /// 日记数据 - 引用自StateService
+  RxList<DiaryModel> get diaries => _diaryStateService.diaries;
+  RxBool get isLoadingDiaries => _diaryStateService.isLoading;
 
   /// UI控制器
   final scrollController = ScrollController();
@@ -70,14 +71,7 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
   void _refreshDiaryUpdates() {
     // 检查是否有需要更新的日记
     for (final diaryId in _diaryStateService.diaryUpdates.keys) {
-      final updatedDiary = _diaryStateService.getDiaryUpdate(diaryId);
-      if (updatedDiary != null) {
-        final index = diaries.indexWhere((item) => item.id == diaryId);
-        if (index != -1) {
-          diaries[index] = updatedDiary;
-          diaries.refresh();
-        }
-      }
+      _diaryStateService.updateDiaryInList(diaryId);
     }
   }
 
@@ -128,11 +122,13 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
     isLoading.value = true;
 
     final diary = DiaryModel(content: content, tags: tags, mood: mood, images: images);
+    final id = DiaryRepository.i.save(diary);
 
-    DiaryRepository.i.save(diary);
-
-    // 重新加载日记列表
-    await _loadDiaries();
+    // 添加到StateService列表
+    final savedDiary = DiaryRepository.i.getById(id);
+    if (savedDiary != null) {
+      _diaryStateService.addDiaryToList(savedDiary);
+    }
 
     // 清空输入框
     contentController.clear();
@@ -152,8 +148,8 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
 
     DiaryRepository.i.delete(id);
 
-    // 重新加载日记列表
-    await _loadDiaries();
+    // 从StateService列表移除
+    _diaryStateService.removeDiaryFromList(id);
 
     isLoading.value = false;
   }
@@ -185,8 +181,8 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
     // 通知全局状态服务日记已更新
     _diaryStateService.notifyDiaryUpdated(diary);
 
-    // 重新加载日记列表
-    await _loadDiaries();
+    // 更新StateService列表中的日记
+    _diaryStateService.updateDiaryInList(diary.id);
 
     isLoading.value = false;
   }
@@ -364,49 +360,29 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
 
   /// 加载日记列表
   Future<void> _loadDiaries() async {
-    isLoading.value = true;
+    // 准备过滤参数
+    String? keyword;
+    String? tag;
+    DateTime? date;
 
-    final allDiaries = DiaryRepository.i.getAll();
-
-    // 应用过滤条件
     if (searchQuery.isNotEmpty) {
-      // 按内容搜索
-      diaries.value = allDiaries
-          .where((d) => d.content.toLowerCase().contains(searchQuery.value.toLowerCase()))
-          .toList();
+      keyword = searchQuery.value;
     } else if (_diaryStateService.globalTagFilter.isNotEmpty) {
-      // 按全局标签筛选
-      diaries.value = allDiaries
-          .where((d) => d.tags != null && d.tags!.toLowerCase().contains(_diaryStateService.globalTagFilter.value.toLowerCase()))
-          .toList();
+      tag = _diaryStateService.globalTagFilter.value;
     } else if (currentTag.isNotEmpty) {
-      // 按本地标签筛选
-      diaries.value = allDiaries
-          .where((d) => d.tags != null && d.tags!.toLowerCase().contains(currentTag.value.toLowerCase()))
-          .toList();
+      tag = currentTag.value;
     } else if (_diaryStateService.globalDateFilter.value != null) {
-      // 按全局日期筛选
-      final filterDate = _diaryStateService.globalDateFilter.value!;
-      diaries.value = allDiaries.where((d) {
-        final diaryDate = DateTime(d.createdAt.year, d.createdAt.month, d.createdAt.day);
-        return diaryDate.isAtSameMomentAs(filterDate);
-      }).toList();
+      date = _diaryStateService.globalDateFilter.value;
     } else if (selectedFilterDate.value != null) {
-      // 按本地日期筛选
-      final filterDate = selectedFilterDate.value!;
-      diaries.value = allDiaries.where((d) {
-        final diaryDate = DateTime(d.createdAt.year, d.createdAt.month, d.createdAt.day);
-        return diaryDate.isAtSameMomentAs(filterDate);
-      }).toList();
-    } else {
-      // 全部加载
-      diaries.value = allDiaries;
+      date = selectedFilterDate.value;
     }
 
-    // 排序：最新的在前面
-    diaries.value.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-    isLoading.value = false;
+    // 调用StateService加载数据
+    await _diaryStateService.loadDiaries(
+      keyword: keyword,
+      tag: tag,
+      date: date,
+    );
 
     // 提取所有标签
     _extractTags();

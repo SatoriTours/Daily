@@ -2,14 +2,33 @@ import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app_exports.dart';
 
-import '../../controllers/diary_controller.dart';
-
 /// 日记搜索栏组件
+///
+/// 纯展示组件,通过参数接收数据和回调函数
 class DiarySearchBar extends StatefulWidget {
-  final DiaryController controller;
+  /// 搜索文本控制器
+  final TextEditingController searchController;
+
+  /// 搜索框焦点节点
+  final FocusNode searchFocusNode;
+
+  /// 关闭搜索栏回调
   final VoidCallback onClose;
 
-  const DiarySearchBar({super.key, required this.controller, required this.onClose});
+  /// 执行搜索回调
+  final Function(String) onSearch;
+
+  /// 清除过滤回调
+  final VoidCallback onClearFilters;
+
+  const DiarySearchBar({
+    super.key,
+    required this.searchController,
+    required this.searchFocusNode,
+    required this.onClose,
+    required this.onSearch,
+    required this.onClearFilters,
+  });
 
   @override
   State<DiarySearchBar> createState() => _DiarySearchBarState();
@@ -34,17 +53,17 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
     });
 
     // 初始化清除按钮状态
-    _showClearButton = widget.controller.searchController.text.isNotEmpty;
+    _showClearButton = widget.searchController.text.isNotEmpty;
 
     // 添加文本变化监听器
-    widget.controller.searchController.addListener(_onTextChanged);
+    widget.searchController.addListener(_onTextChanged);
 
     logger.d('搜索栏组件初始化');
   }
 
   /// 文本变化监听器
   void _onTextChanged() {
-    final isTextEmpty = widget.controller.searchController.text.isEmpty;
+    final isTextEmpty = widget.searchController.text.isEmpty;
     if (_showClearButton == isTextEmpty) {
       setState(() {
         _showClearButton = !isTextEmpty;
@@ -54,24 +73,24 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
 
   @override
   void dispose() {
-    widget.controller.searchController.removeListener(_onTextChanged);
+    widget.searchController.removeListener(_onTextChanged);
     _animController.dispose();
     super.dispose();
   }
 
   /// 请求搜索框焦点
   void _requestFocus() {
-    FocusScope.of(context).requestFocus(widget.controller.searchFocusNode);
-    widget.controller.searchController.selection = TextSelection.fromPosition(
-      TextPosition(offset: widget.controller.searchController.text.length),
+    FocusScope.of(context).requestFocus(widget.searchFocusNode);
+    widget.searchController.selection = TextSelection.fromPosition(
+      TextPosition(offset: widget.searchController.text.length),
     );
   }
 
   /// 执行搜索
   void _performSearch() {
-    logger.d('执行搜索: ${widget.controller.searchController.text}');
-    final query = widget.controller.searchController.text;
-    widget.controller.search(query);
+    logger.d('执行搜索: ${widget.searchController.text}');
+    final query = widget.searchController.text;
+    widget.onSearch(query);
 
     if (query.trim().isEmpty) {
       _handleClose();
@@ -81,8 +100,8 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
   /// 清空搜索
   void _clearSearch() {
     logger.d('清空搜索');
-    widget.controller.searchController.clear();
-    widget.controller.clearFilters();
+    widget.searchController.clear();
+    widget.onClearFilters();
     widget.onClose();
   }
 
@@ -137,8 +156,8 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
         borderRadius: BorderRadius.circular(18),
       ),
       child: TextField(
-        controller: widget.controller.searchController,
-        focusNode: widget.controller.searchFocusNode,
+        controller: widget.searchController,
+        focusNode: widget.searchFocusNode,
         decoration: InputDecoration(
           hintText: '搜索日记内容...',
           hintStyle: TextStyle(color: DiaryStyle.secondaryTextColor(context), fontSize: 14),
