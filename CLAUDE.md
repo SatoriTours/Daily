@@ -199,6 +199,237 @@ _articleStateService.notifyArticleUpdated(article);
 
 ### 事件总线模式约束
 
+**为什么要使用事件总线？**
+
+我们采用事件总线模式通过状态服务进行页面解耦，主要原因：
+
+1. **避免循环依赖**: Controller A 不知道 Controller B 的存在
+2. **松耦合**: 发布事件的一方不需要知道谁在监听
+3. **可扩展**: 新模块可以轻松订阅已有事件
+4. **可测试**: 每个控制器可以独立测试
+
+```dart
+// 在控制器中订阅事件
+ever(_articleStateService.articleUpdateEvent, (event) {
+  switch (event.type) {
+    case ArticleEventType.created:
+      // 处理创建事件
+      break;
+    case ArticleEventType.updated:
+      // 处理更新事件
+      break;
+    case ArticleEventType.deleted:
+      // 处理删除事件
+      break;
+  }
+});
+```
+
+## 📊 数据管理架构优化（推荐）
+
+### 架构分层职责
+
+为了避免数据重复缓存和状态不一致问题，建议采用以下分层架构：
+
+| 层级 | 职责 | 示例 |
+|------|------|------|
+| **Repository** | 数据访问层 | ObjectBox 查询、数据持久化 |
+| **StateService** | 数据管理层 | 列表数据缓存、业务逻辑、事件通知 |
+| **Controller** | UI逻辑层 | 界面交互、用户输入、调用Service |
+| **View** | 展示层 | Widget 渲染、Obx 响应式绑定 |
+
+### StateService 数据管理最佳实践
+
+**ArticleStateService 应该承担数据管理职责**
+
+```dart
+/// 文章状态服务 - 推荐模式
+class ArticleStateService extends GetxService {
+  // ===== 数据层（唯一数据源） =====
+  final RxList<ArticleModel> articles = <ArticleModel>[].obs;
+  final RxBool isLoading = false.obs;
+
+  // ===== 当前活跃文章 =====
+  final Rxn<ArticleModel> activeArticle = Rxn<ArticleModel>();
+
+  // ===== 事件通知 =====
+  final Rx<ArticleUpdateEvent> articleUpdateEvent = ...;
+
+  // ===== 数据操作方法 =====
+
+  /// 加载文章列表
+  Future<void> loadArticles({
+    String? keyword,
+    bool? favorite,
+    List<int>? tagIds,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? referenceId,
+    bool? isGreaterThan,
+    int pageSize = 20,
+  }) async {
+    isLoading.value = true;
+    try {
+      final result = ArticleRepository.where(...);
+
+      if (referenceId == null) {
+        articles.assignAll(result);  // 全新加载
+      } else if (isGreaterThan == false) {
+        articles.addAll(result);      // 向后分页
+      } else {
+        articles.insertAll(0, result); // 向前分页
+      }
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// 更新列表中的文章
+  void updateArticleInList(int id) {
+    final article = ArticleRepository.find(id);
+    if (article == null) return;
+
+    final index = articles.indexWhere((item) => item.id == id);
+    if (index != -1) {
+      articles[index].copyFrom(article);
+      articles.value = List.from(articles); // 触发响应式更新
+    }
+  }
+
+  /// 从列表中移除文章
+  void removeArticleFromList(int id) {
+    articles.removeWhere((item) => item.id == id);
+  }
+
+  /// 获取文章引用
+  ArticleModel? getArticleRef(int id) {
+    final index = articles.indexWhere((item) => item.id == id);
+    if (index != -1) {
+      setActiveArticle(articles[index]);
+      return articles[index];
+    }
+    return ArticleRepository.find(id);
+  }
+}
+```
+
+**Controller 只处理 UI 逻辑**
+
+```dart
+/// 文章列表控制器 - 推荐模式
+class ArticlesController extends BaseGetXController {
+  late final ArticleStateService _articleStateService;
+
+  // UI 控制器
+  final scrollController = ScrollController();
+  final searchController = TextEditingController();
+
+  // UI 状态（过滤条件等）
+  final onlyFavorite = false.obs;
+  final tagId = (-1).obs;
+
+  // 直接引用 StateService 的数据
+  List<ArticleModel> get articles => _articleStateService.articles;
+  bool get isLoading => _articleStateService.isLoading.value;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _articleStateService = Get.find<ArticleStateService>();
+    _initScrollListener();
+    reloadArticles();
+  }
+
+  /// 重新加载（调用 StateService）
+  Future<void> reloadArticles() async {
+    await _articleStateService.loadArticles(
+      keyword: _getSearchQuery(),
+      favorite: onlyFavorite.value ? true : null,
+      tagIds: tagId.value > 0 ? [tagId.value] : null,
+    );
+
+    if (scrollController.hasClients) {
+      scrollController.jumpTo(0);
+    }
+  }
+
+  /// UI 交互方法
+  void toggleFavorite(bool value) {
+    onlyFavorite.value = value;
+    reloadArticles();
+  }
+
+  void filterByTag(int id, String name) {
+    tagId.value = id;
+    reloadArticles();
+  }
+}
+```
+
+### 当前技术债说明
+
+由于历史原因，当前代码在部分模块中存在以下待优化项：
+
+1. **数据重复缓存**
+   - ❌ ArticlesController 本地缓存了 `articles` 列表
+   - ❌ ArticleStateService 也可能管理文章数据
+   - ✅ 建议：统一由 StateService 管理，Controller 只引用
+
+2. **职责混乱**
+   - ❌ Controller 既管 UI 又管数据加载
+   - ✅ 建议：Controller 只管 UI，数据操作委托给 StateService
+
+3. **事件处理冗余**
+   - ❌ Controller 监听事件后手动更新本地列表
+   - ✅ 建议：StateService 自动维护列表，Controller 无需干预
+
+**优化优先级**：
+- 🔴 高优先级：新功能模块必须采用推荐架构
+- 🟡 中优先级：重构现有核心模块（articles, diary）
+- 🟢 低优先级：稳定运行的老模块可暂缓重构
+
+### 迁移指南
+
+如需将现有模块迁移到推荐架构，请按以下步骤：
+
+1. **扩展 StateService**
+   ```dart
+   // 添加数据管理方法
+   Future<void> loadData(...) async
+   void updateItem(int id)
+   void removeItem(int id)
+   ```
+
+2. **简化 Controller**
+   ```dart
+   // 移除本地数据缓存
+   - final articles = <Model>[].obs;
+
+   // 改用 StateService 引用
+   + List<Model> get articles => _stateService.articles;
+
+   // 调用 StateService 方法
+   - _fetchArticles();
+   + _stateService.loadArticles();
+   ```
+
+3. **更新 View**
+   ```dart
+   // 无需修改，Obx 会自动响应 StateService 的数据变化
+   Obx(() => ListView.builder(
+     itemCount: controller.articles.length,
+     ...
+   ))
+   ```
+
+4. **测试验证**
+   - 确保列表加载正常
+   - 确保数据更新响应
+   - 确保分页功能正常
+   - 确保事件通知正常
+
+### 事件总线模式约束（续）
+
 **必须使用事件总线进行跨页面状态同步**
 
 对于需要跨多个页面同步状态的场景，必须使用事件总线模式，而不是直接的状态更新。

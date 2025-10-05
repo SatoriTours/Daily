@@ -175,7 +175,12 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
         ? _articleStateService.globalSearchQuery.value
         : searchController.text;
 
-    return switch ((_articleStateService.globalSearchQuery.isNotEmpty, tagName.value.isNotEmpty, onlyFavorite.value, selectedFilterDate.value != null)) {
+    return switch ((
+      _articleStateService.globalSearchQuery.isNotEmpty,
+      tagName.value.isNotEmpty,
+      onlyFavorite.value,
+      selectedFilterDate.value != null,
+    )) {
       (true, _, _, _) => '搜索: "$searchQuery"',
       (_, true, _, _) => '标签: ${tagName.value}',
       (_, _, true, _) => '收藏文章',
@@ -375,11 +380,5 @@ class QueryParams {
   final DateTime? startDate;
   final DateTime? endDate;
 
-  QueryParams({
-    this.keyword,
-    this.favorite,
-    this.tagIds,
-    this.startDate,
-    this.endDate,
-  });
+  QueryParams({this.keyword, this.favorite, this.tagIds, this.startDate, this.endDate});
 }
