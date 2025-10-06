@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -5,6 +6,9 @@ import 'package:get/get.dart';
 class DialogUtils {
   // 私有构造函数，防止实例化
   DialogUtils._();
+
+  // 加载对话框状态
+  static bool _isLoadingShown = false;
 
   /// 显示提示对话框
   static Future<void> showAlert({
@@ -46,14 +50,14 @@ class DialogUtils {
         actions: [
           TextButton(
             onPressed: () {
-              Get.back(result: false);
+              _closeDialog();
               if (onCancel != null) onCancel();
             },
             child: Text(cancelText),
           ),
           TextButton(
             onPressed: () {
-              Get.back(result: true);
+              _closeDialog();
               if (onConfirm != null) onConfirm();
             },
             child: Text(confirmText),
@@ -83,14 +87,48 @@ class DialogUtils {
           keyboardType: keyboardType,
         ),
         actions: [
-          TextButton(onPressed: () => Get.back(), child: Text(cancelText)),
-          TextButton(
-            onPressed: () => Get.back(result: controller.text),
-            child: Text(confirmText),
-          ),
+          TextButton(onPressed: () => _closeDialog(), child: Text(cancelText)),
+          TextButton(onPressed: () => _closeDialog(), child: Text(confirmText)),
         ],
       ),
     );
     return result;
+  }
+
+  /// 显示全屏加载提示
+  static void showLoading({String tips = '', Color barrierColor = const Color(0x80000000)}) {
+    if (_isLoadingShown) return; // 如果已经显示了loading，直接返回
+    final context = Get.context;
+    final textTheme = context != null ? Theme.of(context).textTheme.bodyMedium : null;
+    Get.dialog(
+      PopScope(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              if (tips.isNotEmpty) ...[const SizedBox(height: 16), Text(tips, style: textTheme)],
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+      barrierColor: barrierColor,
+    );
+    _isLoadingShown = true;
+  }
+
+  /// 隐藏加载提示
+  static void hideLoading() {
+    logger.i('隐藏加载对话框1');
+    if (_isLoadingShown) {
+      logger.i('隐藏加载对话框');
+      _closeDialog();
+      _isLoadingShown = false;
+    }
+  }
+
+  static void _closeDialog() {
+    Navigator.of(Get.context!).pop();
   }
 }

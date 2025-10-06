@@ -58,12 +58,10 @@ void successNotice(String content, {String title = '提示'}) => UIUtils.showSuc
 void errorNotice(String content, {String title = '错误'}) => UIUtils.showError(content, title: title);
 
 /// 显示全屏加载提示
-@Deprecated('使用 UIUtils.showLoading() 替代')
 void showFullScreenLoading({String tips = '', Color barrierColor = Colors.black45}) =>
-    UIUtils.showLoading(tips: tips, barrierColor: barrierColor);
+    DialogUtils.showLoading(tips: tips, barrierColor: barrierColor);
 
 /// 显示确认对话框
-@Deprecated('使用 DialogUtils.showConfirm() 替代')
 Future<void> showConfirmationDialog(
   String title,
   String message, {

@@ -1,5 +1,6 @@
 import 'package:daily_satori/app/components/common/feature_icon.dart';
 import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/utils/dialog_utils.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -344,27 +345,12 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   void _showFactoryResetConfirmDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认恢复出厂设置'),
-        content: const Text('这将重置所有应用设置，但不会删除您的数据。此操作不可撤销，是否继续？'),
-        actions: [
-          TextButton(
-            style: ButtonStyles.getTextStyle(context),
-            child: const Text('取消'),
-            onPressed: () => Navigator.pop(context),
-          ),
-          ElevatedButton(
-            style: ButtonStyles.getDangerStyle(context),
-            child: const Text('确认重置'),
-            onPressed: () {
-              Navigator.pop(context);
-              controller.factoryReset();
-            },
-          ),
-        ],
-      ),
+    DialogUtils.showConfirm(
+      title: '确认恢复出厂设置',
+      message: '这将重置所有应用设置，但不会删除您的数据。此操作不可撤销，是否继续？',
+      confirmText: '确认重置',
+      cancelText: '取消',
+      onConfirm: () => controller.factoryReset(),
     );
   }
 

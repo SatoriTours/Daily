@@ -34,31 +34,26 @@ class AppUpgradeService {
 
   // 检查并下载新版本(带UI提示)
   Future<void> checkAndDownload() async {
-    UIUtils.showLoading(tips: '正在检查更新...');
+    DialogUtils.showLoading(tips: '正在检查更新...');
     try {
-      if (await check()) {
-        Get.back(); // 关闭 loading
+      final hasUpdate = await check();
 
-        // 检查是否为生产环境
-        if (!AppInfoUtils.isProduction) {
-          UIUtils.showSuccess('当前为调试版本，无法自动更新\n请前往 GitHub 下载最新版本', title: '提示');
-          return;
-        }
-
+      if (hasUpdate) {
         await _downAndInstallApp();
       } else {
-        Get.back(); // 关闭 loading
         UIUtils.showSuccess('当前已是最新版本');
       }
     } catch (e) {
-      Get.back(); // 关闭 loading
       logger.e("检查更新失败: $e");
       UIUtils.showError('检查更新失败，请稍后重试');
+    } finally {
+      DialogUtils.hideLoading();
     }
   }
 
   // 后台检查并下载新版本
   Future<void> checkAndDownloadInbackend() async {
+    if (!AppInfoUtils.isProduction) return;
     if (await check()) {
       await _downAndInstallApp();
     }
@@ -88,38 +83,45 @@ class AppUpgradeService {
 
   // 下载并安装新版本
   Future<void> _downAndInstallApp() async {
-    if (!needUpgrade || !AppInfoUtils.isProduction) return;
+    if (!needUpgrade) return;
 
     await DialogUtils.showConfirm(
       title: '检测到新版本',
       message: '当前版本 [$_currentVersion], 最新版本 [$_latestVersion]\n请确认是否下载更新',
       onConfirm: () async {
-        // 仅 Android 需要安装未知来源权限
-        if (GetPlatform.isAndroid) {
+        // 仅生产环境的 Android 需要安装未知来源权限
+        if (AppInfoUtils.isProduction && GetPlatform.isAndroid) {
           if (!await _requestInstallPermission()) {
             UIUtils.showError('需要安装权限才能继续');
             return;
           }
         }
 
-        UIUtils.showLoading(tips: '正在下载更新包...');
+        DialogUtils.showLoading(tips: '正在下载更新包...');
         try {
           final appFilePath = await HttpService.i.downloadFile(_downloadURL);
           logger.i("下载文件到: $appFilePath");
 
           if (appFilePath.isEmpty) {
-            Get.back(); // 关闭 loading
+            DialogUtils.hideLoading();
             UIUtils.showError('下载失败，请检查网络后重试');
             return;
           }
 
-          // 指定 APK 的 MIME，其他类型走默认
+          // 非生产环境：只下载不安装
+          if (!AppInfoUtils.isProduction) {
+            DialogUtils.hideLoading();
+            UIUtils.showSuccess('安装包已下载到: $appFilePath\n调试版本请手动安装');
+            return;
+          }
+
+          // 生产环境：下载后自动打开安装
           final isApk = appFilePath.toLowerCase().endsWith('.apk');
           final result = await OpenFile.open(
             appFilePath,
             type: isApk ? 'application/vnd.android.package-archive' : null,
           );
-          Get.back(); // 关闭 loading
+          DialogUtils.hideLoading();
 
           logger.i("打开文件结果: ${result.type} ${result.message}");
           if (result.type != ResultType.done) {
@@ -128,7 +130,7 @@ class AppUpgradeService {
             UIUtils.showSuccess('安装包已准备就绪，请按提示完成安装');
           }
         } catch (e) {
-          Get.back(); // 关闭 loading
+          DialogUtils.hideLoading();
           logger.e("下载或安装失败: $e");
           UIUtils.showError("更新失败，请稍后重试");
         }

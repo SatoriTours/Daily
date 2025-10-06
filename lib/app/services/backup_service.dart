@@ -174,7 +174,7 @@ class BackupService {
     String backupFolder = path.join(backupDir, 'daily_satori_backup_$backupName');
     String appDocDir = (await getApplicationDocumentsDirectory()).path;
 
-    UIUtils.showLoading();
+    DialogUtils.showLoading();
 
     try {
       // 检查备份文件是否都存在

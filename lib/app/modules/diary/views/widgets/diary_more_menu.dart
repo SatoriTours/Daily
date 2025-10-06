@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
-import 'package:daily_satori/app/utils/ui_utils.dart';
+import 'package:daily_satori/global.dart';
 
 /// 日记卡片的更多操作菜单
 class DiaryMoreMenu extends StatelessWidget {
@@ -54,12 +54,12 @@ class DiaryMoreMenu extends StatelessWidget {
 
   /// 显示删除确认对话框
   void _showDeleteConfirmation(BuildContext context) {
-    UIUtils.showConfirmation(
-      '确认删除',
-      '你确定要删除这条日记吗？此操作无法撤销。',
+    DialogUtils.showConfirm(
+      title: '确认删除',
+      message: '你确定要删除这条日记吗？此操作无法撤销。',
       confirmText: '删除',
       cancelText: '取消',
-      onConfirmed: onDelete,
+      onConfirm: onDelete,
     );
   }
 }

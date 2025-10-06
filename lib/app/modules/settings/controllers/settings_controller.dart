@@ -13,7 +13,6 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:sqflite/sqflite.dart';
 
 class SettingsController extends GetxController {
@@ -145,7 +144,7 @@ class SettingsController extends GetxController {
       };
 
       // 显示结果
-      UIUtils.showDialog(
+      DialogUtils.showAlert(
         title: '存储分析结果',
         message:
             '应用数据: ${storageInfo['appDirSize']}\n'
@@ -302,7 +301,7 @@ class SettingsController extends GetxController {
   /// 重启Web服务
   Future<void> restartWebService() async {
     try {
-      UIUtils.showLoading(tips: '正在重启Web服务...');
+      DialogUtils.showLoading(tips: '正在重启Web服务...');
 
       // 关闭现有WebSocket连接
       await WebService.i.webSocketTunnel.disconnect();
@@ -314,11 +313,11 @@ class SettingsController extends GetxController {
       _updateWebServerAddress();
       _updateWebAccessUrl();
 
-      UIUtils.hideLoading();
+      DialogUtils.hideLoading();
       UIUtils.showSuccess('Web服务已重启');
     } catch (e) {
       logger.e('重启Web服务失败: $e');
-      UIUtils.hideLoading();
+      DialogUtils.hideLoading();
       UIUtils.showError('重启Web服务失败: $e');
     }
   }

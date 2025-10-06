@@ -328,12 +328,12 @@ class BooksView extends GetView<BooksController> {
       UIUtils.showError('未找到可删除的书籍，请先选择一本书');
       return;
     }
-    UIUtils.showConfirmation(
-      '删除书籍',
-      '确定要删除《${book.title}》吗？\n此操作无法撤销，书籍相关的所有观点也将被删除。',
+    DialogUtils.showConfirm(
+      title: '删除书籍',
+      message: '确定要删除《${book.title}》吗？\n此操作无法撤销，书籍相关的所有观点也将被删除。',
       confirmText: '删除',
       cancelText: '取消',
-      onConfirmed: () {
+      onConfirm: () {
         controller.deleteBook(book!.id);
       },
     );
@@ -361,25 +361,25 @@ class BooksView extends GetView<BooksController> {
       UIUtils.showError('未找到可刷新的书籍，请先添加书籍');
       return;
     }
-    UIUtils.showConfirmation(
-      '刷新书籍',
-      '将重新拉取《${book.title}》的观点内容，这可能需要一些时间。是否继续？',
+    DialogUtils.showConfirm(
+      title: '刷新书籍',
+      message: '将重新拉取《${book.title}》的观点内容，这可能需要一些时间。是否继续？',
       confirmText: '刷新',
       cancelText: '取消',
-      onConfirmed: () {
+      onConfirm: () {
         _doRefreshBook(book!);
       },
     );
   }
   /// 执行刷新逻辑并展示更友好的进度提示
   Future<void> _doRefreshBook(BookModel book) async {
-    UIUtils.showLoading(tips: '正在刷新《${book.title}》...');
+    DialogUtils.showLoading(tips: '正在刷新《${book.title}》...');
     try {
       await controller.refreshBook(book.id);
-      UIUtils.hideLoading();
+      DialogUtils.hideLoading();
       UIUtils.showSuccess('《${book.title}》已刷新');
     } catch (e) {
-      UIUtils.hideLoading();
+      DialogUtils.hideLoading();
       UIUtils.showError('刷新失败，请稍后重试');
     }
   }
