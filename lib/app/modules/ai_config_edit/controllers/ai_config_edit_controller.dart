@@ -2,6 +2,7 @@ import 'package:daily_satori/app/models/models.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/repositories/ai_config_repository.dart';
 import 'package:daily_satori/app/services/plugin_service.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:get/get.dart';
@@ -29,7 +30,9 @@ class AIConfigEditController extends GetxController {
   final _isEditMode = false.obs;
   final _modelName = ''.obs;
   final _apiToken = ''.obs;
+  final _apiAddress = ''.obs;
   final _name = ''.obs;
+  final _inheritFromGeneral = false.obs;
   final _initialized = false.obs;
 
   /// Getters for reactive variables
@@ -37,7 +40,9 @@ class AIConfigEditController extends GetxController {
   bool get isEditMode => _isEditMode.value;
   String get modelName => _modelName.value;
   String get apiToken => _apiToken.value;
+  String get apiAddress => _apiAddress.value;
   String get name => _name.value;
+  bool get inheritFromGeneral => _inheritFromGeneral.value;
   bool get isInitialized => _initialized.value;
 
   /// 是否显示自定义API地址
@@ -53,13 +58,53 @@ class AIConfigEditController extends GetxController {
   /// 检查表单是否有效
   bool get isFormValid {
     if (!isInitialized) return false;
-    return name.trim().isNotEmpty && modelName.trim().isNotEmpty && apiToken.trim().isNotEmpty;
+
+    // 基础验证：配置名称不能为空
+    if (name.trim().isEmpty) return false;
+
+    // 如果是继承模式，只需要验证配置名称
+    if (inheritFromGeneral) return true;
+
+    // 独立模式：需要验证API相关字段
+    return modelName.trim().isNotEmpty && apiToken.trim().isNotEmpty;
   }
 
   /// 判断是否为系统预设配置类型（不可修改名称）
   bool get isSystemConfig {
     if (aiConfig == null) return false;
     return aiConfig!.functionType >= 0 && aiConfig!.functionType <= 3;
+  }
+
+  /// 判断是否为特殊配置类型（可以继承通用配置）
+  bool get isSpecialConfig {
+    if (aiConfig == null) return false;
+    return aiConfig!.functionType >= 1 && aiConfig!.functionType <= 3; // 文章总结、书本解读、日记总结
+  }
+
+  /// 设置继承模式
+  void setInheritFromGeneral(bool value) {
+    logger.i('设置继承模式: $value');
+
+    if (value) {
+      // 切换到继承模式：清空API相关字段
+      apiAddressController.clear();
+      apiTokenController.clear();
+      modelNameController.clear();
+      _apiAddress.value = '';
+      _apiToken.value = '';
+      _modelName.value = '';
+
+      // 重置API提供商选择
+      _selectedApiPresetIndex.value = 0;
+      availableModels.clear();
+    } else {
+      // 切换到独立模式：设置默认值
+      _apiAddress.value = '';
+      _apiToken.value = '';
+      _modelName.value = '';
+    }
+
+    _inheritFromGeneral.value = value;
   }
 
   /// 获取页面标题（如果是系统配置则显示配置名称，否则显示编辑/新建配置）
@@ -116,6 +161,13 @@ class AIConfigEditController extends GetxController {
 
     updateApiAddressByUrl(aiConfig!.apiAddress);
     updateModelName(aiConfig!.modelName);
+
+    // 根据实际配置内容判断是否继承通用配置
+    // 如果API地址为空，说明继承了通用配置
+    final isActuallyInheriting = aiConfig!.apiAddress.isEmpty;
+    _inheritFromGeneral.value = isActuallyInheriting;
+
+    logger.i('初始化配置: ${aiConfig!.name}, API地址: "${aiConfig!.apiAddress}", 继承状态: $isActuallyInheriting');
   }
 
   /// 更新API地址
@@ -169,11 +221,11 @@ class AIConfigEditController extends GetxController {
           : AIConfigModel(
               AIConfig(
                 name: nameController.text,
-                apiAddress: apiAddressController.text,
-                apiToken: apiTokenController.text,
-                modelName: modelNameController.text,
+                apiAddress: inheritFromGeneral ? '' : apiAddressController.text,
+                apiToken: inheritFromGeneral ? '' : apiTokenController.text,
+                modelName: inheritFromGeneral ? '' : modelNameController.text,
                 functionType: 0, // 默认为通用配置
-                inheritFromGeneral: true,
+                inheritFromGeneral: inheritFromGeneral,
               ),
             );
 
@@ -182,10 +234,22 @@ class AIConfigEditController extends GetxController {
       if (isEditMode) {
         configToSave
           ..name = nameController.text
-          ..apiAddress = apiAddressController.text
-          ..apiToken = apiTokenController.text
-          ..modelName = modelNameController.text
-          ..inheritFromGeneral = true;
+          ..inheritFromGeneral = inheritFromGeneral;
+
+        // 根据继承模式设置API相关字段
+        if (inheritFromGeneral) {
+          // 继承模式：清空API相关字段
+          configToSave
+            ..apiAddress = ''
+            ..apiToken = ''
+            ..modelName = '';
+        } else {
+          // 独立模式：保留用户设置的API相关字段
+          configToSave
+            ..apiAddress = apiAddressController.text
+            ..apiToken = apiTokenController.text
+            ..modelName = modelNameController.text;
+        }
       }
 
       if (isEditMode) {

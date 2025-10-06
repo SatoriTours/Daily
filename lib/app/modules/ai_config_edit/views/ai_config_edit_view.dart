@@ -88,6 +88,8 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
         children: [
           // 只有非系统配置才显示配置名称字段
           if (!controller.isSystemConfig) _buildNameField(context),
+          // 对于特殊配置（文章总结、书本解读、日记总结），显示继承选项
+          if (controller.isSpecialConfig) _buildInheritOptionField(context),
           _buildApiProviderField(context),
           _buildModelNameField(context),
           _buildApiTokenField(context),
@@ -107,6 +109,107 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       icon: Icons.text_fields,
       child: FormTextField(controller: controller.nameController, hintText: "输入配置名称"),
     );
+  }
+
+  /// 构建继承选项字段
+  Widget _buildInheritOptionField(BuildContext context) {
+    logger.d('构建继承选项字段');
+    return Obx(() => _buildFormSection(
+      context: context,
+      title: "使用通用配置",
+      icon: Icons.settings_suggest,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  controller.inheritFromGeneral
+                    ? '当前使用通用配置的AI设置'
+                    : '当前使用独立配置',
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.getOnSurface(context),
+                  ),
+                ),
+              ),
+              Switch(
+                value: controller.inheritFromGeneral,
+                onChanged: (value) {
+                  logger.i('切换继承模式: $value');
+                  // 更新控制器中的继承状态
+                  controller.setInheritFromGeneral(value);
+                },
+                activeThumbColor: AppColors.getPrimary(context),
+              ),
+            ],
+          ),
+          if (controller.inheritFromGeneral) ...[
+            Dimensions.verticalSpacerS,
+            Container(
+              padding: Dimensions.paddingS,
+              decoration: BoxDecoration(
+                color: AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow),
+                borderRadius: BorderRadius.circular(Dimensions.radiusS),
+                border: Border.all(
+                  color: AppColors.getPrimary(context).withValues(alpha: Opacities.low),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: Dimensions.iconSizeS,
+                    color: AppColors.getPrimary(context),
+                  ),
+                  Dimensions.horizontalSpacerS,
+                  Expanded(
+                    child: Text(
+                      '此配置将自动使用通用配置中的AI模型和设置',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.getOnSurface(context),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            Dimensions.verticalSpacerS,
+            Container(
+              padding: Dimensions.paddingS,
+              decoration: BoxDecoration(
+                color: AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.extraLow),
+                borderRadius: BorderRadius.circular(Dimensions.radiusS),
+                border: Border.all(
+                  color: AppColors.getOutline(context).withValues(alpha: Opacities.medium),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.tune,
+                    size: Dimensions.iconSizeS,
+                    color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+                  ),
+                  Dimensions.horizontalSpacerS,
+                  Expanded(
+                    child: Text(
+                      '可以为此功能配置独立的AI模型和设置',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.getOnSurface(context),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    ));
   }
 
   /// 构建API提供商字段
