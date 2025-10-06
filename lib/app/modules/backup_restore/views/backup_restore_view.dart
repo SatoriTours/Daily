@@ -73,15 +73,15 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
     }
 
     if (AppInfoUtils.isProduction && result) {
-      final confirmed = await DialogUtils.showConfirm(
+      await DialogUtils.showConfirm(
         title: '重启应用',
         message: '需要重启应用以完成还原，点击确定重启应用',
         confirmText: '确定',
         cancelText: '取消',
+        onConfirm: () {
+          exit(0);
+        },
       );
-      if (confirmed) {
-        exit(0);
-      }
     }
   }
 }

@@ -17,9 +17,9 @@ class DialogUtils {
     VoidCallback? onConfirm,
   }) async {
     await Get.dialog(
-      AlertDialog(
-        title: Text(title),
-        content: Text(message),
+      _CustomDialog(
+        title: title,
+        content: message,
         actions: [
           TextButton(
             onPressed: () {
@@ -43,23 +43,28 @@ class DialogUtils {
     VoidCallback? onCancel,
   }) async {
     final result = await Get.dialog<bool>(
-      AlertDialog(
-        title: Text(title),
-        content: Text(message),
+      _CustomDialog(
+        title: title,
+        content: message,
         actions: [
-          TextButton(
-            onPressed: () {
-              _closeDialog();
-              if (onCancel != null) onCancel();
-            },
-            child: Text(cancelText),
+          Expanded(
+            child: TextButton(
+              onPressed: () {
+                _closeDialog();
+                if (onCancel != null) onCancel();
+              },
+              child: Text(cancelText),
+            ),
           ),
-          TextButton(
-            onPressed: () {
-              _closeDialog();
-              if (onConfirm != null) onConfirm();
-            },
-            child: Text(confirmText),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextButton(
+              onPressed: () {
+                _closeDialog();
+                if (onConfirm != null) onConfirm();
+              },
+              child: Text(confirmText),
+            ),
           ),
         ],
       ),
@@ -78,16 +83,22 @@ class DialogUtils {
   }) async {
     final TextEditingController controller = TextEditingController(text: initialValue);
     final result = await Get.dialog<String>(
-      AlertDialog(
-        title: Text(title),
-        content: TextField(
+      _CustomDialog(
+        title: title,
+        content: '',
+        contentWidget: TextField(
           controller: controller,
           decoration: InputDecoration(hintText: hintText),
           keyboardType: keyboardType,
         ),
         actions: [
-          TextButton(onPressed: () => _closeDialog(), child: Text(cancelText)),
-          TextButton(onPressed: () => _closeDialog(), child: Text(confirmText)),
+          Expanded(
+            child: TextButton(onPressed: () => _closeDialog(), child: Text(cancelText)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextButton(onPressed: () => _closeDialog(), child: Text(confirmText)),
+          ),
         ],
       ),
     );
@@ -127,5 +138,57 @@ class DialogUtils {
 
   static void _closeDialog() {
     Navigator.of(Get.context!).pop();
+  }
+}
+
+/// 自定义对话框组件
+class _CustomDialog extends StatelessWidget {
+  final String title;
+  final String content;
+  final Widget? contentWidget; // 自定义内容组件(可选)
+  final List<Widget> actions;
+
+  const _CustomDialog({required this.title, required this.content, this.contentWidget, required this.actions});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dialogTheme = theme.dialogTheme;
+
+    return Dialog(
+      backgroundColor: dialogTheme.backgroundColor ?? theme.colorScheme.surface,
+      elevation: dialogTheme.elevation ?? 0,
+      shape: dialogTheme.shape ?? RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 标题
+            Text(
+              title,
+              style:
+                  dialogTheme.titleTextStyle ??
+                  theme.textTheme.headlineSmall?.copyWith(color: theme.colorScheme.onSurface),
+            ),
+            const SizedBox(height: 16),
+            // 内容 - 优先使用自定义 widget
+            if (contentWidget != null)
+              contentWidget!
+            else if (content.isNotEmpty)
+              Text(
+                content,
+                style:
+                    dialogTheme.contentTextStyle ??
+                    theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            const SizedBox(height: 24),
+            // 按钮区域 - 水平布局
+            Row(mainAxisAlignment: MainAxisAlignment.end, children: actions),
+          ],
+        ),
+      ),
+    );
   }
 }
