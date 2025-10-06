@@ -160,7 +160,7 @@ class AIConfigView extends GetView<AIConfigController> {
 
   /// 构建右侧箭头图标
   Widget _buildChevronIcon(BuildContext context) {
-    return Icon(Icons.chevron_right, color: AppColors.getOnSurface(context).withValues(alpha: Opacities.extraLow), size: Dimensions.iconSizeS);
+    return Icon(Icons.chevron_right, color: AppColors.getOnSurface(context).withValues(alpha: 77/255), size: 18);
   }
 
   /// 显示AI配置信息对话框
