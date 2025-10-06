@@ -1,6 +1,5 @@
 import 'package:daily_satori/app/components/common/feature_icon.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app/utils/dialog_utils.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -60,7 +59,6 @@ class SettingsView extends GetView<SettingsController> {
       padding: Dimensions.paddingM,
       children: [
         _buildFunctionSection(context),
-        _buildDataSection(context),
         _buildSystemSection(context),
         Dimensions.verticalSpacerL,
         _buildVersionInfo(context),
@@ -96,12 +94,12 @@ class SettingsView extends GetView<SettingsController> {
     );
   }
 
-  /// 构建数据管理分区
-  Widget _buildDataSection(BuildContext context) {
+  /// 构建系统设置分区
+  Widget _buildSystemSection(BuildContext context) {
     return _buildSettingsSection(
       context: context,
-      title: '数据',
-      icon: Icons.storage_rounded,
+      title: '系统',
+      icon: Icons.settings_rounded,
       items: [
         _buildSettingItem(
           context: context,
@@ -111,25 +109,6 @@ class SettingsView extends GetView<SettingsController> {
           color: Colors.green,
           onTap: () => Get.toNamed(Routes.backupSettings),
         ),
-        _buildSettingItem(
-          context: context,
-          title: '清理与维护',
-          subtitle: '优化应用性能与存储空间',
-          icon: Icons.cleaning_services_rounded,
-          color: Colors.orange,
-          onTap: () => _showCleanupDialog(context),
-        ),
-      ],
-    );
-  }
-
-  /// 构建系统设置分区
-  Widget _buildSystemSection(BuildContext context) {
-    return _buildSettingsSection(
-      context: context,
-      title: '系统',
-      icon: Icons.settings_rounded,
-      items: [
         _buildSettingItem(
           context: context,
           title: 'Web服务器',
@@ -255,105 +234,6 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   // 对话框显示方法
-  void _showCleanupDialog(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL))),
-      builder: (context) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 标题
-            Row(
-              children: [
-                FeatureIcon(
-                  icon: Icons.cleaning_services_rounded,
-                  iconColor: Colors.orange,
-                  containerSize: 36,
-                  iconSize: 20,
-                ),
-                Dimensions.horizontalSpacerM,
-                Text('清理与维护', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                const Spacer(),
-                IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => Navigator.pop(context)),
-              ],
-            ),
-            Dimensions.verticalSpacerM,
-            // 存储分析
-            _buildCleanupSection(
-              context: context,
-              title: '存储分析',
-              subtitle: '分析应用占用的存储空间',
-              icon: Icons.storage_rounded,
-              color: Colors.blue,
-              onTap: () {
-                Navigator.pop(context);
-                controller.analyzeStorage();
-              },
-            ),
-            // 清除缓存
-            _buildCleanupSection(
-              context: context,
-              title: '清除缓存',
-              subtitle: '清除应用临时文件和缓存数据',
-              icon: Icons.delete_sweep_rounded,
-              color: Colors.red,
-              onTap: () {
-                Navigator.pop(context);
-                controller.clearCache();
-              },
-            ),
-            // 数据库优化
-            _buildCleanupSection(
-              context: context,
-              title: '数据库优化',
-              subtitle: '优化数据库结构，提升应用性能',
-              icon: Icons.build_rounded,
-              color: Colors.deepPurple,
-              onTap: () {
-                Navigator.pop(context);
-                controller.optimizeDatabase();
-              },
-            ),
-            // 恢复出厂设置
-            _buildCleanupSection(
-              context: context,
-              title: '恢复出厂设置',
-              subtitle: '将应用恢复到初始状态（不会删除数据）',
-              icon: Icons.restart_alt_rounded,
-              color: Colors.deepOrange,
-              onTap: () {
-                Navigator.pop(context);
-                _showFactoryResetConfirmDialog(context);
-              },
-            ),
-            Dimensions.verticalSpacerM,
-            Text(
-              '提示：定期清理缓存可以释放存储空间，数据库优化可以提高应用运行速度。',
-              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.5)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showFactoryResetConfirmDialog(BuildContext context) {
-    DialogUtils.showConfirm(
-      title: '确认恢复出厂设置',
-      message: '这将重置所有应用设置，但不会删除您的数据。此操作不可撤销，是否继续？',
-      confirmText: '确认重置',
-      cancelText: '取消',
-      onConfirm: () => controller.factoryReset(),
-    );
-  }
-
   void _showWebServerDialog(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
@@ -647,45 +527,6 @@ class SettingsView extends GetView<SettingsController> {
             child: const Text('保存'),
           ),
         ],
-      ),
-    );
-  }
-
-  /// 构建清理选项
-  Widget _buildCleanupSection({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    final textTheme = AppTheme.getTextTheme(context);
-    final colorScheme = AppTheme.getColorScheme(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Row(
-          children: [
-            FeatureIcon(icon: icon, iconColor: color, containerSize: 36, iconSize: 18),
-            Dimensions.horizontalSpacerM,
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: textTheme.titleSmall),
-                  Text(
-                    subtitle,
-                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 179)),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: colorScheme.onSurface.withValues(alpha: 77), size: 18),
-          ],
-        ),
       ),
     );
   }

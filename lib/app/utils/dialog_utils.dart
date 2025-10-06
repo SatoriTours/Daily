@@ -165,32 +165,40 @@ class _CustomDialog extends StatelessWidget {
       shape: dialogTheme.shape ?? RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 标题
-            Text(
-              title,
-              style:
-                  dialogTheme.titleTextStyle ??
-                  theme.textTheme.headlineSmall?.copyWith(color: theme.colorScheme.onSurface),
-            ),
-            const SizedBox(height: 16),
-            // 内容 - 优先使用自定义 widget
-            if (contentWidget != null)
-              contentWidget!
-            else if (content.isNotEmpty)
+        child: IntrinsicHeight(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 标题
               Text(
-                content,
+                title,
                 style:
-                    dialogTheme.contentTextStyle ??
-                    theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    dialogTheme.titleTextStyle ??
+                    theme.textTheme.headlineSmall?.copyWith(color: theme.colorScheme.onSurface),
               ),
-            const SizedBox(height: 24),
-            // 按钮区域 - 水平布局
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: actions),
-          ],
+              const SizedBox(height: 16),
+              // 内容 - 使用 ConstrainedBox 限制最大高度并支持滚动
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
+                child: SingleChildScrollView(
+                  child:
+                      contentWidget ??
+                      (content.isNotEmpty
+                          ? Text(
+                              content,
+                              style:
+                                  dialogTheme.contentTextStyle ??
+                                  theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                            )
+                          : const SizedBox.shrink()),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // 按钮区域 - 水平布局
+              Row(mainAxisAlignment: MainAxisAlignment.end, children: actions),
+            ],
+          ),
         ),
       ),
     );
