@@ -64,6 +64,8 @@ class HttpService implements AppService {
       return '';
     }
 
+    logger.i("开始下载文件: $url");
+
     final fileName = url.split('/').last;
     // APK 优先下载到临时目录，避免外部存储权限限制 & 提高安装器可访问性
     final isApk = fileName.toLowerCase().endsWith('.apk');
@@ -71,24 +73,8 @@ class HttpService implements AppService {
         ? await FileService.i.getTempDownloadPath(fileName)
         : FileService.i.getDownloadPath(fileName);
 
-    // 优先尝试 jsDelivr（仅 GitHub 链接可转换）
-    final jsdelivr = _toJsDelivrIfPossible(url);
-    if (jsdelivr != null) {
-      if (await _downloadAnyFile(jsdelivr, savePath)) {
-        return savePath;
-      }
-    }
-
-    // 其次尝试原始直链
+    // 直接使用原始地址下载
     if (await _downloadAnyFile(url, savePath)) return savePath;
-
-    // 最后尝试 ghproxy 镜像（仅 GitHub 资源）
-    if (url.contains('github.com') && !url.contains('mirror.ghproxy.com')) {
-      final mirrorUrl = 'https://mirror.ghproxy.com/$url';
-      if (await _downloadAnyFile(mirrorUrl, savePath)) {
-        return savePath;
-      }
-    }
 
     return '';
   }
@@ -147,26 +133,6 @@ class HttpService implements AppService {
     } catch (e) {
       logger.i("下载文件失败: $e");
       return false;
-    }
-  }
-
-  // 将 GitHub releases/download 直链转换为 jsDelivr（详见 AppUpgradeService 注释）
-  String? _toJsDelivrIfPossible(String url) {
-    try {
-      final uri = Uri.parse(url);
-      if (uri.host != 'github.com') return null;
-      final seg = uri.pathSegments;
-      final i = seg.indexOf('releases');
-      if (i <= 1 || i + 2 >= seg.length) return null;
-      if (seg[i + 1] != 'download') return null;
-      final owner = seg[i - 2];
-      final repo = seg[i - 1];
-      final tag = seg[i + 2];
-      final filePath = seg.sublist(i + 3).join('/');
-      if (owner.isEmpty || repo.isEmpty || tag.isEmpty || filePath.isEmpty) return null;
-      return 'https://cdn.jsdelivr.net/gh/$owner/$repo@$tag/$filePath';
-    } catch (_) {
-      return null;
     }
   }
 
