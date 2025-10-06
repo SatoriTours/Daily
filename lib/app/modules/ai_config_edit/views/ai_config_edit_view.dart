@@ -28,10 +28,7 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       preferredSize: const Size.fromHeight(kToolbarHeight),
       child: GetBuilder<AIConfigEditController>(
         builder: (controller) => AppBar(
-          title: Text(
-            controller.pageTitle,
-            style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.w600),
-          ),
+          title: Text(controller.pageTitle, style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.w600)),
           centerTitle: true,
           backgroundColor: AppColors.getSurface(context),
         ),
@@ -45,7 +42,9 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       padding: Dimensions.paddingPage,
       decoration: BoxDecoration(
         color: AppColors.getSurface(context),
-        border: Border(top: BorderSide(color: AppColors.getOutline(context).withValues(alpha: Opacities.extraLow), width: 1)),
+        border: Border(
+          top: BorderSide(color: AppColors.getOutline(context).withValues(alpha: Opacities.extraLow), width: 1),
+        ),
       ),
       child: SafeArea(
         child: Row(
@@ -90,27 +89,34 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
           if (!controller.isSystemConfig) _buildNameField(context),
           // 对于特殊配置（文章总结、书本解读、日记总结），显示继承选项
           if (controller.isSpecialConfig) _buildInheritOptionField(context),
-          // 使用Obx包装API配置字段的条件渲染，确保状态变化时重新渲染
-          Obx(() {
-            // 显示逻辑：
-            // 1. 通用配置（非特殊配置）：始终显示API配置字段
-            // 2. 特殊配置 + 不继承通用配置：显示API配置字段
-            // 3. 特殊配置 + 继承通用配置：隐藏API配置字段
-            final shouldShowApiFields = !controller.isSpecialConfig || (controller.isSpecialConfig && !controller.inheritFromGeneral);
-
-            if (shouldShowApiFields) {
-              return Column(
-                children: [
-                  _buildApiProviderField(context),
-                  _buildModelNameField(context),
-                  _buildApiTokenField(context),
-                  _buildCustomApiAddressField(context),
-                ],
-              );
-            } else {
-              return const SizedBox.shrink();
-            }
-          }),
+          // API配置字段 - 根据继承状态显示或隐藏
+          // 显示逻辑：
+          // 1. 通用配置（非特殊配置）：始终显示API配置字段
+          // 2. 特殊配置 + 不继承通用配置：显示API配置字段
+          // 3. 特殊配置 + 继承通用配置：隐藏API配置字段
+          if (!controller.isSpecialConfig)
+          // 通用配置直接显示
+          ...[
+            _buildApiProviderField(context),
+            _buildModelNameField(context),
+            _buildApiTokenField(context),
+            _buildCustomApiAddressField(context),
+          ] else
+            // 特殊配置根据继承状态显示
+            Obx(() {
+              if (!controller.inheritFromGeneral) {
+                return Column(
+                  children: [
+                    _buildApiProviderField(context),
+                    _buildModelNameField(context),
+                    _buildApiTokenField(context),
+                    _buildCustomApiAddressField(context),
+                  ],
+                );
+              } else {
+                return const SizedBox.shrink();
+              }
+            }),
         ],
       ),
     );
@@ -131,79 +137,82 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
   /// 构建继承选项字段
   Widget _buildInheritOptionField(BuildContext context) {
     logger.d('构建继承选项字段');
-    return Obx(() => _buildFormSection(
+    return _buildFormSection(
       context: context,
       title: "使用通用配置",
       icon: Icons.settings_suggest,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 简洁的主行：开关 + 状态说明
-          Row(
-            children: [
-              Switch(
-                value: controller.inheritFromGeneral,
-                onChanged: (value) {
-                  logger.i('切换继承模式: $value');
-                  // 更新控制器中的继承状态
-                  controller.setInheritFromGeneral(value);
-                },
-                activeThumbColor: AppColors.getPrimary(context),
-              ),
-              Dimensions.horizontalSpacerM,
-              Expanded(
-                child: Text(
-                  controller.inheritFromGeneral ? '继承通用配置' : '独立配置',
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.getOnSurface(context),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          // 简化的说明信息
-          Dimensions.verticalSpacerS,
-          Container(
-            padding: Dimensions.paddingS,
-            decoration: BoxDecoration(
-              color: controller.inheritFromGeneral
-                ? AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow)
-                : AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.extraLow),
-              borderRadius: BorderRadius.circular(Dimensions.radiusS),
-              border: Border.all(
-                color: controller.inheritFromGeneral
-                  ? AppColors.getPrimary(context).withValues(alpha: Opacities.low)
-                  : AppColors.getOutline(context).withValues(alpha: Opacities.medium),
-                width: 1,
-              ),
-            ),
-            child: Row(
+      child: Obx(
+        () => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 主行：状态说明在左，开关在右
+            Row(
               children: [
-                Icon(
-                  controller.inheritFromGeneral ? Icons.sync : Icons.tune,
-                  size: Dimensions.iconSizeS,
-                  color: controller.inheritFromGeneral
-                    ? AppColors.getPrimary(context)
-                    : AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
-                ),
-                Dimensions.horizontalSpacerS,
                 Expanded(
                   child: Text(
-                    controller.inheritFromGeneral
-                      ? '将使用通用配置的AI设置'
-                      : '可以为此功能设置独立的AI配置',
-                    style: AppTypography.bodySmall.copyWith(
+                    controller.inheritFromGeneral ? '继承通用配置' : '独立配置',
+                    style: AppTypography.bodyMedium.copyWith(
                       color: AppColors.getOnSurface(context),
+                      fontWeight: FontWeight.w500,
                     ),
+                  ),
+                ),
+                Dimensions.horizontalSpacerM,
+                // 小尺寸的开关
+                Transform.scale(
+                  scale: 0.75, // 缩小到原来的75%
+                  child: Switch(
+                    value: controller.inheritFromGeneral,
+                    onChanged: (value) {
+                      logger.i('切换继承模式: $value');
+                      // 更新控制器中的继承状态
+                      controller.setInheritFromGeneral(value);
+                    },
+                    activeThumbColor: AppColors.getPrimary(context),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                 ),
               ],
             ),
-          ),
-        ],
+            // 简化的说明信息
+            Dimensions.verticalSpacerS,
+            Container(
+              padding: Dimensions.paddingS,
+              decoration: BoxDecoration(
+                color: controller.inheritFromGeneral
+                    ? AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow)
+                    : AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.extraLow),
+                borderRadius: BorderRadius.circular(Dimensions.radiusS),
+                border: Border.all(
+                  color: controller.inheritFromGeneral
+                      ? AppColors.getPrimary(context).withValues(alpha: Opacities.low)
+                      : AppColors.getOutline(context).withValues(alpha: Opacities.medium),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    controller.inheritFromGeneral ? Icons.sync : Icons.tune,
+                    size: Dimensions.iconSizeS,
+                    color: controller.inheritFromGeneral
+                        ? AppColors.getPrimary(context)
+                        : AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+                  ),
+                  Dimensions.horizontalSpacerS,
+                  Expanded(
+                    child: Text(
+                      controller.inheritFromGeneral ? '将使用通用配置的AI设置' : '可以为此功能设置独立的AI配置',
+                      style: AppTypography.bodySmall.copyWith(color: AppColors.getOnSurface(context)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   /// 构建API提供商字段
@@ -331,9 +340,7 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.getSurface(context),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL))),
       builder: (context) =>
           SelectionBottomSheet(title: title, items: items, selectedValue: selectedValue, onSelected: onSelected),
     );
@@ -382,7 +389,9 @@ class FormTextField extends StatelessWidget {
       style: AppTypography.bodyMedium,
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context).withValues(alpha: Opacities.mediumLow)),
+        hintStyle: AppTypography.bodyMedium.copyWith(
+          color: AppColors.getOnSurface(context).withValues(alpha: Opacities.mediumLow),
+        ),
         contentPadding: Dimensions.paddingInput,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
@@ -422,10 +431,7 @@ class SelectionField extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.extraLow),
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          border: Border.all(
-            color: AppColors.getOutline(context),
-            width: 1,
-          ),
+          border: Border.all(color: AppColors.getOutline(context), width: 1),
         ),
         child: Row(
           children: [

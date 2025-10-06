@@ -125,8 +125,6 @@ class AIConfigEditController extends GetxController {
     _initializeFromConfig();
     _isEditMode.value = aiConfig != null;
     _initialized.value = true;
-    // 通知GetBuilder更新初始状态
-    update();
   }
 
   /// 初始化控制器
