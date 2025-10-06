@@ -1,9 +1,8 @@
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
 import '../controllers/ai_config_edit_controller.dart';
 
@@ -15,7 +14,7 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
   Widget build(BuildContext context) {
     logger.i('构建AI配置编辑页面');
     return Scaffold(
-      backgroundColor: AppTheme.getColorScheme(context).surface,
+      backgroundColor: AppColors.getSurface(context),
       appBar: _buildAppBar(context),
       body: _buildBody(context),
       bottomNavigationBar: _buildBottomActionBar(context),
@@ -25,28 +24,28 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
   /// 构建应用栏
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     logger.d('构建应用栏');
-    final textTheme = AppTheme.getTextTheme(context);
-    final colorScheme = AppTheme.getColorScheme(context);
-
-    return AppBar(
-      title: Text(
-        controller.isEditMode ? '编辑配置' : '新建配置',
-        style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(kToolbarHeight),
+      child: GetBuilder<AIConfigEditController>(
+        builder: (controller) => AppBar(
+          title: Text(
+            controller.pageTitle,
+            style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.w600),
+          ),
+          centerTitle: true,
+          backgroundColor: AppColors.getSurface(context),
+        ),
       ),
-      centerTitle: true,
-      backgroundColor: colorScheme.surface,
     );
   }
 
   /// 构建底部操作栏
   Widget _buildBottomActionBar(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: Dimensions.paddingPage,
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(top: BorderSide(color: colorScheme.outline.withValues(alpha: 0.2), width: 1)),
+        color: AppColors.getSurface(context),
+        border: Border(top: BorderSide(color: AppColors.getOutline(context).withValues(alpha: Opacities.extraLow), width: 1)),
       ),
       child: SafeArea(
         child: Row(
@@ -60,7 +59,7 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
                 child: const Text('恢复'),
               ),
             ),
-            const SizedBox(width: 16),
+            Dimensions.horizontalSpacerM,
             Expanded(
               child: Obx(
                 () => ElevatedButton(
@@ -85,9 +84,10 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
     logger.d('构建主体内容');
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        padding: Dimensions.paddingPage,
         children: [
-          _buildNameField(context),
+          // 只有非系统配置才显示配置名称字段
+          if (!controller.isSystemConfig) _buildNameField(context),
           _buildApiProviderField(context),
           _buildModelNameField(context),
           _buildApiTokenField(context),
@@ -100,6 +100,7 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
   /// 构建配置名称字段
   Widget _buildNameField(BuildContext context) {
     logger.d('构建配置名称字段');
+
     return _buildFormSection(
       context: context,
       title: "配置名称",
@@ -186,12 +187,12 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
     required Widget child,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: EdgeInsets.only(bottom: Dimensions.spacingL),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           FormSectionHeader(title: title, icon: icon),
-          const SizedBox(height: 12),
+          Dimensions.verticalSpacerM,
           child,
         ],
       ),
@@ -229,14 +230,12 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
     required Function(int) onSelected,
   }) {
     logger.d('显示选择底部弹出窗口: $title');
-    final colorScheme = AppTheme.getColorScheme(context);
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: colorScheme.surface,
+      backgroundColor: AppColors.getSurface(context),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
       ),
       builder: (context) =>
           SelectionBottomSheet(title: title, items: items, selectedValue: selectedValue, onSelected: onSelected),
@@ -253,14 +252,11 @@ class FormSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
-
     return Row(
       children: [
-        Icon(icon, size: 20, color: colorScheme.primary),
-        const SizedBox(width: 10),
-        Text(title, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500)),
+        Icon(icon, size: Dimensions.iconSizeS, color: AppColors.getPrimary(context)),
+        Dimensions.horizontalSpacerM,
+        Text(title, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w500)),
       ],
     );
   }
@@ -283,20 +279,28 @@ class FormTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = AppTheme.getTextTheme(context);
-    final colorScheme = AppTheme.getColorScheme(context);
-
     return TextField(
       controller: controller,
       obscureText: isPassword,
-      style: textTheme.bodyLarge,
+      style: AppTypography.bodyMedium,
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.5)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context).withValues(alpha: Opacities.mediumLow)),
+        contentPadding: Dimensions.paddingInput,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          borderSide: BorderSide(color: AppColors.getOutline(context), width: 1),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          borderSide: BorderSide(color: AppColors.getOutline(context), width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          borderSide: BorderSide(color: AppColors.getPrimary(context), width: 2),
+        ),
         filled: true,
-        fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        fillColor: AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.extraLow),
       ),
       onChanged: onChanged,
     );
@@ -312,25 +316,26 @@ class SelectionField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
-
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(Dimensions.radiusS),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: Dimensions.paddingInput,
         decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(8),
+          color: AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.extraLow),
+          borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          border: Border.all(
+            color: AppColors.getOutline(context),
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
             Expanded(
-              child: Text(value, style: textTheme.bodyLarge, overflow: TextOverflow.ellipsis),
+              child: Text(value, style: AppTypography.bodyMedium, overflow: TextOverflow.ellipsis),
             ),
-            Icon(Icons.arrow_drop_down, color: colorScheme.onSurface.withValues(alpha: 0.5)),
+            Icon(Icons.arrow_drop_down, color: AppColors.getOnSurface(context), size: Dimensions.iconSizeM),
           ],
         ),
       ),
@@ -355,23 +360,20 @@ class SelectionBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
-
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: Dimensions.paddingPage,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
-                Icon(Icons.list_alt, size: 22, color: colorScheme.primary),
-                const SizedBox(width: 12),
-                Text(title, style: textTheme.titleLarge),
+                Icon(Icons.list_alt, size: Dimensions.iconSizeM, color: AppColors.getPrimary(context)),
+                Dimensions.horizontalSpacerM,
+                Text(title, style: AppTypography.titleLarge),
               ],
             ),
-            const SizedBox(height: 16),
+            Dimensions.verticalSpacerM,
             const Divider(height: 1),
             ConstrainedBox(
               constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
@@ -394,18 +396,15 @@ class SelectionBottomSheet extends StatelessWidget {
   }
 
   Widget _buildSelectionItem(BuildContext context, String item, bool isSelected, VoidCallback onTap) {
-    final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
-
     return InkWell(
       onTap: onTap,
       child: Container(
-        color: isSelected ? colorScheme.primaryContainer.withValues(alpha: 0.2) : null,
+        color: isSelected ? AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow) : null,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
         child: Text(
           item,
-          style: textTheme.bodyLarge?.copyWith(
-            color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+          style: AppTypography.bodyMedium.copyWith(
+            color: isSelected ? AppColors.getPrimary(context) : AppColors.getOnSurface(context),
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),

@@ -56,6 +56,20 @@ class AIConfigEditController extends GetxController {
     return name.trim().isNotEmpty && modelName.trim().isNotEmpty && apiToken.trim().isNotEmpty;
   }
 
+  /// 判断是否为系统预设配置类型（不可修改名称）
+  bool get isSystemConfig {
+    if (aiConfig == null) return false;
+    return aiConfig!.functionType >= 0 && aiConfig!.functionType <= 3;
+  }
+
+  /// 获取页面标题（如果是系统配置则显示配置名称，否则显示编辑/新建配置）
+  String get pageTitle {
+    if (isSystemConfig && aiConfig != null) {
+      return aiConfig!.name;
+    }
+    return isEditMode ? '编辑配置' : '新建配置';
+  }
+
   /// 构造函数
   AIConfigEditController() : aiConfig = Get.arguments?['aiConfig'], apiPresets = PluginService.i.getAiModels();
 
@@ -66,6 +80,8 @@ class AIConfigEditController extends GetxController {
     _initializeFromConfig();
     _isEditMode.value = aiConfig != null;
     _initialized.value = true;
+    // 通知GetBuilder更新初始状态
+    update();
   }
 
   /// 初始化控制器

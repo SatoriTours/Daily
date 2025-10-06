@@ -15,7 +15,7 @@ class AIConfigView extends GetView<AIConfigController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.getColorScheme(context).surface,
+      backgroundColor: AppColors.getSurface(context),
       appBar: _buildAppBar(context),
       body: _buildBody(context),
     );
@@ -27,7 +27,7 @@ class AIConfigView extends GetView<AIConfigController> {
       title: const Text('AI 配置管理'),
       centerTitle: true,
       elevation: 0,
-      backgroundColor: AppTheme.getColorScheme(context).surface,
+      backgroundColor: AppColors.getSurface(context),
       actions: [
         IconButton(icon: const Icon(Icons.info_outline), tooltip: 'AI配置说明', onPressed: () => _showInfoDialog(context)),
       ],
@@ -53,9 +53,7 @@ class AIConfigView extends GetView<AIConfigController> {
     return Center(
       child: Text(
         '没有配置',
-        style: AppTheme.getTextTheme(
-          context,
-        ).bodyMedium?.copyWith(color: AppTheme.getColorScheme(context).onSurface.withValues(alpha: 150)),
+        style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context).withValues(alpha: Opacities.mediumLow)),
       ),
     );
   }
@@ -63,7 +61,7 @@ class AIConfigView extends GetView<AIConfigController> {
   /// 构建配置列表
   Widget _buildConfigList(BuildContext context, List<dynamic> configs) {
     return ListView.separated(
-      padding: Dimensions.paddingM,
+      padding: Dimensions.paddingPage,
       itemCount: configs.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) => _buildConfigCard(context, configs[index]),
@@ -78,11 +76,11 @@ class AIConfigView extends GetView<AIConfigController> {
       child: InkWell(
         onTap: () => controller.editConfig(config),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: Dimensions.paddingCard,
           child: Row(
             children: [
               _buildConfigIcon(config.functionType, color),
-              const SizedBox(width: 16),
+              Dimensions.horizontalSpacerM,
               _buildConfigInfo(context, config),
               _buildChevronIcon(context),
             ],
@@ -94,26 +92,67 @@ class AIConfigView extends GetView<AIConfigController> {
 
   /// 构建配置图标
   Widget _buildConfigIcon(int type, Color color) {
-    return FeatureIcon(icon: _getTypeIcon(type), iconColor: color, containerSize: 32, iconSize: 16);
+    return FeatureIcon(icon: _getTypeIcon(type), iconColor: color, containerSize: Dimensions.iconSizeL, iconSize: Dimensions.iconSizeS);
   }
 
   /// 构建配置信息
   Widget _buildConfigInfo(BuildContext context, dynamic config) {
+    final isInheriting = config.apiAddress.isEmpty && config.functionType != 0;
     return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(config.name, style: AppTheme.getTextTheme(context).titleSmall),
-          Text(
-            config.apiAddress.isEmpty ? '未设置，继承通用配置' : config.apiAddress,
-            style: AppTheme.getTextTheme(context).bodySmall?.copyWith(
-              color: AppTheme.getColorScheme(
-                context,
-              ).onSurface.withValues(alpha: config.apiAddress.isEmpty ? 128 : 179),
+          // 左侧：配置名称和继承标签
+          Expanded(
+            child: Row(
+              children: [
+                Text(config.name, style: AppTypography.titleSmall),
+                if (isInheriting) ...[
+                  Dimensions.horizontalSpacerS,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow),
+                      borderRadius: BorderRadius.circular(Dimensions.radiusCircular),
+                    ),
+                    child: Text(
+                      '继承',
+                      style: AppTypography.labelSmall.copyWith(
+                        color: AppColors.getPrimary(context),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
+          // 右侧：状态信息或模型名称
+          if (config.apiAddress.isEmpty)
+            Text(
+              config.functionType == 0 ? '未配置' : '使用通用配置',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.getOnSurface(context).withValues(alpha: Opacities.mediumLow),
+              ),
+            )
+          else
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.smart_toy,
+                  size: Dimensions.iconSizeXs,
+                  color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+                ),
+                Dimensions.horizontalSpacerXs,
+                Text(
+                  config.modelName,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -121,7 +160,7 @@ class AIConfigView extends GetView<AIConfigController> {
 
   /// 构建右侧箭头图标
   Widget _buildChevronIcon(BuildContext context) {
-    return Icon(Icons.chevron_right, color: AppTheme.getColorScheme(context).onSurface.withValues(alpha: 77), size: 18);
+    return Icon(Icons.chevron_right, color: AppColors.getOnSurface(context).withValues(alpha: Opacities.extraLow), size: Dimensions.iconSizeS);
   }
 
   /// 显示AI配置信息对话框
@@ -167,47 +206,45 @@ class AIConfigInfoDialog extends StatelessWidget {
   const AIConfigInfoDialog({super.key});
   @override
   Widget build(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
     return AlertDialog(
-      title: _buildDialogTitle(context, colorScheme, textTheme),
-      content: _buildDialogContent(context, colorScheme, textTheme),
+      title: _buildDialogTitle(context),
+      content: _buildDialogContent(context),
       actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('了解了'))],
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
     );
   }
 
   /// 构建对话框标题
-  Widget _buildDialogTitle(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildDialogTitle(BuildContext context) {
     return Row(
       children: [
-        Icon(Icons.help_outline, color: colorScheme.primary),
-        const SizedBox(width: 8),
-        Text('AI配置说明', style: textTheme.titleLarge),
+        Icon(Icons.help_outline, color: AppColors.getPrimary(context), size: Dimensions.iconSizeM),
+        Dimensions.horizontalSpacerM,
+        Text('AI配置说明', style: AppTypography.titleLarge),
       ],
     );
   }
 
   /// 构建对话框内容
-  Widget _buildDialogContent(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildDialogContent(BuildContext context) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildInfoItem(context, '通用配置', '用于所有AI功能的基础配置，可被其他类型配置继承'),
-          const SizedBox(height: 12),
+          Dimensions.verticalSpacerM,
           _buildInfoItem(context, '文章总结', '用于生成文章摘要和关键点提取'),
-          const SizedBox(height: 12),
+          Dimensions.verticalSpacerM,
           _buildInfoItem(context, '书本解读', '用于解析书籍内容和生成阅读笔记'),
-          const SizedBox(height: 12),
+          Dimensions.verticalSpacerM,
           _buildInfoItem(context, '日记总结', '用于分析和生成日记内容'),
-          const SizedBox(height: 16),
+          Dimensions.verticalSpacerL,
           const Divider(),
-          const SizedBox(height: 8),
+          Dimensions.verticalSpacerM,
           Text(
             '通过不同功能类型的配置，您可以针对特定任务优化AI性能。',
-            style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: 179)),
+            style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium)),
           ),
         ],
       ),
@@ -216,14 +253,12 @@ class AIConfigInfoDialog extends StatelessWidget {
 
   /// 构建信息项目
   Widget _buildInfoItem(BuildContext context, String title, String description) {
-    final textTheme = AppTheme.getTextTheme(context);
-    final colorScheme = AppTheme.getColorScheme(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(description, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+        Text(title, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+        Dimensions.verticalSpacerS,
+        Text(description, style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context))),
       ],
     );
   }
