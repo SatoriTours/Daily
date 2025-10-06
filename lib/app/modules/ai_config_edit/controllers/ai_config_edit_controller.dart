@@ -196,7 +196,11 @@ class AIConfigEditController extends GetxController {
         final id = AIConfigRepository.addAIConfig(configToSave);
         configToSave.id = id;
       }
-      Get.back();
+      // 返回结果给调用方，以便更新列表
+      Get.back(result: {
+        'action': isEditMode ? 'updated' : 'created',
+        'config': configToSave,
+      });
       return true;
     } catch (e) {
       UIUtils.showError('保存配置失败: $e', title: '错误');

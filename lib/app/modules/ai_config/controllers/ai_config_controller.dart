@@ -113,9 +113,13 @@ class AIConfigController extends GetxController {
       if (config != null) {
         if (action == 'created') {
           _aiConfigStateService.addConfigToList(config);
+          logger.i("AI配置列表：添加新配置 ${config.name}");
         } else if (action == 'updated') {
           _aiConfigStateService.updateConfigInList(config);
+          logger.i("AI配置列表：更新配置 ${config.name}");
         }
+        // 确保UI更新
+        configs.refresh();
       }
     }
   }
@@ -139,7 +143,14 @@ class AIConfigController extends GetxController {
 
   Future<void> editConfig(AIConfigModel config) async {
     final result = await Get.toNamed(Routes.aiConfigEdit, arguments: {'aiConfig': config});
-    updateConfigsList(result);
+
+    // 处理编辑返回结果
+    if (result != null) {
+      updateConfigsList(result);
+    } else {
+      // 如果没有返回结果，可能是用户取消了编辑，但为了确保数据最新，重新加载配置
+      await _aiConfigStateService.loadConfigs();
+    }
   }
 
   IconData getTypeIcon(int type) {
