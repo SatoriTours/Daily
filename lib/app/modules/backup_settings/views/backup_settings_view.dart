@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:daily_satori/app/routes/app_pages.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
-import 'package:daily_satori/app/styles/components/button_styles.dart';
 
 import '../controllers/backup_settings_controller.dart';
 
@@ -14,10 +13,16 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: AppBar(title: const Text('备份与恢复'), centerTitle: true, backgroundColor: colorScheme.surface),
+      appBar: AppBar(
+        title: Text('备份与恢复', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: colorScheme.surface,
+      ),
       body: Obx(() {
         // 如果还没有选择备份目录，直接显示提示选择
         if (controller.backupDirectory.value.isEmpty) {
@@ -33,30 +38,45 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
   /// 构建选择目录提示
   Widget _buildSelectDirectoryPrompt(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
 
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.folder_open_rounded, size: 64, color: colorScheme.primary.withValues(alpha: 0.8)),
-          const SizedBox(height: 24),
-          Text(
-            '请选择备份目录',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: colorScheme.onSurface),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '选择一个文件夹存储您的应用数据备份',
-            style: TextStyle(fontSize: 14, color: colorScheme.onSurface.withValues(alpha: 0.6)),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () => controller.selectBackupDirectory(),
-            icon: const Icon(Icons.create_new_folder_rounded),
-            label: const Text('选择备份目录'),
-            style: ButtonStyles.getPrimaryStyle(context),
-          ),
-        ],
+      child: Padding(
+        padding: Dimensions.paddingPage,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // 图标容器
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.folder_open_rounded, size: 64, color: colorScheme.primary),
+            ),
+            Dimensions.verticalSpacerL,
+            Dimensions.verticalSpacerL,
+            Text('请选择备份目录', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+            Dimensions.verticalSpacerM,
+            Text(
+              '选择一个文件夹存储您的应用数据备份',
+              style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+              textAlign: TextAlign.center,
+            ),
+            Dimensions.verticalSpacerL,
+            Dimensions.verticalSpacerL,
+            ElevatedButton.icon(
+              onPressed: () => controller.selectBackupDirectory(),
+              icon: const Icon(Icons.create_new_folder_rounded, size: 20),
+              label: const Text('选择备份目录'),
+              style: ButtonStyles.getPrimaryStyle(
+                context,
+              ).copyWith(padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 32, vertical: 16))),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -64,22 +84,24 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
   /// 构建主要内容
   Widget _buildMainContent(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: Dimensions.paddingPage,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 备份目录区域
-          _buildSectionTitle(context, '备份目录'),
-          const SizedBox(height: 12),
+          _buildSectionTitle(context, '备份目录', Icons.folder_rounded),
+          Dimensions.verticalSpacerM,
           _buildDirectoryCard(context),
-          const SizedBox(height: 32),
+          Dimensions.verticalSpacerL,
+          Dimensions.verticalSpacerL,
 
           // 操作按钮区域
-          _buildSectionTitle(context, '操作'),
-          const SizedBox(height: 12),
+          _buildSectionTitle(context, '操作', Icons.touch_app_rounded),
+          Dimensions.verticalSpacerM,
 
           // 立即备份按钮
           Obx(
@@ -88,50 +110,56 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
                 : _buildActionButton(
                     context,
                     title: '立即备份',
+                    subtitle: '保存当前所有应用数据',
                     icon: Icons.backup_rounded,
                     color: colorScheme.primary,
                     onTap: () => _onBackupPressed(context),
                   ),
           ),
-          const SizedBox(height: 16),
+          Dimensions.verticalSpacerM,
 
           // 恢复备份按钮
           _buildActionButton(
             context,
             title: '恢复备份',
+            subtitle: '从备份文件中恢复数据',
             icon: Icons.restore_rounded,
             color: Colors.deepPurple,
             onTap: () => Get.toNamed(Routes.backupRestore),
           ),
-
-          const SizedBox(height: 24),
+          Dimensions.verticalSpacerL,
+          Dimensions.verticalSpacerL,
 
           // 提示信息
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: colorScheme.secondaryContainer.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(12),
+              color: colorScheme.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(Dimensions.radiusM),
+              border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2), width: 1),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.info_outline, size: 20, color: colorScheme.secondary),
-                    const SizedBox(width: 8),
+                    Icon(Icons.lightbulb_outline_rounded, size: 20, color: colorScheme.primary),
+                    Dimensions.horizontalSpacerS,
                     Text(
                       '备份说明',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: colorScheme.secondary),
+                      style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.primary),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                Dimensions.verticalSpacerS,
                 Text(
-                  '· 备份将保存您的全部应用数据，包括文章、笔记和设置\n'
-                  '· 备份文件存储在您选择的目录中\n'
-                  '· 建议定期备份数据以防丢失',
-                  style: TextStyle(fontSize: 14, height: 1.6, color: colorScheme.onSecondaryContainer),
+                  '• 备份将保存您的全部应用数据，包括文章、笔记和设置\n'
+                  '• 备份文件存储在您选择的目录中\n'
+                  '• 建议定期备份数据以防丢失',
+                  style: textTheme.bodySmall?.copyWith(
+                    height: 1.6,
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
                 ),
               ],
             ),
@@ -144,37 +172,50 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
   /// 构建备份进度
   Widget _buildBackupProgress(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Dimensions.radiusM),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-              const SizedBox(width: 12),
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+                ),
+              ),
+              Dimensions.horizontalSpacerM,
               Text(
                 '正在备份...',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: colorScheme.primary),
+                style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.primary),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          Dimensions.verticalSpacerL,
           Obx(
             () => LinearProgressIndicator(
               value: controller.backupProgress.value,
               backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.2),
               valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+              borderRadius: BorderRadius.circular(4),
             ),
           ),
-          const SizedBox(height: 8),
-          Text('请勿关闭应用或离开此页面', style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant)),
+          Dimensions.verticalSpacerS,
+          Text(
+            '请勿关闭应用或离开此页面',
+            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+          ),
         ],
       ),
     );
@@ -182,60 +223,61 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
 
   /// 构建目录卡片
   Widget _buildDirectoryCard(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
+    final cardColor = Colors.teal;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: colorScheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
+        color: cardColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(Dimensions.radiusM),
+        border: Border.all(color: cardColor.withValues(alpha: 0.25), width: 1.5),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(Icons.folder_rounded, size: 22, color: colorScheme.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '当前备份位置',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: colorScheme.onSurface),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+          // 48x48 图标容器
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: colorScheme.primary.withValues(alpha: 0.1)),
+              color: cardColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(Dimensions.radiusS),
             ),
-            child: Row(
+            child: Icon(Icons.folder_rounded, size: 26, color: cardColor),
+          ),
+          Dimensions.horizontalSpacerM,
+          // 路径文本
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    controller.backupDirectory.value,
-                    style: TextStyle(fontSize: 14, color: colorScheme.onSurfaceVariant),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                Text(
+                  '备份位置',
+                  style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: cardColor),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  controller.backupDirectory.value,
+                  style: textTheme.bodySmall?.copyWith(color: cardColor.withValues(alpha: 0.7)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () => controller.selectBackupDirectory(),
-              icon: const Icon(Icons.edit_rounded, size: 18),
-              label: const Text('修改'),
-              style: ButtonStyles.getTextStyle(context),
+          Dimensions.horizontalSpacerS,
+          // 修改按钮
+          InkWell(
+            onTap: () => controller.selectBackupDirectory(),
+            borderRadius: BorderRadius.circular(Dimensions.radiusS),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: cardColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(Dimensions.radiusS),
+              ),
+              child: Icon(Icons.edit_outlined, size: 20, color: cardColor),
             ),
           ),
         ],
@@ -247,31 +289,52 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
   Widget _buildActionButton(
     BuildContext context, {
     required String title,
+    String? subtitle,
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
   }) {
+    final textTheme = AppTheme.getTextTheme(context);
+
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(Dimensions.radiusM),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(Dimensions.radiusM),
+          border: Border.all(color: color.withValues(alpha: 0.25), width: 1.5),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 24, color: color),
-            const SizedBox(width: 16),
-            Text(
-              title,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: color),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(Dimensions.radiusS),
+              ),
+              child: Icon(icon, size: 26, color: color),
             ),
-            const Spacer(),
-            Icon(Icons.arrow_forward_ios_rounded, size: 16, color: color.withValues(alpha: 0.6)),
+            Dimensions.horizontalSpacerM,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: color),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: textTheme.bodySmall?.copyWith(color: color.withValues(alpha: 0.7))),
+                  ],
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, size: 22, color: color.withValues(alpha: 0.6)),
           ],
         ),
       ),
@@ -279,15 +342,22 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
   }
 
   /// 构建分区标题
-  Widget _buildSectionTitle(BuildContext context, String title) {
+  Widget _buildSectionTitle(BuildContext context, String title, IconData icon) {
+    final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Text(
-        title,
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: colorScheme.onSurface),
-      ),
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: colorScheme.primary),
+        Dimensions.horizontalSpacerS,
+        Text(
+          title,
+          style: textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: colorScheme.onSurface.withValues(alpha: 0.9),
+          ),
+        ),
+      ],
     );
   }
 

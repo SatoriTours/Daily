@@ -1,29 +1,29 @@
 import 'dart:io';
 
-import 'package:daily_satori/app/styles/components/button_styles.dart';
-// snackbar 样式通过 UIUtils 统一封装使用
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
-
 import 'package:get/get.dart';
-
 import 'package:daily_satori/global.dart';
 
 import '../controllers/backup_restore_controller.dart';
 
 class BackupRestoreView extends GetView<BackupRestoreController> {
   const BackupRestoreView({super.key});
+
   @override
   Widget build(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
+
     return Scaffold(
+      backgroundColor: colorScheme.surface,
       appBar: AppBar(
-        title: const Text('从备份恢复', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+        title: Text('从备份恢复', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
         centerTitle: true,
         elevation: 0,
+        backgroundColor: colorScheme.surface,
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        child: Obx(() => _buildBody(context)),
-      ),
+      body: Padding(padding: Dimensions.paddingPage, child: Obx(() => _buildBody(context))),
     );
   }
 
@@ -36,6 +36,7 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _BackupHeader(count: controller.backupList.length),
+        Dimensions.verticalSpacerM,
         Expanded(
           child: _BackupList(
             itemCount: controller.backupList.length,
@@ -52,12 +53,14 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
   Widget _buildRestoreButton(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 20.0),
+      padding: const EdgeInsets.symmetric(vertical: 16),
       child: Obx(
         () => ElevatedButton.icon(
-          icon: const Icon(Icons.restore_rounded),
-          label: const Text("还原选中的备份", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-          style: ButtonStyles.getPrimaryStyle(context),
+          icon: const Icon(Icons.restore_rounded, size: 22),
+          label: Text("还原选中的备份", style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.w600)),
+          style: ButtonStyles.getPrimaryStyle(
+            context,
+          ).copyWith(padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 32, vertical: 16))),
           onPressed: controller.selectedBackupIndex.value >= 0 ? () => _onRestorePressed(context) : null,
         ),
       ),
@@ -92,13 +95,29 @@ class _EmptyBackupView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
+
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.backup_outlined, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text('暂无备份信息', style: TextStyle(fontSize: 16, color: Colors.grey)),
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.backup_outlined, size: 48, color: colorScheme.onSurface.withValues(alpha: 0.3)),
+          ),
+          Dimensions.verticalSpacerL,
+          Text('暂无备份信息', style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.5))),
+          Dimensions.verticalSpacerS,
+          Text(
+            '请先在备份设置中创建备份',
+            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.4)),
+          ),
         ],
       ),
     );
@@ -112,13 +131,24 @@ class _BackupHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
+    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(Dimensions.radiusM),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2), width: 1),
+      ),
       child: Row(
         children: [
-          const Icon(Icons.restore, size: 20),
-          const SizedBox(width: 8),
-          Text('可用备份文件（$count）', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+          Icon(Icons.history_rounded, size: 22, color: colorScheme.primary),
+          Dimensions.horizontalSpacerM,
+          Text(
+            '找到 $count 个备份文件',
+            style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.primary),
+          ),
         ],
       ),
     );
@@ -136,26 +166,79 @@ class _BackupItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).primaryColor;
+    final colorScheme = AppTheme.getColorScheme(context);
+    final textTheme = AppTheme.getTextTheme(context);
+    final primary = colorScheme.primary;
+
     return Card(
       elevation: isSelected ? 2 : 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: isSelected ? primary : Colors.transparent, width: 1.5),
-      ),
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Icon(Icons.history, color: isSelected ? primary : Colors.grey),
-        title: Text(
-          '备份 ${index + 1}',
-          style: TextStyle(fontSize: 15, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal),
+        borderRadius: BorderRadius.circular(Dimensions.radiusM),
+        side: BorderSide(
+          color: isSelected ? primary : colorScheme.outline.withValues(alpha: 0.2),
+          width: isSelected ? 2 : 1,
         ),
-        subtitle: Text('创建时间: ${createdAt ?? '-'}', style: const TextStyle(fontSize: 13)),
-        trailing: isSelected ? Icon(Icons.check_circle, color: primary) : null,
-        selected: isSelected,
-        selectedTileColor: primary.withValues(alpha: 0.05),
+      ),
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      color: isSelected ? primary.withValues(alpha: 0.08) : colorScheme.surface,
+      child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(Dimensions.radiusM),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // 图标
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? primary.withValues(alpha: 0.15)
+                      : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusS),
+                ),
+                child: Icon(
+                  Icons.backup_rounded,
+                  color: isSelected ? primary : colorScheme.onSurface.withValues(alpha: 0.5),
+                  size: 24,
+                ),
+              ),
+              Dimensions.horizontalSpacerM,
+              // 文本信息
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '备份 ${index + 1}',
+                      style: textTheme.titleSmall?.copyWith(
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        color: isSelected ? primary : colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.access_time_rounded, size: 14, color: colorScheme.onSurface.withValues(alpha: 0.5)),
+                        const SizedBox(width: 4),
+                        Text(
+                          createdAt ?? '-',
+                          style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // 选中图标
+              if (isSelected)
+                Icon(Icons.check_circle_rounded, color: primary, size: 28)
+              else
+                Icon(Icons.circle_outlined, color: colorScheme.onSurface.withValues(alpha: 0.3), size: 28),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -177,9 +260,10 @@ class _BackupList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
+    return ListView.builder(
       itemCount: itemCount,
-      separatorBuilder: (context, index) => const Divider(height: 1),
+      padding: const EdgeInsets.only(top: 8),
+      physics: const BouncingScrollPhysics(),
       itemBuilder: (context, index) => _BackupItem(
         index: index,
         createdAt: createdAtOf(index),
