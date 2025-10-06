@@ -90,10 +90,27 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
           if (!controller.isSystemConfig) _buildNameField(context),
           // 对于特殊配置（文章总结、书本解读、日记总结），显示继承选项
           if (controller.isSpecialConfig) _buildInheritOptionField(context),
-          _buildApiProviderField(context),
-          _buildModelNameField(context),
-          _buildApiTokenField(context),
-          _buildCustomApiAddressField(context),
+          // 使用Obx包装API配置字段的条件渲染，确保状态变化时重新渲染
+          Obx(() {
+            // 显示逻辑：
+            // 1. 通用配置（非特殊配置）：始终显示API配置字段
+            // 2. 特殊配置 + 不继承通用配置：显示API配置字段
+            // 3. 特殊配置 + 继承通用配置：隐藏API配置字段
+            final shouldShowApiFields = !controller.isSpecialConfig || (controller.isSpecialConfig && !controller.inheritFromGeneral);
+
+            if (shouldShowApiFields) {
+              return Column(
+                children: [
+                  _buildApiProviderField(context),
+                  _buildModelNameField(context),
+                  _buildApiTokenField(context),
+                  _buildCustomApiAddressField(context),
+                ],
+              );
+            } else {
+              return const SizedBox.shrink();
+            }
+          }),
         ],
       ),
     );
@@ -121,18 +138,9 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 简洁的主行：开关 + 状态说明
           Row(
             children: [
-              Expanded(
-                child: Text(
-                  controller.inheritFromGeneral
-                    ? '当前使用通用配置的AI设置'
-                    : '当前使用独立配置',
-                  style: AppTypography.bodyMedium.copyWith(
-                    color: AppColors.getOnSurface(context),
-                  ),
-                ),
-              ),
               Switch(
                 value: controller.inheritFromGeneral,
                 onChanged: (value) {
@@ -142,71 +150,57 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
                 },
                 activeThumbColor: AppColors.getPrimary(context),
               ),
+              Dimensions.horizontalSpacerM,
+              Expanded(
+                child: Text(
+                  controller.inheritFromGeneral ? '继承通用配置' : '独立配置',
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.getOnSurface(context),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
             ],
           ),
-          if (controller.inheritFromGeneral) ...[
-            Dimensions.verticalSpacerS,
-            Container(
-              padding: Dimensions.paddingS,
-              decoration: BoxDecoration(
-                color: AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow),
-                borderRadius: BorderRadius.circular(Dimensions.radiusS),
-                border: Border.all(
-                  color: AppColors.getPrimary(context).withValues(alpha: Opacities.low),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.check_circle_outline,
-                    size: Dimensions.iconSizeS,
-                    color: AppColors.getPrimary(context),
-                  ),
-                  Dimensions.horizontalSpacerS,
-                  Expanded(
-                    child: Text(
-                      '此配置将自动使用通用配置中的AI模型和设置',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.getOnSurface(context),
-                      ),
-                    ),
-                  ),
-                ],
+          // 简化的说明信息
+          Dimensions.verticalSpacerS,
+          Container(
+            padding: Dimensions.paddingS,
+            decoration: BoxDecoration(
+              color: controller.inheritFromGeneral
+                ? AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow)
+                : AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.extraLow),
+              borderRadius: BorderRadius.circular(Dimensions.radiusS),
+              border: Border.all(
+                color: controller.inheritFromGeneral
+                  ? AppColors.getPrimary(context).withValues(alpha: Opacities.low)
+                  : AppColors.getOutline(context).withValues(alpha: Opacities.medium),
+                width: 1,
               ),
             ),
-          ] else ...[
-            Dimensions.verticalSpacerS,
-            Container(
-              padding: Dimensions.paddingS,
-              decoration: BoxDecoration(
-                color: AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.extraLow),
-                borderRadius: BorderRadius.circular(Dimensions.radiusS),
-                border: Border.all(
-                  color: AppColors.getOutline(context).withValues(alpha: Opacities.medium),
-                  width: 1,
+            child: Row(
+              children: [
+                Icon(
+                  controller.inheritFromGeneral ? Icons.sync : Icons.tune,
+                  size: Dimensions.iconSizeS,
+                  color: controller.inheritFromGeneral
+                    ? AppColors.getPrimary(context)
+                    : AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.tune,
-                    size: Dimensions.iconSizeS,
-                    color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
-                  ),
-                  Dimensions.horizontalSpacerS,
-                  Expanded(
-                    child: Text(
-                      '可以为此功能配置独立的AI模型和设置',
-                      style: AppTypography.bodySmall.copyWith(
-                        color: AppColors.getOnSurface(context),
-                      ),
+                Dimensions.horizontalSpacerS,
+                Expanded(
+                  child: Text(
+                    controller.inheritFromGeneral
+                      ? '将使用通用配置的AI设置'
+                      : '可以为此功能设置独立的AI配置',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.getOnSurface(context),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ],
       ),
     ));
