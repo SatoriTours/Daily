@@ -98,23 +98,20 @@ class ArticleDetailAppBar extends StatelessWidget implements PreferredSizeWidget
     UIUtils.showSuccess('URL已复制到剪贴板');
   }
 
-  void _showDeleteConfirmationDialog() {
-    final colorScheme = AppTheme.getColorScheme(Get.context!);
-
-    Get.defaultDialog(
+  void _showDeleteConfirmationDialog() async {
+    final confirmed = await DialogUtils.showConfirm(
       title: "确认删除",
-      middleText: "您确定要删除吗？",
-      confirm: TextButton(
-        onPressed: () async {
-          await controller.deleteArticle();
-          Get.find<ArticlesController>().removeArticle(controller.articleModel.id);
-          Get.back();
-          UIUtils.showSuccess('删除成功', title: '提示');
-        },
-        child: Text('删除', style: TextStyle(color: colorScheme.error)),
-      ),
-      cancel: TextButton(onPressed: () => Get.back(), child: Text("取消")),
+      message: "您确定要删除吗？",
+      confirmText: "删除",
+      cancelText: "取消",
     );
+
+    if (confirmed) {
+      await controller.deleteArticle();
+      Get.find<ArticlesController>().removeArticle(controller.articleModel.id);
+      Get.back();
+      UIUtils.showSuccess('删除成功', title: '提示');
+    }
   }
 
   @override

@@ -9,6 +9,7 @@ import 'package:daily_satori/app/modules/article_detail/controllers/article_deta
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/components/smart_image.dart';
+import 'package:daily_satori/app/utils/dialog_utils.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 
@@ -56,21 +57,18 @@ class ArticleImageView extends StatelessWidget {
           actions: [
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.white),
-              onPressed: () {
-                Get.defaultDialog(
+              onPressed: () async {
+                final confirmed = await DialogUtils.showConfirm(
                   title: "确认删除",
-                  middleText: "确定要删除这张图片吗?",
-                  confirm: TextButton(
-                    onPressed: () async {
-                      await controller.deleteImage(images[initialIndex]);
-                      Get.back();
-                      Get.back();
-                      UIUtils.showSuccess('删除成功', title: '提示');
-                    },
-                    child: Text("确认", style: TextStyle(color: Colors.red)),
-                  ),
-                  cancel: TextButton(onPressed: () => Get.back(), child: const Text("取消")),
+                  message: "确定要删除这张图片吗?",
+                  confirmText: "确认",
+                  cancelText: "取消",
                 );
+                if (confirmed) {
+                  await controller.deleteImage(images[initialIndex]);
+                  Get.back();
+                  UIUtils.showSuccess('删除成功', title: '提示');
+                }
               },
             ),
             IconButton(

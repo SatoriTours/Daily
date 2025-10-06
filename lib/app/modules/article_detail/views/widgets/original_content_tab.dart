@@ -7,7 +7,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:daily_satori/app/modules/article_detail/controllers/article_detail_controller.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:daily_satori/global.dart';
 
 /// 文章原始内容标签页
@@ -215,27 +214,13 @@ class OriginalContentTab extends StatelessWidget {
   Future<void> _generateMarkdown() async {
     try {
       // 显示加载对话框
-      Get.dialog(
-        const Center(
-          child: Card(
-            margin: EdgeInsets.all(16),
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [CircularProgressIndicator(), SizedBox(height: 16), Text("正在生成Markdown内容，请稍候...")],
-              ),
-            ),
-          ),
-        ),
-        barrierDismissible: false,
-      );
+      DialogUtils.showLoading(tips: '正在生成Markdown内容，请稍候...');
 
       // 生成Markdown内容
       await controller.generateMarkdownContent();
 
       // 关闭加载对话框
-      Get.back();
+      DialogUtils.hideLoading();
 
       // 检查生成结果
       if (controller.articleModel.aiMarkdownContent?.isNotEmpty ?? false) {
@@ -246,7 +231,7 @@ class OriginalContentTab extends StatelessWidget {
         UIUtils.showError('生成Markdown内容失败');
       }
     } catch (e) {
-      Get.back();
+      DialogUtils.hideLoading();
       logger.e('生成Markdown时出错: $e');
       UIUtils.showError('生成过程中出错: $e');
     }
