@@ -1,4 +1,3 @@
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -24,7 +23,7 @@ class DialogUtils {
         actions: [
           TextButton(
             onPressed: () {
-              Get.back();
+              _closeDialog();
               if (onConfirm != null) onConfirm();
             },
             child: Text(buttonText),
@@ -120,9 +119,7 @@ class DialogUtils {
 
   /// 隐藏加载提示
   static void hideLoading() {
-    logger.i('隐藏加载对话框1');
     if (_isLoadingShown) {
-      logger.i('隐藏加载对话框');
       _closeDialog();
       _isLoadingShown = false;
     }
