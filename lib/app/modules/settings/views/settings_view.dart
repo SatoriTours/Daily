@@ -183,13 +183,6 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   /// 构建单个设置项
-  ///
-  /// 参数：
-  /// - [title] 设置项标题
-  /// - [subtitle] 设置项描述
-  /// - [icon] 设置项图标
-  /// - [color] 图标颜色
-  /// - [onTap] 点击回调
   Widget _buildSettingItem({
     required BuildContext context,
     required String title,
@@ -198,9 +191,6 @@ class SettingsView extends GetView<SettingsController> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    final textTheme = AppTheme.getTextTheme(context);
-    final colorScheme = AppTheme.getColorScheme(context);
-
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -209,23 +199,32 @@ class SettingsView extends GetView<SettingsController> {
           children: [
             FeatureIcon(icon: icon, iconColor: color, containerSize: 32, iconSize: 16),
             Dimensions.horizontalSpacerM,
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: textTheme.titleSmall),
-                  Text(
-                    subtitle,
-                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 179)),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: colorScheme.onSurface.withValues(alpha: 77), size: 18),
+            Expanded(child: _buildSettingItemText(context, title, subtitle)),
+            _buildSettingItemTrailingIcon(context),
           ],
         ),
       ),
     );
+  }
+
+  /// 构建设置项文本内容
+  Widget _buildSettingItemText(BuildContext context, String title, String subtitle) {
+    final textTheme = AppTheme.getTextTheme(context);
+    final colorScheme = AppTheme.getColorScheme(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: textTheme.titleSmall),
+        Text(subtitle, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 179))),
+      ],
+    );
+  }
+
+  /// 构建设置项尾部图标
+  Widget _buildSettingItemTrailingIcon(BuildContext context) {
+    final colorScheme = AppTheme.getColorScheme(context);
+    return Icon(Icons.chevron_right, color: colorScheme.onSurface.withValues(alpha: 77), size: 18);
   }
 
   /// 构建版本信息
@@ -429,24 +428,30 @@ class SettingsView extends GetView<SettingsController> {
   Widget _buildConnectionStatusIndicator(TextTheme textTheme) {
     final isConnected = controller.isWebSocketConnected.value;
     final statusColor = isConnected ? Colors.green : Colors.red;
+    final statusText = isConnected ? '已连接' : '未连接';
 
     return Row(
       children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: statusColor,
-            shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: statusColor.withValues(alpha: 0.3), blurRadius: 4, spreadRadius: 1)],
-          ),
-        ),
+        _buildStatusDot(statusColor),
         Dimensions.horizontalSpacerS,
         Text(
-          isConnected ? '已连接' : '未连接',
+          statusText,
           style: textTheme.bodyMedium?.copyWith(color: statusColor, fontWeight: FontWeight.w600),
         ),
       ],
+    );
+  }
+
+  /// 构建状态指示点
+  Widget _buildStatusDot(Color color) {
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 4, spreadRadius: 1)],
+      ),
     );
   }
 
@@ -483,6 +488,7 @@ class SettingsView extends GetView<SettingsController> {
   /// 构建服务器提示卡片
   Widget _buildServerTipCard(BuildContext context, Color primaryColor, ColorScheme colorScheme) {
     final textTheme = AppTheme.getTextTheme(context);
+    const tipText = '确保设备在同一WiFi网络下才能访问HTTP服务器。WebSocket远程访问可在任何网络环境下使用。';
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -498,7 +504,7 @@ class SettingsView extends GetView<SettingsController> {
           Dimensions.horizontalSpacerS,
           Expanded(
             child: Text(
-              '确保设备在同一WiFi网络下才能访问HTTP服务器。WebSocket远程访问可在任何网络环境下使用。',
+              tipText,
               style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.7), height: 1.4),
             ),
           ),
@@ -565,11 +571,7 @@ class SettingsView extends GetView<SettingsController> {
   Widget _buildPasswordTipCard(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(Dimensions.radiusS),
-        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2), width: 1),
-      ),
+      decoration: _buildTipCardDecoration(colorScheme),
       child: Row(
         children: [
           Icon(Icons.info_outline_rounded, size: 16, color: colorScheme.primary),
@@ -582,6 +584,15 @@ class SettingsView extends GetView<SettingsController> {
           ),
         ],
       ),
+    );
+  }
+
+  /// 构建提示卡片装饰
+  BoxDecoration _buildTipCardDecoration(ColorScheme colorScheme) {
+    return BoxDecoration(
+      color: colorScheme.primary.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2), width: 1),
     );
   }
 
@@ -598,30 +609,39 @@ class SettingsView extends GetView<SettingsController> {
         controller: passwordController,
         obscureText: !isPasswordVisible.value,
         style: textTheme.bodyMedium,
-        decoration: InputDecoration(
-          labelText: '密码',
-          hintText: '请输入服务器密码',
-          prefixIcon: const Icon(Icons.lock_outline_rounded),
-          suffixIcon: IconButton(
-            icon: Icon(isPasswordVisible.value ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 20),
-            onPressed: () => isPasswordVisible.value = !isPasswordVisible.value,
-            tooltip: isPasswordVisible.value ? '隐藏密码' : '显示密码',
-          ),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(Dimensions.radiusS),
-            borderSide: BorderSide(color: colorScheme.outline, width: 1),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(Dimensions.radiusS),
-            borderSide: BorderSide(color: colorScheme.primary, width: 2),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(Dimensions.radiusS),
-            borderSide: BorderSide(color: colorScheme.outline, width: 1),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
+        decoration: _buildPasswordInputDecoration(isPasswordVisible, colorScheme),
       ),
+    );
+  }
+
+  /// 构建密码输入框装饰
+  InputDecoration _buildPasswordInputDecoration(RxBool isPasswordVisible, ColorScheme colorScheme) {
+    return InputDecoration(
+      labelText: '密码',
+      hintText: '请输入服务器密码',
+      prefixIcon: const Icon(Icons.lock_outline_rounded),
+      suffixIcon: _buildPasswordVisibilityToggle(isPasswordVisible),
+      border: _buildInputBorder(colorScheme.outline, 1),
+      focusedBorder: _buildInputBorder(colorScheme.primary, 2),
+      enabledBorder: _buildInputBorder(colorScheme.outline, 1),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    );
+  }
+
+  /// 构建密码可见性切换按钮
+  Widget _buildPasswordVisibilityToggle(RxBool isPasswordVisible) {
+    return IconButton(
+      icon: Icon(isPasswordVisible.value ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 20),
+      onPressed: () => isPasswordVisible.value = !isPasswordVisible.value,
+      tooltip: isPasswordVisible.value ? '隐藏密码' : '显示密码',
+    );
+  }
+
+  /// 构建输入框边框
+  OutlineInputBorder _buildInputBorder(Color color, double width) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      borderSide: BorderSide(color: color, width: width),
     );
   }
 
@@ -647,15 +667,7 @@ class SettingsView extends GetView<SettingsController> {
   // ==================== 通用组件 ====================
 
   /// 构建信息卡片
-  ///
-  /// 用于显示各类信息项，如服务器地址、连接状态等
-  ///
-  /// 参数：
-  /// - [title] 卡片标题
-  /// - [content] 卡片内容Widget
-  /// - [icon] 图标
-  /// - [iconColor] 图标颜色
-  /// - [action] 可选的操作按钮（如复制按钮）
+  /// 用于显示服务器地址、连接状态等信息
   Widget _buildInfoCard({
     required BuildContext context,
     required String title,
@@ -665,30 +677,16 @@ class SettingsView extends GetView<SettingsController> {
     Color? iconColor,
     Widget? action,
   }) {
-    final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
-    final cardColor = color ?? colorScheme.primary;
-    final cardIconColor = iconColor ?? cardColor;
+    final cardIconColor = iconColor ?? color ?? colorScheme.primary;
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(Dimensions.radiusM),
-        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
-      ),
+      decoration: _buildInfoCardDecoration(colorScheme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 20, color: cardIconColor),
-              Dimensions.horizontalSpacerS,
-              Text(title, style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
-              const Spacer(),
-              if (action != null) action,
-            ],
-          ),
+          _buildInfoCardHeader(context, title, icon, cardIconColor, action),
           Dimensions.verticalSpacerS,
           content,
         ],
@@ -696,16 +694,32 @@ class SettingsView extends GetView<SettingsController> {
     );
   }
 
+  /// 构建信息卡片装饰
+  BoxDecoration _buildInfoCardDecoration(ColorScheme colorScheme) {
+    return BoxDecoration(
+      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(Dimensions.radiusM),
+      border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
+    );
+  }
+
+  /// 构建信息卡片头部
+  Widget _buildInfoCardHeader(BuildContext context, String title, IconData icon, Color iconColor, Widget? action) {
+    final textTheme = AppTheme.getTextTheme(context);
+
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: iconColor),
+        Dimensions.horizontalSpacerS,
+        Text(title, style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+        const Spacer(),
+        if (action != null) action,
+      ],
+    );
+  }
+
   /// 构建Web服务器设置项
-  ///
   /// 用于服务器管理分区的设置按钮
-  ///
-  /// 参数：
-  /// - [title] 设置项标题
-  /// - [subtitle] 设置项描述
-  /// - [icon] 图标
-  /// - [color] 图标颜色
-  /// - [onTap] 点击回调
   Widget _buildWebServerSetting({
     required BuildContext context,
     required String title,
@@ -714,44 +728,57 @@ class SettingsView extends GetView<SettingsController> {
     Color? color,
     required VoidCallback onTap,
   }) {
-    final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
     final itemColor = color ?? colorScheme.primary;
+    final decoration = _buildServerSettingDecoration(colorScheme);
 
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(Dimensions.radiusM),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(Dimensions.radiusM),
-          border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
-        ),
+        decoration: decoration,
         child: Row(
           children: [
             Icon(icon, size: 22, color: itemColor),
             Dimensions.horizontalSpacerM,
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: colorScheme.onSurface.withValues(alpha: 0.4), size: 20),
+            Expanded(child: _buildServerSettingText(context, title, subtitle)),
+            _buildTrailingIcon(colorScheme),
           ],
         ),
       ),
     );
+  }
+
+  /// 构建服务器设置项装饰
+  BoxDecoration _buildServerSettingDecoration(ColorScheme colorScheme) {
+    return BoxDecoration(
+      color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+      borderRadius: BorderRadius.circular(Dimensions.radiusM),
+      border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
+    );
+  }
+
+  /// 构建服务器设置项文本
+  Widget _buildServerSettingText(BuildContext context, String title, String? subtitle) {
+    final textTheme = AppTheme.getTextTheme(context);
+    final colorScheme = AppTheme.getColorScheme(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        if (subtitle != null) ...[
+          const SizedBox(height: 2),
+          Text(subtitle, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6))),
+        ],
+      ],
+    );
+  }
+
+  /// 构建尾部箭头图标
+  Widget _buildTrailingIcon(ColorScheme colorScheme) {
+    return Icon(Icons.chevron_right_rounded, color: colorScheme.onSurface.withValues(alpha: 0.4), size: 20);
   }
 
   /// 构建区域标题
