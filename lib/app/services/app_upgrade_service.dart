@@ -35,19 +35,13 @@ class AppUpgradeService {
   // 检查并下载新版本(带UI提示)
   Future<void> checkAndDownload() async {
     DialogUtils.showLoading(tips: '正在检查更新...');
-    try {
-      final hasUpdate = await check();
+    final hasUpdate = await check();
+    DialogUtils.hideLoading();
 
-      if (hasUpdate) {
-        await _downAndInstallApp();
-      } else {
-        UIUtils.showSuccess('当前已是最新版本');
-      }
-    } catch (e) {
-      logger.e("检查更新失败: $e");
-      UIUtils.showError('检查更新失败，请稍后重试');
-    } finally {
-      DialogUtils.hideLoading();
+    if (hasUpdate) {
+      await _downAndInstallApp();
+    } else {
+      UIUtils.showSuccess('当前已是最新版本');
     }
   }
 

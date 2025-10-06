@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -107,7 +108,10 @@ class DialogUtils {
 
   /// 显示全屏加载提示
   static void showLoading({String tips = '', Color barrierColor = const Color(0x80000000)}) {
+    logger.i("显示加载提示: $tips $_isLoadingShown");
     if (_isLoadingShown) return; // 如果已经显示了loading，直接返回
+    logger.i("显示加载提示1: $tips");
+
     final context = Get.context;
     final textTheme = context != null ? Theme.of(context).textTheme.bodyMedium : null;
     Get.dialog(
@@ -131,13 +135,13 @@ class DialogUtils {
   /// 隐藏加载提示
   static void hideLoading() {
     if (_isLoadingShown) {
-      _closeDialog();
       _isLoadingShown = false;
+      _closeDialog();
     }
   }
 
   static void _closeDialog() {
-    Navigator.of(Get.context!).pop();
+    Get.closeDialog();
   }
 }
 
