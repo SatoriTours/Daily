@@ -182,45 +182,52 @@ class PluginCenterView extends GetView<PluginCenterController> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 插件名称
-        Text(plugin.fileName, style: AppTypography.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+        // 第一行：插件名称和更新时间
+        Row(
+          children: [
+            // 插件名称
+            Expanded(
+              child: Text(
+                plugin.fileName,
+                style: AppTypography.titleSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            // 更新时间 - 右对齐
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.schedule_rounded,
+                  size: 14,
+                  color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  timeText,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
         const SizedBox(height: 4),
 
-        // 描述 - 增强可读性
+        // 描述 - 使用 high 透明度提升可读性
         if (plugin.description.isNotEmpty)
           Text(
             plugin.description,
             style: AppTypography.bodySmall.copyWith(
-              color: AppColors.getOnSurface(
-                context,
-              ).withValues(alpha: Opacities.mediumHigh), // 从 mediumLow 改为 mediumHigh
+              color: AppColors.getOnSurface(context).withValues(alpha: Opacities.high), // 改为 high 提升可读性
               height: 1.3,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-
-        const SizedBox(height: 6),
-
-        // 更新时间 - 增强可读性
-        Row(
-          children: [
-            Icon(
-              Icons.schedule_rounded,
-              size: 14,
-              color: AppColors.getOnSurface(context).withValues(alpha: Opacities.mediumHigh), // 从 medium 改为 mediumHigh
-            ),
-            const SizedBox(width: 4),
-            Text(
-              '更新于 $timeText',
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.getOnSurface(
-                  context,
-                ).withValues(alpha: Opacities.mediumHigh), // 从 medium 改为 mediumHigh
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }
@@ -321,7 +328,7 @@ class PluginCenterView extends GetView<PluginCenterController> {
               Text(
                 plugin.description,
                 style: AppTypography.bodyMedium.copyWith(
-                  color: AppColors.getOnSurface(context).withValues(alpha: Opacities.mediumHigh),
+                  color: AppColors.getOnSurface(context).withValues(alpha: Opacities.high), // 改为 high 提升可读性
                   height: 1.5,
                 ),
               ),
