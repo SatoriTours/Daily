@@ -54,15 +54,17 @@ class SettingsView extends GetView<SettingsController> {
 
   /// 构建设置列表
   Widget _buildSettingsList(BuildContext context) {
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: Dimensions.paddingM,
+    return Column(
       children: [
-        _buildFunctionSection(context),
-        _buildSystemSection(context),
-        Dimensions.verticalSpacerL,
+        Expanded(
+          child: ListView(
+            physics: const BouncingScrollPhysics(),
+            padding: Dimensions.paddingM,
+            children: [_buildFunctionSection(context), _buildSystemSection(context), Dimensions.verticalSpacerL],
+          ),
+        ),
         _buildVersionInfo(context),
-        Dimensions.verticalSpacerL,
+        Dimensions.verticalSpacerM,
       ],
     );
   }
