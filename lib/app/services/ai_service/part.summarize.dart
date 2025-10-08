@@ -56,7 +56,7 @@ extension PartSummarize on AiService {
       return ('', const <String>[]);
     }
 
-    logger.i("[AI摘要] 生成完整摘要和标签中...");
+    logger.i("[AI摘要] 生成完整摘要和标签中... ${StringUtils.getSubstring(text)}");
 
     // 根据文本长度选择不同的摘要提示
     final isLongText = text.length > 300;

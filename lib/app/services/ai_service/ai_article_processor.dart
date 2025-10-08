@@ -9,8 +9,8 @@ import 'package:daily_satori/global.dart';
 /// AI 文章处理常量
 class AiArticleConstants {
   AiArticleConstants._();
-  static const int minHtmlLength = 100; // HTML 内容最小长度
-  static const int minTextLength = 50; // 文本内容最小长度
+  static const int minHtmlLength = 50; // HTML 内容最小长度
+  static const int minTextLength = 20; // 文本内容最小长度
   static const int longTitleThreshold = 50; // 标题过长阈值
 }
 
@@ -21,6 +21,9 @@ class AiArticleProcessor {
   static final AiArticleProcessor i = AiArticleProcessor._();
 
   Future<void> processAll(ArticleModel article) async {
+    logger.i(
+      '[AI] 开始处理文章 #${article.id} title=${StringUtils.getSubstring(article.title ?? '')} content=${StringUtils.getSubstring(article.content ?? '')}',
+    );
     final tasks = <Future<void>>[
       _processTitle(article),
       _processSummary(article),

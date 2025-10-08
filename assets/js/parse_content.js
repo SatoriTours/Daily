@@ -20,6 +20,15 @@ function parseContent() {
         htmlContent = article.content;
         textContent = article.textContent;
         publishedTime = article.publishedTime;
+
+        // 尝试获取有 aria-labelledby 属性的 section 节点
+        const sectionWithAriaLabel = document.querySelector('section[aria-labelledby]');
+        if (sectionWithAriaLabel) {
+            console.log("找到 aria-labelledby section 节点，应该是twitter的正文");
+            // 如果找到了这个节点,使用它的内容覆盖原有内容
+            htmlContent = sectionWithAriaLabel.innerHTML;
+            textContent = sectionWithAriaLabel.textContent;
+        }
     } catch (error) {
         console.log("Readability解析文章失败, 直接获取网页原始内容", error);
         title = document.title;
