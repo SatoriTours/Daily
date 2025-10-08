@@ -35,7 +35,7 @@ class DialogUtils {
   }
 
   /// 显示确认对话框
-  static Future<bool> showConfirm({
+  static Future<void> showConfirm({
     required String title,
     required String message,
     String confirmText = '确定',
@@ -43,7 +43,7 @@ class DialogUtils {
     VoidCallback? onConfirm,
     VoidCallback? onCancel,
   }) async {
-    final result = await Get.dialog<bool>(
+    await Get.dialog<bool>(
       _CustomDialog(
         title: title,
         content: message,
@@ -70,7 +70,6 @@ class DialogUtils {
         ],
       ),
     );
-    return result ?? false;
   }
 
   /// 显示输入对话框

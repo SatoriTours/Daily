@@ -3,7 +3,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/modules/article_detail/controllers/article_detail_controller.dart';
-import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
 class ArticleDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -99,19 +98,16 @@ class ArticleDetailAppBar extends StatelessWidget implements PreferredSizeWidget
   }
 
   void _showDeleteConfirmationDialog() async {
-    final confirmed = await DialogUtils.showConfirm(
+    await DialogUtils.showConfirm(
       title: "确认删除",
       message: "您确定要删除吗？",
       confirmText: "删除",
       cancelText: "取消",
+      onConfirm: () async {
+        await controller.deleteArticle();
+        UIUtils.showSuccess('删除成功', title: '提示');
+      },
     );
-
-    if (confirmed) {
-      await controller.deleteArticle();
-      Get.find<ArticlesController>().removeArticle(controller.articleModel.id);
-      Get.back();
-      UIUtils.showSuccess('删除成功', title: '提示');
-    }
   }
 
   @override

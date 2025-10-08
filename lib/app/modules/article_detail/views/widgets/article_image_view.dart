@@ -58,17 +58,16 @@ class ArticleImageView extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.white),
               onPressed: () async {
-                final confirmed = await DialogUtils.showConfirm(
+                await DialogUtils.showConfirm(
                   title: "确认删除",
                   message: "确定要删除这张图片吗?",
                   confirmText: "确认",
                   cancelText: "取消",
+                  onConfirm: () async {
+                    await controller.deleteImage(images[initialIndex]);
+                    UIUtils.showSuccess('删除成功', title: '提示');
+                  },
                 );
-                if (confirmed) {
-                  await controller.deleteImage(images[initialIndex]);
-                  Get.back();
-                  UIUtils.showSuccess('删除成功', title: '提示');
-                }
               },
             ),
             IconButton(
