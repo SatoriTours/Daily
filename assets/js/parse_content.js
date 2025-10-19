@@ -61,7 +61,6 @@ function parseContent() {
 }
 
 function getPageImage() {
-    // const supportedDomains = ['x.com', 'twitter.com', 'apps.apple.com', 'infoq.cn'];
     const hostDomain = window.location.hostname;
     console.log("网站域名是:", hostDomain);
 
@@ -104,48 +103,89 @@ function getOgImage() {
     return ogImage;
 }
 
+// 检查图片是否应该被跳过
+function shouldSkipImage(imgSrc) {
+    if (!imgSrc) {
+        return true;
+    }
+    if (imgSrc.endsWith('.gif')) {
+        console.log("跳过gif图");
+        return true;
+    }
+    if (imgSrc.startsWith("data:image/")) {
+        return true; // 是 Base64 内容
+    }
+    return false;
+}
+
+// 检查图片尺寸是否符合要求
+function isImageLargeEnough(img) {
+    return img.naturalWidth > 300 || img.naturalHeight > 300;
+}
+
+// 检查图片 URL 是否包含不需要的关键词
+function shouldSkipByKeyword(src) {
+    const skipKeywords = ['logo', 'avatar'];
+    for (const keyword of skipKeywords) {
+        if (src.includes(keyword)) {
+            console.log(`跳过包含 ${keyword} 的图片`, src);
+            return true;
+        }
+    }
+    return false;
+}
+
+// 优化 Twitter 图片 URL
+function optimizeTwitterImageUrl(src) {
+    if (src.match(/https:\/\/pbs\.twimg\.com\/media\/.*\?format=\w+&name=\w+/)) {
+        return src.replace(/name=\w+/, 'name=large');
+    }
+    return src;
+}
+
+// 转换相对路径为绝对路径
+function toAbsoluteUrl(src) {
+    if (!src.startsWith('http')) {
+        const baseUrl = window.location.origin;
+        return new URL(src, baseUrl).href;
+    }
+    return src;
+}
+
+// 处理单张图片
+function processImage(img) {
+    if (shouldSkipImage(img.src)) {
+        return null;
+    }
+
+    if (!isImageLargeEnough(img)) {
+        return null;
+    }
+
+    console.log("分析图片尺寸", img.naturalWidth, img.naturalHeight, img.src);
+
+    let src = img.src;
+
+    if (shouldSkipByKeyword(src)) {
+        return null;
+    }
+
+    src = optimizeTwitterImageUrl(src);
+    src = toAbsoluteUrl(src);
+
+    return src;
+}
+
 function getMainImage() {
     console.log("开始获取主图");
     const images = document.getElementsByTagName('img');
     let imagesSrc = [];
+
     // 一般来说选最大的那张图就是这个网页的代表
     for (let img of images) {
-        if (!img.src) {
-            continue; // 如果 img.src 为空，则跳过
-        }
-        if (img.src.endsWith('.gif')) {
-            console.log("跳过gif图");
-            continue;
-        }
-
-        if (img.src.startsWith("data:image/")) {
-            continue; // 是 Base64 内容
-        }
-
-        if (img.naturalWidth > 300 || img.naturalHeight > 300) {
-            console.log("分析图片尺寸", img.naturalWidth, img.naturalHeight, img.src);
-            let src = img.src;
-
-            if (src.includes('logo')) {
-                console.log("跳过包含 logo 的图片", src);
-                continue;
-            }
-
-            if (src.includes('avatar')) {
-                console.log("跳过包含 avatar 的图片", src);
-                continue;
-            }
-
-            // 替换 twitter 图片的 name 参数, 使用大图
-            if (src.match(/https:\/\/pbs\.twimg\.com\/media\/.*\?format=\w+&name=\w+/)) {
-                src = src.replace(/name=\w+/, 'name=large');
-            }
-
-            if (!src.startsWith('http')) {
-                const baseUrl = window.location.origin;
-                src = new URL(src, baseUrl).href; // 合并相对路径和当前网页地址
-            }
-            imagesSrc = imagesSrc.concat(src);
+        const processedSrc = processImage(img);
+        if (processedSrc) {
+            imagesSrc.push(processedSrc);
         }
     }
 
