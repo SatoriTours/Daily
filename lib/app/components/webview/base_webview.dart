@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:daily_satori/app/services/adblock_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/utils/utils.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 /// WebView 基类

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:daily_satori/app/utils/utils.dart';
 import 'package:dio/dio.dart' show DioException, Options;
 import 'package:get/get.dart';
 import 'package:open_file/open_file.dart';
@@ -6,7 +7,6 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/global.dart';
 
 class AppUpgradeService {
   // 单例模式

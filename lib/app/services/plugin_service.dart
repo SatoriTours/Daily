@@ -1,7 +1,7 @@
 import 'package:daily_satori/app/services/http_service.dart';
+import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
-import 'package:daily_satori/global.dart';
 import 'package:path/path.dart' as path;
 import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:flutter/services.dart' show rootBundle;

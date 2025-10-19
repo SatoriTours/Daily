@@ -5,8 +5,8 @@ library;
 /// 这个文件集中导出了应用程序中常用的组件、模型、服务和工具类，
 /// 使其他文件可以通过单一导入获取所需的依赖。
 
-// 导出全局变量和工具
-export 'global.dart';
+// 导出工具类
+export 'app/utils/utils.dart';
 
 // 导出所有模型
 export 'package:flutter/material.dart' hide VoidCallback;

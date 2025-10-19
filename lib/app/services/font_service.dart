@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/utils/app_info_utils.dart';
-import 'package:daily_satori/global.dart';
 
 /// 字体服务类
 ///

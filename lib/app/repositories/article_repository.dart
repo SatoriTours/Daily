@@ -2,7 +2,7 @@ import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/repositories/tag_repository.dart';
-import 'package:daily_satori/global.dart';
+import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 文章仓储类

@@ -1,9 +1,9 @@
 import 'dart:io';
+import 'package:daily_satori/app/utils/utils.dart';
 
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:daily_satori/global.dart';
 
 import '../controllers/backup_restore_controller.dart';
 

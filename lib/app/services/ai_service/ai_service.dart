@@ -7,7 +7,6 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/ai_config_service.dart';
-import 'package:daily_satori/global.dart';
 import 'package:template_expressions/template_expressions.dart';
 import 'package:daily_satori/app/utils/string_utils.dart';
 

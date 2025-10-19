@@ -1,6 +1,6 @@
 import 'package:daily_satori/app/repositories/article_repository.dart';
+import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/app/services/web_service/web_service.dart';
-import 'package:daily_satori/global.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';

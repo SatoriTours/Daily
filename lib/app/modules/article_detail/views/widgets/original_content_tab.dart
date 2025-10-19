@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:daily_satori/app/utils/utils.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:get/get.dart';
@@ -7,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:daily_satori/app/modules/article_detail/controllers/article_detail_controller.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/global.dart';
 
 /// 文章原始内容标签页
 /// 支持两种内容格式：

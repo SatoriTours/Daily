@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:daily_satori/app/utils/utils.dart';
 import 'package:flutter/widgets.dart';
 import 'package:daily_satori/app/components/webview/headless_webview.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
@@ -9,7 +10,6 @@ import 'package:daily_satori/app/services/state/article_state_service.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
 // 清理未使用的依赖（AI 具体处理已在 AiArticleProcessor 内）
 import 'package:daily_satori/app/utils/string_extensions.dart';
-import 'package:daily_satori/global.dart';
 import 'package:get/get.dart';
 import 'package:daily_satori/app/modules/article_detail/controllers/article_detail_controller.dart';
 
