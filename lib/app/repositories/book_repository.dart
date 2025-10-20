@@ -2,145 +2,208 @@ import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/objectbox/book.dart';
 import 'package:daily_satori/app/objectbox/book_viewpoint.dart';
+import 'package:daily_satori/app/repositories/base_repository.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 书籍存储库
 ///
-/// 负责书籍相关数据的存储和检索
-class BookRepository {
-  /// 私有构造函数
+/// 继承 `BaseRepository<Book>` 获取Book的通用CRUD功能
+/// 同时管理BookViewpoint实体
+/// 使用单例模式,通过 BookRepository.instance 访问
+class BookRepository extends BaseRepository<Book> {
+  // 私有构造函数
   BookRepository._();
 
-  /// 获取Book的Box
-  static final Box<Book> _bookBox = ObjectboxService.i.box<Book>();
+  // 单例实例
+  static final instance = BookRepository._();
 
-  /// 获取BookViewpoint的Box
-  static final Box<BookViewpoint> _viewpointBox = ObjectboxService.i.box<BookViewpoint>();
+  @override
+  Box<Book> get box => ObjectboxService.i.box<Book>();
 
-  // ===================== 书籍基本操作 =====================
+  @override
+  int get pageSize => 20;
 
-  /// 检查书籍是否存在
-  static bool exists(String title) {
-    return _bookBox.query(Book_.title.equals(title)).build().findFirst() != null;
+  // BookViewpoint box getter
+  Box<BookViewpoint> get _viewpointBox => ObjectboxService.i.box<BookViewpoint>();
+
+  // ============ Book CRUD 方法 ============
+
+  /// 获取所有书籍
+  List<Book> getAllBooks() {
+    return box.getAll();
   }
 
-  /// 通过ID获取书籍
-  static BookModel? getBookById(int id) {
-    final book = _bookBox.query(Book_.id.equals(id)).build().findFirst();
-    return book != null ? BookModel(book) : null;
+  /// 根据ID获取书籍
+  Book? getBookById(int id) {
+    return box.get(id);
   }
 
-  /// 获取书籍列表
-  static List<BookModel> getAllBooks() {
-    final books = _bookBox.getAll();
-    return books.map((entity) => BookModel(entity)).toList();
-  }
-
-  /// 按分类获取书籍
-  static List<BookModel> getBooksByCategory(String category) {
-    final query = _bookBox.query(Book_.category.equals(category)).build();
-    final books = query.find();
-    query.close();
-    return books.map((entity) => BookModel(entity)).toList();
+  /// 根据类别获取书籍
+  List<Book> getBooksByCategory(String category) {
+    final query = box.query(Book_.category.equals(category)).build();
+    try {
+      return query.find();
+    } finally {
+      query.close();
+    }
   }
 
   /// 保存书籍
-  static int saveBook(BookModel book) {
-    final entity = book.toEntity();
-    return _bookBox.put(entity);
+  int saveBook(Book book) {
+    return box.put(book);
   }
 
   /// 更新书籍
-  static int updateBook(BookModel book) {
-    final entity = book.toEntity();
-    return _bookBox.put(entity);
+  int updateBook(Book book) {
+    return box.put(book);
   }
 
   /// 批量保存书籍
-  static List<int> saveBooks(List<BookModel> books) {
-    final entities = books.map((book) => book.toEntity()).toList();
-    return _bookBox.putMany(entities);
+  List<int> saveBooks(List<Book> books) {
+    return box.putMany(books);
   }
 
   /// 删除书籍
-  static Future<void> deleteBook(int id) async {
-    await _bookBox.removeAsync(id);
-    await _viewpointBox.query(BookViewpoint_.bookId.equals(id)).build().removeAsync();
+  bool deleteBook(int id) {
+    return box.remove(id);
   }
 
   /// 删除所有书籍
-  static Future<void> deleteAllSync() async {
-    await _bookBox.removeAllAsync();
-    await _viewpointBox.removeAllAsync();
+  int deleteAllSync() {
+    return box.removeAll();
   }
 
-  // ===================== 书籍观点操作 =====================
+  // ============ BookViewpoint CRUD 方法 ============
 
-  /// 获取所有书籍观点
-  static List<BookViewpointModel> getAllViewpoints() {
-    final viewpoints = _viewpointBox.getAll();
-    return viewpoints.map((entity) => BookViewpointModel(entity)).toList();
+  /// 获取所有视角
+  List<BookViewpoint> getAllViewpoints() {
+    return _viewpointBox.getAll();
   }
 
-  static Future<List<BookViewpointModel>> getAllViewpointsAsync() async {
-    final viewpoints = await _viewpointBox.getAllAsync();
-    return viewpoints.map((entity) => BookViewpointModel(entity)).toList();
+  /// 获取所有视角(异步)
+  Future<List<BookViewpoint>> getAllViewpointsAsync() async {
+    return _viewpointBox.getAll();
   }
 
-  /// 根据书籍ID列表获取观点
-  static List<BookViewpointModel> getViewpointsByBookIds(List<int> bookIds) {
-    if (bookIds.isEmpty) {
-      return [];
-    }
-
+  /// 根据书籍ID列表获取视角
+  List<BookViewpoint> getViewpointsByBookIds(List<int> bookIds) {
     final query = _viewpointBox.query(BookViewpoint_.bookId.oneOf(bookIds)).build();
-    final viewpoints = query.find();
-    query.close();
-    return viewpoints.map((entity) => BookViewpointModel(entity)).toList();
-  }
-
-  /// 根据书籍ID列表获取观点
-  static Future<List<BookViewpointModel>> getViewpointsByBookIdsAsync(List<int> bookIds) async {
-    if (bookIds.isEmpty) {
-      return [];
+    try {
+      return query.find();
+    } finally {
+      query.close();
     }
-
-    final query = _viewpointBox.query(BookViewpoint_.bookId.oneOf(bookIds)).build();
-    final viewpoints = await query.findAsync();
-    query.close();
-    return viewpoints.map((entity) => BookViewpointModel(entity)).toList();
   }
 
-  /// 保存书籍观点
-  static int saveViewpoint(BookViewpointModel viewpoint) {
-    final entity = viewpoint.toEntity();
-    return _viewpointBox.put(entity);
+  /// 根据书籍ID列表获取视角(异步)
+  Future<List<BookViewpoint>> getViewpointsByBookIdsAsync(List<int> bookIds) async {
+    return getViewpointsByBookIds(bookIds);
   }
 
-  /// 批量保存书籍观点
-  static Future<List<int>> saveViewpoints(List<BookViewpointModel> viewpoints) async {
-    final entities = viewpoints.map((viewpoint) => viewpoint.toEntity()).toList();
-    return await _viewpointBox.putManyAsync(entities);
+  /// 保存视角
+  int saveViewpoint(BookViewpoint viewpoint) {
+    return _viewpointBox.put(viewpoint);
   }
 
-  /// 删除书籍观点
-  static bool deleteViewpoint(int id) {
+  /// 批量保存视角
+  List<int> saveViewpoints(List<BookViewpoint> viewpoints) {
+    return _viewpointBox.putMany(viewpoints);
+  }
+
+  /// 删除视角
+  bool deleteViewpoint(int id) {
     return _viewpointBox.remove(id);
   }
 
-  /// 根据ID获取单个观点
-  static BookViewpointModel? getViewpointById(int id) {
-    final vp = _viewpointBox.get(id);
-    return vp != null ? BookViewpointModel(vp) : null;
+  /// 根据ID获取视角
+  BookViewpoint? getViewpointById(int id) {
+    return _viewpointBox.get(id);
   }
 
-  /// 用新观点替换某本书的所有观点
-  static Future<void> replaceViewpointsForBook(int bookId, List<BookViewpointModel> newViewpoints) async {
-    // 先删除旧的
-    await _viewpointBox.query(BookViewpoint_.bookId.equals(bookId)).build().removeAsync();
-    if (newViewpoints.isEmpty) return;
-    // 再插入新的
-    final entities = newViewpoints.map((v) => v.toEntity()).toList();
-    await _viewpointBox.putManyAsync(entities);
+  /// 替换书籍的所有视角
+  ///
+  /// 删除旧视角并保存新视角
+  void replaceViewpointsForBook(int bookId, List<BookViewpoint> newViewpoints) {
+    // 删除该书籍的所有旧视角
+    final oldViewpoints = getViewpointsByBookIds([bookId]);
+    for (var viewpoint in oldViewpoints) {
+      deleteViewpoint(viewpoint.id);
+    }
+
+    // 保存新视角
+    if (newViewpoints.isNotEmpty) {
+      saveViewpoints(newViewpoints);
+    }
+  }
+
+  // ============ 查询辅助方法 ============
+
+  /// 检查书籍是否存在
+  bool exists(int id) {
+    return box.get(id) != null;
+  }
+
+  /// 获取书籍数量
+  int getBookCount() {
+    return box.count();
+  }
+
+  /// 获取视角数量
+  int getViewpointCount() {
+    return _viewpointBox.count();
+  }
+
+  /// 根据标题搜索书籍
+  List<Book> searchByTitle(String title) {
+    final query = box.query(Book_.title.contains(title, caseSensitive: false)).build();
+    try {
+      return query.find();
+    } finally {
+      query.close();
+    }
+  }
+
+  /// 根据作者搜索书籍
+  List<Book> searchByAuthor(String author) {
+    final query = box.query(Book_.author.contains(author, caseSensitive: false)).build();
+    try {
+      return query.find();
+    } finally {
+      query.close();
+    }
+  }
+
+  // ============ 返回Model的方法 ============
+
+  /// 获取所有书籍(返回Model)
+  List<BookModel> getAllBooksModel() {
+    return getAllBooks().map((e) => BookModel(e)).toList();
+  }
+
+  /// 根据ID获取书籍(返回Model)
+  BookModel? getBookByIdModel(int id) {
+    final book = getBookById(id);
+    return book != null ? BookModel(book) : null;
+  }
+
+  /// 根据类别获取书籍(返回Model)
+  List<BookModel> getBooksByCategoryModel(String category) {
+    return getBooksByCategory(category).map((e) => BookModel(e)).toList();
+  }
+
+  /// 获取所有视角(返回Model)
+  List<BookViewpointModel> getAllViewpointsModel() {
+    return getAllViewpoints().map((e) => BookViewpointModel(e)).toList();
+  }
+
+  /// 根据书籍ID列表获取视角(返回Model)
+  List<BookViewpointModel> getViewpointsByBookIdsModel(List<int> bookIds) {
+    return getViewpointsByBookIds(bookIds).map((e) => BookViewpointModel(e)).toList();
+  }
+
+  /// 根据ID获取视角(返回Model)
+  BookViewpointModel? getViewpointByIdModel(int id) {
+    final viewpoint = getViewpointById(id);
+    return viewpoint != null ? BookViewpointModel(viewpoint) : null;
   }
 }

@@ -55,7 +55,7 @@ class ImageMigrationTask extends MigrationTask {
     logInfo("开始迁移文章封面图");
 
     // 获取所有文章
-    final articles = ArticleRepository.getAll();
+    final articles = ArticleRepository.instance.allModels();
     logInfo("找到 ${articles.length} 篇文章需要处理");
 
     // 迁移计数器
@@ -117,10 +117,7 @@ class ImageMigrationTask extends MigrationTask {
       }
     }
 
-    // 删除文章相关的截图
-    for (final screenshot in article.screenshots) {
-      await _safeDeleteFile(screenshot.path);
-    }
+    // 注意：screenshots 字段已被移除，不再需要删除截图
   }
 
   /// 安全删除文件（检查是否被用作封面图）

@@ -353,7 +353,7 @@ class _DiaryCardState extends State<DiaryCard> {
 
   /// 根据观点ID查询书名/作者（查询失败时返回空元信息）
   _BookMeta _getBookMeta(int viewpointId) {
-    final vp = BookRepository.getViewpointById(viewpointId);
+    final vp = BookRepository.instance.getViewpointByIdModel(viewpointId);
     if (vp != null && vp.book != null) {
       return _BookMeta(title: vp.book!.title, author: vp.book!.author);
     }

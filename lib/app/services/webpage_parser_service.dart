@@ -7,6 +7,7 @@ import 'package:daily_satori/app/modules/articles/controllers/articles_controlle
 import 'package:daily_satori/app/services/ai_service/ai_article_processor.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/state/article_state_service.dart';
+import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
 // 清理未使用的依赖（AI 具体处理已在 AiArticleProcessor 内）
 import 'package:daily_satori/app/utils/string_extensions.dart';
@@ -52,14 +53,14 @@ class WebpageParserService {
 
       if (isUpdate && articleID > 0) {
         await _markArticleAsFailed(articleID, "处理失败: $e");
-        final article = ArticleRepository.find(articleID);
+        final article = ArticleRepository.instance.findModel(articleID);
         if (article != null) {
           return article;
         }
       }
 
       // 返回已有文章（若有），避免抛错到 UI
-      final fallback = ArticleRepository.find(articleID);
+      final fallback = ArticleRepository.instance.findModel(articleID);
       if (fallback != null) return fallback;
       throw Exception("保存网页失败: $e");
     }
@@ -77,7 +78,7 @@ class WebpageParserService {
     }
 
     // 检查URL是否已存在
-    final existingArticle = await ArticleRepository.findByUrl(url);
+    final existingArticle = await ArticleRepository.instance.findByUrl(url);
 
     // 处理已存在的情况
     if (existingArticle != null) {
@@ -136,7 +137,7 @@ class WebpageParserService {
       article.updatedAt = DateTime.now().toUtc();
       article.status = ArticleStatus.webContentFetched;
 
-      await ArticleRepository.update(article);
+      await ArticleRepository.instance.updateModel(article);
 
       logger.i("[网页解析][内容获取] ◀ 网页内容获取成功: #$articleId");
       // 抓取阶段完成后也通知 UI，一方面展示“处理中”，另一方面让详情页先看到最新抓取内容
@@ -153,7 +154,7 @@ class WebpageParserService {
   Future<void> _processAiTasks(ArticleModel article) async {
     final articleId = article.id;
     // 重新获取最新的文章数据
-    final updatedArticle = ArticleRepository.find(articleId);
+    final updatedArticle = ArticleRepository.instance.findModel(articleId);
     if (updatedArticle == null) {
       throw Exception("无法找到文章: $articleId");
     }
@@ -165,7 +166,7 @@ class WebpageParserService {
       await AiArticleProcessor.i.processAll(updatedArticle);
 
       // 更新文章状态为完成
-      await ArticleRepository.updateField(articleId, ArticleFieldName.status, ArticleStatus.completed);
+      await ArticleRepository.instance.updateField(articleId, ArticleFieldName.status, ArticleStatus.completed);
 
       logger.i("[网页解析][API] ◀ 处理完成: #$articleId");
       _notifyUI(articleId);
@@ -188,28 +189,32 @@ class WebpageParserService {
   Future<ArticleModel> _createNewArticle(String url, String comment) async {
     logger.d("[网页解析][创建] ▶ 开始创建新文章: $url");
 
-    final data = _prepareNewArticleData(url, comment);
-    final articleModel = ArticleRepository.createArticleModel(data);
+    final now = DateTime.now().toUtc();
+    final article = Article(
+      url: url,
+      title: '正在加载...',
+      comment: comment,
+      pubDate: now,
+      createdAt: now,
+      updatedAt: now,
+      status: ArticleStatus.pending,
+    );
 
-    final id = await ArticleRepository.create(articleModel);
-    if (id <= 0) {
+    final articleModel = await ArticleRepository.instance.createArticleModel(article);
+
+    if (articleModel.id <= 0) {
       throw Exception("创建文章记录失败");
     }
 
-    final savedArticle = ArticleRepository.find(id);
-    if (savedArticle == null) {
-      throw Exception("无法找到刚创建的文章: $id");
-    }
-
-    logger.d("[网页解析][创建] ◀ 新文章创建成功: #${savedArticle.id}");
-    return savedArticle;
+    logger.d("[网页解析][创建] ◀ 新文章创建成功: #${articleModel.id}");
+    return articleModel;
   }
 
   /// 重置现有文章以更新内容
   Future<ArticleModel> _resetExistingArticle(int articleId, String comment) async {
     logger.d("[网页解析][更新] ▶ 开始重置文章: #$articleId");
 
-    final article = ArticleRepository.find(articleId);
+    final article = ArticleRepository.instance.findModel(articleId);
     if (article == null) {
       throw Exception("找不到要更新的文章: $articleId");
     }
@@ -220,40 +225,10 @@ class WebpageParserService {
     article.status = ArticleStatus.pending;
     article.updatedAt = DateTime.now().toUtc();
 
-    await ArticleRepository.update(article);
+    await ArticleRepository.instance.updateModel(article);
     logger.d("[网页解析][更新] ◀ 文章重置成功: #$articleId");
 
     return article;
-  }
-
-  /// 准备新文章的数据
-  Map<String, dynamic> _prepareNewArticleData(String url, String comment) {
-    final now = DateTime.now().toUtc();
-
-    return {
-      'title': '正在加载...',
-      'url': url,
-      'comment': comment,
-      'pubDate': now,
-      'createdAt': now,
-      'updatedAt': now,
-      'status': ArticleStatus.pending,
-      // 加入初始化的AI字段
-      ..._initEmptyAiFields(),
-    };
-  }
-
-  /// 初始化空的AI字段
-  Map<String, String> _initEmptyAiFields() {
-    return {
-      'aiTitle': '',
-      'aiContent': '',
-      'aiMarkdownContent': '',
-      'content': '',
-      'htmlContent': '',
-      'coverImage': '',
-      'coverImageUrl': '',
-    };
   }
 
   /// 重置文章的AI字段
@@ -268,7 +243,7 @@ class WebpageParserService {
 
   /// 将文章标记为失败状态
   Future<void> _markArticleAsFailed(int articleId, String errorMessage) async {
-    final article = ArticleRepository.find(articleId);
+    final article = ArticleRepository.instance.findModel(articleId);
     if (article == null) {
       logger.e("[网页解析][错误] 无法找到文章 #$articleId");
       return;
@@ -278,7 +253,7 @@ class WebpageParserService {
     article.aiContent = errorMessage;
     article.updatedAt = DateTime.now().toUtc();
 
-    await ArticleRepository.update(article);
+    await ArticleRepository.instance.updateModel(article);
   }
 
   // ====================== 辅助方法 ======================
@@ -286,7 +261,7 @@ class WebpageParserService {
   /// 通知UI更新
   void _notifyUI(int articleId) {
     try {
-      final article = ArticleRepository.find(articleId);
+      final article = ArticleRepository.instance.findModel(articleId);
       if (article == null) return;
 
       // 通知文章控制器更新

@@ -56,7 +56,7 @@ class WebContentService {
 
       if (isUpdate && articleID > 0) {
         await _articleManager.markAsFailed(articleID, '处理失败: $e');
-        final article = ArticleRepository.find(articleID);
+        final article = ArticleRepository.instance.findModel(articleID);
         if (article != null) return article;
       }
 
@@ -117,7 +117,7 @@ class WebContentService {
 
   /// 重新处理文章（用于重试失败的AI任务）
   Future<void> reprocessArticle(int articleId) async {
-    final article = ArticleRepository.find(articleId);
+    final article = ArticleRepository.instance.findModel(articleId);
     if (article == null) {
       throw Exception('找不到文章: $articleId');
     }
@@ -128,7 +128,7 @@ class WebContentService {
 
   /// 检查文章状态
   Future<String> checkArticleStatus(int articleId) async {
-    final article = ArticleRepository.find(articleId);
+    final article = ArticleRepository.instance.findModel(articleId);
     return article?.status ?? ArticleStatus.error;
   }
 }

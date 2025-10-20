@@ -13,7 +13,7 @@ class ImageModel {
 
   /// 从ID创建实例
   factory ImageModel.fromId(int id) {
-    final image = ImageRepository.find(id);
+    final image = ImageRepository.instance.findModel(id);
     if (image == null) {
       throw Exception('找不到ID为$id的图片');
     }
@@ -35,6 +35,6 @@ class ImageModel {
 
   /// 保存模型
   Future<void> save() async {
-    await ImageRepository.update(this);
+    ImageRepository.instance.save(_entity);
   }
 }

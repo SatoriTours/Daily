@@ -146,7 +146,10 @@ class BookViewpointModel {
   set updateAt(DateTime value) => __entity.updateAt = value;
 
   /// 关联的书籍
-  BookModel? get book => BookRepository.getBookById(bookId);
+  BookModel? get book {
+    final bookEntity = BookRepository.instance.getBookById(bookId);
+    return bookEntity != null ? BookModel(bookEntity) : null;
+  }
 
   /// 构造函数，通过实体创建模型
   BookViewpointModel(this.__entity);

@@ -13,7 +13,7 @@ class SettingModel {
 
   /// 从ID创建实例
   factory SettingModel.fromId(int id) {
-    final setting = SettingRepository.find(id);
+    final setting = SettingRepository.instance.findModel(id);
     if (setting == null) {
       throw Exception('找不到ID为$id的设置');
     }
@@ -22,7 +22,7 @@ class SettingModel {
 
   /// 从键创建实例
   factory SettingModel.fromKey(String key) {
-    final setting = SettingRepository.findByKey(key);
+    final setting = SettingRepository.instance.findByKey(key);
     if (setting == null) {
       throw Exception('找不到键为$key的设置');
     }
@@ -45,6 +45,6 @@ class SettingModel {
 
   /// 保存模型
   Future<void> save() async {
-    await SettingRepository.update(this);
+    SettingRepository.instance.save(_entity);
   }
 }

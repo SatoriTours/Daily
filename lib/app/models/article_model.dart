@@ -1,6 +1,5 @@
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
-import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
 
@@ -16,7 +15,7 @@ class ArticleModel {
 
   /// 从ID创建实例
   factory ArticleModel.fromId(int id) {
-    final article = ArticleRepository.find(id);
+    final article = ArticleRepository.instance.findModel(id);
     if (article == null) {
       throw Exception('找不到ID为$id的文章');
     }
@@ -108,9 +107,6 @@ class ArticleModel {
   /// 图片列表
   List<Image> get images => _entity.images;
 
-  /// 截图列表
-  List<Screenshot> get screenshots => _entity.screenshots;
-
   /// 标签列表
   List<Tag> get tags => _entity.tags;
 
@@ -142,7 +138,7 @@ class ArticleModel {
 
   /// 切换收藏状态
   Future<bool> toggleFavorite() async {
-    return await ArticleRepository.toggleFavorite(id);
+    return await ArticleRepository.instance.toggleFavorite(id);
   }
 
   /// 获取处理状态
@@ -157,7 +153,7 @@ class ArticleModel {
 
   /// 保存模型
   Future<void> save() async {
-    await ArticleRepository.update(this);
+    await ArticleRepository.instance.updateModel(this);
   }
 
   /// 将其他 ArticleModel 的字段复制到当前实例（保留当前对象引用）
@@ -188,11 +184,6 @@ class ArticleModel {
       images
         ..clear()
         ..addAll(other.images);
-    } catch (_) {}
-    try {
-      screenshots
-        ..clear()
-        ..addAll(other.screenshots);
     } catch (_) {}
   }
 }

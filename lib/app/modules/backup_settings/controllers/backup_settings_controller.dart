@@ -17,7 +17,7 @@ class BackupSettingsController extends BaseController {
 
   /// 加载备份目录
   void _loadBackupDirectory() {
-    String dir = SettingRepository.getSetting(SettingService.backupDirKey);
+    String dir = SettingRepository.instance.getSetting(SettingService.backupDirKey);
     backupDirectory.value = dir;
   }
 
@@ -38,7 +38,7 @@ class BackupSettingsController extends BaseController {
     if (selectedDirectory != null) {
       backupDirectory.value = selectedDirectory;
       logger.i('选择备份目录: $selectedDirectory');
-      SettingRepository.saveSetting(SettingService.backupDirKey, selectedDirectory);
+      SettingRepository.instance.saveSetting(SettingService.backupDirKey, selectedDirectory);
     }
   }
 

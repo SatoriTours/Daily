@@ -13,7 +13,7 @@ class ScreenshotModel {
 
   /// 从ID创建实例
   factory ScreenshotModel.fromId(int id) {
-    final screenshot = ScreenshotRepository.find(id);
+    final screenshot = ScreenshotRepository.instance.findModel(id);
     if (screenshot == null) {
       throw Exception('找不到ID为$id的截图');
     }
@@ -35,6 +35,6 @@ class ScreenshotModel {
 
   /// 保存模型
   Future<void> save() async {
-    await ScreenshotRepository.update(this);
+    ScreenshotRepository.instance.save(_entity);
   }
 }

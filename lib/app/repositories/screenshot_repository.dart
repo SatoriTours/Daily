@@ -1,76 +1,79 @@
 import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/models/screenshot_model.dart';
 import 'package:daily_satori/app/models/article_model.dart';
+import 'package:daily_satori/app/repositories/base_repository.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 截图仓储类
 ///
-/// 提供操作截图实体的静态方法集合
-class ScreenshotRepository {
-  // 私有构造函数防止实例化
+/// 继承 BaseRepository 获取通用 CRUD 功能
+/// 使用单例模式，通过 ScreenshotRepository.instance 访问
+class ScreenshotRepository extends BaseRepository<Screenshot> {
+  // 私有构造函数
   ScreenshotRepository._();
 
-  // 获取Box的静态方法
-  static Box<Screenshot> get _box => ObjectboxService.i.box<Screenshot>();
+  // 单例
+  static final ScreenshotRepository instance = ScreenshotRepository._();
 
-  /// 查找所有截图
-  static List<ScreenshotModel> all() {
-    return _box.getAll().map((e) => ScreenshotModel(e)).toList();
+  // 获取Box实例
+  @override
+  Box<Screenshot> get box => ObjectboxService.i.box<Screenshot>();
+
+  // 每页数量
+  @override
+  int get pageSize => 50;
+
+  // ==================== 特定业务方法 ====================
+
+  /// 查找所有截图（返回Model）
+  List<ScreenshotModel> allModels() {
+    return all().map((e) => ScreenshotModel(e)).toList();
   }
 
-  /// 根据ID查找截图
-  static ScreenshotModel? find(int id) {
-    final screenshot = _box.get(id);
+  /// 根据ID查找截图（返回Model）
+  ScreenshotModel? findModel(int id) {
+    final screenshot = find(id);
     return screenshot != null ? ScreenshotModel(screenshot) : null;
   }
 
   /// 根据路径查找截图
-  static ScreenshotModel? findByPath(String path) {
-    final query = _box.query(Screenshot_.path.equals(path)).build();
-    final screenshot = query.findFirst();
-    query.close();
+  ScreenshotModel? findByPath(String path) {
+    final screenshot = findFirstByStringEquals(Screenshot_.path, path);
     return screenshot != null ? ScreenshotModel(screenshot) : null;
   }
 
   /// 使用数据创建截图模型
-  static ScreenshotModel createWithData(Map<String, dynamic> data, ArticleModel articleModel) {
+  ScreenshotModel createWithData(Map<String, dynamic> data, ArticleModel articleModel) {
     final screenshot = Screenshot(path: data['path']);
-
-    // 设置关联
     screenshot.article.target = articleModel.entity;
-
     return ScreenshotModel(screenshot);
   }
 
-  /// 保存截图
-  static Future<int> create(ScreenshotModel screenshotModel) async {
-    return await _box.putAsync(screenshotModel.entity);
+  /// 保存截图Model
+  Future<int> createModel(ScreenshotModel screenshotModel) async {
+    return await box.putAsync(screenshotModel.entity);
   }
 
-  /// 更新截图
-  static Future<int> update(ScreenshotModel screenshotModel) async {
-    return await _box.putAsync(screenshotModel.entity);
+  /// 更新截图Model
+  Future<int> updateModel(ScreenshotModel screenshotModel) async {
+    return await box.putAsync(screenshotModel.entity);
   }
 
-  /// 删除截图
-  static bool destroy(int id) {
-    return _box.remove(id);
+  /// 删除截图（旧方法名兼容）
+  bool destroy(int id) {
+    return remove(id);
   }
 
   /// 根据文章ID删除截图
-  static int deleteByArticleId(int articleId) {
-    // 查询所有与指定文章ID关联的图片
-    final query = _box.query(Screenshot_.article.equals(articleId)).build();
-    final screenshots = query.find();
-    query.close();
-
-    // 如果没有找到图片，直接返回true
-    if (screenshots.isEmpty) {
-      return 0;
+  int deleteByArticleId(int articleId) {
+    final query = box.query(Screenshot_.article.equals(articleId)).build();
+    try {
+      final screenshots = query.find();
+      if (screenshots.isEmpty) return 0;
+      return removeMany(screenshots.map((s) => s.id).toList());
+    } finally {
+      query.close();
     }
-
-    // 删除所有找到的图片
-    return _box.removeMany(screenshots.map((image) => image.id).toList());
   }
 }

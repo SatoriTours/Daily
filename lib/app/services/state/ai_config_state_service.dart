@@ -36,7 +36,7 @@ class AIConfigStateService extends GetxService {
   Future<void> loadConfigs() async {
     isLoading.value = true;
     try {
-      final configsList = AIConfigRepository.getAllAIConfigs();
+      final configsList = AIConfigRepository.instance.getAllAIConfigs();
       configs.value = configsList;
       logger.i("[AI配置状态服务] 加载配置列表成功: ${configsList.length}个配置");
     } catch (e, stackTrace) {
@@ -96,7 +96,7 @@ class AIConfigStateService extends GetxService {
         return false;
       }
 
-      final result = AIConfigRepository.removeAIConfig(config.id);
+      final result = AIConfigRepository.instance.removeAIConfig(config.id);
       if (result) {
         removeConfigFromList(config.id);
       }
@@ -114,7 +114,7 @@ class AIConfigStateService extends GetxService {
   /// 返回是否设置成功
   Future<bool> setAsDefault(AIConfigModel config) async {
     try {
-      AIConfigRepository.setDefaultConfig(config.id, config.functionType);
+      AIConfigRepository.instance.setDefaultConfig(config.id, config.functionType);
       await loadConfigs();
       return true;
     } catch (e, stackTrace) {
@@ -134,7 +134,7 @@ class AIConfigStateService extends GetxService {
       final newConfig = config.clone();
 
       // 保存配置
-      final id = AIConfigRepository.addAIConfig(newConfig);
+      final id = AIConfigRepository.instance.addAIConfig(newConfig);
       newConfig.id = id;
       addConfigToList(newConfig);
 

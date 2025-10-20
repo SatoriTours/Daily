@@ -74,13 +74,13 @@ class SettingsController extends GetxController {
 
     final String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
       dialogTitle: '选择备份文件夹',
-      initialDirectory: SettingRepository.getSetting(SettingService.backupDirKey),
+      initialDirectory: SettingRepository.instance.getSetting(SettingService.backupDirKey),
     );
 
     if (selectedDirectory != null) {
       final backupDir = selectedDirectory;
       logger.i('选择备份目录: $backupDir');
-      SettingRepository.saveSetting(SettingService.backupDirKey, backupDir);
+      SettingRepository.instance.saveSetting(SettingService.backupDirKey, backupDir);
     }
   }
 
@@ -95,7 +95,7 @@ class SettingsController extends GetxController {
   /// 重新用AI分析所有网页
   void reAnalyzeAllWebpages() {
     // 获取所有文章
-    ArticleRepository.updateEmptyStatusToPending();
+    ArticleRepository.instance.updateEmptyStatusToPending();
     // ArticleRepository.updateAllStatusToCompleted();
   }
 
@@ -103,13 +103,13 @@ class SettingsController extends GetxController {
 
   /// 获取Web服务器密码
   String getWebServerPassword() {
-    return SettingRepository.getSetting(SettingService.webServerPasswordKey);
+    return SettingRepository.instance.getSetting(SettingService.webServerPasswordKey);
   }
 
   /// 保存Web服务器密码
   Future<void> saveWebServerPassword(String password) async {
     try {
-      await SettingRepository.saveSetting(SettingService.webServerPasswordKey, password);
+      await SettingRepository.instance.saveSetting(SettingService.webServerPasswordKey, password);
       UIUtils.showSuccess('密码设置成功');
     } catch (e) {
       logger.e('保存密码失败: $e');

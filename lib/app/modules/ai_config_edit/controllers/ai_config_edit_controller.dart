@@ -252,10 +252,10 @@ class AIConfigEditController extends GetxController {
 
       if (isEditMode) {
         // 更新现有配置
-        AIConfigRepository.updateAIConfig(configToSave);
+        AIConfigRepository.instance.updateAIConfig(configToSave);
       } else {
         // 创建新配置
-        final id = AIConfigRepository.addAIConfig(configToSave);
+        final id = AIConfigRepository.instance.addAIConfig(configToSave);
         configToSave.id = id;
       }
       // 返回结果给调用方，以便更新列表

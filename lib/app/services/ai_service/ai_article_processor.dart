@@ -67,7 +67,7 @@ class AiArticleProcessor {
         return;
       }
 
-      await ArticleRepository.updateField(articleId, ArticleFieldName.aiTitle, aiTitle);
+      await ArticleRepository.instance.updateField(articleId, ArticleFieldName.aiTitle, aiTitle);
       logger.d('[AI:标题] 完成 #$articleId: $aiTitle');
     } catch (e) {
       logger.e('[AI:标题] 失败 #$articleId: $e');
@@ -84,7 +84,7 @@ class AiArticleProcessor {
     try {
       final (summary, tags) = await AiService.i.summarize(content.trim());
       if (summary.isEmpty) return;
-      await ArticleRepository.updateField(articleId, ArticleFieldName.aiContent, summary);
+      await ArticleRepository.instance.updateField(articleId, ArticleFieldName.aiContent, summary);
       await _saveTags(article, tags);
       logger.d('[AI:摘要] 完成 #$articleId');
     } catch (e) {
@@ -99,7 +99,7 @@ class AiArticleProcessor {
     try {
       final markdown = await AiService.i.convertHtmlToMarkdown(html);
       if (markdown.isEmpty) return;
-      await ArticleRepository.updateField(articleId, ArticleFieldName.aiMarkdownContent, markdown);
+      await ArticleRepository.instance.updateField(articleId, ArticleFieldName.aiMarkdownContent, markdown);
       logger.d('[AI:Markdown] 完成 #$articleId');
     } catch (e) {
       logger.e('[AI:Markdown] 失败 #$articleId: $e');
@@ -113,7 +113,7 @@ class AiArticleProcessor {
     try {
       final path = await HttpService.i.downloadImage(imageUrl);
       if (path.isEmpty) return;
-      await ArticleRepository.updateField(articleId, ArticleFieldName.coverImage, path);
+      await ArticleRepository.instance.updateField(articleId, ArticleFieldName.coverImage, path);
       logger.d('[AI:图片] 完成 #$articleId');
     } catch (e) {
       logger.e('[AI:图片] 失败 #$articleId: $e');
@@ -124,7 +124,7 @@ class AiArticleProcessor {
     if (tagNames.isEmpty) return;
     try {
       // 覆盖式设置标签，避免覆盖文章其它字段
-      await TagRepository.setTagsForArticle(article.id, tagNames);
+      await TagRepository.instance.setTagsForArticle(article.id, tagNames);
       logger.d('[AI:标签] 保存 ${tagNames.length} 个');
     } catch (e) {
       logger.e('[AI:标签] 失败: $e');

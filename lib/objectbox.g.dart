@@ -141,11 +141,6 @@ final _entities = <obx_int.ModelEntity>[
     ],
     backlinks: <obx_int.ModelBacklink>[
       obx_int.ModelBacklink(name: 'images', srcEntity: 'Image', srcField: ''),
-      obx_int.ModelBacklink(
-        name: 'screenshots',
-        srcEntity: 'Screenshot',
-        srcField: '',
-      ),
     ],
   ),
   obx_int.ModelEntity(
@@ -638,11 +633,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
           object.id,
           (Image srcObject) => srcObject.article,
         ): object.images,
-        obx_int.RelInfo<Screenshot>.toOneBacklink(
-          4,
-          object.id,
-          (Screenshot srcObject) => srcObject.article,
-        ): object.screenshots,
       },
       getId: (Article object) => object.id,
       setId: (Article object, int id) {
@@ -802,15 +792,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
             4,
             object.id,
             (Image srcObject) => srcObject.article,
-          ),
-        );
-        obx_int.InternalToManyAccess.setRelInfo<Article>(
-          object.screenshots,
-          store,
-          obx_int.RelInfo<Screenshot>.toOneBacklink(
-            4,
-            object.id,
-            (Screenshot srcObject) => srcObject.article,
           ),
         );
         return object;
@@ -1455,11 +1436,6 @@ class Article_ {
 
   /// see [Article.images]
   static final images = obx.QueryBacklinkToMany<Image, Article>(Image_.article);
-
-  /// see [Article.screenshots]
-  static final screenshots = obx.QueryBacklinkToMany<Screenshot, Article>(
-    Screenshot_.article,
-  );
 }
 
 /// [Image] entity fields to define ObjectBox queries.

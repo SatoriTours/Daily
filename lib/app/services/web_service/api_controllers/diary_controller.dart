@@ -88,7 +88,7 @@ class DiaryController {
         'items': diariesJson,
         'pagination': {
           'page': page,
-          'pageSize': DiaryRepository.pageSize,
+          'pageSize': DiaryRepository.instance.pageSize,
           'totalItems': totalItems,
           'totalPages': totalPages,
         },
@@ -126,7 +126,7 @@ class DiaryController {
         'items': diariesJson,
         'pagination': {
           'page': page,
-          'pageSize': DiaryRepository.pageSize,
+          'pageSize': DiaryRepository.instance.pageSize,
           'totalItems': totalItems,
           'totalPages': totalPages,
         },
@@ -183,7 +183,7 @@ class DiaryController {
 
       // 保存日记
       final diaryRepository = DiaryRepository.i;
-      final diaryId = diaryRepository.save(diary);
+      final diaryId = diaryRepository.save(diary.toEntity());
 
       // 获取新创建的日记
       final newDiary = diaryRepository.getById(diaryId);
@@ -240,7 +240,7 @@ class DiaryController {
       existingDiary.updatedAt = DateTime.now();
 
       // 保存更新
-      diaryRepository.save(existingDiary);
+      diaryRepository.save(existingDiary.toEntity());
 
       // 刷新日记列表
       _refreshDiaryList();

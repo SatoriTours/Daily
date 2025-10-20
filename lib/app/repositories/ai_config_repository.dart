@@ -1,17 +1,30 @@
 import 'package:daily_satori/app/models/models.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
+import 'package:daily_satori/app/repositories/base_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// AI配置存储库
-class AIConfigRepository {
-  static Box<AIConfig> get _box => ObjectboxService.i.box<AIConfig>();
+class AIConfigRepository extends BaseRepository<AIConfig> {
+  // 私有构造函数
+  AIConfigRepository._();
+
+  // 单例
+  static final AIConfigRepository instance = AIConfigRepository._();
+
+  // 获取Box实例
+  @override
+  Box<AIConfig> get box => ObjectboxService.i.box<AIConfig>();
+
+  // 每页数量
+  @override
+  int get pageSize => 20;
 
   /// 添加AI配置
-  static int addAIConfig(AIConfigModel model) {
+  int addAIConfig(AIConfigModel model) {
     try {
-      return _box.put(model.config);
+      return save(model.config);
     } catch (e, stackTrace) {
       logger.e('[AI配置存储库] 添加AI配置失败: $e', stackTrace: stackTrace);
       rethrow;
@@ -19,9 +32,9 @@ class AIConfigRepository {
   }
 
   /// 获取所有AI配置
-  static List<AIConfigModel> getAllAIConfigs() {
+  List<AIConfigModel> getAllAIConfigs() {
     try {
-      final configs = _box.getAll();
+      final configs = all();
       return configs.map((config) => AIConfigModel.fromConfig(config)).toList();
     } catch (e, stackTrace) {
       logger.e('[AI配置存储库] 获取所有AI配置失败: $e', stackTrace: stackTrace);
@@ -30,10 +43,9 @@ class AIConfigRepository {
   }
 
   /// 根据功能类型获取AI配置
-  static List<AIConfigModel> getAIConfigsByFunctionType(int functionType) {
+  List<AIConfigModel> getAIConfigsByFunctionType(int functionType) {
     try {
-      final query = _box.query(AIConfig_.functionType.equals(functionType)).build();
-      final configs = query.find();
+      final configs = findByCondition(AIConfig_.functionType.equals(functionType));
       return configs.map((config) => AIConfigModel.fromConfig(config)).toList();
     } catch (e, stackTrace) {
       logger.e('[AI配置存储库] 根据功能类型获取AI配置失败: $e', stackTrace: stackTrace);
@@ -42,11 +54,10 @@ class AIConfigRepository {
   }
 
   /// 获取通用配置
-  static AIConfigModel? getGeneralConfig() {
+  AIConfigModel? getGeneralConfig() {
     try {
-      final query = _box.query(AIConfig_.functionType.equals(0)).build();
-      final results = query.find();
-      return results.isNotEmpty ? AIConfigModel.fromConfig(results.first) : null;
+      final result = findFirstByCondition(AIConfig_.functionType.equals(0));
+      return result != null ? AIConfigModel.fromConfig(result) : null;
     } catch (e, stackTrace) {
       logger.e('[AI配置存储库] 获取通用配置失败: $e', stackTrace: stackTrace);
       return null;
@@ -54,11 +65,12 @@ class AIConfigRepository {
   }
 
   /// 根据功能类型获取默认AI配置
-  static AIConfigModel? getDefaultAIConfigByFunctionType(int functionType) {
+  AIConfigModel? getDefaultAIConfigByFunctionType(int functionType) {
     try {
-      final query = _box.query(AIConfig_.functionType.equals(functionType) & AIConfig_.isDefault.equals(true)).build();
-      final results = query.find();
-      return results.isNotEmpty ? AIConfigModel.fromConfig(results.first) : null;
+      final result = findFirstByCondition(
+        AIConfig_.functionType.equals(functionType) & AIConfig_.isDefault.equals(true),
+      );
+      return result != null ? AIConfigModel.fromConfig(result) : null;
     } catch (e, stackTrace) {
       logger.e('[AI配置存储库] 获取默认AI配置失败: $e', stackTrace: stackTrace);
       return null;
@@ -66,10 +78,10 @@ class AIConfigRepository {
   }
 
   /// 更新AI配置
-  static int updateAIConfig(AIConfigModel model) {
+  int updateAIConfig(AIConfigModel model) {
     try {
       model.updatedAt = DateTime.now();
-      return _box.put(model.config);
+      return save(model.config);
     } catch (e, stackTrace) {
       logger.e('[AI配置存储库] 更新AI配置失败: $e', stackTrace: stackTrace);
       rethrow;
@@ -77,9 +89,9 @@ class AIConfigRepository {
   }
 
   /// 删除AI配置
-  static bool removeAIConfig(int id) {
+  bool removeAIConfig(int id) {
     try {
-      return _box.remove(id);
+      return remove(id);
     } catch (e, stackTrace) {
       logger.e('[AI配置存储库] 删除AI配置失败: $e', stackTrace: stackTrace);
       return false;
@@ -87,7 +99,7 @@ class AIConfigRepository {
   }
 
   /// 设置指定功能类型的默认配置
-  static void setDefaultConfig(int configId, int functionType) {
+  void setDefaultConfig(int configId, int functionType) {
     try {
       // 先取消该功能类型的所有默认配置
       final configList = getAIConfigsByFunctionType(functionType);
@@ -99,7 +111,7 @@ class AIConfigRepository {
       }
 
       // 设置新的默认配置
-      final config = _box.get(configId);
+      final config = box.get(configId);
       if (config != null) {
         final modelConfig = AIConfigModel.fromConfig(config);
         modelConfig.isDefault = true;
@@ -111,7 +123,7 @@ class AIConfigRepository {
   }
 
   /// 初始化默认配置
-  static void initDefaultConfigs() {
+  void initDefaultConfigs() {
     try {
       if (getAllAIConfigs().isEmpty) {
         // 添加通用配置

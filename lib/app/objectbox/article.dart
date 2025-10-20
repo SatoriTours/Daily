@@ -1,7 +1,6 @@
 import 'package:objectbox/objectbox.dart';
 
 import 'package:daily_satori/app/objectbox/image.dart';
-import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
 
 @Entity()
@@ -39,9 +38,6 @@ class Article {
 
   @Backlink()
   final images = ToMany<Image>();
-
-  @Backlink()
-  final screenshots = ToMany<Screenshot>();
 
   final tags = ToMany<Tag>();
 

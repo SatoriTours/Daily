@@ -13,7 +13,7 @@ class TagModel {
 
   /// 从ID创建实例
   factory TagModel.fromId(int id) {
-    final tag = TagRepository.find(id);
+    final tag = TagRepository.instance.findModel(id);
     if (tag == null) {
       throw Exception('找不到ID为$id的标签');
     }
@@ -22,11 +22,11 @@ class TagModel {
 
   /// 从名称创建实例
   factory TagModel.fromName(String name) {
-    var tag = TagRepository.findByName(name);
+    var tag = TagRepository.instance.findByName(name);
     if (tag == null) {
       // 如果不存在，则创建一个新标签
       tag = TagModel(Tag(name: name));
-      TagRepository.create(tag);
+      TagRepository.instance.createModel(tag);
     }
     return tag;
   }
@@ -47,6 +47,6 @@ class TagModel {
 
   /// 保存模型
   Future<void> save() async {
-    await TagRepository.update(this);
+    await TagRepository.instance.updateModel(this);
   }
 }
