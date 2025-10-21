@@ -95,8 +95,8 @@ class SettingsController extends GetxController {
   /// 重新用AI分析所有网页
   void reAnalyzeAllWebpages() {
     // 获取所有文章
-    ArticleRepository.instance.updateEmptyStatusToPending();
-    // ArticleRepository.updateAllStatusToCompleted();
+    ArticleRepository.d.updateEmptyStatusToPending();
+    // ArticleRepository.d.updateAllStatusToCompleted();
   }
 
   // ==================== Web服务器设置 ====================

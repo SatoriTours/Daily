@@ -303,7 +303,7 @@ class BackupService {
   /// 修复文章本地图片路径（封面与图片表），将旧路径映射到当前 images 目录
   Future<void> _fixArticleImagePaths() async {
     try {
-      final articles = ArticleRepository.instance.allModels();
+      final articles = ArticleRepository.d.allModels();
       if (articles.isEmpty) return;
 
       final newBase = FileService.i.imagesBasePath;

@@ -130,8 +130,10 @@ dev_dependencies:
   # JSON序列化
   json_serializable: ^6.9.5
 
-  # 数据库 orm 框架
+  # 代码生成
   build_runner: ^2.4.15
+
+  # 数据库 orm 框架
   objectbox_generator: any
 
 flutter:

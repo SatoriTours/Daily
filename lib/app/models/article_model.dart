@@ -15,7 +15,7 @@ class ArticleModel {
 
   /// 从ID创建实例
   factory ArticleModel.fromId(int id) {
-    final article = ArticleRepository.instance.findModel(id);
+    final article = ArticleRepository.d.findModel(id);
     if (article == null) {
       throw Exception('找不到ID为$id的文章');
     }
@@ -138,7 +138,7 @@ class ArticleModel {
 
   /// 切换收藏状态
   Future<bool> toggleFavorite() async {
-    return await ArticleRepository.instance.toggleFavorite(id);
+    return await ArticleRepository.d.toggleFavorite(id);
   }
 
   /// 获取处理状态
@@ -153,7 +153,7 @@ class ArticleModel {
 
   /// 保存模型
   Future<void> save() async {
-    await ArticleRepository.instance.updateModel(this);
+    await ArticleRepository.d.updateModel(this);
   }
 
   /// 将其他 ArticleModel 的字段复制到当前实例（保留当前对象引用）

@@ -80,7 +80,7 @@ class ShareDialogController extends BaseGetXController {
   Future<void> _loadArticleInfo() async {
     if (articleID.value <= 0) return;
 
-    final article = ArticleRepository.instance.findModel(articleID.value);
+    final article = ArticleRepository.d.findModel(articleID.value);
     if (article != null) {
       articleTitle.value = article.showTitle();
       titleController.text = article.showTitle();
@@ -140,7 +140,7 @@ class ShareDialogController extends BaseGetXController {
   /// 仅更新标题/标签/备注，不重新抓取网页与AI处理
   Future<void> _updateArticleFieldsOnly() async {
     if (articleID.value <= 0) return;
-    final article = ArticleRepository.instance.findModel(articleID.value);
+    final article = ArticleRepository.d.findModel(articleID.value);
     if (article == null) return;
 
     // 标题与备注
@@ -157,7 +157,7 @@ class ShareDialogController extends BaseGetXController {
   /// 在重新抓取并AI分析后应用用户手动输入字段
   Future<void> _applyManualFieldsPostProcess() async {
     if (articleID.value <= 0) return; // 新增模式: saveWebpage 内部创建了文章, 需要重新找到ID
-    final article = ArticleRepository.instance.findModel(articleID.value);
+    final article = ArticleRepository.d.findModel(articleID.value);
     if (article == null) return;
 
     bool changed = false;
@@ -266,7 +266,7 @@ class ShareDialogController extends BaseGetXController {
       return;
     }
 
-    final freshArticle = ArticleRepository.instance.findModel(articleID.value);
+    final freshArticle = ArticleRepository.d.findModel(articleID.value);
     final arg = freshArticle ?? articleID.value;
 
     // 更新活跃文章状态

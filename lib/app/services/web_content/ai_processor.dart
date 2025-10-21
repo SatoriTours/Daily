@@ -112,13 +112,13 @@ class AiProcessor {
   Future<void> _processTitleTask(ArticleModel article) async {
     final processedTitle = await processTitle(article.title ?? '');
     article.aiTitle = processedTitle;
-    await ArticleRepository.instance.updateModel(article);
+    await ArticleRepository.d.updateModel(article);
   }
 
   Future<void> _processSummaryTask(ArticleModel article) async {
     final (summary, tags) = await processSummaryAndTags(article.content ?? '');
     article.aiContent = summary;
-    await ArticleRepository.instance.updateModel(article);
+    await ArticleRepository.d.updateModel(article);
 
     // 处理标签
     if (tags.isNotEmpty) {
@@ -132,6 +132,6 @@ class AiProcessor {
   Future<void> _processMarkdownTask(ArticleModel article) async {
     final markdown = await processMarkdown(article.htmlContent ?? '');
     article.aiMarkdownContent = markdown;
-    await ArticleRepository.instance.updateModel(article);
+    await ArticleRepository.d.updateModel(article);
   }
 }

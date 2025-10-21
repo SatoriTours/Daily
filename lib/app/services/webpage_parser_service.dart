@@ -53,14 +53,14 @@ class WebpageParserService {
 
       if (isUpdate && articleID > 0) {
         await _markArticleAsFailed(articleID, "处理失败: $e");
-        final article = ArticleRepository.instance.findModel(articleID);
+        final article = ArticleRepository.d.findModel(articleID);
         if (article != null) {
           return article;
         }
       }
 
       // 返回已有文章（若有），避免抛错到 UI
-      final fallback = ArticleRepository.instance.findModel(articleID);
+      final fallback = ArticleRepository.d.findModel(articleID);
       if (fallback != null) return fallback;
       throw Exception("保存网页失败: $e");
     }
@@ -78,7 +78,7 @@ class WebpageParserService {
     }
 
     // 检查URL是否已存在
-    final existingArticle = await ArticleRepository.instance.findByUrl(url);
+    final existingArticle = await ArticleRepository.d.findByUrl(url);
 
     // 处理已存在的情况
     if (existingArticle != null) {
@@ -137,7 +137,7 @@ class WebpageParserService {
       article.updatedAt = DateTime.now().toUtc();
       article.status = ArticleStatus.webContentFetched;
 
-      await ArticleRepository.instance.updateModel(article);
+      await ArticleRepository.d.updateModel(article);
 
       logger.i("[网页解析][内容获取] ◀ 网页内容获取成功: #$articleId");
       // 抓取阶段完成后也通知 UI，一方面展示“处理中”，另一方面让详情页先看到最新抓取内容
@@ -154,7 +154,7 @@ class WebpageParserService {
   Future<void> _processAiTasks(ArticleModel article) async {
     final articleId = article.id;
     // 重新获取最新的文章数据
-    final updatedArticle = ArticleRepository.instance.findModel(articleId);
+    final updatedArticle = ArticleRepository.d.findModel(articleId);
     if (updatedArticle == null) {
       throw Exception("无法找到文章: $articleId");
     }
@@ -166,7 +166,7 @@ class WebpageParserService {
       await AiArticleProcessor.i.processAll(updatedArticle);
 
       // 更新文章状态为完成
-      await ArticleRepository.instance.updateField(articleId, ArticleFieldName.status, ArticleStatus.completed);
+      await ArticleRepository.d.updateField(articleId, ArticleFieldName.status, ArticleStatus.completed);
 
       logger.i("[网页解析][API] ◀ 处理完成: #$articleId");
       _notifyUI(articleId);
@@ -200,7 +200,7 @@ class WebpageParserService {
       status: ArticleStatus.pending,
     );
 
-    final articleModel = await ArticleRepository.instance.createArticleModel(article);
+    final articleModel = await ArticleRepository.d.createArticleModel(article);
 
     if (articleModel.id <= 0) {
       throw Exception("创建文章记录失败");
@@ -214,7 +214,7 @@ class WebpageParserService {
   Future<ArticleModel> _resetExistingArticle(int articleId, String comment) async {
     logger.d("[网页解析][更新] ▶ 开始重置文章: #$articleId");
 
-    final article = ArticleRepository.instance.findModel(articleId);
+    final article = ArticleRepository.d.findModel(articleId);
     if (article == null) {
       throw Exception("找不到要更新的文章: $articleId");
     }
@@ -225,7 +225,7 @@ class WebpageParserService {
     article.status = ArticleStatus.pending;
     article.updatedAt = DateTime.now().toUtc();
 
-    await ArticleRepository.instance.updateModel(article);
+    await ArticleRepository.d.updateModel(article);
     logger.d("[网页解析][更新] ◀ 文章重置成功: #$articleId");
 
     return article;
@@ -243,7 +243,7 @@ class WebpageParserService {
 
   /// 将文章标记为失败状态
   Future<void> _markArticleAsFailed(int articleId, String errorMessage) async {
-    final article = ArticleRepository.instance.findModel(articleId);
+    final article = ArticleRepository.d.findModel(articleId);
     if (article == null) {
       logger.e("[网页解析][错误] 无法找到文章 #$articleId");
       return;
@@ -253,7 +253,7 @@ class WebpageParserService {
     article.aiContent = errorMessage;
     article.updatedAt = DateTime.now().toUtc();
 
-    await ArticleRepository.instance.updateModel(article);
+    await ArticleRepository.d.updateModel(article);
   }
 
   // ====================== 辅助方法 ======================
@@ -261,7 +261,7 @@ class WebpageParserService {
   /// 通知UI更新
   void _notifyUI(int articleId) {
     try {
-      final article = ArticleRepository.instance.findModel(articleId);
+      final article = ArticleRepository.d.findModel(articleId);
       if (article == null) return;
 
       // 通知文章控制器更新

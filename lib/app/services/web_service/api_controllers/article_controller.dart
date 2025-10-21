@@ -64,10 +64,10 @@ class ArticleController {
       final page = int.tryParse(pageStr) ?? 1;
 
       // 获取指定页的文章
-      final articles = ArticleRepository.instance.getAllPaginated(page);
+      final articles = ArticleRepository.d.getAllPaginated(page);
       // 获取总页数和总条数
-      final totalItems = ArticleRepository.instance.getTotalCount();
-      final totalPages = ArticleRepository.instance.getTotalPages();
+      final totalItems = ArticleRepository.d.getTotalCount();
+      final totalPages = ArticleRepository.d.getTotalPages();
 
       // 转换为JSON格式
       final articlesJson = articles.map(_articleToJson).toList();
@@ -77,7 +77,7 @@ class ArticleController {
         'items': articlesJson,
         'pagination': {
           'page': page,
-          'pageSize': ArticleRepository.instance.pageSize,
+          'pageSize': ArticleRepository.d.pageSize,
           'totalItems': totalItems,
           'totalPages': totalPages,
         },
@@ -101,10 +101,10 @@ class ArticleController {
       }
 
       // 搜索文章 - 使用分页方法
-      final articles = ArticleRepository.instance.queryArticlesPaginated(keyword: query, page: page);
+      final articles = ArticleRepository.d.queryArticlesPaginated(keyword: query, page: page);
       // 获取搜索结果的总数和总页数
-      final totalItems = ArticleRepository.instance.getSearchCount(query);
-      final totalPages = ArticleRepository.instance.getSearchTotalPages(query);
+      final totalItems = ArticleRepository.d.getSearchCount(query);
+      final totalPages = ArticleRepository.d.getSearchTotalPages(query);
 
       // 转换为JSON格式
       final articlesJson = articles.map(_articleToJson).toList();
@@ -114,7 +114,7 @@ class ArticleController {
         'items': articlesJson,
         'pagination': {
           'page': page,
-          'pageSize': ArticleRepository.instance.pageSize,
+          'pageSize': ArticleRepository.d.pageSize,
           'totalItems': totalItems,
           'totalPages': totalPages,
         },
@@ -134,7 +134,7 @@ class ArticleController {
       }
 
       // 获取文章
-      final article = ArticleRepository.instance.findModel(articleId);
+      final article = ArticleRepository.d.findModel(articleId);
       if (article == null) {
         return ResponseUtils.error('文章不存在', status: 404);
       }
@@ -171,10 +171,10 @@ class ArticleController {
       final articleModel = ArticleModel(article);
 
       // 保存文章 - 使用create方法
-      final articleId = await ArticleRepository.instance.createModel(articleModel);
+      final articleId = await ArticleRepository.d.createModel(articleModel);
 
       // 获取新创建的文章
-      final newArticle = ArticleRepository.instance.findModel(articleId);
+      final newArticle = ArticleRepository.d.findModel(articleId);
       if (newArticle == null) {
         return ResponseUtils.serverError('文章创建失败');
       }
@@ -198,7 +198,7 @@ class ArticleController {
       }
 
       // 获取现有文章
-      final existingArticle = ArticleRepository.instance.findModel(articleId);
+      final existingArticle = ArticleRepository.d.findModel(articleId);
       if (existingArticle == null) {
         return ResponseUtils.error('文章不存在', status: 404);
       }
@@ -218,7 +218,7 @@ class ArticleController {
       existingArticle.updatedAt = DateTime.now();
 
       // 保存更新 - 使用update方法
-      await ArticleRepository.instance.updateModel(existingArticle);
+      await ArticleRepository.d.updateModel(existingArticle);
 
       // 转换为JSON格式
       final articleJson = _articleToJson(existingArticle);
@@ -239,7 +239,7 @@ class ArticleController {
       }
 
       // 删除文章 - 使用destroy方法
-      final success = ArticleRepository.instance.remove(articleId);
+      final success = ArticleRepository.d.remove(articleId);
       if (!success) {
         return ResponseUtils.error('文章不存在或删除失败', status: 404);
       }

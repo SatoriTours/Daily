@@ -184,7 +184,7 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
 
   /// 获取每天文章数量统计
   Map<DateTime, int> getDailyArticleCounts() {
-    return ArticleRepository.instance.getDailyArticleCounts();
+    return ArticleRepository.d.getDailyArticleCounts();
   }
 
   // 剪贴板检查逻辑已抽离到全局 ClipboardMonitorService，不再在页面 Controller 中实现

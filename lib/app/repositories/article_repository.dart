@@ -7,14 +7,15 @@ import 'package:daily_satori/objectbox.g.dart';
 
 /// 文章仓储类
 ///
-/// 继承 BaseRepository 获取通用 CRUD 功能
-/// 使用单例模式，通过 ArticleRepository.instance 访问
+/// 使用单例模式提供数据访问功能
+/// 通过 .d 访问器调用: ArticleRepository.d.method()
+/// d 代表 database/data，简洁易记
 class ArticleRepository extends BaseRepository<Article> {
   // 私有构造函数
   ArticleRepository._();
 
-  // 单例
-  static final ArticleRepository instance = ArticleRepository._();
+  // 单例实例 - 使用 d 作为访问器 (database/data)
+  static final ArticleRepository d = ArticleRepository._();
 
   // 获取Box实例
   @override
@@ -26,12 +27,12 @@ class ArticleRepository extends BaseRepository<Article> {
 
   // ==================== 特定业务方法 ====================
 
-  /// 查找所有文章（返回Model）
+  /// 查找所有文章(返回Model)
   List<ArticleModel> allModels() {
     return all().map((e) => ArticleModel(e)).toList();
   }
 
-  /// 根据ID查找文章（返回Model）
+  /// 根据ID查找文章(返回Model)
   ArticleModel? findModel(int id) {
     final article = find(id);
     return article != null ? ArticleModel(article) : null;
@@ -55,7 +56,7 @@ class ArticleRepository extends BaseRepository<Article> {
     return counts;
   }
 
-  /// 分页获取所有文章（返回Model）
+  /// 分页获取所有文章(返回Model)
   List<ArticleModel> getAllPaginated(int page) {
     final articles = allPaginated(page: page, orderBy: Article_.id, descending: true);
     return articles.map((article) => ArticleModel(article)).toList();
@@ -126,7 +127,7 @@ class ArticleRepository extends BaseRepository<Article> {
     final articles = findByCondition(condition);
 
     if (articles.isNotEmpty) {
-      logger.i("找到 ${articles.length} 篇状态为空的文章，将更新为 pending");
+      logger.i("找到 ${articles.length} 篇状态为空的文章,将更新为 pending");
       for (final article in articles) {
         article.status = 'pending';
       }
@@ -142,7 +143,7 @@ class ArticleRepository extends BaseRepository<Article> {
     final articles = all();
 
     if (articles.isNotEmpty) {
-      logger.i("找到 ${articles.length} 篇文章，将全部更新为 completed 状态");
+      logger.i("找到 ${articles.length} 篇文章,将全部更新为 completed 状态");
       for (final article in articles) {
         article.status = 'completed';
       }
@@ -267,13 +268,24 @@ class ArticleRepository extends BaseRepository<Article> {
 
   /// 获取总页数
   int getTotalPages() {
-    return totalPages();
+    final total = count();
+    return (total / pageSize).ceil();
   }
 
   /// 根据条件分页查询
   List<ArticleModel> wherePaginated(Condition<Article> condition, int page) {
-    final articles = findByConditionPaginated(condition: condition, page: page);
-    return articles.map((article) => ArticleModel(article)).toList();
+    final offset = (page - 1) * pageSize;
+    final query = d.box.query(condition).order(Article_.id, flags: Order.descending).build();
+
+    try {
+      query
+        ..limit = pageSize
+        ..offset = offset;
+      final articles = query.find();
+      return articles.map((article) => ArticleModel(article)).toList();
+    } finally {
+      query.close();
+    }
   }
 
   /// 创建文章模型
