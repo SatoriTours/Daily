@@ -2,24 +2,31 @@ import 'package:daily_satori/app/models/models.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/repositories/base_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// AI配置存储库
-class AIConfigRepository extends BaseRepository<AIConfig> {
+class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
   // 私有构造函数
   AIConfigRepository._();
 
   // 单例
   static final AIConfigRepository instance = AIConfigRepository._();
 
-  // 获取Box实例
-  @override
-  Box<AIConfig> get box => ObjectboxService.i.box<AIConfig>();
-
   // 每页数量
   @override
   int get pageSize => 20;
+
+  // ==================== BaseRepository 必须实现的方法 ====================
+
+  @override
+  AIConfigModel toModel(AIConfig entity) {
+    return AIConfigModel(entity);
+  }
+
+  @override
+  AIConfig toEntity(AIConfigModel model) {
+    return model.config;
+  }
 
   /// 添加AI配置
   int addAIConfig(AIConfigModel model) {

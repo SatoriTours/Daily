@@ -1,6 +1,5 @@
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/repositories/base_repository.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/objectbox.g.dart';
@@ -10,57 +9,35 @@ import 'package:daily_satori/objectbox.g.dart';
 /// 使用单例模式提供数据访问功能
 /// 通过 .d 访问器调用: ArticleRepository.d.method()
 /// d 代表 database/data，简洁易记
-class ArticleRepository extends BaseRepository<Article> {
+class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   // 私有构造函数
   ArticleRepository._();
 
   // 单例实例 - 使用 d 作为访问器 (database/data)
   static final ArticleRepository d = ArticleRepository._();
 
-  // 获取Box实例
-  @override
-  Box<Article> get box => ObjectboxService.i.box<Article>();
-
   // 每页文章数量
   @override
   int get pageSize => 10;
 
+  // ==================== BaseRepository 必须实现的方法 ====================
+
+  @override
+  ArticleModel toModel(Article entity) {
+    return ArticleModel(entity);
+  }
+
+  @override
+  Article toEntity(ArticleModel model) {
+    return model.entity;
+  }
+
+  @override
+  DateTime? extractDateFromModel(ArticleModel model) {
+    return model.createdAt;
+  }
+
   // ==================== 特定业务方法 ====================
-
-  /// 查找所有文章(返回Model)
-  List<ArticleModel> allModels() {
-    return all().map((e) => ArticleModel(e)).toList();
-  }
-
-  /// 根据ID查找文章(返回Model)
-  ArticleModel? findModel(int id) {
-    final article = find(id);
-    return article != null ? ArticleModel(article) : null;
-  }
-
-  /// 获取每天文章数量统计
-  Map<DateTime, int> getDailyArticleCounts() {
-    final counts = <DateTime, int>{};
-    final allArticles = allModels();
-
-    for (final article in allArticles) {
-      final dateKey = DateTime(article.createdAt!.year, article.createdAt!.month, article.createdAt!.day);
-
-      if (counts.containsKey(dateKey)) {
-        counts[dateKey] = counts[dateKey]! + 1;
-      } else {
-        counts[dateKey] = 1;
-      }
-    }
-
-    return counts;
-  }
-
-  /// 分页获取所有文章(返回Model)
-  List<ArticleModel> getAllPaginated(int page) {
-    final articles = allPaginated(page: page, orderBy: Article_.id, descending: true);
-    return articles.map((article) => ArticleModel(article)).toList();
-  }
 
   /// 根据状态查找文章
   List<ArticleModel> findByStatus(String status) {
@@ -160,8 +137,8 @@ class ArticleRepository extends BaseRepository<Article> {
     return article != null ? ArticleModel(article) : null;
   }
 
-  /// 检查文章是否存在
-  Future<bool> isArticleExists(String url) async {
+  /// 根据URL判断文章是否存在
+  Future<bool> existsByUrl(String url) async {
     return await findByUrl(url) != null;
   }
 
@@ -184,10 +161,11 @@ class ArticleRepository extends BaseRepository<Article> {
     logger.i("文章已删除: $id");
   }
 
-  /// 保存文章Model
-  Future<int> createModel(ArticleModel articleModel) async {
+  /// 保存文章Model（带日志）
+  @override
+  Future<int> saveModel(ArticleModel articleModel) async {
     try {
-      final id = await box.putAsync(articleModel.entity);
+      final id = await super.saveModel(articleModel);
       logger.i("文章已保存: ${StringUtils.firstLine(articleModel.title ?? '')}");
       return id;
     } catch (e) {
@@ -196,10 +174,11 @@ class ArticleRepository extends BaseRepository<Article> {
     }
   }
 
-  /// 更新文章Model
+  /// 更新文章Model（带日志）
+  @override
   Future<int> updateModel(ArticleModel articleModel) async {
     try {
-      final id = await box.putAsync(articleModel.entity);
+      final id = await super.updateModel(articleModel);
       logger.i("文章已更新: ${StringUtils.firstLine(articleModel.title ?? '')}");
       return id;
     } catch (e) {
@@ -253,51 +232,6 @@ class ArticleRepository extends BaseRepository<Article> {
     }
 
     save(article);
-  }
-
-  /// 根据条件查询文章
-  List<ArticleModel> where(Condition<Article> condition) {
-    final articles = findByCondition(condition);
-    return articles.map((article) => ArticleModel(article)).toList();
-  }
-
-  /// 获取文章总数
-  int getTotalCount() {
-    return count();
-  }
-
-  /// 获取总页数
-  int getTotalPages() {
-    final total = count();
-    return (total / pageSize).ceil();
-  }
-
-  /// 根据条件分页查询
-  List<ArticleModel> wherePaginated(Condition<Article> condition, int page) {
-    final offset = (page - 1) * pageSize;
-    final query = d.box.query(condition).order(Article_.id, flags: Order.descending).build();
-
-    try {
-      query
-        ..limit = pageSize
-        ..offset = offset;
-      final articles = query.find();
-      return articles.map((article) => ArticleModel(article)).toList();
-    } finally {
-      query.close();
-    }
-  }
-
-  /// 创建文章模型
-  Future<ArticleModel> createArticleModel(Article article) async {
-    final id = save(article);
-    final savedArticle = find(id);
-    return ArticleModel(savedArticle!);
-  }
-
-  /// 删除文章
-  bool delete(int id) {
-    return remove(id);
   }
 
   /// 获取搜索结果数量

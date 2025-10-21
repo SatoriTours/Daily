@@ -8,6 +8,7 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/auth_middleware.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/request_utils.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/response_utils.dart';
+import 'package:daily_satori/objectbox.g.dart';
 
 /// 文章控制器
 class ArticleController {
@@ -64,10 +65,10 @@ class ArticleController {
       final page = int.tryParse(pageStr) ?? 1;
 
       // 获取指定页的文章
-      final articles = ArticleRepository.d.getAllPaginated(page);
+      final articles = ArticleRepository.d.allModelsPaginated(page: page, orderBy: Article_.id, descending: true);
       // 获取总页数和总条数
-      final totalItems = ArticleRepository.d.getTotalCount();
-      final totalPages = ArticleRepository.d.getTotalPages();
+      final totalItems = ArticleRepository.d.count();
+      final totalPages = ArticleRepository.d.totalPages();
 
       // 转换为JSON格式
       final articlesJson = articles.map(_articleToJson).toList();
@@ -170,8 +171,8 @@ class ArticleController {
       // 创建文章模型
       final articleModel = ArticleModel(article);
 
-      // 保存文章 - 使用create方法
-      final articleId = await ArticleRepository.d.createModel(articleModel);
+      // 保存文章
+      final articleId = await ArticleRepository.d.saveModel(articleModel);
 
       // 获取新创建的文章
       final newArticle = ArticleRepository.d.findModel(articleId);

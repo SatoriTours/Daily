@@ -10,7 +10,7 @@ import 'package:daily_satori/objectbox.g.dart';
 /// 继承 `BaseRepository<Book>` 获取Book的通用CRUD功能
 /// 同时管理BookViewpoint实体
 /// 使用单例模式,通过 BookRepository.instance 访问
-class BookRepository extends BaseRepository<Book> {
+class BookRepository extends BaseRepository<Book, BookModel> {
   // 私有构造函数
   BookRepository._();
 
@@ -18,10 +18,19 @@ class BookRepository extends BaseRepository<Book> {
   static final instance = BookRepository._();
 
   @override
-  Box<Book> get box => ObjectboxService.i.box<Book>();
+  int get pageSize => 20;
+
+  // ==================== BaseRepository 必须实现的方法 ====================
 
   @override
-  int get pageSize => 20;
+  BookModel toModel(Book entity) {
+    return BookModel.fromEntity(entity);
+  }
+
+  @override
+  Book toEntity(BookModel model) {
+    return model.toEntity();
+  }
 
   // BookViewpoint box getter
   Box<BookViewpoint> get _viewpointBox => ObjectboxService.i.box<BookViewpoint>();

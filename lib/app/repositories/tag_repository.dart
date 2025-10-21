@@ -1,43 +1,40 @@
 import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/models/tag_model.dart';
 import 'package:daily_satori/app/repositories/base_repository.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 标签仓储类
 ///
 /// 继承 BaseRepository 获取通用 CRUD 功能
 /// 使用单例模式，通过 TagRepository.instance 访问
-class TagRepository extends BaseRepository<Tag> {
+class TagRepository extends BaseRepository<Tag, TagModel> {
   // 私有构造函数
   TagRepository._();
 
   // 单例
   static final TagRepository instance = TagRepository._();
 
-  // 获取Box实例
-  @override
-  Box<Tag> get box => ObjectboxService.i.box<Tag>();
-
   // 每页数量
   @override
   int get pageSize => 50;
 
+  // ==================== BaseRepository 必须实现的方法 ====================
+
+  @override
+  TagModel toModel(Tag entity) {
+    return TagModel(entity);
+  }
+
+  @override
+  Tag toEntity(TagModel model) {
+    return model.entity;
+  }
+
   // ==================== 特定业务方法 ====================
-
-  /// 查找所有标签（返回Model）
-  List<TagModel> allModels() {
-    return all().map((e) => TagModel(e)).toList();
-  }
-
-  /// 根据ID查找标签（返回Model）
-  TagModel? findModel(int id) {
-    final tag = find(id);
-    return tag != null ? TagModel(tag) : null;
-  }
 
   /// 根据名称查找标签
   TagModel? findByName(String name) {

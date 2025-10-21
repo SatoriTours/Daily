@@ -107,9 +107,10 @@ class ArticleManager {
       status: ArticleStatus.pending,
     );
 
-    final articleModel = await ArticleRepository.d.createArticleModel(article);
+    final id = ArticleRepository.d.save(article);
+    final articleModel = ArticleRepository.d.findModel(id);
 
-    if (articleModel.id <= 0) {
+    if (articleModel == null || articleModel.id <= 0) {
       throw Exception('创建文章记录失败');
     }
 
@@ -199,7 +200,7 @@ class ArticleManager {
 
   /// 删除文章
   Future<void> deleteArticle(int articleId) async {
-    ArticleRepository.d.delete(articleId);
+    ArticleRepository.d.remove(articleId);
     logger.i('[ArticleManager] 文章已删除: #$articleId');
   }
 

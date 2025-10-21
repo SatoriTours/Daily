@@ -1,12 +1,11 @@
 import 'package:daily_satori/app/models/diary_model.dart';
 import 'package:daily_satori/app/objectbox/diary.dart';
 import 'package:daily_satori/app/repositories/base_repository.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 日记仓库,负责管理日记的存储和检索操作
 /// 继承 BaseRepository 获取通用 CRUD 功能
-class DiaryRepository extends BaseRepository<Diary> {
+class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
   // 私有构造函数
   DiaryRepository._();
 
@@ -16,17 +15,20 @@ class DiaryRepository extends BaseRepository<Diary> {
   // 兼容旧的 i 访问方式
   static DiaryRepository get i => instance;
 
-  // 获取Box实例
-  @override
-  Box<Diary> get box => ObjectboxService.i.box<Diary>();
-
   // 每页日记数量
   @override
   int get pageSize => 10;
 
-  /// 保存日记Model
-  int saveModel(DiaryModel diary) {
-    return save(diary.toEntity());
+  // ==================== BaseRepository 必须实现的方法 ====================
+
+  @override
+  DiaryModel toModel(Diary entity) {
+    return DiaryModel.fromEntity(entity);
+  }
+
+  @override
+  Diary toEntity(DiaryModel model) {
+    return model.toEntity();
   }
 
   /// 删除日记(旧方法名兼容)

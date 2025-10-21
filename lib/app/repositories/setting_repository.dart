@@ -1,7 +1,6 @@
 import 'package:daily_satori/app/objectbox/setting.dart';
 import 'package:daily_satori/app/models/setting_model.dart';
 import 'package:daily_satori/app/repositories/base_repository.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
@@ -9,33 +8,30 @@ import 'package:daily_satori/objectbox.g.dart';
 ///
 /// 继承 BaseRepository 获取通用 CRUD 功能
 /// 使用单例模式，通过 SettingRepository.instance 访问
-class SettingRepository extends BaseRepository<Setting> {
+class SettingRepository extends BaseRepository<Setting, SettingModel> {
   // 私有构造函数
   SettingRepository._();
 
   // 单例
   static final SettingRepository instance = SettingRepository._();
 
-  // 获取Box实例
-  @override
-  Box<Setting> get box => ObjectboxService.i.box<Setting>();
-
   // 每页数量
   @override
   int get pageSize => 100;
 
+  // ==================== BaseRepository 必须实现的方法 ====================
+
+  @override
+  SettingModel toModel(Setting entity) {
+    return SettingModel(entity);
+  }
+
+  @override
+  Setting toEntity(SettingModel model) {
+    return model.entity;
+  }
+
   // ==================== 特定业务方法 ====================
-
-  /// 查找所有设置（返回Model）
-  List<SettingModel> allModels() {
-    return all().map((e) => SettingModel(e)).toList();
-  }
-
-  /// 根据ID查找设置（返回Model）
-  SettingModel? findModel(int id) {
-    final setting = find(id);
-    return setting != null ? SettingModel(setting) : null;
-  }
 
   /// 根据键查找设置
   SettingModel? findByKey(String key) {
@@ -66,12 +62,12 @@ class SettingRepository extends BaseRepository<Setting> {
     if (settingModel != null) {
       // 更新现有设置
       settingModel.value = value;
-      return await updateModel(settingModel);
+      return await saveModel(settingModel);
     } else {
       // 创建新设置
       final setting = Setting(key: key, value: value);
       final settingModel = SettingModel(setting);
-      return await createModel(settingModel);
+      return await saveModel(settingModel);
     }
   }
 
@@ -127,16 +123,6 @@ class SettingRepository extends BaseRepository<Setting> {
       return remove(existing.id);
     }
     return false;
-  }
-
-  /// 保存设置Model
-  Future<int> createModel(SettingModel settingModel) async {
-    return await box.putAsync(settingModel.entity);
-  }
-
-  /// 更新设置Model
-  Future<int> updateModel(SettingModel settingModel) async {
-    return await box.putAsync(settingModel.entity);
   }
 
   /// 删除设置（旧方法名兼容）

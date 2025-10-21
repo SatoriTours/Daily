@@ -1,4 +1,5 @@
 import 'package:daily_satori/app_exports.dart';
+import 'package:daily_satori/objectbox.g.dart';
 
 /// 文章列表控制器
 class ArticlesController extends BaseGetXController with WidgetsBindingObserver {
@@ -184,7 +185,7 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
 
   /// 获取每天文章数量统计
   Map<DateTime, int> getDailyArticleCounts() {
-    return ArticleRepository.d.getDailyArticleCounts();
+    return ArticleRepository.d.getDailyCounts(Article_.createdAt);
   }
 
   // 剪贴板检查逻辑已抽离到全局 ClipboardMonitorService，不再在页面 Controller 中实现

@@ -2,27 +2,34 @@ import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/models/image_model.dart';
 import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/repositories/base_repository.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 图片仓储类
 ///
 /// 继承 BaseRepository 获取通用 CRUD 功能
 /// 使用单例模式，通过 ImageRepository.instance 访问
-class ImageRepository extends BaseRepository<Image> {
+class ImageRepository extends BaseRepository<Image, ImageModel> {
   // 私有构造函数
   ImageRepository._();
 
   // 单例
   static final ImageRepository instance = ImageRepository._();
 
-  // 获取Box实例
-  @override
-  Box<Image> get box => ObjectboxService.i.box<Image>();
-
   // 每页数量
   @override
   int get pageSize => 50;
+
+  // ==================== BaseRepository 必须实现的方法 ====================
+
+  @override
+  ImageModel toModel(Image entity) {
+    return ImageModel(entity);
+  }
+
+  @override
+  Image toEntity(ImageModel model) {
+    return model.entity;
+  }
 
   // ==================== 特定业务方法 ====================
 

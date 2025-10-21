@@ -1,26 +1,33 @@
 import 'package:daily_satori/app/objectbox/session.dart';
 import 'package:daily_satori/app/repositories/base_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// Session仓库类
 ///
 /// 继承 BaseRepository 获取通用 CRUD 功能
-class SessionRepository extends BaseRepository<SessionEntity> {
+class SessionRepository extends BaseRepository<SessionEntity, SessionEntity> {
   // 私有构造函数
   SessionRepository._();
 
   // 单例
   static final SessionRepository instance = SessionRepository._();
 
-  // 获取Box实例
-  @override
-  Box<SessionEntity> get box => ObjectboxService.i.box<SessionEntity>();
-
   // 每页数量
   @override
   int get pageSize => 50;
+
+  // ==================== BaseRepository 必须实现的方法 ====================
+
+  @override
+  SessionEntity toModel(SessionEntity entity) {
+    return entity;
+  }
+
+  @override
+  SessionEntity toEntity(SessionEntity model) {
+    return model;
+  }
 
   /// 根据会话ID查找会话
   SessionEntity? findBySessionId(String sessionId) {
