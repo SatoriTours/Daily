@@ -319,8 +319,9 @@ class BookService {
 
   /// 刷新书籍内容：重新拉取书籍信息与观点，并替换原观点
   Future<bool> refreshBook(int bookId) async {
-    final book = BookRepository.instance.getBookById(bookId);
-    if (book == null) return false;
+    final bookEntity = BookRepository.instance.getBookById(bookId);
+    if (bookEntity == null) return false;
+    final book = BookModel(bookEntity);
 
     try {
       // 重新获取书籍信息
@@ -335,7 +336,7 @@ class BookService {
       book.category = bookData['category'] as String? ?? book.category;
       book.introduction = bookData['introduction'] as String? ?? book.introduction;
       book.updateAt = DateTime.now();
-      BookRepository.instance.updateBook(book);
+      BookRepository.instance.updateBook(book.toEntity());
 
       // 解析观点并替换
       final List<dynamic> viewpointsData = bookData['viewpoints'] as List<dynamic>? ?? [];
