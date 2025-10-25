@@ -34,11 +34,13 @@ class ImageRepository extends BaseRepository<Image, ImageModel> {
   // ==================== 特定业务方法 ====================
 
   /// 查找所有图片（返回Model）
+  @override
   List<ImageModel> allModels() {
     return all().map((e) => ImageModel(e)).toList();
   }
 
   /// 根据ID查找图片（返回Model）
+  @override
   ImageModel? findModel(int id) {
     final image = find(id);
     return image != null ? ImageModel(image) : null;
@@ -63,6 +65,7 @@ class ImageRepository extends BaseRepository<Image, ImageModel> {
   }
 
   /// 更新图片Model
+  @override
   Future<int> updateModel(ImageModel imageModel) async {
     return await box.putAsync(imageModel.entity);
   }

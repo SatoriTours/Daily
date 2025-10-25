@@ -121,6 +121,7 @@ class TagRepository extends BaseRepository<Tag, TagModel> {
   }
 
   /// 更新标签Model
+  @override
   Future<int> updateModel(TagModel tagModel) async {
     return await box.putAsync(tagModel.entity);
   }

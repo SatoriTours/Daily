@@ -1,62 +1,69 @@
+import 'package:daily_satori/app/models/base_model.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
 
 /// AI配置模型类
 ///
 /// 对ObjectBox实体类AIConfig的封装
-class AIConfigModel {
-  /// 内部AIConfig实例
-  final AIConfig _aiConfig;
-
+class AIConfigModel extends BaseModel<AIConfig> {
   /// 构造函数
-  AIConfigModel(this._aiConfig);
+  AIConfigModel(super.entity);
 
   /// 从AIConfig创建模型
   factory AIConfigModel.fromConfig(AIConfig config) {
     return AIConfigModel(config);
   }
 
-  /// 获取内部AIConfig实例
-  AIConfig get config => _aiConfig;
+  /// 获取内部AIConfig实例（为了向后兼容）
+  AIConfig get config => entity;
 
   /// ID
-  int get id => _aiConfig.id;
-  set id(int value) => _aiConfig.id = value;
+  @override
+  int get id => entity.id;
+  set id(int value) => entity.id = value;
 
   /// 配置名称
-  String get name => _aiConfig.name;
-  set name(String value) => _aiConfig.name = value;
+  String get name => entity.name;
+  set name(String value) => entity.name = value;
 
   /// API地址
-  String get apiAddress => _aiConfig.apiAddress;
-  set apiAddress(String value) => _aiConfig.apiAddress = value;
+  String get apiAddress => entity.apiAddress;
+  set apiAddress(String value) => entity.apiAddress = value;
 
   /// API令牌
-  String get apiToken => _aiConfig.apiToken;
-  set apiToken(String value) => _aiConfig.apiToken = value;
+  String get apiToken => entity.apiToken;
+  set apiToken(String value) => entity.apiToken = value;
 
   /// 模型名称
-  String get modelName => _aiConfig.modelName;
-  set modelName(String value) => _aiConfig.modelName = value;
+  String get modelName => entity.modelName;
+  set modelName(String value) => entity.modelName = value;
 
   /// 功能类型
-  int get functionType => _aiConfig.functionType;
-  set functionType(int value) => _aiConfig.functionType = value;
+  int get functionType => entity.functionType;
+  set functionType(int value) => entity.functionType = value;
 
   /// 是否继承自通用配置
-  bool get inheritFromGeneral => _aiConfig.inheritFromGeneral;
-  set inheritFromGeneral(bool value) => _aiConfig.inheritFromGeneral = value;
+  bool get inheritFromGeneral => entity.inheritFromGeneral;
+  set inheritFromGeneral(bool value) => entity.inheritFromGeneral = value;
 
   /// 是否为默认配置
-  bool get isDefault => _aiConfig.isDefault;
-  set isDefault(bool value) => _aiConfig.isDefault = value;
+  bool get isDefault => entity.isDefault;
+  set isDefault(bool value) => entity.isDefault = value;
 
   /// 创建时间
-  DateTime get createdAt => _aiConfig.createdAt;
-  set createdAt(DateTime value) => _aiConfig.createdAt = value;
+  @override
+  DateTime? get createdAt => entity.createdAt;
+  @override
+  set createdAt(DateTime? value) {
+    if (value != null) entity.createdAt = value;
+  }
 
   /// 更新时间
-  DateTime get updatedAt => _aiConfig.updatedAt;
-  set updatedAt(DateTime value) => _aiConfig.updatedAt = value;
+  @override
+  DateTime? get updatedAt => entity.updatedAt;
+  @override
+  set updatedAt(DateTime? value) {
+    if (value != null) entity.updatedAt = value;
+  }
 
   /// 从另一个配置继承属性
   void inheritFromConfig(AIConfigModel general) {
