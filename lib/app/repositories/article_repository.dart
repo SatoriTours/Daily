@@ -27,22 +27,13 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
     return ArticleModel(entity);
   }
 
-  @override
-  Article toEntity(ArticleModel model) {
-    return model.entity;
-  }
-
-  @override
-  DateTime? extractDateFromModel(ArticleModel model) {
-    return model.createdAt;
-  }
+  // toEntity 和 extractDateFromModel 已由父类提供默认实现，无需重写
 
   // ==================== 特定业务方法 ====================
 
   /// 根据状态查找文章
   List<ArticleModel> findByStatus(String status) {
-    final articles = findByStringEquals(Article_.status, status);
-    return articles.map((article) => ArticleModel(article)).toList();
+    return findByStringEquals(Article_.status, status);
   }
 
   /// 根据多个状态查找文章
@@ -58,8 +49,7 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
       condition = condition == null ? statusCondition : condition.or(statusCondition);
     }
 
-    final articles = findByCondition(condition!);
-    return articles.map((article) => ArticleModel(article)).toList();
+    return findByCondition(condition!);
   }
 
   /// 查找所有待处理的文章
@@ -94,8 +84,7 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   /// 找到最近的一个待处理文章
   ArticleModel? findLastPending() {
     final condition = Article_.status.notEquals('completed').and(Article_.status.notEquals(''));
-    final article = findFirstByCondition(condition);
-    return article != null ? ArticleModel(article) : null;
+    return findFirstByCondition(condition);
   }
 
   /// 更新所有空状态的文章为 pending
@@ -106,7 +95,7 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
     if (articles.isNotEmpty) {
       logger.i("找到 ${articles.length} 篇状态为空的文章,将更新为 pending");
       for (final article in articles) {
-        article.status = 'pending';
+        article.entity.status = 'pending';
       }
       saveMany(articles);
       logger.i("已将所有状态为空的文章更新为 pending");
@@ -133,8 +122,7 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
 
   /// 根据URL查找文章
   Future<ArticleModel?> findByUrl(String url) async {
-    final article = findFirstByStringEquals(Article_.url, url);
-    return article != null ? ArticleModel(article) : null;
+    return findFirstByStringEquals(Article_.url, url);
   }
 
   /// 根据URL判断文章是否存在

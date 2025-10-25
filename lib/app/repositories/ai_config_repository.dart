@@ -23,15 +23,12 @@ class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
     return AIConfigModel(entity);
   }
 
-  @override
-  AIConfig toEntity(AIConfigModel model) {
-    return model.config;
-  }
+  // toEntity 已由父类提供默认实现，无需重写
 
   /// 添加AI配置
-  int addAIConfig(AIConfigModel model) {
+  Future<int> addAIConfig(AIConfigModel model) async {
     try {
-      return save(model.config);
+      return await save(model);
     } catch (e, stackTrace) {
       logger.e('[AI配置存储库] 添加AI配置失败: $e', stackTrace: stackTrace);
       rethrow;
@@ -41,8 +38,7 @@ class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
   /// 获取所有AI配置
   List<AIConfigModel> getAllAIConfigs() {
     try {
-      final configs = all();
-      return configs.map((config) => AIConfigModel.fromConfig(config)).toList();
+      return all();
     } catch (e, stackTrace) {
       logger.e('[AI配置存储库] 获取所有AI配置失败: $e', stackTrace: stackTrace);
       return [];
@@ -52,8 +48,7 @@ class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
   /// 根据功能类型获取AI配置
   List<AIConfigModel> getAIConfigsByFunctionType(int functionType) {
     try {
-      final configs = findByCondition(AIConfig_.functionType.equals(functionType));
-      return configs.map((config) => AIConfigModel.fromConfig(config)).toList();
+      return findByCondition(AIConfig_.functionType.equals(functionType));
     } catch (e, stackTrace) {
       logger.e('[AI配置存储库] 根据功能类型获取AI配置失败: $e', stackTrace: stackTrace);
       return [];
@@ -63,8 +58,7 @@ class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
   /// 获取通用配置
   AIConfigModel? getGeneralConfig() {
     try {
-      final result = findFirstByCondition(AIConfig_.functionType.equals(0));
-      return result != null ? AIConfigModel.fromConfig(result) : null;
+      return findFirstByCondition(AIConfig_.functionType.equals(0));
     } catch (e, stackTrace) {
       logger.e('[AI配置存储库] 获取通用配置失败: $e', stackTrace: stackTrace);
       return null;
@@ -74,10 +68,7 @@ class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
   /// 根据功能类型获取默认AI配置
   AIConfigModel? getDefaultAIConfigByFunctionType(int functionType) {
     try {
-      final result = findFirstByCondition(
-        AIConfig_.functionType.equals(functionType) & AIConfig_.isDefault.equals(true),
-      );
-      return result != null ? AIConfigModel.fromConfig(result) : null;
+      return findFirstByCondition(AIConfig_.functionType.equals(functionType) & AIConfig_.isDefault.equals(true));
     } catch (e, stackTrace) {
       logger.e('[AI配置存储库] 获取默认AI配置失败: $e', stackTrace: stackTrace);
       return null;
@@ -85,10 +76,10 @@ class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
   }
 
   /// 更新AI配置
-  int updateAIConfig(AIConfigModel model) {
+  Future<int> updateAIConfig(AIConfigModel model) async {
     try {
-      model.updatedAt = DateTime.now();
-      return save(model.config);
+      model.entity.updatedAt = DateTime.now();
+      return await save(model);
     } catch (e, stackTrace) {
       logger.e('[AI配置存储库] 更新AI配置失败: $e', stackTrace: stackTrace);
       rethrow;

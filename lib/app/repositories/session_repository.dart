@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/models/session_model.dart';
 import 'package:daily_satori/app/objectbox/session.dart';
 import 'package:daily_satori/app/repositories/base_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
@@ -6,7 +7,7 @@ import 'package:daily_satori/objectbox.g.dart';
 /// Session仓库类
 ///
 /// 继承 BaseRepository 获取通用 CRUD 功能
-class SessionRepository extends BaseRepository<SessionEntity, SessionEntity> {
+class SessionRepository extends BaseRepository<SessionEntity, SessionModel> {
   // 私有构造函数
   SessionRepository._();
 
@@ -20,17 +21,14 @@ class SessionRepository extends BaseRepository<SessionEntity, SessionEntity> {
   // ==================== BaseRepository 必须实现的方法 ====================
 
   @override
-  SessionEntity toModel(SessionEntity entity) {
-    return entity;
+  SessionModel toModel(SessionEntity entity) {
+    return SessionModel(entity);
   }
 
-  @override
-  SessionEntity toEntity(SessionEntity model) {
-    return model;
-  }
+  // toEntity 已由父类提供默认实现，无需重写
 
   /// 根据会话ID查找会话
-  SessionEntity? findBySessionId(String sessionId) {
+  SessionModel? findBySessionId(String sessionId) {
     return findFirstByStringEquals(SessionEntity_.sessionId, sessionId);
   }
 
@@ -38,59 +36,59 @@ class SessionRepository extends BaseRepository<SessionEntity, SessionEntity> {
   bool removeBySessionId(String sessionId) {
     final session = findBySessionId(sessionId);
     if (session != null) {
-      return remove(session.id);
+      return remove(session.entity.id);
     }
     return false;
   }
 
   /// 更新会话的最后访问时间
-  bool updateLastAccessedAt(String sessionId, DateTime lastAccessedAt) {
+  Future<bool> updateLastAccessedAt(String sessionId, DateTime lastAccessedAt) async {
     final session = findBySessionId(sessionId);
     if (session != null) {
       session.lastAccessedAt = lastAccessedAt;
-      save(session);
+      await save(session);
       return true;
     }
     return false;
   }
 
   /// 设置会话的认证状态
-  bool authenticate(String sessionId, String username) {
+  Future<bool> authenticate(String sessionId, String username) async {
     final session = findBySessionId(sessionId);
     if (session != null) {
       session.isAuthenticated = true;
       session.username = username;
       session.lastAccessedAt = DateTime.now();
-      save(session);
+      await save(session);
       return true;
     }
     return false;
   }
 
   /// 清除会话的认证状态
-  bool clearAuthentication(String sessionId) {
+  Future<bool> clearAuthentication(String sessionId) async {
     final session = findBySessionId(sessionId);
     if (session != null) {
       session.isAuthenticated = false;
       session.username = null;
       session.lastAccessedAt = DateTime.now();
-      save(session);
+      await save(session);
       return true;
     }
     return false;
   }
 
   /// 清理过期会话 (30分钟不活动即过期)
-  void cleanExpiredSessions() {
+  Future<void> cleanExpiredSessions() async {
     final expireTime = DateTime.now().subtract(const Duration(minutes: 30));
 
     // 查询所有会话
     final allSessions = all();
-    final expiredSessions = allSessions.where((session) => session.lastAccessedAt.isBefore(expireTime)).toList();
+    final expiredSessions = allSessions.where((session) => session.entity.lastAccessedAt.isBefore(expireTime)).toList();
 
     if (expiredSessions.isNotEmpty) {
       // 删除过期会话
-      final expiredIds = expiredSessions.map((s) => s.id).toList();
+      final expiredIds = expiredSessions.map((s) => s.entity.id).toList();
       removeMany(expiredIds);
       logger.d('已清理${expiredSessions.length}个过期会话');
     }

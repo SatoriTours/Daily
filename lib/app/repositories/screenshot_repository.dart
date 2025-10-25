@@ -26,17 +26,13 @@ class ScreenshotRepository extends BaseRepository<Screenshot, ScreenshotModel> {
     return ScreenshotModel(entity);
   }
 
-  @override
-  Screenshot toEntity(ScreenshotModel model) {
-    return model.entity;
-  }
+  // toEntity 已由父类提供默认实现，无需重写
 
   // ==================== 特定业务方法 ====================
 
   /// 根据路径查找截图
   ScreenshotModel? findByPath(String path) {
-    final screenshot = findFirstByStringEquals(Screenshot_.path, path);
-    return screenshot != null ? ScreenshotModel(screenshot) : null;
+    return findFirstByStringEquals(Screenshot_.path, path);
   }
 
   /// 使用数据创建截图模型

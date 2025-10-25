@@ -290,8 +290,8 @@ class BackupService {
         }
 
         if (changed) {
-          diary.images = fixed.join(',');
-          DiaryRepository.i.save(diary.toEntity());
+          diary.entity.images = fixed.join(',');
+          await DiaryRepository.i.save(diary);
         }
       }
       logger.i('恢复后已修复日记图片路径');

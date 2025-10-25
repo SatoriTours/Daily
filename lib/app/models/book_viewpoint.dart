@@ -49,20 +49,6 @@ class BookViewpointModel extends EntityModel<BookViewpoint> {
     );
   }
 
-  @override
-  int get id => entity.id;
-  set id(int value) => entity.id = value;
-
-  @override
-  DateTime? get createdAt => entity.createAt;
-  @override
-  set createdAt(DateTime? value) => entity.createAt = value ?? DateTime.now();
-
-  @override
-  DateTime? get updatedAt => entity.updateAt;
-  @override
-  set updatedAt(DateTime? value) => entity.updateAt = value ?? DateTime.now();
-
   // ==================== 基本属性 ====================
 
   int get bookId => entity.bookId;
@@ -104,8 +90,8 @@ class BookViewpointModel extends EntityModel<BookViewpoint> {
       'title': title,
       'content': content,
       'example': example,
-      'createAt': createdAt?.toIso8601String(),
-      'updateAt': updatedAt?.toIso8601String(),
+      'createAt': createdAt.toIso8601String(),
+      'updateAt': updatedAt.toIso8601String(),
     };
   }
 }

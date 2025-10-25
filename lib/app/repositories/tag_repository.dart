@@ -29,23 +29,19 @@ class TagRepository extends BaseRepository<Tag, TagModel> {
     return TagModel(entity);
   }
 
-  @override
-  Tag toEntity(TagModel model) {
-    return model.entity;
-  }
+  // toEntity 已由父类提供默认实现，无需重写
 
   // ==================== 特定业务方法 ====================
 
   /// 根据名称查找标签
   TagModel? findByName(String name) {
-    final tag = findFirstByStringEquals(Tag_.name, name);
-    return tag != null ? TagModel(tag) : null;
+    return findFirstByStringEquals(Tag_.name, name);
   }
 
   /// 根据ID从标签列表中查找标签
   TagModel? findTagModelById(List<TagModel> tagModels, int id) {
     try {
-      return tagModels.firstWhere((tag) => tag.id == id);
+      return tagModels.firstWhere((tag) => tag.entity.id == id);
     } catch (e) {
       return null;
     }

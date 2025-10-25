@@ -183,7 +183,7 @@ class DiaryController {
 
       // 保存日记
       final diaryRepository = DiaryRepository.i;
-      final diaryId = diaryRepository.save(diary.toEntity());
+      final diaryId = await diaryRepository.save(diary);
 
       // 获取新创建的日记
       final newDiary = diaryRepository.getById(diaryId);
@@ -233,14 +233,14 @@ class DiaryController {
         existingDiary.mood = body['mood'] as String?;
       }
       if (body.containsKey('images')) {
-        existingDiary.images = body['images'] as String?;
+        existingDiary.entity.images = body['images'] as String?;
       }
 
       // 更新时间
       existingDiary.updatedAt = DateTime.now();
 
       // 保存更新
-      diaryRepository.save(existingDiary.toEntity());
+      await diaryRepository.save(existingDiary);
 
       // 刷新日记列表
       _refreshDiaryList();

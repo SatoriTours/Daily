@@ -36,20 +36,6 @@ class DiaryModel extends EntityModel<Diary> {
     );
   }
 
-  @override
-  int get id => entity.id;
-  set id(int value) => entity.id = value;
-
-  @override
-  DateTime get createdAt => entity.createdAt;
-  @override
-  set createdAt(DateTime? value) => entity.createdAt = value ?? DateTime.now();
-
-  @override
-  DateTime get updatedAt => entity.updatedAt;
-  @override
-  set updatedAt(DateTime? value) => entity.updatedAt = value ?? DateTime.now();
-
   // ==================== 基本属性 ====================
 
   String get content => entity.content;

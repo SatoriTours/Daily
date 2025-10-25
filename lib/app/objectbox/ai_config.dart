@@ -6,9 +6,11 @@ class AIConfig implements BaseEntity {
   @override
   @Id()
   int id = 0;
+
   @override
   @Property(type: PropertyType.date)
   late DateTime createdAt;
+
   @override
   @Property(type: PropertyType.date)
   late DateTime updatedAt;

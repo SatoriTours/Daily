@@ -16,19 +16,6 @@ class ArticleModel extends EntityModel<Article> {
     return article;
   }
 
-  @override
-  int get id => entity.id;
-
-  @override
-  DateTime get createdAt => entity.createdAt;
-  @override
-  set createdAt(DateTime? value) => entity.createdAt = value ?? DateTime.now();
-
-  @override
-  DateTime get updatedAt => entity.updatedAt;
-  @override
-  set updatedAt(DateTime? value) => entity.updatedAt = value ?? DateTime.now();
-
   // ==================== 基本属性 ====================
 
   String? get title => entity.title;

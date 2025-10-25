@@ -210,7 +210,7 @@ class BookService {
       return null;
     }
 
-    book.id = bookId;
+    book.entity.id = bookId;
     return book;
   }
 

@@ -43,8 +43,8 @@ class AuthController {
       }
 
       // 创建新会话
-      final session = SessionManager.createSession();
-      session.authenticate('satori'); // 使用默认用户名
+      final session = await SessionManager.createSession();
+      await session.authenticate('satori'); // 使用默认用户名
 
       // 返回成功响应，带会话cookie
       final response = ResponseUtils.success({'success': true});

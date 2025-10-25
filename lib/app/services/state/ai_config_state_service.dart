@@ -134,8 +134,8 @@ class AIConfigStateService extends GetxService {
       final newConfig = config.clone();
 
       // 保存配置
-      final id = AIConfigRepository.instance.addAIConfig(newConfig);
-      newConfig.id = id;
+      final id = await AIConfigRepository.instance.addAIConfig(newConfig);
+      newConfig.entity.id = id;
       addConfigToList(newConfig);
 
       UIUtils.showSuccess("克隆配置成功");

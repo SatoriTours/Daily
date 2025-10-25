@@ -23,19 +23,6 @@ class TagModel extends EntityModel<Tag> {
     return tag;
   }
 
-  @override
-  int get id => entity.id;
-
-  @override
-  DateTime? get createdAt => null;
-  @override
-  set createdAt(DateTime? value) {}
-
-  @override
-  DateTime? get updatedAt => null;
-  @override
-  set updatedAt(DateTime? value) {}
-
   String? get name => entity.name;
   set name(String? value) => entity.name = value;
 

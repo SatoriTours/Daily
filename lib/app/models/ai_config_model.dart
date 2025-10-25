@@ -11,24 +11,6 @@ class AIConfigModel extends EntityModel<AIConfig> {
 
   AIConfig get config => entity;
 
-  @override
-  int get id => entity.id;
-  set id(int value) => entity.id = value;
-
-  @override
-  DateTime? get createdAt => entity.createdAt;
-  @override
-  set createdAt(DateTime? value) {
-    if (value != null) entity.createdAt = value;
-  }
-
-  @override
-  DateTime? get updatedAt => entity.updatedAt;
-  @override
-  set updatedAt(DateTime? value) {
-    if (value != null) entity.updatedAt = value;
-  }
-
   String get name => entity.name;
   set name(String value) => entity.name = value;
 

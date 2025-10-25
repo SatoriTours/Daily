@@ -28,10 +28,7 @@ class BookRepository extends BaseRepository<Book, BookModel> {
     return BookModel.fromEntity(entity);
   }
 
-  @override
-  Book toEntity(BookModel model) {
-    return model.toEntity();
-  }
+  // toEntity 已由父类提供默认实现，无需重写
 
   // BookViewpoint box getter
   Box<BookViewpoint> get _viewpointBox => ObjectboxService.i.box<BookViewpoint>();

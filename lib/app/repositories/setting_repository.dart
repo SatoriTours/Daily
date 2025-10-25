@@ -26,29 +26,24 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
     return SettingModel(entity);
   }
 
-  @override
-  Setting toEntity(SettingModel model) {
-    return model.entity;
-  }
+  // toEntity 已由父类提供默认实现，无需重写
 
   // ==================== 特定业务方法 ====================
 
   /// 根据键查找设置
   SettingModel? findByKey(String key) {
-    final setting = findFirstByStringEquals(Setting_.key, key);
-    return setting != null ? SettingModel(setting) : null;
+    return findFirstByStringEquals(Setting_.key, key);
   }
 
   /// 检查键是否存在
   bool containsKey(String key) {
-    final existing = findFirstByStringEquals(Setting_.key, key);
-    return existing != null;
+    return findFirstByStringEquals(Setting_.key, key) != null;
   }
 
   /// 获取设置值
   String? getValue(String key, {String? defaultValue}) {
     final settingModel = findByKey(key);
-    return settingModel?.value ?? defaultValue;
+    return settingModel?.entity.value ?? defaultValue;
   }
 
   /// 设置值
@@ -61,13 +56,13 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
     var settingModel = findByKey(key);
     if (settingModel != null) {
       // 更新现有设置
-      settingModel.value = value;
-      return await saveModel(settingModel);
+      settingModel.entity.value = value;
+      return await save(settingModel);
     } else {
       // 创建新设置
       final setting = Setting(key: key, value: value);
       final settingModel = SettingModel(setting);
-      return await saveModel(settingModel);
+      return await save(settingModel);
     }
   }
 
@@ -82,10 +77,10 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
       final existingSettings = findByCondition(condition);
 
       // 2. 将现有设置转换为 Map，方便查找
-      final existingMap = {for (var setting in existingSettings) setting.key: setting};
+      final existingMap = {for (var model in existingSettings) model.entity.key: model};
 
-      // 3. 准备要更新的设置列表
-      final settingsToUpdate = <Setting>[];
+      // 3. 准备要更新的设置模型列表
+      final modelsToUpdate = <SettingModel>[];
 
       // 4. 遍历需要保存的设置
       settings.forEach((key, value) {
@@ -93,18 +88,18 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
 
         if (existingMap.containsKey(key)) {
           // 更新现有设置
-          existingMap[key]!.value = value;
-          settingsToUpdate.add(existingMap[key]!);
+          existingMap[key]!.entity.value = value;
+          modelsToUpdate.add(existingMap[key]!);
         } else {
           // 创建新设置
-          settingsToUpdate.add(Setting(key: key, value: value));
+          modelsToUpdate.add(SettingModel(Setting(key: key, value: value)));
         }
       });
 
       // 5. 批量保存所有设置
-      saveMany(settingsToUpdate);
+      await saveMany(modelsToUpdate);
 
-      logger.i("[设置仓储] 批量更新 ${settingsToUpdate.length} 条设置");
+      logger.i("[设置仓储] 批量更新 ${modelsToUpdate.length} 条设置");
     } catch (e) {
       logger.e("[设置仓储] 批量更新失败: $e");
     }
@@ -113,14 +108,14 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
   /// 获取所有键的集合
   Set<String> getKeys() {
     final settings = all();
-    return settings.where((s) => s.key != null).map((s) => s.key!).toSet();
+    return settings.where((s) => s.entity.key != null).map((s) => s.entity.key!).toSet();
   }
 
   /// 根据键删除设置
   Future<bool> removeByKey(String key) async {
     final existing = findFirstByStringEquals(Setting_.key, key);
     if (existing != null) {
-      return remove(existing.id);
+      return remove(existing.entity.id);
     }
     return false;
   }

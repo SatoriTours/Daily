@@ -26,30 +26,13 @@ class ImageRepository extends BaseRepository<Image, ImageModel> {
     return ImageModel(entity);
   }
 
-  @override
-  Image toEntity(ImageModel model) {
-    return model.entity;
-  }
+  // toEntity 已由父类提供默认实现，无需重写
 
   // ==================== 特定业务方法 ====================
 
-  /// 查找所有图片（返回Model）
-  @override
-  List<ImageModel> allModels() {
-    return all().map((e) => ImageModel(e)).toList();
-  }
-
-  /// 根据ID查找图片（返回Model）
-  @override
-  ImageModel? findModel(int id) {
-    final image = find(id);
-    return image != null ? ImageModel(image) : null;
-  }
-
   /// 根据路径查找图片
   ImageModel? findByPath(String path) {
-    final image = findFirstByStringEquals(Image_.path, path);
-    return image != null ? ImageModel(image) : null;
+    return findFirstByStringEquals(Image_.path, path);
   }
 
   /// 使用数据创建图片模型
@@ -61,13 +44,7 @@ class ImageRepository extends BaseRepository<Image, ImageModel> {
 
   /// 保存图片Model
   Future<int> createModel(ImageModel imageModel) async {
-    return await box.putAsync(imageModel.entity);
-  }
-
-  /// 更新图片Model
-  @override
-  Future<int> updateModel(ImageModel imageModel) async {
-    return await box.putAsync(imageModel.entity);
+    return await save(imageModel);
   }
 
   /// 删除图片（旧方法名兼容）
@@ -77,8 +54,7 @@ class ImageRepository extends BaseRepository<Image, ImageModel> {
 
   /// 根据URL查找图片
   ImageModel? findByUrl(String url) {
-    final image = findFirstByStringEquals(Image_.url, url);
-    return image != null ? ImageModel(image) : null;
+    return findFirstByStringEquals(Image_.url, url);
   }
 
   /// 根据文章ID删除图片

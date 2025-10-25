@@ -200,14 +200,15 @@ class WebpageParserService {
       status: ArticleStatus.pending,
     );
 
-    final id = ArticleRepository.d.save(article);
-    final articleModel = ArticleRepository.d.findModel(id);
+    final articleModel = ArticleModel(article);
+    final id = await ArticleRepository.d.save(articleModel);
+    final savedModel = ArticleRepository.d.findModel(id);
 
-    if (articleModel == null || articleModel.id <= 0) {
+    if (savedModel == null || savedModel.entity.id <= 0) {
       throw Exception("创建文章记录失败");
     }
 
-    logger.d("[网页解析][创建] ◀ 新文章创建成功: #${articleModel.id}");
+    logger.d("[网页解析][创建] ◀ 新文章创建成功: #${savedModel.entity.id}");
     return articleModel;
   }
 

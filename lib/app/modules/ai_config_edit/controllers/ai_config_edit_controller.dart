@@ -252,17 +252,14 @@ class AIConfigEditController extends GetxController {
 
       if (isEditMode) {
         // 更新现有配置
-        AIConfigRepository.instance.updateAIConfig(configToSave);
+        await AIConfigRepository.instance.updateAIConfig(configToSave);
       } else {
         // 创建新配置
-        final id = AIConfigRepository.instance.addAIConfig(configToSave);
-        configToSave.id = id;
+        final id = await AIConfigRepository.instance.addAIConfig(configToSave);
+        configToSave.entity.id = id;
       }
       // 返回结果给调用方，以便更新列表
-      Get.back(result: {
-        'action': isEditMode ? 'updated' : 'created',
-        'config': configToSave,
-      });
+      Get.back(result: {'action': isEditMode ? 'updated' : 'created', 'config': configToSave});
       return true;
     } catch (e) {
       UIUtils.showError('保存配置失败: $e', title: '错误');

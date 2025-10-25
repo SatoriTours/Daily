@@ -26,10 +26,7 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
     return DiaryModel.fromEntity(entity);
   }
 
-  @override
-  Diary toEntity(DiaryModel model) {
-    return model.toEntity();
-  }
+  // toEntity 已由父类提供默认实现，无需重写
 
   /// 删除日记(旧方法名兼容)
   bool delete(int id) {
@@ -38,20 +35,14 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
 
   /// 获取所有日记,按创建时间倒序排列
   List<DiaryModel> getAll() {
-    final entities = box.query(Diary_.id.notEquals(0)).order(Diary_.createdAt, flags: Order.descending).build().find();
-    return entities.map((entity) => DiaryModel.fromEntity(entity)).toList();
+    final condition = Diary_.id.notEquals(0);
+    return findByConditionPaginated(condition: condition, page: 1, orderBy: Diary_.createdAt, descending: true);
   }
 
   /// 分页获取所有日记,按创建时间倒序排列
   List<DiaryModel> getAllPaginated(int page) {
     final condition = Diary_.id.notEquals(0);
-    final diaries = findByConditionPaginated(
-      condition: condition,
-      page: page,
-      orderBy: Diary_.createdAt,
-      descending: true,
-    );
-    return diaries.map((entity) => DiaryModel.fromEntity(entity)).toList();
+    return findByConditionPaginated(condition: condition, page: page, orderBy: Diary_.createdAt, descending: true);
   }
 
   /// 获取日记总数(旧方法名兼容)
@@ -66,39 +57,28 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
 
   /// 根据ID获取单个日记
   DiaryModel? getById(int id) {
-    final entity = find(id);
-    if (entity == null) return null;
-    return DiaryModel.fromEntity(entity);
+    return find(id);
   }
 
   /// 按日期获取日记,返回指定日期的所有日记
   List<DiaryModel> getByDate(DateTime date) {
-    final entities = findByDate(property: Diary_.createdAt, date: date);
-    return entities.map((entity) => DiaryModel.fromEntity(entity)).toList();
+    return findByDate(property: Diary_.createdAt, date: date);
   }
 
   /// 按标签搜索日记
   List<DiaryModel> searchByTag(String tag) {
-    final entities = searchByString(property: Diary_.tags, searchText: tag);
-    return entities.map((entity) => DiaryModel.fromEntity(entity)).toList();
+    return searchByString(property: Diary_.tags, searchText: tag);
   }
 
   /// 全文搜索日记内容
   List<DiaryModel> searchByContent(String keyword) {
-    final entities = searchByString(property: Diary_.content, searchText: keyword);
-    return entities.map((entity) => DiaryModel.fromEntity(entity)).toList();
+    return searchByString(property: Diary_.content, searchText: keyword);
   }
 
   /// 分页全文搜索日记内容
   List<DiaryModel> searchByContentPaginated(String keyword, int page) {
     final condition = Diary_.content.contains(keyword);
-    final diaries = findByConditionPaginated(
-      condition: condition,
-      page: page,
-      orderBy: Diary_.createdAt,
-      descending: true,
-    );
-    return diaries.map((entity) => DiaryModel.fromEntity(entity)).toList();
+    return findByConditionPaginated(condition: condition, page: page, orderBy: Diary_.createdAt, descending: true);
   }
 
   /// 获取搜索结果的总数

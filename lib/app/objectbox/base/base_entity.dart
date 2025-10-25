@@ -13,8 +13,10 @@
 ///   // ... 其他字段
 /// }
 /// ```
-abstract interface class BaseEntity {
+abstract class BaseEntity {
   int get id;
   DateTime get createdAt;
   DateTime get updatedAt;
+  set createdAt(DateTime value);
+  set updatedAt(DateTime value);
 }
