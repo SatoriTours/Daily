@@ -1,13 +1,15 @@
-import 'package:daily_satori/app/models/base_model.dart';
+import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/repositories/image_repository.dart';
 
 /// 图片数据模型类
 ///
 /// 封装Image实体类，提供属性访问方法
-class ImageModel extends BaseModel<Image> {
+class ImageModel with EntityModelMixin<Image> {
+  final Image _entity;
+
   /// 构造函数
-  ImageModel(super.entity);
+  ImageModel(this._entity);
 
   /// 从ID创建实例
   factory ImageModel.fromId(int id) {
@@ -17,6 +19,10 @@ class ImageModel extends BaseModel<Image> {
     }
     return image;
   }
+
+  /// 底层实体对象
+  @override
+  Image get entity => _entity;
 
   /// ID
   @override

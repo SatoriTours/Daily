@@ -1,17 +1,23 @@
-import 'package:daily_satori/app/models/base_model.dart';
+import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
 
 /// AI配置模型类
 ///
 /// 对ObjectBox实体类AIConfig的封装
-class AIConfigModel extends BaseModel<AIConfig> {
+class AIConfigModel with EntityModelMixin<AIConfig> {
+  final AIConfig _entity;
+
   /// 构造函数
-  AIConfigModel(super.entity);
+  AIConfigModel(this._entity);
 
   /// 从AIConfig创建模型
   factory AIConfigModel.fromConfig(AIConfig config) {
     return AIConfigModel(config);
   }
+
+  /// 底层实体对象
+  @override
+  AIConfig get entity => _entity;
 
   /// 获取内部AIConfig实例（为了向后兼容）
   AIConfig get config => entity;

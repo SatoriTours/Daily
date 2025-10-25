@@ -1,13 +1,15 @@
-import 'package:daily_satori/app/models/base_model.dart';
+import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/repositories/tag_repository.dart';
 
 /// 标签数据模型类
 ///
 /// 封装Tag实体类，提供属性访问方法
-class TagModel extends BaseModel<Tag> {
+class TagModel with EntityModelMixin<Tag> {
+  final Tag _entity;
+
   /// 构造函数
-  TagModel(super.entity);
+  TagModel(this._entity);
 
   /// 从ID创建实例
   factory TagModel.fromId(int id) {
@@ -28,6 +30,10 @@ class TagModel extends BaseModel<Tag> {
     }
     return tag;
   }
+
+  /// 底层实体对象
+  @override
+  Tag get entity => _entity;
 
   /// ID
   @override

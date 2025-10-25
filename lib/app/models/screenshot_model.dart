@@ -1,13 +1,15 @@
-import 'package:daily_satori/app/models/base_model.dart';
+import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
 import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/repositories/screenshot_repository.dart';
 
 /// 截图数据模型类
 ///
 /// 封装Screenshot实体类，提供属性访问方法
-class ScreenshotModel extends BaseModel<Screenshot> {
+class ScreenshotModel with EntityModelMixin<Screenshot> {
+  final Screenshot _entity;
+
   /// 构造函数
-  ScreenshotModel(super.entity);
+  ScreenshotModel(this._entity);
 
   /// 从ID创建实例
   factory ScreenshotModel.fromId(int id) {
@@ -17,6 +19,10 @@ class ScreenshotModel extends BaseModel<Screenshot> {
     }
     return screenshot;
   }
+
+  /// 底层实体对象
+  @override
+  Screenshot get entity => _entity;
 
   /// ID
   @override

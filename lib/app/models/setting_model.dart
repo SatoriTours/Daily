@@ -1,13 +1,15 @@
-import 'package:daily_satori/app/models/base_model.dart';
+import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
 import 'package:daily_satori/app/objectbox/setting.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
 
 /// 设置数据模型类
 ///
 /// 封装Setting实体类，提供属性访问方法
-class SettingModel extends BaseModel<Setting> {
+class SettingModel with EntityModelMixin<Setting> {
+  final Setting _entity;
+
   /// 构造函数
-  SettingModel(super.entity);
+  SettingModel(this._entity);
 
   /// 从ID创建实例
   factory SettingModel.fromId(int id) {
@@ -26,6 +28,10 @@ class SettingModel extends BaseModel<Setting> {
     }
     return setting;
   }
+
+  /// 底层实体对象
+  @override
+  Setting get entity => _entity;
 
   /// ID
   @override

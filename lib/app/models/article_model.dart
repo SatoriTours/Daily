@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/models/base_model.dart';
+import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
@@ -6,12 +6,16 @@ import 'package:daily_satori/app/repositories/article_repository.dart';
 
 /// 文章数据模型类
 ///
-/// 封装Article实体类，提供属性访问方法
-class ArticleModel extends BaseModel<Article> {
+/// 封装Article实体类,提供属性访问方法
+class ArticleModel with EntityModelMixin<Article> {
+  // ==================== 私有字段 ====================
+
+  final Article _entity;
+
   // ==================== 构造函数 ====================
 
   /// 构造函数
-  ArticleModel(super.entity);
+  ArticleModel(this._entity);
 
   /// 从ID创建实例
   factory ArticleModel.fromId(int id) {
@@ -22,7 +26,11 @@ class ArticleModel extends BaseModel<Article> {
     return article;
   }
 
-  // ==================== 重写基类属性 ====================
+  // ==================== 实现 Mixin 要求的属性 ====================
+
+  /// 底层实体对象
+  @override
+  Article get entity => _entity;
 
   /// ID
   @override
