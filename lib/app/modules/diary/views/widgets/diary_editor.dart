@@ -181,10 +181,9 @@ class _DiaryEditorState extends State<DiaryEditor> {
           if (_selectedImages.isNotEmpty)
             ImagePreview(
               images: _selectedImages.map((e) => e.path).toList(),
-              onDelete:
-                  (index) => setState(() {
-                    _selectedImages.removeAt(index);
-                  }),
+              onDelete: (index) => setState(() {
+                _selectedImages.removeAt(index);
+              }),
             ),
 
           // 工具栏和操作按钮
@@ -246,12 +245,11 @@ class _DiaryEditorState extends State<DiaryEditor> {
           icon: Icon(
             icon,
             size: 16,
-            color:
-                onPressed == null
-                    ? DiaryStyle.primaryTextColor(context).withAlpha(77) // 禁用状态
-                    : isAccent
-                    ? DiaryStyle.accentColor(context)
-                    : DiaryStyle.primaryTextColor(context),
+            color: onPressed == null
+                ? DiaryStyle.primaryTextColor(context).withAlpha(77) // 禁用状态
+                : isAccent
+                ? DiaryStyle.accentColor(context)
+                : DiaryStyle.primaryTextColor(context),
           ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
@@ -318,7 +316,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
 
       if (widget.diary != null) {
         // 更新模式 - 更新已有日记
-        final updatedDiary = DiaryModel(
+        final updatedDiary = DiaryModel.create(
           id: widget.diary!.id,
           content: widget.controller.contentController.text,
           tags: tags,

@@ -119,7 +119,7 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
 
     isLoading.value = true;
 
-    final diary = DiaryModel(content: content, tags: tags, mood: mood, images: images);
+    final diary = DiaryModel.create(content: content, tags: tags, mood: mood, images: images);
     final id = DiaryRepository.i.save(diary.toEntity());
 
     // 添加到StateService列表
@@ -302,7 +302,7 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
       final String tags = DiaryUtils.extractTags(contentController.text);
 
       // 创建更新后的日记
-      final updatedDiary = DiaryModel(
+      final updatedDiary = DiaryModel.create(
         id: diary.id,
         content: contentController.text,
         tags: tags,

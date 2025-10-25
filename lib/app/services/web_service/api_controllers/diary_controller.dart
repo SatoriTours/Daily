@@ -174,7 +174,7 @@ class DiaryController {
       }
 
       // 创建日记模型
-      final diary = DiaryModel(
+      final diary = DiaryModel.create(
         content: body['content'] as String,
         tags: body['tags'] as String?,
         mood: body['mood'] as String?,
