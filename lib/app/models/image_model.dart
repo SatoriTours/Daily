@@ -1,12 +1,10 @@
-import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
+import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/repositories/image_repository.dart';
 
 /// 图片数据模型类
-class ImageModel with EntityModelMixin<Image> {
-  final Image _entity;
-
-  ImageModel(this._entity);
+class ImageModel extends EntityModel<Image> {
+  ImageModel(super.entity);
 
   factory ImageModel.fromId(int id) {
     final image = ImageRepository.instance.findModel(id);
@@ -15,9 +13,6 @@ class ImageModel with EntityModelMixin<Image> {
     }
     return image;
   }
-
-  @override
-  Image get entity => _entity;
 
   @override
   int get id => entity.id;

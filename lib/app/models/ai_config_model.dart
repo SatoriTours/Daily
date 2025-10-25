@@ -1,18 +1,13 @@
-import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
+import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
 
 /// AI配置模型类
-class AIConfigModel with EntityModelMixin<AIConfig> {
-  final AIConfig _entity;
-
-  AIConfigModel(this._entity);
+class AIConfigModel extends EntityModel<AIConfig> {
+  AIConfigModel(super.entity);
 
   factory AIConfigModel.fromConfig(AIConfig config) {
     return AIConfigModel(config);
   }
-
-  @override
-  AIConfig get entity => _entity;
 
   AIConfig get config => entity;
 

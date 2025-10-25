@@ -1,12 +1,10 @@
-import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
+import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/setting.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
 
 /// 设置数据模型类
-class SettingModel with EntityModelMixin<Setting> {
-  final Setting _entity;
-
-  SettingModel(this._entity);
+class SettingModel extends EntityModel<Setting> {
+  SettingModel(super.entity);
 
   factory SettingModel.fromId(int id) {
     final setting = SettingRepository.instance.findModel(id);
@@ -23,9 +21,6 @@ class SettingModel with EntityModelMixin<Setting> {
     }
     return setting;
   }
-
-  @override
-  Setting get entity => _entity;
 
   @override
   int get id => entity.id;

@@ -1,12 +1,10 @@
-import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
+import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/book.dart';
 import 'package:daily_satori/app/repositories/book_repository.dart';
 
 /// 书籍模型
-class BookModel with EntityModelMixin<Book> {
-  final Book _entity;
-
-  BookModel(this._entity);
+class BookModel extends EntityModel<Book> {
+  BookModel(super.entity);
 
   factory BookModel.fromId(int id) {
     final book = BookRepository.instance.getBookById(id);
@@ -55,11 +53,6 @@ class BookModel with EntityModelMixin<Book> {
       updateAt: json['updateAt'] != null ? DateTime.parse(json['updateAt'] as String) : null,
     );
   }
-
-  // ==================== 实现 Mixin 要求的属性 ====================
-
-  @override
-  Book get entity => _entity;
 
   @override
   int get id => entity.id;

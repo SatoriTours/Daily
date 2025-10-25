@@ -1,14 +1,12 @@
-import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
+import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
 
 /// 文章数据模型类
-class ArticleModel with EntityModelMixin<Article> {
-  final Article _entity;
-
-  ArticleModel(this._entity);
+class ArticleModel extends EntityModel<Article> {
+  ArticleModel(super.entity);
 
   factory ArticleModel.fromId(int id) {
     final article = ArticleRepository.d.findModel(id);
@@ -17,11 +15,6 @@ class ArticleModel with EntityModelMixin<Article> {
     }
     return article;
   }
-
-  // ==================== 实现 Mixin 要求的属性 ====================
-
-  @override
-  Article get entity => _entity;
 
   @override
   int get id => entity.id;

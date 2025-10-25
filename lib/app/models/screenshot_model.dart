@@ -1,12 +1,10 @@
-import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
+import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/repositories/screenshot_repository.dart';
 
 /// 截图数据模型类
-class ScreenshotModel with EntityModelMixin<Screenshot> {
-  final Screenshot _entity;
-
-  ScreenshotModel(this._entity);
+class ScreenshotModel extends EntityModel<Screenshot> {
+  ScreenshotModel(super.entity);
 
   factory ScreenshotModel.fromId(int id) {
     final screenshot = ScreenshotRepository.instance.findModel(id);
@@ -15,9 +13,6 @@ class ScreenshotModel with EntityModelMixin<Screenshot> {
     }
     return screenshot;
   }
-
-  @override
-  Screenshot get entity => _entity;
 
   @override
   int get id => entity.id;

@@ -1,12 +1,10 @@
-import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
+import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/diary.dart';
 import 'package:daily_satori/app/repositories/diary_repository.dart';
 
 /// 日记模型类
-class DiaryModel with EntityModelMixin<Diary> {
-  final Diary _entity;
-
-  DiaryModel(this._entity);
+class DiaryModel extends EntityModel<Diary> {
+  DiaryModel(super.entity);
 
   factory DiaryModel.fromId(int id) {
     final diary = DiaryRepository.instance.getById(id);
@@ -37,11 +35,6 @@ class DiaryModel with EntityModelMixin<Diary> {
       ),
     );
   }
-
-  // ==================== 实现 Mixin 要求的属性 ====================
-
-  @override
-  Diary get entity => _entity;
 
   @override
   int get id => entity.id;

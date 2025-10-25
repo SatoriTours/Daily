@@ -1,12 +1,10 @@
-import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
+import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/repositories/tag_repository.dart';
 
 /// 标签数据模型类
-class TagModel with EntityModelMixin<Tag> {
-  final Tag _entity;
-
-  TagModel(this._entity);
+class TagModel extends EntityModel<Tag> {
+  TagModel(super.entity);
 
   factory TagModel.fromId(int id) {
     final tag = TagRepository.instance.findModel(id);
@@ -24,9 +22,6 @@ class TagModel with EntityModelMixin<Tag> {
     }
     return tag;
   }
-
-  @override
-  Tag get entity => _entity;
 
   @override
   int get id => entity.id;

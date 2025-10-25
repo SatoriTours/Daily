@@ -1,15 +1,12 @@
+import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/models/book.dart';
-import 'package:daily_satori/app/models/mixins/entity_model_mixin.dart';
 import 'package:daily_satori/app/objectbox/book_viewpoint.dart';
 import 'package:daily_satori/app/repositories/book_repository.dart';
 
 /// 书籍观点模型
-class BookViewpointModel with EntityModelMixin<BookViewpoint> {
-  final BookViewpoint _entity;
+class BookViewpointModel extends EntityModel<BookViewpoint> {
+  BookViewpointModel(super.entity);
 
-  BookViewpointModel(this._entity);
-
-  /// 从 ID 创建实例
   factory BookViewpointModel.fromId(int id) {
     final viewpoint = BookRepository.instance.getViewpointById(id);
     if (viewpoint == null) {
@@ -18,7 +15,6 @@ class BookViewpointModel with EntityModelMixin<BookViewpoint> {
     return BookViewpointModel(viewpoint);
   }
 
-  /// 创建新实例
   factory BookViewpointModel.create({
     int id = 0,
     required int bookId,
@@ -41,7 +37,6 @@ class BookViewpointModel with EntityModelMixin<BookViewpoint> {
     );
   }
 
-  /// 从 JSON 创建实例
   factory BookViewpointModel.fromJson(Map<String, dynamic> json) {
     return BookViewpointModel.create(
       id: json['id'] as int? ?? 0,
@@ -53,11 +48,6 @@ class BookViewpointModel with EntityModelMixin<BookViewpoint> {
       updateAt: json['updateAt'] != null ? DateTime.parse(json['updateAt'] as String) : null,
     );
   }
-
-  // ==================== 实现 Mixin 要求的属性 ====================
-
-  @override
-  BookViewpoint get entity => _entity;
 
   @override
   int get id => entity.id;
