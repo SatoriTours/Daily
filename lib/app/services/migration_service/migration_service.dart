@@ -36,7 +36,7 @@ class MigrationService {
 
   /// 获取当前数据库版本
   int _getCurrentDbVersion() {
-    final versionStr = SettingRepository.getSetting(_dbVersionKey, defaultValue: '0');
+    final versionStr = SettingRepository.instance.getSetting(_dbVersionKey, defaultValue: '0');
     try {
       return int.parse(versionStr);
     } catch (e) {
@@ -47,7 +47,7 @@ class MigrationService {
 
   /// 更新数据库版本
   Future<void> _updateDbVersion(int version) async {
-    await SettingRepository.saveSetting(_dbVersionKey, version.toString());
+    await SettingRepository.instance.saveSetting(_dbVersionKey, version.toString());
     logger.i("📝 [迁移服务] 数据库版本更新为: $version");
   }
 

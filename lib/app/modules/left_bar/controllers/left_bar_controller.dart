@@ -4,7 +4,7 @@ import 'package:daily_satori/app_exports.dart';
 class LeftBarController extends BaseController {
   ArticlesController get articlesController => Get.find<ArticlesController>();
 
-  List<TagModel> get tags => TagRepository.all();
+  List<TagModel> get tags => TagRepository.instance.allModels();
 
   final isTagsExpanded = true.obs;
 }

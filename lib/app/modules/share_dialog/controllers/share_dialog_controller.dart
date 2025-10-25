@@ -80,7 +80,7 @@ class ShareDialogController extends BaseGetXController {
   Future<void> _loadArticleInfo() async {
     if (articleID.value <= 0) return;
 
-    final article = ArticleRepository.find(articleID.value);
+    final article = ArticleRepository.d.findModel(articleID.value);
     if (article != null) {
       articleTitle.value = article.showTitle();
       titleController.text = article.showTitle();
@@ -140,7 +140,7 @@ class ShareDialogController extends BaseGetXController {
   /// 仅更新标题/标签/备注，不重新抓取网页与AI处理
   Future<void> _updateArticleFieldsOnly() async {
     if (articleID.value <= 0) return;
-    final article = ArticleRepository.find(articleID.value);
+    final article = ArticleRepository.d.findModel(articleID.value);
     if (article == null) return;
 
     // 标题与备注
@@ -157,7 +157,7 @@ class ShareDialogController extends BaseGetXController {
   /// 在重新抓取并AI分析后应用用户手动输入字段
   Future<void> _applyManualFieldsPostProcess() async {
     if (articleID.value <= 0) return; // 新增模式: saveWebpage 内部创建了文章, 需要重新找到ID
-    final article = ArticleRepository.find(articleID.value);
+    final article = ArticleRepository.d.findModel(articleID.value);
     if (article == null) return;
 
     bool changed = false;
@@ -266,7 +266,7 @@ class ShareDialogController extends BaseGetXController {
       return;
     }
 
-    final freshArticle = ArticleRepository.find(articleID.value);
+    final freshArticle = ArticleRepository.d.findModel(articleID.value);
     final arg = freshArticle ?? articleID.value;
 
     // 更新活跃文章状态
@@ -294,7 +294,7 @@ class ShareDialogController extends BaseGetXController {
   /// 用传入的标签集合替换当前文章标签
   Future<void> _replaceTags(ArticleModel article, List<String> tagNames) async {
     try {
-      await TagRepository.setTagsForArticle(article.id, tagNames);
+      await TagRepository.instance.setTagsForArticle(article.id, tagNames);
     } catch (e) {
       logger.w('更新标签失败: $e');
     }
@@ -315,7 +315,7 @@ class ShareDialogController extends BaseGetXController {
       }
       if (added) {
         final merged = {...existing, ...tagNames}.toList();
-        await TagRepository.setTagsForArticle(article.id, merged);
+        await TagRepository.instance.setTagsForArticle(article.id, merged);
       }
       return added;
     } catch (e) {

@@ -1,123 +1,90 @@
 import 'package:daily_satori/app/models/diary_model.dart';
 import 'package:daily_satori/app/objectbox/diary.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/repositories/base_repository.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
-/// 日记仓库，负责管理日记的存储和检索操作
-class DiaryRepository {
+/// 日记仓库,负责管理日记的存储和检索操作
+/// 继承 BaseRepository 获取通用 CRUD 功能
+class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
+  // 私有构造函数
   DiaryRepository._();
-  static final DiaryRepository _instance = DiaryRepository._();
-  static DiaryRepository get i => _instance;
 
-  /// 获取日记 Box
-  static Box<Diary> get _box => ObjectboxService.i.box<Diary>();
+  // 单例
+  static final DiaryRepository instance = DiaryRepository._();
 
-  /// 每页日记数量
-  static const int pageSize = 10;
+  // 兼容旧的 i 访问方式
+  static DiaryRepository get i => instance;
 
-  /// 保存日记
-  int save(DiaryModel diary) {
-    return _box.put(diary.toEntity());
+  // 每页日记数量
+  @override
+  int get pageSize => 10;
+
+  // ==================== BaseRepository 必须实现的方法 ====================
+
+  @override
+  DiaryModel toModel(Diary entity) {
+    return DiaryModel.fromEntity(entity);
   }
 
-  /// 删除日记
+  // toEntity 已由父类提供默认实现，无需重写
+
+  /// 删除日记(旧方法名兼容)
   bool delete(int id) {
-    return _box.remove(id);
+    return remove(id);
   }
 
-  /// 获取所有日记，按创建时间倒序排列
+  /// 获取所有日记,按创建时间倒序排列
   List<DiaryModel> getAll() {
-    final entities = _box.query(Diary_.id.notEquals(0)).order(Diary_.createdAt, flags: Order.descending).build().find();
-    return entities.map((entity) => DiaryModel.fromEntity(entity)).toList();
+    final condition = Diary_.id.notEquals(0);
+    return findByConditionPaginated(condition: condition, page: 1, orderBy: Diary_.createdAt, descending: true);
   }
 
-  /// 分页获取所有日记，按创建时间倒序排列
+  /// 分页获取所有日记,按创建时间倒序排列
   List<DiaryModel> getAllPaginated(int page) {
-    final query = _box.query(Diary_.id.notEquals(0)).order(Diary_.createdAt, flags: Order.descending).build();
-
-    try {
-      // 计算偏移量
-      final offset = (page - 1) * pageSize;
-      // 获取查询结果
-      final diaries = query.find();
-      final paginatedDiaries = diaries.skip(offset).take(pageSize).toList();
-      return paginatedDiaries.map((entity) => DiaryModel.fromEntity(entity)).toList();
-    } finally {
-      query.close();
-    }
+    final condition = Diary_.id.notEquals(0);
+    return findByConditionPaginated(condition: condition, page: page, orderBy: Diary_.createdAt, descending: true);
   }
 
-  /// 获取日记总数
+  /// 获取日记总数(旧方法名兼容)
   int getTotalCount() {
-    return _box.count();
+    return count();
   }
 
-  /// 获取总页数
+  /// 获取总页数(旧方法名兼容)
   int getTotalPages() {
-    final totalItems = getTotalCount();
-    return (totalItems / pageSize).ceil();
+    return totalPages();
   }
 
   /// 根据ID获取单个日记
   DiaryModel? getById(int id) {
-    final entity = _box.get(id);
-    if (entity == null) return null;
-    return DiaryModel.fromEntity(entity);
+    return find(id);
   }
 
-  /// 按日期获取日记，返回指定日期的所有日记
+  /// 按日期获取日记,返回指定日期的所有日记
   List<DiaryModel> getByDate(DateTime date) {
-    final startOfDay = DateTime(date.year, date.month, date.day);
-    final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59, 999);
-
-    final entities =
-        _box
-            .query(Diary_.createdAt.between(startOfDay.millisecondsSinceEpoch, endOfDay.millisecondsSinceEpoch))
-            .order(Diary_.createdAt, flags: Order.descending)
-            .build()
-            .find();
-    return entities.map((entity) => DiaryModel.fromEntity(entity)).toList();
+    return findByDate(property: Diary_.createdAt, date: date);
   }
 
   /// 按标签搜索日记
   List<DiaryModel> searchByTag(String tag) {
-    // 模糊搜索，查找标签字段中包含指定标签的日记
-    final entities =
-        _box.query(Diary_.tags.contains(tag)).order(Diary_.createdAt, flags: Order.descending).build().find();
-    return entities.map((entity) => DiaryModel.fromEntity(entity)).toList();
+    return searchByString(property: Diary_.tags, searchText: tag);
   }
 
   /// 全文搜索日记内容
   List<DiaryModel> searchByContent(String keyword) {
-    final entities =
-        _box.query(Diary_.content.contains(keyword)).order(Diary_.createdAt, flags: Order.descending).build().find();
-    return entities.map((entity) => DiaryModel.fromEntity(entity)).toList();
+    return searchByString(property: Diary_.content, searchText: keyword);
   }
 
   /// 分页全文搜索日记内容
   List<DiaryModel> searchByContentPaginated(String keyword, int page) {
-    final query = _box.query(Diary_.content.contains(keyword)).order(Diary_.createdAt, flags: Order.descending).build();
-
-    try {
-      // 计算偏移量
-      final offset = (page - 1) * pageSize;
-      // 获取查询结果
-      final diaries = query.find();
-      final paginatedDiaries = diaries.skip(offset).take(pageSize).toList();
-      return paginatedDiaries.map((entity) => DiaryModel.fromEntity(entity)).toList();
-    } finally {
-      query.close();
-    }
+    final condition = Diary_.content.contains(keyword);
+    return findByConditionPaginated(condition: condition, page: page, orderBy: Diary_.createdAt, descending: true);
   }
 
   /// 获取搜索结果的总数
   int getSearchCount(String keyword) {
-    final query = _box.query(Diary_.content.contains(keyword)).build();
-    try {
-      return query.count();
-    } finally {
-      query.close();
-    }
+    final condition = Diary_.content.contains(keyword);
+    return countByCondition(condition);
   }
 
   /// 获取搜索结果的总页数

@@ -1,25 +1,23 @@
 import 'package:objectbox/objectbox.dart';
+import 'package:daily_satori/app/objectbox/base/base_entity.dart';
 
 @Entity()
-class Diary {
+class Diary implements BaseEntity {
+  @override
   @Id()
-  int id;
+  int id = 0;
+
+  @override
+  @Property(type: PropertyType.date)
+  late DateTime createdAt;
+
+  @override
+  @Property(type: PropertyType.date)
+  late DateTime updatedAt;
 
   String content;
-
-  @Property(type: PropertyType.date)
-  DateTime createdAt;
-
-  @Property(type: PropertyType.date)
-  DateTime updatedAt;
-
-  // 标签，用于分类日记内容
   String? tags;
-
-  // 心情标记，可以记录当天的心情
   String? mood;
-
-  // 可能包含的图片路径列表，以英文逗号分隔
   String? images;
 
   Diary({
@@ -30,6 +28,8 @@ class Diary {
     this.tags,
     this.mood,
     this.images,
-  }) : createdAt = createdAt ?? DateTime.now(),
-       updatedAt = updatedAt ?? DateTime.now();
+  }) {
+    this.createdAt = createdAt ?? DateTime.now();
+    this.updatedAt = updatedAt ?? DateTime.now();
+  }
 }

@@ -102,7 +102,7 @@
     },
     {
       "id": "2:424537266143031752",
-      "lastPropertyId": "4:6584433337166318251",
+      "lastPropertyId": "6:9111294745415271011",
       "name": "Image",
       "properties": [
         {
@@ -128,13 +128,23 @@
           "type": 11,
           "flags": 520,
           "relationTarget": "Article"
+        },
+        {
+          "id": "5:8752436540517154570",
+          "name": "createdAt",
+          "type": 10
+        },
+        {
+          "id": "6:9111294745415271011",
+          "name": "updatedAt",
+          "type": 10
         }
       ],
       "relations": []
     },
     {
       "id": "3:1263235097771623841",
-      "lastPropertyId": "4:8855671235579092811",
+      "lastPropertyId": "6:4254155909309230280",
       "name": "Screenshot",
       "properties": [
         {
@@ -155,13 +165,23 @@
           "type": 11,
           "flags": 520,
           "relationTarget": "Article"
+        },
+        {
+          "id": "5:2062538356640157869",
+          "name": "createdAt",
+          "type": 10
+        },
+        {
+          "id": "6:4254155909309230280",
+          "name": "updatedAt",
+          "type": 10
         }
       ],
       "relations": []
     },
     {
       "id": "4:4010830939855844436",
-      "lastPropertyId": "3:685644473537562706",
+      "lastPropertyId": "5:5449330553332508765",
       "name": "Tag",
       "properties": [
         {
@@ -181,13 +201,23 @@
           "id": "3:685644473537562706",
           "name": "icon",
           "type": 9
+        },
+        {
+          "id": "4:8375782896125296820",
+          "name": "createdAt",
+          "type": 10
+        },
+        {
+          "id": "5:5449330553332508765",
+          "name": "updatedAt",
+          "type": 10
         }
       ],
       "relations": []
     },
     {
       "id": "5:5883101161320296494",
-      "lastPropertyId": "3:7535906761124713356",
+      "lastPropertyId": "5:4671802741369488139",
       "name": "Setting",
       "properties": [
         {
@@ -207,6 +237,16 @@
           "id": "3:7535906761124713356",
           "name": "value",
           "type": 9
+        },
+        {
+          "id": "4:8850319023593408164",
+          "name": "createdAt",
+          "type": 10
+        },
+        {
+          "id": "5:4671802741369488139",
+          "name": "updatedAt",
+          "type": 10
         }
       ],
       "relations": []
@@ -257,7 +297,7 @@
     },
     {
       "id": "7:1811848833096075631",
-      "lastPropertyId": "6:7265530073834234274",
+      "lastPropertyId": "7:4175287885639819616",
       "name": "SessionEntity",
       "properties": [
         {
@@ -291,6 +331,11 @@
         {
           "id": "6:7265530073834234274",
           "name": "lastAccessedAt",
+          "type": 10
+        },
+        {
+          "id": "7:4175287885639819616",
+          "name": "updatedAt",
           "type": 10
         }
       ],
@@ -398,12 +443,12 @@
         },
         {
           "id": "8:661950585282725507",
-          "name": "createAt",
+          "name": "createdAt",
           "type": 10
         },
         {
           "id": "9:2315723648326120259",
-          "name": "updateAt",
+          "name": "updatedAt",
           "type": 10
         }
       ],
@@ -442,12 +487,12 @@
         },
         {
           "id": "7:8943367424862014812",
-          "name": "createAt",
+          "name": "createdAt",
           "type": 10
         },
         {
           "id": "8:8945662529292125528",
-          "name": "updateAt",
+          "name": "updatedAt",
           "type": 10
         }
       ],

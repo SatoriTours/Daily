@@ -1,4 +1,3 @@
-import 'package:share_plus/share_plus.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/utils/string_extensions.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
@@ -68,12 +67,12 @@ class ArticleDetailController extends BaseGetXController {
 
     if (argument is ArticleModel) {
       // 从数据库重新获取最新状态
-      articleModel = ArticleRepository.find(argument.id) ?? argument;
+      articleModel = ArticleRepository.d.findModel(argument.id) ?? argument;
     } else if (argument is int) {
       // 通过ID查找文章，优先从列表控制器获取引用
       final articleRef = Get.isRegistered<ArticlesController>()
           ? Get.find<ArticlesController>().getRef(argument)
-          : ArticleRepository.find(argument);
+          : ArticleRepository.d.findModel(argument);
 
       if (articleRef == null) {
         throw ArgumentError('Article not found with ID: $argument');
@@ -95,7 +94,7 @@ class ArticleDetailController extends BaseGetXController {
   /// 删除当前文章
   Future<void> deleteArticle() async {
     final articleId = articleModel.id;
-    await ArticleRepository.deleteArticle(articleId);
+    await ArticleRepository.d.deleteArticle(articleId);
     // 通知文章删除
     _articleStateService.notifyArticleDeleted(articleId);
     // 清除活跃文章状态
@@ -133,7 +132,7 @@ class ArticleDetailController extends BaseGetXController {
 
         // 保存Markdown内容到文章模型
         articleModel.aiMarkdownContent = markdown;
-        await ArticleRepository.update(articleModel);
+        await ArticleRepository.d.updateModel(articleModel);
         // 刷新本地与列表视图
         article.refresh();
         // 通知全局状态服务文章已更新
@@ -154,9 +153,10 @@ class ArticleDetailController extends BaseGetXController {
     return images.length > 1 ? images.sublist(1) : [];
   }
 
-  /// 获取文章截图列表
+  /// 获取文章截图列表（已废弃：screenshots 字段已被移除）
+  @Deprecated('screenshots 字段已被移除，此方法将返回空列表')
   List<String> getArticleScreenshots() {
-    return _getValidImagePaths(articleModel.screenshots);
+    return [];
   }
 
   /// 获取有效的图片路径列表
@@ -167,26 +167,10 @@ class ArticleDetailController extends BaseGetXController {
         .toList();
   }
 
-  /// 分享文章截图
-  Future<void> shareScreenshots() async {
-    final screenshots = getArticleScreenshots();
-    if (screenshots.isEmpty) {
-      UIUtils.showSuccess("没有网页截图可以分享");
-      return;
-    }
-
-    try {
-      await SharePlus.instance.share(ShareParams(files: screenshots.map((path) => XFile(path)).toList(), text: '网页截图'));
-      logger.i("分享网页截图完成");
-    } catch (e) {
-      logger.e("分享失败: $e");
-    }
-  }
-
   /// 删除文章图片
   Future<void> deleteImage(String imagePath) async {
     articleModel.images.removeWhere((image) => image.path == imagePath);
-    await ArticleRepository.update(articleModel);
+    await ArticleRepository.d.updateModel(articleModel);
     article.refresh();
     // 通知全局状态服务文章已更新
     _articleStateService.notifyArticleUpdated(articleModel);

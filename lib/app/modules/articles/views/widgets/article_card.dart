@@ -146,7 +146,7 @@ class ArticleCard extends StatelessWidget {
           const SizedBox(width: 12),
           ArticleInfoItem(
             icon: Icons.access_time,
-            text: articleModel.createdAt != null ? GetTimeAgo.parse(articleModel.createdAt!, pattern: 'MM-dd') : '未知时间',
+            text: GetTimeAgo.parse(articleModel.createdAt, pattern: 'MM-dd'),
           ),
           const Spacer(),
           ArticleActionBar(

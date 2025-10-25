@@ -1,35 +1,28 @@
 import 'package:objectbox/objectbox.dart';
+import 'package:daily_satori/app/objectbox/base/base_entity.dart';
 
 @Entity()
-class Book {
+class Book implements BaseEntity {
+  @override
   @Id()
   int id = 0;
 
-  /// 书名
+  @override
+  @Property(type: PropertyType.date, uid: 661950585282725507)
+  late DateTime createdAt;
+
+  @override
+  @Property(type: PropertyType.date, uid: 2315723648326120259)
+  late DateTime updatedAt;
+
   String title;
-
-  /// 作者
   String author;
-
-  /// 分类
   String category;
-
-  /// 封面图片
   String coverImage;
-
-  /// 介绍信息
   String introduction;
 
-  /// 是否有更新或未读
+  /// 是否有更新
   bool hasUpdate;
-
-  /// 创建日期
-  @Property(type: PropertyType.date)
-  DateTime createAt;
-
-  /// 更新日期
-  @Property(type: PropertyType.date)
-  DateTime updateAt;
 
   Book({
     this.id = 0,
@@ -41,6 +34,8 @@ class Book {
     this.hasUpdate = false,
     DateTime? createAt,
     DateTime? updateAt,
-  }) : createAt = createAt ?? DateTime.now(),
-       updateAt = updateAt ?? DateTime.now();
+  }) {
+    createdAt = createAt ?? DateTime.now();
+    updatedAt = updateAt ?? DateTime.now();
+  }
 }

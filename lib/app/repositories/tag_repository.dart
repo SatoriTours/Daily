@@ -1,51 +1,54 @@
 import 'package:daily_satori/app/objectbox/tag.dart';
 import 'package:daily_satori/app/models/tag_model.dart';
-import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/repositories/base_repository.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 标签仓储类
 ///
-/// 提供操作标签实体的静态方法集合
-class TagRepository {
-  // 私有构造函数防止实例化
+/// 继承 BaseRepository 获取通用 CRUD 功能
+/// 使用单例模式，通过 TagRepository.instance 访问
+class TagRepository extends BaseRepository<Tag, TagModel> {
+  // 私有构造函数
   TagRepository._();
 
-  // 获取Box的静态方法
-  static Box<Tag> get _box => ObjectboxService.i.box<Tag>();
+  // 单例
+  static final TagRepository instance = TagRepository._();
 
-  /// 查找所有标签
-  static List<TagModel> all() {
-    return _box.getAll().map((e) => TagModel(e)).toList();
+  // 每页数量
+  @override
+  int get pageSize => 50;
+
+  // ==================== BaseRepository 必须实现的方法 ====================
+
+  @override
+  TagModel toModel(Tag entity) {
+    return TagModel(entity);
   }
 
-  /// 根据ID查找标签
-  static TagModel? find(int id) {
-    final tag = _box.get(id);
-    return tag != null ? TagModel(tag) : null;
-  }
+  // toEntity 已由父类提供默认实现，无需重写
+
+  // ==================== 特定业务方法 ====================
 
   /// 根据名称查找标签
-  static TagModel? findByName(String name) {
-    final query = _box.query(Tag_.name.equals(name)).build();
-    final tag = query.findFirst();
-    query.close();
-    return tag != null ? TagModel(tag) : null;
+  TagModel? findByName(String name) {
+    return findFirstByStringEquals(Tag_.name, name);
   }
 
   /// 根据ID从标签列表中查找标签
-  static TagModel? findTagModelById(List<TagModel> tagModels, int id) {
+  TagModel? findTagModelById(List<TagModel> tagModels, int id) {
     try {
-      return tagModels.firstWhere((tag) => tag.id == id);
+      return tagModels.firstWhere((tag) => tag.entity.id == id);
     } catch (e) {
       return null;
     }
   }
 
   /// 根据名称从标签列表中查找标签
-  static TagModel? findTagModelByName(List<TagModel> tagModels, String name) {
+  TagModel? findTagModelByName(List<TagModel> tagModels, String name) {
     try {
       return tagModels.firstWhere((tag) => tag.name == name);
     } catch (e) {
@@ -54,7 +57,7 @@ class TagRepository {
   }
 
   /// 添加标签到文章
-  static Future<bool> addTagToArticle(ArticleModel articleModel, String tagName) async {
+  Future<bool> addTagToArticle(ArticleModel articleModel, String tagName) async {
     try {
       // 获取或创建标签
       final tagModel = findOrCreate(tagName);
@@ -77,7 +80,7 @@ class TagRepository {
   }
 
   /// 为文章设置完整的标签集合（覆盖式），并持久化
-  static Future<void> setTagsForArticle(int articleId, List<String> tagNames) async {
+  Future<void> setTagsForArticle(int articleId, List<String> tagNames) async {
     try {
       final articleBox = ObjectboxService.i.box<Article>();
       final article = articleBox.get(articleId);
@@ -98,39 +101,40 @@ class TagRepository {
   }
 
   /// 创建或查找标签
-  static TagModel findOrCreate(String name, {String? icon}) {
+  TagModel findOrCreate(String name, {String? icon}) {
     var tagModel = findByName(name);
     if (tagModel != null) return tagModel;
 
     final tag = Tag(name: name, icon: icon);
-    final id = _box.put(tag);
+    final id = box.put(tag);
     tag.id = id;
     return TagModel(tag);
   }
 
-  /// 保存标签
-  static Future<int> create(TagModel tagModel) async {
-    return await _box.putAsync(tagModel.entity);
+  /// 保存标签Model
+  Future<int> createModel(TagModel tagModel) async {
+    return await box.putAsync(tagModel.entity);
   }
 
-  /// 更新标签
-  static Future<int> update(TagModel tagModel) async {
-    return await _box.putAsync(tagModel.entity);
+  /// 更新标签Model
+  @override
+  Future<int> updateModel(TagModel tagModel) async {
+    return await box.putAsync(tagModel.entity);
   }
 
-  /// 删除标签
-  static bool destroy(int id) {
-    return _box.remove(id);
+  /// 删除标签（旧方法名兼容）
+  bool destroy(int id) {
+    return remove(id);
   }
 
-  /// 删除所有标签
-  static void removeAll() {
-    _box.removeAll();
+  /// 删除所有标签（旧方法名兼容）
+  void clearAll() {
+    removeAll();
     logger.i("[删除标签] 所有标签已删除");
   }
 
   /// 根据文章ID删除标签
-  static int deleteByArticleId(int articleId) {
+  int deleteByArticleId(int articleId) {
     return 0;
   }
 }

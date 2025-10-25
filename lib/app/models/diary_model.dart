@@ -1,54 +1,62 @@
+import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/diary.dart';
+import 'package:daily_satori/app/repositories/diary_repository.dart';
 
-/// 日记模型类，包装Diary实体
-class DiaryModel {
-  int id;
-  String content;
-  DateTime createdAt;
-  DateTime updatedAt;
-  String? tags;
-  String? mood;
-  String? images;
+/// 日记模型类
+class DiaryModel extends EntityModel<Diary> {
+  DiaryModel(super.entity);
 
-  DiaryModel({
-    this.id = 0,
-    required this.content,
+  factory DiaryModel.fromId(int id) {
+    final diary = DiaryRepository.instance.getById(id);
+    if (diary == null) {
+      throw Exception('找不到ID为$id的日记');
+    }
+    return diary;
+  }
+
+  factory DiaryModel.create({
+    int id = 0,
+    required String content,
     DateTime? createdAt,
     DateTime? updatedAt,
-    this.tags,
-    this.mood,
-    this.images,
-  }) : createdAt = createdAt ?? DateTime.now(),
-       updatedAt = updatedAt ?? DateTime.now();
-
-  /// 从Diary实体创建DiaryModel
-  factory DiaryModel.fromEntity(Diary entity) {
+    String? tags,
+    String? mood,
+    String? images,
+  }) {
     return DiaryModel(
-      id: entity.id,
-      content: entity.content,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
-      tags: entity.tags,
-      mood: entity.mood,
-      images: entity.images,
+      Diary(
+        id: id,
+        content: content,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        tags: tags,
+        mood: mood,
+        images: images,
+      ),
     );
   }
 
-  /// 转换为Diary实体
-  Diary toEntity() {
-    return Diary(
-      id: id,
-      content: content,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-      tags: tags,
-      mood: mood,
-      images: images,
-    );
-  }
+  // ==================== 基本属性 ====================
 
-  /// 将images字符串转换为列表
-  List<String> get imagesList {
-    return images?.split(',') ?? [];
-  }
+  String get content => entity.content;
+  set content(String value) => entity.content = value;
+
+  String? get tags => entity.tags;
+  set tags(String? value) => entity.tags = value;
+
+  String? get mood => entity.mood;
+  set mood(String? value) => entity.mood = value;
+
+  String? get images => entity.images;
+  set images(String? value) => entity.images = value;
+
+  // ==================== 计算属性 ====================
+
+  List<String> get imagesList => images?.split(',') ?? [];
+
+  // ==================== 转换方法 ====================
+
+  factory DiaryModel.fromEntity(Diary entity) => DiaryModel(entity);
+
+  Diary toEntity() => entity;
 }

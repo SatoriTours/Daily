@@ -33,7 +33,7 @@ class AuthMiddleware {
 
   /// 验证密码
   static bool verifyPassword(String password) {
-    final expectedPassword = SettingRepository.getSetting(SettingService.webServerPasswordKey);
+    final expectedPassword = SettingRepository.instance.getSetting(SettingService.webServerPasswordKey);
     return password == expectedPassword;
   }
 }

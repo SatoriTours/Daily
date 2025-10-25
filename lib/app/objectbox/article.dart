@@ -1,13 +1,21 @@
 import 'package:objectbox/objectbox.dart';
-
+import 'package:daily_satori/app/objectbox/base/base_entity.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
-import 'package:daily_satori/app/objectbox/screenshot.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
 
 @Entity()
-class Article {
+class Article implements BaseEntity {
+  @override
   @Id()
   int id = 0;
+
+  @override
+  @Property(type: PropertyType.date)
+  late DateTime createdAt;
+
+  @override
+  @Property(type: PropertyType.date)
+  late DateTime updatedAt;
 
   String? title;
   String? aiTitle;
@@ -21,27 +29,17 @@ class Article {
   bool isFavorite = false;
   String? comment;
 
-  /// 处理状态: pending, web_content_fetched, completed, error
+  /// 文章状态: pending(待处理), processing(处理中), completed(已完成), failed(失败)
   String status = 'pending';
 
-  /// 封面图片路径 和 URL
   String? coverImage;
   String? coverImageUrl;
 
   @Property(type: PropertyType.date)
   DateTime? pubDate;
 
-  @Property(type: PropertyType.date)
-  DateTime? updatedAt;
-
-  @Property(type: PropertyType.date)
-  DateTime? createdAt;
-
   @Backlink()
   final images = ToMany<Image>();
-
-  @Backlink()
-  final screenshots = ToMany<Screenshot>();
 
   final tags = ToMany<Tag>();
 
@@ -58,8 +56,12 @@ class Article {
     this.comment,
     this.status = 'pending',
     this.coverImage,
+    this.coverImageUrl,
     this.pubDate,
-    this.updatedAt,
-    this.createdAt,
-  });
+    DateTime? updatedAt,
+    DateTime? createdAt,
+  }) {
+    this.createdAt = createdAt ?? DateTime.now();
+    this.updatedAt = updatedAt ?? DateTime.now();
+  }
 }

@@ -1,5 +1,6 @@
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/models/article_model.dart';
+import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/repositories/article_repository.dart';
 import 'package:daily_satori/app/utils/string_extensions.dart';
 import 'package:daily_satori/app/services/web_content/content_extractor.dart';
@@ -25,7 +26,7 @@ class ArticleManager {
     }
 
     // 检查URL是否已存在
-    final existingArticle = await ArticleRepository.findByUrl(url);
+    final existingArticle = await ArticleRepository.d.findByUrl(url);
     if (existingArticle != null && !isUpdate) {
       throw Exception('网页已存在，无法重复添加');
     }
@@ -52,30 +53,30 @@ class ArticleManager {
     article.updatedAt = DateTime.now().toUtc();
     article.status = ArticleStatus.webContentFetched;
 
-    await ArticleRepository.update(article);
+    await ArticleRepository.d.updateModel(article);
     logger.i('[ArticleManager] ◀ 文章内容更新完成: #${article.id}');
   }
 
   /// 标记文章为完成状态
   Future<void> markAsCompleted(int articleId) async {
-    final article = ArticleRepository.find(articleId);
+    final article = ArticleRepository.d.findModel(articleId);
     if (article == null) return;
 
     article.status = ArticleStatus.completed;
-    await ArticleRepository.update(article);
+    await ArticleRepository.d.updateModel(article);
     logger.i('[ArticleManager] 文章标记为完成: #$articleId');
   }
 
   /// 标记文章为失败状态
   Future<void> markAsFailed(int articleId, String errorMessage) async {
-    final article = ArticleRepository.find(articleId);
+    final article = ArticleRepository.d.findModel(articleId);
     if (article == null) return;
 
     article.status = ArticleStatus.error;
     article.aiContent = errorMessage;
     article.updatedAt = DateTime.now().toUtc();
 
-    await ArticleRepository.update(article);
+    await ArticleRepository.d.updateModel(article);
     logger.e('[ArticleManager] 文章标记为失败: #$articleId, 错误: $errorMessage');
   }
 
@@ -96,27 +97,33 @@ class ArticleManager {
       ..._initEmptyAiFields(),
     };
 
-    final articleModel = ArticleRepository.createArticleModel(data);
-    final id = await ArticleRepository.create(articleModel);
+    final article = Article(
+      url: url,
+      title: data['title'] as String,
+      comment: comment,
+      pubDate: now,
+      createdAt: now,
+      updatedAt: now,
+      status: ArticleStatus.pending,
+    );
 
-    if (id <= 0) {
+    final articleModel = ArticleModel(article);
+    final id = await ArticleRepository.d.save(articleModel);
+    final savedModel = ArticleRepository.d.findModel(id);
+
+    if (savedModel == null || savedModel.entity.id <= 0) {
       throw Exception('创建文章记录失败');
     }
 
-    final savedArticle = ArticleRepository.find(id);
-    if (savedArticle == null) {
-      throw Exception('无法找到刚创建的文章: $id');
-    }
-
-    logger.d('[ArticleManager] ◀ 新文章创建成功: #${savedArticle.id}');
-    return savedArticle;
+    logger.d('[ArticleManager] ◀ 新文章创建成功: #${savedModel.entity.id}');
+    return savedModel;
   }
 
   /// 重置现有文章
   Future<ArticleModel> _resetExistingArticle(int articleId, String comment) async {
     logger.d('[ArticleManager] ▶ 重置文章: #$articleId');
 
-    final article = ArticleRepository.find(articleId);
+    final article = ArticleRepository.d.findModel(articleId);
     if (article == null) {
       throw Exception('找不到要更新的文章: $articleId');
     }
@@ -126,7 +133,7 @@ class ArticleManager {
     article.status = ArticleStatus.pending;
     article.updatedAt = DateTime.now().toUtc();
 
-    await ArticleRepository.update(article);
+    await ArticleRepository.d.updateModel(article);
     logger.d('[ArticleManager] ◀ 文章重置成功: #$articleId');
 
     return article;
@@ -155,34 +162,34 @@ class ArticleManager {
 
   /// 获取文章状态
   Future<String> getArticleStatus(int articleId) async {
-    final article = ArticleRepository.find(articleId);
+    final article = ArticleRepository.d.findModel(articleId);
     return article?.status ?? ArticleStatus.error;
   }
 
   /// 获取文章详情
   Future<ArticleModel?> getArticle(int articleId) async {
-    return ArticleRepository.find(articleId);
+    return ArticleRepository.d.findModel(articleId);
   }
 
   /// 检查URL是否已存在
   Future<bool> isUrlExists(String url) async {
-    final existing = await ArticleRepository.findByUrl(url);
+    final existing = await ArticleRepository.d.findByUrl(url);
     return existing != null;
   }
 
   /// 获取文章总数
   Future<int> getTotalArticleCount() async {
-    return ArticleRepository.count();
+    return ArticleRepository.d.count();
   }
 
   /// 获取待处理文章数量
   Future<int> getPendingArticleCount() async {
-    return ArticleRepository.countByStatus(ArticleStatus.pending);
+    return ArticleRepository.d.countByStatus(ArticleStatus.pending);
   }
 
   /// 获取失败文章数量
   Future<int> getFailedArticleCount() async {
-    return ArticleRepository.countByStatus(ArticleStatus.error);
+    return ArticleRepository.d.countByStatus(ArticleStatus.error);
   }
 
   /// 批量更新文章状态
@@ -194,7 +201,7 @@ class ArticleManager {
 
   /// 删除文章
   Future<void> deleteArticle(int articleId) async {
-    await ArticleRepository.delete(articleId);
+    ArticleRepository.d.remove(articleId);
     logger.i('[ArticleManager] 文章已删除: #$articleId');
   }
 
@@ -210,7 +217,7 @@ class ArticleManager {
     return ArticleStats(
       total: await getTotalArticleCount(),
       pending: await getPendingArticleCount(),
-      completed: await ArticleRepository.countByStatus(ArticleStatus.completed),
+      completed: ArticleRepository.d.countByStatus(ArticleStatus.completed),
       failed: await getFailedArticleCount(),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
+import 'package:daily_satori/app/models/book_viewpoint.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:intl/intl.dart';
 
@@ -65,7 +66,7 @@ class ViewpointCard extends StatelessWidget {
 
   /// 构建底部
   Widget _buildFooter(BuildContext context, BookModel? book) {
-    final formattedDate = DateFormat('yyyy-MM-dd').format(viewpoint.createAt);
+    final formattedDate = DateFormat('yyyy-MM-dd').format(viewpoint.createdAt);
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [

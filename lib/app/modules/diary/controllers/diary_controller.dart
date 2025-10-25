@@ -61,9 +61,7 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
     });
 
     // 监听日记更新
-    everAll([
-      _diaryStateService.diaryUpdates,
-    ], (_) {
+    everAll([_diaryStateService.diaryUpdates], (_) {
       _refreshDiaryUpdates();
     });
   }
@@ -121,8 +119,8 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
 
     isLoading.value = true;
 
-    final diary = DiaryModel(content: content, tags: tags, mood: mood, images: images);
-    final id = DiaryRepository.i.save(diary);
+    final diary = DiaryModel.create(content: content, tags: tags, mood: mood, images: images);
+    final id = await DiaryRepository.i.save(diary);
 
     // 添加到StateService列表
     final savedDiary = DiaryRepository.i.getById(id);
@@ -176,13 +174,13 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
 
     // 更新修改时间
     diary.updatedAt = DateTime.now();
-    DiaryRepository.i.save(diary);
+    await DiaryRepository.i.save(diary);
 
     // 通知全局状态服务日记已更新
     _diaryStateService.notifyDiaryUpdated(diary);
 
     // 更新StateService列表中的日记
-    _diaryStateService.updateDiaryInList(diary.id);
+    _diaryStateService.updateDiaryInList(diary.entity.id);
 
     isLoading.value = false;
   }
@@ -304,7 +302,7 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
       final String tags = DiaryUtils.extractTags(contentController.text);
 
       // 创建更新后的日记
-      final updatedDiary = DiaryModel(
+      final updatedDiary = DiaryModel.create(
         id: diary.id,
         content: contentController.text,
         tags: tags,
@@ -378,11 +376,7 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
     }
 
     // 调用StateService加载数据
-    await _diaryStateService.loadDiaries(
-      keyword: keyword,
-      tag: tag,
-      date: date,
-    );
+    await _diaryStateService.loadDiaries(keyword: keyword, tag: tag, date: date);
 
     // 提取所有标签
     _extractTags();

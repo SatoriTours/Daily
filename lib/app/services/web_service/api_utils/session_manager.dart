@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:shelf/shelf.dart';
+import 'package:daily_satori/app/models/session_model.dart';
 import 'package:daily_satori/app/objectbox/session.dart';
 import 'package:daily_satori/app/repositories/session_repository.dart';
 
@@ -18,11 +19,11 @@ class Session {
   // 构造函数，用于创建新会话
   Session(this.id) : _creationTime = DateTime.now(), _lastAccessTime = DateTime.now();
 
-  /// 从实体创建会话
-  factory Session.fromEntity(SessionEntity entity) {
-    final session = Session._fromEntity(entity.sessionId, entity.createdAt, entity.lastAccessedAt);
-    session.isAuthenticated = entity.isAuthenticated;
-    session.username = entity.username;
+  /// 从SessionModel创建会话
+  factory Session.fromModel(SessionModel model) {
+    final session = Session._fromEntity(model.sessionId, model.createdAt, model.lastAccessedAt);
+    session.isAuthenticated = model.isAuthenticated;
+    session.username = model.username;
     return session;
   }
 
@@ -34,25 +35,25 @@ class Session {
   DateTime get lastAccessedAt => _lastAccessTime;
 
   /// 更新最后访问时间
-  void touch() {
+  Future<void> touch() async {
     _lastAccessTime = DateTime.now();
-    SessionRepository.updateLastAccessedAt(id, _lastAccessTime);
+    await SessionRepository.instance.updateLastAccessedAt(id, _lastAccessTime);
   }
 
   /// 设置为已认证状态
-  void authenticate(String name) {
+  Future<void> authenticate(String name) async {
     username = name;
     isAuthenticated = true;
-    touch();
-    SessionRepository.authenticate(id, name);
+    await touch();
+    await SessionRepository.instance.authenticate(id, name);
   }
 
   /// 清除认证状态
-  void clearAuthentication() {
+  Future<void> clearAuthentication() async {
     isAuthenticated = false;
     username = null;
-    touch();
-    SessionRepository.clearAuthentication(id);
+    await touch();
+    await SessionRepository.instance.clearAuthentication(id);
   }
 
   /// 是否已过期（30分钟不活动即过期）
@@ -71,15 +72,16 @@ class Session {
     };
   }
 
-  /// 转换为数据库实体
-  SessionEntity toEntity() {
-    return SessionEntity(
+  /// 转换为数据库Model
+  SessionModel toModel() {
+    final entity = SessionEntity(
       sessionId: id,
       isAuthenticated: isAuthenticated,
       username: username,
       createdAt: _creationTime,
       lastAccessedAt: _lastAccessTime,
     );
+    return SessionModel(entity);
   }
 }
 
@@ -88,13 +90,13 @@ class SessionManager {
   static final Random _random = Random.secure();
 
   /// 创建会话
-  static Session createSession() {
+  static Future<Session> createSession() async {
     final sessionId = _generateSessionId();
     final session = Session(sessionId);
 
     // 保存到数据库
-    final entity = session.toEntity();
-    SessionRepository.saveSession(entity);
+    final model = session.toModel();
+    await SessionRepository.instance.save(model);
 
     // 每创建会话时，清理过期会话
     _cleanExpiredSessions();
@@ -105,14 +107,14 @@ class SessionManager {
   /// 获取会话
   static Future<Session?> getSession(String sessionId) async {
     // 从数据库获取会话
-    final entity = SessionRepository.findBySessionId(sessionId);
+    final model = SessionRepository.instance.findBySessionId(sessionId);
 
-    if (entity != null) {
-      final session = Session.fromEntity(entity);
+    if (model != null) {
+      final session = Session.fromModel(model);
 
       if (session.isExpired()) {
         // 如果会话已过期，删除并返回null
-        SessionRepository.removeSession(sessionId);
+        SessionRepository.instance.removeBySessionId(sessionId);
         return null;
       }
 
@@ -126,7 +128,7 @@ class SessionManager {
 
   /// 销毁会话
   static void destroySession(String sessionId) {
-    SessionRepository.removeSession(sessionId);
+    SessionRepository.instance.removeBySessionId(sessionId);
   }
 
   /// 创建带会话的响应
@@ -142,6 +144,6 @@ class SessionManager {
 
   /// 清理过期会话
   static void _cleanExpiredSessions() {
-    SessionRepository.cleanExpiredSessions();
+    SessionRepository.instance.cleanExpiredSessions();
   }
 }

@@ -1,5 +1,6 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
+import 'package:daily_satori/app/models/book_viewpoint.dart';
 import 'package:daily_satori/app/repositories/book_repository.dart';
 import 'dart:math';
 
@@ -75,7 +76,7 @@ class BooksStateService extends GetxService {
 
   /// 加载所有书籍的观点（随机模式）
   Future<void> _loadAllBooksViewpoints() async {
-    final allViewpoints = await BookRepository.getAllViewpointsAsync();
+    final allViewpoints = BookRepository.instance.getAllViewpointsModel();
     if (allViewpoints.isEmpty) {
       viewpoints.clear();
       return;
@@ -98,7 +99,7 @@ class BooksStateService extends GetxService {
   /// 加载特定书籍的观点
   Future<void> _loadSpecificBookViewpoints() async {
     _mode = DisplayMode.bookSpecific;
-    viewpoints.value = await BookRepository.getViewpointsByBookIdsAsync([filterBookID.value]);
+    viewpoints.value = BookRepository.instance.getViewpointsByBookIdsModel([filterBookID.value]);
 
     if (viewpoints.isEmpty) {
       await _tryRefreshBookViewpoints();
@@ -115,7 +116,7 @@ class BooksStateService extends GetxService {
     try {
       final success = await BookService.i.refreshBook(filterBookID.value);
       if (success) {
-        viewpoints.value = await BookRepository.getViewpointsByBookIdsAsync([filterBookID.value]);
+        viewpoints.value = BookRepository.instance.getViewpointsByBookIdsModel([filterBookID.value]);
         logger.i('重新获取书籍观点成功，共 ${viewpoints.length} 条');
       }
     } catch (e) {

@@ -13,7 +13,7 @@ class WebContentNotifier {
   /// 通知文章已更新
   void notifyArticleUpdated(int articleId) {
     try {
-      final article = ArticleRepository.find(articleId);
+      final article = ArticleRepository.d.findModel(articleId);
       if (article != null && Get.isRegistered<ArticleStateService>()) {
         Get.find<ArticleStateService>().notifyArticleUpdated(article);
         logger.d('[WebContentNotifier] 已通过状态服务通知更新文章 #$articleId');

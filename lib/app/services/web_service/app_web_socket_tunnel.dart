@@ -20,10 +20,10 @@ class AppWebSocketTunnel {
   final String _httpForwardUrl = 'http://127.0.0.1:8888';
 
   /// WebSocket服务器URL
-  String get _webSocketUrl => SettingRepository.getSetting(SettingService.webSocketUrlKey);
+  String get _webSocketUrl => SettingRepository.instance.getSetting(SettingService.webSocketUrlKey);
 
   /// 设备ID
-  String get _deviceId => SettingRepository.getSetting(SettingService.deviceIdKey);
+  String get _deviceId => SettingRepository.instance.getSetting(SettingService.deviceIdKey);
 
   /// 重连机制相关参数
   int _retryCount = 0;

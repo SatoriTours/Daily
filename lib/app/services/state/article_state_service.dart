@@ -160,7 +160,7 @@ class ArticleStateService extends GetxService {
   }) async {
     isLoading.value = true;
     try {
-      final result = ArticleRepository.where(
+      final result = ArticleRepository.d.queryArticles(
         keyword: keyword,
         isFavorite: favorite,
         tagIds: tagIds,
@@ -168,7 +168,7 @@ class ArticleStateService extends GetxService {
         endDate: endDate,
         referenceId: referenceId,
         isGreaterThan: isGreaterThan,
-        pageSize: pageSize,
+        limit: pageSize,
       );
 
       if (referenceId == null) {
@@ -209,7 +209,7 @@ class ArticleStateService extends GetxService {
 
   /// 更新列表中的文章
   void updateArticleInList(int id) {
-    final article = ArticleRepository.find(id);
+    final article = ArticleRepository.d.findModel(id);
     if (article == null) return;
 
     logger.i('更新列表中的文章: ${article.title} (ID: $id)');
@@ -253,7 +253,7 @@ class ArticleStateService extends GetxService {
     final index = articles.indexWhere((item) => item.id == id);
     if (index == -1) {
       // 如果列表中没有，从数据库加载
-      final article = ArticleRepository.find(id);
+      final article = ArticleRepository.d.findModel(id);
       if (article != null) {
         setActiveArticle(article);
       }
