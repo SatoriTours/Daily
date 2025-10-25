@@ -8,11 +8,11 @@ class Book implements BaseEntity {
   int id = 0;
 
   @override
-  @Property(type: PropertyType.date)
+  @Property(type: PropertyType.date, uid: 661950585282725507)
   late DateTime createdAt;
 
   @override
-  @Property(type: PropertyType.date)
+  @Property(type: PropertyType.date, uid: 2315723648326120259)
   late DateTime updatedAt;
 
   String title;
@@ -23,13 +23,6 @@ class Book implements BaseEntity {
 
   /// 是否有更新
   bool hasUpdate;
-
-  // 保持向后兼容性的别名
-  DateTime get createAt => createdAt;
-  set createAt(DateTime value) => createdAt = value;
-
-  DateTime get updateAt => updatedAt;
-  set updateAt(DateTime value) => updatedAt = value;
 
   Book({
     this.id = 0,

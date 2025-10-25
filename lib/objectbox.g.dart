@@ -31,7 +31,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(1, 4903589311666536386),
     name: 'Article',
-    lastPropertyId: const obx_int.IdUid(18, 5861145356763206634),
+    lastPropertyId: const obx_int.IdUid(16, 2180202132372963097),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -96,6 +96,18 @@ final _entities = <obx_int.ModelEntity>[
         flags: 0,
       ),
       obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 838506994697291236),
+        name: 'updatedAt',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(12, 7680535396124443137),
+        name: 'createdAt',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
         id: const obx_int.IdUid(13, 7461987700932446700),
         name: 'status',
         type: 9,
@@ -119,18 +131,6 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(17, 5727347521727076087),
-        name: 'createdAt',
-        type: 10,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(18, 5861145356763206634),
-        name: 'updatedAt',
-        type: 10,
-        flags: 0,
-      ),
     ],
     relations: <obx_int.ModelRelation>[
       obx_int.ModelRelation(
@@ -146,7 +146,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(2, 424537266143031752),
     name: 'Image',
-    lastPropertyId: const obx_int.IdUid(6, 7022228099425153916),
+    lastPropertyId: const obx_int.IdUid(6, 9111294745415271011),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -176,13 +176,13 @@ final _entities = <obx_int.ModelEntity>[
         relationTarget: 'Article',
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(5, 7775349812786411519),
+        id: const obx_int.IdUid(5, 8752436540517154570),
         name: 'createdAt',
         type: 10,
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(6, 7022228099425153916),
+        id: const obx_int.IdUid(6, 9111294745415271011),
         name: 'updatedAt',
         type: 10,
         flags: 0,
@@ -194,7 +194,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(3, 1263235097771623841),
     name: 'Screenshot',
-    lastPropertyId: const obx_int.IdUid(6, 4295067247136400113),
+    lastPropertyId: const obx_int.IdUid(6, 4254155909309230280),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -218,13 +218,13 @@ final _entities = <obx_int.ModelEntity>[
         relationTarget: 'Article',
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(5, 8169645329743784142),
+        id: const obx_int.IdUid(5, 2062538356640157869),
         name: 'createdAt',
         type: 10,
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(6, 4295067247136400113),
+        id: const obx_int.IdUid(6, 4254155909309230280),
         name: 'updatedAt',
         type: 10,
         flags: 0,
@@ -236,7 +236,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(4, 4010830939855844436),
     name: 'Tag',
-    lastPropertyId: const obx_int.IdUid(5, 8829603419293152496),
+    lastPropertyId: const obx_int.IdUid(5, 5449330553332508765),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -259,13 +259,13 @@ final _entities = <obx_int.ModelEntity>[
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(4, 6566504672728347366),
+        id: const obx_int.IdUid(4, 8375782896125296820),
         name: 'createdAt',
         type: 10,
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(5, 8829603419293152496),
+        id: const obx_int.IdUid(5, 5449330553332508765),
         name: 'updatedAt',
         type: 10,
         flags: 0,
@@ -283,7 +283,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(5, 5883101161320296494),
     name: 'Setting',
-    lastPropertyId: const obx_int.IdUid(5, 8877336913306236438),
+    lastPropertyId: const obx_int.IdUid(5, 4671802741369488139),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -306,13 +306,13 @@ final _entities = <obx_int.ModelEntity>[
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(4, 4252255200316433052),
+        id: const obx_int.IdUid(4, 8850319023593408164),
         name: 'createdAt',
         type: 10,
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(5, 8877336913306236438),
+        id: const obx_int.IdUid(5, 4671802741369488139),
         name: 'updatedAt',
         type: 10,
         flags: 0,
@@ -324,7 +324,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(6, 8005082016940708333),
     name: 'Diary',
-    lastPropertyId: const obx_int.IdUid(9, 5634038208346663057),
+    lastPropertyId: const obx_int.IdUid(7, 3347879950888769925),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -337,6 +337,18 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(2, 8464627663024168708),
         name: 'content',
         type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 5750639237251441515),
+        name: 'createdAt',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 1119453735783702989),
+        name: 'updatedAt',
+        type: 10,
         flags: 0,
       ),
       obx_int.ModelProperty(
@@ -357,18 +369,6 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(8, 6948695075515095574),
-        name: 'createdAt',
-        type: 10,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(9, 5634038208346663057),
-        name: 'updatedAt',
-        type: 10,
-        flags: 0,
-      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -376,7 +376,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(7, 1811848833096075631),
     name: 'SessionEntity',
-    lastPropertyId: const obx_int.IdUid(8, 5768861423293576935),
+    lastPropertyId: const obx_int.IdUid(7, 4175287885639819616),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -405,19 +405,19 @@ final _entities = <obx_int.ModelEntity>[
         flags: 0,
       ),
       obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 3355559810444181801),
+        name: 'createdAt',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
         id: const obx_int.IdUid(6, 7265530073834234274),
         name: 'lastAccessedAt',
         type: 10,
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(7, 8363144798117857179),
-        name: 'createdAt',
-        type: 10,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(8, 5768861423293576935),
+        id: const obx_int.IdUid(7, 4175287885639819616),
         name: 'updatedAt',
         type: 10,
         flags: 0,
@@ -429,7 +429,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(8, 8052371033223414407),
     name: 'AIConfig',
-    lastPropertyId: const obx_int.IdUid(12, 6704273192072210993),
+    lastPropertyId: const obx_int.IdUid(10, 6416813489943682923),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -481,13 +481,13 @@ final _entities = <obx_int.ModelEntity>[
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(11, 6371394756089751745),
+        id: const obx_int.IdUid(9, 4368213221540153817),
         name: 'createdAt',
         type: 10,
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(12, 6704273192072210993),
+        id: const obx_int.IdUid(10, 6416813489943682923),
         name: 'updatedAt',
         type: 10,
         flags: 0,
@@ -499,7 +499,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(9, 931542695905334718),
     name: 'Book',
-    lastPropertyId: const obx_int.IdUid(11, 6450927906422797851),
+    lastPropertyId: const obx_int.IdUid(9, 2315723648326120259),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -546,24 +546,12 @@ final _entities = <obx_int.ModelEntity>[
       ),
       obx_int.ModelProperty(
         id: const obx_int.IdUid(8, 661950585282725507),
-        name: 'createAt',
-        type: 10,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(9, 2315723648326120259),
-        name: 'updateAt',
-        type: 10,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(10, 4668150156584150398),
         name: 'createdAt',
         type: 10,
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(11, 6450927906422797851),
+        id: const obx_int.IdUid(9, 2315723648326120259),
         name: 'updatedAt',
         type: 10,
         flags: 0,
@@ -575,7 +563,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(11, 7263170726412899592),
     name: 'BookViewpoint',
-    lastPropertyId: const obx_int.IdUid(10, 1298598584814086177),
+    lastPropertyId: const obx_int.IdUid(8, 8945662529292125528),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -610,24 +598,12 @@ final _entities = <obx_int.ModelEntity>[
       ),
       obx_int.ModelProperty(
         id: const obx_int.IdUid(7, 8943367424862014812),
-        name: 'createAt',
-        type: 10,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(8, 8945662529292125528),
-        name: 'updateAt',
-        type: 10,
-        flags: 0,
-      ),
-      obx_int.ModelProperty(
-        id: const obx_int.IdUid(9, 6366486049494174056),
         name: 'createdAt',
         type: 10,
         flags: 0,
       ),
       obx_int.ModelProperty(
-        id: const obx_int.IdUid(10, 1298598584814086177),
+        id: const obx_int.IdUid(8, 8945662529292125528),
         name: 'updatedAt',
         type: 10,
         flags: 0,
@@ -689,13 +665,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
       5918625690410978937,
       2718589743042196529,
       8556367343012327499,
-      4368213221540153817,
-      6416813489943682923,
-      838506994697291236,
-      7680535396124443137,
-      5750639237251441515,
-      1119453735783702989,
-      3355559810444181801,
     ],
     retiredRelationUids: const [
       4899483606642247262,
@@ -755,7 +724,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final coverImageUrlOffset = object.coverImageUrl == null
             ? null
             : fbb.writeString(object.coverImageUrl!);
-        fbb.startTable(19);
+        fbb.startTable(17);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, titleOffset);
         fbb.addOffset(2, aiTitleOffset);
@@ -766,12 +735,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addBool(7, object.isFavorite);
         fbb.addOffset(8, commentOffset);
         fbb.addInt64(9, object.pubDate?.millisecondsSinceEpoch);
+        fbb.addInt64(10, object.updatedAt.millisecondsSinceEpoch);
+        fbb.addInt64(11, object.createdAt.millisecondsSinceEpoch);
         fbb.addOffset(12, statusOffset);
         fbb.addOffset(13, coverImageOffset);
         fbb.addOffset(14, aiMarkdownContentOffset);
         fbb.addOffset(15, coverImageUrlOffset);
-        fbb.addInt64(16, object.createdAt.millisecondsSinceEpoch);
-        fbb.addInt64(17, object.updatedAt.millisecondsSinceEpoch);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -832,10 +801,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
             ? null
             : DateTime.fromMillisecondsSinceEpoch(pubDateValue);
         final updatedAtParam = DateTime.fromMillisecondsSinceEpoch(
-          const fb.Int64Reader().vTableGet(buffer, rootOffset, 38, 0),
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 24, 0),
         );
         final createdAtParam = DateTime.fromMillisecondsSinceEpoch(
-          const fb.Int64Reader().vTableGet(buffer, rootOffset, 36, 0),
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 26, 0),
         );
         final object = Article(
           id: idParam,
@@ -912,13 +881,19 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final pathParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 8);
-        final object = Image(id: idParam, url: urlParam, path: pathParam)
-          ..createdAt = DateTime.fromMillisecondsSinceEpoch(
-            const fb.Int64Reader().vTableGet(buffer, rootOffset, 12, 0),
-          )
-          ..updatedAt = DateTime.fromMillisecondsSinceEpoch(
-            const fb.Int64Reader().vTableGet(buffer, rootOffset, 14, 0),
-          );
+        final createdAtParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 12, 0),
+        );
+        final updatedAtParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 14, 0),
+        );
+        final object = Image(
+          id: idParam,
+          url: urlParam,
+          path: pathParam,
+          createdAt: createdAtParam,
+          updatedAt: updatedAtParam,
+        );
         object.article.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -962,13 +937,18 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final pathParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 8);
-        final object = Screenshot(id: idParam, path: pathParam)
-          ..createdAt = DateTime.fromMillisecondsSinceEpoch(
-            const fb.Int64Reader().vTableGet(buffer, rootOffset, 12, 0),
-          )
-          ..updatedAt = DateTime.fromMillisecondsSinceEpoch(
-            const fb.Int64Reader().vTableGet(buffer, rootOffset, 14, 0),
-          );
+        final createdAtParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 12, 0),
+        );
+        final updatedAtParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 14, 0),
+        );
+        final object = Screenshot(
+          id: idParam,
+          path: pathParam,
+          createdAt: createdAtParam,
+          updatedAt: updatedAtParam,
+        );
         object.article.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -1020,13 +1000,19 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final iconParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 8);
-        final object = Tag(id: idParam, name: nameParam, icon: iconParam)
-          ..createdAt = DateTime.fromMillisecondsSinceEpoch(
-            const fb.Int64Reader().vTableGet(buffer, rootOffset, 10, 0),
-          )
-          ..updatedAt = DateTime.fromMillisecondsSinceEpoch(
-            const fb.Int64Reader().vTableGet(buffer, rootOffset, 12, 0),
-          );
+        final createdAtParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 10, 0),
+        );
+        final updatedAtParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 12, 0),
+        );
+        final object = Tag(
+          id: idParam,
+          name: nameParam,
+          icon: iconParam,
+          createdAt: createdAtParam,
+          updatedAt: updatedAtParam,
+        );
         obx_int.InternalToManyAccess.setRelInfo<Tag>(
           object.articles,
           store,
@@ -1074,13 +1060,19 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final valueParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 8);
-        final object = Setting(id: idParam, key: keyParam, value: valueParam)
-          ..createdAt = DateTime.fromMillisecondsSinceEpoch(
-            const fb.Int64Reader().vTableGet(buffer, rootOffset, 10, 0),
-          )
-          ..updatedAt = DateTime.fromMillisecondsSinceEpoch(
-            const fb.Int64Reader().vTableGet(buffer, rootOffset, 12, 0),
-          );
+        final createdAtParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 10, 0),
+        );
+        final updatedAtParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 12, 0),
+        );
+        final object = Setting(
+          id: idParam,
+          key: keyParam,
+          value: valueParam,
+          createdAt: createdAtParam,
+          updatedAt: updatedAtParam,
+        );
 
         return object;
       },
@@ -1104,14 +1096,14 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final imagesOffset = object.images == null
             ? null
             : fbb.writeString(object.images!);
-        fbb.startTable(10);
+        fbb.startTable(8);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, contentOffset);
+        fbb.addInt64(2, object.createdAt.millisecondsSinceEpoch);
+        fbb.addInt64(3, object.updatedAt.millisecondsSinceEpoch);
         fbb.addOffset(4, tagsOffset);
         fbb.addOffset(5, moodOffset);
         fbb.addOffset(6, imagesOffset);
-        fbb.addInt64(7, object.createdAt.millisecondsSinceEpoch);
-        fbb.addInt64(8, object.updatedAt.millisecondsSinceEpoch);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1128,10 +1120,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 6, '');
         final createdAtParam = DateTime.fromMillisecondsSinceEpoch(
-          const fb.Int64Reader().vTableGet(buffer, rootOffset, 18, 0),
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 8, 0),
         );
         final updatedAtParam = DateTime.fromMillisecondsSinceEpoch(
-          const fb.Int64Reader().vTableGet(buffer, rootOffset, 20, 0),
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 10, 0),
         );
         final tagsParam = const fb.StringReader(
           asciiOptimization: true,
@@ -1168,14 +1160,14 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final usernameOffset = object.username == null
             ? null
             : fbb.writeString(object.username!);
-        fbb.startTable(9);
+        fbb.startTable(8);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, sessionIdOffset);
         fbb.addBool(2, object.isAuthenticated);
         fbb.addOffset(3, usernameOffset);
+        fbb.addInt64(4, object.createdAt.millisecondsSinceEpoch);
         fbb.addInt64(5, object.lastAccessedAt.millisecondsSinceEpoch);
-        fbb.addInt64(6, object.createdAt.millisecondsSinceEpoch);
-        fbb.addInt64(7, object.updatedAt.millisecondsSinceEpoch);
+        fbb.addInt64(6, object.updatedAt.millisecondsSinceEpoch);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1201,7 +1193,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 10);
         final createdAtParam = DateTime.fromMillisecondsSinceEpoch(
-          const fb.Int64Reader().vTableGet(buffer, rootOffset, 16, 0),
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 12, 0),
         );
         final lastAccessedAtParam = DateTime.fromMillisecondsSinceEpoch(
           const fb.Int64Reader().vTableGet(buffer, rootOffset, 14, 0),
@@ -1216,7 +1208,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 lastAccessedAt: lastAccessedAtParam,
               )
               ..updatedAt = DateTime.fromMillisecondsSinceEpoch(
-                const fb.Int64Reader().vTableGet(buffer, rootOffset, 18, 0),
+                const fb.Int64Reader().vTableGet(buffer, rootOffset, 16, 0),
               );
 
         return object;
@@ -1235,7 +1227,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final apiAddressOffset = fbb.writeString(object.apiAddress);
         final apiTokenOffset = fbb.writeString(object.apiToken);
         final modelNameOffset = fbb.writeString(object.modelName);
-        fbb.startTable(13);
+        fbb.startTable(11);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
         fbb.addOffset(2, apiAddressOffset);
@@ -1244,8 +1236,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addInt64(5, object.functionType);
         fbb.addBool(6, object.inheritFromGeneral);
         fbb.addBool(7, object.isDefault);
-        fbb.addInt64(10, object.createdAt.millisecondsSinceEpoch);
-        fbb.addInt64(11, object.updatedAt.millisecondsSinceEpoch);
+        fbb.addInt64(8, object.createdAt.millisecondsSinceEpoch);
+        fbb.addInt64(9, object.updatedAt.millisecondsSinceEpoch);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1289,10 +1281,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
           false,
         );
         final createdAtParam = DateTime.fromMillisecondsSinceEpoch(
-          const fb.Int64Reader().vTableGet(buffer, rootOffset, 24, 0),
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 20, 0),
         );
         final updatedAtParam = DateTime.fromMillisecondsSinceEpoch(
-          const fb.Int64Reader().vTableGet(buffer, rootOffset, 26, 0),
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 22, 0),
         );
         final object = AIConfig(
           id: idParam,
@@ -1324,7 +1316,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final categoryOffset = fbb.writeString(object.category);
         final coverImageOffset = fbb.writeString(object.coverImage);
         final introductionOffset = fbb.writeString(object.introduction);
-        fbb.startTable(12);
+        fbb.startTable(10);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, titleOffset);
         fbb.addOffset(2, authorOffset);
@@ -1332,10 +1324,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(4, coverImageOffset);
         fbb.addOffset(5, introductionOffset);
         fbb.addBool(6, object.hasUpdate);
-        fbb.addInt64(7, object.createAt.millisecondsSinceEpoch);
-        fbb.addInt64(8, object.updateAt.millisecondsSinceEpoch);
-        fbb.addInt64(9, object.createdAt.millisecondsSinceEpoch);
-        fbb.addInt64(10, object.updatedAt.millisecondsSinceEpoch);
+        fbb.addInt64(7, object.createdAt.millisecondsSinceEpoch);
+        fbb.addInt64(8, object.updatedAt.millisecondsSinceEpoch);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1369,12 +1359,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
           16,
           false,
         );
-        final createAtParam = DateTime.fromMillisecondsSinceEpoch(
-          const fb.Int64Reader().vTableGet(buffer, rootOffset, 18, 0),
-        );
-        final updateAtParam = DateTime.fromMillisecondsSinceEpoch(
-          const fb.Int64Reader().vTableGet(buffer, rootOffset, 20, 0),
-        );
         final object =
             Book(
                 id: idParam,
@@ -1384,14 +1368,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 coverImage: coverImageParam,
                 introduction: introductionParam,
                 hasUpdate: hasUpdateParam,
-                createAt: createAtParam,
-                updateAt: updateAtParam,
               )
               ..createdAt = DateTime.fromMillisecondsSinceEpoch(
-                const fb.Int64Reader().vTableGet(buffer, rootOffset, 22, 0),
+                const fb.Int64Reader().vTableGet(buffer, rootOffset, 18, 0),
               )
               ..updatedAt = DateTime.fromMillisecondsSinceEpoch(
-                const fb.Int64Reader().vTableGet(buffer, rootOffset, 24, 0),
+                const fb.Int64Reader().vTableGet(buffer, rootOffset, 20, 0),
               );
 
         return object;
@@ -1409,16 +1391,14 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final titleOffset = fbb.writeString(object.title);
         final contentOffset = fbb.writeString(object.content);
         final exampleOffset = fbb.writeString(object.example);
-        fbb.startTable(11);
+        fbb.startTable(9);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.bookId);
         fbb.addOffset(2, titleOffset);
         fbb.addOffset(3, contentOffset);
         fbb.addOffset(4, exampleOffset);
-        fbb.addInt64(6, object.createAt.millisecondsSinceEpoch);
-        fbb.addInt64(7, object.updateAt.millisecondsSinceEpoch);
-        fbb.addInt64(8, object.createdAt.millisecondsSinceEpoch);
-        fbb.addInt64(9, object.updatedAt.millisecondsSinceEpoch);
+        fbb.addInt64(6, object.createdAt.millisecondsSinceEpoch);
+        fbb.addInt64(7, object.updatedAt.millisecondsSinceEpoch);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1446,12 +1426,6 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final exampleParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 12, '');
-        final createAtParam = DateTime.fromMillisecondsSinceEpoch(
-          const fb.Int64Reader().vTableGet(buffer, rootOffset, 16, 0),
-        );
-        final updateAtParam = DateTime.fromMillisecondsSinceEpoch(
-          const fb.Int64Reader().vTableGet(buffer, rootOffset, 18, 0),
-        );
         final object =
             BookViewpoint(
                 id: idParam,
@@ -1459,14 +1433,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
                 title: titleParam,
                 content: contentParam,
                 example: exampleParam,
-                createAt: createAtParam,
-                updateAt: updateAtParam,
               )
               ..createdAt = DateTime.fromMillisecondsSinceEpoch(
-                const fb.Int64Reader().vTableGet(buffer, rootOffset, 20, 0),
+                const fb.Int64Reader().vTableGet(buffer, rootOffset, 16, 0),
               )
               ..updatedAt = DateTime.fromMillisecondsSinceEpoch(
-                const fb.Int64Reader().vTableGet(buffer, rootOffset, 22, 0),
+                const fb.Int64Reader().vTableGet(buffer, rootOffset, 18, 0),
               );
 
         return object;
@@ -1529,33 +1501,33 @@ class Article_ {
     _entities[0].properties[9],
   );
 
-  /// See [Article.status].
-  static final status = obx.QueryStringProperty<Article>(
+  /// See [Article.updatedAt].
+  static final updatedAt = obx.QueryDateProperty<Article>(
     _entities[0].properties[10],
-  );
-
-  /// See [Article.coverImage].
-  static final coverImage = obx.QueryStringProperty<Article>(
-    _entities[0].properties[11],
-  );
-
-  /// See [Article.aiMarkdownContent].
-  static final aiMarkdownContent = obx.QueryStringProperty<Article>(
-    _entities[0].properties[12],
-  );
-
-  /// See [Article.coverImageUrl].
-  static final coverImageUrl = obx.QueryStringProperty<Article>(
-    _entities[0].properties[13],
   );
 
   /// See [Article.createdAt].
   static final createdAt = obx.QueryDateProperty<Article>(
+    _entities[0].properties[11],
+  );
+
+  /// See [Article.status].
+  static final status = obx.QueryStringProperty<Article>(
+    _entities[0].properties[12],
+  );
+
+  /// See [Article.coverImage].
+  static final coverImage = obx.QueryStringProperty<Article>(
+    _entities[0].properties[13],
+  );
+
+  /// See [Article.aiMarkdownContent].
+  static final aiMarkdownContent = obx.QueryStringProperty<Article>(
     _entities[0].properties[14],
   );
 
-  /// See [Article.updatedAt].
-  static final updatedAt = obx.QueryDateProperty<Article>(
+  /// See [Article.coverImageUrl].
+  static final coverImageUrl = obx.QueryStringProperty<Article>(
     _entities[0].properties[15],
   );
 
@@ -1685,28 +1657,28 @@ class Diary_ {
     _entities[5].properties[1],
   );
 
-  /// See [Diary.tags].
-  static final tags = obx.QueryStringProperty<Diary>(
-    _entities[5].properties[2],
-  );
-
-  /// See [Diary.mood].
-  static final mood = obx.QueryStringProperty<Diary>(
-    _entities[5].properties[3],
-  );
-
-  /// See [Diary.images].
-  static final images = obx.QueryStringProperty<Diary>(
-    _entities[5].properties[4],
-  );
-
   /// See [Diary.createdAt].
   static final createdAt = obx.QueryDateProperty<Diary>(
-    _entities[5].properties[5],
+    _entities[5].properties[2],
   );
 
   /// See [Diary.updatedAt].
   static final updatedAt = obx.QueryDateProperty<Diary>(
+    _entities[5].properties[3],
+  );
+
+  /// See [Diary.tags].
+  static final tags = obx.QueryStringProperty<Diary>(
+    _entities[5].properties[4],
+  );
+
+  /// See [Diary.mood].
+  static final mood = obx.QueryStringProperty<Diary>(
+    _entities[5].properties[5],
+  );
+
+  /// See [Diary.images].
+  static final images = obx.QueryStringProperty<Diary>(
     _entities[5].properties[6],
   );
 }
@@ -1733,13 +1705,13 @@ class SessionEntity_ {
     _entities[6].properties[3],
   );
 
-  /// See [SessionEntity.lastAccessedAt].
-  static final lastAccessedAt = obx.QueryDateProperty<SessionEntity>(
+  /// See [SessionEntity.createdAt].
+  static final createdAt = obx.QueryDateProperty<SessionEntity>(
     _entities[6].properties[4],
   );
 
-  /// See [SessionEntity.createdAt].
-  static final createdAt = obx.QueryDateProperty<SessionEntity>(
+  /// See [SessionEntity.lastAccessedAt].
+  static final lastAccessedAt = obx.QueryDateProperty<SessionEntity>(
     _entities[6].properties[5],
   );
 
@@ -1837,24 +1809,14 @@ class Book_ {
     _entities[8].properties[6],
   );
 
-  /// See [Book.createAt].
-  static final createAt = obx.QueryDateProperty<Book>(
-    _entities[8].properties[7],
-  );
-
-  /// See [Book.updateAt].
-  static final updateAt = obx.QueryDateProperty<Book>(
-    _entities[8].properties[8],
-  );
-
   /// See [Book.createdAt].
   static final createdAt = obx.QueryDateProperty<Book>(
-    _entities[8].properties[9],
+    _entities[8].properties[7],
   );
 
   /// See [Book.updatedAt].
   static final updatedAt = obx.QueryDateProperty<Book>(
-    _entities[8].properties[10],
+    _entities[8].properties[8],
   );
 }
 
@@ -1885,23 +1847,13 @@ class BookViewpoint_ {
     _entities[9].properties[4],
   );
 
-  /// See [BookViewpoint.createAt].
-  static final createAt = obx.QueryDateProperty<BookViewpoint>(
-    _entities[9].properties[5],
-  );
-
-  /// See [BookViewpoint.updateAt].
-  static final updateAt = obx.QueryDateProperty<BookViewpoint>(
-    _entities[9].properties[6],
-  );
-
   /// See [BookViewpoint.createdAt].
   static final createdAt = obx.QueryDateProperty<BookViewpoint>(
-    _entities[9].properties[7],
+    _entities[9].properties[5],
   );
 
   /// See [BookViewpoint.updatedAt].
   static final updatedAt = obx.QueryDateProperty<BookViewpoint>(
-    _entities[9].properties[8],
+    _entities[9].properties[6],
   );
 }

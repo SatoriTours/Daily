@@ -8,24 +8,17 @@ class BookViewpoint implements BaseEntity {
   int id = 0;
 
   @override
-  @Property(type: PropertyType.date)
+  @Property(type: PropertyType.date, uid: 8943367424862014812)
   late DateTime createdAt;
 
   @override
-  @Property(type: PropertyType.date)
+  @Property(type: PropertyType.date, uid: 8945662529292125528)
   late DateTime updatedAt;
 
   int bookId;
   String title;
   String content;
   String example;
-
-  // 保持向后兼容性的别名
-  DateTime get createAt => createdAt;
-  set createAt(DateTime value) => createdAt = value;
-
-  DateTime get updateAt => updatedAt;
-  set updateAt(DateTime value) => updatedAt = value;
 
   BookViewpoint({
     this.id = 0,

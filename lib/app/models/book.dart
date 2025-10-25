@@ -74,14 +74,6 @@ class BookModel extends EntityModel<Book> {
   bool get hasUpdate => entity.hasUpdate;
   set hasUpdate(bool value) => entity.hasUpdate = value;
 
-  // ==================== 便捷属性(兼容旧代码) ====================
-
-  DateTime get createAt => entity.createAt;
-  set createAt(DateTime value) => entity.createAt = value;
-
-  DateTime get updateAt => entity.updateAt;
-  set updateAt(DateTime value) => entity.updateAt = value;
-
   // ==================== 转换方法 ====================
 
   factory BookModel.fromEntity(Book entity) => BookModel(entity);

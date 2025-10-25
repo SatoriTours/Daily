@@ -63,14 +63,6 @@ class BookViewpointModel extends EntityModel<BookViewpoint> {
   String get example => entity.example;
   set example(String value) => entity.example = value;
 
-  // ==================== 便捷属性(兼容旧代码) ====================
-
-  DateTime get createAt => entity.createAt;
-  set createAt(DateTime value) => entity.createAt = value;
-
-  DateTime get updateAt => entity.updateAt;
-  set updateAt(DateTime value) => entity.updateAt = value;
-
   // ==================== 关联属性 ====================
 
   /// 关联的书籍

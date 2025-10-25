@@ -66,7 +66,7 @@ class ViewpointCard extends StatelessWidget {
 
   /// 构建底部
   Widget _buildFooter(BuildContext context, BookModel? book) {
-    final formattedDate = DateFormat('yyyy-MM-dd').format(viewpoint.createAt);
+    final formattedDate = DateFormat('yyyy-MM-dd').format(viewpoint.createdAt);
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [

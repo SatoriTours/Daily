@@ -336,7 +336,7 @@ class BookService {
       book.author = bookData['author'] as String? ?? book.author;
       book.category = bookData['category'] as String? ?? book.category;
       book.introduction = bookData['introduction'] as String? ?? book.introduction;
-      book.updateAt = DateTime.now();
+      book.updatedAt = DateTime.now();
       BookRepository.instance.updateBook(book.toEntity());
 
       // 解析观点并替换
