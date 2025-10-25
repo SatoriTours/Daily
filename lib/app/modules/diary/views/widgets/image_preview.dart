@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'dart:io';
+import 'package:daily_satori/app/services/file_service.dart';
 
 /// 图片预览组件 - 支持删除操作
 class ImagePreview extends StatelessWidget {
@@ -26,6 +27,16 @@ class ImagePreview extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         itemCount: images.length,
         itemBuilder: (context, index) {
+          // 解析图片路径，处理相对路径
+          final imagePath = images[index];
+          final resolvedPath = FileService.i.resolveLocalMediaPath(imagePath);
+          final file = File(resolvedPath);
+
+          // 检查文件是否存在
+          if (!file.existsSync()) {
+            return _buildPlaceholder(context, index);
+          }
+
           return Stack(
             children: [
               Container(
@@ -34,7 +45,7 @@ class ImagePreview extends StatelessWidget {
                 margin: EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  image: DecorationImage(image: FileImage(File(images[index])), fit: BoxFit.cover),
+                  image: DecorationImage(image: FileImage(file), fit: BoxFit.cover),
                 ),
               ),
               Positioned(
@@ -52,6 +63,33 @@ class ImagePreview extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  /// 构建图片占位符（文件不存在时）
+  Widget _buildPlaceholder(BuildContext context, int index) {
+    return Container(
+      width: 100,
+      height: 100,
+      margin: EdgeInsets.only(right: 8),
+      decoration: BoxDecoration(color: Colors.grey.withAlpha(77), borderRadius: BorderRadius.circular(8)),
+      child: Stack(
+        children: [
+          Center(child: Icon(FeatherIcons.image, color: Colors.grey)),
+          Positioned(
+            right: 2,
+            top: 2,
+            child: GestureDetector(
+              onTap: () => onDelete(index),
+              child: Container(
+                padding: EdgeInsets.all(4),
+                decoration: BoxDecoration(color: Colors.black.withAlpha(128), shape: BoxShape.circle),
+                child: Icon(FeatherIcons.x, size: 14, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
