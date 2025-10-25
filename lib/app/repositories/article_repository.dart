@@ -219,7 +219,7 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
         break;
     }
 
-    save(article);
+    await save(article);
   }
 
   /// 获取搜索结果数量
