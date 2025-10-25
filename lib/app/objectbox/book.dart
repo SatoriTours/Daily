@@ -6,9 +6,11 @@ class Book implements BaseEntity {
   @override
   @Id()
   int id = 0;
+
   @override
   @Property(type: PropertyType.date)
   late DateTime createdAt;
+
   @override
   @Property(type: PropertyType.date)
   late DateTime updatedAt;
@@ -18,6 +20,8 @@ class Book implements BaseEntity {
   String category;
   String coverImage;
   String introduction;
+
+  /// 是否有更新
   bool hasUpdate;
 
   // 保持向后兼容性的别名

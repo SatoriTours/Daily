@@ -7,9 +7,11 @@ class Screenshot implements BaseEntity {
   @override
   @Id()
   int id = 0;
+
   @override
   @Property(type: PropertyType.date)
   late DateTime createdAt;
+
   @override
   @Property(type: PropertyType.date)
   late DateTime updatedAt;
@@ -18,5 +20,8 @@ class Screenshot implements BaseEntity {
 
   final article = ToOne<Article>();
 
-  Screenshot({this.id = 0, this.path});
+  Screenshot({this.id = 0, this.path, DateTime? createdAt, DateTime? updatedAt}) {
+    this.createdAt = createdAt ?? DateTime.now();
+    this.updatedAt = updatedAt ?? DateTime.now();
+  }
 }

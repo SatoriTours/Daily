@@ -8,9 +8,11 @@ class Article implements BaseEntity {
   @override
   @Id()
   int id = 0;
+
   @override
   @Property(type: PropertyType.date)
   late DateTime createdAt;
+
   @override
   @Property(type: PropertyType.date)
   late DateTime updatedAt;
@@ -26,7 +28,10 @@ class Article implements BaseEntity {
   String? url;
   bool isFavorite = false;
   String? comment;
+
+  /// 文章状态: pending(待处理), processing(处理中), completed(已完成), failed(失败)
   String status = 'pending';
+
   String? coverImage;
   String? coverImageUrl;
 

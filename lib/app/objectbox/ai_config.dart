@@ -19,8 +19,14 @@ class AIConfig implements BaseEntity {
   String apiAddress;
   String apiToken;
   String modelName;
+
+  /// 功能类型: 0=通用配置, 1=文章处理, 2=日记处理, 3=翻译, 4=其他
   int functionType;
+
+  /// 是否继承通用配置
   bool inheritFromGeneral;
+
+  /// 是否为默认配置
   bool isDefault;
 
   AIConfig({
