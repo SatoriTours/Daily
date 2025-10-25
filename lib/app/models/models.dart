@@ -3,7 +3,6 @@
 /// 用于集中导出所有模型类,方便其他地方导入
 library;
 
-export 'mixins/entity_model_mixin.dart';
 export 'ai_config_model.dart';
 export 'article_model.dart';
 export 'diary_model.dart';

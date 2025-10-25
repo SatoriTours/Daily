@@ -295,8 +295,8 @@ class ArticleController {
       'coverImage': FileService.i.convertLocalPathToWebPath(article.coverImage ?? ''),
       'coverImageUrl': article.coverImageUrl,
       'pubDate': article.pubDate?.toIso8601String(),
-      'updatedAt': article.updatedAt?.toIso8601String(),
-      'createdAt': article.createdAt?.toIso8601String(),
+      'updatedAt': article.updatedAt.toIso8601String(),
+      'createdAt': article.createdAt.toIso8601String(),
       'tags': article.tags.map((tag) => {'id': tag.id, 'name': tag.name}).toList(),
     };
   }

@@ -1,29 +1,29 @@
 import 'package:objectbox/objectbox.dart';
+import 'package:daily_satori/app/objectbox/base/base_entity.dart';
 
 @Entity()
-class BookViewpoint {
+class BookViewpoint implements BaseEntity {
+  @override
   @Id()
   int id = 0;
+  @override
+  @Property(type: PropertyType.date)
+  late DateTime createdAt;
+  @override
+  @Property(type: PropertyType.date)
+  late DateTime updatedAt;
 
-  /// 关联的书籍ID
   int bookId;
-
-  /// 观点标题
   String title;
-
-  /// 观点内容
   String content;
-
-  /// 案例
   String example;
 
-  /// 创建日期
-  @Property(type: PropertyType.date)
-  DateTime createAt;
+  // 保持向后兼容性的别名
+  DateTime get createAt => createdAt;
+  set createAt(DateTime value) => createdAt = value;
 
-  /// 更新日期
-  @Property(type: PropertyType.date)
-  DateTime updateAt;
+  DateTime get updateAt => updatedAt;
+  set updateAt(DateTime value) => updatedAt = value;
 
   BookViewpoint({
     this.id = 0,
@@ -33,6 +33,8 @@ class BookViewpoint {
     this.example = '',
     DateTime? createAt,
     DateTime? updateAt,
-  }) : createAt = createAt ?? DateTime.now(),
-       updateAt = updateAt ?? DateTime.now();
+  }) {
+    createdAt = createAt ?? DateTime.now();
+    updatedAt = updateAt ?? DateTime.now();
+  }
 }
