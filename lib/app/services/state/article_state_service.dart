@@ -86,7 +86,7 @@ class ArticleStateService extends GetxService {
   void setActiveArticle(ArticleModel article) {
     _activeArticleId.value = article.id;
     activeArticle.value = article;
-    logger.i('设置活跃文章: ${article.title} (ID: ${article.id})');
+    logger.i('设置活跃文章: ${article.singleLineTitle} (ID: ${article.id})');
   }
 
   /// 清除活跃文章
@@ -98,7 +98,7 @@ class ArticleStateService extends GetxService {
 
   /// 通知文章更新
   void notifyArticleUpdated(ArticleModel article) {
-    logger.i('通知文章更新: ${article.title} (ID: ${article.id})');
+    logger.i('通知文章更新: ${article.singleLineTitle} (ID: ${article.id})');
 
     // 如果是当前活跃文章，更新活跃文章引用
     if (_activeArticleId.value == article.id) {
@@ -125,7 +125,7 @@ class ArticleStateService extends GetxService {
 
   /// 通知文章创建
   void notifyArticleCreated(ArticleModel article) {
-    logger.i('通知文章创建: ${article.title} (ID: ${article.id})');
+    logger.i('通知文章创建: ${article.singleLineTitle} (ID: ${article.id})');
 
     // 发布文章创建事件
     articleUpdateEvent.value = ArticleUpdateEvent.created(article);
@@ -212,7 +212,7 @@ class ArticleStateService extends GetxService {
     final article = ArticleRepository.d.findModel(id);
     if (article == null) return;
 
-    logger.i('更新列表中的文章: ${article.title} (ID: $id)');
+    logger.i('更新列表中的文章: ${article.singleLineTitle} (ID: $id)');
 
     final index = articles.indexWhere((item) => item.id == id);
     if (index != -1) {
@@ -240,11 +240,11 @@ class ArticleStateService extends GetxService {
     final index = articles.indexWhere((item) => item.id == model.id);
     if (index == -1) {
       articles.insert(0, model);
-      logger.i('插入新文章到列表: ${model.title} (ID: ${model.id})');
+      logger.i('插入新文章到列表: ${model.singleLineTitle} (ID: ${model.id})');
     } else {
       articles[index].copyFrom(model);
       articles.value = List.from(articles); // 触发刷新
-      logger.i('更新列表中的文章: ${model.title} (ID: ${model.id})');
+      logger.i('更新列表中的文章: ${model.singleLineTitle} (ID: ${model.id})');
     }
   }
 

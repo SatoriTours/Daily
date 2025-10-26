@@ -21,6 +21,8 @@ class ArticleModel extends EntityModel<Article> {
   String? get title => entity.title;
   set title(String? value) => entity.title = value;
 
+  String? get singleLineTitle => title?.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+
   String? get aiTitle => entity.aiTitle;
   set aiTitle(String? value) => entity.aiTitle = value;
 

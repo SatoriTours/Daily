@@ -102,7 +102,7 @@ class ShareDialogController extends BaseGetXController {
         tagsController.text = articleTags.value;
         tagList.assignAll(tagNames);
       } catch (_) {}
-      logger.i("加载文章信息成功: ${article.title}");
+      logger.i("加载文章信息成功: ${article.singleLineTitle}");
     }
   }
 

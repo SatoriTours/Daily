@@ -92,8 +92,8 @@ extension PartSummarize on AiService {
 
     final List<String> tags = result.tags;
 
-    logger.i("[AI摘要] 摘要生成完成: ${StringUtils.getSubstring(summary)}");
-    logger.i("[AI摘要] 标签生成完成: $tags");
+    logger.i("[AI摘要] 摘要生成完成: ${StringUtils.singleLine(StringUtils.getSubstring(summary))}");
+    logger.i("[AI摘要] 标签生成完成: ${StringUtils.singleLine(StringUtils.getSubstring(tags.join(', ')))}");
 
     return (summary, tags);
   }

@@ -17,6 +17,8 @@ class StringUtils {
   /// 获取文本的第一行
   static String firstLine(String text) => text.split('\n').first;
 
+  static String singleLine(String? text) => text?.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim() ?? '';
+
   /// 从主机名获取顶级域名
   static String getTopLevelDomain(String? host) {
     if (host == null) return '';

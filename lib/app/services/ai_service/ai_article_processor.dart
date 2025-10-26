@@ -21,9 +21,7 @@ class AiArticleProcessor {
   static final AiArticleProcessor i = AiArticleProcessor._();
 
   Future<void> processAll(ArticleModel article) async {
-    logger.i(
-      '[AI] 开始处理文章 #${article.id} title=${StringUtils.getSubstring(article.title ?? '')} content=${StringUtils.getSubstring(article.content ?? '')}',
-    );
+    logger.i('[AI] 开始处理文章 #${article.id} title=${StringUtils.singleLine(article.title)}');
     final tasks = <Future<void>>[
       _processTitle(article),
       _processSummary(article),
