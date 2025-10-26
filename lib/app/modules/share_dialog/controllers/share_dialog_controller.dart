@@ -11,6 +11,7 @@ class ShareDialogController extends BaseGetXController {
   // 状态变量
   final RxString shareURL = ''.obs;
   final RxBool isUpdate = false.obs;
+  final RxBool fromClipboard = false.obs; // 标记是否从剪切板来的URL
 
   final RxInt articleID = 0.obs;
   final RxString articleTitle = ''.obs;
@@ -60,6 +61,12 @@ class ShareDialogController extends BaseGetXController {
     } else {
       isUpdate.value = false;
       logger.i("模式: 新增");
+    }
+
+    // 检查是否从剪切板来的
+    if (args.containsKey('fromClipboard') && args['fromClipboard'] == true) {
+      fromClipboard.value = true;
+      logger.i("来源: 剪切板");
     }
 
     // 初始化分享URL
@@ -242,9 +249,21 @@ class ShareDialogController extends BaseGetXController {
   /// 点击取消按钮
   void backToPreviousStep() {
     if (isUpdate.value) {
+      // 更新模式：返回文章详情页
       _navigateToDetail();
+    } else if (fromClipboard.value) {
+      // 从剪切板来的新增模式：只关闭对话框
+      Get.back();
     } else {
-      _backToPreviousApp();
+      // 从分享来的新增模式：
+      // - Production 模式：关闭app返回到之前的应用
+      // - 非 Production 模式（调试）：只关闭对话框，方便调试
+      if (AppInfoUtils.isProduction) {
+        _backToPreviousApp();
+      } else {
+        logger.d('[ShareDialog] 非生产环境，保存后只关闭对话框（方便调试）');
+        Get.back();
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/repositories/base_repository.dart';
+import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/objectbox.g.dart';
@@ -136,6 +137,15 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
     if (articleModel == null) {
       logger.i("未找到文章以删除: $id");
       return;
+    }
+
+    // 删除关联的图片文件
+    if (articleModel.images.isNotEmpty) {
+      final imagePaths = articleModel.images.map((img) => img.path ?? '').where((p) => p.isNotEmpty).toList();
+      if (imagePaths.isNotEmpty) {
+        final deletedCount = await FileService.i.deleteFiles(imagePaths);
+        logger.i("删除文章 #$id 的图片文件: $deletedCount/${imagePaths.length} 个");
+      }
     }
 
     // 清理关联数据

@@ -110,7 +110,8 @@ class ClipboardUtils {
     await checkForUrl(
       onUrlDetected: (url) {
         // 统一的URL处理逻辑：导航到分享对话框
-        Get.toNamed(Routes.shareDialog, arguments: {'shareURL': url});
+        // 添加 fromClipboard 标记，表示这是从剪切板来的URL
+        Get.toNamed(Routes.shareDialog, arguments: {'shareURL': url, 'fromClipboard': true});
       },
       clearClipboard: clearClipboard,
       urlValidator: urlValidator,

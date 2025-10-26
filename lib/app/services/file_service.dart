@@ -230,4 +230,37 @@ class FileService {
 
     return null;
   }
+
+  /// 删除单个文件
+  /// 返回是否成功删除
+  Future<bool> deleteFile(String filePath) async {
+    try {
+      if (filePath.isEmpty) return false;
+
+      final file = File(filePath);
+      if (await file.exists()) {
+        await file.delete();
+        logger.d('[FileService] 已删除文件: $filePath');
+        return true;
+      } else {
+        logger.w('[FileService] 文件不存在，无法删除: $filePath');
+        return false;
+      }
+    } catch (e) {
+      logger.e('[FileService] 删除文件失败: $filePath, 错误: $e');
+      return false;
+    }
+  }
+
+  /// 批量删除文件
+  /// 返回成功删除的文件数量
+  Future<int> deleteFiles(List<String> filePaths) async {
+    int deletedCount = 0;
+    for (final filePath in filePaths) {
+      if (await deleteFile(filePath)) {
+        deletedCount++;
+      }
+    }
+    return deletedCount;
+  }
 }
