@@ -145,6 +145,10 @@ class FileService {
     // 若文件本身就存在，直接返回
     if (File(normalized).existsSync()) return normalized;
 
+    // 尝试添加常见扩展名（处理数据库中存储的文件名没有扩展名的情况）
+    final triedPath = _tryFileWithExtensions(normalized);
+    if (triedPath != null) return triedPath;
+
     // 分割为通用段，查找关键目录
     final segments = normalized.split(RegExp(r"[\\/]+"));
     final lowerSegments = segments.map((e) => e.toLowerCase()).toList();
@@ -153,21 +157,41 @@ class FileService {
     if (idx != -1) {
       final rel = path.joinAll(segments.sublist(idx + 1));
       final candidate = path.join(_diaryImagesBasePath, rel);
+
+      // 先尝试原路径
       if (File(candidate).existsSync()) return candidate;
+
+      // 尝试添加扩展名
+      final withExt = _tryFileWithExtensions(candidate);
+      if (withExt != null) return withExt;
 
       // 尝试仅使用文件名（可能路径结构不同）
       final baseOnly = path.join(_diaryImagesBasePath, path.basename(rel));
       if (File(baseOnly).existsSync()) return baseOnly;
+
+      // 尝试文件名+扩展名
+      final baseWithExt = _tryFileWithExtensions(baseOnly);
+      if (baseWithExt != null) return baseWithExt;
     }
 
     idx = lowerSegments.indexWhere((s) => s == 'images');
     if (idx != -1) {
       final rel = path.joinAll(segments.sublist(idx + 1));
       final candidate = path.join(_imagesBasePath, rel);
+
+      // 先尝试原路径
       if (File(candidate).existsSync()) return candidate;
+
+      // 尝试添加扩展名
+      final withExt = _tryFileWithExtensions(candidate);
+      if (withExt != null) return withExt;
 
       final baseOnly = path.join(_imagesBasePath, path.basename(rel));
       if (File(baseOnly).existsSync()) return baseOnly;
+
+      // 尝试文件名+扩展名
+      final baseWithExt = _tryFileWithExtensions(baseOnly);
+      if (baseWithExt != null) return baseWithExt;
     }
 
     // 若原路径为相对路径，尝试拼接到两个根目录
@@ -175,11 +199,35 @@ class FileService {
       final candidate1 = path.join(_diaryImagesBasePath, normalized);
       if (File(candidate1).existsSync()) return candidate1;
 
+      final withExt1 = _tryFileWithExtensions(candidate1);
+      if (withExt1 != null) return withExt1;
+
       final candidate2 = path.join(_imagesBasePath, normalized);
       if (File(candidate2).existsSync()) return candidate2;
+
+      final withExt2 = _tryFileWithExtensions(candidate2);
+      if (withExt2 != null) return withExt2;
     }
 
     // 最后兜底，返回原路径（由调用方决定回退到网络或占位）
     return storedPath;
+  }
+
+  // 尝试为文件路径添加常见扩展名
+  String? _tryFileWithExtensions(String filePath) {
+    // 如果已经有扩展名，不尝试
+    if (path.extension(filePath).isNotEmpty) return null;
+
+    // 常见图片扩展名列表
+    const extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
+
+    for (final ext in extensions) {
+      final withExt = '$filePath$ext';
+      if (File(withExt).existsSync()) {
+        return withExt;
+      }
+    }
+
+    return null;
   }
 }

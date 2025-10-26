@@ -83,25 +83,31 @@ class WebpageParserService {
     // 处理已存在的情况
     if (existingArticle != null) {
       if (!isUpdate) {
+        // 新增模式但URL已存在，抛出错误
         throw Exception("网页已存在，无法重复添加");
-      } else if (articleID <= 0) {
-        throw Exception("文章ID无效，无法更新");
+      } else {
+        // 更新模式：如果提供的articleID与已存在的不一致，使用已存在的
+        if (articleID > 0 && articleID != existingArticle.id) {
+          logger.w("[网页解析][初始化] 提供的ID($articleID)与URL对应的文章ID(${existingArticle.id})不一致，使用已存在的文章");
+        }
+        // 使用已存在文章的ID进行重置
+        final article = await _resetExistingArticle(existingArticle.id, comment);
+        logger.i("[网页解析][初始化] 重置已存在文章 #${existingArticle.id}");
+        return article;
       }
     }
 
-    // 创建或更新文章
-    final ArticleModel article;
-
+    // URL不存在的情况
     if (isUpdate && articleID > 0) {
-      // 如果是更新，重置现有文章
-      article = await _resetExistingArticle(articleID, comment);
-      logger.i("[网页解析][初始化] 重置现有文章 #$articleID");
-    } else {
-      // 创建新文章
-      article = await _createNewArticle(url, comment);
-      logger.i("[网页解析][初始化] 创建新文章 #${article.id}");
+      // 更新模式但URL不存在，说明要更新的文章URL已改变，重置该文章
+      final article = await _resetExistingArticle(articleID, comment);
+      logger.i("[网页解析][初始化] 重置现有文章(URL已变更) #$articleID");
+      return article;
     }
 
+    // 创建新文章
+    final article = await _createNewArticle(url, comment);
+    logger.i("[网页解析][初始化] 创建新文章 #${article.id}");
     logger.i("[网页解析][初始化] ◀ 文章初始化完成: #${article.id}");
     return article;
   }
@@ -209,7 +215,7 @@ class WebpageParserService {
     }
 
     logger.d("[网页解析][创建] ◀ 新文章创建成功: #${savedModel.entity.id}");
-    return articleModel;
+    return savedModel;
   }
 
   /// 重置现有文章以更新内容
@@ -263,8 +269,17 @@ class WebpageParserService {
   /// 通知UI更新
   void _notifyUI(int articleId) {
     try {
+      // 验证articleId的有效性
+      if (articleId <= 0) {
+        logger.w("[网页解析][UI] 无效的articleId: $articleId，跳过UI通知");
+        return;
+      }
+
       final article = ArticleRepository.d.findModel(articleId);
-      if (article == null) return;
+      if (article == null) {
+        logger.w("[网页解析][UI] 未找到文章 #$articleId，跳过UI通知");
+        return;
+      }
 
       // 通知文章控制器更新
       if (Get.isRegistered<ArticlesController>()) {

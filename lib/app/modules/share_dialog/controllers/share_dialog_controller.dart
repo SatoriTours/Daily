@@ -112,18 +112,18 @@ class ShareDialogController extends BaseGetXController {
           await ProcessingDialog.show(
             message: 'AI分析中...',
             onProcess: (updateMessage) async {
-              final saved = await WebpageParserService.i.saveWebpage(
+              final newArticle = await WebpageParserService.i.saveWebpage(
                 url: shareURL.value,
                 comment: commentController.text,
                 isUpdate: isUpdate.value,
                 articleID: articleID.value,
               );
               // 新增模式：保存后拿到新文章ID
-              if (articleID.value <= 0 && saved.id > 0) {
-                articleID.value = saved.id;
+              if (articleID.value <= 0 && newArticle.id > 0) {
+                articleID.value = newArticle.id;
                 logger.i('[ShareDialog] 新增文章保存完成，ID=${articleID.value}');
                 // 通知文章创建
-                _articleStateService.notifyArticleCreated(saved);
+                _articleStateService.notifyArticleCreated(newArticle);
               }
             },
           );
