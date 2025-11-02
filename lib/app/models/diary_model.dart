@@ -1,18 +1,9 @@
 import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/diary.dart';
-import 'package:daily_satori/app/repositories/repositories.dart';
 
 /// 日记模型类
 class DiaryModel extends EntityModel<Diary> {
   DiaryModel(super.entity);
-
-  factory DiaryModel.fromId(int id) {
-    final diary = DiaryRepository.i.find(id);
-    if (diary == null) {
-      throw Exception('找不到ID为$id的日记');
-    }
-    return diary;
-  }
 
   factory DiaryModel.create({
     int id = 0,
@@ -55,8 +46,6 @@ class DiaryModel extends EntityModel<Diary> {
   List<String> get imagesList => images?.split(',') ?? [];
 
   // ==================== 转换方法 ====================
-
-  factory DiaryModel.fromEntity(Diary entity) => DiaryModel(entity);
 
   Diary toEntity() => entity;
 }

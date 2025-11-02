@@ -1,18 +1,9 @@
 import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/book.dart';
-import 'package:daily_satori/app/repositories/repositories.dart';
 
 /// 书籍模型
 class BookModel extends EntityModel<Book> {
   BookModel(super.entity);
-
-  factory BookModel.fromId(int id) {
-    final bookModel = BookRepository.i.find(id);
-    if (bookModel == null) {
-      throw Exception('找不到 ID 为 $id 的书籍');
-    }
-    return bookModel;
-  }
 
   factory BookModel.create({
     int id = 0,
@@ -75,8 +66,6 @@ class BookModel extends EntityModel<Book> {
   set hasUpdate(bool value) => entity.hasUpdate = value;
 
   // ==================== 转换方法 ====================
-
-  factory BookModel.fromEntity(Book entity) => BookModel(entity);
 
   Book toEntity() => entity;
 

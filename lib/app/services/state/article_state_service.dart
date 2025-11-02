@@ -216,16 +216,15 @@ class ArticleStateService extends GetxService {
 
     final index = articles.indexWhere((item) => item.id == id);
     if (index != -1) {
-      // 就地合并，保持对象引用不变
-      articles[index].copyFrom(article);
-      // 触发 Rx 刷新 - 使用正确的语法
+      // 直接替换对象
+      articles[index] = article;
+      // 触发 Rx 刷新
       articles.value = List.from(articles);
     }
 
     // 如果是当前活跃文章，同步更新
     if (_activeArticleId.value == id) {
-      activeArticle.value?.copyFrom(article);
-      activeArticle.value = activeArticle.value; // 触发刷新
+      activeArticle.value = article;
     }
   }
 
@@ -242,7 +241,7 @@ class ArticleStateService extends GetxService {
       articles.insert(0, model);
       logger.i('插入新文章到列表: ${model.singleLineTitle} (ID: ${model.id})');
     } else {
-      articles[index].copyFrom(model);
+      articles[index] = model;
       articles.value = List.from(articles); // 触发刷新
       logger.i('更新列表中的文章: ${model.singleLineTitle} (ID: ${model.id})');
     }

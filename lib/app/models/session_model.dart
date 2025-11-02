@@ -5,11 +5,6 @@ import 'package:daily_satori/app/objectbox/session.dart';
 class SessionModel extends EntityModel<SessionEntity> {
   SessionModel(super.entity);
 
-  /// 从SessionEntity创建SessionModel
-  factory SessionModel.fromEntity(SessionEntity entity) {
-    return SessionModel(entity);
-  }
-
   // ==================== 属性访问器 ====================
 
   String get sessionId => entity.sessionId;

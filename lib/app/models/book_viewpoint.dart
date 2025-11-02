@@ -1,19 +1,9 @@
 import 'package:daily_satori/app/models/base/entity_model.dart';
-import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/objectbox/book_viewpoint.dart';
-import 'package:daily_satori/app/repositories/repositories.dart';
 
 /// 书籍观点模型
 class BookViewpointModel extends EntityModel<BookViewpoint> {
   BookViewpointModel(super.entity);
-
-  factory BookViewpointModel.fromId(int id) {
-    final viewpoint = BookViewpointRepository.i.find(id);
-    if (viewpoint == null) {
-      throw Exception('找不到 ID 为 $id 的观点');
-    }
-    return viewpoint;
-  }
 
   factory BookViewpointModel.create({
     int id = 0,
@@ -62,13 +52,6 @@ class BookViewpointModel extends EntityModel<BookViewpoint> {
 
   String get example => entity.example;
   set example(String value) => entity.example = value;
-
-  // ==================== 关联属性 ====================
-
-  /// 关联的书籍
-  BookModel? get book {
-    return BookRepository.i.find(bookId);
-  }
 
   // ==================== 转换方法 ====================
 

@@ -20,7 +20,7 @@ class BookRepository extends BaseRepository<Book, BookModel> {
 
   @override
   BookModel toModel(Book entity) {
-    return BookModel.fromEntity(entity);
+    return BookModel(entity);
   }
 
   // ============ Book 业务查询方法 ============

@@ -58,7 +58,7 @@ class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
     // 设置新的默认配置
     final config = box.get(configId);
     if (config != null) {
-      final modelConfig = AIConfigModel.fromConfig(config);
+      final modelConfig = AIConfigModel(config);
       modelConfig.isDefault = true;
       save(modelConfig);
     }

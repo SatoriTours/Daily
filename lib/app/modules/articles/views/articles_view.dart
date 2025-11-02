@@ -94,7 +94,7 @@ class ArticlesView extends GetView<ArticlesController> {
             Get.toNamed(Routes.articleDetail, arguments: article);
           },
           onFavoriteToggle: (article) async {
-            article.toggleFavorite();
+            ArticleRepository.i.toggleFavorite(article.id);
             controller.updateArticle(article.id);
           },
           onShare: (article) async {

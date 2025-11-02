@@ -130,7 +130,15 @@ class AIConfigStateService extends GetxService {
   Future<bool> cloneConfig(AIConfigModel config) async {
     try {
       // 克隆配置
-      final newConfig = config.clone();
+      final newConfig = AIConfigModel.create(
+        name: "${config.name} - 副本",
+        apiAddress: config.apiAddress,
+        apiToken: config.apiToken,
+        modelName: config.modelName,
+        functionType: config.functionType,
+        inheritFromGeneral: config.inheritFromGeneral,
+        isDefault: false,
+      );
 
       // 保存配置
       final id = AIConfigRepository.i.save(newConfig);

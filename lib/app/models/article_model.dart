@@ -2,19 +2,10 @@ import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
-import 'package:daily_satori/app/repositories/repositories.dart';
 
 /// 文章数据模型类
 class ArticleModel extends EntityModel<Article> {
   ArticleModel(super.entity);
-
-  factory ArticleModel.fromId(int id) {
-    final article = ArticleRepository.i.findModel(id);
-    if (article == null) {
-      throw Exception('找不到ID为$id的文章');
-    }
-    return article;
-  }
 
   // ==================== 基本属性 ====================
 
@@ -106,43 +97,4 @@ class ArticleModel extends EntityModel<Article> {
 
   String getStatus() => status;
   void setStatus(String newStatus) => status = newStatus;
-
-  bool toggleFavorite() {
-    return ArticleRepository.i.toggleFavorite(id);
-  }
-
-  // ==================== 数据操作方法 ====================
-
-  void save() {
-    ArticleRepository.i.updateModel(this);
-  }
-
-  void copyFrom(ArticleModel other) {
-    title = other.title;
-    aiTitle = other.aiTitle;
-    content = other.content;
-    aiContent = other.aiContent;
-    htmlContent = other.htmlContent;
-    aiMarkdownContent = other.aiMarkdownContent;
-    url = other.url;
-    isFavorite = other.isFavorite;
-    comment = other.comment;
-    status = other.status;
-    coverImage = other.coverImage;
-    coverImageUrl = other.coverImageUrl;
-    pubDate = other.pubDate;
-    createdAt = other.createdAt;
-    updatedAt = other.updatedAt;
-
-    try {
-      tags
-        ..clear()
-        ..addAll(other.tags);
-    } catch (_) {}
-    try {
-      images
-        ..clear()
-        ..addAll(other.images);
-    } catch (_) {}
-  }
 }

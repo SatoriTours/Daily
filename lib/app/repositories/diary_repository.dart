@@ -16,7 +16,7 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
 
   @override
   DiaryModel toModel(Diary entity) {
-    return DiaryModel.fromEntity(entity);
+    return DiaryModel(entity);
   }
 
   /// 删除日记(旧方法名兼容)

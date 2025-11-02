@@ -353,8 +353,11 @@ class _DiaryCardState extends State<DiaryCard> {
   /// 根据观点ID查询书名/作者（查询失败时返回空元信息）
   _BookMeta _getBookMeta(int viewpointId) {
     final vp = BookViewpointRepository.i.find(viewpointId);
-    if (vp != null && vp.book != null) {
-      return _BookMeta(title: vp.book!.title, author: vp.book!.author);
+    if (vp != null) {
+      final book = BookRepository.i.find(vp.bookId);
+      if (book != null) {
+        return _BookMeta(title: book.title, author: book.author);
+      }
     }
     return const _BookMeta();
   }

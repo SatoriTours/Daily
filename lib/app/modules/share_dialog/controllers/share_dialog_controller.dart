@@ -346,7 +346,7 @@ class ShareDialogController extends BaseGetXController {
   /// 保存文章并通知状态服务，同时记录日志前缀
   Future<void> _saveAndNotify(ArticleModel article, {String log = '已更新'}) async {
     article.updatedAt = DateTime.now().toUtc();
-    article.save();
+    ArticleRepository.i.updateModel(article);
 
     // 通知全局状态服务文章已更新
     _articleStateService.notifyArticleUpdated(article);

@@ -5,8 +5,32 @@ import 'package:daily_satori/app/objectbox/ai_config.dart';
 class AIConfigModel extends EntityModel<AIConfig> {
   AIConfigModel(super.entity);
 
-  factory AIConfigModel.fromConfig(AIConfig config) {
-    return AIConfigModel(config);
+  factory AIConfigModel.create({
+    int id = 0,
+    required String name,
+    required String apiAddress,
+    required String apiToken,
+    required String modelName,
+    int functionType = 0,
+    bool inheritFromGeneral = false,
+    bool isDefault = false,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return AIConfigModel(
+      AIConfig(
+        id: id,
+        name: name,
+        apiAddress: apiAddress,
+        apiToken: apiToken,
+        modelName: modelName,
+        functionType: functionType,
+        inheritFromGeneral: inheritFromGeneral,
+        isDefault: isDefault,
+        createdAt: createdAt ?? DateTime.now(),
+        updatedAt: updatedAt ?? DateTime.now(),
+      ),
+    );
   }
 
   AIConfig get config => entity;
@@ -38,22 +62,6 @@ class AIConfigModel extends EntityModel<AIConfig> {
     if (apiAddress.isEmpty) apiAddress = general.apiAddress;
     if (apiToken.isEmpty) apiToken = general.apiToken;
     if (modelName.isEmpty) modelName = general.modelName;
-  }
-
-  AIConfigModel clone() {
-    final newConfig = AIConfig(
-      id: 0,
-      name: "$name - 副本",
-      apiAddress: apiAddress,
-      apiToken: apiToken,
-      modelName: modelName,
-      functionType: functionType,
-      inheritFromGeneral: inheritFromGeneral,
-      isDefault: false,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-    return AIConfigModel(newConfig);
   }
 
   String get functionTypeName {

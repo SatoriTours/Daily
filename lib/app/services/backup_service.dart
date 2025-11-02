@@ -335,7 +335,7 @@ class BackupService {
         } catch (_) {}
 
         if (changed) {
-          am.save();
+          ArticleRepository.i.updateModel(am);
         }
       }
       logger.i('恢复后已修复文章相关图片路径');
