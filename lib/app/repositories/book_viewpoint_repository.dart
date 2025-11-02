@@ -26,11 +26,9 @@ class BookViewpointRepository extends BaseRepository<BookViewpoint, BookViewpoin
   /// 根据书籍ID列表获取视角
   List<BookViewpoint> getByBookIds(List<int> bookIds) {
     final query = box.query(BookViewpoint_.bookId.oneOf(bookIds)).build();
-    try {
-      return query.find();
-    } finally {
-      query.close();
-    }
+    final result = query.find();
+    query.close();
+    return result;
   }
 
   /// 根据书籍ID获取视角（返回Model）

@@ -44,12 +44,9 @@ class ScreenshotRepository extends BaseRepository<Screenshot, ScreenshotModel> {
   /// 根据文章ID删除截图
   int deleteByArticleId(int articleId) {
     final query = box.query(Screenshot_.article.equals(articleId)).build();
-    try {
-      final screenshots = query.find();
-      if (screenshots.isEmpty) return 0;
-      return removeMany(screenshots.map((s) => s.id).toList());
-    } finally {
-      query.close();
-    }
+    final screenshots = query.find();
+    query.close();
+    if (screenshots.isEmpty) return 0;
+    return removeMany(screenshots.map((s) => s.id).toList());
   }
 }

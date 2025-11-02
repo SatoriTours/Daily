@@ -28,31 +28,25 @@ class BookRepository extends BaseRepository<Book, BookModel> {
   /// 根据类别获取书籍
   List<Book> getBooksByCategory(String category) {
     final query = box.query(Book_.category.equals(category)).build();
-    try {
-      return query.find();
-    } finally {
-      query.close();
-    }
+    final result = query.find();
+    query.close();
+    return result;
   }
 
   /// 根据标题搜索书籍
   List<Book> searchByTitle(String title) {
     final query = box.query(Book_.title.contains(title, caseSensitive: false)).build();
-    try {
-      return query.find();
-    } finally {
-      query.close();
-    }
+    final result = query.find();
+    query.close();
+    return result;
   }
 
   /// 根据作者搜索书籍
   List<Book> searchByAuthor(String author) {
     final query = box.query(Book_.author.contains(author, caseSensitive: false)).build();
-    try {
-      return query.find();
-    } finally {
-      query.close();
-    }
+    final result = query.find();
+    query.close();
+    return result;
   }
 
   // ============ 书籍关联的观点查询 ============

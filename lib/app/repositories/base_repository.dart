@@ -125,14 +125,12 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
     }
 
     final query = queryBuilder.build();
-    try {
-      query
-        ..offset = offset
-        ..limit = pageSize;
-      return query.find().map(toModel).toList();
-    } finally {
-      query.close();
-    }
+    query
+      ..offset = offset
+      ..limit = pageSize;
+    final result = query.find().map(toModel).toList();
+    query.close();
+    return result;
   }
 
   /// 分页查询所有 Model(别名)
@@ -145,32 +143,25 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
   /// 根据条件查询 Model 列表
   List<M> findByCondition(Condition<E> condition) {
     final query = box.query(condition).build();
-    try {
-      return query.find().map(toModel).toList();
-    } finally {
-      query.close();
-    }
+    final result = query.find().map(toModel).toList();
+    query.close();
+    return result;
   }
 
   /// 根据条件查询第一个 Model
   M? findFirstByCondition(Condition<E> condition) {
     final query = box.query(condition).build();
-    try {
-      final entity = query.findFirst();
-      return entity != null ? toModel(entity) : null;
-    } finally {
-      query.close();
-    }
+    final entity = query.findFirst();
+    query.close();
+    return entity != null ? toModel(entity) : null;
   }
 
   /// 根据条件统计数量
   int countByCondition(Condition<E> condition) {
     final query = box.query(condition).build();
-    try {
-      return query.count();
-    } finally {
-      query.close();
-    }
+    final result = query.count();
+    query.close();
+    return result;
   }
 
   /// 根据条件分页查询 Model
@@ -188,14 +179,12 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
     }
 
     final query = queryBuilder.build();
-    try {
-      query
-        ..offset = offset
-        ..limit = pageSize;
-      return query.find().map(toModel).toList();
-    } finally {
-      query.close();
-    }
+    query
+      ..offset = offset
+      ..limit = pageSize;
+    final result = query.find().map(toModel).toList();
+    query.close();
+    return result;
   }
 
   /// 根据条件查询 Model 列表(别名)

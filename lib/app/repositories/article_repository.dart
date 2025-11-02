@@ -263,12 +263,9 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
       query.limit = limit;
     }
 
-    try {
-      final articles = query.find();
-      return articles.map((article) => ArticleModel(article)).toList();
-    } finally {
-      query.close();
-    }
+    final articles = query.find();
+    query.close();
+    return articles.map((article) => ArticleModel(article)).toList();
   }
 
   /// 分页复杂条件查询
@@ -289,12 +286,9 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
       ..limit = pageSize
       ..offset = (page - 1) * pageSize;
 
-    try {
-      final articles = query.find();
-      return articles.map((article) => ArticleModel(article)).toList();
-    } finally {
-      query.close();
-    }
+    final articles = query.find();
+    query.close();
+    return articles.map((article) => ArticleModel(article)).toList();
   }
 }
 
