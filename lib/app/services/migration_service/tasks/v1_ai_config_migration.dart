@@ -111,7 +111,7 @@ class AIConfigMigrationTask extends MigrationTask {
     }
 
     // 保存更新后的配置
-    AIConfigRepository.instance.updateAIConfig(generalConfig);
+    AIConfigRepository.instance.save(generalConfig);
   }
 
   /// 清除旧的AI配置数据

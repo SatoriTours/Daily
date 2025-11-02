@@ -47,7 +47,7 @@ class MigrationService {
 
   /// 更新数据库版本
   Future<void> _updateDbVersion(int version) async {
-    await SettingRepository.instance.saveSetting(_dbVersionKey, version.toString());
+    SettingRepository.instance.saveSetting(_dbVersionKey, version.toString());
     logger.i("📝 [迁移服务] 数据库版本更新为: $version");
   }
 

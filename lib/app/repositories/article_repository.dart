@@ -122,13 +122,13 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   }
 
   /// 根据URL查找文章
-  Future<ArticleModel?> findByUrl(String url) async {
+  ArticleModel? findByUrl(String url) {
     return findFirstByStringEquals(Article_.url, url);
   }
 
   /// 根据URL判断文章是否存在
-  Future<bool> existsByUrl(String url) async {
-    return await findByUrl(url) != null;
+  bool existsByUrl(String url) {
+    return findByUrl(url) != null;
   }
 
   /// 删除文章及其关联数据
@@ -153,7 +153,7 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
     articleModel.images.clear();
 
     // 保存更改并删除文章
-    await updateModel(articleModel);
+    updateModel(articleModel);
     remove(id);
 
     logger.i("文章已删除: $id");
@@ -161,9 +161,9 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
 
   /// 保存文章Model（带日志）
   @override
-  Future<int> saveModel(ArticleModel articleModel) async {
+  int saveModel(ArticleModel articleModel) {
     try {
-      final id = await super.saveModel(articleModel);
+      final id = super.saveModel(articleModel);
       logger.i("文章已保存: ${StringUtils.firstLine(articleModel.title ?? '')}");
       return id;
     } catch (e) {
@@ -174,9 +174,9 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
 
   /// 更新文章Model（带日志）
   @override
-  Future<int> updateModel(ArticleModel articleModel) async {
+  int updateModel(ArticleModel articleModel) {
     try {
-      final id = await super.updateModel(articleModel);
+      final id = super.updateModel(articleModel);
       logger.i("文章已更新: ${StringUtils.firstLine(articleModel.title ?? '')}");
       return id;
     } catch (e) {
@@ -186,12 +186,12 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   }
 
   /// 切换收藏状态
-  Future<bool> toggleFavorite(int id) async {
+  bool toggleFavorite(int id) {
     final articleModel = findModel(id);
     if (articleModel == null) return false;
 
     articleModel.isFavorite = !articleModel.isFavorite;
-    await updateModel(articleModel);
+    updateModel(articleModel);
 
     final status = articleModel.isFavorite ? "已收藏" : "已取消收藏";
     logger.i("文章$status: $id");
@@ -204,7 +204,7 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   }
 
   /// 更新文章的单个字段
-  Future<void> updateField(int articleId, ArticleFieldName fieldName, dynamic value) async {
+  void updateField(int articleId, ArticleFieldName fieldName, dynamic value) {
     final article = find(articleId);
     if (article == null) {
       logger.w('[文章仓储] 更新字段失败: 文章不存在 #$articleId');
@@ -229,7 +229,7 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
         break;
     }
 
-    await save(article);
+    save(article);
   }
 
   /// 获取搜索结果数量

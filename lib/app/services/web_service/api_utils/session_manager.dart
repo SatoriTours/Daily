@@ -37,7 +37,7 @@ class Session {
   /// 更新最后访问时间
   Future<void> touch() async {
     _lastAccessTime = DateTime.now();
-    await SessionRepository.instance.updateLastAccessedAt(id, _lastAccessTime);
+    SessionRepository.instance.updateLastAccessedAt(id, _lastAccessTime);
   }
 
   /// 设置为已认证状态
@@ -45,7 +45,7 @@ class Session {
     username = name;
     isAuthenticated = true;
     await touch();
-    await SessionRepository.instance.authenticate(id, name);
+    SessionRepository.instance.authenticate(id, name);
   }
 
   /// 清除认证状态
@@ -53,7 +53,7 @@ class Session {
     isAuthenticated = false;
     username = null;
     await touch();
-    await SessionRepository.instance.clearAuthentication(id);
+    SessionRepository.instance.clearAuthentication(id);
   }
 
   /// 是否已过期（30分钟不活动即过期）
@@ -96,7 +96,7 @@ class SessionManager {
 
     // 保存到数据库
     final model = session.toModel();
-    await SessionRepository.instance.save(model);
+    SessionRepository.instance.save(model);
 
     // 每创建会话时，清理过期会话
     _cleanExpiredSessions();

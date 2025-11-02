@@ -105,13 +105,13 @@ class PluginService {
     // 1. 从数据库读取配置
     String configContent = SettingRepository.instance.getSetting(settingKey);
 
-    // 2. 数据库无配置或者开发模式下，读取本地文件
+    // 2. 数据库无配置或者开发模式下,读取本地文件
     if (configContent.isEmpty || !AppInfoUtils.isProduction) {
       try {
         configContent = await rootBundle.loadString(localPath);
         if (configContent.isNotEmpty) {
           // 保存到数据库
-          await SettingRepository.instance.saveSetting(settingKey, configContent);
+          SettingRepository.instance.saveSetting(settingKey, configContent);
           logger.i('加载本地配置: $fileName - 成功并保存到数据库');
         }
       } catch (e) {
@@ -144,10 +144,10 @@ class PluginService {
       if (response.trim().isNotEmpty) {
         // 保存到数据库
         final String settingKey = _makePluginKey(fileName);
-        await SettingRepository.instance.saveSetting(settingKey, response.trim());
+        SettingRepository.instance.saveSetting(settingKey, response.trim());
 
         // 更新最后更新时间
-        await _updateLastUpdateTime(fileName);
+        _updateLastUpdateTime(fileName);
 
         logger.i('更新配置: $fileName - 成功');
 
@@ -164,10 +164,10 @@ class PluginService {
   }
 
   /// 更新最后更新时间
-  Future<void> _updateLastUpdateTime(String fileName) async {
+  void _updateLastUpdateTime(String fileName) {
     final timeKey = '${_makePluginKey(fileName)}_last_update';
     final now = DateTime.now().toIso8601String();
-    await SettingRepository.instance.saveSetting(timeKey, now);
+    SettingRepository.instance.saveSetting(timeKey, now);
   }
 
   /// 获取最后更新时间
@@ -193,7 +193,7 @@ class PluginService {
 
   /// 设置插件服务器URL
   Future<void> setPluginServerUrl(String url) async {
-    await SettingRepository.instance.saveSetting(SettingService.pluginKey, url);
+    SettingRepository.instance.saveSetting(SettingService.pluginKey, url);
   }
 
   /// 强制更新单个插件

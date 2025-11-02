@@ -42,44 +42,44 @@ class SessionRepository extends BaseRepository<SessionEntity, SessionModel> {
   }
 
   /// 更新会话的最后访问时间
-  Future<bool> updateLastAccessedAt(String sessionId, DateTime lastAccessedAt) async {
+  bool updateLastAccessedAt(String sessionId, DateTime lastAccessedAt) {
     final session = findBySessionId(sessionId);
     if (session != null) {
       session.lastAccessedAt = lastAccessedAt;
-      await save(session);
+      save(session);
       return true;
     }
     return false;
   }
 
   /// 设置会话的认证状态
-  Future<bool> authenticate(String sessionId, String username) async {
+  bool authenticate(String sessionId, String username) {
     final session = findBySessionId(sessionId);
     if (session != null) {
       session.isAuthenticated = true;
       session.username = username;
       session.lastAccessedAt = DateTime.now();
-      await save(session);
+      save(session);
       return true;
     }
     return false;
   }
 
   /// 清除会话的认证状态
-  Future<bool> clearAuthentication(String sessionId) async {
+  bool clearAuthentication(String sessionId) {
     final session = findBySessionId(sessionId);
     if (session != null) {
       session.isAuthenticated = false;
       session.username = null;
       session.lastAccessedAt = DateTime.now();
-      await save(session);
+      save(session);
       return true;
     }
     return false;
   }
 
   /// 清理过期会话 (30分钟不活动即过期)
-  Future<void> cleanExpiredSessions() async {
+  void cleanExpiredSessions() {
     final expireTime = DateTime.now().subtract(const Duration(minutes: 30));
 
     // 查询所有会话

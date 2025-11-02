@@ -77,7 +77,7 @@ class SettingProvider extends CacheProvider {
 
   @override
   Future<void> remove(String key) async {
-    await SettingRepository.instance.removeByKey(key);
+    SettingRepository.instance.removeByKey(key);
   }
 
   @override
@@ -88,27 +88,27 @@ class SettingProvider extends CacheProvider {
   @override
   Future<void> setBool(String key, bool? value) async {
     if (value == true) {
-      await SettingRepository.instance.setValue(key, 'true');
+      SettingRepository.instance.setValue(key, 'true');
     } else {
-      await SettingRepository.instance.setValue(key, 'false');
+      SettingRepository.instance.setValue(key, 'false');
     }
   }
 
   @override
   Future<void> setDouble(String key, double? value) async {
     if (value == null) {
-      await SettingRepository.instance.setValue(key, '0.0');
+      SettingRepository.instance.setValue(key, '0.0');
     } else {
-      await SettingRepository.instance.setValue(key, value.toString());
+      SettingRepository.instance.setValue(key, value.toString());
     }
   }
 
   @override
   Future<void> setInt(String key, int? value) async {
     if (value == null) {
-      await SettingRepository.instance.setValue(key, '0');
+      SettingRepository.instance.setValue(key, '0');
     } else {
-      await SettingRepository.instance.setValue(key, value.toString());
+      SettingRepository.instance.setValue(key, value.toString());
     }
   }
 
@@ -130,9 +130,9 @@ class SettingProvider extends CacheProvider {
   @override
   Future<void> setString(String key, String? value) async {
     if (value == null) {
-      await SettingRepository.instance.setValue(key, '');
+      SettingRepository.instance.setValue(key, '');
     } else {
-      await SettingRepository.instance.setValue(key, value);
+      SettingRepository.instance.setValue(key, value);
     }
   }
 }

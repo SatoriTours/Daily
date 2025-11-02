@@ -65,7 +65,7 @@ class AiArticleProcessor {
         return;
       }
 
-      await ArticleRepository.d.updateField(articleId, ArticleFieldName.aiTitle, aiTitle);
+      ArticleRepository.d.updateField(articleId, ArticleFieldName.aiTitle, aiTitle);
       logger.d('[AI:标题] 完成 #$articleId: $aiTitle');
     } catch (e) {
       logger.e('[AI:标题] 失败 #$articleId: $e');
@@ -82,7 +82,7 @@ class AiArticleProcessor {
     try {
       final (summary, tags) = await AiService.i.summarize(content.trim());
       if (summary.isEmpty) return;
-      await ArticleRepository.d.updateField(articleId, ArticleFieldName.aiContent, summary);
+      ArticleRepository.d.updateField(articleId, ArticleFieldName.aiContent, summary);
       await _saveTags(article, tags);
       logger.d('[AI:摘要] 完成 #$articleId');
     } catch (e) {
@@ -97,7 +97,7 @@ class AiArticleProcessor {
     try {
       final markdown = await AiService.i.convertHtmlToMarkdown(html);
       if (markdown.isEmpty) return;
-      await ArticleRepository.d.updateField(articleId, ArticleFieldName.aiMarkdownContent, markdown);
+      ArticleRepository.d.updateField(articleId, ArticleFieldName.aiMarkdownContent, markdown);
       logger.d('[AI:Markdown] 完成 #$articleId');
     } catch (e) {
       logger.e('[AI:Markdown] 失败 #$articleId: $e');
@@ -111,7 +111,7 @@ class AiArticleProcessor {
     try {
       final path = await HttpService.i.downloadImage(imageUrl);
       if (path.isEmpty) return;
-      await ArticleRepository.d.updateField(articleId, ArticleFieldName.coverImage, path);
+      ArticleRepository.d.updateField(articleId, ArticleFieldName.coverImage, path);
       logger.d('[AI:图片] 完成 #$articleId');
     } catch (e) {
       logger.e('[AI:图片] 失败 #$articleId: $e');

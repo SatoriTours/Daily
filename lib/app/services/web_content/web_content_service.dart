@@ -35,7 +35,7 @@ class WebContentService {
 
     try {
       // 步骤1: 初始化文章
-      final article = await _articleManager.initializeArticle(
+      final article = _articleManager.initializeArticle(
         url: url,
         comment: comment,
         isUpdate: isUpdate,
@@ -44,7 +44,7 @@ class WebContentService {
 
       // 步骤2: 提取网页内容
       final webContent = await _contentExtractor.extractContent(url);
-      await _articleManager.updateWithWebContent(article, webContent);
+      _articleManager.updateWithWebContent(article, webContent);
 
       // 步骤3: 异步处理AI任务
       _processAiTasksAsync(article);
@@ -55,7 +55,7 @@ class WebContentService {
       logger.e('[WebContentService] 处理失败: $e', error: e, stackTrace: stackTrace);
 
       if (isUpdate && articleID > 0) {
-        await _articleManager.markAsFailed(articleID, '处理失败: $e');
+        _articleManager.markAsFailed(articleID, '处理失败: $e');
         final article = ArticleRepository.d.findModel(articleID);
         if (article != null) return article;
       }
@@ -90,7 +90,7 @@ class WebContentService {
       await Future.wait(tasks);
 
       // 更新状态为完成
-      await _articleManager.markAsCompleted(articleId);
+      _articleManager.markAsCompleted(articleId);
 
       // 通知UI更新
       _notifier.notifyArticleUpdated(articleId);
@@ -98,7 +98,7 @@ class WebContentService {
       logger.i('[WebContentService:AI] ◀ AI处理完成: #$articleId');
     } catch (e) {
       logger.e('[WebContentService:AI] 处理失败: #$articleId, $e');
-      await _articleManager.markAsFailed(articleId, 'AI处理失败: $e');
+      _articleManager.markAsFailed(articleId, 'AI处理失败: $e');
       _notifier.notifyArticleFailed(articleId, e.toString());
     }
   }

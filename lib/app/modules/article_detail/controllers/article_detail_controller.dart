@@ -132,7 +132,7 @@ class ArticleDetailController extends BaseGetXController {
 
         // 保存Markdown内容到文章模型
         articleModel.aiMarkdownContent = markdown;
-        await ArticleRepository.d.updateModel(articleModel);
+        ArticleRepository.d.updateModel(articleModel);
         // 刷新本地与列表视图
         article.refresh();
         // 通知全局状态服务文章已更新
@@ -170,7 +170,7 @@ class ArticleDetailController extends BaseGetXController {
   /// 删除文章图片
   Future<void> deleteImage(String imagePath) async {
     articleModel.images.removeWhere((image) => image.path == imagePath);
-    await ArticleRepository.d.updateModel(articleModel);
+    ArticleRepository.d.updateModel(articleModel);
     article.refresh();
     // 通知全局状态服务文章已更新
     _articleStateService.notifyArticleUpdated(articleModel);

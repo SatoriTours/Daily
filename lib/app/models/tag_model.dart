@@ -29,7 +29,7 @@ class TagModel extends EntityModel<Tag> {
   String? get icon => entity.icon;
   set icon(String? value) => entity.icon = value;
 
-  Future<void> save() async {
-    await TagRepository.instance.updateModel(this);
+  void save() {
+    TagRepository.instance.updateModel(this);
   }
 }

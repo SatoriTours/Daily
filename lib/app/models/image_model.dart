@@ -19,7 +19,7 @@ class ImageModel extends EntityModel<Image> {
 
   int? get articleId => entity.article.targetId;
 
-  Future<void> save() async {
-    await ImageRepository.instance.save(this);
+  void save() {
+    ImageRepository.instance.save(this);
   }
 }

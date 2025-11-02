@@ -42,11 +42,6 @@ class ImageRepository extends BaseRepository<Image, ImageModel> {
     return ImageModel(image);
   }
 
-  /// 保存图片Model
-  Future<int> createModel(ImageModel imageModel) async {
-    return await save(imageModel);
-  }
-
   /// 删除图片（旧方法名兼容）
   bool destroy(int id) {
     return remove(id);

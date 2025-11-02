@@ -28,7 +28,7 @@ class SettingModel extends EntityModel<Setting> {
   String? get value => entity.value;
   set value(String? val) => entity.value = val;
 
-  Future<void> save() async {
-    await SettingRepository.instance.save(this);
+  void save() {
+    SettingRepository.instance.save(this);
   }
 }

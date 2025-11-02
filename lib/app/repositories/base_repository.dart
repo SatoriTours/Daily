@@ -41,23 +41,14 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
   }
 
   /// 保存 Model
-  Future<int> save(M model) async {
-    try {
-      final id = await box.putAsync(toEntity(model));
-      return id;
-    } catch (e) {
-      rethrow;
-    }
+  int save(M model) {
+    return box.put(toEntity(model));
   }
 
   /// 批量保存 Model
   Future<List<int>> saveMany(List<M> models) async {
-    try {
-      final entities = models.map(toEntity).toList();
-      return await box.putManyAsync(entities);
-    } catch (e) {
-      rethrow;
-    }
+    final entities = models.map(toEntity).toList();
+    return await box.putManyAsync(entities);
   }
 
   /// 删除 Model
@@ -95,10 +86,10 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
   M? findModel(int id) => find(id);
 
   /// 保存 Model(别名)
-  Future<int> saveModel(M model) => save(model);
+  int saveModel(M model) => save(model);
 
   /// 更新 Model(别名,实际与 save 一样)
-  Future<int> updateModel(M model) => save(model);
+  int updateModel(M model) => save(model);
 
   /// 批量保存 Model(别名)
   Future<List<int>> saveModels(List<M> models) => saveMany(models);

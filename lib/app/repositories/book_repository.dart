@@ -87,11 +87,6 @@ class BookRepository extends BaseRepository<Book, BookModel> {
     return _viewpointBox.getAll();
   }
 
-  /// 获取所有视角(异步)
-  Future<List<BookViewpoint>> getAllViewpointsAsync() async {
-    return _viewpointBox.getAll();
-  }
-
   /// 根据书籍ID列表获取视角
   List<BookViewpoint> getViewpointsByBookIds(List<int> bookIds) {
     final query = _viewpointBox.query(BookViewpoint_.bookId.oneOf(bookIds)).build();
@@ -100,11 +95,6 @@ class BookRepository extends BaseRepository<Book, BookModel> {
     } finally {
       query.close();
     }
-  }
-
-  /// 根据书籍ID列表获取视角(异步)
-  Future<List<BookViewpoint>> getViewpointsByBookIdsAsync(List<int> bookIds) async {
-    return getViewpointsByBookIds(bookIds);
   }
 
   /// 保存视角

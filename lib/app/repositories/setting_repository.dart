@@ -47,7 +47,7 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
   }
 
   /// 设置值
-  Future<int> setValue(String key, String value) async {
+  int setValue(String key, String value) {
     // 空值检查
     if (key.isEmpty || value.isEmpty) {
       return 0;
@@ -57,12 +57,12 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
     if (settingModel != null) {
       // 更新现有设置
       settingModel.entity.value = value;
-      return await save(settingModel);
+      return save(settingModel);
     } else {
       // 创建新设置
       final setting = Setting(key: key, value: value);
       final settingModel = SettingModel(setting);
-      return await save(settingModel);
+      return save(settingModel);
     }
   }
 
@@ -112,7 +112,7 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
   }
 
   /// 根据键删除设置
-  Future<bool> removeByKey(String key) async {
+  bool removeByKey(String key) {
     final existing = findFirstByStringEquals(Setting_.key, key);
     if (existing != null) {
       return remove(existing.entity.id);
@@ -126,7 +126,7 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
   }
 
   /// 删除所有设置（旧方法名兼容）
-  Future<void> clearAll() async {
+  void clearAll() {
     removeAll();
   }
 
@@ -136,9 +136,9 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
   }
 
   /// 保存单个设置
-  Future<void> saveSetting(String key, String value) async {
+  void saveSetting(String key, String value) {
     if (key.isEmpty) return;
-    await setValue(key, value);
+    setValue(key, value);
   }
 
   /// 检查AI功能是否启用
@@ -151,12 +151,12 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
   }
 
   /// 初始化默认设置
-  Future<void> initDefaultSettings(Map<String, String> defaultSettings) async {
+  void initDefaultSettings(Map<String, String> defaultSettings) {
     for (var entry in defaultSettings.entries) {
       final key = entry.key;
       final value = entry.value;
       if (!containsKey(key) && value.isNotEmpty) {
-        await setValue(key, value);
+        setValue(key, value);
       }
     }
     logger.i("[设置仓储] 初始化默认设置完成");
@@ -183,7 +183,7 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
   }
 
   /// 重置所有设置到默认值
-  Future<void> resetAllSettings() async {
+  void resetAllSettings() {
     try {
       // 获取所有设置键
       final keys = getKeys();
@@ -194,7 +194,7 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
       // 删除非保留的设置
       for (final key in keys) {
         if (!keysToPreserve.contains(key)) {
-          await removeByKey(key);
+          removeByKey(key);
         }
       }
 

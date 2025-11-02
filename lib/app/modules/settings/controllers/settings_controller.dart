@@ -109,7 +109,7 @@ class SettingsController extends GetxController {
   /// 保存Web服务器密码
   Future<void> saveWebServerPassword(String password) async {
     try {
-      await SettingRepository.instance.saveSetting(SettingService.webServerPasswordKey, password);
+      SettingRepository.instance.saveSetting(SettingService.webServerPasswordKey, password);
       UIUtils.showSuccess('密码设置成功');
     } catch (e) {
       logger.e('保存密码失败: $e');

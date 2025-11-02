@@ -291,7 +291,7 @@ class BackupService {
 
         if (changed) {
           diary.entity.images = fixed.join(',');
-          await DiaryRepository.i.save(diary);
+          DiaryRepository.i.save(diary);
         }
       }
       logger.i('恢复后已修复日记图片路径');
@@ -337,7 +337,7 @@ class BackupService {
         } catch (_) {}
 
         if (changed) {
-          await am.save();
+          am.save();
         }
       }
       logger.i('恢复后已修复文章相关图片路径');

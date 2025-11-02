@@ -19,7 +19,7 @@ class ScreenshotModel extends EntityModel<Screenshot> {
 
   int? get articleId => entity.article.targetId;
 
-  Future<void> save() async {
-    await ScreenshotRepository.instance.save(this);
+  void save() {
+    ScreenshotRepository.instance.save(this);
   }
 }

@@ -107,14 +107,14 @@ class ArticleModel extends EntityModel<Article> {
   String getStatus() => status;
   void setStatus(String newStatus) => status = newStatus;
 
-  Future<bool> toggleFavorite() async {
-    return await ArticleRepository.d.toggleFavorite(id);
+  bool toggleFavorite() {
+    return ArticleRepository.d.toggleFavorite(id);
   }
 
   // ==================== 数据操作方法 ====================
 
-  Future<void> save() async {
-    await ArticleRepository.d.updateModel(this);
+  void save() {
+    ArticleRepository.d.updateModel(this);
   }
 
   void copyFrom(ArticleModel other) {

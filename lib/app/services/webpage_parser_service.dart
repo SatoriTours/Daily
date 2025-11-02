@@ -76,7 +76,7 @@ class WebpageParserService {
       throw Exception("URL不能为空");
     }
 
-    final existingArticle = await ArticleRepository.d.findByUrl(url);
+    final existingArticle = ArticleRepository.d.findByUrl(url);
 
     // 情况1: URL已存在
     if (existingArticle != null) {
@@ -85,20 +85,20 @@ class WebpageParserService {
       }
 
       // 更新模式 - 重置已存在的文章
-      final article = await _resetExistingArticle(existingArticle.id, comment);
+      final article = _resetExistingArticle(existingArticle.id, comment);
       logger.i("[初始化文章] 成功 - 重置已存在文章ID=${existingArticle.id}");
       return article;
     }
 
     // 情况2: 更新模式但URL已变更
     if (isUpdate && articleID > 0) {
-      final article = await _resetExistingArticle(articleID, comment);
+      final article = _resetExistingArticle(articleID, comment);
       logger.i("[初始化文章] 成功 - 重置文章(URL已变)ID=$articleID");
       return article;
     }
 
     // 情况3: 创建新文章
-    final article = await _createNewArticle(url, comment);
+    final article = _createNewArticle(url, comment);
     logger.i("[初始化文章] 成功 - 创建新文章ID=${article.id}");
     return article;
   }
@@ -133,7 +133,7 @@ class WebpageParserService {
       article.updatedAt = DateTime.now().toUtc();
       article.status = ArticleStatus.webContentFetched;
 
-      await ArticleRepository.d.updateModel(article);
+      ArticleRepository.d.updateModel(article);
       _notifyUI(articleId);
 
       logger.i("[获取网页内容] 成功 - 文章ID=$articleId");
@@ -159,7 +159,7 @@ class WebpageParserService {
       await AiArticleProcessor.i.processAll(updatedArticle);
 
       // 更新状态为完成
-      await ArticleRepository.d.updateField(article.id, ArticleFieldName.status, ArticleStatus.completed);
+      ArticleRepository.d.updateField(article.id, ArticleFieldName.status, ArticleStatus.completed);
       _notifyUI(article.id);
 
       logger.i("[AI处理] 成功 - 文章ID=${article.id}");
@@ -176,7 +176,7 @@ class WebpageParserService {
   // ====================== 文章创建与更新 ======================
 
   /// 创建新文章
-  Future<ArticleModel> _createNewArticle(String url, String comment) async {
+  ArticleModel _createNewArticle(String url, String comment) {
     final now = DateTime.now().toUtc();
     final article = Article(
       url: url,
@@ -189,7 +189,7 @@ class WebpageParserService {
     );
 
     final articleModel = ArticleModel(article);
-    final id = await ArticleRepository.d.save(articleModel);
+    final id = ArticleRepository.d.save(articleModel);
     final savedModel = ArticleRepository.d.findModel(id);
 
     if (savedModel == null || savedModel.entity.id <= 0) {
@@ -200,7 +200,7 @@ class WebpageParserService {
   }
 
   /// 重置现有文章以更新内容
-  Future<ArticleModel> _resetExistingArticle(int articleId, String comment) async {
+  ArticleModel _resetExistingArticle(int articleId, String comment) {
     final article = ArticleRepository.d.findModel(articleId);
     if (article == null) {
       throw Exception("找不到要更新的文章: $articleId");
@@ -215,7 +215,7 @@ class WebpageParserService {
     article.status = ArticleStatus.pending;
     article.updatedAt = DateTime.now().toUtc();
 
-    await ArticleRepository.d.updateModel(article);
+    ArticleRepository.d.updateModel(article);
     return article;
   }
 
@@ -233,7 +233,7 @@ class WebpageParserService {
     article.aiContent = errorMessage;
     article.updatedAt = DateTime.now().toUtc();
 
-    await ArticleRepository.d.updateModel(article);
+    ArticleRepository.d.updateModel(article);
   }
 
   // ====================== 辅助方法 ======================

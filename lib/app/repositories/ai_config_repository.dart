@@ -1,7 +1,6 @@
 import 'package:daily_satori/app/models/models.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/repositories/base_repository.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// AI配置存储库
@@ -25,162 +24,107 @@ class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
 
   // toEntity 已由父类提供默认实现，无需重写
 
-  /// 添加AI配置
-  Future<int> addAIConfig(AIConfigModel model) async {
-    try {
-      return await save(model);
-    } catch (e, stackTrace) {
-      logger.e('[AI配置存储库] 添加AI配置失败: $e', stackTrace: stackTrace);
-      rethrow;
-    }
-  }
-
-  /// 获取所有AI配置
-  List<AIConfigModel> getAllAIConfigs() {
-    try {
-      return all();
-    } catch (e, stackTrace) {
-      logger.e('[AI配置存储库] 获取所有AI配置失败: $e', stackTrace: stackTrace);
-      return [];
-    }
-  }
+  // ==================== 业务方法 ====================
 
   /// 根据功能类型获取AI配置
   List<AIConfigModel> getAIConfigsByFunctionType(int functionType) {
-    try {
-      return findByCondition(AIConfig_.functionType.equals(functionType));
-    } catch (e, stackTrace) {
-      logger.e('[AI配置存储库] 根据功能类型获取AI配置失败: $e', stackTrace: stackTrace);
-      return [];
-    }
+    return findByCondition(AIConfig_.functionType.equals(functionType));
   }
 
   /// 获取通用配置
   AIConfigModel? getGeneralConfig() {
-    try {
-      return findFirstByCondition(AIConfig_.functionType.equals(0));
-    } catch (e, stackTrace) {
-      logger.e('[AI配置存储库] 获取通用配置失败: $e', stackTrace: stackTrace);
-      return null;
-    }
+    return findFirstByCondition(AIConfig_.functionType.equals(0));
   }
 
   /// 根据功能类型获取默认AI配置
   AIConfigModel? getDefaultAIConfigByFunctionType(int functionType) {
-    try {
-      return findFirstByCondition(AIConfig_.functionType.equals(functionType) & AIConfig_.isDefault.equals(true));
-    } catch (e, stackTrace) {
-      logger.e('[AI配置存储库] 获取默认AI配置失败: $e', stackTrace: stackTrace);
-      return null;
-    }
+    return findFirstByCondition(AIConfig_.functionType.equals(functionType) & AIConfig_.isDefault.equals(true));
   }
 
-  /// 更新AI配置
-  Future<int> updateAIConfig(AIConfigModel model) async {
-    try {
-      model.entity.updatedAt = DateTime.now();
-      return await save(model);
-    } catch (e, stackTrace) {
-      logger.e('[AI配置存储库] 更新AI配置失败: $e', stackTrace: stackTrace);
-      rethrow;
-    }
-  }
-
-  /// 删除AI配置
-  bool removeAIConfig(int id) {
-    try {
-      return remove(id);
-    } catch (e, stackTrace) {
-      logger.e('[AI配置存储库] 删除AI配置失败: $e', stackTrace: stackTrace);
-      return false;
-    }
+  /// 更新AI配置(设置更新时间)
+  @override
+  int save(AIConfigModel model) {
+    model.entity.updatedAt = DateTime.now();
+    return super.save(model);
   }
 
   /// 设置指定功能类型的默认配置
   void setDefaultConfig(int configId, int functionType) {
-    try {
-      // 先取消该功能类型的所有默认配置
-      final configList = getAIConfigsByFunctionType(functionType);
-      for (var modelConfig in configList) {
-        if (modelConfig.isDefault) {
-          modelConfig.isDefault = false;
-          updateAIConfig(modelConfig);
-        }
+    // 先取消该功能类型的所有默认配置
+    final configList = getAIConfigsByFunctionType(functionType);
+    for (var modelConfig in configList) {
+      if (modelConfig.isDefault) {
+        modelConfig.isDefault = false;
+        save(modelConfig);
       }
+    }
 
-      // 设置新的默认配置
-      final config = box.get(configId);
-      if (config != null) {
-        final modelConfig = AIConfigModel.fromConfig(config);
-        modelConfig.isDefault = true;
-        updateAIConfig(modelConfig);
-      }
-    } catch (e, stackTrace) {
-      logger.e('[AI配置存储库] 设置默认配置失败: $e', stackTrace: stackTrace);
+    // 设置新的默认配置
+    final config = box.get(configId);
+    if (config != null) {
+      final modelConfig = AIConfigModel.fromConfig(config);
+      modelConfig.isDefault = true;
+      save(modelConfig);
     }
   }
 
   /// 初始化默认配置
   void initDefaultConfigs() {
-    try {
-      if (getAllAIConfigs().isEmpty) {
-        // 添加通用配置
-        final generalConfig = AIConfigModel(
-          AIConfig(
-            name: "通用配置",
-            apiAddress: "https://api.openai.com/v1",
-            apiToken: "",
-            modelName: "gpt-4o-mini",
-            functionType: 0,
-            isDefault: true,
-          ),
-        );
-        addAIConfig(generalConfig);
+    if (all().isEmpty) {
+      // 添加通用配置
+      final generalConfig = AIConfigModel(
+        AIConfig(
+          name: "通用配置",
+          apiAddress: "https://api.openai.com/v1",
+          apiToken: "",
+          modelName: "gpt-4o-mini",
+          functionType: 0,
+          isDefault: true,
+        ),
+      );
+      save(generalConfig);
 
-        // 添加文章分析配置
-        final articleConfig = AIConfigModel(
-          AIConfig(
-            name: "文章分析",
-            apiAddress: "",
-            apiToken: "",
-            modelName: "",
-            functionType: 1,
-            inheritFromGeneral: true,
-            isDefault: true,
-          ),
-        );
-        addAIConfig(articleConfig);
+      // 添加文章分析配置
+      final articleConfig = AIConfigModel(
+        AIConfig(
+          name: "文章分析",
+          apiAddress: "",
+          apiToken: "",
+          modelName: "",
+          functionType: 1,
+          inheritFromGeneral: true,
+          isDefault: true,
+        ),
+      );
+      save(articleConfig);
 
-        // 添加书本解读配置
-        final bookConfig = AIConfigModel(
-          AIConfig(
-            name: "书本解读",
-            apiAddress: "",
-            apiToken: "",
-            modelName: "",
-            functionType: 2,
-            inheritFromGeneral: true,
-            isDefault: true,
-          ),
-        );
-        addAIConfig(bookConfig);
+      // 添加书本解读配置
+      final bookConfig = AIConfigModel(
+        AIConfig(
+          name: "书本解读",
+          apiAddress: "",
+          apiToken: "",
+          modelName: "",
+          functionType: 2,
+          inheritFromGeneral: true,
+          isDefault: true,
+        ),
+      );
+      save(bookConfig);
 
-        // 添加日记总结配置
-        final diaryConfig = AIConfigModel(
-          AIConfig(
-            name: "日记总结",
-            apiAddress: "",
-            apiToken: "",
-            modelName: "",
-            functionType: 3,
-            inheritFromGeneral: true,
-            isDefault: true,
-          ),
-        );
-        addAIConfig(diaryConfig);
-      }
-    } catch (e, stackTrace) {
-      logger.e('[AI配置存储库] 初始化默认配置失败: $e', stackTrace: stackTrace);
+      // 添加日记总结配置
+      final diaryConfig = AIConfigModel(
+        AIConfig(
+          name: "日记总结",
+          apiAddress: "",
+          apiToken: "",
+          modelName: "",
+          functionType: 3,
+          inheritFromGeneral: true,
+          isDefault: true,
+        ),
+      );
+      save(diaryConfig);
     }
   }
 }

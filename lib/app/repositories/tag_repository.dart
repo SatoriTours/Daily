@@ -112,14 +112,14 @@ class TagRepository extends BaseRepository<Tag, TagModel> {
   }
 
   /// 保存标签Model
-  Future<int> createModel(TagModel tagModel) async {
-    return await box.putAsync(tagModel.entity);
+  int createModel(TagModel tagModel) {
+    return box.put(tagModel.entity);
   }
 
   /// 更新标签Model
   @override
-  Future<int> updateModel(TagModel tagModel) async {
-    return await box.putAsync(tagModel.entity);
+  int updateModel(TagModel tagModel) {
+    return box.put(tagModel.entity);
   }
 
   /// 删除标签（旧方法名兼容）

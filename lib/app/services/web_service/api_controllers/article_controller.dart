@@ -172,7 +172,7 @@ class ArticleController {
       final articleModel = ArticleModel(article);
 
       // 保存文章
-      final articleId = await ArticleRepository.d.saveModel(articleModel);
+      final articleId = ArticleRepository.d.saveModel(articleModel);
 
       // 获取新创建的文章
       final newArticle = ArticleRepository.d.findModel(articleId);
@@ -219,7 +219,7 @@ class ArticleController {
       existingArticle.updatedAt = DateTime.now();
 
       // 保存更新 - 使用update方法
-      await ArticleRepository.d.updateModel(existingArticle);
+      ArticleRepository.d.updateModel(existingArticle);
 
       // 转换为JSON格式
       final articleJson = _articleToJson(existingArticle);
