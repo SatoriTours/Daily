@@ -17,10 +17,6 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   // 单例实例 - 使用 d 作为访问器 (database/data)
   static final ArticleRepository d = ArticleRepository._();
 
-  // 每页文章数量
-  @override
-  int get pageSize => 10;
-
   // ==================== BaseRepository 必须实现的方法 ====================
 
   @override

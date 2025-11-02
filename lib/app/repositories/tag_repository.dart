@@ -18,10 +18,6 @@ class TagRepository extends BaseRepository<Tag, TagModel> {
   // 单例
   static final TagRepository instance = TagRepository._();
 
-  // 每页数量
-  @override
-  int get pageSize => 50;
-
   // ==================== BaseRepository 必须实现的方法 ====================
 
   @override

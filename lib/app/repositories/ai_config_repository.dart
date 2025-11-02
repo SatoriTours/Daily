@@ -11,10 +11,6 @@ class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
   // 单例
   static final AIConfigRepository instance = AIConfigRepository._();
 
-  // 每页数量
-  @override
-  int get pageSize => 20;
-
   // ==================== BaseRepository 必须实现的方法 ====================
 
   @override

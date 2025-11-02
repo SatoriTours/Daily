@@ -18,9 +18,6 @@ class BookRepository extends BaseRepository<Book, BookModel> {
   // 单例实例
   static final instance = BookRepository._();
 
-  @override
-  int get pageSize => 20;
-
   // ==================== BaseRepository 必须实现的方法 ====================
 
   @override

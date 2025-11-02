@@ -15,10 +15,6 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
   // 兼容旧的 i 访问方式
   static DiaryRepository get i => instance;
 
-  // 每页日记数量
-  @override
-  int get pageSize => 10;
-
   // ==================== BaseRepository 必须实现的方法 ====================
 
   @override

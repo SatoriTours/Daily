@@ -15,10 +15,6 @@ class ScreenshotRepository extends BaseRepository<Screenshot, ScreenshotModel> {
   // 单例
   static final ScreenshotRepository instance = ScreenshotRepository._();
 
-  // 每页数量
-  @override
-  int get pageSize => 50;
-
   // ==================== BaseRepository 必须实现的方法 ====================
 
   @override

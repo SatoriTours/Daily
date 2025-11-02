@@ -14,10 +14,6 @@ class SessionRepository extends BaseRepository<SessionEntity, SessionModel> {
   // 单例
   static final SessionRepository instance = SessionRepository._();
 
-  // 每页数量
-  @override
-  int get pageSize => 50;
-
   // ==================== BaseRepository 必须实现的方法 ====================
 
   @override

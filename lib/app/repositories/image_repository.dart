@@ -15,10 +15,6 @@ class ImageRepository extends BaseRepository<Image, ImageModel> {
   // 单例
   static final ImageRepository instance = ImageRepository._();
 
-  // 每页数量
-  @override
-  int get pageSize => 50;
-
   // ==================== BaseRepository 必须实现的方法 ====================
 
   @override

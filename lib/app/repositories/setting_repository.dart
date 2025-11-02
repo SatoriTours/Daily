@@ -15,10 +15,6 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
   // 单例
   static final SettingRepository instance = SettingRepository._();
 
-  // 每页数量
-  @override
-  int get pageSize => 100;
-
   // ==================== BaseRepository 必须实现的方法 ====================
 
   @override
