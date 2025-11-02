@@ -4,7 +4,7 @@ import 'package:daily_satori/app/models/models.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart' as db_image;
 import 'package:daily_satori/app/objectbox/screenshot.dart';
-import 'package:daily_satori/app/repositories/article_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/services/migration_service/migration_task.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';

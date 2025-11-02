@@ -1,6 +1,6 @@
 import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/setting.dart';
-import 'package:daily_satori/app/repositories/setting_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 
 /// 设置数据模型类
 class SettingModel extends EntityModel<Setting> {

@@ -1,8 +1,7 @@
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/models/article_model.dart';
-import 'package:daily_satori/app/repositories/article_repository.dart';
-import 'package:daily_satori/app/repositories/tag_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 
 /// AI处理器
 /// 专门负责处理AI相关的任务：翻译、摘要、标签提取、Markdown转换等

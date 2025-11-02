@@ -1,5 +1,4 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/repositories/ai_config_repository.dart';
 
 /// AI配置状态服务
 ///

@@ -1,6 +1,5 @@
 import 'package:daily_satori/app/models/models.dart';
-import 'package:daily_satori/app/repositories/ai_config_repository.dart';
-import 'package:daily_satori/app/repositories/setting_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/services/migration_service/migration_task.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';

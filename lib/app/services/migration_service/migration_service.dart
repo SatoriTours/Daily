@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/repositories/setting_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/migration_service/migration_task.dart';
 import 'package:daily_satori/app/services/migration_service/migration_tasks.dart';

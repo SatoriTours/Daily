@@ -8,7 +8,7 @@ import 'package:daily_satori/app/services/ai_service/ai_article_processor.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/state/article_state_service.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
-import 'package:daily_satori/app/repositories/article_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 // 清理未使用的依赖（AI 具体处理已在 AiArticleProcessor 内）
 import 'package:daily_satori/app/utils/string_extensions.dart';
 import 'package:get/get.dart';

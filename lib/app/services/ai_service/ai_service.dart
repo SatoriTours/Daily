@@ -4,7 +4,7 @@ import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:openai_dart/openai_dart.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/repositories/setting_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/ai_config_service.dart';
 import 'package:template_expressions/template_expressions.dart';

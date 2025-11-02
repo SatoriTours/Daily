@@ -6,7 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/components/empty_states/articles_empty_view.dart';
 import 'package:daily_satori/app/services/state/app_state_service.dart';
-import 'package:daily_satori/app/repositories/tag_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'widgets/articles_search_bar.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';

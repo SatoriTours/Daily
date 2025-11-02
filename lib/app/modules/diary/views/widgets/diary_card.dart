@@ -5,7 +5,6 @@ import '../../utils/diary_utils.dart';
 import 'diary_timestamp.dart';
 import 'diary_more_menu.dart';
 import 'diary_image_gallery.dart';
-import 'package:daily_satori/app/repositories/book_viewpoint_repository.dart';
 
 /// 单个日记卡片组件 - 支持Markdown和图片
 class DiaryCard extends StatefulWidget {

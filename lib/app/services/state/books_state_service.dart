@@ -1,7 +1,6 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/models/book_viewpoint.dart';
-import 'package:daily_satori/app/repositories/book_viewpoint_repository.dart';
 import 'dart:math';
 
 /// 读书模块全局状态管理服务

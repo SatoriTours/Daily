@@ -1,6 +1,6 @@
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 
-import 'package:daily_satori/app/repositories/setting_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_provider.dart';
 import 'package:daily_satori/app/services/service_base.dart';

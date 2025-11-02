@@ -4,7 +4,7 @@ import 'package:daily_satori/app/services/web_content/image_processor.dart';
 import 'package:daily_satori/app/services/web_content/article_manager.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/models/article_model.dart';
-import 'package:daily_satori/app/repositories/article_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/services/web_content/web_content_notifier.dart';
 
 /// 重构后的网页内容服务

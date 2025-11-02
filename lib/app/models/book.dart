@@ -1,6 +1,6 @@
 import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/book.dart';
-import 'package:daily_satori/app/repositories/book_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 
 /// 书籍模型
 class BookModel extends EntityModel<Book> {

@@ -1,6 +1,6 @@
 import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/diary.dart';
-import 'package:daily_satori/app/repositories/diary_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 
 /// 日记模型类
 class DiaryModel extends EntityModel<Diary> {

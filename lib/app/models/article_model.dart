@@ -2,7 +2,7 @@ import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
-import 'package:daily_satori/app/repositories/article_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 
 /// 文章数据模型类
 class ArticleModel extends EntityModel<Article> {

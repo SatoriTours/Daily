@@ -1,6 +1,6 @@
 import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
-import 'package:daily_satori/app/repositories/image_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 
 /// 图片数据模型类
 class ImageModel extends EntityModel<Image> {

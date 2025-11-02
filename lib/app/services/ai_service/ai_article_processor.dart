@@ -1,6 +1,5 @@
 import 'dart:async';
-import 'package:daily_satori/app/repositories/article_repository.dart';
-import 'package:daily_satori/app/repositories/tag_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';

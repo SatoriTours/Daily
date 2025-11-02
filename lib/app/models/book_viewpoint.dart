@@ -1,8 +1,7 @@
 import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/objectbox/book_viewpoint.dart';
-import 'package:daily_satori/app/repositories/book_viewpoint_repository.dart';
-import 'package:daily_satori/app/repositories/book_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 
 /// 书籍观点模型
 class BookViewpointModel extends EntityModel<BookViewpoint> {

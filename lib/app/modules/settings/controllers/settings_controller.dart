@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/repositories/article_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/app/services/web_service/web_service.dart';
 import 'package:file_picker/file_picker.dart';
@@ -7,7 +7,6 @@ import 'package:get/get.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 

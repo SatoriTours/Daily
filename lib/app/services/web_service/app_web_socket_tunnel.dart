@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:daily_satori/app/repositories/setting_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';

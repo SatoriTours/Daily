@@ -1,15 +1,14 @@
 import 'package:get/get.dart';
 import 'package:daily_satori/app/services/state/article_state_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/repositories/article_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 
 /// 使用统一的ArticleStatus定义
-export 'package:daily_satori/app/repositories/article_repository.dart' show ArticleStatus;
+export 'package:daily_satori/app/repositories/repositories.dart' show ArticleStatus;
 
 /// 网页内容通知器
 /// 专门负责通知UI更新文章状态，通过状态服务避免直接依赖控制器
 class WebContentNotifier {
-
   /// 通知文章已更新
   void notifyArticleUpdated(int articleId) {
     try {
@@ -22,7 +21,7 @@ class WebContentNotifier {
       logger.w('[WebContentNotifier] 通知更新失败: #$articleId, $e');
     }
   }
-  
+
   /// 通知文章处理失败
   void notifyArticleFailed(int articleId, String errorMessage) {
     notifyArticleUpdated(articleId); // 失败时也更新状态
@@ -45,7 +44,7 @@ class WebContentNotifier {
       logger.w('[WebContentNotifier] 通知删除失败: #$articleId, $e');
     }
   }
-  
+
   /// 广播文章状态变化
   void broadcastArticleStatusChange(int articleId, ArticleStatus status) {
     notifyArticleUpdated(articleId);

@@ -1,6 +1,6 @@
 import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/screenshot.dart';
-import 'package:daily_satori/app/repositories/screenshot_repository.dart';
+import 'package:daily_satori/app/repositories/repositories.dart';
 
 /// 截图数据模型类
 class ScreenshotModel extends EntityModel<Screenshot> {
