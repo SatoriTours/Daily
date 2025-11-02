@@ -5,7 +5,7 @@ import '../../utils/diary_utils.dart';
 import 'diary_timestamp.dart';
 import 'diary_more_menu.dart';
 import 'diary_image_gallery.dart';
-import 'package:daily_satori/app/repositories/book_repository.dart';
+import 'package:daily_satori/app/repositories/book_viewpoint_repository.dart';
 
 /// 单个日记卡片组件 - 支持Markdown和图片
 class DiaryCard extends StatefulWidget {
@@ -353,7 +353,7 @@ class _DiaryCardState extends State<DiaryCard> {
 
   /// 根据观点ID查询书名/作者（查询失败时返回空元信息）
   _BookMeta _getBookMeta(int viewpointId) {
-    final vp = BookRepository.instance.getViewpointByIdModel(viewpointId);
+    final vp = BookViewpointRepository.i.find(viewpointId);
     if (vp != null && vp.book != null) {
       return _BookMeta(title: vp.book!.title, author: vp.book!.author);
     }

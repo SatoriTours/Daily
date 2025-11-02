@@ -7,13 +7,13 @@ import 'package:daily_satori/objectbox.g.dart';
 /// 截图仓储类
 ///
 /// 继承 BaseRepository 获取通用 CRUD 功能
-/// 使用单例模式，通过 ScreenshotRepository.instance 访问
+/// 使用单例模式，通过 ScreenshotRepository.i 访问
 class ScreenshotRepository extends BaseRepository<Screenshot, ScreenshotModel> {
   // 私有构造函数
   ScreenshotRepository._();
 
   // 单例
-  static final ScreenshotRepository instance = ScreenshotRepository._();
+  static final i = ScreenshotRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================
 

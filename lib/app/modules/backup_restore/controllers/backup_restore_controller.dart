@@ -17,7 +17,7 @@ class BackupRestoreController extends BaseController {
   Future<void> reloadBackupList() async {
     backupList.clear();
     logger.i("开始加载备份列表");
-    String backupDir = SettingRepository.instance.getSetting(SettingService.backupDirKey);
+    String backupDir = SettingRepository.i.getSetting(SettingService.backupDirKey);
     final directory = Directory(backupDir);
 
     if (await directory.exists()) {

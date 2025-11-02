@@ -2,6 +2,7 @@ import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/models/book_viewpoint.dart';
 import 'package:daily_satori/app/repositories/book_repository.dart';
+import 'package:daily_satori/app/repositories/book_viewpoint_repository.dart';
 import 'dart:convert';
 
 import 'package:template_expressions/template_expressions.dart';
@@ -21,18 +22,19 @@ class BookService {
   /// 初始化
   Future<void> init() async {
     // if (!AppInfoUtils.isProduction) {
-    //   await BookRepository.instance.deleteAllSync();
+    //   await BookRepository.i.deleteAllSync();
     // }
   }
 
   /// 获取所有书籍
   List<BookModel> getBooks() {
-    return BookRepository.instance.getAllBooksModel();
+    return BookRepository.i.all();
   }
 
   /// 按分类获取书籍
   Future<List<BookModel>> getBooksByCategory(String category) async {
-    return BookRepository.instance.getBooksByCategoryModel(category);
+    final books = BookRepository.i.getBooksByCategory(category);
+    return books.map((e) => BookModel(e)).toList();
   }
 
   /// 通过分类获取推荐书籍
@@ -45,7 +47,7 @@ class BookService {
       final recommendedBooks = await _fetchRecommendedBooks(category, existingTitles);
 
       if (recommendedBooks.isNotEmpty) {
-        BookRepository.instance.saveBooks(recommendedBooks.map((e) => e.toEntity()).toList());
+        await BookRepository.i.saveMany(recommendedBooks);
       }
 
       return recommendedBooks;
@@ -57,7 +59,7 @@ class BookService {
 
   /// 获取已存在的书籍标题集合
   Set<String> _getExistingBookTitles() {
-    final existingBooks = BookRepository.instance.getAllBooks();
+    final existingBooks = BookRepository.i.all();
     return existingBooks.map((book) => book.title.toLowerCase()).toSet();
   }
 
@@ -169,7 +171,7 @@ class BookService {
   /// 返回添加的书籍
   Future<BookModel?> addBook(String title) async {
     try {
-      final existingBooks = BookRepository.instance.searchByTitle(title);
+      final existingBooks = BookRepository.i.searchByTitle(title);
       if (existingBooks.any((book) => book.title == title)) {
         logger.i('书籍已存在: $title');
         return null;
@@ -204,7 +206,7 @@ class BookService {
       introduction: bookData['introduction'] as String,
     );
 
-    final bookId = BookRepository.instance.saveBook(book.toEntity());
+    final bookId = BookRepository.i.save(book);
     if (bookId <= 0) {
       logger.e('保存书籍失败: $title');
       return null;
@@ -233,7 +235,7 @@ class BookService {
       final validViewpoints = await _processViewpoints(book.id, book.title, book.author, viewpointsData);
 
       if (validViewpoints.isNotEmpty) {
-        BookRepository.instance.saveViewpoints(validViewpoints.map((e) => e.toEntity()).toList());
+        await BookViewpointRepository.i.saveMany(validViewpoints);
       }
     } catch (e, stackTrace) {
       logger.e('处理书籍观点失败: ${book.title}', error: e, stackTrace: stackTrace);
@@ -295,13 +297,13 @@ class BookService {
 
   /// 删除书籍
   Future<void> deleteBook(int bookId) async {
-    BookRepository.instance.deleteBook(bookId);
+    BookRepository.i.remove(bookId);
   }
 
   /// 删除观点
   Future<bool> deleteViewpoint(int viewpointId) async {
     try {
-      return BookRepository.instance.deleteViewpoint(viewpointId);
+      return BookViewpointRepository.i.remove(viewpointId);
     } catch (e, stackTrace) {
       logger.e('删除观点失败', error: e, stackTrace: stackTrace);
       return false;
@@ -311,7 +313,7 @@ class BookService {
   /// 保存观点
   Future<int> saveViewpoint(BookViewpointModel viewpoint) async {
     try {
-      return BookRepository.instance.saveViewpoint(viewpoint.toEntity());
+      return BookViewpointRepository.i.save(viewpoint);
     } catch (e, stackTrace) {
       logger.e('保存观点失败', error: e, stackTrace: stackTrace);
       return 0;
@@ -320,9 +322,8 @@ class BookService {
 
   /// 刷新书籍内容：重新拉取书籍信息与观点，并替换原观点
   Future<bool> refreshBook(int bookId) async {
-    final bookEntity = BookRepository.instance.getBookById(bookId);
-    if (bookEntity == null) return false;
-    final book = BookModel(bookEntity);
+    final book = BookRepository.i.find(bookId);
+    if (book == null) return false;
 
     try {
       // 重新获取书籍信息
@@ -337,7 +338,7 @@ class BookService {
       book.category = bookData['category'] as String? ?? book.category;
       book.introduction = bookData['introduction'] as String? ?? book.introduction;
       book.updatedAt = DateTime.now();
-      BookRepository.instance.updateBook(book.toEntity());
+      BookRepository.i.save(book);
 
       // 解析观点并替换
       final List<dynamic> viewpointsData = bookData['viewpoints'] as List<dynamic>? ?? [];
@@ -346,7 +347,7 @@ class BookService {
         viewpoints = await _processViewpoints(book.id, book.title, book.author, viewpointsData);
       }
 
-      BookRepository.instance.replaceViewpointsForBook(book.id, viewpoints.map((e) => e.toEntity()).toList());
+      BookViewpointRepository.i.replaceForBook(book.id, viewpoints.map((e) => e.toEntity()).toList());
       return true;
     } catch (e, st) {
       logger.e('刷新书籍失败: ${book.title}', error: e, stackTrace: st);

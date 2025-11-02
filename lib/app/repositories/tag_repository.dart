@@ -10,13 +10,13 @@ import 'package:daily_satori/objectbox.g.dart';
 /// 标签仓储类
 ///
 /// 继承 BaseRepository 获取通用 CRUD 功能
-/// 使用单例模式，通过 TagRepository.instance 访问
+/// 使用单例模式，通过 TagRepository.i 访问
 class TagRepository extends BaseRepository<Tag, TagModel> {
   // 私有构造函数
   TagRepository._();
 
   // 单例
-  static final TagRepository instance = TagRepository._();
+  static final i = TagRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================
 

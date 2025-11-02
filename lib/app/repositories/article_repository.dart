@@ -8,14 +8,14 @@ import 'package:daily_satori/objectbox.g.dart';
 /// 文章仓储类
 ///
 /// 使用单例模式提供数据访问功能
-/// 通过 .d 访问器调用: ArticleRepository.d.method()
+/// 通过 .d 访问器调用: ArticleRepository.i.method()
 /// d 代表 database/data，简洁易记
 class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   // 私有构造函数
   ArticleRepository._();
 
-  // 单例实例 - 使用 d 作为访问器 (database/data)
-  static final ArticleRepository d = ArticleRepository._();
+  // 单例实例
+  static final i = ArticleRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================
 

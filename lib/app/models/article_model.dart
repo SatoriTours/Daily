@@ -9,7 +9,7 @@ class ArticleModel extends EntityModel<Article> {
   ArticleModel(super.entity);
 
   factory ArticleModel.fromId(int id) {
-    final article = ArticleRepository.d.findModel(id);
+    final article = ArticleRepository.i.findModel(id);
     if (article == null) {
       throw Exception('找不到ID为$id的文章');
     }
@@ -108,13 +108,13 @@ class ArticleModel extends EntityModel<Article> {
   void setStatus(String newStatus) => status = newStatus;
 
   bool toggleFavorite() {
-    return ArticleRepository.d.toggleFavorite(id);
+    return ArticleRepository.i.toggleFavorite(id);
   }
 
   // ==================== 数据操作方法 ====================
 
   void save() {
-    ArticleRepository.d.updateModel(this);
+    ArticleRepository.i.updateModel(this);
   }
 
   void copyFrom(ArticleModel other) {

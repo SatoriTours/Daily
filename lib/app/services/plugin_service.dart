@@ -103,7 +103,7 @@ class PluginService {
     final String localPath = 'assets/configs/$fileName';
 
     // 1. 从数据库读取配置
-    String configContent = SettingRepository.instance.getSetting(settingKey);
+    String configContent = SettingRepository.i.getSetting(settingKey);
 
     // 2. 数据库无配置或者开发模式下,读取本地文件
     if (configContent.isEmpty || !AppInfoUtils.isProduction) {
@@ -111,7 +111,7 @@ class PluginService {
         configContent = await rootBundle.loadString(localPath);
         if (configContent.isNotEmpty) {
           // 保存到数据库
-          SettingRepository.instance.saveSetting(settingKey, configContent);
+          SettingRepository.i.saveSetting(settingKey, configContent);
           logger.i('加载本地配置: $fileName - 成功并保存到数据库');
         }
       } catch (e) {
@@ -144,7 +144,7 @@ class PluginService {
       if (response.trim().isNotEmpty) {
         // 保存到数据库
         final String settingKey = _makePluginKey(fileName);
-        SettingRepository.instance.saveSetting(settingKey, response.trim());
+        SettingRepository.i.saveSetting(settingKey, response.trim());
 
         // 更新最后更新时间
         _updateLastUpdateTime(fileName);
@@ -167,13 +167,13 @@ class PluginService {
   void _updateLastUpdateTime(String fileName) {
     final timeKey = '${_makePluginKey(fileName)}_last_update';
     final now = DateTime.now().toIso8601String();
-    SettingRepository.instance.saveSetting(timeKey, now);
+    SettingRepository.i.saveSetting(timeKey, now);
   }
 
   /// 获取最后更新时间
   DateTime? getLastUpdateTime(String fileName) {
     final timeKey = '${_makePluginKey(fileName)}_last_update';
-    final timeStr = SettingRepository.instance.getSetting(timeKey);
+    final timeStr = SettingRepository.i.getSetting(timeKey);
     if (timeStr.isEmpty) return null;
 
     try {
@@ -188,12 +188,12 @@ class PluginService {
 
   /// 获取插件服务器URL
   String getPluginServerUrl() {
-    return SettingRepository.instance.getSetting(SettingService.pluginKey);
+    return SettingRepository.i.getSetting(SettingService.pluginKey);
   }
 
   /// 设置插件服务器URL
   Future<void> setPluginServerUrl(String url) async {
-    SettingRepository.instance.saveSetting(SettingService.pluginKey, url);
+    SettingRepository.i.saveSetting(SettingService.pluginKey, url);
   }
 
   /// 强制更新单个插件

@@ -1,22 +1,20 @@
-import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
-import 'package:daily_satori/app/models/book_viewpoint.dart';
 import 'package:daily_satori/app/objectbox/book.dart';
 import 'package:daily_satori/app/objectbox/book_viewpoint.dart';
 import 'package:daily_satori/app/repositories/base_repository.dart';
+import 'package:daily_satori/app/repositories/book_viewpoint_repository.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 书籍存储库
 ///
-/// 继承 `BaseRepository<Book>` 获取Book的通用CRUD功能
-/// 同时管理BookViewpoint实体
-/// 使用单例模式,通过 BookRepository.instance 访问
+/// 继承 `BaseRepository<Book, BookModel>` 获取Book的通用CRUD功能
+/// 使用单例模式，通过 BookRepository.i 访问
 class BookRepository extends BaseRepository<Book, BookModel> {
   // 私有构造函数
   BookRepository._();
 
   // 单例实例
-  static final instance = BookRepository._();
+  static final i = BookRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================
 
@@ -25,20 +23,7 @@ class BookRepository extends BaseRepository<Book, BookModel> {
     return BookModel.fromEntity(entity);
   }
 
-  // BookViewpoint box getter
-  Box<BookViewpoint> get _viewpointBox => ObjectboxService.i.box<BookViewpoint>();
-
-  // ============ Book CRUD 方法 ============
-
-  /// 获取所有书籍
-  List<Book> getAllBooks() {
-    return box.getAll();
-  }
-
-  /// 根据ID获取书籍
-  Book? getBookById(int id) {
-    return box.get(id);
-  }
+  // ============ Book 业务查询方法 ============
 
   /// 根据类别获取书籍
   List<Book> getBooksByCategory(String category) {
@@ -48,117 +33,6 @@ class BookRepository extends BaseRepository<Book, BookModel> {
     } finally {
       query.close();
     }
-  }
-
-  /// 保存书籍
-  int saveBook(Book book) {
-    final id = box.put(book);
-    logger.d('[Book] 保存: ID=$id');
-    return id;
-  }
-
-  /// 更新书籍
-  int updateBook(Book book) {
-    final id = box.put(book);
-    logger.d('[Book] 更新: ID=$id');
-    return id;
-  }
-
-  /// 批量保存书籍
-  List<int> saveBooks(List<Book> books) {
-    final ids = box.putMany(books);
-    logger.d('[Book] 批量保存: ${ids.length} 条');
-    return ids;
-  }
-
-  /// 删除书籍
-  bool deleteBook(int id) {
-    final result = box.remove(id);
-    logger.d('[Book] 删除 ID=$id: ${result ? '成功' : '失败'}');
-    return result;
-  }
-
-  /// 删除所有书籍
-  int deleteAllSync() {
-    final count = box.removeAll();
-    logger.d('[Book] 清空所有数据: $count 条');
-    return count;
-  }
-
-  // ============ BookViewpoint CRUD 方法 ============
-
-  /// 获取所有视角
-  List<BookViewpoint> getAllViewpoints() {
-    return _viewpointBox.getAll();
-  }
-
-  /// 根据书籍ID列表获取视角
-  List<BookViewpoint> getViewpointsByBookIds(List<int> bookIds) {
-    final query = _viewpointBox.query(BookViewpoint_.bookId.oneOf(bookIds)).build();
-    try {
-      return query.find();
-    } finally {
-      query.close();
-    }
-  }
-
-  /// 保存视角
-  int saveViewpoint(BookViewpoint viewpoint) {
-    final id = _viewpointBox.put(viewpoint);
-    logger.d('[BookViewpoint] 保存: ID=$id');
-    return id;
-  }
-
-  /// 批量保存视角
-  List<int> saveViewpoints(List<BookViewpoint> viewpoints) {
-    final ids = _viewpointBox.putMany(viewpoints);
-    logger.d('[BookViewpoint] 批量保存: ${ids.length} 条');
-    return ids;
-  }
-
-  /// 删除视角
-  bool deleteViewpoint(int id) {
-    final result = _viewpointBox.remove(id);
-    logger.d('[BookViewpoint] 删除 ID=$id: ${result ? '成功' : '失败'}');
-    return result;
-  }
-
-  /// 根据ID获取视角
-  BookViewpoint? getViewpointById(int id) {
-    return _viewpointBox.get(id);
-  }
-
-  /// 替换书籍的所有视角
-  ///
-  /// 删除旧视角并保存新视角
-  void replaceViewpointsForBook(int bookId, List<BookViewpoint> newViewpoints) {
-    // 删除该书籍的所有旧视角
-    final oldViewpoints = getViewpointsByBookIds([bookId]);
-    for (var viewpoint in oldViewpoints) {
-      deleteViewpoint(viewpoint.id);
-    }
-
-    // 保存新视角
-    if (newViewpoints.isNotEmpty) {
-      saveViewpoints(newViewpoints);
-    }
-  }
-
-  // ============ 查询辅助方法 ============
-
-  /// 检查书籍是否存在
-  bool exists(int id) {
-    return box.get(id) != null;
-  }
-
-  /// 获取书籍数量
-  int getBookCount() {
-    return box.count();
-  }
-
-  /// 获取视角数量
-  int getViewpointCount() {
-    return _viewpointBox.count();
   }
 
   /// 根据标题搜索书籍
@@ -181,37 +55,15 @@ class BookRepository extends BaseRepository<Book, BookModel> {
     }
   }
 
-  // ============ 返回Model的方法 ============
+  // ============ 书籍关联的观点查询 ============
 
-  /// 获取所有书籍(返回Model)
-  List<BookModel> getAllBooksModel() {
-    return getAllBooks().map((e) => BookModel(e)).toList();
+  /// 获取本书的所有观点
+  List<BookViewpoint> getViewpoints(int bookId) {
+    return BookViewpointRepository.i.getByBookIds([bookId]);
   }
 
-  /// 根据ID获取书籍(返回Model)
-  BookModel? getBookByIdModel(int id) {
-    final book = getBookById(id);
-    return book != null ? BookModel(book) : null;
-  }
-
-  /// 根据类别获取书籍(返回Model)
-  List<BookModel> getBooksByCategoryModel(String category) {
-    return getBooksByCategory(category).map((e) => BookModel(e)).toList();
-  }
-
-  /// 获取所有视角(返回Model)
-  List<BookViewpointModel> getAllViewpointsModel() {
-    return getAllViewpoints().map((e) => BookViewpointModel(e)).toList();
-  }
-
-  /// 根据书籍ID列表获取视角(返回Model)
-  List<BookViewpointModel> getViewpointsByBookIdsModel(List<int> bookIds) {
-    return getViewpointsByBookIds(bookIds).map((e) => BookViewpointModel(e)).toList();
-  }
-
-  /// 根据ID获取视角(返回Model)
-  BookViewpointModel? getViewpointByIdModel(int id) {
-    final viewpoint = getViewpointById(id);
-    return viewpoint != null ? BookViewpointModel(viewpoint) : null;
+  /// 替换书籍的所有观点
+  void replaceViewpoints(int bookId, List<BookViewpoint> newViewpoints) {
+    BookViewpointRepository.i.replaceForBook(bookId, newViewpoints);
   }
 }

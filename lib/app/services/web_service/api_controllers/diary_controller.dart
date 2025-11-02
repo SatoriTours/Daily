@@ -88,7 +88,7 @@ class DiaryController {
         'items': diariesJson,
         'pagination': {
           'page': page,
-          'pageSize': DiaryRepository.instance.pageSize,
+          'pageSize': DiaryRepository.i.pageSize,
           'totalItems': totalItems,
           'totalPages': totalPages,
         },
@@ -126,7 +126,7 @@ class DiaryController {
         'items': diariesJson,
         'pagination': {
           'page': page,
-          'pageSize': DiaryRepository.instance.pageSize,
+          'pageSize': DiaryRepository.i.pageSize,
           'totalItems': totalItems,
           'totalPages': totalPages,
         },

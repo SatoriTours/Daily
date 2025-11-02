@@ -156,7 +156,7 @@ class AppHttpServer {
 
   /// 验证密码
   bool _verifyPassword(String? password) {
-    final expectedPassword = SettingRepository.instance.getSetting(SettingService.webServerPasswordKey);
+    final expectedPassword = SettingRepository.i.getSetting(SettingService.webServerPasswordKey);
     return password == expectedPassword;
   }
 

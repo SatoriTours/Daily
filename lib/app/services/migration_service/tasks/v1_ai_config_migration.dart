@@ -72,13 +72,13 @@ class AIConfigMigrationTask extends MigrationTask {
   /// 获取或创建通用AI配置
   Future<AIConfigModel?> _getOrCreateGeneralConfig() async {
     // 获取通用配置
-    AIConfigModel? generalConfig = AIConfigRepository.instance.getGeneralConfig();
+    AIConfigModel? generalConfig = AIConfigRepository.i.getGeneralConfig();
 
     // 如果不存在，则创建默认配置
     if (generalConfig == null) {
       logInfo("创建默认AI配置");
-      AIConfigRepository.instance.initDefaultConfigs();
-      generalConfig = AIConfigRepository.instance.getGeneralConfig();
+      AIConfigRepository.i.initDefaultConfigs();
+      generalConfig = AIConfigRepository.i.getGeneralConfig();
 
       if (generalConfig == null) {
         logError("创建通用配置失败");
@@ -111,14 +111,14 @@ class AIConfigMigrationTask extends MigrationTask {
     }
 
     // 保存更新后的配置
-    AIConfigRepository.instance.save(generalConfig);
+    AIConfigRepository.i.save(generalConfig);
   }
 
   /// 清除旧的AI配置数据
   void _clearOldAIConfig() {
     logInfo("清除旧AI配置数据");
-    SettingRepository.instance.removeSetting(SettingService.openAITokenKey);
-    SettingRepository.instance.removeSetting(SettingService.openAIAddressKey);
-    SettingRepository.instance.removeSetting('ai_model');
+    SettingRepository.i.removeSetting(SettingService.openAITokenKey);
+    SettingRepository.i.removeSetting(SettingService.openAIAddressKey);
+    SettingRepository.i.removeSetting('ai_model');
   }
 }

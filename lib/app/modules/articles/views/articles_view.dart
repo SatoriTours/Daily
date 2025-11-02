@@ -209,7 +209,7 @@ class ArticlesView extends GetView<ArticlesController> {
   /// 显示标签选择对话框
   void _showTagsDialog(BuildContext context) {
     logger.d('显示标签对话框');
-    final tags = TagRepository.instance.allModels();
+    final tags = TagRepository.i.allModels();
 
     showModalBottomSheet(
       context: context,

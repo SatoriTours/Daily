@@ -37,7 +37,7 @@ class Session {
   /// 更新最后访问时间
   Future<void> touch() async {
     _lastAccessTime = DateTime.now();
-    SessionRepository.instance.updateLastAccessedAt(id, _lastAccessTime);
+    SessionRepository.i.updateLastAccessedAt(id, _lastAccessTime);
   }
 
   /// 设置为已认证状态
@@ -45,7 +45,7 @@ class Session {
     username = name;
     isAuthenticated = true;
     await touch();
-    SessionRepository.instance.authenticate(id, name);
+    SessionRepository.i.authenticate(id, name);
   }
 
   /// 清除认证状态
@@ -53,7 +53,7 @@ class Session {
     isAuthenticated = false;
     username = null;
     await touch();
-    SessionRepository.instance.clearAuthentication(id);
+    SessionRepository.i.clearAuthentication(id);
   }
 
   /// 是否已过期（30分钟不活动即过期）
@@ -96,7 +96,7 @@ class SessionManager {
 
     // 保存到数据库
     final model = session.toModel();
-    SessionRepository.instance.save(model);
+    SessionRepository.i.save(model);
 
     // 每创建会话时，清理过期会话
     _cleanExpiredSessions();
@@ -107,14 +107,14 @@ class SessionManager {
   /// 获取会话
   static Future<Session?> getSession(String sessionId) async {
     // 从数据库获取会话
-    final model = SessionRepository.instance.findBySessionId(sessionId);
+    final model = SessionRepository.i.findBySessionId(sessionId);
 
     if (model != null) {
       final session = Session.fromModel(model);
 
       if (session.isExpired()) {
         // 如果会话已过期，删除并返回null
-        SessionRepository.instance.removeBySessionId(sessionId);
+        SessionRepository.i.removeBySessionId(sessionId);
         return null;
       }
 
@@ -128,7 +128,7 @@ class SessionManager {
 
   /// 销毁会话
   static void destroySession(String sessionId) {
-    SessionRepository.instance.removeBySessionId(sessionId);
+    SessionRepository.i.removeBySessionId(sessionId);
   }
 
   /// 创建带会话的响应
@@ -144,6 +144,6 @@ class SessionManager {
 
   /// 清理过期会话
   static void _cleanExpiredSessions() {
-    SessionRepository.instance.cleanExpiredSessions();
+    SessionRepository.i.cleanExpiredSessions();
   }
 }

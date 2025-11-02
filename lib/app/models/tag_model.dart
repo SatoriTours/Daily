@@ -7,7 +7,7 @@ class TagModel extends EntityModel<Tag> {
   TagModel(super.entity);
 
   factory TagModel.fromId(int id) {
-    final tag = TagRepository.instance.findModel(id);
+    final tag = TagRepository.i.findModel(id);
     if (tag == null) {
       throw Exception('找不到ID为$id的标签');
     }
@@ -15,10 +15,10 @@ class TagModel extends EntityModel<Tag> {
   }
 
   factory TagModel.fromName(String name) {
-    var tag = TagRepository.instance.findByName(name);
+    var tag = TagRepository.i.findByName(name);
     if (tag == null) {
       tag = TagModel(Tag(name: name));
-      TagRepository.instance.saveModel(tag);
+      TagRepository.i.saveModel(tag);
     }
     return tag;
   }
@@ -30,6 +30,6 @@ class TagModel extends EntityModel<Tag> {
   set icon(String? value) => entity.icon = value;
 
   void save() {
-    TagRepository.instance.updateModel(this);
+    TagRepository.i.updateModel(this);
   }
 }

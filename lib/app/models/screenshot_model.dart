@@ -7,7 +7,7 @@ class ScreenshotModel extends EntityModel<Screenshot> {
   ScreenshotModel(super.entity);
 
   factory ScreenshotModel.fromId(int id) {
-    final screenshot = ScreenshotRepository.instance.findModel(id);
+    final screenshot = ScreenshotRepository.i.findModel(id);
     if (screenshot == null) {
       throw Exception('找不到ID为$id的截图');
     }
@@ -20,6 +20,6 @@ class ScreenshotModel extends EntityModel<Screenshot> {
   int? get articleId => entity.article.targetId;
 
   void save() {
-    ScreenshotRepository.instance.save(this);
+    ScreenshotRepository.i.save(this);
   }
 }

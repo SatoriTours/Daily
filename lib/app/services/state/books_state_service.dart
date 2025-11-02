@@ -1,7 +1,7 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/models/book_viewpoint.dart';
-import 'package:daily_satori/app/repositories/book_repository.dart';
+import 'package:daily_satori/app/repositories/book_viewpoint_repository.dart';
 import 'dart:math';
 
 /// 读书模块全局状态管理服务
@@ -76,14 +76,13 @@ class BooksStateService extends GetxService {
 
   /// 加载所有书籍的观点（随机模式）
   Future<void> _loadAllBooksViewpoints() async {
-    final allViewpoints = BookRepository.instance.getAllViewpointsModel();
+    final allViewpoints = BookViewpointRepository.i.all();
     if (allViewpoints.isEmpty) {
       viewpoints.clear();
       return;
     }
 
     _setRandomModeViewpoints(allViewpoints);
-    currentViewpointIndex.value = 0;
   }
 
   /// 根据模式设置随机观点
@@ -99,7 +98,7 @@ class BooksStateService extends GetxService {
   /// 加载特定书籍的观点
   Future<void> _loadSpecificBookViewpoints() async {
     _mode = DisplayMode.bookSpecific;
-    viewpoints.value = BookRepository.instance.getViewpointsByBookIdsModel([filterBookID.value]);
+    viewpoints.value = BookViewpointRepository.i.getModelsByBookIds([filterBookID.value]);
 
     if (viewpoints.isEmpty) {
       await _tryRefreshBookViewpoints();
@@ -116,7 +115,7 @@ class BooksStateService extends GetxService {
     try {
       final success = await BookService.i.refreshBook(filterBookID.value);
       if (success) {
-        viewpoints.value = BookRepository.instance.getViewpointsByBookIdsModel([filterBookID.value]);
+        viewpoints.value = BookViewpointRepository.i.getModelsByBookIds([filterBookID.value]);
         logger.i('重新获取书籍观点成功，共 ${viewpoints.length} 条');
       }
     } catch (e) {

@@ -55,7 +55,7 @@ class ImageMigrationTask extends MigrationTask {
     logInfo("开始迁移文章封面图");
 
     // 获取所有文章
-    final articles = ArticleRepository.d.allModels();
+    final articles = ArticleRepository.i.allModels();
     logInfo("找到 ${articles.length} 篇文章需要处理");
 
     // 迁移计数器

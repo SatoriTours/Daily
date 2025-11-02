@@ -7,7 +7,7 @@ class SettingModel extends EntityModel<Setting> {
   SettingModel(super.entity);
 
   factory SettingModel.fromId(int id) {
-    final setting = SettingRepository.instance.findModel(id);
+    final setting = SettingRepository.i.findModel(id);
     if (setting == null) {
       throw Exception('找不到ID为$id的设置');
     }
@@ -15,7 +15,7 @@ class SettingModel extends EntityModel<Setting> {
   }
 
   factory SettingModel.fromKey(String key) {
-    final setting = SettingRepository.instance.findByKey(key);
+    final setting = SettingRepository.i.findByKey(key);
     if (setting == null) {
       throw Exception('找不到键为$key的设置');
     }
@@ -29,6 +29,6 @@ class SettingModel extends EntityModel<Setting> {
   set value(String? val) => entity.value = val;
 
   void save() {
-    SettingRepository.instance.save(this);
+    SettingRepository.i.save(this);
   }
 }

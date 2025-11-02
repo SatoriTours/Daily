@@ -112,19 +112,19 @@ class AiProcessor {
   Future<void> _processTitleTask(ArticleModel article) async {
     final processedTitle = await processTitle(article.title ?? '');
     article.aiTitle = processedTitle;
-    ArticleRepository.d.updateModel(article);
+    ArticleRepository.i.updateModel(article);
   }
 
   Future<void> _processSummaryTask(ArticleModel article) async {
     final (summary, tags) = await processSummaryAndTags(article.content ?? '');
     article.aiContent = summary;
-    ArticleRepository.d.updateModel(article);
+    ArticleRepository.i.updateModel(article);
 
     // 处理标签
     if (tags.isNotEmpty) {
       article.tags.clear();
       for (var tagName in tags) {
-        await TagRepository.instance.addTagToArticle(article, tagName);
+        await TagRepository.i.addTagToArticle(article, tagName);
       }
     }
   }
@@ -132,6 +132,6 @@ class AiProcessor {
   Future<void> _processMarkdownTask(ArticleModel article) async {
     final markdown = await processMarkdown(article.htmlContent ?? '');
     article.aiMarkdownContent = markdown;
-    ArticleRepository.d.updateModel(article);
+    ArticleRepository.i.updateModel(article);
   }
 }

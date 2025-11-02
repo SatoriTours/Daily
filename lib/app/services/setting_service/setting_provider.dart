@@ -3,12 +3,12 @@ import 'package:daily_satori/app/repositories/setting_repository.dart';
 
 class SettingProvider extends CacheProvider {
   String _value(String key) {
-    return SettingRepository.instance.getValue(key, defaultValue: '') ?? '';
+    return SettingRepository.i.getValue(key, defaultValue: '') ?? '';
   }
 
   @override
   bool containsKey(String key) {
-    return SettingRepository.instance.containsKey(key);
+    return SettingRepository.i.containsKey(key);
   }
 
   @override
@@ -50,12 +50,12 @@ class SettingProvider extends CacheProvider {
 
   @override
   Set getKeys() {
-    return SettingRepository.instance.getKeys();
+    return SettingRepository.i.getKeys();
   }
 
   @override
   String? getString(String key, {String? defaultValue}) {
-    return SettingRepository.instance.getValue(key, defaultValue: defaultValue);
+    return SettingRepository.i.getValue(key, defaultValue: defaultValue);
   }
 
   @override
@@ -77,38 +77,38 @@ class SettingProvider extends CacheProvider {
 
   @override
   Future<void> remove(String key) async {
-    SettingRepository.instance.removeByKey(key);
+    SettingRepository.i.removeByKey(key);
   }
 
   @override
   Future<void> removeAll() async {
-    SettingRepository.instance.removeAll();
+    SettingRepository.i.removeAll();
   }
 
   @override
   Future<void> setBool(String key, bool? value) async {
     if (value == true) {
-      SettingRepository.instance.setValue(key, 'true');
+      SettingRepository.i.setValue(key, 'true');
     } else {
-      SettingRepository.instance.setValue(key, 'false');
+      SettingRepository.i.setValue(key, 'false');
     }
   }
 
   @override
   Future<void> setDouble(String key, double? value) async {
     if (value == null) {
-      SettingRepository.instance.setValue(key, '0.0');
+      SettingRepository.i.setValue(key, '0.0');
     } else {
-      SettingRepository.instance.setValue(key, value.toString());
+      SettingRepository.i.setValue(key, value.toString());
     }
   }
 
   @override
   Future<void> setInt(String key, int? value) async {
     if (value == null) {
-      SettingRepository.instance.setValue(key, '0');
+      SettingRepository.i.setValue(key, '0');
     } else {
-      SettingRepository.instance.setValue(key, value.toString());
+      SettingRepository.i.setValue(key, value.toString());
     }
   }
 
@@ -130,9 +130,9 @@ class SettingProvider extends CacheProvider {
   @override
   Future<void> setString(String key, String? value) async {
     if (value == null) {
-      SettingRepository.instance.setValue(key, '');
+      SettingRepository.i.setValue(key, '');
     } else {
-      SettingRepository.instance.setValue(key, value);
+      SettingRepository.i.setValue(key, value);
     }
   }
 }

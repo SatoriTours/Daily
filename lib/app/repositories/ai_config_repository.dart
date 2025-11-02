@@ -9,7 +9,7 @@ class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
   AIConfigRepository._();
 
   // 单例
-  static final AIConfigRepository instance = AIConfigRepository._();
+  static final i = AIConfigRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================
 

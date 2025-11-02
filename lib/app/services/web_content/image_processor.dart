@@ -22,7 +22,7 @@ class ImageProcessor {
 
       if (imagePath.isNotEmpty) {
         article.coverImage = imagePath;
-        ArticleRepository.d.updateModel(article);
+        ArticleRepository.i.updateModel(article);
         logger.i('[图片:封面] ◀ 封面图片处理成功');
       } else {
         logger.w('[图片:封面] 图片下载结果为空');

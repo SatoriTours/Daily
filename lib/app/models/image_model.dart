@@ -7,7 +7,7 @@ class ImageModel extends EntityModel<Image> {
   ImageModel(super.entity);
 
   factory ImageModel.fromId(int id) {
-    final image = ImageRepository.instance.findModel(id);
+    final image = ImageRepository.i.findModel(id);
     if (image == null) {
       throw Exception('找不到ID为$id的图片');
     }
@@ -20,6 +20,6 @@ class ImageModel extends EntityModel<Image> {
   int? get articleId => entity.article.targetId;
 
   void save() {
-    ImageRepository.instance.save(this);
+    ImageRepository.i.save(this);
   }
 }

@@ -7,11 +7,11 @@ class BookModel extends EntityModel<Book> {
   BookModel(super.entity);
 
   factory BookModel.fromId(int id) {
-    final book = BookRepository.instance.getBookById(id);
-    if (book == null) {
+    final bookModel = BookRepository.i.find(id);
+    if (bookModel == null) {
       throw Exception('找不到 ID 为 $id 的书籍');
     }
-    return BookModel(book);
+    return bookModel;
   }
 
   factory BookModel.create({

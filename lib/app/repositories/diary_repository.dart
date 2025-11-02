@@ -10,10 +10,7 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
   DiaryRepository._();
 
   // 单例
-  static final DiaryRepository instance = DiaryRepository._();
-
-  // 兼容旧的 i 访问方式
-  static DiaryRepository get i => instance;
+  static final i = DiaryRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================
 

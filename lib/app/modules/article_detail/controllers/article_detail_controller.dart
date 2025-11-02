@@ -67,12 +67,12 @@ class ArticleDetailController extends BaseGetXController {
 
     if (argument is ArticleModel) {
       // 从数据库重新获取最新状态
-      articleModel = ArticleRepository.d.findModel(argument.id) ?? argument;
+      articleModel = ArticleRepository.i.findModel(argument.id) ?? argument;
     } else if (argument is int) {
       // 通过ID查找文章，优先从列表控制器获取引用
       final articleRef = Get.isRegistered<ArticlesController>()
           ? Get.find<ArticlesController>().getRef(argument)
-          : ArticleRepository.d.findModel(argument);
+          : ArticleRepository.i.findModel(argument);
 
       if (articleRef == null) {
         throw ArgumentError('Article not found with ID: $argument');
@@ -94,7 +94,7 @@ class ArticleDetailController extends BaseGetXController {
   /// 删除当前文章
   Future<void> deleteArticle() async {
     final articleId = articleModel.id;
-    await ArticleRepository.d.deleteArticle(articleId);
+    await ArticleRepository.i.deleteArticle(articleId);
     // 通知文章删除
     _articleStateService.notifyArticleDeleted(articleId);
     // 清除活跃文章状态
@@ -132,7 +132,7 @@ class ArticleDetailController extends BaseGetXController {
 
         // 保存Markdown内容到文章模型
         articleModel.aiMarkdownContent = markdown;
-        ArticleRepository.d.updateModel(articleModel);
+        ArticleRepository.i.updateModel(articleModel);
         // 刷新本地与列表视图
         article.refresh();
         // 通知全局状态服务文章已更新
@@ -170,7 +170,7 @@ class ArticleDetailController extends BaseGetXController {
   /// 删除文章图片
   Future<void> deleteImage(String imagePath) async {
     articleModel.images.removeWhere((image) => image.path == imagePath);
-    ArticleRepository.d.updateModel(articleModel);
+    ArticleRepository.i.updateModel(articleModel);
     article.refresh();
     // 通知全局状态服务文章已更新
     _articleStateService.notifyArticleUpdated(articleModel);

@@ -7,13 +7,13 @@ import 'package:daily_satori/objectbox.g.dart';
 /// 图片仓储类
 ///
 /// 继承 BaseRepository 获取通用 CRUD 功能
-/// 使用单例模式，通过 ImageRepository.instance 访问
+/// 使用单例模式，通过 ImageRepository.i 访问
 class ImageRepository extends BaseRepository<Image, ImageModel> {
   // 私有构造函数
   ImageRepository._();
 
   // 单例
-  static final ImageRepository instance = ImageRepository._();
+  static final i = ImageRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================
 

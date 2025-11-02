@@ -26,7 +26,7 @@ class ArticleManager {
     }
 
     // 检查URL是否已存在
-    final existingArticle = ArticleRepository.d.findByUrl(url);
+    final existingArticle = ArticleRepository.i.findByUrl(url);
     if (existingArticle != null && !isUpdate) {
       throw Exception('网页已存在，无法重复添加');
     }
@@ -53,30 +53,30 @@ class ArticleManager {
     article.updatedAt = DateTime.now().toUtc();
     article.status = ArticleStatus.webContentFetched;
 
-    ArticleRepository.d.updateModel(article);
+    ArticleRepository.i.updateModel(article);
     logger.i('[ArticleManager] ◀ 文章内容更新完成: #${article.id}');
   }
 
   /// 标记文章为完成状态
   void markAsCompleted(int articleId) {
-    final article = ArticleRepository.d.findModel(articleId);
+    final article = ArticleRepository.i.findModel(articleId);
     if (article == null) return;
 
     article.status = ArticleStatus.completed;
-    ArticleRepository.d.updateModel(article);
+    ArticleRepository.i.updateModel(article);
     logger.i('[ArticleManager] 文章标记为完成: #$articleId');
   }
 
   /// 标记文章为失败状态
   void markAsFailed(int articleId, String errorMessage) {
-    final article = ArticleRepository.d.findModel(articleId);
+    final article = ArticleRepository.i.findModel(articleId);
     if (article == null) return;
 
     article.status = ArticleStatus.error;
     article.aiContent = errorMessage;
     article.updatedAt = DateTime.now().toUtc();
 
-    ArticleRepository.d.updateModel(article);
+    ArticleRepository.i.updateModel(article);
     logger.e('[ArticleManager] 文章标记为失败: #$articleId, 错误: $errorMessage');
   }
 
@@ -108,8 +108,8 @@ class ArticleManager {
     );
 
     final articleModel = ArticleModel(article);
-    final id = ArticleRepository.d.save(articleModel);
-    final savedModel = ArticleRepository.d.findModel(id);
+    final id = ArticleRepository.i.save(articleModel);
+    final savedModel = ArticleRepository.i.findModel(id);
 
     if (savedModel == null || savedModel.entity.id <= 0) {
       throw Exception('创建文章记录失败');
@@ -123,7 +123,7 @@ class ArticleManager {
   ArticleModel _resetExistingArticle(int articleId, String comment) {
     logger.d('[ArticleManager] ▶ 重置文章: #$articleId');
 
-    final article = ArticleRepository.d.findModel(articleId);
+    final article = ArticleRepository.i.findModel(articleId);
     if (article == null) {
       throw Exception('找不到要更新的文章: $articleId');
     }
@@ -133,7 +133,7 @@ class ArticleManager {
     article.status = ArticleStatus.pending;
     article.updatedAt = DateTime.now().toUtc();
 
-    ArticleRepository.d.updateModel(article);
+    ArticleRepository.i.updateModel(article);
     logger.d('[ArticleManager] ◀ 文章重置成功: #$articleId');
 
     return article;
@@ -162,34 +162,34 @@ class ArticleManager {
 
   /// 获取文章状态
   Future<String> getArticleStatus(int articleId) async {
-    final article = ArticleRepository.d.findModel(articleId);
+    final article = ArticleRepository.i.findModel(articleId);
     return article?.status ?? ArticleStatus.error;
   }
 
   /// 获取文章详情
   Future<ArticleModel?> getArticle(int articleId) async {
-    return ArticleRepository.d.findModel(articleId);
+    return ArticleRepository.i.findModel(articleId);
   }
 
   /// 检查URL是否已存在
   Future<bool> isUrlExists(String url) async {
-    final existing = ArticleRepository.d.findByUrl(url);
+    final existing = ArticleRepository.i.findByUrl(url);
     return existing != null;
   }
 
   /// 获取文章总数
   Future<int> getTotalArticleCount() async {
-    return ArticleRepository.d.count();
+    return ArticleRepository.i.count();
   }
 
   /// 获取待处理文章数量
   Future<int> getPendingArticleCount() async {
-    return ArticleRepository.d.countByStatus(ArticleStatus.pending);
+    return ArticleRepository.i.countByStatus(ArticleStatus.pending);
   }
 
   /// 获取失败文章数量
   Future<int> getFailedArticleCount() async {
-    return ArticleRepository.d.countByStatus(ArticleStatus.error);
+    return ArticleRepository.i.countByStatus(ArticleStatus.error);
   }
 
   /// 批量更新文章状态
@@ -201,7 +201,7 @@ class ArticleManager {
 
   /// 删除文章
   Future<void> deleteArticle(int articleId) async {
-    ArticleRepository.d.remove(articleId);
+    ArticleRepository.i.remove(articleId);
     logger.i('[ArticleManager] 文章已删除: #$articleId');
   }
 
@@ -217,7 +217,7 @@ class ArticleManager {
     return ArticleStats(
       total: await getTotalArticleCount(),
       pending: await getPendingArticleCount(),
-      completed: ArticleRepository.d.countByStatus(ArticleStatus.completed),
+      completed: ArticleRepository.i.countByStatus(ArticleStatus.completed),
       failed: await getFailedArticleCount(),
     );
   }

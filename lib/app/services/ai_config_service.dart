@@ -24,19 +24,19 @@ class AIConfigService implements AppService {
   @override
   Future<void> init() async {
     logger.i("[AI配置服务] 初始化");
-    AIConfigRepository.instance.initDefaultConfigs();
+    AIConfigRepository.i.initDefaultConfigs();
   }
 
   /// 获取通用配置
   AIConfigModel? getGeneralConfig() {
-    return AIConfigRepository.instance.getGeneralConfig();
+    return AIConfigRepository.i.getGeneralConfig();
   }
 
   /// 获取特定功能类型的默认配置
   AIConfigModel? getDefaultConfig(int functionType) {
     try {
       // 获取指定功能的默认配置
-      final defaultConfig = AIConfigRepository.instance.getDefaultAIConfigByFunctionType(functionType);
+      final defaultConfig = AIConfigRepository.i.getDefaultAIConfigByFunctionType(functionType);
 
       // 如果配置需要继承自通用配置，则应用继承
       if (defaultConfig != null && defaultConfig.inheritFromGeneral) {

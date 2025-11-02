@@ -46,7 +46,7 @@ class SettingService implements AppService {
   @override
   Future<void> init() async {
     logger.i("[设置服务] 初始化");
-    SettingRepository.instance.initDefaultSettings(defaultSettings);
+    SettingRepository.i.initDefaultSettings(defaultSettings);
     await Settings.init(cacheProvider: SettingProvider());
   }
 

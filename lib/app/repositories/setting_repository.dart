@@ -7,13 +7,13 @@ import 'package:daily_satori/objectbox.g.dart';
 /// 设置仓储类
 ///
 /// 继承 BaseRepository 获取通用 CRUD 功能
-/// 使用单例模式，通过 SettingRepository.instance 访问
+/// 使用单例模式，通过 SettingRepository.i 访问
 class SettingRepository extends BaseRepository<Setting, SettingModel> {
   // 私有构造函数
   SettingRepository._();
 
   // 单例
-  static final SettingRepository instance = SettingRepository._();
+  static final i = SettingRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================
 

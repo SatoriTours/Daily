@@ -109,8 +109,8 @@ class AiService {
 
       // 如果特定功能配置为空，则使用通用设置
       if (apiAddress.isEmpty || apiToken.isEmpty) {
-        apiKey = SettingRepository.instance.getSetting(SettingService.openAITokenKey);
-        baseUrl = SettingRepository.instance.getSetting(SettingService.openAIAddressKey);
+        apiKey = SettingRepository.i.getSetting(SettingService.openAITokenKey);
+        baseUrl = SettingRepository.i.getSetting(SettingService.openAIAddressKey);
       } else {
         apiKey = apiToken;
         baseUrl = apiAddress;

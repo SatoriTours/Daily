@@ -54,7 +54,7 @@ class BackupService {
   }
 
   // Getters
-  String get backupDir => SettingRepository.instance.getSetting(SettingService.backupDirKey);
+  String get backupDir => SettingRepository.i.getSetting(SettingService.backupDirKey);
   File get backupTimeFile => File(path.join(backupDir, 'backup_time.txt'));
   int get _backupInterval => AppInfoUtils.isProduction ? _productionBackupInterval : _developmentBackupInterval;
   List<BackupItem> get backupItems => _backupItems;
@@ -303,7 +303,7 @@ class BackupService {
   /// 修复文章本地图片路径（封面与图片表），将旧路径映射到当前 images 目录
   Future<void> _fixArticleImagePaths() async {
     try {
-      final articles = ArticleRepository.d.allModels();
+      final articles = ArticleRepository.i.allModels();
       if (articles.isEmpty) return;
 
       final newBase = FileService.i.imagesBasePath;

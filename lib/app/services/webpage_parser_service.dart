@@ -54,11 +54,11 @@ class WebpageParserService {
 
       if (isUpdate && articleID > 0) {
         await _markArticleAsFailed(articleID, "处理失败: $e");
-        final article = ArticleRepository.d.findModel(articleID);
+        final article = ArticleRepository.i.findModel(articleID);
         if (article != null) return article;
       }
 
-      final fallback = ArticleRepository.d.findModel(articleID);
+      final fallback = ArticleRepository.i.findModel(articleID);
       if (fallback != null) return fallback;
 
       rethrow;
@@ -76,7 +76,7 @@ class WebpageParserService {
       throw Exception("URL不能为空");
     }
 
-    final existingArticle = ArticleRepository.d.findByUrl(url);
+    final existingArticle = ArticleRepository.i.findByUrl(url);
 
     // 情况1: URL已存在
     if (existingArticle != null) {
@@ -133,7 +133,7 @@ class WebpageParserService {
       article.updatedAt = DateTime.now().toUtc();
       article.status = ArticleStatus.webContentFetched;
 
-      ArticleRepository.d.updateModel(article);
+      ArticleRepository.i.updateModel(article);
       _notifyUI(articleId);
 
       logger.i("[获取网页内容] 成功 - 文章ID=$articleId");
@@ -151,7 +151,7 @@ class WebpageParserService {
 
     try {
       // 重新获取最新文章数据
-      final updatedArticle = ArticleRepository.d.findModel(article.id);
+      final updatedArticle = ArticleRepository.i.findModel(article.id);
       if (updatedArticle == null) {
         throw Exception("无法找到文章: ${article.id}");
       }
@@ -159,7 +159,7 @@ class WebpageParserService {
       await AiArticleProcessor.i.processAll(updatedArticle);
 
       // 更新状态为完成
-      ArticleRepository.d.updateField(article.id, ArticleFieldName.status, ArticleStatus.completed);
+      ArticleRepository.i.updateField(article.id, ArticleFieldName.status, ArticleStatus.completed);
       _notifyUI(article.id);
 
       logger.i("[AI处理] 成功 - 文章ID=${article.id}");
@@ -189,8 +189,8 @@ class WebpageParserService {
     );
 
     final articleModel = ArticleModel(article);
-    final id = ArticleRepository.d.save(articleModel);
-    final savedModel = ArticleRepository.d.findModel(id);
+    final id = ArticleRepository.i.save(articleModel);
+    final savedModel = ArticleRepository.i.findModel(id);
 
     if (savedModel == null || savedModel.entity.id <= 0) {
       throw Exception("创建文章记录失败");
@@ -201,7 +201,7 @@ class WebpageParserService {
 
   /// 重置现有文章以更新内容
   ArticleModel _resetExistingArticle(int articleId, String comment) {
-    final article = ArticleRepository.d.findModel(articleId);
+    final article = ArticleRepository.i.findModel(articleId);
     if (article == null) {
       throw Exception("找不到要更新的文章: $articleId");
     }
@@ -215,7 +215,7 @@ class WebpageParserService {
     article.status = ArticleStatus.pending;
     article.updatedAt = DateTime.now().toUtc();
 
-    ArticleRepository.d.updateModel(article);
+    ArticleRepository.i.updateModel(article);
     return article;
   }
 
@@ -223,7 +223,7 @@ class WebpageParserService {
 
   /// 将文章标记为失败状态
   Future<void> _markArticleAsFailed(int articleId, String errorMessage) async {
-    final article = ArticleRepository.d.findModel(articleId);
+    final article = ArticleRepository.i.findModel(articleId);
     if (article == null) {
       logger.e("[错误处理] 无法找到文章ID=$articleId");
       return;
@@ -233,7 +233,7 @@ class WebpageParserService {
     article.aiContent = errorMessage;
     article.updatedAt = DateTime.now().toUtc();
 
-    ArticleRepository.d.updateModel(article);
+    ArticleRepository.i.updateModel(article);
   }
 
   // ====================== 辅助方法 ======================
@@ -242,7 +242,7 @@ class WebpageParserService {
   void _notifyUI(int articleId) {
     if (articleId <= 0) return;
 
-    final article = ArticleRepository.d.findModel(articleId);
+    final article = ArticleRepository.i.findModel(articleId);
     if (article == null) return;
 
     try {

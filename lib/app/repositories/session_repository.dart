@@ -12,7 +12,7 @@ class SessionRepository extends BaseRepository<SessionEntity, SessionModel> {
   SessionRepository._();
 
   // 单例
-  static final SessionRepository instance = SessionRepository._();
+  static final i = SessionRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================
 
