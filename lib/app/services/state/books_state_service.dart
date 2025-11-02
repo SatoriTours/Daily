@@ -98,7 +98,7 @@ class BooksStateService extends GetxService {
   /// 加载特定书籍的观点
   Future<void> _loadSpecificBookViewpoints() async {
     _mode = DisplayMode.bookSpecific;
-    viewpoints.value = BookViewpointRepository.i.getModelsByBookIds([filterBookID.value]);
+    viewpoints.value = BookViewpointRepository.i.findModelsByBookIds([filterBookID.value]);
 
     if (viewpoints.isEmpty) {
       await _tryRefreshBookViewpoints();
@@ -115,7 +115,7 @@ class BooksStateService extends GetxService {
     try {
       final success = await BookService.i.refreshBook(filterBookID.value);
       if (success) {
-        viewpoints.value = BookViewpointRepository.i.getModelsByBookIds([filterBookID.value]);
+        viewpoints.value = BookViewpointRepository.i.findModelsByBookIds([filterBookID.value]);
         logger.i('重新获取书籍观点成功，共 ${viewpoints.length} 条');
       }
     } catch (e) {

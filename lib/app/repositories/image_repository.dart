@@ -49,8 +49,7 @@ class ImageRepository extends BaseRepository<Image, ImageModel> {
   /// 根据文章ID删除图片
   int deleteByArticleId(int articleId) {
     final query = box.query(Image_.article.equals(articleId)).build();
-    final images = query.find();
-    query.close();
+    final images = executeQuery(query);
     if (images.isEmpty) return 0;
     return removeMany(images.map((image) => image.id).toList());
   }

@@ -23,17 +23,15 @@ class BookViewpointRepository extends BaseRepository<BookViewpoint, BookViewpoin
 
   // ============ BookViewpoint 业务查询方法 ============
 
-  /// 根据书籍ID列表获取视角
-  List<BookViewpoint> getByBookIds(List<int> bookIds) {
+  /// 根据书籍ID列表查找视角
+  List<BookViewpoint> findByBookIds(List<int> bookIds) {
     final query = box.query(BookViewpoint_.bookId.oneOf(bookIds)).build();
-    final result = query.find();
-    query.close();
-    return result;
+    return executeQuery(query);
   }
 
-  /// 根据书籍ID获取视角（返回Model）
-  List<BookViewpointModel> getModelsByBookIds(List<int> bookIds) {
-    return getByBookIds(bookIds).map((e) => toModel(e)).toList();
+  /// 根据书籍ID查找视角（返回Model）
+  List<BookViewpointModel> findModelsByBookIds(List<int> bookIds) {
+    return findByBookIds(bookIds).map((e) => toModel(e)).toList();
   }
 
   /// 替换书籍的所有视角
@@ -41,7 +39,7 @@ class BookViewpointRepository extends BaseRepository<BookViewpoint, BookViewpoin
   /// 删除旧视角并保存新视角
   void replaceForBook(int bookId, List<BookViewpoint> newViewpoints) {
     // 删除该书籍的所有旧视角
-    final oldViewpoints = getByBookIds([bookId]);
+    final oldViewpoints = findByBookIds([bookId]);
     if (oldViewpoints.isNotEmpty) {
       removeMany(oldViewpoints.map((e) => e.id).toList());
     }

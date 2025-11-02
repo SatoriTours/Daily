@@ -25,35 +25,29 @@ class BookRepository extends BaseRepository<Book, BookModel> {
 
   // ============ Book 业务查询方法 ============
 
-  /// 根据类别获取书籍
-  List<Book> getBooksByCategory(String category) {
+  /// 根据类别查找书籍
+  List<Book> findByCategory(String category) {
     final query = box.query(Book_.category.equals(category)).build();
-    final result = query.find();
-    query.close();
-    return result;
+    return executeQuery(query);
   }
 
-  /// 根据标题搜索书籍
-  List<Book> searchByTitle(String title) {
+  /// 根据标题查找书籍
+  List<Book> findByTitle(String title) {
     final query = box.query(Book_.title.contains(title, caseSensitive: false)).build();
-    final result = query.find();
-    query.close();
-    return result;
+    return executeQuery(query);
   }
 
-  /// 根据作者搜索书籍
-  List<Book> searchByAuthor(String author) {
+  /// 根据作者查找书籍
+  List<Book> findByAuthor(String author) {
     final query = box.query(Book_.author.contains(author, caseSensitive: false)).build();
-    final result = query.find();
-    query.close();
-    return result;
+    return executeQuery(query);
   }
 
   // ============ 书籍关联的观点查询 ============
 
   /// 获取本书的所有观点
-  List<BookViewpoint> getViewpoints(int bookId) {
-    return BookViewpointRepository.i.getByBookIds([bookId]);
+  List<BookViewpoint> findViewpoints(int bookId) {
+    return BookViewpointRepository.i.findByBookIds([bookId]);
   }
 
   /// 替换书籍的所有观点

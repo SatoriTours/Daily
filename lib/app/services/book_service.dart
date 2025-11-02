@@ -33,7 +33,7 @@ class BookService {
 
   /// 按分类获取书籍
   Future<List<BookModel>> getBooksByCategory(String category) async {
-    final books = BookRepository.i.getBooksByCategory(category);
+    final books = BookRepository.i.findByCategory(category);
     return books.map((e) => BookModel(e)).toList();
   }
 
@@ -171,7 +171,7 @@ class BookService {
   /// 返回添加的书籍
   Future<BookModel?> addBook(String title) async {
     try {
-      final existingBooks = BookRepository.i.searchByTitle(title);
+      final existingBooks = BookRepository.i.findByTitle(title);
       if (existingBooks.any((book) => book.title == title)) {
         logger.i('书籍已存在: $title');
         return null;

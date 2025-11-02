@@ -160,7 +160,7 @@ class ArticleStateService extends GetxService {
   }) async {
     isLoading.value = true;
     try {
-      final result = ArticleRepository.i.queryArticles(
+      final result = ArticleRepository.i.findArticles(
         keyword: keyword,
         isFavorite: favorite,
         tagIds: tagIds,

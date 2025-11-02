@@ -31,6 +31,39 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
     return model.entity;
   }
 
+  // ==================== 查询辅助方法 ====================
+
+  /// 执行查询并自动关闭 query
+  /// 返回实体列表
+  List<E> executeQuery(Query<E> query) {
+    final result = query.find();
+    query.close();
+    return result;
+  }
+
+  /// 执行查询并自动关闭 query
+  /// 返回 Model 列表
+  List<M> executeQueryModels(Query<E> query) {
+    final entities = executeQuery(query);
+    return entities.map(toModel).toList();
+  }
+
+  /// 执行查询并自动关闭 query
+  /// 返回第一个实体
+  E? executeQueryFirst(Query<E> query) {
+    final result = query.findFirst();
+    query.close();
+    return result;
+  }
+
+  /// 执行查询并自动关闭 query
+  /// 返回数量
+  int executeQueryCount(Query<E> query) {
+    final result = query.count();
+    query.close();
+    return result;
+  }
+
   // ==================== 基础 CRUD 操作 ====================
 
   /// 查询所有 Model
@@ -128,9 +161,7 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
     query
       ..offset = offset
       ..limit = pageSize;
-    final result = query.find().map(toModel).toList();
-    query.close();
-    return result;
+    return executeQueryModels(query);
   }
 
   /// 分页查询所有 Model(别名)
@@ -143,25 +174,20 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
   /// 根据条件查询 Model 列表
   List<M> findByCondition(Condition<E> condition) {
     final query = box.query(condition).build();
-    final result = query.find().map(toModel).toList();
-    query.close();
-    return result;
+    return executeQueryModels(query);
   }
 
   /// 根据条件查询第一个 Model
   M? findFirstByCondition(Condition<E> condition) {
     final query = box.query(condition).build();
-    final entity = query.findFirst();
-    query.close();
+    final entity = executeQueryFirst(query);
     return entity != null ? toModel(entity) : null;
   }
 
   /// 根据条件统计数量
   int countByCondition(Condition<E> condition) {
     final query = box.query(condition).build();
-    final result = query.count();
-    query.close();
-    return result;
+    return executeQueryCount(query);
   }
 
   /// 根据条件分页查询 Model
@@ -182,9 +208,7 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
     query
       ..offset = offset
       ..limit = pageSize;
-    final result = query.find().map(toModel).toList();
-    query.close();
-    return result;
+    return executeQueryModels(query);
   }
 
   /// 根据条件查询 Model 列表(别名)

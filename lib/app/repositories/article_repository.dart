@@ -212,7 +212,7 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   }
 
   /// 复杂条件查询文章(支持多个过滤条件)
-  List<ArticleModel> queryArticles({
+  List<ArticleModel> findArticles({
     String? keyword,
     bool? isFavorite,
     List<int>? tagIds,
@@ -263,13 +263,11 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
       query.limit = limit;
     }
 
-    final articles = query.find();
-    query.close();
-    return articles.map((article) => ArticleModel(article)).toList();
+    return executeQuery(query).map((article) => ArticleModel(article)).toList();
   }
 
   /// 分页复杂条件查询
-  List<ArticleModel> queryArticlesPaginated({String? keyword, int page = 1}) {
+  List<ArticleModel> findArticlesPaginated({String? keyword, int page = 1}) {
     Condition<Article>? condition;
 
     if (keyword != null && keyword.isNotEmpty) {
@@ -286,9 +284,7 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
       ..limit = pageSize
       ..offset = (page - 1) * pageSize;
 
-    final articles = query.find();
-    query.close();
-    return articles.map((article) => ArticleModel(article)).toList();
+    return executeQuery(query).map((article) => ArticleModel(article)).toList();
   }
 }
 

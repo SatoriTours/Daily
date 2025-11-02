@@ -102,7 +102,7 @@ class ArticleController {
       }
 
       // 搜索文章 - 使用分页方法
-      final articles = ArticleRepository.i.queryArticlesPaginated(keyword: query, page: page);
+      final articles = ArticleRepository.i.findArticlesPaginated(keyword: query, page: page);
       // 获取搜索结果的总数和总页数
       final totalItems = ArticleRepository.i.getSearchCount(query);
       final totalPages = ArticleRepository.i.getSearchTotalPages(query);
