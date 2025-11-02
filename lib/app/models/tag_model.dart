@@ -18,7 +18,7 @@ class TagModel extends EntityModel<Tag> {
     var tag = TagRepository.instance.findByName(name);
     if (tag == null) {
       tag = TagModel(Tag(name: name));
-      TagRepository.instance.createModel(tag);
+      TagRepository.instance.saveModel(tag);
     }
     return tag;
   }

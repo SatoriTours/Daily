@@ -25,8 +25,6 @@ class BookRepository extends BaseRepository<Book, BookModel> {
     return BookModel.fromEntity(entity);
   }
 
-  // toEntity 已由父类提供默认实现，无需重写
-
   // BookViewpoint box getter
   Box<BookViewpoint> get _viewpointBox => ObjectboxService.i.box<BookViewpoint>();
 
@@ -54,27 +52,37 @@ class BookRepository extends BaseRepository<Book, BookModel> {
 
   /// 保存书籍
   int saveBook(Book book) {
-    return box.put(book);
+    final id = box.put(book);
+    logger.d('[Book] 保存: ID=$id');
+    return id;
   }
 
   /// 更新书籍
   int updateBook(Book book) {
-    return box.put(book);
+    final id = box.put(book);
+    logger.d('[Book] 更新: ID=$id');
+    return id;
   }
 
   /// 批量保存书籍
   List<int> saveBooks(List<Book> books) {
-    return box.putMany(books);
+    final ids = box.putMany(books);
+    logger.d('[Book] 批量保存: ${ids.length} 条');
+    return ids;
   }
 
   /// 删除书籍
   bool deleteBook(int id) {
-    return box.remove(id);
+    final result = box.remove(id);
+    logger.d('[Book] 删除 ID=$id: ${result ? '成功' : '失败'}');
+    return result;
   }
 
   /// 删除所有书籍
   int deleteAllSync() {
-    return box.removeAll();
+    final count = box.removeAll();
+    logger.d('[Book] 清空所有数据: $count 条');
+    return count;
   }
 
   // ============ BookViewpoint CRUD 方法 ============
@@ -96,17 +104,23 @@ class BookRepository extends BaseRepository<Book, BookModel> {
 
   /// 保存视角
   int saveViewpoint(BookViewpoint viewpoint) {
-    return _viewpointBox.put(viewpoint);
+    final id = _viewpointBox.put(viewpoint);
+    logger.d('[BookViewpoint] 保存: ID=$id');
+    return id;
   }
 
   /// 批量保存视角
   List<int> saveViewpoints(List<BookViewpoint> viewpoints) {
-    return _viewpointBox.putMany(viewpoints);
+    final ids = _viewpointBox.putMany(viewpoints);
+    logger.d('[BookViewpoint] 批量保存: ${ids.length} 条');
+    return ids;
   }
 
   /// 删除视角
   bool deleteViewpoint(int id) {
-    return _viewpointBox.remove(id);
+    final result = _viewpointBox.remove(id);
+    logger.d('[BookViewpoint] 删除 ID=$id: ${result ? '成功' : '失败'}');
+    return result;
   }
 
   /// 根据ID获取视角

@@ -22,8 +22,6 @@ class ImageRepository extends BaseRepository<Image, ImageModel> {
     return ImageModel(entity);
   }
 
-  // toEntity 已由父类提供默认实现，无需重写
-
   // ==================== 特定业务方法 ====================
 
   /// 根据路径查找图片

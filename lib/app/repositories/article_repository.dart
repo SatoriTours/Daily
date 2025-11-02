@@ -24,8 +24,6 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
     return ArticleModel(entity);
   }
 
-  // toEntity 和 extractDateFromModel 已由父类提供默认实现，无需重写
-
   // ==================== 特定业务方法 ====================
 
   /// 根据状态查找文章
@@ -153,32 +151,6 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
     remove(id);
 
     logger.i("文章已删除: $id");
-  }
-
-  /// 保存文章Model（带日志）
-  @override
-  int saveModel(ArticleModel articleModel) {
-    try {
-      final id = super.saveModel(articleModel);
-      logger.i("文章已保存: ${StringUtils.firstLine(articleModel.title ?? '')}");
-      return id;
-    } catch (e) {
-      logger.e("[保存文章失败] $e");
-      return 0;
-    }
-  }
-
-  /// 更新文章Model（带日志）
-  @override
-  int updateModel(ArticleModel articleModel) {
-    try {
-      final id = super.updateModel(articleModel);
-      logger.i("文章已更新: ${StringUtils.firstLine(articleModel.title ?? '')}");
-      return id;
-    } catch (e) {
-      logger.e("[更新文章失败] $e");
-      return 0;
-    }
   }
 
   /// 切换收藏状态

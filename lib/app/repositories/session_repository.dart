@@ -21,8 +21,6 @@ class SessionRepository extends BaseRepository<SessionEntity, SessionModel> {
     return SessionModel(entity);
   }
 
-  // toEntity 已由父类提供默认实现，无需重写
-
   /// 根据会话ID查找会话
   SessionModel? findBySessionId(String sessionId) {
     return findFirstByStringEquals(SessionEntity_.sessionId, sessionId);

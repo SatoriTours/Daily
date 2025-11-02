@@ -25,8 +25,6 @@ class TagRepository extends BaseRepository<Tag, TagModel> {
     return TagModel(entity);
   }
 
-  // toEntity 已由父类提供默认实现，无需重写
-
   // ==================== 特定业务方法 ====================
 
   /// 根据名称查找标签
@@ -102,20 +100,9 @@ class TagRepository extends BaseRepository<Tag, TagModel> {
     if (tagModel != null) return tagModel;
 
     final tag = Tag(name: name, icon: icon);
-    final id = box.put(tag);
-    tag.id = id;
-    return TagModel(tag);
-  }
-
-  /// 保存标签Model
-  int createModel(TagModel tagModel) {
-    return box.put(tagModel.entity);
-  }
-
-  /// 更新标签Model
-  @override
-  int updateModel(TagModel tagModel) {
-    return box.put(tagModel.entity);
+    final newTagModel = TagModel(tag);
+    save(newTagModel); // 使用父类方法，会自动记录日志
+    return newTagModel;
   }
 
   /// 删除标签（旧方法名兼容）

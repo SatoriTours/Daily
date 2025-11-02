@@ -22,8 +22,6 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
     return DiaryModel.fromEntity(entity);
   }
 
-  // toEntity 已由父类提供默认实现，无需重写
-
   /// 删除日记(旧方法名兼容)
   bool delete(int id) {
     return remove(id);

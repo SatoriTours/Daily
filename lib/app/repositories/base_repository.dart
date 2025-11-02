@@ -1,6 +1,7 @@
 import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/base/base_entity.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// Repository 基类
@@ -19,6 +20,9 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
   /// 每页数据量（子类可以覆盖，默认 20）
   int get pageSize => 20;
 
+  /// 获取实体类型名称（用于日志）
+  String get entityName => E.toString();
+
   /// 将实体转换为 Model(子类必须实现)
   M toModel(E entity);
 
@@ -31,39 +35,52 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
 
   /// 查询所有 Model
   List<M> all() {
-    return box.getAll().map(toModel).toList();
+    final result = box.getAll().map(toModel).toList();
+    logger.d('[$entityName] 查询所有: ${result.length} 条');
+    return result;
   }
 
   /// 根据 ID 查找 Model
   M? find(int id) {
     final entity = box.get(id);
+    logger.d('[$entityName] 查找 ID=$id: ${entity != null ? '找到' : '未找到'}');
     return entity != null ? toModel(entity) : null;
   }
 
   /// 保存 Model
   int save(M model) {
-    return box.put(toEntity(model));
+    final id = box.put(toEntity(model));
+    logger.d('[$entityName] 保存: ID=$id');
+    return id;
   }
 
   /// 批量保存 Model
   Future<List<int>> saveMany(List<M> models) async {
     final entities = models.map(toEntity).toList();
-    return await box.putManyAsync(entities);
+    final ids = await box.putManyAsync(entities);
+    logger.d('[$entityName] 批量保存: ${ids.length} 条');
+    return ids;
   }
 
   /// 删除 Model
   bool remove(int id) {
-    return box.remove(id);
+    final result = box.remove(id);
+    logger.d('[$entityName] 删除 ID=$id: ${result ? '成功' : '失败'}');
+    return result;
   }
 
   /// 批量删除 Model
   int removeMany(List<int> ids) {
-    return box.removeMany(ids);
+    final count = box.removeMany(ids);
+    logger.d('[$entityName] 批量删除: $count/${ids.length} 条');
+    return count;
   }
 
   /// 获取 Model 总数
   int count() {
-    return box.count();
+    final total = box.count();
+    logger.d('[$entityName] 统计总数: $total 条');
+    return total;
   }
 
   /// 获取总页数
@@ -74,7 +91,9 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
 
   /// 清空所有数据
   int removeAll() {
-    return box.removeAll();
+    final count = box.removeAll();
+    logger.d('[$entityName] 清空所有数据: $count 条');
+    return count;
   }
 
   // ==================== 方法别名(兼容旧代码) ====================
@@ -85,10 +104,10 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
   /// 根据 ID 查找 Model(别名)
   M? findModel(int id) => find(id);
 
-  /// 保存 Model(别名)
+  /// 保存 Model(别名) - 日志已在 save() 中打印
   int saveModel(M model) => save(model);
 
-  /// 更新 Model(别名,实际与 save 一样)
+  /// 更新 Model(别名,实际与 save 一样) - 日志已在 save() 中打印
   int updateModel(M model) => save(model);
 
   /// 批量保存 Model(别名)

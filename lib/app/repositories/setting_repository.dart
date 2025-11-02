@@ -22,8 +22,6 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
     return SettingModel(entity);
   }
 
-  // toEntity 已由父类提供默认实现，无需重写
-
   // ==================== 特定业务方法 ====================
 
   /// 根据键查找设置
