@@ -252,7 +252,7 @@ class BackupService {
   /// 修复日记图片的绝对路径，将旧路径中的“diary_images/...”相对部分映射到当前目录
   Future<void> _fixDiaryImagePaths() async {
     try {
-      final List<DiaryModel> diaries = DiaryRepository.i.getAll();
+      final List<DiaryModel> diaries = DiaryRepository.i.findAll();
       if (diaries.isEmpty) return;
 
       final newBase = FileService.i.diaryImagesBasePath; // 当前设备的图片根目录

@@ -7,7 +7,7 @@ class DiaryModel extends EntityModel<Diary> {
   DiaryModel(super.entity);
 
   factory DiaryModel.fromId(int id) {
-    final diary = DiaryRepository.i.getById(id);
+    final diary = DiaryRepository.i.find(id);
     if (diary == null) {
       throw Exception('找不到ID为$id的日记');
     }

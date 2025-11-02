@@ -55,16 +55,16 @@ class DiaryStateService extends GetxService {
 
       if (keyword != null && keyword.isNotEmpty) {
         // 按关键词搜索
-        result = DiaryRepository.i.searchByContent(keyword);
+        result = DiaryRepository.i.findByContent(keyword);
       } else if (tag != null && tag.isNotEmpty) {
         // 按标签过滤
-        result = DiaryRepository.i.searchByTag(tag);
+        result = DiaryRepository.i.findByTag(tag);
       } else if (date != null) {
         // 按日期过滤
-        result = DiaryRepository.i.getByDate(date);
+        result = DiaryRepository.i.findByCreatedDate(date);
       } else {
         // 获取所有日记
-        result = DiaryRepository.i.getAll();
+        result = DiaryRepository.i.findAll();
       }
 
       diaries.assignAll(result);
@@ -78,7 +78,7 @@ class DiaryStateService extends GetxService {
 
   /// 更新列表中的日记
   void updateDiaryInList(int id) {
-    final diary = DiaryRepository.i.getById(id);
+    final diary = DiaryRepository.i.find(id);
     if (diary == null) return;
 
     final index = diaries.indexWhere((d) => d.id == id);
@@ -107,7 +107,7 @@ class DiaryStateService extends GetxService {
       setActiveDiary(diaries[index]);
       return diaries[index];
     }
-    return DiaryRepository.i.getById(id);
+    return DiaryRepository.i.find(id);
   }
 
   // ===== 活跃日记管理 =====

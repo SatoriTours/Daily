@@ -123,7 +123,7 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
     final id = DiaryRepository.i.save(diary);
 
     // 添加到StateService列表
-    final savedDiary = DiaryRepository.i.getById(id);
+    final savedDiary = DiaryRepository.i.find(id);
     if (savedDiary != null) {
       _diaryStateService.addDiaryToList(savedDiary);
     }
@@ -139,7 +139,7 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
     isLoading.value = true;
 
     // 获取日记以删除相关图片
-    final diary = DiaryRepository.i.getById(id);
+    final diary = DiaryRepository.i.find(id);
     if (diary != null && diary.images != null && diary.images!.isNotEmpty) {
       _deleteImages(diary.images!.split(','));
     }
@@ -160,7 +160,7 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
     isLoading.value = true;
 
     // 获取原日记以比较图片变化
-    final oldDiary = DiaryRepository.i.getById(diary.id);
+    final oldDiary = DiaryRepository.i.find(diary.id);
     if (oldDiary != null && oldDiary.images != null && diary.images != oldDiary.images) {
       // 如果图片发生变化，删除不再使用的图片
       final oldImages = oldDiary.images!.split(',');
@@ -323,7 +323,7 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
   /// 获取每日日记数量统计
   Map<DateTime, int> getDailyDiaryCounts() {
     final Map<DateTime, int> counts = {};
-    final allDiaries = DiaryRepository.i.getAll();
+    final allDiaries = DiaryRepository.i.findAll();
 
     for (final diary in allDiaries) {
       // 只考虑年月日，忽略时分秒
@@ -388,7 +388,7 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
 
     final Set<String> tagSet = {};
 
-    for (var diary in DiaryRepository.i.getAll()) {
+    for (var diary in DiaryRepository.i.findAll()) {
       if (diary.tags != null && diary.tags!.isNotEmpty) {
         final diaryTags = diary.tags!.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty);
         tagSet.addAll(diaryTags);

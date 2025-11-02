@@ -75,10 +75,10 @@ class DiaryController {
 
       // 获取指定页的日记
       final diaryRepository = DiaryRepository.i;
-      final diaries = diaryRepository.getAllPaginated(page);
+      final diaries = diaryRepository.findAllPaginated(page);
       // 获取总页数和总条数
-      final totalItems = diaryRepository.getTotalCount();
-      final totalPages = diaryRepository.getTotalPages();
+      final totalItems = diaryRepository.count();
+      final totalPages = diaryRepository.totalPages();
 
       // 转换为JSON格式
       final diariesJson = diaries.map(_diaryToJson).toList();
@@ -113,7 +113,7 @@ class DiaryController {
 
       // 搜索日记内容，使用分页方法
       final diaryRepository = DiaryRepository.i;
-      final diaries = diaryRepository.searchByContentPaginated(query, page);
+      final diaries = diaryRepository.findByContentPaginated(query, page);
       // 获取搜索结果的总数和总页数
       final totalItems = diaryRepository.getSearchCount(query);
       final totalPages = diaryRepository.getSearchTotalPages(query);
@@ -147,7 +147,7 @@ class DiaryController {
 
       // 获取日记
       final diaryRepository = DiaryRepository.i;
-      final diary = diaryRepository.getById(diaryId);
+      final diary = diaryRepository.find(diaryId);
       if (diary == null) {
         return ResponseUtils.error('日记不存在', status: 404);
       }
@@ -186,7 +186,7 @@ class DiaryController {
       final diaryId = diaryRepository.save(diary);
 
       // 获取新创建的日记
-      final newDiary = diaryRepository.getById(diaryId);
+      final newDiary = diaryRepository.find(diaryId);
       if (newDiary == null) {
         return ResponseUtils.serverError('日记创建失败');
       }
@@ -214,7 +214,7 @@ class DiaryController {
 
       // 获取现有日记
       final diaryRepository = DiaryRepository.i;
-      final existingDiary = diaryRepository.getById(diaryId);
+      final existingDiary = diaryRepository.find(diaryId);
       if (existingDiary == null) {
         return ResponseUtils.error('日记不存在', status: 404);
       }
