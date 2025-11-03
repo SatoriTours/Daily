@@ -7,9 +7,6 @@ class DateTimeUtils {
   // 私有构造函数，防止实例化
   DateTimeUtils._();
 
-  /// 本地化时间设置
-  static const String timeLocal = 'zh_CN';
-
   /// 获取当前时间的ISO 8601格式字符串
   static String nowToString() => DateTime.now().toIso8601String();
 

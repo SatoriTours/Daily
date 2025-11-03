@@ -9,6 +9,7 @@ import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/ai_config_service.dart';
 import 'package:template_expressions/template_expressions.dart';
 import 'package:daily_satori/app/utils/string_utils.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 part 'part.translate.dart';
 part 'part.summarize.dart';
@@ -25,11 +26,11 @@ class AiService {
 
   // MARK: - 私有属性
 
-  /// 默认温度值（控制输出随机性）
-  static const double _defaultTemperature = 0.5;
+  /// 默认温度值（控制输出随机性，已迁移至 AIConfig）
+  static double get _defaultTemperature => AIConfig.defaultTemperature;
 
-  /// 文本最大处理长度
-  static const int _maxContentLength = 50000;
+  /// 文本最大处理长度（已迁移至 AIConfig）
+  static int get _maxContentLength => AIConfig.maxContentLength;
 
   // MARK: - 初始化方法
 

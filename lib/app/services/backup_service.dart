@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:daily_satori/app/utils/utils.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 import 'dart:isolate';
 
 import 'package:flutter/services.dart';
@@ -31,10 +32,6 @@ class BackupService {
   static final BackupService _instance = BackupService._();
   static BackupService get i => _instance;
 
-  // 常量定义
-  static const int _productionBackupInterval = 6;
-  static const int _developmentBackupInterval = 24;
-
   // 备份进度监控
   final isBackingUp = false.obs;
   final backupProgress = 0.0.obs;
@@ -54,7 +51,8 @@ class BackupService {
   // Getters
   String get backupDir => SettingRepository.i.getSetting(SettingService.backupDirKey);
   File get backupTimeFile => File(path.join(backupDir, 'backup_time.txt'));
-  int get _backupInterval => AppInfoUtils.isProduction ? _productionBackupInterval : _developmentBackupInterval;
+  int get _backupInterval =>
+      AppInfoUtils.isProduction ? BackupConfig.productionIntervalHours : BackupConfig.developmentIntervalHours;
   List<BackupItem> get backupItems => _backupItems;
 
   // 初始化服务

@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/utils/app_info_utils.dart';
 import 'package:daily_satori/app/services/service_base.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 class ADBlockService implements AppService {
   // 单例模式
@@ -22,9 +23,9 @@ class ADBlockService implements AppService {
   @override
   ServicePriority get priority => ServicePriority.high;
 
-  // 常量定义
-  static const String _easylistUrl = 'https://easylist-downloads.adblockplus.org/v3/full/easylistchina+easylist.txt';
-  static const String _localEasylistFile = 'assets/easylistchina+easylist.txt';
+  // 常量已迁移至 UrlConfig
+  static String get _easylistUrl => UrlConfig.easylistUrl;
+  static String get _localEasylistFile => UrlConfig.localEasylistFile;
 
   // CSS规则存储
   final List<String> _cssRules = []; // 普通CSS选择器规则

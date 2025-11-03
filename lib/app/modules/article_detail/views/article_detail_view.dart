@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:daily_satori/app/repositories/repositories.dart' show ArticleStatus;
+import 'package:daily_satori/app/models/models.dart' show ArticleStatus;
 
 import '../controllers/article_detail_controller.dart';
 import 'widgets/article_detail_app_bar.dart';

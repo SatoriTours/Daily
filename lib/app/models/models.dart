@@ -5,6 +5,7 @@ library;
 
 export 'ai_config_model.dart';
 export 'article_model.dart';
+export 'article_status.dart';
 export 'diary_model.dart';
 export 'image_model.dart';
 export 'screenshot_model.dart';

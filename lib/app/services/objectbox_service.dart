@@ -9,6 +9,7 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 import 'package:daily_satori/app/utils/app_info_utils.dart';
 import 'package:daily_satori/app/services/service_base.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 /// 对象存储服务类
 ///
@@ -27,8 +28,8 @@ class ObjectboxService implements AppService {
 
   // MARK: - 常量
 
-  /// 数据库目录名
-  static const String dbDir = 'obx-daily';
+  /// 数据库目录名（已迁移至 DatabaseConfig）
+  static String get dbDir => DatabaseConfig.objectBoxDir;
 
   // MARK: - 属性
 

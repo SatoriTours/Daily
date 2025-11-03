@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/utils/app_info_utils.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 /// 字体服务类
 ///
@@ -22,8 +23,8 @@ class FontService {
   /// 获取 FontService 实例
   static FontService get i => _instance;
 
-  /// 字体许可证文件路径
-  static const String _fontLicensePath = 'assets/fonts/google/OFL.txt';
+  /// 字体许可证文件路径（已迁移至 UrlConfig）
+  static String get _fontLicensePath => UrlConfig.fontLicensePath;
 
   /// 初始化字体服务
   ///

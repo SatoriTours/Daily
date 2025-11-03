@@ -1,12 +1,10 @@
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/models/article_model.dart';
+import 'package:daily_satori/app/models/article_status.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/utils/string_extensions.dart';
 import 'package:daily_satori/app/services/web_content/content_extractor.dart';
-
-/// 使用统一的ArticleStatus和ArticleFieldName定义
-export 'package:daily_satori/app/repositories/article_repository.dart' show ArticleStatus, ArticleFieldName;
 
 /// 文章管理器
 /// 专门负责文章的创建、更新和状态管理
@@ -93,7 +91,7 @@ class ArticleManager {
       'pubDate': now,
       'createdAt': now,
       'updatedAt': now,
-      'status': ArticleStatus.pending,
+      'status': ArticleStatus.pending.value,
       ..._initEmptyAiFields(),
     };
 
@@ -104,7 +102,7 @@ class ArticleManager {
       pubDate: now,
       createdAt: now,
       updatedAt: now,
-      status: ArticleStatus.pending,
+      status: ArticleStatus.pending.value,
     );
 
     final articleModel = ArticleModel(article);
@@ -161,7 +159,7 @@ class ArticleManager {
   }
 
   /// 获取文章状态
-  Future<String> getArticleStatus(int articleId) async {
+  Future<ArticleStatus> getArticleStatus(int articleId) async {
     final article = ArticleRepository.i.findModel(articleId);
     return article?.status ?? ArticleStatus.error;
   }

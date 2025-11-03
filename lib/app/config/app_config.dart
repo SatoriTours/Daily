@@ -1,33 +1,23 @@
-/// 应用程序配置中心
-/// 集中管理所有业务常量和配置
-class AppConfig {
-  // 备份相关配置
-  static const int productionBackupIntervalHours = 6;
-  static const int developmentBackupIntervalHours = 24;
-  
-  // WebView相关配置
-  static const Duration webViewTimeout = Duration(seconds: 25);
-  static const Duration sessionMaxLifetime = Duration(minutes: 4);
-  static const int maxConcurrentSessions = 2;
-  
-  // 分页配置
-  static const int defaultPageSize = 20;
-  static const int maxPageSize = 100;
-  
-  // 搜索配置
-  static const Duration searchDebounceTime = Duration(milliseconds: 300);
-  static const int minSearchLength = 2;
-  
-  // 图片配置
-  static const int maxImageUploadSize = 5 * 1024 * 1024; // 5MB
-  static const Duration imageCacheDuration = Duration(days: 7);
-  
-  // AI配置
-  static const Duration aiTimeout = Duration(seconds: 30);
-  static const int maxSummaryLength = 500;
-  static const int maxContentLength = 10000;
-  
-  // 缓存配置
-  static const Duration cacheExpiration = Duration(hours: 24);
-  static const int maxCacheSize = 50 * 1024 * 1024; // 50MB
-}
+/// 应用配置统一导出文件
+///
+/// 集中导出所有配置类，使用时只需导入此文件即可访问所有配置
+
+library;
+
+export 'ai_config.dart'; // AI配置：超时时间、内容长度限制等
+export 'animation_config.dart'; // 动画配置：时长、曲线等
+export 'backup_config.dart'; // 备份配置：备份间隔、文件格式等
+export 'cache_config.dart'; // 缓存配置：过期时间、大小限制等
+export 'database_config.dart'; // 数据库配置：版本、名称、大小等
+export 'date_format_config.dart'; // 日期格式配置：显示格式、本地化等
+export 'dimension_config.dart'; // 尺寸配置：内边距、组件高度、图标大小等
+export 'directory_config.dart'; // 目录配置：应用目录、缓存目录等
+export 'image_config.dart'; // 图片配置：大小限制、缓存时长等
+export 'message_config.dart'; // 消息文本配置：错误提示、成功提示、占位符等
+export 'network_config.dart'; // 网络配置：超时时间、重试次数等
+export 'pagination_config.dart'; // 分页配置：页面大小等
+export 'regex_config.dart'; // 正则表达式配置：URL、邮箱、电话验证等
+export 'search_config.dart'; // 搜索配置：防抖延迟、搜索长度限制等
+export 'url_config.dart'; // URL配置：API地址、资源地址等
+export 'web_service_config.dart'; // Web服务配置：端口等
+export 'webview_config.dart'; // WebView配置：超时、会话管理等

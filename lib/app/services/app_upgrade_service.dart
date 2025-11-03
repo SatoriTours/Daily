@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 class AppUpgradeService {
   // 单例模式
@@ -14,10 +15,9 @@ class AppUpgradeService {
   static final AppUpgradeService _instance = AppUpgradeService._();
   static AppUpgradeService get i => _instance;
 
-  // 常量定义
-  static const String _githubReleaseApi = 'https://api.github.com/repos/SatoriTours/Daily/releases/latest';
-  static const String _githubReleaseApiMirror =
-      'https://mirror.ghproxy.com/https://api.github.com/repos/SatoriTours/Daily/releases/latest';
+  // 常量已迁移至 UrlConfig
+  static String get _githubReleaseApi => UrlConfig.githubReleaseApi;
+  static String get _githubReleaseApiMirror => UrlConfig.githubReleaseApiMirror;
 
   // 版本信息
   late String _currentVersion;

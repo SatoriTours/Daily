@@ -3,6 +3,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:daily_satori/app/components/webview/base_webview.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 /// 无头浏览器数据模型
 class HeadlessWebViewResult {
@@ -39,7 +40,6 @@ class HeadlessWebViewResult {
 class HeadlessWebView extends BaseWebView {
   // 资源管理
   final Set<_HeadlessWebViewSession> _activeSessions = {};
-  static const int _maxConcurrentSessions = 2;
   Timer? _resourceMonitorTimer;
 
   HeadlessWebView() {
@@ -91,8 +91,8 @@ class HeadlessWebView extends BaseWebView {
     logger.i("[HeadlessWebView] 开始获取网页内容: $url");
 
     // 检查是否需要等待其他会话完成
-    while (_activeSessions.length >= _maxConcurrentSessions) {
-      logger.w("[HeadlessWebView] 已达到最大并发会话数($_maxConcurrentSessions)，等待中...");
+    while (_activeSessions.length >= WebViewConfig.maxConcurrentSessions) {
+      logger.w("[HeadlessWebView] 已达到最大并发会话数(${WebViewConfig.maxConcurrentSessions})，等待中...");
       await Future.delayed(const Duration(seconds: 1));
       _cleanupInactiveSessions();
     }

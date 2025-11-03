@@ -1,8 +1,9 @@
-import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/repositories/base_repository.dart';
-import 'package:daily_satori/app/services/file_service.dart';
+import 'package:daily_satori/app/objectbox/article.dart';
+import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/models/models.dart';
+import 'package:daily_satori/app/services/file_service.dart';
+import 'package:daily_satori/app/models/article_status.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 文章仓储类
@@ -27,12 +28,12 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   // ==================== 特定业务方法 ====================
 
   /// 根据状态查找文章
-  List<ArticleModel> findByStatus(String status) {
-    return findByStringEquals(Article_.status, status);
+  List<ArticleModel> findByStatus(ArticleStatus status) {
+    return findByStringEquals(Article_.status, status.value);
   }
 
   /// 根据多个状态查找文章
-  List<ArticleModel> findByStatuses(List<String> statuses) {
+  List<ArticleModel> findByStatuses(List<ArticleStatus> statuses) {
     if (statuses.isEmpty) {
       return [];
     }
@@ -40,7 +41,7 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
     // 构建OR条件
     Condition<Article>? condition;
     for (final status in statuses) {
-      final statusCondition = Article_.status.equals(status);
+      final statusCondition = Article_.status.equals(status.value);
       condition = condition == null ? statusCondition : condition.or(statusCondition);
     }
 
@@ -106,7 +107,7 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
     if (articles.isNotEmpty) {
       logger.i("找到 ${articles.length} 篇文章,将全部更新为 completed 状态");
       for (final article in articles) {
-        article.status = 'completed';
+        article.status = ArticleStatus.completed;
       }
       saveMany(articles);
       logger.i("已将所有文章状态更新为 completed");
@@ -167,8 +168,8 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   }
 
   /// 根据状态统计文章数量
-  int countByStatus(String status) {
-    return countByCondition(Article_.status.equals(status));
+  int countByStatus(ArticleStatus status) {
+    return countByCondition(Article_.status.equals(status.value));
   }
 
   /// 更新文章的单个字段
@@ -181,7 +182,11 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
 
     switch (fieldName) {
       case ArticleFieldName.status:
-        article.status = value as String;
+        if (value is ArticleStatus) {
+          article.status = value;
+        } else if (value is String) {
+          article.status = ArticleStatus.fromValue(value);
+        }
         break;
       case ArticleFieldName.aiTitle:
         article.aiTitle = value as String?;
@@ -286,16 +291,6 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
 
     return executeQuery(query).map((article) => ArticleModel(article)).toList();
   }
-}
-
-/// 文章状态常量类
-class ArticleStatus {
-  ArticleStatus._();
-
-  static const String pending = 'pending';
-  static const String webContentFetched = 'web_content_fetched';
-  static const String completed = 'completed';
-  static const String error = 'error';
 }
 
 /// 文章字段名称枚举

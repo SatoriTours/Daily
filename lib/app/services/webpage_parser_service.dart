@@ -185,7 +185,7 @@ class WebpageParserService {
       pubDate: now,
       createdAt: now,
       updatedAt: now,
-      status: ArticleStatus.pending,
+      status: ArticleStatus.pending.value,
     );
 
     final articleModel = ArticleModel(article);

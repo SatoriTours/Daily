@@ -2,6 +2,7 @@ import 'package:daily_satori/app/models/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
+import 'package:daily_satori/app/models/article_status.dart';
 
 /// 文章数据模型类
 class ArticleModel extends EntityModel<Article> {
@@ -35,8 +36,17 @@ class ArticleModel extends EntityModel<Article> {
   String? get comment => entity.comment;
   set comment(String? value) => entity.comment = value;
 
-  String get status => entity.status;
-  set status(String value) => entity.status = value;
+  /// 获取文章状态（枚举类型）
+  ArticleStatus get status => ArticleStatus.fromValue(entity.status);
+
+  /// 设置文章状态（枚举类型）
+  set status(ArticleStatus value) => entity.status = value.value;
+
+  /// 获取原始状态值（字符串，用于数据库操作）
+  String get statusValue => entity.status;
+
+  /// 设置原始状态值（字符串，用于数据库操作）
+  set statusValue(String value) => entity.status = value;
 
   bool get isFavorite => entity.isFavorite;
   set isFavorite(bool value) => entity.isFavorite = value;
@@ -95,6 +105,6 @@ class ArticleModel extends EntityModel<Article> {
 
   // ==================== 状态管理方法 ====================
 
-  String getStatus() => status;
-  void setStatus(String newStatus) => status = newStatus;
+  ArticleStatus getStatus() => status;
+  void setStatus(ArticleStatus newStatus) => status = newStatus;
 }

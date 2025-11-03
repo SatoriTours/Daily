@@ -4,6 +4,7 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:daily_satori/app/services/web_service/app_http_server.dart';
 import 'package:daily_satori/app/services/web_service/app_web_socket_tunnel.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 /// Web服务管理类，负责HTTP服务器和WebSocket隧道的初始化和管理
 class WebService {
@@ -18,8 +19,8 @@ class WebService {
   /// 获取WebSocket隧道实例
   AppWebSocketTunnel get webSocketTunnel => _webSocketTunnel;
 
-  /// Web服务端口号
-  static const int httpPort = 8888;
+  /// Web服务端口号（已迁移至 WebServiceConfig）
+  static int get httpPort => WebServiceConfig.httpPort;
 
   /// 初始化Web服务
   Future<void> init() async {
