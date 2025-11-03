@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:daily_satori/app/utils/utils.dart';
+import 'package:daily_satori/app/models/models.dart';
 import 'package:flutter/widgets.dart';
 import 'package:daily_satori/app/components/webview/headless_webview.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';

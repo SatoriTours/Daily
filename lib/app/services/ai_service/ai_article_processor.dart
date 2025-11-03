@@ -4,6 +4,7 @@ import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/utils/utils.dart';
+import 'package:daily_satori/app/models/models.dart';
 
 /// AI 文章处理常量
 class AiArticleConstants {
