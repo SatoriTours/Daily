@@ -1,13 +1,12 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/models/book_viewpoint.dart';
-import 'dart:async';
 
 /// 读书页面控制器
 ///
 /// 负责管理读书页面的UI状态和用户交互
 /// 数据管理由BooksStateService负责
-class BooksController extends BaseController {
+class BooksController extends BaseController with WidgetsBindingObserver {
   final scaffoldKey = GlobalKey<ScaffoldState>();
 
   /// 状态服务
@@ -24,14 +23,19 @@ class BooksController extends BaseController {
   final scrollController = ScrollController();
   final PageController pageController = PageController();
 
-  // 自动刷新定时器
-  Timer? _autoRefreshTimer;
+  // 上次刷新时间
+  DateTime? _lastRefreshTime;
+
+  // 刷新间隔（6小时）
+  static const _refreshInterval = Duration(hours: 6);
 
   @override
   void onInit() {
     super.onInit();
     _initStateService();
     _booksStateService.loadAllViewpoints();
+    WidgetsBinding.instance.addObserver(this);
+    _lastRefreshTime = DateTime.now();
   }
 
   void _initStateService() {
@@ -40,10 +44,41 @@ class BooksController extends BaseController {
 
   @override
   void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
     scrollController.dispose();
     pageController.dispose();
-    _autoRefreshTimer?.cancel();
     super.onClose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // 当应用从后台恢复到前台时检查是否需要刷新
+    if (state == AppLifecycleState.resumed) {
+      _checkAndRefreshIfNeeded();
+    }
+  }
+
+  /// 检查并在需要时刷新推荐列表
+  void _checkAndRefreshIfNeeded() {
+    // 只在"查看所有书籍"模式下自动刷新
+    if (filterBookID.value != -1) return;
+
+    // 检查上次刷新时间
+    if (_lastRefreshTime == null) {
+      _lastRefreshTime = DateTime.now();
+      return;
+    }
+
+    final now = DateTime.now();
+    final timeSinceLastRefresh = now.difference(_lastRefreshTime!);
+
+    // 如果距离上次刷新超过6小时，则自动刷新
+    if (timeSinceLastRefresh >= _refreshInterval) {
+      logger.i('距离上次刷新已${timeSinceLastRefresh.inHours}小时，自动刷新推荐列表');
+      refreshRecommendations();
+    }
   }
 
   /// 加载所有书籍
@@ -54,11 +89,6 @@ class BooksController extends BaseController {
   /// 加载所有观点
   Future<void> loadAllViewpoints() async {
     await _booksStateService.loadAllViewpoints();
-    if (filterBookID.value == -1) {
-      _touchShuffleTimeAndSchedule();
-    } else {
-      _cancelAutoRefreshIfAny();
-    }
   }
 
   /// 选择书籍
@@ -178,31 +208,6 @@ class BooksController extends BaseController {
   /// 手动刷新推荐列表
   Future<void> refreshRecommendations() async {
     await _booksStateService.refreshRecommendations();
-    if (filterBookID.value == -1) {
-      _touchShuffleTimeAndSchedule();
-    }
-  }
-
-  /// 内部:更新上次随机时间并安排自动刷新
-  void _touchShuffleTimeAndSchedule() {
-    _scheduleAutoRefresh();
-  }
-
-  void _scheduleAutoRefresh() {
-    _cancelAutoRefreshIfAny();
-    if (filterBookID.value != -1) return; // 仅在"所有/深链"模式下自动刷新
-
-    // 12小时后自动刷新
-    const duration = Duration(hours: 12);
-    _autoRefreshTimer = Timer(duration, () async {
-      try {
-        await refreshRecommendations();
-      } catch (_) {}
-    });
-  }
-
-  void _cancelAutoRefreshIfAny() {
-    _autoRefreshTimer?.cancel();
-    _autoRefreshTimer = null;
+    _lastRefreshTime = DateTime.now();
   }
 }
