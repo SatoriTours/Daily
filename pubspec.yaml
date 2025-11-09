@@ -153,6 +153,7 @@ flutter:
     - assets/fonts/google/
     - assets/website/
     - assets/configs/
+    - assets/i18n/
 
   # 注册应用内置字体，避免生产环境禁用 GoogleFonts 运行时拉取导致找不到字体
   fonts:

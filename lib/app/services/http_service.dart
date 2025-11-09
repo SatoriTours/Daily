@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 
+import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/service_base.dart';
@@ -18,7 +19,7 @@ class HttpService implements AppService {
   ServicePriority get priority => ServicePriority.critical;
 
   // 基础网络超时时间（非大文件下载场景）
-  static const _timeoutDuration = Duration(seconds: 12);
+  static const _timeoutDuration = NetworkConfig.timeout;
 
   // Dio 实例
   late final Dio _dio;
@@ -87,8 +88,8 @@ class HttpService implements AppService {
         savePath,
         options: Options(
           // 大文件图片下载使用更长超时（注意：Options 不支持 connectTimeout 覆写）
-          receiveTimeout: const Duration(minutes: 5),
-          sendTimeout: const Duration(minutes: 1),
+          receiveTimeout: DownloadConfig.imageReceiveTimeout,
+          sendTimeout: DownloadConfig.imageSendTimeout,
           followRedirects: true,
         ),
       );
@@ -147,8 +148,8 @@ class HttpService implements AppService {
           followRedirects: true,
           validateStatus: (code) => code != null && code < 400,
           // APK 等大文件下载使用更长超时（注意：Options 不支持 connectTimeout 覆写）
-          receiveTimeout: const Duration(minutes: 15),
-          sendTimeout: const Duration(minutes: 2),
+          receiveTimeout: DownloadConfig.defaultReceiveTimeout,
+          sendTimeout: DownloadConfig.defaultSendTimeout,
         ),
       );
 

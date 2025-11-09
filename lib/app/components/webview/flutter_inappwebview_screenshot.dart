@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
+import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 
@@ -65,7 +66,7 @@ Future<List<ui.Image>> _captureScreenshots(
 
 Future<void> _scrollToPosition(InAppWebViewController controller, int position) async {
   await controller.evaluateJavascript(source: "window.scrollTo(0, $position)");
-  await Future.delayed(const Duration(milliseconds: 100));
+  await Future.delayed(WebViewConfig.screenshotDelay);
 }
 
 Future<Uint8List?> _captureScreenshot(InAppWebViewController controller) async {

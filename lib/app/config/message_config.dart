@@ -49,4 +49,15 @@ class MessageConfig {
   static const String placeholderUrl = 'https://example.com';
   static const String placeholderDate = '暂无日期';
   static const String placeholderAuthor = '未知作者';
+
+  // ==================== 处理中消息 ====================
+
+  static const String processing = '处理中...';
+
+  // ==================== 书籍相关 ====================
+
+  static const String addBookTitle = '添加书籍';
+  static const String addBookHint = '请输入书名';
+  static const String addBookConfirm = '添加';
+  static const String addBookCancel = '取消';
 }

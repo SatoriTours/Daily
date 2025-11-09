@@ -1,0 +1,66 @@
+{
+  "error": {
+    "network": "网络连接错误，请检查网络后重试",
+    "server": "服务器错误，请稍后重试",
+    "timeout": "请求超时，请稍后重试",
+    "unknown": "发生未知错误，请稍后重试",
+    "validation": "输入数据无效，请检查后重试",
+    "permission": "权限不足，请联系管理员",
+    "notFound": "请求的资源不存在",
+    "duplicate": "数据已存在，无法重复添加"
+  },
+  "success": {
+    "save": "保存成功",
+    "delete": "删除成功",
+    "update": "更新成功",
+    "import": "导入成功",
+    "export": "导出成功",
+    "backup": "备份成功",
+    "restore": "恢复成功"
+  },
+  "hint": {
+    "search": "输入关键词搜索...",
+    "comment": "添加备注...",
+    "url": "输入网址...",
+    "tag": "添加标签...",
+    "title": "输入标题...",
+    "content": "输入内容..."
+  },
+  "empty": {
+    "articles": "暂无文章，快去添加吧",
+    "diary": "暂无日记，开始记录吧",
+    "books": "暂无书籍，快去阅读吧",
+    "tags": "暂无标签",
+    "search": "没有找到匹配的结果",
+    "favorites": "暂无收藏"
+  },
+  "placeholder": {
+    "title": "无标题",
+    "content": "暂无内容",
+    "summary": "暂无摘要",
+    "url": "https://example.com",
+    "date": "暂无日期",
+    "author": "未知作者"
+  },
+  "ui": {
+    "processing": "处理中...",
+    "cancel": "取消",
+    "save": "保存",
+    "saveChanges": "保存修改",
+    "updateArticle": "更新文章",
+    "saveLink": "保存链接",
+    "link": "链接",
+    "title": "标题",
+    "comment": "备注",
+    "optional": "（可选）",
+    "aiAnalysis": "AI分析",
+    "inputOrModifyArticleTitle": "输入或修改文章标题",
+    "addCommentInfo": "添加备注信息，记录你的想法..."
+  },
+  "book": {
+    "addBookTitle": "添加书籍",
+    "addBookHint": "请输入书名",
+    "addBookConfirm": "添加",
+    "addBookCancel": "取消"
+  }
+}

@@ -1,9 +1,11 @@
+import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:daily_satori/app/modules/share_dialog/controllers/share_dialog_controller.dart';
 import 'package:flutter/services.dart';
+import 'package:daily_satori/app/i18n/index.dart';
 
 /// 分享页面视图
 /// 用于保存链接或添加/更新文章备注信息
@@ -12,20 +14,21 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(resizeToAvoidBottomInset: true, appBar: _buildAppBar(context), body: _buildBody(context));
+    final i18nService = I18nService.to;
+    return Scaffold(resizeToAvoidBottomInset: true, appBar: _buildAppBar(context, i18nService), body: _buildBody(context, i18nService));
   }
 
   // 构建顶部应用栏
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  PreferredSizeWidget _buildAppBar(BuildContext context, I18nService i18nService) {
     return AppBar(
-      title: Obx(() => Text(controller.isUpdate.value ? '更新文章' : '保存链接', style: AppTypography.appBarTitle)),
+      title: Obx(() => Text(controller.isUpdate.value ? i18nService.translations.updateArticle : i18nService.translations.saveLink, style: AppTypography.appBarTitle)),
       automaticallyImplyLeading: !controller.isUpdate.value,
       elevation: 0,
     );
   }
 
   // 构建主体内容
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, I18nService i18nService) {
     return SafeArea(
       child: Column(
         children: [
@@ -35,23 +38,23 @@ class ShareDialogView extends GetView<ShareDialogController> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildLinkSection(context),
+                  _buildLinkSection(context, i18nService),
                   Dimensions.verticalSpacerL,
-                  _buildTitleSection(context),
+                  _buildTitleSection(context, i18nService),
                   Dimensions.verticalSpacerL,
-                  _buildCommentSection(context),
+                  _buildCommentSection(context, i18nService),
                 ],
               ),
             ),
           ),
-          _buildBottomButton(context),
+          _buildBottomButton(context, i18nService),
         ],
       ),
     );
   }
 
   // 构建底部按钮区域
-  Widget _buildBottomButton(BuildContext context) {
+  Widget _buildBottomButton(BuildContext context, I18nService i18nService) {
     return Container(
       padding: Dimensions.paddingBottomForm,
       decoration: BoxDecoration(
@@ -73,7 +76,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
               child: OutlinedButton(
                 style: StyleGuide.getOutlinedButtonStyle(context),
                 onPressed: () => Get.back(),
-                child: Text('取消', style: AppTypography.buttonText),
+                child: Text(i18nService.translations.cancel, style: AppTypography.buttonText),
               ),
             ),
             Dimensions.horizontalSpacerM,
@@ -84,7 +87,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
                   style: StyleGuide.getPrimaryButtonStyle(context),
                   onPressed: () => controller.onSaveButtonPressed(),
                   child: Text(
-                    controller.isUpdate.value ? '保存修改' : '保存',
+                    controller.isUpdate.value ? i18nService.translations.saveChanges : i18nService.translations.save,
                     style: AppTypography.buttonText.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -97,7 +100,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   // 构建链接区域（简洁版）
-  Widget _buildLinkSection(BuildContext context) {
+  Widget _buildLinkSection(BuildContext context, I18nService i18nService) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -106,7 +109,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
           children: [
             Icon(Icons.link_rounded, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
             const SizedBox(width: 8),
-            Text('链接', style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text(i18nService.translations.link, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
             const Spacer(),
             if (controller.isUpdate.value) ...[
               Obx(
@@ -122,7 +125,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'AI分析',
+                      i18nService.translations.aiAnalysis,
                       style: AppTypography.bodySmall.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -169,7 +172,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   // 构建标题区域
-  Widget _buildTitleSection(BuildContext context) {
+  Widget _buildTitleSection(BuildContext context, I18nService i18nService) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,7 +181,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
           children: [
             Icon(Icons.title_rounded, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
             const SizedBox(width: 8),
-            Text('标题', style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text(i18nService.translations.title, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
           ],
         ),
         const SizedBox(height: 10),
@@ -186,10 +189,10 @@ class ShareDialogView extends GetView<ShareDialogController> {
           controller: controller.titleController,
           maxLines: null,
           minLines: 2,
-          maxLength: 120,
+          maxLength: InputConfig.maxLength,
           style: AppTypography.bodyMedium.copyWith(fontSize: 15, height: 1.5),
           decoration: InputDecoration(
-            hintText: '输入或修改文章标题',
+            hintText: i18nService.translations.inputOrModifyArticleTitle,
             hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -218,7 +221,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   // 构建备注区域
-  Widget _buildCommentSection(BuildContext context) {
+  Widget _buildCommentSection(BuildContext context, I18nService i18nService) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,10 +230,10 @@ class ShareDialogView extends GetView<ShareDialogController> {
           children: [
             Icon(Icons.comment_outlined, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
             const SizedBox(width: 8),
-            Text('备注', style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text(i18nService.translations.comment, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
             const SizedBox(width: 6),
             Text(
-              '（可选）',
+              i18nService.translations.optional,
               style: AppTypography.bodySmall.copyWith(
                 fontSize: 12,
                 color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
@@ -245,7 +248,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
           minLines: 4,
           style: AppTypography.bodyMedium.copyWith(fontSize: 14, height: 1.6),
           decoration: InputDecoration(
-            hintText: '添加备注信息，记录你的想法...',
+            hintText: i18nService.translations.addCommentInfo,
             hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),

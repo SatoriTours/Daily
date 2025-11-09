@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/i18n/index.dart';
 
 /// 处理中对话框
 ///
@@ -15,12 +17,14 @@ class ProcessingDialog {
   /// [timeout] 超时时间（毫秒），如果设置，超过时间后将自动关闭对话框
   /// [onProcess] 处理函数，接收一个更新消息的函数作为参数
   static Future<T?> show<T>({
-    String message = '处理中...',
+    String? message,
     bool barrierDismissible = false,
     int? timeout,
     required Future<T> Function(void Function(String) updateMessage) onProcess,
   }) async {
-    final messageRx = message.obs;
+    final i18nService = I18nService.to;
+    final defaultMessage = i18nService.translations.processing;
+    final messageRx = (message ?? defaultMessage).obs;
     final isCompleted = false.obs;
     final completer = Completer<T?>();
     // 显示对话框
@@ -46,7 +50,7 @@ class ProcessingDialog {
       });
       // 显示完成状态
       isCompleted.value = true;
-      await Future.delayed(const Duration(milliseconds: 800));
+      await Future.delayed(AnimationConfig.longDuration);
       if (Get.isDialogOpen ?? false) {
         Get.back();
       }

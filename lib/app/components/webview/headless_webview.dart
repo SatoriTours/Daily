@@ -149,8 +149,8 @@ class _HeadlessWebViewSession {
   Timer? _timeoutTimer;
 
   // 会话超时设置
-  static const _sessionMaxLifetime = Duration(minutes: 4); // 缩短最大生命周期
-  static const _sessionInactivityTimeout = Duration(minutes: 1, seconds: 30); // 缩短不活动超时时间
+  static const _sessionMaxLifetime = WebViewConfig.sessionMaxLifetime; // 最大生命周期
+  static const _sessionInactivityTimeout = SessionConfig.inactivityTimeout; // 不活动超时时间
 
   _HeadlessWebViewSession(this.url, this._baseWebView);
 
@@ -238,7 +238,7 @@ class _HeadlessWebViewSession {
 
     // 加载停止后，延迟1.5秒启动DOM稳定性检测（从3秒减少到1.5秒）
     if (!_isStabilityCheckStarted) {
-      await Future.delayed(const Duration(milliseconds: 1500));
+      await Future.delayed(WebViewConfig.domStabilityCheckDelay);
       _startDOMStabilityCheck(controller);
       _isStabilityCheckStarted = true;
     }
@@ -257,7 +257,7 @@ class _HeadlessWebViewSession {
 
   /// 检查加载进度，如果3秒后仍未触发onLoadStop，手动启动DOM稳定性检测
   void _checkLoadProgress() {
-    Future.delayed(const Duration(seconds: 4), () {
+    Future.delayed(WebViewConfig.loadProgressCheckDelay, () {
       // 从6秒减少到4秒
       if (!_hasLoadStopFired && !_isStabilityCheckStarted && !_isCompleted) {
         logger.w("[HeadlessWebView] 4秒内未触发onLoadStop，手动启动DOM稳定性检测");

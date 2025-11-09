@@ -1,0 +1,66 @@
+{
+  "error": {
+    "network": "Network connection error, please check your network and try again",
+    "server": "Server error, please try again later",
+    "timeout": "Request timeout, please try again later",
+    "unknown": "Unknown error occurred, please try again later",
+    "validation": "Invalid input data, please check and try again",
+    "permission": "Insufficient permissions, please contact administrator",
+    "notFound": "The requested resource does not exist",
+    "duplicate": "Data already exists and cannot be added again"
+  },
+  "success": {
+    "save": "Save successful",
+    "delete": "Delete successful",
+    "update": "Update successful",
+    "import": "Import successful",
+    "export": "Export successful",
+    "backup": "Backup successful",
+    "restore": "Restore successful"
+  },
+  "hint": {
+    "search": "Enter keywords to search...",
+    "comment": "Add a comment...",
+    "url": "Enter URL...",
+    "tag": "Add tag...",
+    "title": "Enter title...",
+    "content": "Enter content..."
+  },
+  "empty": {
+    "articles": "No articles yet, go add some",
+    "diary": "No diaries yet, start recording",
+    "books": "No books yet, go read some",
+    "tags": "No tags yet",
+    "search": "No matching results found",
+    "favorites": "No favorites yet"
+  },
+  "placeholder": {
+    "title": "Untitled",
+    "content": "No content",
+    "summary": "No summary",
+    "url": "https://example.com",
+    "date": "No date",
+    "author": "Unknown author"
+  },
+  "ui": {
+    "processing": "Processing...",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saveChanges": "Save Changes",
+    "updateArticle": "Update Article",
+    "saveLink": "Save Link",
+    "link": "Link",
+    "title": "Title",
+    "comment": "Comment",
+    "optional": "(Optional)",
+    "aiAnalysis": "AI Analysis",
+    "inputOrModifyArticleTitle": "Enter or modify article title",
+    "addCommentInfo": "Add comment information, record your thoughts..."
+  },
+  "book": {
+    "addBookTitle": "Add Book",
+    "addBookHint": "Please enter book title",
+    "addBookConfirm": "Add",
+    "addBookCancel": "Cancel"
+  }
+}

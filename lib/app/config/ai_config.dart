@@ -14,4 +14,7 @@ class AIConfig {
   static const int minHtmlLength = 50; // HTML内容最小长度
   static const int minTextLength = 20; // 文本内容最小长度
   static const int longTitleThreshold = 50; // 标题过长阈值
+
+  // 书籍推荐相关
+  static const int randomRecommendationCount = 10; // 随机推荐数量
 }

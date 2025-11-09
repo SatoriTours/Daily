@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
+import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/services/service_registry.dart';
 import 'package:daily_satori/app/services/services.dart';
 
@@ -64,7 +65,7 @@ void onAppReady() {
 
 // 定期内存清理
 void _scheduleMemoryCleanup() {
-  Timer.periodic(const Duration(minutes: 15), (timer) {
+  Timer.periodic(SessionConfig.checkInterval, (timer) {
     try {
       FreeDiskService.i.clean();
     } catch (_) {}

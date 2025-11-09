@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/models/session_model.dart';
 import 'package:daily_satori/app/objectbox/session.dart';
 import 'package:daily_satori/app/repositories/base_repository.dart';
@@ -74,7 +75,7 @@ class SessionRepository extends BaseRepository<SessionEntity, SessionModel> {
 
   /// 清理过期会话 (30分钟不活动即过期)
   void cleanExpiredSessions() {
-    final expireTime = DateTime.now().subtract(const Duration(minutes: 30));
+    final expireTime = DateTime.now().subtract(SessionConfig.expireTime);
 
     // 查询所有会话
     final allSessions = all();

@@ -1,6 +1,7 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/models/book_viewpoint.dart';
+import 'package:daily_satori/app/i18n/index.dart';
 
 /// 读书页面控制器
 ///
@@ -104,11 +105,12 @@ class BooksController extends BaseController with WidgetsBindingObserver {
 
   /// 显示添加书籍对话框
   Future<void> showAddBookDialog() async {
+    final i18nService = I18nService.to;
     final bookName = await DialogUtils.showInputDialog(
-      title: '添加书籍',
-      hintText: '请输入书名',
-      confirmText: '添加',
-      cancelText: '取消',
+      title: i18nService.translations.addBookTitle,
+      hintText: i18nService.translations.addBookHint,
+      confirmText: i18nService.translations.addBookConfirm,
+      cancelText: i18nService.translations.addBookCancel,
     );
 
     if (bookName != null && bookName.trim().isNotEmpty) {
