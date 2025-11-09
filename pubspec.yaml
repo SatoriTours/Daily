@@ -53,6 +53,9 @@ dependencies:
   # 网络处理
   dio: ^5.7.0
 
+  # 拼音转换
+  pinyin: ^3.3.0
+
   # 文件选择
   file_picker: ^10.3.1
 
@@ -111,6 +114,9 @@ dependencies:
 
   archive: ^4.0.5
   collection: ^1.19.1
+
+  # HTML解析
+  html: ^0.15.6
 
 # 为了解决 template_expressions 和 objectbox 的冲突
 dependency_overrides:

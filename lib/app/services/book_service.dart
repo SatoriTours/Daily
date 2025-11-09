@@ -2,6 +2,7 @@ import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/models/book_viewpoint.dart';
 import 'package:daily_satori/app/models/book_search_result.dart';
+import 'package:daily_satori/app/services/book_search_engine/open_library_search_engine.dart';
 import 'dart:convert';
 
 import 'package:template_expressions/template_expressions.dart';
@@ -171,7 +172,8 @@ class BookService {
     try {
       logger.i('开始搜索书籍: $searchTerm');
 
-      final searchResults = await _searchBooksWithAI(searchTerm);
+      // 使用 OpenLibrary 搜索引擎
+      final searchResults = await OpenLibrarySearchEngine.i.searchBooks(searchTerm);
       return searchResults;
     } catch (e, stackTrace) {
       logger.e('搜索书籍失败: $searchTerm', error: e, stackTrace: stackTrace);
@@ -398,68 +400,6 @@ class BookService {
     } catch (e, stackTrace) {
       logger.e('保存观点失败', error: e, stackTrace: stackTrace);
       return 0;
-    }
-  }
-
-  /// 使用AI搜索书籍
-  Future<List<BookSearchResult>> _searchBooksWithAI(String searchTerm) async {
-    try {
-      final promptTemplate = _pluginService.getBookSearch();
-      if (promptTemplate.isEmpty) {
-        logger.w('书籍搜索模板为空，使用备用模板');
-        // 使用备用搜索模板
-        final prompt =
-            '''
-请根据搜索关键词"$searchTerm"，搜索相关的书籍信息。返回最多8个最相关的结果，按以下JSON格式：
-{
-  "results": [
-    {
-      "title": "书名",
-      "author": "作者姓名",
-      "category": "书籍分类",
-      "introduction": "书籍简介（50-100字）",
-      "isbn": "ISBN号（如有）",
-      "publishYear": "出版年份（如有）"
-    }
-  ]
-}
-
-要求：
-1. 只返回JSON格式数据，不要包含其他文字
-2. **书名必须与搜索关键词高度相关**：书名应包含搜索词的核心词汇，或者是该关键词的直接相关作品
-3. **严格过滤不相关书籍**：排除书名与搜索词完全不搭、主题不符的书籍。例如搜索"管理的实践"时，不要返回"第五项修炼"等主题不同的管理类书籍
-4. **优先级排序**：
-   - 第一优先：书名与搜索词完全匹配或高度相似的书籍
-   - 第二优先：同一作者的其他相关作品
-   - 第三优先：同一主题的权威经典书籍
-5. 选择权威和知名的版本，尽量包含ISBN号和出版年份
-6. introduction要简洁明了，突出书籍的核心价值和内容
-7. 如果找不到8本高度相关的书籍，宁可少返回也不要凑数
-''';
-        final response = await _aiService.getCompletion(prompt);
-        final cleanedResponse = _cleanJsonResponse(response);
-        final Map<String, dynamic> searchData = jsonDecode(cleanedResponse);
-
-        if (searchData.containsKey('results')) {
-          final List<dynamic> results = searchData['results'] as List<dynamic>;
-          return results.map((item) => BookSearchResult.fromJson(item as Map<String, dynamic>)).toList();
-        }
-        return [];
-      }
-
-      final prompt = _renderTemplate(promptTemplate, {'searchTerm': searchTerm});
-      final response = await _aiService.getCompletion(prompt);
-      final cleanedResponse = _cleanJsonResponse(response);
-      final Map<String, dynamic> searchData = jsonDecode(cleanedResponse);
-
-      if (searchData.containsKey('results')) {
-        final List<dynamic> results = searchData['results'] as List<dynamic>;
-        return results.map((item) => BookSearchResult.fromJson(item as Map<String, dynamic>)).toList();
-      }
-      return [];
-    } catch (e, stackTrace) {
-      logger.e('AI搜索书籍失败: $searchTerm', error: e, stackTrace: stackTrace);
-      return [];
     }
   }
 

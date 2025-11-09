@@ -587,7 +587,7 @@ packages:
     source: hosted
     version: "2.3.2"
   html:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: html
       sha256: "6d1264f2dffa1b1101c25a91dff0dc2daee4c18e87cd8538729773c073dbf602"
@@ -1119,6 +1119,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.15.0"
+  pinyin:
+    dependency: "direct main"
+    description:
+      name: pinyin
+      sha256: "240f271a3c71af20c8d2757756b5ee8e9d79a955d37abad4b3568fd406b22411"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.3.0"
   platform:
     dependency: transitive
     description:

@@ -9,6 +9,7 @@ class BookSearchResult {
   final String introduction;
   final String isbn;
   final String publishYear;
+  final String coverUrl;
   late final DateTime createdAt;
 
   BookSearchResult({
@@ -18,6 +19,7 @@ class BookSearchResult {
     required this.introduction,
     this.isbn = '',
     this.publishYear = '',
+    this.coverUrl = '',
   }) {
     createdAt = DateTime.now();
   }
@@ -30,6 +32,7 @@ class BookSearchResult {
     required this.introduction,
     this.isbn = '',
     this.publishYear = '',
+    this.coverUrl = '',
     DateTime? createdAt,
   }) {
     this.createdAt = createdAt ?? DateTime.now();
@@ -44,6 +47,7 @@ class BookSearchResult {
       introduction: json['introduction'] as String,
       isbn: json['isbn'] as String? ?? '',
       publishYear: json['publishYear'] as String? ?? '',
+      coverUrl: json['coverUrl'] as String? ?? '',
     );
   }
 
@@ -56,6 +60,7 @@ class BookSearchResult {
       'introduction': introduction,
       'isbn': isbn,
       'publishYear': publishYear,
+      'coverUrl': coverUrl,
     };
   }
 
@@ -67,10 +72,7 @@ class BookSearchResult {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is BookSearchResult &&
-        other.title == title &&
-        other.author == author &&
-        other.isbn == isbn;
+    return other is BookSearchResult && other.title == title && other.author == author && other.isbn == isbn;
   }
 
   @override
