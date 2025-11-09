@@ -55,7 +55,8 @@
     "optional": "（可选）",
     "aiAnalysis": "AI分析",
     "inputOrModifyArticleTitle": "输入或修改文章标题",
-    "addCommentInfo": "添加备注信息，记录你的想法..."
+    "addCommentInfo": "添加备注信息，记录你的想法...",
+    "search": "搜索"
   },
   "book": {
     "addBookTitle": "添加书籍",

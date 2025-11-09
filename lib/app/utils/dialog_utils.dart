@@ -73,16 +73,18 @@ class DialogUtils {
   }
 
   /// 显示输入对话框
-  static Future<String?> showInputDialog({
+  static Future<void> showInputDialog({
     required String title,
     String? initialValue,
     String hintText = '',
     String confirmText = '确定',
     String cancelText = '取消',
     TextInputType keyboardType = TextInputType.text,
+    required void Function(String value) onConfirm,
+    VoidCallback? onCancel,
   }) async {
     final TextEditingController controller = TextEditingController(text: initialValue);
-    final result = await Get.dialog<String>(
+    await Get.dialog<String>(
       _CustomDialog(
         title: title,
         content: '',
@@ -93,16 +95,27 @@ class DialogUtils {
         ),
         actions: [
           Expanded(
-            child: TextButton(onPressed: () => _closeDialog(), child: Text(cancelText)),
+            child: TextButton(
+              onPressed: () {
+                _closeDialog();
+                if (onCancel != null) onCancel();
+              },
+              child: Text(cancelText),
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: TextButton(onPressed: () => _closeDialog(), child: Text(confirmText)),
+            child: TextButton(
+              onPressed: () {
+                _closeDialog();
+                onConfirm(controller.text);
+              },
+              child: Text(confirmText),
+            ),
           ),
         ],
       ),
     );
-    return result;
   }
 
   /// 显示全屏加载提示

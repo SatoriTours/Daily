@@ -1,6 +1,7 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/models/book_viewpoint.dart';
+import 'package:daily_satori/app/models/book_search_result.dart';
 import 'dart:convert';
 
 import 'package:template_expressions/template_expressions.dart';
@@ -162,7 +163,66 @@ class BookService {
     }
   }
 
-  /// 添加书籍
+  /// 搜索书籍
+  ///
+  /// [searchTerm] 搜索关键词
+  /// 返回搜索到的书籍列表
+  Future<List<BookSearchResult>> searchBooks(String searchTerm) async {
+    try {
+      logger.i('开始搜索书籍: $searchTerm');
+
+      final searchResults = await _searchBooksWithAI(searchTerm);
+      return searchResults;
+    } catch (e, stackTrace) {
+      logger.e('搜索书籍失败: $searchTerm', error: e, stackTrace: stackTrace);
+      return [];
+    }
+  }
+
+  /// 通过选择的搜索结果添加书籍
+  ///
+  /// [searchResult] 用户选择的书籍搜索结果
+  /// 返回添加的书籍
+  Future<BookModel?> addBookFromSearch(BookSearchResult searchResult) async {
+    try {
+      // 检查是否已存在相同书名和作者的书籍
+      final existingBooks = BookRepository.i.all();
+      if (existingBooks.any((book) =>
+          book.title.toLowerCase() == searchResult.title.toLowerCase() &&
+          book.author.toLowerCase() == searchResult.author.toLowerCase())) {
+        logger.i('书籍已存在（书名和作者相同）: ${searchResult.title}');
+        return null;
+      }
+
+      // 创建书籍对象
+      final book = BookModel.create(
+        title: searchResult.title,
+        author: searchResult.author,
+        category: searchResult.category,
+        introduction: searchResult.introduction,
+      );
+
+      // 保存书籍
+      final bookId = BookRepository.i.save(book);
+      if (bookId <= 0) {
+        logger.e('保存书籍失败: ${searchResult.title}');
+        return null;
+      }
+
+      book.entity.id = bookId;
+
+      // 处理并保存观点
+      await _processAndSaveViewpoints(book);
+
+      logger.i('添加书籍成功: ${book.title}');
+      return book;
+    } catch (e, stackTrace) {
+      logger.e('添加书籍失败: ${searchResult.title}', error: e, stackTrace: stackTrace);
+      return null;
+    }
+  }
+
+  /// 添加书籍（直接创建，兼容原有功能）
   ///
   /// [title] 书名
   /// [category] 分类名（可选）
@@ -190,28 +250,49 @@ class BookService {
 
   /// 使用AI创建书籍对象
   Future<BookModel?> _createBookWithAI(String title) async {
-    final promptTemplate = _pluginService.getBookInfo();
-    final prompt = _renderTemplate(promptTemplate, {'title': title});
+    try {
+      logger.i('开始使用AI创建书籍: $title');
 
-    final response = await _aiService.getCompletion(prompt);
-    final cleanedResponse = _cleanJsonResponse(response);
-    final Map<String, dynamic> bookData = jsonDecode(cleanedResponse);
+      final promptTemplate = _pluginService.getBookInfo();
+      logger.d('Book info template: ${promptTemplate.isNotEmpty ? "已加载" : "为空"}');
 
-    final book = BookModel.create(
-      title: bookData['title'] as String,
-      author: bookData['author'] as String,
-      category: bookData['category'] as String,
-      introduction: bookData['introduction'] as String,
-    );
+      final prompt = _renderTemplate(promptTemplate, {'title': title});
+      logger.d('Generated prompt length: ${prompt.length}');
 
-    final bookId = BookRepository.i.save(book);
-    if (bookId <= 0) {
-      logger.e('保存书籍失败: $title');
+      final response = await _aiService.getCompletion(prompt);
+      logger.d('AI response received: ${response.isNotEmpty ? response.length : 0} chars');
+
+      if (response.isEmpty) {
+        logger.e('AI返回空响应: $title');
+        return null;
+      }
+
+      final cleanedResponse = _cleanJsonResponse(response);
+      logger.d('Cleaned response: ${cleanedResponse.length} chars');
+
+      final Map<String, dynamic> bookData = jsonDecode(cleanedResponse);
+      logger.d('Parsed book data keys: ${bookData.keys.toList()}');
+
+      final book = BookModel.create(
+        title: bookData['title'] as String? ?? title,
+        author: bookData['author'] as String? ?? '未知作者',
+        category: bookData['category'] as String? ?? '未分类',
+        introduction: bookData['introduction'] as String? ?? '暂无简介',
+      );
+
+      final bookId = BookRepository.i.save(book);
+      if (bookId <= 0) {
+        logger.e('保存书籍失败: $title');
+        return null;
+      }
+
+      book.entity.id = bookId;
+      logger.i('AI创建书籍成功: ${book.title}');
+      return book;
+    } catch (e, stackTrace) {
+      logger.e('AI创建书籍失败: $title', error: e, stackTrace: stackTrace);
       return null;
     }
-
-    book.entity.id = bookId;
-    return book;
   }
 
   /// 处理并保存书籍观点
@@ -315,6 +396,61 @@ class BookService {
     } catch (e, stackTrace) {
       logger.e('保存观点失败', error: e, stackTrace: stackTrace);
       return 0;
+    }
+  }
+
+  /// 使用AI搜索书籍
+  Future<List<BookSearchResult>> _searchBooksWithAI(String searchTerm) async {
+    try {
+      final promptTemplate = _pluginService.getBookSearch();
+      if (promptTemplate.isEmpty) {
+        logger.w('书籍搜索模板为空，使用备用模板');
+        // 使用备用搜索模板
+        final prompt = '''
+请根据搜索关键词"$searchTerm"，搜索相关的书籍信息。返回最多8个最相关的结果，按以下JSON格式：
+{
+  "results": [
+    {
+      "title": "书名",
+      "author": "作者姓名",
+      "category": "书籍分类",
+      "introduction": "书籍简介（50-100字）",
+      "isbn": "ISBN号（如有）",
+      "publishYear": "出版年份（如有）"
+    }
+  ]
+}
+
+要求：
+1. 只返回JSON格式数据，不要包含其他文字
+2. 选择最相关和权威的书籍
+3. 如果搜索词太模糊，优先选择知名和经典的书籍
+4. introduction要简洁明了，突出书籍的核心价值和内容
+''';
+        final response = await _aiService.getCompletion(prompt);
+        final cleanedResponse = _cleanJsonResponse(response);
+        final Map<String, dynamic> searchData = jsonDecode(cleanedResponse);
+
+        if (searchData.containsKey('results')) {
+          final List<dynamic> results = searchData['results'] as List<dynamic>;
+          return results.map((item) => BookSearchResult.fromJson(item as Map<String, dynamic>)).toList();
+        }
+        return [];
+      }
+
+      final prompt = _renderTemplate(promptTemplate, {'searchTerm': searchTerm});
+      final response = await _aiService.getCompletion(prompt);
+      final cleanedResponse = _cleanJsonResponse(response);
+      final Map<String, dynamic> searchData = jsonDecode(cleanedResponse);
+
+      if (searchData.containsKey('results')) {
+        final List<dynamic> results = searchData['results'] as List<dynamic>;
+        return results.map((item) => BookSearchResult.fromJson(item as Map<String, dynamic>)).toList();
+      }
+      return [];
+    } catch (e, stackTrace) {
+      logger.e('AI搜索书籍失败: $searchTerm', error: e, stackTrace: stackTrace);
+      return [];
     }
   }
 

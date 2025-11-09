@@ -55,7 +55,8 @@
     "optional": "(Optional)",
     "aiAnalysis": "AI Analysis",
     "inputOrModifyArticleTitle": "Enter or modify article title",
-    "addCommentInfo": "Add comment information, record your thoughts..."
+    "addCommentInfo": "Add comment information, record your thoughts...",
+    "search": "Search"
   },
   "book": {
     "addBookTitle": "Add Book",

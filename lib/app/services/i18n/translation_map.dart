@@ -86,6 +86,7 @@ class TranslationMap {
   String get aiAnalysis => t('ui.aiAnalysis');
   String get inputOrModifyArticleTitle => t('ui.inputOrModifyArticleTitle');
   String get addCommentInfo => t('ui.addCommentInfo');
+  String get search => t('ui.search');
 
   /// 书籍相关
   String get addBookTitle => t('book.addBookTitle');
