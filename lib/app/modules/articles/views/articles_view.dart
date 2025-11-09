@@ -8,6 +8,7 @@ import 'package:daily_satori/app/components/empty_states/articles_empty_view.dar
 import 'package:daily_satori/app/services/state/app_state_service.dart';
 import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 import 'widgets/articles_search_bar.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'widgets/articles_tags_dialog.dart';
@@ -196,7 +197,7 @@ class ArticlesView extends GetView<ArticlesController> {
   /// 滚动到顶部
   void _scrollToTop() {
     if (controller.scrollController.hasClients) {
-      controller.scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      controller.scrollController.animateTo(0, duration: AnimationConfig.duration, curve: Curves.easeInOut);
     }
   }
 

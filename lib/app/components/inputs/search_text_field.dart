@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 /// 搜索输入框组件
 ///
@@ -71,7 +72,7 @@ class SearchTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnimatedSlide(
       offset: Offset(0, isVisible ? 0 : -1),
-      duration: const Duration(milliseconds: 300),
+      duration: AnimationConfig.duration,
       child: _buildSearchField(context),
     );
   }

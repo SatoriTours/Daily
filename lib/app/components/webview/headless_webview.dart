@@ -48,7 +48,7 @@ class HeadlessWebView extends BaseWebView {
 
   /// 启动资源监控
   void _startResourceMonitor() {
-    _resourceMonitorTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    _resourceMonitorTimer = Timer.periodic(NetworkConfig.timeout, (_) {
       _cleanupInactiveSessions();
     });
   }
@@ -93,7 +93,7 @@ class HeadlessWebView extends BaseWebView {
     // 检查是否需要等待其他会话完成
     while (_activeSessions.length >= WebViewConfig.maxConcurrentSessions) {
       logger.w("[HeadlessWebView] 已达到最大并发会话数(${WebViewConfig.maxConcurrentSessions})，等待中...");
-      await Future.delayed(const Duration(seconds: 1));
+      await Future.delayed(NetworkConfig.retryDelay);
       _cleanupInactiveSessions();
     }
 
@@ -246,7 +246,7 @@ class _HeadlessWebViewSession {
 
   /// 设置超时保护
   void _setupTimeout() {
-    const maxTimeout = Duration(seconds: 25); // 从30秒减少到25秒
+    const maxTimeout = WebViewConfig.timeout;
     _timeoutTimer = Timer(maxTimeout, () {
       if (!_isCompleted) {
         logger.w("[HeadlessWebView] 页面加载超时(${maxTimeout.inSeconds}秒)，使用当前内容");
@@ -269,8 +269,7 @@ class _HeadlessWebViewSession {
 
   /// 启动DOM稳定性检测
   void _startDOMStabilityCheck(InAppWebViewController controller) {
-    _stabilityTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) async {
-      // 从800毫秒减少到500毫秒
+    _stabilityTimer = Timer.periodic(AnimationConfig.longDuration, (timer) async {
       try {
         if (_isCompleted) {
           timer.cancel();

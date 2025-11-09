@@ -1,4 +1,5 @@
 import 'package:daily_satori/app_exports.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 /// GetX 基础控制器
 ///
@@ -100,8 +101,8 @@ abstract class BaseGetXController extends GetxController {
   /// 重试机制
   Future<T?> retry<T>(
     Future<T> Function() operation, {
-    int maxAttempts = 3,
-    Duration delay = const Duration(seconds: 1),
+    int maxAttempts = NetworkConfig.maxRetries,
+    Duration delay = NetworkConfig.retryDelay,
     String? errorMessage,
   }) async {
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {

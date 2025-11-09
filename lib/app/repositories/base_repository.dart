@@ -3,6 +3,7 @@ import 'package:daily_satori/app/objectbox/base/base_entity.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 /// Repository 基类
 ///
@@ -17,8 +18,8 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
   /// 使用 late final 实现延迟初始化和结果缓存，优化性能
   late final Box<E> box = ObjectboxService.i.box<E>();
 
-  /// 每页数据量（子类可以覆盖，默认 20）
-  int get pageSize => 20;
+  /// 每页数据量（子类可以覆盖）
+  int get pageSize => PaginationConfig.defaultPageSize;
 
   /// 获取实体类型名称（用于日志）
   String get entityName => E.toString();

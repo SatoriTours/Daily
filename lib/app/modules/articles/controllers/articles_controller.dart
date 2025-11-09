@@ -1,5 +1,6 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/objectbox.g.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 /// 文章列表控制器
 class ArticlesController extends BaseGetXController with WidgetsBindingObserver {
@@ -23,7 +24,7 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
   final searchFocusNode = FocusNode();
 
   /// 分页大小
-  final int _pageSize = 20;
+  final int _pageSize = PaginationConfig.defaultPageSize;
 
   /// 内部状态
   DateTime _lastRefreshTime = DateTime.now();

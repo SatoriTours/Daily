@@ -8,6 +8,7 @@ import 'package:daily_satori/app/modules/diary/controllers/diary_controller.dart
 import 'package:daily_satori/app/modules/diary/views/widgets/diary_editor.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
+import 'package:daily_satori/app/config/app_config.dart';
 
 /// 观点内容组件
 class ViewpointContent extends StatefulWidget {
@@ -41,11 +42,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
   void didUpdateWidget(ViewpointContent oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.currentIndex != widget.currentIndex) {
-      _pageController.animateToPage(
-        widget.currentIndex,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+      _pageController.animateToPage(widget.currentIndex, duration: AnimationConfig.duration, curve: Curves.easeInOut);
     }
   }
 

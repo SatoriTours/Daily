@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:daily_satori/app/utils/base_controller.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 /// 通用列表控制器基类
 ///
@@ -18,7 +19,7 @@ abstract class BaseListController<T> extends BaseController {
 
   // 分页相关
   final currentPage = 1.obs;
-  final pageSize = 20.obs;
+  final pageSize = PaginationConfig.defaultPageSize.obs;
   final hasMoreData = true.obs;
   final isLoadingMore = false.obs;
 
@@ -80,7 +81,7 @@ abstract class BaseListController<T> extends BaseController {
   Timer? _searchDebounce;
   void _debounceSearch() {
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+    _searchDebounce = Timer(SearchConfig.debounceTime, () {
       applyFilters();
     });
   }

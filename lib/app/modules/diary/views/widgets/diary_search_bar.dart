@@ -1,6 +1,7 @@
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app_exports.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 /// 日记搜索栏组件
 ///
@@ -42,7 +43,7 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _animController = AnimationController(vsync: this, duration: AnimationConfig.duration);
     _fadeAnimation = CurvedAnimation(parent: _animController, curve: Curves.easeInOut);
 
     _animController.forward();

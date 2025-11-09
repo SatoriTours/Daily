@@ -1,4 +1,5 @@
 import 'package:daily_satori/app_exports.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 
 /// 文章更新事件类型
 enum ArticleEventType { none, created, updated, deleted }
@@ -156,7 +157,7 @@ class ArticleStateService extends GetxService {
     DateTime? endDate,
     int? referenceId,
     bool? isGreaterThan,
-    int pageSize = 20,
+    int pageSize = PaginationConfig.defaultPageSize,
   }) async {
     isLoading.value = true;
     try {
@@ -195,7 +196,7 @@ class ArticleStateService extends GetxService {
     List<int>? tagIds,
     DateTime? startDate,
     DateTime? endDate,
-    int pageSize = 20,
+    int pageSize = PaginationConfig.defaultPageSize,
   }) async {
     await loadArticles(
       keyword: keyword,

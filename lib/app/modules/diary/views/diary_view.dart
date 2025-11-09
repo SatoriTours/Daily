@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/components/indicators/s_filter_indicator.dart';
+import 'package:daily_satori/app/config/app_config.dart';
 import '../controllers/diary_controller.dart';
 import 'widgets/diary_list.dart';
 import 'widgets/diary_tags_dialog.dart';
@@ -97,7 +98,7 @@ class DiaryView extends GetView<DiaryController> {
       final bool shouldShowSearchBar = controller.isSearchVisible.value || controller.searchQuery.isNotEmpty;
 
       return AnimatedPositioned(
-        duration: const Duration(milliseconds: 300),
+        duration: AnimationConfig.duration,
         curve: Curves.easeInOut,
         top: shouldShowSearchBar ? 0 : -60,
         left: 0,
@@ -159,7 +160,7 @@ class DiaryView extends GetView<DiaryController> {
   void _scrollToTop() {
     logger.d('双击标题，滚动到顶部');
     if (controller.scrollController.hasClients) {
-      controller.scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      controller.scrollController.animateTo(0, duration: AnimationConfig.duration, curve: Curves.easeInOut);
     }
   }
 
