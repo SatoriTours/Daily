@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/i18n/translation_map.dart';
+import 'translation_map.dart';
 
 /// 支持的语言枚举
 enum SupportedLanguage {
@@ -22,17 +22,19 @@ enum SupportedLanguage {
 ///
 /// 负责管理应用的多语言支持，使用JSON配置文件存储翻译内容
 /// 语言切换通过重启应用来实现，提高效率
-class I18nService extends AppService {
+class I18nService implements AppService {
   static const String _languageKey = 'app_language';
+
+  // MARK: - 单例实现
+  I18nService._privateConstructor();
+  static final I18nService _instance = I18nService._privateConstructor();
+  static I18nService get i => _instance;
 
   /// 当前语言
   SupportedLanguage currentLanguage = SupportedLanguage.zh;
 
   /// 当前翻译映射
   late TranslationMap translations;
-
-  /// 获取服务实例
-  static I18nService get to => Get.find<I18nService>();
 
   @override
   String get serviceName => 'I18nService';
@@ -45,6 +47,12 @@ class I18nService extends AppService {
     await _loadSavedLanguage();
     await _loadTranslations();
     logger.i('I18nService initialized with language: ${currentLanguage.displayName}');
+  }
+
+  @override
+  Future<void> dispose() async {
+    // I18nService 不需要特殊的清理逻辑
+    logger.i('I18nService disposed');
   }
 
   /// 切换语言并重启应用
@@ -114,7 +122,9 @@ class I18nService extends AppService {
     try {
       final savedLanguageCode = SettingRepository.i.getSetting(_languageKey);
       if (savedLanguageCode.isNotEmpty) {
-        final savedLanguage = SupportedLanguage.values.where((lang) => lang.code == savedLanguageCode).firstOrNull;
+        final savedLanguage = SupportedLanguage.values
+            .where((lang) => lang.code == savedLanguageCode)
+            .firstOrNull;
         if (savedLanguage != null) {
           currentLanguage = savedLanguage;
           return;
@@ -163,7 +173,10 @@ class I18nService extends AppService {
   /// 重启应用
   void _restartApp(BuildContext context) {
     // 使用 Navigator 推送一个新路由并替换所有路由，模拟重启效果
-    Navigator.of(context).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      '/',
+      (Route<dynamic> route) => false,
+    );
   }
 
   /// 获取所有支持的语言列表

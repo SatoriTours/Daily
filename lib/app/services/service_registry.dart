@@ -29,7 +29,7 @@ import 'package:daily_satori/app/services/state/books_state_service.dart';
 import 'package:daily_satori/app/services/state/ai_config_state_service.dart';
 import 'package:daily_satori/app/services/state/plugin_center_state_service.dart';
 import 'package:daily_satori/app/services/navigation_service.dart';
-import 'package:daily_satori/app/i18n/i18n_service.dart';
+import 'package:daily_satori/app/services/i18n/i18n_service.dart';
 
 class ServiceStatus {
   final AppService service;
@@ -117,8 +117,7 @@ class ServiceRegistry {
         serviceName: 'I18nService',
         priority: ServicePriority.critical,
         onInit: () async {
-          Get.put(I18nService());
-          await Get.find<I18nService>().init();
+          await I18nService.i.init();
         },
       ),
     );

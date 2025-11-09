@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 
 import 'package:daily_satori/app/modules/share_dialog/controllers/share_dialog_controller.dart';
 import 'package:flutter/services.dart';
-import 'package:daily_satori/app/i18n/index.dart';
+import 'package:daily_satori/app/services/i18n/index.dart';
 
 /// 分享页面视图
 /// 用于保存链接或添加/更新文章备注信息
@@ -14,7 +14,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   @override
   Widget build(BuildContext context) {
-    final i18nService = I18nService.to;
+    final i18nService = I18nService.i;
     return Scaffold(resizeToAvoidBottomInset: true, appBar: _buildAppBar(context, i18nService), body: _buildBody(context, i18nService));
   }
 

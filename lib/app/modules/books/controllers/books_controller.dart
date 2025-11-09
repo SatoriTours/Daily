@@ -1,7 +1,7 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/models/book_viewpoint.dart';
-import 'package:daily_satori/app/i18n/index.dart';
+import 'package:daily_satori/app/services/i18n/index.dart';
 
 /// 读书页面控制器
 ///
@@ -105,7 +105,7 @@ class BooksController extends BaseController with WidgetsBindingObserver {
 
   /// 显示添加书籍对话框
   Future<void> showAddBookDialog() async {
-    final i18nService = I18nService.to;
+    final i18nService = I18nService.i;
     final bookName = await DialogUtils.showInputDialog(
       title: i18nService.translations.addBookTitle,
       hintText: i18nService.translations.addBookHint,
