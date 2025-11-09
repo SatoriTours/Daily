@@ -12,6 +12,13 @@ class BookSearchController extends BaseController {
   void onInit() {
     super.onInit();
     logger.i('BookSearchController initialized');
+
+    // 如果有传入的搜索关键词，自动搜索
+    final String? initialSearchTerm = Get.arguments as String?;
+    if (initialSearchTerm != null && initialSearchTerm.isNotEmpty) {
+      searchController.text = initialSearchTerm;
+      searchBooks(initialSearchTerm);
+    }
   }
 
   @override
@@ -49,11 +56,15 @@ class BookSearchController extends BaseController {
   /// 选择书籍
   Future<void> selectBook(BookSearchResult bookResult) async {
     try {
-      isLoading.value = true;
+      // 显示加载提示
+      DialogUtils.showLoading(tips: '正在添加《${bookResult.title}》...');
 
       logger.i('选择添加书籍: ${bookResult.title}');
 
       final book = await BookService.i.addBookFromSearch(bookResult);
+
+      // 隐藏加载提示
+      DialogUtils.hideLoading();
 
       Get.back(); // 关闭搜索页面
 
@@ -69,10 +80,10 @@ class BookSearchController extends BaseController {
         UIUtils.showError('添加书籍失败，可能该书籍已存在');
       }
     } catch (e, stackTrace) {
+      // 确保隐藏加载提示
+      DialogUtils.hideLoading();
       logger.e('选择书籍失败', error: e, stackTrace: stackTrace);
       UIUtils.showError('添加书籍失败，请稍后重试');
-    } finally {
-      isLoading.value = false;
     }
   }
 

@@ -187,9 +187,11 @@ class BookService {
     try {
       // 检查是否已存在相同书名和作者的书籍
       final existingBooks = BookRepository.i.all();
-      if (existingBooks.any((book) =>
-          book.title.toLowerCase() == searchResult.title.toLowerCase() &&
-          book.author.toLowerCase() == searchResult.author.toLowerCase())) {
+      if (existingBooks.any(
+        (book) =>
+            book.title.toLowerCase() == searchResult.title.toLowerCase() &&
+            book.author.toLowerCase() == searchResult.author.toLowerCase(),
+      )) {
         logger.i('书籍已存在（书名和作者相同）: ${searchResult.title}');
         return null;
       }
@@ -406,7 +408,8 @@ class BookService {
       if (promptTemplate.isEmpty) {
         logger.w('书籍搜索模板为空，使用备用模板');
         // 使用备用搜索模板
-        final prompt = '''
+        final prompt =
+            '''
 请根据搜索关键词"$searchTerm"，搜索相关的书籍信息。返回最多8个最相关的结果，按以下JSON格式：
 {
   "results": [
@@ -423,9 +426,15 @@ class BookService {
 
 要求：
 1. 只返回JSON格式数据，不要包含其他文字
-2. 选择最相关和权威的书籍
-3. 如果搜索词太模糊，优先选择知名和经典的书籍
-4. introduction要简洁明了，突出书籍的核心价值和内容
+2. **书名必须与搜索关键词高度相关**：书名应包含搜索词的核心词汇，或者是该关键词的直接相关作品
+3. **严格过滤不相关书籍**：排除书名与搜索词完全不搭、主题不符的书籍。例如搜索"管理的实践"时，不要返回"第五项修炼"等主题不同的管理类书籍
+4. **优先级排序**：
+   - 第一优先：书名与搜索词完全匹配或高度相似的书籍
+   - 第二优先：同一作者的其他相关作品
+   - 第三优先：同一主题的权威经典书籍
+5. 选择权威和知名的版本，尽量包含ISBN号和出版年份
+6. introduction要简洁明了，突出书籍的核心价值和内容
+7. 如果找不到8本高度相关的书籍，宁可少返回也不要凑数
 ''';
         final response = await _aiService.getCompletion(prompt);
         final cleanedResponse = _cleanJsonResponse(response);

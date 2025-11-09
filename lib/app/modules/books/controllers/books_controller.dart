@@ -104,39 +104,8 @@ class BooksController extends BaseController with WidgetsBindingObserver {
 
   /// 显示添加书籍对话框
   Future<void> showAddBookDialog() async {
-    await DialogUtils.showInputDialog(
-      title: '添加书籍', // 暂时硬编码，避免多语言问题
-      hintText: '请输入书名',
-      confirmText: '添加',
-      cancelText: '取消',
-      onConfirm: (bookName) {
-        logger.i('用户输入书名: $bookName');
-        if (bookName.trim().isNotEmpty) {
-          _addBookWithName(bookName.trim());
-        }
-      },
-    );
-  }
-
-  /// 根据书名添加书籍
-  Future<void> _addBookWithName(String bookName) async {
-    try {
-      logger.i('开始添加书籍: $bookName');
-
-      final book = await _booksStateService.addBook(bookName);
-
-      if (book != null) {
-        logger.i('书籍添加成功: ${book.title}');
-        await loadAllViewpoints();
-        UIUtils.showSuccess('书籍《${book.title}》已添加到书架');
-      } else {
-        logger.w('书籍添加返回null: $bookName');
-        UIUtils.showError('无法添加书籍，可能该书已存在');
-      }
-    } catch (e, stackTrace) {
-      logger.e('添加书籍失败: $bookName', error: e, stackTrace: stackTrace);
-      UIUtils.showError('发生错误，请稍后重试');
-    }
+    // 直接跳转到书籍搜索页面
+    Get.toNamed(Routes.bookSearch);
   }
 
   /// 删除书籍
