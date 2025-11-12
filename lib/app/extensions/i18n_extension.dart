@@ -10,6 +10,6 @@ extension I18nExtension on String {
   /// 'title.settings'.t  // 获取设置页面的标题
   /// ```
   String get t {
-    return I18nService.i.translations.t(this);
+    return I18nService.i.t(this);
   }
 }

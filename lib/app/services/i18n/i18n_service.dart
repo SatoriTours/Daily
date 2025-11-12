@@ -5,7 +5,6 @@ import 'package:yaml/yaml.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'translation_map.dart';
 
 /// 支持的语言枚举
 enum SupportedLanguage {
@@ -34,7 +33,7 @@ class I18nService implements AppService {
   SupportedLanguage currentLanguage = SupportedLanguage.zh;
 
   /// 当前翻译映射
-  late TranslationMap translations;
+  late YamlMap _translations;
 
   @override
   String get serviceName => 'I18nService';
@@ -102,8 +101,7 @@ class I18nService implements AppService {
   Future<void> _loadTranslations() async {
     try {
       final String yamlString = await rootBundle.loadString('assets/i18n/${currentLanguage.code}.yaml');
-      final YamlMap yamlMap = loadYaml(yamlString);
-      translations = TranslationMap.fromJson(Map<String, dynamic>.from(yamlMap));
+      _translations = loadYaml(yamlString);
       logger.i('Loaded YAML translations for language: ${currentLanguage.code}');
     } catch (e, stackTrace) {
       logger.e('Failed to load translations for ${currentLanguage.code}', error: e, stackTrace: stackTrace);
@@ -184,4 +182,22 @@ class I18nService implements AppService {
 
   /// 检查是否为RTL语言
   bool get isRTL => false; // 目前支持的语言都是LTR，后续可扩展
+
+  /// 翻译文本
+  ///
+  /// 支持点分隔符的嵌套键访问，如 "error.network"
+  String t(String key, {String? defaultValue}) {
+    final keys = key.split('.');
+    dynamic current = _translations;
+
+    for (final k in keys) {
+      if (current is YamlMap && current.containsKey(k)) {
+        current = current[k];
+      } else {
+        return defaultValue ?? key;
+      }
+    }
+
+    return current?.toString() ?? (defaultValue ?? key);
+  }
 }
