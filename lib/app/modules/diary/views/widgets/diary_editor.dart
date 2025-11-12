@@ -9,6 +9,7 @@ import '../../controllers/diary_controller.dart';
 import '../../utils/diary_utils.dart';
 import 'markdown_toolbar.dart';
 import 'image_preview.dart';
+import 'package:daily_satori/app/extensions/i18n_extension.dart';
 
 /// 日记扩展编辑器组件
 class DiaryEditor extends StatefulWidget {
@@ -214,13 +215,13 @@ class _DiaryEditorState extends State<DiaryEditor> {
           ),
 
           // 图片添加按钮（整合了相册选择和拍照功能）
-          _buildToolbarButton(context, FeatherIcons.image, '添加图片', _showImageOptions, isAccent: false),
+          _buildToolbarButton(context, FeatherIcons.image, 'button.add_image', _showImageOptions, isAccent: false),
 
           // AI魔法按钮
-          _buildToolbarButton(context, FeatherIcons.zap, 'AI魔法', _showAiMagicOptions, isAccent: false),
+          _buildToolbarButton(context, FeatherIcons.zap, 'button.ai_magic', _showAiMagicOptions, isAccent: false),
 
           // 保存按钮
-          _buildToolbarButton(context, FeatherIcons.check, '保存', _saveDiary, isAccent: true),
+          _buildToolbarButton(context, FeatherIcons.check, 'button.save', _saveDiary, isAccent: true),
         ],
       ),
     );
@@ -235,7 +236,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
     bool isAccent = false,
   }) {
     return Tooltip(
-      message: tooltip,
+      message: tooltip.t,
       child: Container(
         width: 36,
         height: 36,
@@ -262,7 +263,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
   /// 获取输入框装饰
   InputDecoration _getInputDecoration(BuildContext context) {
     return InputDecoration(
-      hintText: '记录现在，畅想未来...',
+      hintText: 'hint.search_content'.t,
       hintStyle: TextStyle(
         color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[600] : Colors.grey[400],
       ),
@@ -379,7 +380,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
 
     // 如果没有选中文本，显示提示
     if (selection.isCollapsed) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先选择需要转换的文本')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('message.select_text_first'.t)));
       return;
     }
 
@@ -395,7 +396,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
             children: [
               ListTile(
                 leading: Icon(FeatherIcons.grid, color: DiaryStyle.accentColor(context)),
-                title: const Text('转换为表格'),
+                title: Text('menu.convert_to_table'.t),
                 onTap: () {
                   _convertToTable(selectedText, selection);
                   Navigator.pop(context);
@@ -403,7 +404,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
               ),
               ListTile(
                 leading: Icon(FeatherIcons.list, color: DiaryStyle.accentColor(context)),
-                title: const Text('转换为列表'),
+                title: Text('menu.convert_to_list'.t),
                 onTap: () {
                   _convertToList(selectedText, selection);
                   Navigator.pop(context);
@@ -411,7 +412,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
               ),
               ListTile(
                 leading: Icon(FeatherIcons.terminal, color: DiaryStyle.accentColor(context)),
-                title: const Text('格式化为代码块'),
+                title: Text('menu.format_as_code_block'.t),
                 onTap: () {
                   _convertToCodeBlock(selectedText, selection);
                   Navigator.pop(context);
@@ -419,7 +420,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
               ),
               ListTile(
                 leading: Icon(FeatherIcons.star, color: DiaryStyle.accentColor(context)),
-                title: const Text('添加强调格式'),
+                title: Text('menu.add_emphasis'.t),
                 onTap: () {
                   _addEmphasis(selectedText, selection);
                   Navigator.pop(context);
@@ -511,7 +512,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
             children: [
               ListTile(
                 leading: Icon(FeatherIcons.image, color: DiaryStyle.accentColor(context)),
-                title: const Text('从相册选择'),
+                title: Text('menu.select_from_gallery'.t),
                 onTap: () {
                   Navigator.pop(context);
                   _selectImages();
@@ -519,7 +520,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
               ),
               ListTile(
                 leading: Icon(FeatherIcons.camera, color: DiaryStyle.accentColor(context)),
-                title: const Text('拍照'),
+                title: Text('menu.take_photo'.t),
                 onTap: () {
                   Navigator.pop(context);
                   _takePhoto();

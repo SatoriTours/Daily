@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/extensions/i18n_extension.dart';
 
 /// UI工具类
 class UIUtils {
@@ -8,12 +9,12 @@ class UIUtils {
   UIUtils._();
 
   /// 显示成功提示（统一样式）
-  static void showSuccess(String content, {String title = '成功'}) {
+  static void showSuccess(String content, {String title = 'message.success_title'}) {
     showSnackBar(title, content, isError: false);
   }
 
   /// 显示错误提示（统一样式）
-  static void showError(String content, {String title = '错误'}) {
+  static void showError(String content, {String title = 'message.error_title'}) {
     showSnackBar(title, content, isError: true);
   }
 
@@ -24,8 +25,8 @@ class UIUtils {
         ? SnackbarStyles.getBackgroundColor(context, isError: isError)
         : (isError ? Colors.red.withAlpha(204) : Colors.green.withAlpha(204));
     Get.snackbar(
-      title,
-      message,
+      title.t,
+      message.t,
       snackPosition: SnackPosition.top,
       backgroundColor: bg,
       colorText: context != null ? SnackbarStyles.getTextColor(context) : Colors.white,

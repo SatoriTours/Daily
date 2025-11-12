@@ -1,0 +1,164 @@
+# 通用错误信息
+error:
+  network: 网络连接错误，请检查网络后重试
+  server: 服务器错误，请稍后重试
+  timeout: 请求超时，请稍后重试
+  unknown: 发生未知错误，请稍后重试
+  validation: 输入数据无效，请检查后重试
+  permission: 权限不足，请联系管理员
+  notFound: 请求的资源不存在
+  duplicate: 数据已存在，无法重复添加
+
+# 成功信息
+success:
+  save: 保存成功
+  delete: 删除成功
+  update: 更新成功
+  import: 导入成功
+  export: 导出成功
+  backup: 备份成功
+  restore: 恢复成功
+  add: 添加成功
+  copy: 复制成功
+
+# 操作按钮
+button:
+  confirm: 确定
+  cancel: 取消
+  save: 保存
+  delete: 删除
+  refresh: 刷新
+  add: 添加
+  edit: 编辑
+  view: 查看
+  search: 搜索
+  clear: 清除
+  back: 返回
+  select: 选择
+  update: 更新
+  restore: 还原
+  learned: 了解了
+
+# 导航相关
+nav:
+  articles: 文章
+  diary: 日记
+  books: 读书
+  settings: 我的
+  home: 首页
+
+# 页面标题
+title:
+  settings: 设置
+  books: 读书悟道
+  ai_config: AI 配置管理
+  plugin_center: 插件中心
+  backup_restore: 从备份恢复
+  select_book: 选择书籍
+  delete_book: 删除书籍
+  refresh_book: 刷新书籍
+
+# Tooltip提示
+tooltip:
+  select_book: 选择书籍
+  add_book: 添加书籍
+  add_insight: 添加感悟
+  ai_config_help: AI配置说明
+  update_all_plugins: 更新所有插件
+  server_settings: 服务器设置
+  back: 返回
+  clear: 清除
+  search: 搜索
+
+# 输入框提示
+hint:
+  search_articles: 搜索文章...
+  search_content: 记录现在，畅想未来...
+  select_first: 请先选择需要转换的文本
+
+# 空状态提示
+empty:
+  no_viewpoint: 暂无观点，请先添加书籍
+  no_plugins: 暂无插件
+
+# 对话框标题
+dialog:
+  confirm_delete: 确认删除
+  server_address: HTTP服务器地址
+  convert_to_table: 转换为表格
+  convert_to_list: 转换为列表
+  format_code_block: 格式化为代码块
+  add_emphasis: 添加强调格式
+  select_from_album: 从相册选择
+  take_photo: 拍照
+  ai_config_help: AI配置说明
+  restart_app: 重启应用
+  restore_success: 还原成功
+  restore_failed: 还原失败
+  about: 关于
+  functions: 功能
+  ai_config_desc: 设置多个场景下的 AI 模型
+  plugin_center_desc: 管理扩展插件与订阅源
+  system: 系统
+  backup_desc: 保护您的数据安全
+  web_server: Web服务器
+  web_server_desc: 配置远程访问与代理设置
+  check_update: 检查更新
+  check_update_desc: 获取最新版本
+  server_info: 服务器信息
+  backup_success: 备份文件已成功还原
+  delete_book: 删除书籍
+  refresh_book: 刷新书籍
+  add_image: 添加图片
+  ai_magic: AI魔法
+
+# 设置相关
+setting:
+  web_server: Web服务器
+  web_server_address: HTTP服务器地址
+  websocket_remote: WebSocket远程访问
+  connection_status: 连接状态
+  server_password: 服务器密码
+  last_update: 上次更新：
+  updating: 更新中
+
+# 应用描述
+app:
+  description: 您的个性化阅读助手，支持文章收藏、AI内容分析和日记管理。
+
+# 书籍相关
+book:
+  author: 作者：
+  category: 分类：
+  summary: 简介
+  view_all_viewpoints: 查看所有观点
+  record_thought: 记感想
+  shuffle: 换一换
+  refresh_content: 刷新书籍内容
+  delete_current: 删除当前书籍
+  all_books: 所有书籍
+  not_found_delete: 未找到可删除的书籍，请先选择一本书
+  not_found_refresh: 未找到可刷新的书籍，请先添加书籍
+  delete_confirm: 确定要删除《{title}》吗？\n此操作无法撤销，书籍相关的所有观点也将被删除。
+  refresh_confirm: 将重新拉取《{title}》的观点内容，这可能需要一些时间。是否继续？
+  refreshing: 正在刷新《{title}》...
+  refresh_success: 《{title}》已刷新
+  refresh_failed: 刷新失败，请稍后重试
+
+# 消息提示
+message:
+  success_title: 成功
+  error_title: 错误
+  network_error: 网络错误
+  please_select: 请选择...
+  please_enter: 请输入...
+  invalid_input: 无效的...
+
+# 默认占位符
+placeholder:
+  title: 无标题
+  content: 暂无内容
+  summary: 暂无摘要
+  url: https://example.com
+  date: 暂无日期
+  author: 未知作者

@@ -1,7 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:yaml/yaml.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/repositories/setting_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
@@ -20,7 +20,7 @@ enum SupportedLanguage {
 
 /// 国际化服务
 ///
-/// 负责管理应用的多语言支持，使用JSON配置文件存储翻译内容
+/// 负责管理应用的多语言支持，使用YAML配置文件存储翻译内容
 /// 语言切换通过重启应用来实现，提高效率
 class I18nService implements AppService {
   static const String _languageKey = 'app_language';
@@ -101,10 +101,10 @@ class I18nService implements AppService {
   /// 加载翻译文件
   Future<void> _loadTranslations() async {
     try {
-      final String jsonString = await rootBundle.loadString('assets/i18n/${currentLanguage.code}.json');
-      final Map<String, dynamic> jsonMap = json.decode(jsonString);
-      translations = TranslationMap.fromJson(jsonMap);
-      logger.i('Loaded translations for language: ${currentLanguage.code}');
+      final String yamlString = await rootBundle.loadString('assets/i18n/${currentLanguage.code}.yaml');
+      final YamlMap yamlMap = loadYaml(yamlString);
+      translations = TranslationMap.fromJson(Map<String, dynamic>.from(yamlMap));
+      logger.i('Loaded YAML translations for language: ${currentLanguage.code}');
     } catch (e, stackTrace) {
       logger.e('Failed to load translations for ${currentLanguage.code}', error: e, stackTrace: stackTrace);
 

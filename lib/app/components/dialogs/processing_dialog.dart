@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app/services/i18n/index.dart';
+import 'package:daily_satori/app/extensions/i18n_extension.dart';
 
 /// 处理中对话框
 ///
@@ -22,8 +22,7 @@ class ProcessingDialog {
     int? timeout,
     required Future<T> Function(void Function(String) updateMessage) onProcess,
   }) async {
-    final i18nService = I18nService.i;
-    final defaultMessage = i18nService.translations.processing;
+    final defaultMessage = 'ui.processing'.t;
     final messageRx = (message ?? defaultMessage).obs;
     final isCompleted = false.obs;
     final completer = Completer<T?>();

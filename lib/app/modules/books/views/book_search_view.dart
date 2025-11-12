@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app/services/i18n/index.dart';
 import 'package:daily_satori/app/models/book_search_result.dart';
 import 'package:daily_satori/app/modules/books/controllers/book_search_controller.dart';
+import 'package:daily_satori/app/extensions/i18n_extension.dart';
 
 /// 书籍搜索结果视图
 class BookSearchView extends GetView<BookSearchController> {
@@ -11,26 +11,25 @@ class BookSearchView extends GetView<BookSearchController> {
 
   @override
   Widget build(BuildContext context) {
-    final i18nService = I18nService.i;
-    return Scaffold(appBar: _buildAppBar(context, i18nService), body: _buildBody(context, i18nService));
+    return Scaffold(appBar: _buildAppBar(context), body: _buildBody(context));
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context, I18nService i18nService) {
-    return AppBar(title: Text(i18nService.translations.search, style: AppTypography.appBarTitle), elevation: 0);
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(title: Text('ui.search'.t, style: AppTypography.appBarTitle), elevation: 0);
   }
 
-  Widget _buildBody(BuildContext context, I18nService i18nService) {
+  Widget _buildBody(BuildContext context) {
     return SafeArea(
       child: Column(
         children: [
-          _buildSearchBar(context, i18nService),
-          Expanded(child: _buildSearchResults(context, i18nService)),
+          _buildSearchBar(context),
+          Expanded(child: _buildSearchResults(context)),
         ],
       ),
     );
   }
 
-  Widget _buildSearchBar(BuildContext context, I18nService i18nService) {
+  Widget _buildSearchBar(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
         Dimensions.paddingPage.left,
@@ -43,7 +42,7 @@ class BookSearchView extends GetView<BookSearchController> {
         autofocus: true,
         decoration: InputStyles.getSearchDecoration(
           context,
-          hintText: i18nService.translations.hintTitle,
+          hintText: 'hint.title'.t,
         ).copyWith(contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), isDense: true),
         onSubmitted: (value) {
           if (value.trim().isNotEmpty) {
@@ -54,25 +53,25 @@ class BookSearchView extends GetView<BookSearchController> {
     );
   }
 
-  Widget _buildSearchResults(BuildContext context, I18nService i18nService) {
+  Widget _buildSearchResults(BuildContext context) {
     return Obx(() {
       if (controller.isLoading.value) {
-        return _buildLoadingState(context, i18nService);
+        return _buildLoadingState(context);
       }
 
       if (controller.searchResults.isEmpty && controller.searchController.text.isNotEmpty) {
-        return _buildEmptyState(context, i18nService);
+        return _buildEmptyState(context);
       }
 
       if (controller.searchResults.isEmpty) {
-        return _buildInitialState(context, i18nService);
+        return _buildInitialState(context);
       }
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _buildSearchStatistics(context),
-          Expanded(child: _buildResultsList(context, i18nService)),
+          Expanded(child: _buildResultsList(context)),
         ],
       );
     });
@@ -104,7 +103,7 @@ class BookSearchView extends GetView<BookSearchController> {
     );
   }
 
-  Widget _buildLoadingState(BuildContext context, I18nService i18nService) {
+  Widget _buildLoadingState(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -112,7 +111,7 @@ class BookSearchView extends GetView<BookSearchController> {
           CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context))),
           Dimensions.verticalSpacerM,
           Text(
-            i18nService.translations.processing,
+            'ui.processing'.t,
             style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
           ),
         ],
@@ -120,7 +119,7 @@ class BookSearchView extends GetView<BookSearchController> {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, I18nService i18nService) {
+  Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -132,7 +131,7 @@ class BookSearchView extends GetView<BookSearchController> {
           ),
           Dimensions.verticalSpacerM,
           Text(
-            i18nService.translations.emptySearch,
+            'empty.search'.t,
             style: AppTypography.bodyLarge.copyWith(color: AppColors.getOnSurfaceVariant(context)),
           ),
           Dimensions.verticalSpacerS,
@@ -147,7 +146,7 @@ class BookSearchView extends GetView<BookSearchController> {
     );
   }
 
-  Widget _buildInitialState(BuildContext context, I18nService i18nService) {
+  Widget _buildInitialState(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -167,7 +166,7 @@ class BookSearchView extends GetView<BookSearchController> {
     );
   }
 
-  Widget _buildResultsList(BuildContext context, I18nService i18nService) {
+  Widget _buildResultsList(BuildContext context) {
     return ListView.builder(
       padding: EdgeInsets.fromLTRB(
         Dimensions.paddingPage.left,
@@ -178,12 +177,12 @@ class BookSearchView extends GetView<BookSearchController> {
       itemCount: controller.searchResults.length,
       itemBuilder: (context, index) {
         final result = controller.searchResults[index];
-        return _buildResultCard(context, result, i18nService);
+        return _buildResultCard(context, result);
       },
     );
   }
 
-  Widget _buildResultCard(BuildContext context, BookSearchResult result, I18nService i18nService) {
+  Widget _buildResultCard(BuildContext context, BookSearchResult result) {
     return Card(
       margin: EdgeInsets.only(bottom: Dimensions.spacingM),
       elevation: 0,

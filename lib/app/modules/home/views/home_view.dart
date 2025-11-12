@@ -1,5 +1,6 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:flutter/foundation.dart';
+import 'package:daily_satori/app/extensions/i18n_extension.dart';
 import '../controllers/home_controller.dart';
 import 'package:daily_satori/app/modules/articles/views/articles_view.dart';
 import 'package:daily_satori/app/modules/books/views/books_view.dart';
@@ -41,11 +42,11 @@ class HomeView extends GetView<HomeController> {
         currentIndex: controller.currentIndex.value,
         onTap: controller.changePage,
         type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.article_outlined), activeIcon: Icon(Icons.article), label: '文章'),
-          BottomNavigationBarItem(icon: Icon(Icons.book_outlined), activeIcon: Icon(Icons.book), label: '日记'),
-          BottomNavigationBarItem(icon: Icon(Icons.menu_book_outlined), activeIcon: Icon(Icons.menu_book), label: '读书'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: '我的'),
+        items: [
+          BottomNavigationBarItem(icon: Icon(Icons.article_outlined), activeIcon: Icon(Icons.article), label: 'nav.articles'.t),
+          BottomNavigationBarItem(icon: Icon(Icons.book_outlined), activeIcon: Icon(Icons.book), label: 'nav.diary'.t),
+          BottomNavigationBarItem(icon: Icon(Icons.menu_book_outlined), activeIcon: Icon(Icons.menu_book), label: 'nav.books'.t),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'nav.settings'.t),
         ],
       ),
     );
@@ -61,7 +62,7 @@ class HomeView extends GetView<HomeController> {
   /// 记录页面切换日志
   void _logPageSwitch(int index) {
     if (kDebugMode) {
-      final pages = ['文章页', '日记页', '读书页', '设置页'];
+      final pages = ['nav.articles'.t, 'nav.diary'.t, 'nav.books'.t, 'nav.settings'.t];
       logger.i('切换到${pages[index]} [$_tag:${DateTime.now()}]');
     }
   }

@@ -1,4 +1,5 @@
 import 'package:daily_satori/app_exports.dart';
+import 'package:daily_satori/app/extensions/i18n_extension.dart';
 import 'package:daily_satori/app/modules/books/controllers/books_controller.dart';
 import 'package:daily_satori/app/modules/books/views/widgets/widgets.dart';
 import 'package:daily_satori/app/styles/index.dart';
@@ -39,7 +40,7 @@ class BooksView extends GetView<BooksController> {
 
   /// 构建应用栏标题
   Widget _buildAppBarTitle(BuildContext context) {
-    return Text('读书悟道', style: AppTypography.titleLarge);
+    return Text('title.books_wisdom'.t, style: AppTypography.titleLarge);
   }
 
   /// 构建应用栏左侧按钮
@@ -47,7 +48,7 @@ class BooksView extends GetView<BooksController> {
     return IconButton(
       icon: const Icon(Icons.menu_book),
       onPressed: () => _showBooksFilterDialog(context),
-      tooltip: '选择书籍',
+      tooltip: 'title.select_book'.t,
     );
   }
 
@@ -61,7 +62,7 @@ class BooksView extends GetView<BooksController> {
     return IconButton(
       icon: const Icon(Icons.add, size: 20),
       onPressed: controller.showAddBookDialog,
-      tooltip: '添加书籍',
+      tooltip: 'tooltip.add_book'.t,
       padding: const EdgeInsets.all(8),
       constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
     );
@@ -73,9 +74,9 @@ class BooksView extends GetView<BooksController> {
       icon: const Icon(Icons.more_horiz, size: 20),
       onSelected: (value) => _handleMoreMenuSelection(value, context),
       itemBuilder: (context) => [
-        SPopupMenuItem<String>(value: 'shuffle', icon: Icons.shuffle, text: '换一换'),
-        SPopupMenuItem<String>(value: 'refresh', icon: Icons.refresh, text: '刷新书籍内容'),
-        SPopupMenuItem<String>(value: 'delete', icon: Icons.delete_outline, text: '删除当前书籍'),
+        SPopupMenuItem<String>(value: 'shuffle', icon: Icons.shuffle, text: 'menu.shuffle'),
+        SPopupMenuItem<String>(value: 'refresh', icon: Icons.refresh, text: 'menu.refresh_book'),
+        SPopupMenuItem<String>(value: 'delete', icon: Icons.delete_outline, text: 'menu.delete_book'),
       ],
     );
   }
@@ -125,7 +126,7 @@ class BooksView extends GetView<BooksController> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('选择书籍', style: AppTypography.titleMedium),
+          Text('title.select_book'.t, style: AppTypography.titleMedium),
           IconButton(
             icon: const Icon(Icons.close, size: 20),
             onPressed: () => Navigator.pop(context),
@@ -219,7 +220,7 @@ class BooksView extends GetView<BooksController> {
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            book?.title ?? '所有书籍',
+            book?.title ?? 'book.all_books'.t,
             style: AppTypography.bodyMedium.copyWith(
               color: textColor,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -251,7 +252,7 @@ class BooksView extends GetView<BooksController> {
         children: [
           const Icon(Icons.auto_stories, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          Text('暂无观点，请先添加书籍', style: AppTypography.titleMedium),
+          Text('empty.no_viewpoint'.t, style: AppTypography.titleMedium),
         ],
       ),
     );
@@ -283,7 +284,7 @@ class BooksView extends GetView<BooksController> {
     final fg = theme.colorScheme.onPrimary;
     return FloatingActionButton.small(
       heroTag: 'books_quick_journal',
-      tooltip: '添加感悟',
+      tooltip: 'tooltip.add_insight'.t,
       onPressed: () => _openJournalForCurrent(context),
       backgroundColor: bg,
       foregroundColor: fg,
@@ -345,14 +346,14 @@ class BooksView extends GetView<BooksController> {
       book = books.where((b) => b.id == controller.filterBookID.value).firstOrNull;
     }
     if (book == null) {
-      UIUtils.showError('未找到可删除的书籍，请先选择一本书');
+      UIUtils.showError('error.no_book_to_delete');
       return;
     }
     DialogUtils.showConfirm(
-      title: '删除书籍',
-      message: '确定要删除《${book.title}》吗？\n此操作无法撤销，书籍相关的所有观点也将被删除。',
-      confirmText: '删除',
-      cancelText: '取消',
+      title: 'dialog.delete_book'.t,
+      message: '${'dialog.delete_book_confirm'.t}《${book.title}》？\n${'dialog.delete_book_warning'.t}',
+      confirmText: 'button.delete'.t,
+      cancelText: 'button.cancel'.t,
       onConfirm: () {
         controller.deleteBook(book!.id);
       },
@@ -379,14 +380,14 @@ class BooksView extends GetView<BooksController> {
       }
     }
     if (book == null) {
-      UIUtils.showError('未找到可刷新的书籍，请先添加书籍');
+      UIUtils.showError('error.no_book_to_refresh');
       return;
     }
     DialogUtils.showConfirm(
-      title: '刷新书籍',
-      message: '将重新拉取《${book.title}》的观点内容，这可能需要一些时间。是否继续？',
-      confirmText: '刷新',
-      cancelText: '取消',
+      title: 'dialog.refresh_book'.t,
+      message: '${'dialog.refresh_book_message'.t}《${book.title}》${'dialog.refresh_book_warning'.t}',
+      confirmText: 'button.refresh'.t,
+      cancelText: 'button.cancel'.t,
       onConfirm: () {
         _doRefreshBook(book!);
       },
@@ -395,14 +396,14 @@ class BooksView extends GetView<BooksController> {
 
   /// 执行刷新逻辑并展示更友好的进度提示
   Future<void> _doRefreshBook(BookModel book) async {
-    DialogUtils.showLoading(tips: '正在刷新《${book.title}》...');
+    DialogUtils.showLoading(tips: '${'dialog.refreshing_book'.t}《${book.title}》...');
     try {
       await controller.refreshBook(book.id);
       DialogUtils.hideLoading();
-      UIUtils.showSuccess('《${book.title}》已刷新');
+      UIUtils.showSuccess('《${book.title}》${'success.book_refreshed'.t}');
     } catch (e) {
       DialogUtils.hideLoading();
-      UIUtils.showError('刷新失败，请稍后重试');
+      UIUtils.showError('error.refresh_failed');
     }
   }
 }

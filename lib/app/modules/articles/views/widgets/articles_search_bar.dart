@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/extensions/i18n_extension.dart';
 
 /// 文章搜索栏组件
 ///
@@ -69,7 +70,7 @@ class _ArticlesSearchBarState extends State<ArticlesSearchBar> {
               controller: widget.searchController,
               focusNode: widget.searchFocusNode,
               decoration: InputDecoration(
-                hintText: '搜索文章...',
+                hintText: 'hint.search_articles'.t,
                 hintStyle: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

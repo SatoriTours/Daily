@@ -1,0 +1,164 @@
+# Common error messages
+error:
+  network: Network connection error, please check your network and try again
+  server: Server error, please try again later
+  timeout: Request timeout, please try again later
+  unknown: Unknown error occurred, please try again later
+  validation: Invalid input data, please check and try again
+  permission: Insufficient permissions, please contact administrator
+  notFound: The requested resource does not exist
+  duplicate: Data already exists and cannot be added again
+
+# Success messages
+success:
+  save: Save successful
+  delete: Delete successful
+  update: Update successful
+  import: Import successful
+  export: Export successful
+  backup: Backup successful
+  restore: Restore successful
+  add: Add successful
+  copy: Copy successful
+
+# Action buttons
+button:
+  confirm: Confirm
+  cancel: Cancel
+  save: Save
+  delete: Delete
+  refresh: Refresh
+  add: Add
+  edit: Edit
+  view: View
+  search: Search
+  clear: Clear
+  back: Back
+  select: Select
+  update: Update
+  restore: Restore
+  learned: Got it
+
+# Navigation
+nav:
+  articles: Articles
+  diary: Diary
+  books: Books
+  settings: Settings
+  home: Home
+
+# Page titles
+title:
+  settings: Settings
+  books: Reading & Insights
+  ai_config: AI Configuration
+  plugin_center: Plugin Center
+  backup_restore: Restore from Backup
+  select_book: Select Book
+  delete_book: Delete Book
+  refresh_book: Refresh Book
+
+# Tooltip hints
+tooltip:
+  select_book: Select book
+  add_book: Add book
+  add_insight: Add insight
+  ai_config_help: AI configuration help
+  update_all_plugins: Update all plugins
+  server_settings: Server settings
+  back: Back
+  clear: Clear
+  search: Search
+
+# Input field hints
+hint:
+  search_articles: Search articles...
+  search_content: Record the present, imagine the future...
+  select_first: Please select the text to convert first
+
+# Empty state messages
+empty:
+  no_viewpoint: No viewpoints yet, please add a book first
+  no_plugins: No plugins available
+
+# Dialog titles
+dialog:
+  confirm_delete: Confirm Delete
+  server_address: HTTP Server Address
+  convert_to_table: Convert to Table
+  convert_to_list: Convert to List
+  format_code_block: Format as Code Block
+  add_emphasis: Add Emphasis Formatting
+  select_from_album: Select from Album
+  take_photo: Take Photo
+  ai_config_help: AI Configuration Help
+  restart_app: Restart App
+  restore_success: Restore Successful
+  restore_failed: Restore Failed
+  about: About
+  functions: Functions
+  ai_config_desc: Configure AI models for multiple scenarios
+  plugin_center_desc: Manage extension plugins and subscriptions
+  system: System
+  backup_desc: Protect your data security
+  web_server: Web Server
+  web_server_desc: Configure remote access and proxy settings
+  check_update: Check Update
+  check_update_desc: Get the latest version
+  server_info: Server Information
+  backup_success: Backup file restored successfully
+  delete_book: Delete Book
+  refresh_book: Refresh Book
+  add_image: Add Image
+  ai_magic: AI Magic
+
+# Settings related
+setting:
+  web_server: Web Server
+  web_server_address: HTTP Server Address
+  websocket_remote: WebSocket Remote Access
+  connection_status: Connection Status
+  server_password: Server Password
+  last_update: Last updated:
+  updating: Updating
+
+# App description
+app:
+  description: Your personalized reading assistant with article collection, AI content analysis, and diary management.
+
+# Book related
+book:
+  author: Author:
+  category: Category:
+  summary: Summary
+  view_all_viewpoints: View All Viewpoints
+  record_thought: Record Thought
+  shuffle: Shuffle
+  refresh_content: Refresh Book Content
+  delete_current: Delete Current Book
+  all_books: All Books
+  not_found_delete: No book found to delete, please select a book first
+  not_found_refresh: No book found to refresh, please add a book first
+  delete_confirm: Are you sure you want to delete "{title}"?\nThis action cannot be undone, and all viewpoints related to this book will also be deleted.
+  refresh_confirm: Will re-fetch the viewpoint content of "{title}", this may take some time. Continue?
+  refreshing: Refreshing "{title}"...
+  refresh_success: "{title}" has been refreshed
+  refresh_failed: Refresh failed, please try again later
+
+# Messages
+message:
+  success_title: Success
+  error_title: Error
+  network_error: Network error
+  please_select: Please select...
+  please_enter: Please enter...
+  invalid_input: Invalid...
+
+# Default placeholders
+placeholder:
+  title: Untitled
+  content: No content
+  summary: No summary
+  url: https://example.com
+  date: No date
+  author: Unknown author

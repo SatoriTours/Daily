@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 
 import 'package:daily_satori/app/modules/share_dialog/controllers/share_dialog_controller.dart';
 import 'package:flutter/services.dart';
-import 'package:daily_satori/app/services/i18n/index.dart';
+import 'package:daily_satori/app/extensions/i18n_extension.dart';
 
 /// 分享页面视图
 /// 用于保存链接或添加/更新文章备注信息
@@ -14,21 +14,20 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   @override
   Widget build(BuildContext context) {
-    final i18nService = I18nService.i;
-    return Scaffold(resizeToAvoidBottomInset: true, appBar: _buildAppBar(context, i18nService), body: _buildBody(context, i18nService));
+    return Scaffold(resizeToAvoidBottomInset: true, appBar: _buildAppBar(context), body: _buildBody(context));
   }
 
   // 构建顶部应用栏
-  PreferredSizeWidget _buildAppBar(BuildContext context, I18nService i18nService) {
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      title: Obx(() => Text(controller.isUpdate.value ? i18nService.translations.updateArticle : i18nService.translations.saveLink, style: AppTypography.appBarTitle)),
+      title: Obx(() => Text(controller.isUpdate.value ? 'ui.updateArticle'.t : 'ui.saveLink'.t, style: AppTypography.appBarTitle)),
       automaticallyImplyLeading: !controller.isUpdate.value,
       elevation: 0,
     );
   }
 
   // 构建主体内容
-  Widget _buildBody(BuildContext context, I18nService i18nService) {
+  Widget _buildBody(BuildContext context) {
     return SafeArea(
       child: Column(
         children: [
@@ -38,23 +37,23 @@ class ShareDialogView extends GetView<ShareDialogController> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildLinkSection(context, i18nService),
+                  _buildLinkSection(context),
                   Dimensions.verticalSpacerL,
-                  _buildTitleSection(context, i18nService),
+                  _buildTitleSection(context),
                   Dimensions.verticalSpacerL,
-                  _buildCommentSection(context, i18nService),
+                  _buildCommentSection(context),
                 ],
               ),
             ),
           ),
-          _buildBottomButton(context, i18nService),
+          _buildBottomButton(context),
         ],
       ),
     );
   }
 
   // 构建底部按钮区域
-  Widget _buildBottomButton(BuildContext context, I18nService i18nService) {
+  Widget _buildBottomButton(BuildContext context) {
     return Container(
       padding: Dimensions.paddingBottomForm,
       decoration: BoxDecoration(
@@ -76,7 +75,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
               child: OutlinedButton(
                 style: StyleGuide.getOutlinedButtonStyle(context),
                 onPressed: () => Get.back(),
-                child: Text(i18nService.translations.cancel, style: AppTypography.buttonText),
+                child: Text('ui.cancel'.t, style: AppTypography.buttonText),
               ),
             ),
             Dimensions.horizontalSpacerM,
@@ -87,7 +86,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
                   style: StyleGuide.getPrimaryButtonStyle(context),
                   onPressed: () => controller.onSaveButtonPressed(),
                   child: Text(
-                    controller.isUpdate.value ? i18nService.translations.saveChanges : i18nService.translations.save,
+                    controller.isUpdate.value ? 'ui.saveChanges'.t : 'ui.save'.t,
                     style: AppTypography.buttonText.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -100,7 +99,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   // 构建链接区域（简洁版）
-  Widget _buildLinkSection(BuildContext context, I18nService i18nService) {
+  Widget _buildLinkSection(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,7 +108,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
           children: [
             Icon(Icons.link_rounded, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
             const SizedBox(width: 8),
-            Text(i18nService.translations.link, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text('ui.link'.t, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
             const Spacer(),
             if (controller.isUpdate.value) ...[
               Obx(
@@ -125,7 +124,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      i18nService.translations.aiAnalysis,
+                      'ui.aiAnalysis'.t,
                       style: AppTypography.bodySmall.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
@@ -172,7 +171,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   // 构建标题区域
-  Widget _buildTitleSection(BuildContext context, I18nService i18nService) {
+  Widget _buildTitleSection(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,7 +180,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
           children: [
             Icon(Icons.title_rounded, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
             const SizedBox(width: 8),
-            Text(i18nService.translations.title, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text('ui.title'.t, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
           ],
         ),
         const SizedBox(height: 10),
@@ -192,7 +191,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
           maxLength: InputConfig.maxLength,
           style: AppTypography.bodyMedium.copyWith(fontSize: 15, height: 1.5),
           decoration: InputDecoration(
-            hintText: i18nService.translations.inputOrModifyArticleTitle,
+            hintText: 'ui.inputOrModifyArticleTitle'.t,
             hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -221,7 +220,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   // 构建备注区域
-  Widget _buildCommentSection(BuildContext context, I18nService i18nService) {
+  Widget _buildCommentSection(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,10 +229,10 @@ class ShareDialogView extends GetView<ShareDialogController> {
           children: [
             Icon(Icons.comment_outlined, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
             const SizedBox(width: 8),
-            Text(i18nService.translations.comment, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text('ui.comment'.t, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
             const SizedBox(width: 6),
             Text(
-              i18nService.translations.optional,
+              'ui.optional'.t,
               style: AppTypography.bodySmall.copyWith(
                 fontSize: 12,
                 color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
@@ -248,7 +247,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
           minLines: 4,
           style: AppTypography.bodyMedium.copyWith(fontSize: 14, height: 1.6),
           decoration: InputDecoration(
-            hintText: i18nService.translations.addCommentInfo,
+            hintText: 'ui.addCommentInfo'.t,
             hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
