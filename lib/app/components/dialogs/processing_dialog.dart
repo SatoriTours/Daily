@@ -87,38 +87,37 @@ class _ProcessingDialogWidget extends StatelessWidget {
               BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 4)),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Obx(() {
-                if (isCompleted.value) {
-                  return Container(
+          child: Obx(() {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 图标区域
+                if (isCompleted.value)
+                  Container(
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), shape: BoxShape.circle),
                     child: const Icon(Icons.check_circle_outline, color: Colors.green, size: 40),
-                  );
-                } else {
-                  return SizedBox(
+                  )
+                else
+                  SizedBox(
                     width: 60,
                     height: 60,
                     child: CircularProgressIndicator(
                       strokeWidth: 3,
                       valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
                     ),
-                  );
-                }
-              }),
-              Dimensions.verticalSpacerM,
-              Obx(
-                () => Text(
+                  ),
+                Dimensions.verticalSpacerM,
+                // 消息文本
+                Text(
                   message.value,
                   textAlign: TextAlign.center,
                   style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context)),
                 ),
-              ),
-            ],
-          ),
+              ],
+            );
+          }),
         ),
       ),
     );

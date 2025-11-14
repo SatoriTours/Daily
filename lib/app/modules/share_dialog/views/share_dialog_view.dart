@@ -14,20 +14,27 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(resizeToAvoidBottomInset: true, appBar: _buildAppBar(context), body: _buildBody(context));
+    return Obx(() {
+      final isUpdate = controller.isUpdate.value;
+      return Scaffold(
+        resizeToAvoidBottomInset: true,
+        appBar: _buildAppBar(context, isUpdate),
+        body: _buildBody(context, isUpdate),
+      );
+    });
   }
 
   // 构建顶部应用栏
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  PreferredSizeWidget _buildAppBar(BuildContext context, bool isUpdate) {
     return AppBar(
-      title: Obx(() => Text(controller.isUpdate.value ? 'ui.updateArticle'.t : 'ui.saveLink'.t, style: AppTypography.appBarTitle)),
-      automaticallyImplyLeading: !controller.isUpdate.value,
+      title: Text(isUpdate ? 'ui.updateArticle'.t : 'ui.saveLink'.t, style: AppTypography.appBarTitle),
+      automaticallyImplyLeading: !isUpdate,
       elevation: 0,
     );
   }
 
   // 构建主体内容
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, bool isUpdate) {
     return SafeArea(
       child: Column(
         children: [
@@ -37,23 +44,23 @@ class ShareDialogView extends GetView<ShareDialogController> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildLinkSection(context),
+                  _buildLinkSection(context, isUpdate),
                   Dimensions.verticalSpacerL,
-                  _buildTitleSection(context),
+                  _buildTitleSection(context, isUpdate),
                   Dimensions.verticalSpacerL,
                   _buildCommentSection(context),
                 ],
               ),
             ),
           ),
-          _buildBottomButton(context),
+          _buildBottomButton(context, isUpdate),
         ],
       ),
     );
   }
 
   // 构建底部按钮区域
-  Widget _buildBottomButton(BuildContext context) {
+  Widget _buildBottomButton(BuildContext context, bool isUpdate) {
     return Container(
       padding: Dimensions.paddingBottomForm,
       decoration: BoxDecoration(
@@ -81,14 +88,12 @@ class ShareDialogView extends GetView<ShareDialogController> {
             Dimensions.horizontalSpacerM,
             Expanded(
               flex: 2,
-              child: Obx(
-                () => FilledButton(
-                  style: StyleGuide.getPrimaryButtonStyle(context),
-                  onPressed: () => controller.onSaveButtonPressed(),
-                  child: Text(
-                    controller.isUpdate.value ? 'ui.saveChanges'.t : 'ui.save'.t,
-                    style: AppTypography.buttonText.copyWith(fontWeight: FontWeight.w600),
-                  ),
+              child: FilledButton(
+                style: StyleGuide.getPrimaryButtonStyle(context),
+                onPressed: () => controller.onSaveButtonPressed(),
+                child: Text(
+                  isUpdate ? 'ui.saveChanges'.t : 'ui.save'.t,
+                  style: AppTypography.buttonText.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -99,7 +104,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   // 构建链接区域（简洁版）
-  Widget _buildLinkSection(BuildContext context) {
+  Widget _buildLinkSection(BuildContext context, bool isUpdate) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,7 +115,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
             const SizedBox(width: 8),
             Text('ui.link'.t, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
             const Spacer(),
-            if (controller.isUpdate.value) ...[
+            if (isUpdate) ...[
               Obx(
                 () => Row(
                   mainAxisSize: MainAxisSize.min,
@@ -171,7 +176,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   // 构建标题区域
-  Widget _buildTitleSection(BuildContext context) {
+  Widget _buildTitleSection(BuildContext context, bool isUpdate) {
     final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

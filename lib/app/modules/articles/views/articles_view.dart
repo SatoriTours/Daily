@@ -35,77 +35,78 @@ class ArticlesView extends GetView<ArticlesController> {
 
   /// 构建页面主体
   Widget _buildBody(BuildContext context) {
-    return Column(
-      children: [
-        // 搜索栏
-        _buildSearchBarSection(),
-        // 过滤指示器
-        _buildFilterIndicatorSection(context),
-        // 文章列表
-        _buildArticlesSection(),
-      ],
-    );
+    return Obx(() {
+      final appStateService = Get.find<AppStateService>();
+
+      // 收集所有响应式状态
+      final isSearchBarVisible = appStateService.isSearchBarVisible.value;
+      final hasActiveFilters = controller.hasActiveFilters();
+      final isLoading = controller.isLoadingArticles.value;
+
+      return Column(
+        children: [
+          // 搜索栏
+          if (isSearchBarVisible)
+            _buildSearchBarSection(),
+          // 过滤指示器
+          if (hasActiveFilters)
+            _buildFilterIndicatorSection(context),
+          // 文章列表
+          _buildArticlesSection(isLoading),
+        ],
+      );
+    });
   }
 
   /// 构建搜索栏部分
   Widget _buildSearchBarSection() {
-    return Obx(() {
-      final appStateService = Get.find<AppStateService>();
-      if (!appStateService.isSearchBarVisible.value) return const SizedBox.shrink();
-
-      logger.d('显示搜索栏');
-      return ArticlesSearchBar(
-        searchController: controller.searchController,
-        searchFocusNode: controller.searchFocusNode,
-        onBack: controller.toggleSearchState,
-        onSearch: controller.searchArticles,
-        onClear: () {
-          controller.searchController.clear();
-          controller.clearAllFilters();
-        },
-      );
-    });
+    logger.d('显示搜索栏');
+    return ArticlesSearchBar(
+      searchController: controller.searchController,
+      searchFocusNode: controller.searchFocusNode,
+      onBack: controller.toggleSearchState,
+      onSearch: controller.searchArticles,
+      onClear: () {
+        controller.searchController.clear();
+        controller.clearAllFilters();
+      },
+    );
   }
 
   /// 构建过滤指示器部分
   Widget _buildFilterIndicatorSection(BuildContext context) {
-    return Obx(() {
-      if (!controller.hasActiveFilters()) return const SizedBox.shrink();
-      logger.d('显示过滤指示器: ${controller.getTitle()}');
-      return SFilterIndicator(title: controller.getTitle(), onClear: controller.clearAllFilters);
-    });
+    logger.d('显示过滤指示器: ${controller.getTitle()}');
+    return SFilterIndicator(title: controller.getTitle(), onClear: controller.clearAllFilters);
   }
 
   /// 构建文章列表部分
-  Widget _buildArticlesSection() {
-    return Obx(() {
-      if (controller.articles.isEmpty) {
-        logger.d('文章列表为空，显示空状态');
-        return const Expanded(child: ArticlesEmptyView());
-      }
+  Widget _buildArticlesSection(bool isLoading) {
+    if (controller.articles.isEmpty) {
+      logger.d('文章列表为空，显示空状态');
+      return const Expanded(child: ArticlesEmptyView());
+    }
 
-      return Expanded(
-        child: ArticlesList(
-          articles: controller.articles,
-          isLoading: controller.isLoadingArticles.value,
-          scrollController: controller.scrollController,
-          onRefresh: controller.reloadArticles,
-          onArticleTap: (article) {
-            logger.d('点击文章卡片: ${article.id}');
-            Get.toNamed(Routes.articleDetail, arguments: article);
-          },
-          onFavoriteToggle: (article) async {
-            ArticleRepository.i.toggleFavorite(article.id);
-            controller.updateArticle(article.id);
-          },
-          onShare: (article) async {
-            await SharePlus.instance.share(
-              ShareParams(text: article.url ?? '', subject: article.aiTitle ?? article.title ?? ''),
-            );
-          },
-        ),
-      );
-    });
+    return Expanded(
+      child: ArticlesList(
+        articles: controller.articles.toList(),
+        isLoading: isLoading,
+        scrollController: controller.scrollController,
+        onRefresh: controller.reloadArticles,
+        onArticleTap: (article) {
+          logger.d('点击文章卡片: ${article.id}');
+          Get.toNamed(Routes.articleDetail, arguments: article);
+        },
+        onFavoriteToggle: (article) async {
+          ArticleRepository.i.toggleFavorite(article.id);
+          controller.updateArticle(article.id);
+        },
+        onShare: (article) async {
+          await SharePlus.instance.share(
+            ShareParams(text: article.url ?? '', subject: article.aiTitle ?? article.title ?? ''),
+          );
+        },
+      ),
+    );
   }
 
   // 已由 controller.hasActiveFilters 提供判断
@@ -136,12 +137,13 @@ class ArticlesView extends GetView<ArticlesController> {
 
   /// 构建应用栏标题
   Widget _buildAppBarTitle() {
+    // 顶层的 Obx 已经监听了相关状态变化，这里直接获取当前标题
     return GestureDetector(
       onDoubleTap: () {
         logger.d('双击标题，滚动到顶部');
         _scrollToTop();
       },
-      child: Obx(() => Text(controller.getTitle(), style: AppTypography.titleLarge)),
+      child: Text(controller.getTitle(), style: AppTypography.titleLarge),
     );
   }
 

@@ -13,15 +13,22 @@ class PluginCenterView extends GetView<PluginCenterController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.getSurface(context),
-      appBar: _buildAppBar(context),
-      body: Obx(() => _buildBody(context)),
-    );
+    return Obx(() {
+      final isLoading = controller.isLoading.value;
+      final plugins = controller.plugins;
+      final hasPlugins = plugins.isNotEmpty;
+      final isUpdatingAny = controller.updatingPlugin.isNotEmpty;
+
+      return Scaffold(
+        backgroundColor: AppColors.getSurface(context),
+        appBar: _buildAppBar(context, hasPlugins, isUpdatingAny),
+        body: _buildBody(context, isLoading, plugins),
+      );
+    });
   }
 
   /// 构建应用栏
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  PreferredSizeWidget _buildAppBar(BuildContext context, bool hasPlugins, bool isUpdatingAny) {
     return AppBar(
       title: const Text('插件中心'),
       centerTitle: true,
@@ -29,21 +36,16 @@ class PluginCenterView extends GetView<PluginCenterController> {
       backgroundColor: AppColors.getSurface(context),
       actions: [
         // 更新所有按钮
-        Obx(() {
-          final hasPlugins = controller.plugins.isNotEmpty;
-          final isUpdating = controller.updatingPlugin.isNotEmpty;
-
-          return IconButton(
-            icon: Icon(
-              Icons.refresh_rounded,
-              color: (hasPlugins && !isUpdating)
-                  ? AppColors.getPrimary(context)
-                  : AppColors.getOnSurface(context).withValues(alpha: Opacities.low),
-            ),
-            tooltip: '更新所有插件',
-            onPressed: (hasPlugins && !isUpdating) ? () => _updateAllPlugins(context) : null,
-          );
-        }),
+        IconButton(
+          icon: Icon(
+            Icons.refresh_rounded,
+            color: (hasPlugins && !isUpdatingAny)
+                ? AppColors.getPrimary(context)
+                : AppColors.getOnSurface(context).withValues(alpha: Opacities.low),
+          ),
+          tooltip: '更新所有插件',
+          onPressed: (hasPlugins && !isUpdatingAny) ? () => _updateAllPlugins(context) : null,
+        ),
         // 服务器设置按钮
         IconButton(
           icon: const Icon(Icons.settings_rounded),
@@ -55,12 +57,12 @@ class PluginCenterView extends GetView<PluginCenterController> {
   }
 
   /// 构建主体内容
-  Widget _buildBody(BuildContext context) {
-    if (controller.isLoading.value) {
+  Widget _buildBody(BuildContext context, bool isLoading, List plugins) {
+    if (isLoading) {
       return StyleGuide.getLoadingState(context);
     }
 
-    if (controller.plugins.isEmpty) {
+    if (plugins.isEmpty) {
       return _buildEmptyView(context);
     }
 
@@ -68,12 +70,14 @@ class PluginCenterView extends GetView<PluginCenterController> {
       onRefresh: controller.loadPluginData,
       color: AppColors.getPrimary(context),
       child: ListView.separated(
-        itemCount: controller.plugins.length,
+        itemCount: plugins.length,
         padding: Dimensions.paddingPage,
         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
         separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
-          return _buildPluginCard(context, controller.plugins[index]);
+          final plugin = plugins[index];
+          final isUpdating = controller.updatingPlugin.value == plugin.fileName;
+          return _buildPluginCard(context, plugin, isUpdating);
         },
       ),
     );
@@ -140,39 +144,36 @@ class PluginCenterView extends GetView<PluginCenterController> {
   }
 
   /// 构建插件卡片
-  Widget _buildPluginCard(BuildContext context, PluginInfo plugin) {
-    return Obx(() {
-      final isUpdating = controller.updatingPlugin.value == plugin.fileName;
-      final color = _getPluginColor(plugin);
+  Widget _buildPluginCard(BuildContext context, PluginInfo plugin, bool isUpdating) {
+    final color = _getPluginColor(plugin);
 
-      return Card(
-        margin: EdgeInsets.zero,
-        child: InkWell(
-          onTap: isUpdating ? null : () => _showPluginDetails(context, plugin),
-          child: Padding(
-            padding: Dimensions.paddingCard,
-            child: Row(
-              children: [
-                // 插件图标 - 使用更清晰的文档图标
-                FeatureIcon(
-                  icon: Icons.description_rounded,
-                  iconColor: color,
-                  containerSize: Dimensions.iconSizeL,
-                  iconSize: Dimensions.iconSizeS,
-                ),
-                Dimensions.horizontalSpacerM,
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: isUpdating ? null : () => _showPluginDetails(context, plugin),
+        child: Padding(
+          padding: Dimensions.paddingCard,
+          child: Row(
+            children: [
+              // 插件图标 - 使用更清晰的文档图标
+              FeatureIcon(
+                icon: Icons.description_rounded,
+                iconColor: color,
+                containerSize: Dimensions.iconSizeL,
+                iconSize: Dimensions.iconSizeS,
+              ),
+              Dimensions.horizontalSpacerM,
 
-                // 插件信息
-                Expanded(child: _buildPluginInfo(context, plugin, isUpdating)),
+              // 插件信息
+              Expanded(child: _buildPluginInfo(context, plugin, isUpdating)),
 
-                // 右侧更新状态（移除箭头）
-                if (isUpdating) _buildUpdatingIndicator(context),
-              ],
-            ),
+              // 右侧更新状态（移除箭头）
+              if (isUpdating) _buildUpdatingIndicator(context),
+            ],
           ),
         ),
-      );
-    });
+      ),
+    );
   }
 
   /// 构建插件信息

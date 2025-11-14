@@ -19,36 +19,32 @@ class HomeView extends GetView<HomeController> {
   @override
   Widget build(BuildContext context) {
     _logBuild();
-    return Scaffold(body: _buildPageContent(), bottomNavigationBar: _buildNavigationBar());
-  }
-
-  /// 构建主要内容区域
-  Widget _buildPageContent() {
     return Obx(() {
       final currentIndex = controller.currentIndex.value;
       _logPageSwitch(currentIndex);
 
-      return IndexedStack(
-        index: currentIndex,
-        children: const [ArticlesView(), DiaryView(), BooksView(), SettingsView()],
+      return Scaffold(
+        body: IndexedStack(
+          index: currentIndex,
+          children: const [ArticlesView(), DiaryView(), BooksView(), SettingsView()],
+        ),
+        bottomNavigationBar: _buildNavigationBar(currentIndex),
       );
     });
   }
 
   /// 构建底部导航栏
-  Widget _buildNavigationBar() {
-    return Obx(
-      () => BottomNavigationBar(
-        currentIndex: controller.currentIndex.value,
-        onTap: controller.changePage,
-        type: BottomNavigationBarType.fixed,
-        items: [
-          BottomNavigationBarItem(icon: Icon(Icons.article_outlined), activeIcon: Icon(Icons.article), label: 'nav.articles'.t),
-          BottomNavigationBarItem(icon: Icon(Icons.book_outlined), activeIcon: Icon(Icons.book), label: 'nav.diary'.t),
-          BottomNavigationBarItem(icon: Icon(Icons.menu_book_outlined), activeIcon: Icon(Icons.menu_book), label: 'nav.books'.t),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'nav.settings'.t),
-        ],
-      ),
+  Widget _buildNavigationBar(int currentIndex) {
+    return BottomNavigationBar(
+      currentIndex: currentIndex,
+      onTap: controller.changePage,
+      type: BottomNavigationBarType.fixed,
+      items: [
+        BottomNavigationBarItem(icon: Icon(Icons.article_outlined), activeIcon: Icon(Icons.article), label: 'nav.articles'.t),
+        BottomNavigationBarItem(icon: Icon(Icons.book_outlined), activeIcon: Icon(Icons.book), label: 'nav.diary'.t),
+        BottomNavigationBarItem(icon: Icon(Icons.menu_book_outlined), activeIcon: Icon(Icons.menu_book), label: 'nav.books'.t),
+        BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'nav.settings'.t),
+      ],
     );
   }
 

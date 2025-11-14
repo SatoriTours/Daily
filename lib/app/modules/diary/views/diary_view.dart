@@ -24,7 +24,18 @@ class DiaryView extends GetView<DiaryController> {
     return Scaffold(
       backgroundColor: DiaryStyle.backgroundColor(context),
       appBar: _buildAppBar(context),
-      body: Stack(children: [Obx(() => _buildMainContent(context)), _buildSearchBar(), _buildFloatingButton(context)]),
+      body: Obx(() {
+        final shouldShowSearchBar = controller.isSearchVisible.value || controller.searchQuery.isNotEmpty;
+
+        return Stack(
+          children: [
+            _buildMainContent(context),
+            // 搜索栏（仅在需要时显示）
+            _buildSearchBar(shouldShowSearchBar),
+            _buildFloatingButton(context),
+          ],
+        );
+      }),
     );
   }
 
@@ -92,27 +103,22 @@ class DiaryView extends GetView<DiaryController> {
   }
 
   /// 构建搜索栏
-  Widget _buildSearchBar() {
-    return Obx(() {
-      logger.d('更新搜索栏可见性');
-      final bool shouldShowSearchBar = controller.isSearchVisible.value || controller.searchQuery.isNotEmpty;
-
-      return AnimatedPositioned(
-        duration: AnimationConfig.duration,
-        curve: Curves.easeInOut,
-        top: shouldShowSearchBar ? 0 : -60,
-        left: 0,
-        right: 0,
-        height: 60,
-        child: DiarySearchBar(
-          searchController: controller.searchController,
-          searchFocusNode: controller.searchFocusNode,
-          onClose: () => controller.enableSearch(false),
-          onSearch: controller.search,
-          onClearFilters: controller.clearFilters,
-        ),
-      );
-    });
+  Widget _buildSearchBar(bool shouldShowSearchBar) {
+    return AnimatedPositioned(
+      duration: AnimationConfig.duration,
+      curve: Curves.easeInOut,
+      top: shouldShowSearchBar ? 0 : -60,
+      left: 0,
+      right: 0,
+      height: 60,
+      child: DiarySearchBar(
+        searchController: controller.searchController,
+        searchFocusNode: controller.searchFocusNode,
+        onClose: () => controller.enableSearch(false),
+        onSearch: controller.search,
+        onClearFilters: controller.clearFilters,
+      ),
+    );
   }
 
   /// 构建悬浮按钮

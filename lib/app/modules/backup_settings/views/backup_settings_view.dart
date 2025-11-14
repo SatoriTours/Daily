@@ -24,13 +24,18 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
         backgroundColor: colorScheme.surface,
       ),
       body: Obx(() {
+        // 收集所有响应式状态
+        final hasBackupDirectory = controller.backupDirectory.value.isNotEmpty;
+        final isBackingUp = controller.isBackingUp.value;
+        final backupProgress = controller.backupProgress.value;
+
         // 如果还没有选择备份目录，直接显示提示选择
-        if (controller.backupDirectory.value.isEmpty) {
+        if (!hasBackupDirectory) {
           return _buildSelectDirectoryPrompt(context);
         }
 
         // 已有备份目录，显示正常界面
-        return _buildMainContent(context);
+        return _buildMainContent(context, isBackingUp, backupProgress);
       }),
     );
   }
@@ -82,7 +87,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
   }
 
   /// 构建主要内容
-  Widget _buildMainContent(BuildContext context) {
+  Widget _buildMainContent(BuildContext context, bool isBackingUp, double backupProgress) {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
@@ -104,18 +109,16 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
           Dimensions.verticalSpacerM,
 
           // 立即备份按钮
-          Obx(
-            () => controller.isBackingUp.value
-                ? _buildBackupProgress(context)
-                : _buildActionButton(
-                    context,
-                    title: '立即备份',
-                    subtitle: '保存当前所有应用数据',
-                    icon: Icons.backup_rounded,
-                    color: colorScheme.primary,
-                    onTap: () => _onBackupPressed(context),
-                  ),
-          ),
+          isBackingUp
+              ? _buildBackupProgress(context, backupProgress)
+              : _buildActionButton(
+                  context,
+                  title: '立即备份',
+                  subtitle: '保存当前所有应用数据',
+                  icon: Icons.backup_rounded,
+                  color: colorScheme.primary,
+                  onTap: () => _onBackupPressed(context),
+                ),
           Dimensions.verticalSpacerM,
 
           // 恢复备份按钮
@@ -170,7 +173,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
   }
 
   /// 构建备份进度
-  Widget _buildBackupProgress(BuildContext context) {
+  Widget _buildBackupProgress(BuildContext context, double backupProgress) {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
@@ -203,13 +206,11 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
             ],
           ),
           Dimensions.verticalSpacerL,
-          Obx(
-            () => LinearProgressIndicator(
-              value: controller.backupProgress.value,
-              backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.2),
-              valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
-              borderRadius: BorderRadius.circular(4),
-            ),
+          LinearProgressIndicator(
+            value: backupProgress,
+            backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.2),
+            valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+            borderRadius: BorderRadius.circular(4),
           ),
           Dimensions.verticalSpacerS,
           Text(
