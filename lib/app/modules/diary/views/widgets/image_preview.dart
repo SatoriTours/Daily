@@ -21,12 +21,11 @@ class ImagePreview extends StatelessWidget {
     if (images.isEmpty) return const SizedBox.shrink();
 
     return Container(
-      height: 100,
       margin: EdgeInsets.symmetric(vertical: 8),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: images.length,
-        itemBuilder: (context, index) {
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: List.generate(images.length, (index) {
           // 解析图片路径，处理相对路径
           final imagePath = images[index];
           final resolvedPath = FileService.i.resolveLocalMediaPath(imagePath);
@@ -42,15 +41,14 @@ class ImagePreview extends StatelessWidget {
               Container(
                 width: 100,
                 height: 100,
-                margin: EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   image: DecorationImage(image: FileImage(file), fit: BoxFit.cover),
                 ),
               ),
               Positioned(
-                right: 10,
-                top: 5,
+                right: 2,
+                top: 2,
                 child: GestureDetector(
                   onTap: () => onDelete(index),
                   child: Container(
@@ -62,7 +60,7 @@ class ImagePreview extends StatelessWidget {
               ),
             ],
           );
-        },
+        }),
       ),
     );
   }
@@ -72,7 +70,6 @@ class ImagePreview extends StatelessWidget {
     return Container(
       width: 100,
       height: 100,
-      margin: EdgeInsets.only(right: 8),
       decoration: BoxDecoration(color: Colors.grey.withAlpha(77), borderRadius: BorderRadius.circular(8)),
       child: Stack(
         children: [

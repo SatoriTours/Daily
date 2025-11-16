@@ -20,6 +20,7 @@ success:
   restore: Restore successful
   add: Add successful
   copy: Copy successful
+  book_refreshed: has been refreshed
 
 # Action buttons
 button:
@@ -38,6 +39,27 @@ button:
   update: Update
   restore: Restore
   learned: Got it
+  close: Close
+  copy_address: Copy Address
+  hide_password: Hide Password
+  show_password: Show Password
+
+# UI text
+ui:
+  cancel: Cancel
+  save: Save
+  saveChanges: Save Changes
+  saveLink: Save Link
+  updateArticle: Update Article
+  aiAnalysis: AI Analysis
+  link: Link
+  title: Title
+  comment: Comment
+  optional: Optional
+  inputOrModifyArticleTitle: Enter or modify article title
+  addCommentInfo: Add comment information
+  search: Search
+  processing: Processing
 
 # Navigation
 nav:
@@ -51,6 +73,7 @@ nav:
 title:
   settings: Settings
   books: Reading & Insights
+  books_wisdom: Reading & Insights
   ai_config: AI Configuration
   plugin_center: Plugin Center
   backup_restore: Restore from Backup
@@ -75,6 +98,7 @@ hint:
   search_articles: Search articles...
   search_content: Record the present, imagine the future...
   select_first: Please select the text to convert first
+  title: Please enter title
 
 # Article module
 article:
@@ -95,6 +119,7 @@ article:
 empty:
   no_viewpoint: No viewpoints yet, please add a book first
   no_plugins: No plugins available
+  search: No search results
 
 # Dialog titles
 dialog:
@@ -123,19 +148,37 @@ dialog:
   server_info: Server Information
   backup_success: Backup file restored successfully
   delete_book: Delete Book
+  delete_book_confirm: Are you sure you want to delete
+  delete_book_warning: This action cannot be undone, and all viewpoints related to the book will also be deleted
   refresh_book: Refresh Book
+  refresh_book_message: Will re-fetch
+  refresh_book_warning: viewpoint content, this may take some time. Continue?
+  refreshing_book: Refreshing
   add_image: Add Image
   ai_magic: AI Magic
+  about_description: Daily Satori is your personalized reading assistant with article collection, AI content analysis, and diary management
 
 # Settings related
 setting:
   web_server: Web Server
   web_server_address: HTTP Server Address
+  web_server_subtitle: Configure remote access and proxy settings
   websocket_remote: WebSocket Remote Access
   connection_status: Connection Status
   server_password: Server Password
   last_update: Last updated:
   updating: Updating
+  ai_config_subtitle: Configure AI models for multiple scenarios
+  plugin_center_subtitle: Manage extension plugins and subscriptions
+  backup_restore_subtitle: Protect your data security
+  check_update_subtitle: Get the latest version
+  version: Version
+  server_info: Server Information
+  server_management: Server Management
+  server_password_subtitle: Protect your server security
+  restart_service: Restart Service
+  restart_service_subtitle: Restart web server
+  password_tip: Password length should be 6-20 characters
 
 # App description
 app:
@@ -168,6 +211,21 @@ message:
   please_select: Please select...
   please_enter: Please enter...
   invalid_input: Invalid...
+  select_text_first: Please select text first
+
+# Status
+status:
+  connected: Connected
+  disconnected: Disconnected
+
+# Menu
+menu:
+  convert_to_table: Convert to Table
+  convert_to_list: Convert to List
+  format_as_code_block: Format as Code Block
+  add_emphasis: Add Emphasis
+  select_from_gallery: Select from Gallery
+  take_photo: Take Photo
 
 # Default placeholders
 placeholder:
@@ -177,3 +235,65 @@ placeholder:
   url: https://example.com
   date: No date
   author: Unknown author
+
+# Component related
+component:
+  # Common actions
+  search: Search
+  clear: Clear
+  back: Back
+  confirm: Confirm
+  cancel: Cancel
+  filter: Filter
+  select: Select
+
+  # Search related
+  search_placeholder: Search...
+  search_hint: Search articles
+  search_articles_hint: Search articles...
+  tooltip_search: Search
+  tooltip_clear: Clear
+  tooltip_back: Back
+  tooltip_filter: Filter
+
+  # Filter dialog
+  filter_title: Filter Conditions
+  filter_date: Date
+  filter_tags: Tags
+  filter_favorite: Show Favorites Only
+  filter_select_date: Select Date
+  filter_clear_all: Clear All
+  filter_prefix: Filtered:
+  filtered_indicator_prefix: Filtered:
+  filtered_indicator_clear: Clear
+
+  # Empty states
+  empty_articles_title: No favorites yet
+  empty_articles_subtitle: You can add new articles using the share feature
+  empty_no_data: No data
+  empty_add_content: Click the button below to add new content
+
+  # Loading states
+  loading: Loading...
+  processing: Processing...
+  ai_analyzing: AI Analyzing...
+
+  # Article info
+  article_info_website: Website
+  article_info_date: Date
+  article_info_tags: Tags
+  article_info_reading_time: Reading time
+  article_info_word_count: Word count
+
+  # Button text
+  button_add: Add
+  button_save: Save
+  button_delete: Delete
+  button_edit: Edit
+  button_cancel: Cancel
+  button_confirm: Confirm
+
+  # Others
+  favorites_only: Favorites Only
+  show_all: Show All
+  processing_dialog_success: Complete

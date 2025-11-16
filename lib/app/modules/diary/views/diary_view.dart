@@ -93,9 +93,8 @@ class DiaryView extends GetView<DiaryController> {
 
   /// 构建过滤器头部
   Widget _buildFilterHeader(BuildContext context, String filterText) {
-    return SFilterIndicator(
+    return FilterIndicator(
       title: filterText,
-      prefix: '',
       onClear: controller.clearFilters,
       // 调整与现有布局相近的外边距
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),

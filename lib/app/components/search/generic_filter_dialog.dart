@@ -1,24 +1,61 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/extensions/i18n_extension.dart';
 
 /// 通用过滤对话框
-/// 支持日期、标签、收藏等过滤条件
-class GenericFilterDialog extends StatefulWidget {
-  final DateTime? initialSelectedDate;
-  final List<int> initialSelectedTags;
-  final bool initialIsFavorite;
+///
+/// 支持日期、标签、收藏等过滤条件的对话框组件。
+///
+/// 使用示例：
+/// ```dart
+/// showDialog(
+///   context: context,
+///   builder: (context) => GenericFilterDialog(
+///     selectedDate: controller.filterDate.value,
+///     selectedTags: controller.filterTags,
+///     isFavorite: controller.filterFavorite.value,
+///     availableTags: ['技术', '生活', '工作'],
+///     availableTagIds: [1, 2, 3],
+///     onDateSelected: (date) => controller.filterDate.value = date,
+///     onTagsSelected: (tags) => controller.filterTags.value = tags,
+///     onFavoriteChanged: (favorite) => controller.filterFavorite.value = favorite,
+///     onClearAll: () => controller.clearAllFilters(),
+///   ),
+/// );
+/// ```
+class GenericFilterDialog extends StatelessWidget {
+  /// 当前选中的日期
+  final DateTime? selectedDate;
+
+  /// 当前选中的标签ID列表
+  final List<int> selectedTags;
+
+  /// 是否只显示收藏
+  final bool isFavorite;
+
+  /// 可用的标签列表
   final List<String> availableTags;
+
+  /// 可用标签的ID列表（与availableTags一一对应）
   final List<int> availableTagIds;
+
+  /// 日期选择回调
   final ValueChanged<DateTime?> onDateSelected;
+
+  /// 标签选择回调
   final ValueChanged<List<int>> onTagsSelected;
+
+  /// 收藏状态改变回调
   final ValueChanged<bool> onFavoriteChanged;
+
+  /// 清除所有过滤条件回调
   final VoidCallback onClearAll;
+
   const GenericFilterDialog({
     super.key,
-    this.initialSelectedDate,
-    this.initialSelectedTags = const [],
-    this.initialIsFavorite = false,
+    this.selectedDate,
+    this.selectedTags = const [],
+    this.isFavorite = false,
     required this.availableTags,
     required this.availableTagIds,
     required this.onDateSelected,
@@ -27,47 +64,33 @@ class GenericFilterDialog extends StatefulWidget {
     required this.onClearAll,
   });
   @override
-  State<GenericFilterDialog> createState() => _GenericFilterDialogState();
-}
-class _GenericFilterDialogState extends State<GenericFilterDialog> {
-  late DateTime? selectedDate;
-  late List<int> selectedTags;
-  late bool isFavorite;
-  @override
-  void initState() {
-    super.initState();
-    selectedDate = widget.initialSelectedDate;
-    selectedTags = List.from(widget.initialSelectedTags);
-    isFavorite = widget.initialIsFavorite;
-  }
-  @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
       child: Container(
         constraints: const BoxConstraints(maxWidth: 400, maxHeight: 500),
-        padding: const EdgeInsets.all(16),
+        padding: Dimensions.paddingCard,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(context),
-            const SizedBox(height: 16),
+            Dimensions.verticalSpacerM,
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildDateFilter(context),
-                    const SizedBox(height: 16),
+                    Dimensions.verticalSpacerM,
                     _buildTagsFilter(context),
-                    const SizedBox(height: 16),
+                    Dimensions.verticalSpacerM,
                     _buildFavoriteFilter(context),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            Dimensions.verticalSpacerM,
             _buildActions(context),
           ],
         ),
@@ -78,8 +101,12 @@ class _GenericFilterDialogState extends State<GenericFilterDialog> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('过滤条件', style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold)),
-        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+        Text('component.filter_title'.t, style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold)),
+        IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context),
+          tooltip: 'component.cancel'.t,
+        ),
       ],
     );
   }
@@ -87,51 +114,59 @@ class _GenericFilterDialogState extends State<GenericFilterDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('日期', style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
+        Row(
+          children: [
+            Icon(
+              Icons.calendar_today,
+              size: Dimensions.iconSizeS,
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
+            Dimensions.horizontalSpacerS,
+            Text(
+              'component.filter_date'.t,
+              style: AppTypography.titleMedium.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        Dimensions.verticalSpacerS,
         InkWell(
-          onTap: () async {
-            final date = await showDatePicker(
-              context: context,
-              initialDate: selectedDate ?? DateTime.now(),
-              firstDate: DateTime(2000),
-              lastDate: DateTime.now(),
-            );
-            if (date != null) {
-              setState(() {
-                selectedDate = date;
-              });
-              widget.onDateSelected(date);
-            }
-          },
-          borderRadius: BorderRadius.circular(8),
+        onTap: () async {
+          final date = await showDatePicker(
+            context: context,
+            initialDate: selectedDate ?? DateTime.now(),
+            firstDate: DateTime(2000),
+            lastDate: DateTime.now(),
+          );
+          if (date != null) {
+            onDateSelected(date);
+          }
+        },
+          borderRadius: BorderRadius.circular(Dimensions.radiusS),
           child: Container(
+            width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.getSurface(context),
-              borderRadius: BorderRadius.circular(8),
+              color: AppColors.getSurfaceContainer(context),
+              borderRadius: BorderRadius.circular(Dimensions.radiusS),
               border: Border.all(color: AppColors.getOutline(context)),
             ),
             child: Row(
               children: [
-                Icon(Icons.calendar_today, size: 16, color: AppColors.getOnSurfaceVariant(context)),
-                const SizedBox(width: 8),
-                Text(
-                  selectedDate != null
-                      ? '${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}'
-                      : '选择日期',
-                  style: AppTypography.bodyMedium,
+                Expanded(
+                  child: Text(
+                    selectedDate != null
+                        ? '${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}'
+                        : 'component.filter_select_date'.t,
+                    style: AppTypography.bodyMedium,
+                  ),
                 ),
                 if (selectedDate != null) ...[
-                  const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.clear, size: 16),
-                    onPressed: () {
-                      setState(() {
-                        selectedDate = null;
-                      });
-                      widget.onDateSelected(null);
-                    },
+                    onPressed: () => onDateSelected(null),
+                    tooltip: 'component.clear'.t,
                   ),
                 ],
               ],
@@ -145,50 +180,90 @@ class _GenericFilterDialogState extends State<GenericFilterDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('标签', style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: List.generate(widget.availableTags.length, (index) {
-            final tag = widget.availableTags[index];
-            final tagId = widget.availableTagIds[index];
-            final isSelected = selectedTags.contains(tagId);
-            return FilterChip(
-              label: Text(tag),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
-                  if (selected) {
-                    selectedTags.add(tagId);
-                  } else {
-                    selectedTags.remove(tagId);
-                  }
-                });
-                widget.onTagsSelected(selectedTags);
-              },
-              backgroundColor: AppColors.getSurface(context),
-              selectedColor: AppColors.getPrimary(context).withValues(alpha: 0.2),
-              labelStyle: AppTypography.bodySmall,
-            );
-          }),
+        Row(
+          children: [
+            Icon(
+              Icons.tag,
+              size: Dimensions.iconSizeS,
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
+            Dimensions.horizontalSpacerS,
+            Text(
+              'component.filter_tags'.t,
+              style: AppTypography.titleMedium.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
+        Dimensions.verticalSpacerS,
+        Wrap(
+        spacing: Dimensions.spacingS,
+        runSpacing: Dimensions.spacingS,
+        children: List.generate(availableTags.length, (index) {
+          final tag = availableTags[index];
+          final tagId = availableTagIds[index];
+          final isSelected = selectedTags.contains(tagId);
+          return FilterChip(
+            label: Text(tag),
+            selected: isSelected,
+            onSelected: (selected) {
+              final newTags = List<int>.from(selectedTags);
+              if (selected) {
+                newTags.add(tagId);
+              } else {
+                newTags.remove(tagId);
+              }
+              onTagsSelected(newTags);
+            },
+            backgroundColor: AppColors.getSurfaceContainer(context),
+            selectedColor: AppColors.getPrimary(context).withValues(alpha: 0.2),
+            labelStyle: AppTypography.bodySmall,
+            pressElevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Dimensions.radiusS),
+              side: BorderSide(
+                color: isSelected ? AppColors.getPrimary(context) : Colors.transparent,
+                width: 1,
+              ),
+            ),
+          );
+        }),
+        ),
+        Dimensions.verticalSpacerS,
       ],
     );
   }
   Widget _buildFavoriteFilter(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Checkbox(
-          value: isFavorite,
-          onChanged: (value) {
-            setState(() {
-              isFavorite = value ?? false;
-            });
-            widget.onFavoriteChanged(isFavorite);
-          },
+        Row(
+          children: [
+            Icon(
+              Icons.favorite,
+              size: Dimensions.iconSizeS,
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
+            Dimensions.horizontalSpacerS,
+            Text(
+              'component.filter_favorite'.t,
+              style: AppTypography.titleMedium.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
-        Text('仅显示收藏', style: AppTypography.bodyMedium),
+        Dimensions.verticalSpacerS,
+        Row(
+          children: [
+            Checkbox(
+              value: isFavorite,
+              onChanged: (value) => onFavoriteChanged(value ?? false),
+            ),
+            Text('component.filter_favorite'.t, style: AppTypography.bodyMedium),
+          ],
+        ),
       ],
     );
   }
@@ -198,17 +273,19 @@ class _GenericFilterDialogState extends State<GenericFilterDialog> {
       children: [
         TextButton(
           onPressed: () {
-            setState(() {
-              selectedDate = null;
-              selectedTags.clear();
-              isFavorite = false;
-            });
-            widget.onClearAll();
+            onClearAll();
             Navigator.pop(context);
           },
-          child: Text('清除全部', style: AppTypography.bodyMedium.copyWith(color: AppColors.getError(context))),
+          child: Text(
+            'component.filter_clear_all'.t,
+            style: AppTypography.bodyMedium.copyWith(color: AppColors.getError(context)),
+          ),
         ),
-        ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('确定')),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context),
+          style: ButtonStyles.getPrimaryStyle(context),
+          child: Text('component.confirm'.t),
+        ),
       ],
     );
   }

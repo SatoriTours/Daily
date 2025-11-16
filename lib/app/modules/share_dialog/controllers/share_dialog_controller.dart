@@ -116,24 +116,31 @@ class ShareDialogController extends BaseGetXController {
         if (isUpdate.value && !refreshAndAnalyze.value) {
           await _updateArticleFieldsOnly();
         } else {
-          await ProcessingDialog.show(
-            message: 'AI分析中...',
-            onProcess: (updateMessage) async {
-              final newArticle = await WebpageParserService.i.saveWebpage(
+          final newArticle = await ProcessingDialog.show(
+            context: Get.context!,
+            messageKey: 'component.ai_analyzing',
+            onProcess: () async {
+              return await WebpageParserService.i.saveWebpage(
                 url: shareURL.value,
                 comment: commentController.text,
                 isUpdate: isUpdate.value,
                 articleID: articleID.value,
               );
-              // 新增模式：保存后拿到新文章ID
-              if (articleID.value <= 0 && newArticle.id > 0) {
-                articleID.value = newArticle.id;
-                logger.i('[ShareDialog] 新增文章保存完成，ID=${articleID.value}');
-                // 通知文章创建
-                _articleStateService.notifyArticleCreated(newArticle);
-              }
             },
           );
+
+          // 处理返回的文章数据
+          if (newArticle != null) {
+            // 新增模式：保存后拿到新文章ID
+            if (articleID.value <= 0 && newArticle.id > 0) {
+              articleID.value = newArticle.id;
+              logger.i('[ShareDialog] 新增文章保存完成，ID=${articleID.value}');
+              // 通知文章创建
+              _articleStateService.notifyArticleCreated(newArticle);
+            }
+          } else {
+            throw Exception('文章保存失败');
+          }
           // 保存后再应用用户手动输入的标题与标签
           await _applyManualFieldsPostProcess();
         }

@@ -20,6 +20,7 @@ success:
   restore: 恢复成功
   add: 添加成功
   copy: 复制成功
+  book_refreshed: 已刷新
 
 # 操作按钮
 button:
@@ -38,6 +39,27 @@ button:
   update: 更新
   restore: 还原
   learned: 了解了
+  close: 关闭
+  copy_address: 复制地址
+  hide_password: 隐藏密码
+  show_password: 显示密码
+
+# UI 界面文本
+ui:
+  cancel: 取消
+  save: 保存
+  saveChanges: 保存更改
+  saveLink: 保存链接
+  updateArticle: 更新文章
+  aiAnalysis: AI 分析
+  link: 链接
+  title: 标题
+  comment: 备注
+  optional: 选填
+  inputOrModifyArticleTitle: 输入或修改文章标题
+  addCommentInfo: 添加备注信息
+  search: 搜索
+  processing: 处理中
 
 # 导航相关
 nav:
@@ -51,6 +73,7 @@ nav:
 title:
   settings: 设置
   books: 读书悟道
+  books_wisdom: 读书悟道
   ai_config: AI 配置管理
   plugin_center: 插件中心
   backup_restore: 从备份恢复
@@ -75,13 +98,14 @@ hint:
   search_articles: 搜索文章...
   search_content: 记录现在，畅想未来...
   select_first: 请先选择需要转换的文本
+  title: 请输入标题
 
 # 文章模块
 article:
   all_articles: 全部文章
   favorite_articles: 收藏文章
-  search_result: 搜索: "{query}"
-  filter_by_tag: 标签: {tag}
+  search_result: '搜索: "{query}"'
+  filter_by_tag: '标签: {tag}'
   filter_by_date: 按日期筛选
   calendar_title: 文章日历
   select_tag: 选择标签
@@ -95,6 +119,7 @@ article:
 empty:
   no_viewpoint: 暂无观点，请先添加书籍
   no_plugins: 暂无插件
+  search: 暂无搜索结果
 
 # 对话框标题
 dialog:
@@ -123,19 +148,37 @@ dialog:
   server_info: 服务器信息
   backup_success: 备份文件已成功还原
   delete_book: 删除书籍
+  delete_book_confirm: 确定要删除
+  delete_book_warning: 此操作无法撤销，书籍相关的所有观点也将被删除
   refresh_book: 刷新书籍
+  refresh_book_message: 将重新拉取
+  refresh_book_warning: 的观点内容，这可能需要一些时间。是否继续？
+  refreshing_book: 正在刷新
   add_image: 添加图片
   ai_magic: AI魔法
+  about_description: Daily Satori 是您的个性化阅读助手，支持文章收藏、AI内容分析和日记管理
 
 # 设置相关
 setting:
   web_server: Web服务器
   web_server_address: HTTP服务器地址
+  web_server_subtitle: 配置远程访问与代理设置
   websocket_remote: WebSocket远程访问
   connection_status: 连接状态
   server_password: 服务器密码
-  last_update: 上次更新：
+  last_update: '上次更新：'
   updating: 更新中
+  ai_config_subtitle: 设置多个场景下的 AI 模型
+  plugin_center_subtitle: 管理扩展插件与订阅源
+  backup_restore_subtitle: 保护您的数据安全
+  check_update_subtitle: 获取最新版本
+  version: 版本
+  server_info: 服务器信息
+  server_management: 服务器管理
+  server_password_subtitle: 保护您的服务器安全
+  restart_service: 重启服务
+  restart_service_subtitle: 重新启动 Web 服务器
+  password_tip: 密码长度为 6-20 位
 
 # 应用描述
 app:
@@ -143,8 +186,8 @@ app:
 
 # 书籍相关
 book:
-  author: 作者：
-  category: 分类：
+  author: '作者：'
+  category: '分类：'
   summary: 简介
   view_all_viewpoints: 查看所有观点
   record_thought: 记感想
@@ -168,6 +211,21 @@ message:
   please_select: 请选择...
   please_enter: 请输入...
   invalid_input: 无效的...
+  select_text_first: 请先选择文本
+
+# 状态
+status:
+  connected: 已连接
+  disconnected: 未连接
+
+# 菜单
+menu:
+  convert_to_table: 转换为表格
+  convert_to_list: 转换为列表
+  format_as_code_block: 格式化为代码块
+  add_emphasis: 添加强调
+  select_from_gallery: 从相册选择
+  take_photo: 拍照
 
 # 默认占位符
 placeholder:
@@ -177,3 +235,65 @@ placeholder:
   url: https://example.com
   date: 暂无日期
   author: 未知作者
+
+# 组件相关
+component:
+  # 通用操作
+  search: 搜索
+  clear: 清除
+  back: 返回
+  confirm: 确定
+  cancel: 取消
+  filter: 过滤
+  select: 选择
+
+  # 搜索相关
+  search_placeholder: 搜索...
+  search_hint: 搜索文章
+  search_articles_hint: 搜索文章...
+  tooltip_search: 搜索
+  tooltip_clear: 清除
+  tooltip_back: 返回
+  tooltip_filter: 过滤
+
+  # 过滤对话框
+  filter_title: 过滤条件
+  filter_date: 日期
+  filter_tags: 标签
+  filter_favorite: 仅显示收藏
+  filter_select_date: 选择日期
+  filter_clear_all: 清除全部
+  filter_prefix: '已过滤:'
+  filtered_indicator_prefix: '已过滤:'
+  filtered_indicator_clear: 清除
+
+  # 空状态
+  empty_articles_title: 还没有收藏内容
+  empty_articles_subtitle: 您可以通过分享功能添加新文章
+  empty_no_data: 暂无数据
+  empty_add_content: 点击下方按钮添加新内容
+
+  # 加载状态
+  loading: 加载中...
+  processing: 处理中...
+  ai_analyzing: AI分析中...
+
+  # 文章信息
+  article_info_website: 网站
+  article_info_date: 日期
+  article_info_tags: 标签
+  article_info_reading_time: 阅读时间
+  article_info_word_count: 字数
+
+  # 按钮文本
+  button_add: 添加
+  button_save: 保存
+  button_delete: 删除
+  button_edit: 编辑
+  button_cancel: 取消
+  button_confirm: 确定
+
+  # 其他
+  favorites_only: 只看收藏
+  show_all: 显示全部
+  processing_dialog_success: 完成

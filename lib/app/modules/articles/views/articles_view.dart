@@ -73,7 +73,7 @@ class _ArticlesAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget _buildTitle() {
     return GestureDetector(
       onDoubleTap: _scrollToTop,
-      child: Text(controller.getTitle(), style: AppTypography.titleLarge),
+      child: Obx(() => Text(controller.getTitle(), style: AppTypography.titleLarge)),
     );
   }
 
@@ -88,20 +88,21 @@ class _ArticlesAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   Widget _buildMoreMenu(BuildContext context) {
-    return Obx(
-      () => PopupMenuButton<String>(
-        icon: const Icon(Icons.more_horiz, color: Colors.white, size: 20),
-        onSelected: (value) => _handleMenuSelection(value, context),
-        itemBuilder: (context) => [
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_horiz, color: Colors.white, size: 20),
+      onSelected: (value) => _handleMenuSelection(value, context),
+      itemBuilder: (context) {
+        final isFavorite = controller.onlyFavorite.value;
+        return [
           SPopupMenuItem<String>(value: 'tags', icon: FeatherIcons.tag, text: 'article.filter_tags'.t),
           SPopupMenuItem<String>(
             value: 'favorite',
-            icon: controller.onlyFavorite.value ? Icons.favorite : Icons.favorite_border,
-            text: controller.onlyFavorite.value ? 'article.show_all'.t : 'article.show_favorite_only'.t,
-            iconColor: controller.onlyFavorite.value ? Colors.red : null,
+            icon: isFavorite ? Icons.favorite : Icons.favorite_border,
+            text: isFavorite ? 'article.show_all'.t : 'article.show_favorite_only'.t,
+            iconColor: isFavorite ? Colors.red : null,
           ),
-        ],
-      ),
+        ];
+      },
     );
   }
 
@@ -176,11 +177,12 @@ class _ArticlesBody extends StatelessWidget {
       final isSearchBarVisible = appStateService.isSearchBarVisible.value;
       final hasActiveFilters = controller.hasActiveFilters();
       final isLoading = controller.isLoadingArticles.value;
+      final filterTitle = hasActiveFilters ? controller.getTitle() : '';
 
       return Column(
         children: [
           if (isSearchBarVisible) _buildSearchBar(),
-          if (hasActiveFilters) _buildFilterIndicator(),
+          if (hasActiveFilters) FilterIndicator(title: filterTitle, onClear: controller.clearAllFilters),
           Expanded(child: _buildArticlesList(isLoading)),
         ],
       );
@@ -201,10 +203,6 @@ class _ArticlesBody extends StatelessWidget {
       onToggleSearch: controller.toggleSearchState,
       showFilterButton: false,
     );
-  }
-
-  Widget _buildFilterIndicator() {
-    return SFilterIndicator(title: controller.getTitle(), onClear: controller.clearAllFilters);
   }
 
   Widget _buildArticlesList(bool isLoading) {

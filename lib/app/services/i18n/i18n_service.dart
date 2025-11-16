@@ -33,7 +33,13 @@ class I18nService implements AppService {
   SupportedLanguage currentLanguage = SupportedLanguage.zh;
 
   /// 当前翻译映射
-  late YamlMap _translations;
+  YamlMap? _translations;
+
+  /// 服务是否已初始化
+  bool _isInitialized = false;
+
+  /// 已警告的键集合（避免重复警告）
+  final Set<String> _warnedKeys = {};
 
   @override
   String get serviceName => 'I18nService';
@@ -45,6 +51,7 @@ class I18nService implements AppService {
   Future<void> init() async {
     await _loadSavedLanguage();
     await _loadTranslations();
+    _isInitialized = true;
     logger.i('I18nService initialized with language: ${currentLanguage.displayName}');
   }
 
@@ -120,9 +127,7 @@ class I18nService implements AppService {
     try {
       final savedLanguageCode = SettingRepository.i.getSetting(_languageKey);
       if (savedLanguageCode.isNotEmpty) {
-        final savedLanguage = SupportedLanguage.values
-            .where((lang) => lang.code == savedLanguageCode)
-            .firstOrNull;
+        final savedLanguage = SupportedLanguage.values.where((lang) => lang.code == savedLanguageCode).firstOrNull;
         if (savedLanguage != null) {
           currentLanguage = savedLanguage;
           return;
@@ -171,10 +176,7 @@ class I18nService implements AppService {
   /// 重启应用
   void _restartApp(BuildContext context) {
     // 使用 Navigator 推送一个新路由并替换所有路由，模拟重启效果
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      '/',
-      (Route<dynamic> route) => false,
-    );
+    Navigator.of(context).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
   }
 
   /// 获取所有支持的语言列表
@@ -187,6 +189,16 @@ class I18nService implements AppService {
   ///
   /// 支持点分隔符的嵌套键访问，如 "error.network"
   String t(String key, {String? defaultValue}) {
+    // 如果服务未初始化或翻译映射为空，返回 key 或默认值
+    if (!_isInitialized || _translations == null) {
+      // 只在第一次遇到某个键时警告，避免日志泛滥
+      if (!_warnedKeys.contains(key)) {
+        _warnedKeys.add(key);
+        logger.d('I18nService not ready, using key as fallback: $key');
+      }
+      return defaultValue ?? key;
+    }
+
     final keys = key.split('.');
     dynamic current = _translations;
 
