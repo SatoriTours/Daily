@@ -9,6 +9,7 @@ import '../../controllers/diary_controller.dart';
 import '../../utils/diary_utils.dart';
 import 'markdown_toolbar.dart';
 import 'image_preview.dart';
+import 'diary_tag_selector_dialog.dart';
 import 'package:daily_satori/app/extensions/i18n_extension.dart';
 
 /// 日记扩展编辑器组件
@@ -140,6 +141,12 @@ class _DiaryEditorState extends State<DiaryEditor> {
       if (widget.diary!.images != null && widget.diary!.images!.isNotEmpty) {
         _existingImages = widget.diary!.images!.split(',');
       }
+    } else {
+      // 新建模式，添加默认标题格式
+      widget.controller.contentController.text = '# ';
+      widget.controller.contentController.selection = TextSelection.collapsed(
+        offset: 2, // 将光标放在 "# " 之后
+      );
     }
   }
 
@@ -212,6 +219,9 @@ class _DiaryEditorState extends State<DiaryEditor> {
 
           // 图片添加按钮（整合了相册选择和拍照功能）
           _buildToolbarButton(context, FeatherIcons.image, 'button.add_image', _showImageOptions, isAccent: false),
+
+          // 标签添加按钮
+          _buildToolbarButton(context, FeatherIcons.tag, 'button.add_tag', _showTagSelector, isAccent: false),
 
           // AI魔法按钮
           _buildToolbarButton(context, FeatherIcons.zap, 'button.ai_magic', _showAiMagicOptions, isAccent: false),
@@ -494,6 +504,22 @@ class _DiaryEditorState extends State<DiaryEditor> {
     controller.value = controller.value.copyWith(
       text: controller.text.replaceRange(selection.start, selection.end, newText),
       selection: TextSelection.collapsed(offset: selection.start + newText.length),
+    );
+  }
+
+  /// 显示标签选择对话框
+  void _showTagSelector() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: DiaryStyle.backgroundColor(context),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (BuildContext context) {
+        return DiaryTagSelectorDialog(
+          controller: widget.controller,
+          contentController: widget.controller.contentController,
+        );
+      },
     );
   }
 

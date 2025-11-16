@@ -43,6 +43,8 @@ button:
   copy_address: 复制地址
   hide_password: 隐藏密码
   show_password: 显示密码
+  add_tag: 添加标签
+  insert: 插入
 
 # UI 界面文本
 ui:
@@ -60,6 +62,8 @@ ui:
   addCommentInfo: 添加备注信息
   search: 搜索
   processing: 处理中
+  selected_tags: 已选标签
+  existing_tags: 现有标签
 
 # 导航相关
 nav:
@@ -98,6 +102,7 @@ hint:
   search_articles: 搜索文章...
   search_content: 记录现在，畅想未来...
   select_first: 请先选择需要转换的文本
+  enter_new_tag: 输入新标签...
   title: 请输入标题
 
 # 文章模块

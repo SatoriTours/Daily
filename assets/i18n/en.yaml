@@ -43,6 +43,8 @@ button:
   copy_address: Copy Address
   hide_password: Hide Password
   show_password: Show Password
+  add_tag: Add Tag
+  insert: Insert
 
 # UI text
 ui:
@@ -60,6 +62,8 @@ ui:
   addCommentInfo: Add comment information
   search: Search
   processing: Processing
+  selected_tags: Selected Tags
+  existing_tags: Existing Tags
 
 # Navigation
 nav:
@@ -98,6 +102,7 @@ hint:
   search_articles: Search articles...
   search_content: Record the present, imagine the future...
   select_first: Please select the text to convert first
+  enter_new_tag: Enter new tag...
   title: Please enter title
 
 # Article module
