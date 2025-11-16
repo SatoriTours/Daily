@@ -76,6 +76,21 @@ hint:
   search_content: 记录现在，畅想未来...
   select_first: 请先选择需要转换的文本
 
+# 文章模块
+article:
+  all_articles: 全部文章
+  favorite_articles: 收藏文章
+  search_result: 搜索: "{query}"
+  filter_by_tag: 标签: {tag}
+  filter_by_date: 按日期筛选
+  calendar_title: 文章日历
+  select_tag: 选择标签
+  filter_tags: 标签筛选
+  show_all: 显示全部文章
+  show_favorite_only: 只看收藏文章
+  view_all_articles: 查看全部文章
+  loading_more: 加载更多内容...
+
 # 空状态提示
 empty:
   no_viewpoint: 暂无观点，请先添加书籍

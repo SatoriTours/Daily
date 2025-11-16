@@ -76,6 +76,21 @@ hint:
   search_content: Record the present, imagine the future...
   select_first: Please select the text to convert first
 
+# Article module
+article:
+  all_articles: All Articles
+  favorite_articles: Favorite Articles
+  search_result: 'Search: "{query}"'
+  filter_by_tag: 'Tag: {tag}'
+  filter_by_date: Filter by Date
+  calendar_title: Article Calendar
+  select_tag: Select Tag
+  filter_tags: Filter Tags
+  show_all: Show All Articles
+  show_favorite_only: Show Favorites Only
+  view_all_articles: View All Articles
+  loading_more: Loading more content...
+
 # Empty state messages
 empty:
   no_viewpoint: No viewpoints yet, please add a book first

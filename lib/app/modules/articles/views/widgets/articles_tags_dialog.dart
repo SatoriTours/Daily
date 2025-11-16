@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/models/tag_model.dart';
+import 'package:daily_satori/app/extensions/i18n_extension.dart';
 
 /// 文章标签对话框
 ///
@@ -35,7 +36,7 @@ class ArticlesTagsDialog extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('选择标签', style: textTheme.titleMedium),
+              Text('article.select_tag'.t, style: textTheme.titleMedium),
               IconButton(
                 icon: const Icon(FeatherIcons.x, size: 20),
                 onPressed: () => Navigator.pop(context),

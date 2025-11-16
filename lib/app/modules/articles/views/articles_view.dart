@@ -93,11 +93,11 @@ class _ArticlesAppBar extends StatelessWidget implements PreferredSizeWidget {
         icon: const Icon(Icons.more_horiz, color: Colors.white, size: 20),
         onSelected: (value) => _handleMenuSelection(value, context),
         itemBuilder: (context) => [
-          SPopupMenuItem<String>(value: 'tags', icon: FeatherIcons.tag, text: '标签筛选'),
+          SPopupMenuItem<String>(value: 'tags', icon: FeatherIcons.tag, text: 'article.filter_tags'.t),
           SPopupMenuItem<String>(
             value: 'favorite',
             icon: controller.onlyFavorite.value ? Icons.favorite : Icons.favorite_border,
-            text: controller.onlyFavorite.value ? '显示全部文章' : '只看收藏文章',
+            text: controller.onlyFavorite.value ? 'article.show_all'.t : 'article.show_favorite_only'.t,
             iconColor: controller.onlyFavorite.value ? Colors.red : null,
           ),
         ],
@@ -106,7 +106,6 @@ class _ArticlesAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   void _handleMenuSelection(String value, BuildContext context) {
-    logger.d('选择菜单项: $value');
     switch (value) {
       case 'tags':
         _showTagsDialog(context);
@@ -127,7 +126,6 @@ class _ArticlesAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   void _showTagsDialog(BuildContext context) {
-    logger.d('显示标签对话框');
     final tags = TagRepository.i.allModels();
 
     showModalBottomSheet(
@@ -145,7 +143,6 @@ class _ArticlesAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   void _showCalendarDialog(BuildContext context) {
     if (controller.hasActiveFilters()) {
-      logger.d('清除现有过滤条件');
       controller.clearAllFilters();
     }
 
@@ -191,7 +188,6 @@ class _ArticlesBody extends StatelessWidget {
   }
 
   Widget _buildSearchBar() {
-    logger.d('显示搜索栏');
     return GenericSearchBar(
       controller: controller.searchController,
       focusNode: controller.searchFocusNode,
@@ -208,13 +204,11 @@ class _ArticlesBody extends StatelessWidget {
   }
 
   Widget _buildFilterIndicator() {
-    logger.d('显示过滤指示器: ${controller.getTitle()}');
     return SFilterIndicator(title: controller.getTitle(), onClear: controller.clearAllFilters);
   }
 
   Widget _buildArticlesList(bool isLoading) {
     if (controller.articles.isEmpty) {
-      logger.d('文章列表为空，显示空状态');
       return const ArticlesEmptyView();
     }
 
@@ -230,7 +224,6 @@ class _ArticlesBody extends StatelessWidget {
   }
 
   void _handleArticleTap(ArticleModel article) {
-    logger.d('点击文章卡片: ${article.id}');
     Get.toNamed(Routes.articleDetail, arguments: article);
   }
 

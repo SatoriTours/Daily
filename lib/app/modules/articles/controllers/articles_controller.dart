@@ -1,6 +1,6 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/objectbox.g.dart';
 import 'package:daily_satori/app/config/app_config.dart';
+import 'package:daily_satori/app/extensions/i18n_extension.dart';
 
 /// 文章列表控制器
 ///
@@ -16,6 +16,10 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
   final tagId = (-1).obs;
   final tagName = ''.obs;
   final selectedFilterDate = Rx<DateTime?>(null);
+
+  // ========== 日历状态 ==========
+  final calendarDisplayedMonth = DateTime.now().obs;
+  final calendarSelectedDate = DateTime.now().obs;
 
   // ========== 数据访问器 ==========
   RxList<ArticleModel> get articles => _articleStateService.articles;
@@ -166,11 +170,11 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
       onlyFavorite.value,
       selectedFilterDate.value != null,
     )) {
-      (true, _, _, _) => '搜索: "$searchQuery"',
-      (_, true, _, _) => '标签: ${tagName.value}',
-      (_, _, true, _) => '收藏文章',
-      (_, _, _, true) => '按日期筛选',
-      _ => '全部文章',
+      (true, _, _, _) => 'article.search_result'.t.replaceAll('{query}', searchQuery),
+      (_, true, _, _) => 'article.filter_by_tag'.t.replaceAll('{tag}', tagName.value),
+      (_, _, true, _) => 'article.favorite_articles'.t,
+      (_, _, _, true) => 'article.filter_by_date'.t,
+      _ => 'article.all_articles'.t,
     };
   }
 
@@ -184,7 +188,43 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
 
   /// 获取每天文章数量统计（用于日历视图）
   Map<DateTime, int> getDailyArticleCounts() {
-    return ArticleRepository.i.getDailyCounts(Article_.createdAt);
+    return ArticleRepository.i.getArticleDailyCounts();
+  }
+
+  // ========== 公开 API - 日历功能 ==========
+
+  /// 日历上一月
+  void calendarPreviousMonth() {
+    calendarDisplayedMonth.value = DateTime(
+      calendarDisplayedMonth.value.year,
+      calendarDisplayedMonth.value.month - 1,
+      1,
+    );
+  }
+
+  /// 日历下一月
+  void calendarNextMonth() {
+    calendarDisplayedMonth.value = DateTime(
+      calendarDisplayedMonth.value.year,
+      calendarDisplayedMonth.value.month + 1,
+      1,
+    );
+  }
+
+  /// 选择日历日期
+  void selectCalendarDate(DateTime date) {
+    calendarSelectedDate.value = date;
+  }
+
+  /// 判断是否是今天
+  bool isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month && date.day == now.day;
+  }
+
+  /// 判断两个日期是否是同一天
+  bool isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 
   // ========== 私有方法 - 初始化 ==========

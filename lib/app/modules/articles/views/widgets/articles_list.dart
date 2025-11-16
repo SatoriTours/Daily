@@ -1,7 +1,7 @@
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 import 'package:daily_satori/app/models/article_model.dart';
+import 'package:daily_satori/app/extensions/i18n_extension.dart';
 import 'article_card.dart';
 
 /// 文章列表组件
@@ -30,7 +30,6 @@ class ArticlesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    logger.d('构建文章列表组件');
     return RefreshIndicator(
       onRefresh: onRefresh,
       color: AppTheme.getColorScheme(context).primary,
@@ -41,7 +40,6 @@ class ArticlesList extends StatelessWidget {
   /// 构建列表视图
   Widget _buildListView() {
     final itemCount = _calculateItemCount();
-    logger.d('文章列表项数量: $itemCount');
 
     return ListView.builder(
       controller: scrollController,
@@ -74,7 +72,6 @@ class ArticlesList extends StatelessWidget {
 
   /// 构建加载指示器
   Widget _buildLoadingIndicator(BuildContext context) {
-    logger.d('显示加载指示器');
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
@@ -92,7 +89,7 @@ class ArticlesList extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Text('加载更多内容...', style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+          Text('article.loading_more'.t, style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         ],
       ),
     );

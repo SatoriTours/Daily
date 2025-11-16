@@ -291,6 +291,11 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
 
     return executeQuery(query).map((article) => ArticleModel(article)).toList();
   }
+
+  /// 获取每天文章数量统计（用于日历视图）
+  Map<DateTime, int> getArticleDailyCounts() {
+    return getDailyCounts(Article_.createdAt);
+  }
 }
 
 /// 文章字段名称枚举

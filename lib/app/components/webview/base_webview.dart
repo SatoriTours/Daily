@@ -97,7 +97,7 @@ abstract class BaseWebView {
     InAppWebViewController controller,
     WebResourceRequest request,
   ) async {
-    final url = request.url.toString().replaceFirst(RegExp(r'^https?://'), '');
+    final url = request.url.toString().replaceFirst(r'^https?://', '');
 
     // 检查完全匹配规则
     final exactRule = ADBlockService.i.exactNetworkRules.firstWhere((rule) => url == rule, orElse: () => '');
