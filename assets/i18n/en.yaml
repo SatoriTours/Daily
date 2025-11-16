@@ -226,6 +226,9 @@ menu:
   add_emphasis: Add Emphasis
   select_from_gallery: Select from Gallery
   take_photo: Take Photo
+  shuffle: Shuffle
+  refresh_book: Refresh Book
+  delete_book: Delete Book
 
 # Default placeholders
 placeholder:

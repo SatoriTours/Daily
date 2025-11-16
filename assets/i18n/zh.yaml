@@ -226,6 +226,9 @@ menu:
   add_emphasis: 添加强调
   select_from_gallery: 从相册选择
   take_photo: 拍照
+  shuffle: 换一换
+  refresh_book: 刷新书籍
+  delete_book: 删除书籍
 
 # 默认占位符
 placeholder:

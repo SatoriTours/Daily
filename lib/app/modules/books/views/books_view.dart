@@ -74,9 +74,9 @@ class BooksView extends GetView<BooksController> {
       icon: const Icon(Icons.more_horiz, size: 20),
       onSelected: (value) => _handleMoreMenuSelection(value, context),
       itemBuilder: (context) => [
-        SPopupMenuItem<String>(value: 'shuffle', icon: Icons.shuffle, text: 'menu.shuffle'),
-        SPopupMenuItem<String>(value: 'refresh', icon: Icons.refresh, text: 'menu.refresh_book'),
-        SPopupMenuItem<String>(value: 'delete', icon: Icons.delete_outline, text: 'menu.delete_book'),
+        SPopupMenuItem<String>(value: 'shuffle', icon: Icons.shuffle, text: 'menu.shuffle'.t),
+        SPopupMenuItem<String>(value: 'refresh', icon: Icons.refresh, text: 'menu.refresh_book'.t),
+        SPopupMenuItem<String>(value: 'delete', icon: Icons.delete_outline, text: 'menu.delete_book'.t),
       ],
     );
   }

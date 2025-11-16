@@ -167,24 +167,20 @@ class _DiaryEditorState extends State<DiaryEditor> {
             ),
           ),
 
-          // 已有图片预览
-          if (_existingImages.isNotEmpty)
+          // 统一显示所有图片预览（已有 + 新选择）
+          if (_existingImages.isNotEmpty || _selectedImages.isNotEmpty)
             ImagePreview(
-              images: _existingImages,
+              images: [..._existingImages, ..._selectedImages.map((e) => e.path)],
               onDelete: (index) {
                 setState(() {
-                  _existingImages.removeAt(index);
+                  // 先删除已有图片，再删除新选择的图片
+                  if (index < _existingImages.length) {
+                    _existingImages.removeAt(index);
+                  } else {
+                    _selectedImages.removeAt(index - _existingImages.length);
+                  }
                 });
               },
-            ),
-
-          // 新选择的图片预览
-          if (_selectedImages.isNotEmpty)
-            ImagePreview(
-              images: _selectedImages.map((e) => e.path).toList(),
-              onDelete: (index) => setState(() {
-                _selectedImages.removeAt(index);
-              }),
             ),
 
           // 工具栏和操作按钮

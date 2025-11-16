@@ -307,18 +307,39 @@ class BookService {
 
       final response = await _aiService.getCompletion(prompt);
 
+      if (response.isEmpty) {
+        logger.w('AI返回空响应，无法处理书籍观点: ${book.title}');
+        return;
+      }
+
       // 尝试清理和解析JSON响应
       final cleanedResponse = _cleanJsonResponse(response);
-      final bookData = jsonDecode(cleanedResponse);
+
+      // 添加调试日志
+      logger.d('清理后的响应长度: ${cleanedResponse.length}');
+
+      Map<String, dynamic> bookData;
+      try {
+        bookData = jsonDecode(cleanedResponse);
+      } catch (e) {
+        logger.e(
+          'JSON解析失败，响应内容预览: ${cleanedResponse.substring(0, cleanedResponse.length > 200 ? 200 : cleanedResponse.length)}...',
+        );
+        rethrow;
+      }
 
       final List<dynamic> viewpointsData = bookData['viewpoints'] as List<dynamic>? ?? [];
-      if (viewpointsData.isEmpty) return;
+      if (viewpointsData.isEmpty) {
+        logger.w('未找到书籍观点数据: ${book.title}');
+        return;
+      }
 
-      logger.i('书籍观点: $viewpointsData');
+      logger.i('成功解析 ${viewpointsData.length} 个书籍观点: ${book.title}');
       final validViewpoints = await _processViewpoints(book.id, book.title, book.author, viewpointsData);
 
       if (validViewpoints.isNotEmpty) {
         await BookViewpointRepository.i.saveMany(validViewpoints);
+        logger.i('成功保存 ${validViewpoints.length} 个观点: ${book.title}');
       }
     } catch (e, stackTrace) {
       logger.e('处理书籍观点失败: ${book.title}', error: e, stackTrace: stackTrace);
@@ -374,6 +395,12 @@ class BookService {
     // 修复常见的JSON格式错误
     // 1. 移除字符串值末尾的多余引号
     response = response.replaceAll(RegExp(r'""\s*(?=[,\]}])'), '"');
+
+    // 2. 替换省略号为空格（避免 JSON 解析错误）
+    response = response.replaceAll('...', ' ');
+
+    // 3. 移除可能导致解析失败的控制字符
+    response = response.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '');
 
     return response;
   }
