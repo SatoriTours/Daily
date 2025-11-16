@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:intl/intl.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:get/get.dart';
+import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/modules/articles/controllers/article_calendar_controller.dart';
 
 /// 文章日历对话框
 ///
-/// 有状态组件,维护日历显示月份的内部状态
+/// 无状态组件,使用GetX控制器管理状态
 /// 通过回调函数与外部交互
-class ArticleCalendarDialog extends StatefulWidget {
+class ArticleCalendarDialog extends StatelessWidget {
   final Map<DateTime, int> articleCountMap;
   final void Function(DateTime date) onDateSelected;
   final VoidCallback onShowAllArticles;
@@ -20,44 +22,33 @@ class ArticleCalendarDialog extends StatefulWidget {
   });
 
   @override
-  State<ArticleCalendarDialog> createState() => _ArticleCalendarDialogState();
-}
-
-class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
-  late DateTime _selectedDate;
-  late DateTime _displayedMonth;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedDate = DateTime.now();
-    _displayedMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
+    final controller = Get.put(ArticleCalendarController());
 
     return Container(
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildHeader(context),
-          Divider(height: 1, thickness: 0.5, color: colorScheme.outline.withAlpha(128)),
-          _buildCalendarHeader(context),
-          Expanded(child: SingleChildScrollView(child: _buildCalendar(context))),
-          Divider(height: 1, thickness: 0.5, color: colorScheme.outline.withAlpha(128)),
-          _buildAllArticlesButton(context),
-          SizedBox(height: MediaQuery.of(context).padding.bottom),
-        ],
-      ),
+      child: Obx(() {
+        final colorScheme = AppTheme.getColorScheme(context);
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildHeader(context),
+            Divider(height: 1, thickness: 0.5, color: colorScheme.outline.withValues(alpha: 0.5)),
+            _buildCalendarHeader(context, controller),
+            Expanded(child: SingleChildScrollView(child: _buildCalendar(context, controller))),
+            Divider(height: 1, thickness: 0.5, color: colorScheme.outline.withValues(alpha: 0.5)),
+            _buildAllArticlesButton(context),
+            SizedBox(height: MediaQuery.of(context).padding.bottom),
+          ],
+        );
+      }),
     );
   }
 
   Widget _buildHeader(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
+    final textTheme = AppTypography.getTextTheme();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -79,9 +70,9 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
     );
   }
 
-  Widget _buildCalendarHeader(BuildContext context) {
+  Widget _buildCalendarHeader(BuildContext context, ArticleCalendarController controller) {
     final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
+    final textTheme = AppTypography.getTextTheme();
     final monthFormat = DateFormat('yyyy年MM月');
 
     return Container(
@@ -90,22 +81,14 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            monthFormat.format(_displayedMonth),
+            monthFormat.format(controller.displayedMonth.value),
             style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500, color: colorScheme.primary),
           ),
           Row(
             children: [
-              _buildIconButton(context, FeatherIcons.chevronLeft, () {
-                setState(() {
-                  _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month - 1, 1);
-                });
-              }),
+              _buildIconButton(context, FeatherIcons.chevronLeft, controller.previousMonth),
               const SizedBox(width: 8),
-              _buildIconButton(context, FeatherIcons.chevronRight, () {
-                setState(() {
-                  _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 1);
-                });
-              }),
+              _buildIconButton(context, FeatherIcons.chevronRight, controller.nextMonth),
             ],
           ),
         ],
@@ -126,13 +109,13 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
     );
   }
 
-  Widget _buildCalendar(BuildContext context) {
+  Widget _buildCalendar(BuildContext context, ArticleCalendarController controller) {
     // 计算当月第一天是星期几
-    final firstDayOfMonth = _displayedMonth;
+    final firstDayOfMonth = controller.displayedMonth.value;
     final firstWeekday = firstDayOfMonth.weekday;
 
     // 计算当月有多少天
-    final daysInMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 0).day;
+    final daysInMonth = DateTime(firstDayOfMonth.year, firstDayOfMonth.month + 1, 0).day;
 
     // 构建日历网格
     return Column(
@@ -162,26 +145,22 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
             }
 
             // 创建日期对象
-            final date = DateTime(_displayedMonth.year, _displayedMonth.month, day);
+            final date = DateTime(firstDayOfMonth.year, firstDayOfMonth.month, day);
 
             // 检查该日期是否有文章
-            final articleCount = widget.articleCountMap[DateTime(date.year, date.month, date.day)] ?? 0;
+            final articleCount = articleCountMap[DateTime(date.year, date.month, date.day)] ?? 0;
 
             // 当前日期、选中日期的判断
-            final isToday = _isToday(date);
-            final isSelected = _isSameDay(date, _selectedDate);
+            final isToday = controller.isToday(date);
+            final isSelected = controller.isSameDay(date, controller.selectedDate.value);
 
             return GestureDetector(
               onTap: () {
-                setState(() {
-                  _selectedDate = date;
-                });
-
-                // 直接应用过滤并关闭对话框
-                widget.onDateSelected(date);
+                controller.selectDate(date);
+                onDateSelected(date);
                 Navigator.pop(context);
               },
-              child: _buildDayCell(context, day, articleCount, isToday, isSelected),
+              child: _buildDayCell(context, day, articleCount, isToday, isSelected, controller),
             );
           },
         ),
@@ -206,7 +185,7 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
-                color: isWeekend ? colorScheme.primary.withAlpha(180) : colorScheme.onSurfaceVariant,
+                color: isWeekend ? colorScheme.primary.withValues(alpha: 0.7) : colorScheme.onSurfaceVariant,
                 fontWeight: isWeekend ? FontWeight.w500 : FontWeight.normal,
               ),
             ),
@@ -216,7 +195,14 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
     );
   }
 
-  Widget _buildDayCell(BuildContext context, int day, int articleCount, bool isToday, bool isSelected) {
+  Widget _buildDayCell(
+    BuildContext context,
+    int day,
+    int articleCount,
+    bool isToday,
+    bool isSelected,
+    ArticleCalendarController controller,
+  ) {
     final colorScheme = AppTheme.getColorScheme(context);
 
     // 选择适当的背景颜色
@@ -224,9 +210,9 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
     if (isSelected) {
       bgColor = colorScheme.primary;
     } else if (isToday) {
-      bgColor = colorScheme.primary.withAlpha(30);
+      bgColor = colorScheme.primary.withValues(alpha: 0.12);
     } else if (articleCount > 0) {
-      bgColor = colorScheme.primary.withAlpha(10);
+      bgColor = colorScheme.primary.withValues(alpha: 0.04);
     } else {
       bgColor = Colors.transparent;
     }
@@ -236,7 +222,9 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: bgColor,
-        border: articleCount > 0 && !isSelected ? Border.all(color: colorScheme.primary.withAlpha(80), width: 1) : null,
+        border: articleCount > 0 && !isSelected
+            ? Border.all(color: colorScheme.primary.withValues(alpha: 0.3), width: 1)
+            : null,
       ),
       child: Stack(
         fit: StackFit.expand,
@@ -260,11 +248,13 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
                 width: 13,
                 height: 13,
                 decoration: BoxDecoration(
-                  color: isSelected ? colorScheme.onPrimary.withAlpha(235) : colorScheme.primary.withAlpha(235),
+                  color: isSelected
+                      ? colorScheme.onPrimary.withValues(alpha: 0.92)
+                      : colorScheme.primary.withValues(alpha: 0.92),
                   shape: BoxShape.circle,
                   border: isSelected ? Border.all(color: colorScheme.primary, width: 0.5) : null,
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 1, offset: const Offset(0, 0.5)),
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 1, offset: const Offset(0, 0.5)),
                   ],
                 ),
                 child: Center(
@@ -287,11 +277,11 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
   // 添加查看全部文章按钮
   Widget _buildAllArticlesButton(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
+    final textTheme = AppTypography.getTextTheme();
 
     return InkWell(
       onTap: () {
-        widget.onShowAllArticles();
+        onShowAllArticles();
         Navigator.pop(context);
       },
       child: Container(
@@ -303,16 +293,5 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
         ),
       ),
     );
-  }
-
-  // 辅助方法：判断日期是否是今天
-  bool _isToday(DateTime date) {
-    final now = DateTime.now();
-    return date.year == now.year && date.month == now.month && date.day == now.day;
-  }
-
-  // 辅助方法：判断两个日期是否是同一天
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 }

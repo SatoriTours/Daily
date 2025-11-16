@@ -8,9 +8,11 @@ import 'package:daily_satori/app/components/empty_states/articles_empty_view.dar
 import 'package:daily_satori/app/services/state/app_state_service.dart';
 import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/extensions/i18n_extension.dart';
 import 'package:daily_satori/app/config/app_config.dart';
-import 'widgets/articles_search_bar.dart';
+import 'package:daily_satori/app/components/search/generic_search_bar.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
+import 'package:daily_satori/app/models/article_model.dart';
 import 'widgets/articles_tags_dialog.dart';
 import 'widgets/articles_list.dart';
 import 'widgets/article_calendar_dialog.dart';
@@ -22,194 +24,108 @@ import 'package:daily_satori/app/components/menus/s_popup_menu_item.dart';
 /// 负责展示文章列表、搜索、过滤等功能
 class ArticlesView extends GetView<ArticlesController> {
   const ArticlesView({super.key});
+
   @override
   Widget build(BuildContext context) {
     logger.i('构建文章列表页面');
     FocusScope.of(context).unfocus();
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: _buildAppBar(context),
-      body: _buildBody(context),
+      appBar: _ArticlesAppBar(controller: controller),
+      body: _ArticlesBody(controller: controller),
     );
   }
+}
 
-  /// 构建页面主体
-  Widget _buildBody(BuildContext context) {
-    return Obx(() {
-      final appStateService = Get.find<AppStateService>();
+// ============================================================================
+// AppBar 组件 - 独立封装，减少主视图复杂度
+// ============================================================================
 
-      // 收集所有响应式状态
-      final isSearchBarVisible = appStateService.isSearchBarVisible.value;
-      final hasActiveFilters = controller.hasActiveFilters();
-      final isLoading = controller.isLoadingArticles.value;
+class _ArticlesAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final ArticlesController controller;
 
-      return Column(
-        children: [
-          // 搜索栏
-          if (isSearchBarVisible)
-            _buildSearchBarSection(),
-          // 过滤指示器
-          if (hasActiveFilters)
-            _buildFilterIndicatorSection(context),
-          // 文章列表
-          _buildArticlesSection(isLoading),
-        ],
-      );
-    });
-  }
+  const _ArticlesAppBar({required this.controller});
 
-  /// 构建搜索栏部分
-  Widget _buildSearchBarSection() {
-    logger.d('显示搜索栏');
-    return ArticlesSearchBar(
-      searchController: controller.searchController,
-      searchFocusNode: controller.searchFocusNode,
-      onBack: controller.toggleSearchState,
-      onSearch: controller.searchArticles,
-      onClear: () {
-        controller.searchController.clear();
-        controller.clearAllFilters();
-      },
-    );
-  }
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
-  /// 构建过滤指示器部分
-  Widget _buildFilterIndicatorSection(BuildContext context) {
-    logger.d('显示过滤指示器: ${controller.getTitle()}');
-    return SFilterIndicator(title: controller.getTitle(), onClear: controller.clearAllFilters);
-  }
-
-  /// 构建文章列表部分
-  Widget _buildArticlesSection(bool isLoading) {
-    if (controller.articles.isEmpty) {
-      logger.d('文章列表为空，显示空状态');
-      return const Expanded(child: ArticlesEmptyView());
-    }
-
-    return Expanded(
-      child: ArticlesList(
-        articles: controller.articles.toList(),
-        isLoading: isLoading,
-        scrollController: controller.scrollController,
-        onRefresh: controller.reloadArticles,
-        onArticleTap: (article) {
-          logger.d('点击文章卡片: ${article.id}');
-          Get.toNamed(Routes.articleDetail, arguments: article);
-        },
-        onFavoriteToggle: (article) async {
-          ArticleRepository.i.toggleFavorite(article.id);
-          controller.updateArticle(article.id);
-        },
-        onShare: (article) async {
-          await SharePlus.instance.share(
-            ShareParams(text: article.url ?? '', subject: article.aiTitle ?? article.title ?? ''),
-          );
-        },
-      ),
-    );
-  }
-
-  // 已由 controller.hasActiveFilters 提供判断
-  /// 构建应用栏
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     return SAppBar(
       backgroundColorDark: const Color(0xFF121212),
       backgroundColorLight: const Color(0xFF5E8BFF),
       elevation: 0.5,
       leading: _buildCalendarButton(context),
-      title: _buildAppBarTitle(),
+      title: _buildTitle(),
       centerTitle: true,
-      actions: _buildAppBarActions(context),
+      actions: _buildActions(context),
       foregroundColor: Colors.white,
     );
   }
 
-  /// 构建日历按钮
   Widget _buildCalendarButton(BuildContext context) {
     return IconButton(
       icon: const Icon(FeatherIcons.calendar, color: Colors.white, size: 20),
-      onPressed: () {
-        logger.d('打开日历对话框');
-        _showCalendarDialog(context);
-      },
+      onPressed: () => _showCalendarDialog(context),
     );
   }
 
-  /// 构建应用栏标题
-  Widget _buildAppBarTitle() {
-    // 顶层的 Obx 已经监听了相关状态变化，这里直接获取当前标题
+  Widget _buildTitle() {
     return GestureDetector(
-      onDoubleTap: () {
-        logger.d('双击标题，滚动到顶部');
-        _scrollToTop();
-      },
+      onDoubleTap: _scrollToTop,
       child: Text(controller.getTitle(), style: AppTypography.titleLarge),
     );
   }
 
-  /// 构建应用栏操作按钮
-  List<Widget> _buildAppBarActions(BuildContext context) {
+  List<Widget> _buildActions(BuildContext context) {
     return [
       IconButton(
         icon: const Icon(FeatherIcons.search, color: Colors.white, size: 20),
-        onPressed: () {
-          logger.d('激活搜索');
-          _activateSearch();
-        },
+        onPressed: _activateSearch,
       ),
       _buildMoreMenu(context),
     ];
   }
 
-  /// 构建更多菜单
   Widget _buildMoreMenu(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_horiz, color: Colors.white, size: 20),
-      onSelected: (value) => _handleMenuSelection(value, context),
-      itemBuilder: (context) => [
-        SPopupMenuItem<String>(value: 'tags', icon: FeatherIcons.tag, text: '标签筛选'),
-        _buildFavoriteMenuItem(context),
-      ],
+    return Obx(
+      () => PopupMenuButton<String>(
+        icon: const Icon(Icons.more_horiz, color: Colors.white, size: 20),
+        onSelected: (value) => _handleMenuSelection(value, context),
+        itemBuilder: (context) => [
+          SPopupMenuItem<String>(value: 'tags', icon: FeatherIcons.tag, text: '标签筛选'),
+          SPopupMenuItem<String>(
+            value: 'favorite',
+            icon: controller.onlyFavorite.value ? Icons.favorite : Icons.favorite_border,
+            text: controller.onlyFavorite.value ? '显示全部文章' : '只看收藏文章',
+            iconColor: controller.onlyFavorite.value ? Colors.red : null,
+          ),
+        ],
+      ),
     );
   }
 
-  /// 处理菜单选择
   void _handleMenuSelection(String value, BuildContext context) {
     logger.d('选择菜单项: $value');
     switch (value) {
       case 'tags':
         _showTagsDialog(context);
-        break;
       case 'favorite':
         controller.toggleFavorite(!controller.onlyFavorite.value);
-        break;
     }
   }
 
-  /// 构建收藏菜单项
-  PopupMenuItem<String> _buildFavoriteMenuItem(BuildContext context) {
-    return SPopupMenuItem<String>(
-      value: 'favorite',
-      icon: controller.onlyFavorite.value ? Icons.favorite : Icons.favorite_border,
-      text: controller.onlyFavorite.value ? '显示全部文章' : '只看收藏文章',
-      iconColor: controller.onlyFavorite.value ? Colors.red : null,
-    );
-  }
-
-  /// 滚动到顶部
   void _scrollToTop() {
     if (controller.scrollController.hasClients) {
       controller.scrollController.animateTo(0, duration: AnimationConfig.duration, curve: Curves.easeInOut);
     }
   }
 
-  /// 激活搜索
   void _activateSearch() {
     controller.searchController.clear();
     controller.toggleSearchState();
   }
 
-  /// 显示标签选择对话框
   void _showTagsDialog(BuildContext context) {
     logger.d('显示标签对话框');
     final tags = TagRepository.i.allModels();
@@ -221,15 +137,12 @@ class ArticlesView extends GetView<ArticlesController> {
       builder: (context) => ArticlesTagsDialog(
         tags: tags,
         selectedTagId: controller.tagId.value,
-        onTagSelected: (tagId, tagName) {
-          controller.filterByTag(tagId, tagName);
-        },
+        onTagSelected: controller.filterByTag,
         onClearFilters: controller.clearAllFilters,
       ),
     );
   }
 
-  /// 显示日历选择对话框
   void _showCalendarDialog(BuildContext context) {
     if (controller.hasActiveFilters()) {
       logger.d('清除现有过滤条件');
@@ -243,11 +156,92 @@ class ArticlesView extends GetView<ArticlesController> {
       isScrollControlled: true,
       builder: (context) => ArticleCalendarDialog(
         articleCountMap: controller.getDailyArticleCounts(),
-        onDateSelected: (date) {
-          controller.filterByDate(date);
-        },
+        onDateSelected: controller.filterByDate,
         onShowAllArticles: controller.clearAllFilters,
       ),
+    );
+  }
+}
+
+// ============================================================================
+// Body 组件 - 包含搜索栏、过滤器和文章列表
+// ============================================================================
+
+class _ArticlesBody extends StatelessWidget {
+  final ArticlesController controller;
+
+  const _ArticlesBody({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final appStateService = Get.find<AppStateService>();
+      final isSearchBarVisible = appStateService.isSearchBarVisible.value;
+      final hasActiveFilters = controller.hasActiveFilters();
+      final isLoading = controller.isLoadingArticles.value;
+
+      return Column(
+        children: [
+          if (isSearchBarVisible) _buildSearchBar(),
+          if (hasActiveFilters) _buildFilterIndicator(),
+          Expanded(child: _buildArticlesList(isLoading)),
+        ],
+      );
+    });
+  }
+
+  Widget _buildSearchBar() {
+    logger.d('显示搜索栏');
+    return GenericSearchBar(
+      controller: controller.searchController,
+      focusNode: controller.searchFocusNode,
+      hintText: 'hint.search_articles'.t,
+      onSearch: (text) => controller.searchArticles(),
+      onClear: () {
+        controller.searchController.clear();
+        controller.clearAllFilters();
+      },
+      isSearchVisible: true,
+      onToggleSearch: controller.toggleSearchState,
+      showFilterButton: false,
+    );
+  }
+
+  Widget _buildFilterIndicator() {
+    logger.d('显示过滤指示器: ${controller.getTitle()}');
+    return SFilterIndicator(title: controller.getTitle(), onClear: controller.clearAllFilters);
+  }
+
+  Widget _buildArticlesList(bool isLoading) {
+    if (controller.articles.isEmpty) {
+      logger.d('文章列表为空，显示空状态');
+      return const ArticlesEmptyView();
+    }
+
+    return ArticlesList(
+      articles: controller.articles.toList(),
+      isLoading: isLoading,
+      scrollController: controller.scrollController,
+      onRefresh: controller.reloadArticles,
+      onArticleTap: _handleArticleTap,
+      onFavoriteToggle: _handleFavoriteToggle,
+      onShare: _handleShare,
+    );
+  }
+
+  void _handleArticleTap(ArticleModel article) {
+    logger.d('点击文章卡片: ${article.id}');
+    Get.toNamed(Routes.articleDetail, arguments: article);
+  }
+
+  Future<void> _handleFavoriteToggle(ArticleModel article) async {
+    ArticleRepository.i.toggleFavorite(article.id);
+    controller.updateArticle(article.id);
+  }
+
+  Future<void> _handleShare(ArticleModel article) async {
+    await SharePlus.instance.share(
+      ShareParams(text: article.url ?? '', subject: article.aiTitle ?? article.title ?? ''),
     );
   }
 }

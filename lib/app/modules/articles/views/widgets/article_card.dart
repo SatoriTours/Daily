@@ -17,33 +17,29 @@ class ArticleCard extends StatelessWidget {
 
   const ArticleCard({super.key, required this.articleModel, this.onTap, this.onFavoriteToggle, this.onShare});
 
+  bool get _isProcessing =>
+      articleModel.status == ArticleStatus.pending || articleModel.status == ArticleStatus.webContentFetched;
+
+  bool get _hasError => articleModel.status == ArticleStatus.error;
+
+  bool get _hasImage =>
+      articleModel.hasHeaderImage() || (articleModel.coverImageUrl != null && articleModel.coverImageUrl!.isNotEmpty);
+
+  bool get _hasTitle =>
+      (articleModel.aiTitle != null && articleModel.aiTitle!.isNotEmpty) ||
+      (articleModel.title != null && articleModel.title!.isNotEmpty);
+
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: _buildCardContent(context),
+      child: Stack(children: [_buildMainContent(context), if (_hasError) _buildErrorBadge(context)]),
     );
   }
 
-  /// 构建卡片内容
-  Widget _buildCardContent(BuildContext context) {
-    final isProcessing =
-        articleModel.status == ArticleStatus.pending || articleModel.status == ArticleStatus.webContentFetched;
-
-    return Stack(
-      children: [
-        // 主要内容
-        _buildMainContent(context, isProcessing),
-        // 错误状态标签
-        if (articleModel.status == ArticleStatus.error) _buildErrorBadge(context),
-      ],
-    );
-  }
-
-  /// 构建主要内容
-  Widget _buildMainContent(BuildContext context, bool isProcessing) {
+  Widget _buildMainContent(BuildContext context) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
@@ -52,63 +48,44 @@ class ArticleCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
-          children: [_buildArticleInfo(context), const SizedBox(height: 6), _buildActionBar(context, isProcessing)],
+          children: [_buildArticleInfo(context), const SizedBox(height: 6), _buildBottomBar(context)],
         ),
       ),
     );
   }
 
-  /// 构建文章信息
   Widget _buildArticleInfo(BuildContext context) {
-    final hasImage =
-        articleModel.hasHeaderImage() || (articleModel.coverImageUrl != null && articleModel.coverImageUrl!.isNotEmpty);
-    final hasTitle =
-        (articleModel.aiTitle != null && articleModel.aiTitle!.isNotEmpty) ||
-        (articleModel.title != null && articleModel.title!.isNotEmpty);
-
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (hasImage) ...[_buildImage(context), const SizedBox(width: 12)],
+        if (_hasImage) ...[_buildImage(), const SizedBox(width: 12)],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
-            children: [
-              // 标题或URL
-              hasTitle ? _buildTitle(context) : _buildUrlAsTitle(context),
-              // 错误信息
-              if (articleModel.status == ArticleStatus.error) _buildErrorMessage(context),
-            ],
+            children: [_buildTitleSection(context), if (_hasError) _buildErrorMessage(context)],
           ),
         ),
       ],
     );
   }
 
-  /// 构建标题
-  Widget _buildTitle(BuildContext context) {
-    return Text(
-      articleModel.showTitle(),
-      style: AppTheme.getTextTheme(context).titleMedium,
-      maxLines: 3,
-      overflow: TextOverflow.ellipsis,
-    );
-  }
+  Widget _buildTitleSection(BuildContext context) {
+    final textTheme = AppTheme.getTextTheme(context);
+    final colorScheme = AppTheme.getColorScheme(context);
 
-  /// 构建URL作为标题
-  Widget _buildUrlAsTitle(BuildContext context) {
+    if (_hasTitle) {
+      return Text(articleModel.showTitle(), style: textTheme.titleMedium, maxLines: 3, overflow: TextOverflow.ellipsis);
+    }
+
     return Text(
       articleModel.url ?? '',
-      style: AppTheme.getTextTheme(
-        context,
-      ).titleMedium?.copyWith(color: AppTheme.getColorScheme(context).onSurfaceVariant),
+      style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant),
       maxLines: 3,
       overflow: TextOverflow.ellipsis,
     );
   }
 
-  /// 构建错误信息
   Widget _buildErrorMessage(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
@@ -121,8 +98,7 @@ class ArticleCard extends StatelessWidget {
     );
   }
 
-  /// 构建图片
-  Widget _buildImage(BuildContext context) {
+  Widget _buildImage() {
     final imagePath = articleModel.getHeaderImagePath();
     return SmartImage(
       localPath: imagePath.isNotEmpty ? imagePath : null,
@@ -134,13 +110,11 @@ class ArticleCard extends StatelessWidget {
     );
   }
 
-  /// 构建操作栏
-  Widget _buildActionBar(BuildContext context, bool isProcessing) {
+  Widget _buildBottomBar(BuildContext context) {
     final url = Uri.parse(articleModel.url ?? '');
     return SizedBox(
       height: 24,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           ArticleInfoItem(icon: Icons.public, text: StringUtils.getTopLevelDomain(url.host)),
           const SizedBox(width: 12),
@@ -151,7 +125,7 @@ class ArticleCard extends StatelessWidget {
           const Spacer(),
           ArticleActionBar(
             articleModel: articleModel,
-            isProcessing: isProcessing,
+            isProcessing: _isProcessing,
             onFavoriteToggle: onFavoriteToggle,
             onShare: onShare,
           ),
@@ -160,10 +134,8 @@ class ArticleCard extends StatelessWidget {
     );
   }
 
-  /// 构建错误状态标签
   Widget _buildErrorBadge(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
-
     return Positioned(
       top: 0,
       right: 0,

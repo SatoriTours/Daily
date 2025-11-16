@@ -3,33 +3,37 @@ import 'package:daily_satori/objectbox.g.dart';
 import 'package:daily_satori/app/config/app_config.dart';
 
 /// 文章列表控制器
+///
+/// 负责文章列表的展示、搜索、过滤、分页加载等功能
+/// 通过 ArticleStateService 管理文章数据状态
 class ArticlesController extends BaseGetXController with WidgetsBindingObserver {
-  /// 过滤状态
+  // ========== 状态服务 ==========
+  late final ArticleStateService _articleStateService;
+  late final AppStateService _appStateService;
+
+  // ========== 过滤状态 ==========
   final onlyFavorite = false.obs;
   final tagId = (-1).obs;
   final tagName = ''.obs;
   final selectedFilterDate = Rx<DateTime?>(null);
 
-  /// 状态服务
-  late final ArticleStateService _articleStateService;
-  late final AppStateService _appStateService;
-
-  /// 文章数据 - 引用自StateService
+  // ========== 数据访问器 ==========
   RxList<ArticleModel> get articles => _articleStateService.articles;
   RxBool get isLoadingArticles => _articleStateService.isLoading;
 
-  /// UI控制器
+  // ========== UI 控制器 ==========
   final scrollController = ScrollController();
   final searchController = TextEditingController();
   final searchFocusNode = FocusNode();
 
-  /// 分页大小
+  // ========== 常量配置 ==========
   final int _pageSize = PaginationConfig.defaultPageSize;
+  static const int _staleDataThresholdMinutes = 60;
 
-  /// 内部状态
+  // ========== 内部状态 ==========
   DateTime _lastRefreshTime = DateTime.now();
 
-  // ==== 生命周期方法 ====
+  // ========== 生命周期方法 ==========
 
   @override
   void onInit() {
@@ -56,7 +60,7 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
     }
   }
 
-  // ==== 公开API ====
+  // ========== 公开 API - 数据操作 ==========
 
   /// 重新加载文章列表
   Future<void> reloadArticles() async {
@@ -72,12 +76,23 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
       endDate: query.endDate,
     );
 
-    // 滚动到顶部
-    if (scrollController.hasClients) {
-      scrollController.jumpTo(0);
-    }
+    _scrollToTopIfNeeded();
     logger.i('文章列表重新加载完成');
   }
+
+  /// 从列表中移除文章
+  void removeArticle(int id) => _articleStateService.removeArticleFromList(id);
+
+  /// 更新列表中的文章
+  void updateArticle(int id) => _articleStateService.updateArticleInList(id);
+
+  /// 合并/插入文章（用于新增或外部更新回写）
+  void mergeArticle(ArticleModel model) => _articleStateService.mergeArticle(model);
+
+  /// 获取某篇文章的共享引用（详情/编辑页应持有此引用而非自行查询）
+  ArticleModel? getRef(int id) => _articleStateService.getArticleRef(id);
+
+  // ========== 公开 API - 搜索功能 ==========
 
   /// 切换搜索状态
   void toggleSearchState() {
@@ -98,10 +113,11 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
       return;
     }
 
-    // 设置全局搜索状态
     _articleStateService.setGlobalSearch(query);
     reloadArticles();
   }
+
+  // ========== 公开 API - 过滤功能 ==========
 
   /// 切换收藏过滤
   void toggleFavorite(bool value) {
@@ -136,27 +152,9 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
     reloadArticles();
   }
 
-  /// 从列表中移除文章
-  void removeArticle(int id) {
-    _articleStateService.removeArticleFromList(id);
-  }
+  // ========== 公开 API - UI 辅助方法 ==========
 
-  /// 更新列表中的文章
-  void updateArticle(int id) {
-    _articleStateService.updateArticleInList(id);
-  }
-
-  /// 合并/插入文章（用于新增或外部更新回写）
-  void mergeArticle(ArticleModel model) {
-    _articleStateService.mergeArticle(model);
-  }
-
-  /// 获取某篇文章的共享引用（详情/编辑页应持有此引用而非自行查询）
-  ArticleModel? getRef(int id) {
-    return _articleStateService.getArticleRef(id);
-  }
-
-  /// 获取标题
+  /// 获取页面标题（根据当前过滤状态）
   String getTitle() {
     final searchQuery = _articleStateService.globalSearchQuery.isNotEmpty
         ? _articleStateService.globalSearchQuery.value
@@ -176,7 +174,7 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
     };
   }
 
-  /// 是否存在任一过滤条件（供视图判断显示"已过滤"指示）
+  /// 是否存在任一过滤条件
   bool hasActiveFilters() {
     return _articleStateService.globalSearchQuery.isNotEmpty ||
         tagName.value.isNotEmpty ||
@@ -184,14 +182,12 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
         selectedFilterDate.value != null;
   }
 
-  /// 获取每天文章数量统计
+  /// 获取每天文章数量统计（用于日历视图）
   Map<DateTime, int> getDailyArticleCounts() {
     return ArticleRepository.i.getDailyCounts(Article_.createdAt);
   }
 
-  // 剪贴板检查逻辑已抽离到全局 ClipboardMonitorService，不再在页面 Controller 中实现
-
-  // ==== 私有方法 ====
+  // ========== 私有方法 - 初始化 ==========
 
   void _initStateServices() {
     _articleStateService = Get.find<ArticleStateService>();
@@ -258,14 +254,14 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
     if (!scrollController.hasClients) return;
 
     final isAtTop = scrollController.position.pixels <= 30;
-    final isDataStale = DateTime.now().difference(_lastRefreshTime).inMinutes >= 60;
+    final isDataStale = DateTime.now().difference(_lastRefreshTime).inMinutes >= _staleDataThresholdMinutes;
 
     if (isAtTop || isDataStale) {
       await reloadArticles();
     }
-
-    // 剪贴板检查由 ClipboardMonitorService 在应用层统一处理
   }
+
+  // ========== 私有方法 - 数据加载 ==========
 
   /// 获取过滤后的文章列表
   Future<void> _loadArticlesWithQuery([int? referenceId, bool? isGreaterThan]) async {
@@ -283,26 +279,10 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
     );
   }
 
-  /// 构建查询参数
-  QueryParams _buildQueryParams() {
-    // 优先使用全局搜索，其次是本地搜索
-    String? keyword = _articleStateService.globalSearchQuery.isNotEmpty
-        ? _articleStateService.globalSearchQuery.trim()
-        : (searchController.text.trim().isNotEmpty ? searchController.text.trim() : null);
-
-    return QueryParams(
-      keyword: keyword,
-      favorite: onlyFavorite.value ? true : null,
-      tagIds: tagId.value > 0 ? [tagId.value] : null,
-      startDate: selectedFilterDate.value,
-      endDate: selectedFilterDate.value != null ? _endOfDay(selectedFilterDate.value!) : null,
-    );
-  }
-
-  /// 加载更多文章（向后）
+  /// 加载更多文章（向后滚动）
   Future<void> _loadMoreArticles() async => _loadAdjacentArticles(loadAfter: true);
 
-  /// 加载之前的文章（向前）
+  /// 加载之前的文章（向前滚动）
   Future<void> _loadPreviousArticles() async => _loadAdjacentArticles(loadAfter: false);
 
   /// 通用相邻分页加载逻辑
@@ -315,25 +295,40 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
     await _loadArticlesWithQuery(anchorId, loadAfter ? false : true);
   }
 
-  // ==== 私有小工具 ====
+  // ========== 私有方法 - 工具函数 ==========
 
+  /// 构建查询参数
+  QueryParams _buildQueryParams() {
+    final keyword = _articleStateService.globalSearchQuery.isNotEmpty
+        ? _articleStateService.globalSearchQuery.trim()
+        : (searchController.text.trim().isNotEmpty ? searchController.text.trim() : null);
+
+    return QueryParams(
+      keyword: keyword,
+      favorite: onlyFavorite.value ? true : null,
+      tagIds: tagId.value > 0 ? [tagId.value] : null,
+      startDate: selectedFilterDate.value,
+      endDate: selectedFilterDate.value != null ? _endOfDay(selectedFilterDate.value!) : null,
+    );
+  }
+
+  /// 准备搜索焦点
   void _prepareSearchFocus() {
-    // 如果开启搜索，清空文本并准备接收输入
     searchController.clear();
-    // 延迟一下再激活焦点，确保UI已经构建完成
     Future.delayed(const Duration(milliseconds: 100), () {
       searchFocusNode.requestFocus();
     });
   }
 
+  /// 如有需要则清除搜索
   void _clearSearchIfNeeded() {
-    // 如果关闭搜索，并且搜索框有内容，则清除并重新加载文章
     if (searchController.text.isNotEmpty) {
       searchController.clear();
       reloadArticles();
     }
   }
 
+  /// 重置其他过滤条件
   void _resetOtherFilters() {
     tagId.value = -1;
     tagName.value = '';
@@ -341,6 +336,14 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
     searchController.clear();
   }
 
+  /// 滚动到顶部（如有客户端）
+  void _scrollToTopIfNeeded() {
+    if (scrollController.hasClients) {
+      scrollController.jumpTo(0);
+    }
+  }
+
+  /// 获取指定日期的结束时间
   DateTime _endOfDay(DateTime date) => DateTime(date.year, date.month, date.day, 23, 59, 59);
 }
 
