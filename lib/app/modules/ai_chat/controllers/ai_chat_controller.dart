@@ -150,13 +150,16 @@ class AIChatController extends GetxController {
       id: _generateMessageId(),
       content: '''👋 **欢迎使用AI助手！**
 
-我是您的智能助手，可以帮助您：
-• 📚 搜索和查找文章内容
-• 📔 查找日记记录
-• 📖 搜索读书笔记
-• 📋 总结和整理信息
+我可以帮助您：
 
-请告诉我您想要查找什么，我会帮您快速找到相关内容！''',
+📚 **搜索文章**，📔 **查找日记**，📖 **搜索书籍**，📋 **智能总结**
+
+💡 **使用示例**：
+- "查找关于Flutter开发的文章"
+- "最近一周的日记"
+- "搜索海外电话卡相关内容"
+
+请告诉我您想要查找什么，我会为您快速找到答案！''',
       status: MessageStatus.completed,
     );
     messages.add(welcomeMessage);

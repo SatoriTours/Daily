@@ -192,24 +192,76 @@ class MessageBubble extends StatelessWidget {
           if (message.type == ChatMessageType.assistant && message.content.trim().isNotEmpty)
             MarkdownBody(
               data: message.content,
+              selectable: true,
               styleSheet: MarkdownStyleSheet(
-                p: _getTextStyle(context),
-                h1: AppTypography.headingMedium.copyWith(color: AppColors.getOnSurface(context)),
-                h2: AppTypography.headingSmall.copyWith(color: AppColors.getOnSurface(context)),
-                h3: AppTypography.titleLarge.copyWith(color: AppColors.getOnSurface(context)),
-                h4: AppTypography.titleMedium.copyWith(color: AppColors.getOnSurface(context)),
-                strong: _getTextStyle(context).copyWith(fontWeight: FontWeight.bold),
-                em: _getTextStyle(context).copyWith(fontStyle: FontStyle.italic),
-                listBullet: _getTextStyle(context),
+                // 段落样式 - 紧凑布局
+                p: _getTextStyle(context).copyWith(height: 1.4),
+                pPadding: const EdgeInsets.only(bottom: 4),
+
+                // 标题样式 - 减小间距和字体
+                h1: AppTypography.titleLarge.copyWith(
+                  color: AppColors.getOnSurface(context),
+                  fontWeight: FontWeight.bold,
+                  height: 1.3,
+                ),
+                h1Padding: const EdgeInsets.only(top: 8, bottom: 4),
+
+                h2: AppTypography.titleMedium.copyWith(
+                  color: AppColors.getOnSurface(context),
+                  fontWeight: FontWeight.bold,
+                  height: 1.3,
+                ),
+                h2Padding: const EdgeInsets.only(top: 6, bottom: 3),
+
+                h3: AppTypography.titleSmall.copyWith(
+                  color: AppColors.getOnSurface(context),
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+                h3Padding: const EdgeInsets.only(top: 4, bottom: 2),
+
+                h4: AppTypography.bodyLarge.copyWith(
+                  color: AppColors.getOnSurface(context),
+                  fontWeight: FontWeight.w600,
+                ),
+
+                // 强调和斜体
+                strong: _getTextStyle(
+                  context,
+                ).copyWith(fontWeight: FontWeight.bold, color: AppColors.getPrimary(context)),
+                em: _getTextStyle(
+                  context,
+                ).copyWith(fontStyle: FontStyle.italic, color: AppColors.getOnSurfaceVariant(context)),
+
+                // 列表样式 - 更紧凑
+                listBullet: _getTextStyle(context).copyWith(height: 1.3),
+                listIndent: 16,
+                listBulletPadding: const EdgeInsets.only(right: 4),
+
+                // 代码样式 - 优化背景和边距
                 code: AppTypography.bodySmall.copyWith(
                   fontFamily: 'monospace',
                   backgroundColor: AppColors.getSurfaceContainer(context),
+                  color: AppColors.getPrimary(context),
                 ),
-                blockquotePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                blockquoteDecoration: BoxDecoration(
+                codeblockPadding: const EdgeInsets.all(12),
+                codeblockDecoration: BoxDecoration(
                   color: AppColors.getSurfaceContainer(context),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border(left: BorderSide(color: AppColors.getPrimary(context), width: 3)),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.getOutline(context).withOpacity(0.2)),
+                ),
+
+                // 引用块样式 - 增加视觉层次
+                blockquotePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                blockquoteDecoration: BoxDecoration(
+                  color: AppColors.getSurfaceContainer(context).withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border(left: BorderSide(color: AppColors.getPrimary(context), width: 4)),
+                ),
+
+                // 水平线样式
+                horizontalRuleDecoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.getOutline(context).withOpacity(0.3), width: 1)),
                 ),
               ),
             )
