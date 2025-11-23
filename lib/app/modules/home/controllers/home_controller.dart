@@ -13,7 +13,8 @@ class HomeController extends BaseController {
   /// 0: 文章页面
   /// 1: 日记页面
   /// 2: 读书页面
-  /// 3: 设置页面
+  /// 3: AI助手页面
+  /// 4: 设置页面
   final currentIndex = 0.obs;
 
   @override

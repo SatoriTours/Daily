@@ -123,4 +123,27 @@ class AppColors {
 
   static List<Color> getTagColors(BuildContext context) =>
       Theme.of(context).brightness == Brightness.light ? tagColors : tagColorsDark;
+
+  // Material 3 容器颜色
+  static Color getPrimaryContainer(BuildContext context) =>
+      getThemeColor(context, primary.withValues(alpha: 0.2), primaryLight.withValues(alpha: 0.2));
+
+  static Color getOnPrimaryContainer(BuildContext context) => getThemeColor(context, primaryDark, primaryLight);
+
+  static Color getSecondaryContainer(BuildContext context) =>
+      getThemeColor(context, const Color(0xFFE8F5E9), const Color(0xFF2E3B2E));
+
+  static Color getOnSecondaryContainer(BuildContext context) =>
+      getThemeColor(context, const Color(0xFF1B5E20), const Color(0xFF81C784));
+
+  static Color getTertiaryContainer(BuildContext context) =>
+      getThemeColor(context, const Color(0xFFFFF3E0), const Color(0xFF3E2723));
+
+  static Color getSurfaceVariant(BuildContext context) =>
+      getThemeColor(context, surfaceContainer, surfaceContainerDark);
+
+  static Color getSecondary(BuildContext context) =>
+      getThemeColor(context, const Color(0xFF4CAF50), const Color(0xFF66BB6A));
+
+  static Color getOnPrimary(BuildContext context) => getThemeColor(context, Colors.white, Colors.white);
 }

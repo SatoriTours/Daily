@@ -6,6 +6,7 @@ import '../controllers/home_controller.dart';
 import 'package:daily_satori/app/modules/articles/bindings/articles_binding.dart';
 import 'package:daily_satori/app/modules/diary/bindings/diary_binding.dart';
 import 'package:daily_satori/app/modules/settings/bindings/settings_binding.dart';
+import 'package:daily_satori/app/modules/ai_chat/bindings/ai_chat_binding.dart';
 
 /// HomeBinding: 主页依赖注入
 /// 负责:
@@ -28,6 +29,7 @@ class HomeBinding extends Binding {
     DiaryBinding().dependencies();
     SettingsBinding().dependencies();
     BooksBinding().dependencies();
+    AIChatBinding().dependencies();
 
     if (kDebugMode) {
       logger.i('子模块依赖初始化完成 [$_tag:${DateTime.now()}]');

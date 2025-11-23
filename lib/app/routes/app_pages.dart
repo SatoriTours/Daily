@@ -28,6 +28,8 @@ import 'package:daily_satori/app/modules/settings/bindings/settings_binding.dart
 import 'package:daily_satori/app/modules/settings/views/settings_view.dart';
 import 'package:daily_satori/app/modules/share_dialog/bindings/share_dialog_binding.dart';
 import 'package:daily_satori/app/modules/share_dialog/views/share_dialog_view.dart';
+import 'package:daily_satori/app/modules/ai_chat/bindings/ai_chat_binding.dart';
+import 'package:daily_satori/app/modules/ai_chat/views/ai_chat_view.dart';
 
 part 'app_routes.dart';
 
@@ -102,6 +104,12 @@ class AppPages {
       name: Routes.bookSearch,
       page: () => const BookSearchView(),
       binding: BookSearchBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.aiChat,
+      page: () => const AIChatView(),
+      binding: AIChatBinding(),
       transition: Transition.rightToLeft,
     ),
   ];

@@ -305,3 +305,62 @@ component:
   favorites_only: Favorites Only
   show_all: Show All
   processing_dialog_success: Complete
+
+# AI Chat Assistant
+ai_chat:
+  title: AI Assistant
+  assistant: AI Assistant
+  you: You
+  tool: Tool Call
+  thinking: Thinking...
+  processing: Processing...
+  retry: Retry
+  send: Send
+  input_hint: Type your question...
+  new_chat: New Chat
+
+  # Empty State
+  empty_title: Start Chat with AI Assistant
+  empty_subtitle: I'm your intelligent assistant, helping you search and summarize content within the app
+
+  # Suggested Questions
+  suggestion_articles: Search Related Articles
+  suggestion_diary: Find Diary Content
+  suggestion_books: Search Reading Notes
+  suggestion_summary: Summarize Recent Content
+
+  # Processing Steps
+  step_start: Analyzing your question...
+  step_analyzing_query: Analyzing query intent...
+  step_intent_identified: Intent identified:
+  step_planning_tools: Creating search plan...
+  step_tool_planned: Planned to execute:
+  step_searching: Searching relevant content...
+  step_executing_tool: Executing:
+  step_tool_completed: Execution completed:
+  step_summarizing: Summarizing search results...
+  step_error_occurred: An error occurred during processing
+
+  # Query Intents
+  intent_articles: Find Articles
+  intent_diary: Find Diary
+  intent_books: Find Books
+  intent_summary: Content Summary
+  intent_general: General Search
+
+  # Error Messages
+  error_occurred: Sorry, an error occurred while processing your request. Please try again later.
+
+  # Help Information
+  help: Help
+  help_title: Usage Help
+  got_it: Got It
+
+  help_features_title: Main Features
+  help_features_content: • Smart search for articles, diaries, and reading notes\n• Automatic summarization and organization\n• Multi-turn conversation\n• Real-time processing steps
+
+  help_usage_title: How to Use
+  help_usage_content: 1. Enter what you want to find or summarize\n2. AI automatically analyzes and creates search plan\n3. View processing steps and search results\n4. Get AI-summarized answers
+
+  help_tips_title: Usage Tips
+  help_tips_content: • Use specific keywords for searching\n• You can specify time ranges\n• Support multi-turn conversations\n• Can ask for related suggestions

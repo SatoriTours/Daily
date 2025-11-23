@@ -305,3 +305,62 @@ component:
   favorites_only: 只看收藏
   show_all: 显示全部
   processing_dialog_success: 完成
+
+# AI聊天助手
+ai_chat:
+  title: AI助手
+  assistant: AI助手
+  you: 您
+  tool: 工具调用
+  thinking: 思考中...
+  processing: 处理中...
+  retry: 重试
+  send: 发送
+  input_hint: 输入您的问题...
+  new_chat: 新对话
+
+  # 空状态
+  empty_title: 开始与AI助手对话
+  empty_subtitle: 我是您的智能助手，可以帮您搜索和总结应用内的内容
+
+  # 建议问题
+  suggestion_articles: 搜索相关文章
+  suggestion_diary: 查找日记内容
+  suggestion_books: 搜索读书笔记
+  suggestion_summary: 总结最近内容
+
+  # 处理步骤
+  step_start: 开始分析您的问题...
+  step_analyzing_query: 分析查询意图
+  step_intent_identified: 识别意图：
+  step_planning_tools: 制定搜索计划
+  step_tool_planned: 计划执行：
+  step_searching: 搜索相关内容
+  step_executing_tool: 执行搜索：
+  step_tool_completed: 完成执行：
+  step_summarizing: 总结搜索结果
+  step_error_occurred: 处理过程中出现错误
+
+  # 查询意图
+  intent_articles: 查找文章
+  intent_diary: 查找日记
+  intent_books: 查找书籍
+  intent_summary: 内容总结
+  intent_general: 综合搜索
+
+  # 错误信息
+  error_occurred: 抱歉，处理您的请求时出现了错误，请稍后重试。
+
+  # 帮助信息
+  help: 帮助
+  help_title: 使用帮助
+  got_it: 知道了
+
+  help_features_title: 主要功能
+  help_features_content: • 智能搜索文章、日记和读书笔记\n• 自动总结和整理信息\n• 多轮对话交互\n• 实时显示处理步骤
+
+  help_usage_title: 使用方法
+  help_usage_content: 1. 输入您想要查找或总结的内容\n2. AI会自动分析并制定搜索计划\n3. 查看处理步骤和搜索结果\n4. 获取AI总结的答案
+
+  help_tips_title: 使用技巧
+  help_tips_content: • 使用具体的关键词搜索\n• 可以指定时间范围\n• 支持多轮对话细化需求\n• 可以询问相关建议
