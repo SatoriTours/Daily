@@ -63,7 +63,8 @@ class AIAgentService {
       for (var i = 0; i < toolPlan.length; i++) {
         final toolCall = toolPlan[i];
         logger.d('[AI Agent] 正在执行: ${toolCall.description}');
-        onToolCall(toolCall);
+        // 不再调用 onToolCall，避免在界面显示搜索关键词
+        // onToolCall(toolCall);
 
         final searchResults = await _executeToolCall(toolCall);
         logger.i('[AI Agent] ✅ 搜索返回结果 (${i + 1}/${toolPlan.length}):');
@@ -81,10 +82,6 @@ class AIAgentService {
       onStep('ai_chat.step_searching'.t, 'completed');
       logger.d('[AI Agent] ==========================================');
 
-      // 回调搜索结果
-      logger.d('[AI Agent] 总共找到 ${allSearchResults.length} 条搜索结果');
-      onSearchResults(allSearchResults);
-
       // 4. 总结结果
       logger.d('[AI Agent] ========== 步骤4: 生成AI总结 ==========');
       onStep('ai_chat.step_summarizing'.t, 'processing');
@@ -97,6 +94,10 @@ class AIAgentService {
       logger.d('[AI Agent] ==========================================');
       onStep('ai_chat.step_summarizing'.t, 'completed');
       onResult(summary);
+
+      // 回调搜索结果 - 显示搜索结果卡片(默认折叠)
+      logger.d('[AI Agent] 总共找到 ${allSearchResults.length} 条搜索结果');
+      onSearchResults(allSearchResults);
 
       logger.i('[AI Agent] ========================================');
       logger.i('[AI Agent] 🎉 查询处理完成！');
@@ -236,7 +237,7 @@ class AIAgentService {
       return '😔 **未找到相关内容**\n\n很抱歉，搜索到的内容无法加载。';
     }
 
-    // 使用 AI 分析内容并生成智能答案
+    // 直接使用 AI 生成智能答案,不显示搜索统计信息
     final aiAnswer = await _generateAIAnswer(
       originalQuery,
       fullContents,
@@ -245,44 +246,7 @@ class AIAgentService {
       books.length,
     );
 
-    // 构建最终答案
-    final buffer = StringBuffer();
-    buffer.writeln(aiAnswer);
-
-    // 分类统计
-    buffer.writeln('### 📊 内容分类\n');
-    if (articles.isNotEmpty) {
-      buffer.writeln('� **文章**: ${articles.length}篇');
-      final titles = articles.take(3).map((a) => a.title).join('、');
-      buffer.writeln('   包括：$titles${articles.length > 3 ? " 等" : ""}');
-      buffer.writeln();
-    }
-
-    if (diaries.isNotEmpty) {
-      buffer.writeln('📔 **日记**: ${diaries.length}篇');
-      if (diaries.any((d) => d.tags != null && d.tags!.isNotEmpty)) {
-        final allTags = <String>{};
-        for (final diary in diaries) {
-          if (diary.tags != null) allTags.addAll(diary.tags!);
-        }
-        if (allTags.isNotEmpty) {
-          buffer.writeln('   标签：${allTags.take(5).join('、')}');
-        }
-      }
-      buffer.writeln();
-    }
-
-    if (books.isNotEmpty) {
-      buffer.writeln('📖 **书籍**: ${books.length}本');
-      final titles = books.take(3).map((b) => b.title).join('、');
-      buffer.writeln('   包括：$titles${books.length > 3 ? " 等" : ""}');
-      buffer.writeln();
-    }
-
-    buffer.writeln('---');
-    buffer.writeln('💡 点击上方卡片可查看详细内容');
-
-    return buffer.toString();
+    return aiAnswer;
   }
 
   /// 处理空搜索结果 - 使用AI判断问题类型并生成回复
@@ -547,42 +511,33 @@ class AIAgentService {
     // 调用 AI 生成答案
     final prompt =
         '''
-基于以下内容回答用户问题。
+你是一个专业又友好的助手。请基于以下内容回答用户问题。
 
 用户问题：$query
 
 相关内容：
 $contentToAnalyze
 
-请提供：
-1. 针对问题的直接回答（简洁明了）
-2. 关键要点（2-5条）
-3. 相关详细说明
+请用自然对话的方式回答,就像和朋友聊天一样:
 
-要求：
-- 语言简洁专业
-- 突出重点信息
-- 基于提供的内容回答，不要编造
-- 使用 Markdown 格式
+1. 开头直接回答问题(1-2句话)
+2. 如果有重要信息,用列表形式列出关键点
+3. 必要时提供详细说明或步骤
+
+格式要求:
+- 使用 Markdown 格式让内容更易读
+- 重点信息用 **加粗** 标记
+- 列表用 - 或数字
+- 如果有步骤,用数字列表
+- 可以适当使用表情符号 ✨ 让内容生动
+- 只基于提供的内容回答,不要编造
 
 回答：''';
 
     final aiResponse = await AiService.i.getCompletion(prompt, functionType: 0);
 
-    final buffer = StringBuffer();
-    buffer.writeln('### 💡 AI 分析结果\n');
-    buffer.writeln(aiResponse.trim());
-    buffer.writeln('\n---');
-
-    // 添加数据来源统计
-    final sourceText = <String>[];
-    if (articles > 0) sourceText.add('$articles 篇文章');
-    if (diaries > 0) sourceText.add('$diaries 条日记');
-    if (books > 0) sourceText.add('$books 本书籍');
-    buffer.writeln('💾 **数据来源**: ${sourceText.join('、')}');
-
     logger.i('[AI Agent] ✅ AI答案生成完成');
-    return buffer.toString();
+    return aiResponse.trim();
   }
 
   /// 搜索文章

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/extensions/i18n_extension.dart';
 import 'package:daily_satori/app/modules/ai_chat/models/search_result.dart';
@@ -187,7 +188,33 @@ class MessageBubble extends StatelessWidget {
             ),
             Dimensions.verticalSpacerS,
           ],
-          Text(message.content, style: _getTextStyle(context)),
+          // 对于 AI 助手的回复使用 Markdown 渲染，其他消息用普通文本
+          if (message.type == ChatMessageType.assistant && message.content.trim().isNotEmpty)
+            MarkdownBody(
+              data: message.content,
+              styleSheet: MarkdownStyleSheet(
+                p: _getTextStyle(context),
+                h1: AppTypography.headingMedium.copyWith(color: AppColors.getOnSurface(context)),
+                h2: AppTypography.headingSmall.copyWith(color: AppColors.getOnSurface(context)),
+                h3: AppTypography.titleLarge.copyWith(color: AppColors.getOnSurface(context)),
+                h4: AppTypography.titleMedium.copyWith(color: AppColors.getOnSurface(context)),
+                strong: _getTextStyle(context).copyWith(fontWeight: FontWeight.bold),
+                em: _getTextStyle(context).copyWith(fontStyle: FontStyle.italic),
+                listBullet: _getTextStyle(context),
+                code: AppTypography.bodySmall.copyWith(
+                  fontFamily: 'monospace',
+                  backgroundColor: AppColors.getSurfaceContainer(context),
+                ),
+                blockquotePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                blockquoteDecoration: BoxDecoration(
+                  color: AppColors.getSurfaceContainer(context),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border(left: BorderSide(color: AppColors.getPrimary(context), width: 3)),
+                ),
+              ),
+            )
+          else
+            Text(message.content, style: _getTextStyle(context)),
         ],
       ),
     );

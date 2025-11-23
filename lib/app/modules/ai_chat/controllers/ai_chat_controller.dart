@@ -266,6 +266,7 @@ class AIChatController extends GetxController {
 
     if (processingMessage != null) {
       // 立即更新内容,让用户能看到 AI 生成的答案
+      // 保留processingSteps,让步骤和内容都显示
       final updatedMessage = processingMessage.copyWith(content: result);
 
       final index = messages.indexOf(processingMessage);
