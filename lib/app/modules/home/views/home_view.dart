@@ -41,11 +41,27 @@ class HomeView extends GetView<HomeController> {
       onTap: controller.changePage,
       type: BottomNavigationBarType.fixed,
       items: [
-        BottomNavigationBarItem(icon: Icon(Icons.article_outlined), activeIcon: Icon(Icons.article), label: 'nav.articles'.t),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.article_outlined),
+          activeIcon: Icon(Icons.article),
+          label: 'nav.articles'.t,
+        ),
         BottomNavigationBarItem(icon: Icon(Icons.book_outlined), activeIcon: Icon(Icons.book), label: 'nav.diary'.t),
-        BottomNavigationBarItem(icon: Icon(Icons.menu_book_outlined), activeIcon: Icon(Icons.menu_book), label: 'nav.books'.t),
-        BottomNavigationBarItem(icon: Icon(Icons.smart_toy_outlined), activeIcon: Icon(Icons.smart_toy), label: 'ai_chat.title'.t),
-        BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'nav.settings'.t),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.menu_book_outlined),
+          activeIcon: Icon(Icons.menu_book),
+          label: 'nav.books'.t,
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.smart_toy_outlined),
+          activeIcon: Icon(Icons.smart_toy),
+          label: 'ai_chat.title'.t,
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline),
+          activeIcon: Icon(Icons.person),
+          label: 'nav.settings'.t,
+        ),
       ],
     );
   }
@@ -60,7 +76,7 @@ class HomeView extends GetView<HomeController> {
   /// 记录页面切换日志
   void _logPageSwitch(int index) {
     if (kDebugMode) {
-      final pages = ['nav.articles'.t, 'nav.diary'.t, 'nav.books'.t, 'nav.settings'.t];
+      final pages = ['nav.articles'.t, 'nav.diary'.t, 'nav.books'.t, 'ai_chat.title'.t, 'nav.settings'.t];
       logger.i('切换到${pages[index]} [$_tag:${DateTime.now()}]');
     }
   }
