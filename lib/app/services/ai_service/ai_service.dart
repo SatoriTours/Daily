@@ -7,7 +7,7 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/ai_config_service.dart';
-import 'package:template_expressions/template_expressions.dart';
+import 'package:jinja/jinja.dart';
 import 'package:daily_satori/app/utils/string_utils.dart';
 import 'package:daily_satori/app/config/app_config.dart';
 
@@ -157,12 +157,14 @@ class AiService {
 
   /// 渲染模板
   ///
-  /// 使用Mustache语法将变量注入模板
+  /// 使用 Jinja2 语法将变量注入模板
   /// [template] 模板字符串
   /// [context] 变量上下文
   String _renderTemplate(String template, Map<String, String> context) {
     try {
-      return Template(syntax: [MustacheExpressionSyntax()], value: template).process(context: context);
+      final env = Environment();
+      final tmpl = env.fromString(template);
+      return tmpl.render(context);
     } catch (e) {
       logger.e("[AI服务] 模板渲染失败: $e");
       logger.e("[AI服务] 模板: $template");

@@ -93,7 +93,7 @@ dependencies:
   image_picker: ^1.2.0
 
   # 模板表达式
-  template_expressions: ^3.3.1+2
+  jinja: ^0.6.5
 
   # shelf 框架(http server服务)
   shelf: ^1.4.2
@@ -120,10 +120,6 @@ dependencies:
 
   # HTML解析
   html: ^0.15.6
-
-# 为了解决 template_expressions 和 objectbox 的冲突
-dependency_overrides:
-  pointycastle: ^4.0.0
 
 dev_dependencies:
   flutter_test:

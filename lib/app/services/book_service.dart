@@ -5,7 +5,7 @@ import 'package:daily_satori/app/models/book_search_result.dart';
 import 'package:daily_satori/app/services/book_search_engine/open_library_search_engine.dart';
 import 'dart:convert';
 
-import 'package:template_expressions/template_expressions.dart';
+import 'package:jinja/jinja.dart';
 
 /// 书籍服务
 ///
@@ -364,12 +364,14 @@ class BookService {
 
   /// 渲染模板
   ///
-  /// 使用Mustache语法将变量注入模板
+  /// 使用 Jinja2 语法将变量注入模板
   /// [template] 模板字符串
   /// [context] 变量上下文
   String _renderTemplate(String template, Map<String, String> context) {
     try {
-      return Template(syntax: [MustacheExpressionSyntax()], value: template).process(context: context);
+      final env = Environment();
+      final tmpl = env.fromString(template);
+      return tmpl.render(context);
     } catch (e) {
       logger.e("[BookService服务] 模板渲染失败: $e");
       logger.e("[BookService服务] 模板: $template");
