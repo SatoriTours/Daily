@@ -23,8 +23,11 @@ dependencies:
   # JSON序列化
   json_annotation: ^4.9.0
 
-  # getx 框架
-  get: ^5.0.0-release-candidate-9.3.2
+  # GetX 状态管理框架
+  get:
+    git:
+      url: https://github.com/jonataslaw/getx.git
+      ref: master
 
   # 数据库
   sqflite: ^2.4.0
@@ -44,7 +47,7 @@ dependencies:
   flutter_inappwebview: ^6.2.0-beta.2
 
   # AI 调用库
-  openai_dart: ^0.5.2
+  openai_dart: ^0.6.0+1
 
   # 时间处理
   intl: ^0.20.2
