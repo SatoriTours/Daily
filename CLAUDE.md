@@ -69,8 +69,10 @@ lib/app/
 - ❌ **避免**组件依赖特定Controller (GetView仅用于页面级)
 
 ### 6. 路由与导航
-- ✅ **必须**使用 `NavigationService`
-- ❌ **禁止**直接使用 `Get.toNamed()`
+- ✅ **推荐**直接使用 GetX 路由: `Get.toNamed()`, `Get.back()`, `Get.offAllNamed()`
+- ✅ 在 Controller 中添加日志记录导航操作
+- ✅ 如需复杂逻辑（权限检查、埋点等），在 Controller 中封装导航方法
+- ❌ **避免**无实际价值的简单包装服务
 
 
 ## 🔧 错误处理与数据访问
@@ -614,7 +616,8 @@ flutter analyze
 - [ ] 继承 `BaseGetXController`
 - [ ] 使用状态服务(不直接查找控制器)
 - [ ] 使用事件总线模式
-- [ ] 使用 `NavigationService` 导航
+- [ ] 直接使用 GetX 路由（Get.toNamed/back/offAllNamed）
+- [ ] 导航操作添加了日志记录
 - [ ] 服务在 `ServiceRegistry` 注册
 
 ### GetX 实践

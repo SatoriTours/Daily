@@ -18,9 +18,6 @@ abstract class BaseGetXController extends GetxController {
   /// 状态服务
   late final AppStateService _appStateService;
 
-  /// 导航服务
-  late final NavigationService _navigationService;
-
   /// 是否已初始化
   bool get isInitialized => _isInitialized.value;
 
@@ -52,17 +49,20 @@ abstract class BaseGetXController extends GetxController {
     errorMessage.value = '';
   }
 
-  /// 导航方法
+  /// 导航方法（直接使用 GetX 路由）
   void navigateTo(String route, {Object? arguments}) {
-    _navigationService.toNamed(route, arguments: arguments);
+    logger.i('[Navigation] 导航到: $route, 参数: $arguments');
+    Get.toNamed(route, arguments: arguments);
   }
 
   void navigateOff(String route, {Object? arguments}) {
-    _navigationService.offNamed(route, arguments: arguments);
+    logger.i('[Navigation] 替换页面: $route, 参数: $arguments');
+    Get.offNamed(route, arguments: arguments);
   }
 
   void navigateBack<T>([T? result]) {
-    _navigationService.back(result);
+    logger.i('[Navigation] 返回上一页, 结果: $result');
+    Get.back(result: result);
   }
 
   /// 安全执行异步操作
@@ -131,7 +131,6 @@ abstract class BaseGetXController extends GetxController {
 
   void _initServices() {
     _appStateService = Get.find<AppStateService>();
-    _navigationService = Get.find<NavigationService>();
   }
 
   @override

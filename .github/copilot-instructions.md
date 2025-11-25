@@ -86,11 +86,29 @@ Obx(() => MyCard(
 
 ### 4. 路由与导航
 ```dart
-// ✅ 必须使用 NavigationService
-NavigationService.i.toNamed(Routes.articleDetail, arguments: articleId);
+// ✅ 推荐：直接使用 GetX 路由
+logger.i('[Navigation] 导航到文章详情');
+Get.toNamed(Routes.articleDetail, arguments: articleId);
 
-// ❌ 禁止直接使用 Get.toNamed()
-Get.toNamed(Routes.articleDetail); // 禁止
+// ✅ 如需复杂逻辑，在 Controller 中封装
+class ArticleController extends BaseGetXController {
+  void openArticle(Article article) {
+    // 权限检查
+    if (article.isLocked && !hasPermission) {
+      showError('需要权限');
+      return;
+    }
+
+    // 埋点统计
+    logger.i('[Navigation] 打开文章: ${article.id}');
+
+    // 导航
+    Get.toNamed(Routes.articleDetail, arguments: article);
+  }
+}
+
+// ❌ 避免：没有实际价值的简单包装
+NavigationService.i.toNamed(...); // 如果只是转发，就是多余的
 ```
 
 ### 5. 依赖注入
@@ -618,7 +636,7 @@ class MyController extends BaseGetXController {
 Obx(() => Text('Count: ${controller.count.value}'))
 
 // ❌ 禁止 Get.find() 查找其他控制器
-// ❌ 禁止直接使用 Get.toNamed()，使用 NavigationService
+// ✅ 直接使用 GetX 路由
 ```
 
 ## 🔍 代码审查检查清单
@@ -627,7 +645,8 @@ Obx(() => Text('Count: ${controller.count.value}'))
 - [ ] 继承 `BaseGetXController`
 - [ ] 使用状态服务(不直接查找控制器)
 - [ ] 使用事件总线模式
-- [ ] 使用 `NavigationService` 导航
+- [ ] 直接使用 GetX 路由（Get.toNamed/back/offAllNamed）
+- [ ] 导航操作添加了日志记录
 - [ ] 服务在 `ServiceRegistry` 注册
 
 ### GetX 实践

@@ -28,7 +28,6 @@ import 'package:daily_satori/app/services/state/diary_state_service.dart';
 import 'package:daily_satori/app/services/state/books_state_service.dart';
 import 'package:daily_satori/app/services/state/ai_config_state_service.dart';
 import 'package:daily_satori/app/services/state/plugin_center_state_service.dart';
-import 'package:daily_satori/app/services/navigation_service.dart';
 import 'package:daily_satori/app/services/i18n/i18n_service.dart';
 
 class ServiceStatus {
@@ -174,15 +173,6 @@ class ServiceRegistry {
         priority: ServicePriority.high,
         onInit: () async {
           Get.put(PluginCenterStateService());
-        },
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'NavigationService',
-        priority: ServicePriority.high,
-        onInit: () async {
-          Get.put(NavigationService());
         },
       ),
     );
