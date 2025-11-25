@@ -1,6 +1,8 @@
-# Daily Satori 编码规范与项目约定
+# Daily Satori 编码规范（GitHub Copilot）
 
-本文档定义了 Daily Satori 项目的核心编码标准、架构约束和最佳实践。
+本文件定义了 Daily Satori 项目的完整编码规范、架构约束和最佳实践。
+
+> **重要**：本规范与 `CLAUDE.md` 保持一致，确保不同工具生成的代码遵循相同标准。
 
 ## 📚 技术栈
 
@@ -9,19 +11,11 @@
 - **本地存储**: ObjectBox (仓储模式)
 - **网络**: dio, web_socket_channel
 - **WebView**: flutter_inappwebview
-- **AI**: openai_dart + 配置文件(assets/configs/)
+- **AI**: openai_dart + 配置文件
 
-## 🏗️ 系统架构
+## 🏯 项目架构
 
 ### 分层原则
-- **界面层** (`app/modules/*/views`): 界面展示与用户交互
-- **控制层** (`app/modules/*/controllers`): GetX Controller，状态管理与生命周期
-- **绑定层** (`app/modules/*/bindings`): 依赖注入
-- **服务层** (`app/services/*`): 跨模块服务
-- **仓储层** (`app/repositories/*`): ObjectBox 数据访问
-- **模型层** (`app/models/*`): 数据模型
-
-### 目录结构
 ```
 lib/app/
 ├── controllers/      # 基础控制器
@@ -33,76 +27,139 @@ lib/app/
 └── routes/          # 路由配置
 ```
 
-
 ## 🎯 GetX 架构核心约束
 
 ### 1. 控制器规范
-- ✅ **必须**继承 `BaseGetXController`
-- ✅ **必须**使用响应式变量 `.obs`
-- ❌ **禁止**直接继承 `GetxController`
-- ❌ **禁止**使用普通变量管理状态
+```dart
+// ✅ 必须继承 BaseGetXController
+class MyController extends BaseGetXController {
+  // ✅ 使用响应式变量
+  final count = 0.obs;
+  final isLoading = false.obs;
+
+  // ✅ 使用 safeExecute 处理异步
+  Future<void> loadData() async {
+    await safeExecute(() async {
+      // 异步逻辑...
+    });
+  }
+}
+
+// ❌ 禁止直接继承 GetxController
+// ❌ 禁止使用普通变量管理状态
+```
 
 ### 2. 状态管理约束
-- ✅ **必须**使用状态服务管理全局状态（AppStateService, ArticleStateService, DiaryStateService）
+- ✅ **必须**使用状态服务管理全局状态
 - ✅ **必须**通过事件总线模式进行跨页面通信
 - ❌ **禁止** `Get.find()` 查找其他控制器
 - ❌ **禁止**静态全局变量
 
-### 3. 数据管理架构（推荐）
+### 3. Widget 组件规范
+```dart
+// ✅ 推荐：纯展示组件使用 StatelessWidget
+class MyCard extends StatelessWidget {
+  final String title;
+  final VoidCallback? onTap;
 
-| 层级 | 职责 |
-|------|------|
-| **Repository** | ObjectBox 查询、数据持久化 |
-| **StateService** | 列表数据缓存、业务逻辑、事件通知 |
-| **Controller** | UI交互、用户输入、调用Service |
-| **View** | Widget渲染、Obx响应式绑定 |
+  const MyCard({required this.title, this.onTap});
 
-### 4. 依赖注入约束
-- ✅ **必须**使用现代 API: `Bindings` + `void dependencies()`
-- ✅ 服务必须在 `ServiceRegistry` 注册
-- ❌ **禁止**旧 API: `Binding` + `List<Bind>`
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        title: Text(title),
+        onTap: onTap,
+      ),
+    );
+  }
+}
 
-### 5. Widget 组件规范
-- ✅ **推荐** `StatelessWidget` 用于纯展示组件
-- ✅ 通过参数接收数据，通过回调交互
-- ✅ 状态管理在父组件用 `Obx` 控制
-- ❌ **避免**组件依赖特定Controller (GetView仅用于页面级)
+// ✅ 父组件使用 Obx 控制状态
+Obx(() => MyCard(
+  title: controller.title.value,
+  onTap: controller.handleTap,
+))
 
-### 6. 路由与导航
-- ✅ **必须**使用 `NavigationService`
-- ❌ **禁止**直接使用 `Get.toNamed()`
+// ❌ 避免组件依赖特定 Controller
+```
 
+### 4. 路由与导航
+```dart
+// ✅ 必须使用 NavigationService
+NavigationService.i.toNamed(Routes.articleDetail, arguments: articleId);
+
+// ❌ 禁止直接使用 Get.toNamed()
+Get.toNamed(Routes.articleDetail); // 禁止
+```
+
+### 5. 依赖注入
+```dart
+// ✅ 使用现代 API
+class MyBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut(() => MyController());
+  }
+}
+
+// ❌ 禁止旧 API
+class MyBinding extends Binding { // 禁止
+  @override
+  List<Bind> dependencies() => []; // 禁止
+}
+```
 
 ## 🔧 错误处理与数据访问
 
 ### 异步操作
-- ✅ **必须**使用 `safeExecute()` 处理异步操作
-- ✅ 统一加载状态和错误处理
+```dart
+// ✅ 必须使用 safeExecute
+Future<void> fetchData() async {
+  await safeExecute(() async {
+    final data = await repository.getData();
+    items.value = data;
+  });
+}
+
+// ❌ 禁止相信手动处理异常
+```
 
 ### 用户反馈
-- ✅ **必须**使用统一的消息方法: `showError()`, `showSuccess()`, `showLoading()`
+```dart
+// ✅ 使用统一消息方法
+showError('错误信息');
+showSuccess('操作成功');
+showLoading('加载中...');
+```
 
 ### 数据访问
-- ✅ 仓储类使用静态方法风格
-- ✅ 查询必须通过仓储层
-- ✅ 删除需清理关联数据
+```dart
+// ✅ 仓储类使用静态方法
+class ArticleRepository {
+  static List<Article> getAll() {
+    return objectbox.articleBox.getAll();
+  }
+
+  static void save(Article article) {
+    objectbox.articleBox.put(article);
+  }
+}
+
+// ✅ 查询必须通过仓储层
+final articles = ArticleRepository.getAll();
+```
 
 ### 时间管理
-- ✅ 持久化存储为 UTC
-- ✅ 展示使用 `DateTimeUtils.formatDateTimeToLocal`
+```dart
+// ✅ 持久化存储为 UTC
+article.createdAt = DateTime.now().toUtc();
 
-### 安全与隐私
-- ✅ 敏感信息存储于 `SettingRepository`
-- ❌ **禁止**在日志中输出 Token/口令
+// ✅ 展示使用本地化
+Text(DateTimeUtils.formatDateTimeToLocal(article.createdAt))
+```
 
-
-## 🎨 统一样式系统
-
-### 核心原则
-1. **一致性优先**: 使用统一样式系统
-2. **语义化设计**: 有意义的命名
-3. **主题感知**: 自动适配亮/暗色主题
-4. **单一来源**: 避免重复定义
+## 💎 统一样式系统
 
 ### 导入规范
 ```dart
@@ -110,9 +167,7 @@ lib/app/
 import 'package:daily_satori/app/styles/index.dart';
 ```
 
-### 基础 Tokens
-
-#### 颜色系统 (AppColors)
+### 颜色系统
 ```dart
 // ✅ 使用主题感知方法
 AppColors.getPrimary(context)
@@ -120,112 +175,78 @@ AppColors.getSurface(context)
 AppColors.getOnSurfaceVariant(context)
 
 // ❌ 禁止硬编码
-Color(0xFF5E8BFF)
-Colors.blue
+Color(0xFF5E8BFF)  // 禁止
+Colors.blue        // 禁止
 ```
 
-#### 尺寸系统 (Dimensions)
+### 尺寸系统
 ```dart
-// ✅ 间距常量
+// ✅ 使用标准间距
 Dimensions.spacingXs/S/M/L/Xl/Xxl  // 4/8/16/24/32/48px
 
-// ✅ 内边距预设
-Dimensions.paddingPage/Card/Button/Input/ListItem
+// ✅ 使用内边距预设
+Dimensions.paddingPage/Card/Button/Input
 
-// ✅ 间隔组件
-Dimensions.verticalSpacerS/M/L/Xl
+// ✅ 使用间隔组件
+Dimensions.verticalSpacerS/M/L
 Dimensions.horizontalSpacerS/M/L
 
-// ✅ 圆角
-Dimensions.radiusXs/S/M/L/Xl/Circular
+// ✅ 使用圆角
+Dimensions.radiusXs/S/M/L/Xl
 
-// ✅ 图标尺寸
-Dimensions.iconSizeXs/S/M/L/Xl/Xxl  // 12/16/20/24/32/48px
+// ❌ 禁止硬编码
+EdgeInsets.all(16)  // 禁止
+BorderRadius.circular(8)  // 禁止
 ```
 
-#### 字体系统 (AppTypography)
+### 字体系统
 ```dart
-// 标题系列
+// ✅ 使用 AppTypography
 AppTypography.headingLarge/Medium/Small  // 32/24/20px
-
-// 副标题系列
 AppTypography.titleLarge/Medium/Small    // 18/16/14px
-
-// 正文系列
 AppTypography.bodyLarge/Medium/Small     // 16/15/13px
-
-// 标签系列
 AppTypography.labelLarge/Medium/Small    // 14/12/11px
 
-// 特殊用途
-AppTypography.buttonText/appBarTitle/chipText
-```
-
-#### 透明度 (Opacities)
-```dart
-Opacities.extraLow/low/mediumLow/medium/mediumHigh/high/half/mediumOpaque
-// 5%/10%/15%/20%/25%/30%/50%/80%
+// ❌ 禁止硬编码
+TextStyle(fontSize: 14)  // 禁止
 ```
 
 ### 组件样式
-
-#### 按钮 (ButtonStyles)
 ```dart
-ButtonStyles.getPrimaryStyle(context)     // 主要按钮
-ButtonStyles.getSecondaryStyle(context)   // 次要按钮
-ButtonStyles.getOutlinedStyle(context)    // 轮廓按钮
-ButtonStyles.getTextStyle(context)        // 文本按钮
-ButtonStyles.getDangerStyle(context)      // 危险按钮
-```
+// ✅ 使用 ButtonStyles
+ButtonStyles.getPrimaryStyle(context)
+ButtonStyles.getSecondaryStyle(context)
+ButtonStyles.getOutlinedStyle(context)
 
-#### 输入框 (InputStyles)
-```dart
+// ✅ 使用 InputStyles
 InputStyles.getInputDecoration(context, hintText: '...')
 InputStyles.getSearchDecoration(context, hintText: '...')
-InputStyles.getCleanInputDecoration(context, hintText: '...')
-InputStyles.getTitleInputDecoration(context, hintText: '...')
-```
 
-### StyleGuide 高级应用
-
-```dart
-// 容器装饰
+// ✅ 优先使用 StyleGuide
 StyleGuide.getPageContainerDecoration(context)
 StyleGuide.getCardDecoration(context)
-StyleGuide.getListItemDecoration(context)
-
-// 状态组件
-StyleGuide.getEmptyState(context, message: '...', icon: Icons.inbox)
-StyleGuide.getLoadingState(context, message: '...')
-StyleGuide.getErrorState(context, message: '...', onRetry: ...)
-
-// 页面布局
-StyleGuide.getStandardPageLayout(context: context, child: ...)
-StyleGuide.getStandardListLayout(context: context, children: ...)
+StyleGuide.getEmptyState(context, message: '...')
 ```
 
-### 迁移指南
-
-| 旧API (废弃) | 新API (推荐) |
-|------------|------------|
-| `MyFontStyle.titleLarge` | `AppTypography.titleLarge(context)` |
-| `AppColors.primaryLight` | `AppColors.getPrimary(context)` |
-| `ComponentStyle.cardTheme()` | `CardStyles.*` 或 `StyleGuide.*` |
-
-### 优先级顺序
-1. 优先使用 `StyleGuide` 高级方法
-2. 其次使用组件样式类 (`ButtonStyles`, `InputStyles`)
-3. 再次使用基础 Tokens (`Dimensions`, `AppColors`, `AppTypography`)
-4. 最后才使用 `.copyWith()` 微调
-
-
-## 📋 代码规范
+## 📝 代码规范
 
 ### 命名约定
-- 文件/目录: `snake_case`
-- 类/枚举: `PascalCase`
-- 方法/变量: `camelCase`
-- 常量: `SCREAMING_SNAKE_CASE`
+```dart
+// 文件/目录: snake_case
+ai_chat_controller.dart
+user_profile/
+
+// 类/枚举: PascalCase
+class ArticleController {}
+enum MessageType {}
+
+// 方法/变量: camelCase
+void sendMessage() {}
+final userName = '';
+
+// 常量: SCREAMING_SNAKE_CASE
+const MAX_RETRY_COUNT = 3;
+```
 
 ### Import 规范
 ```dart
@@ -235,26 +256,29 @@ import 'package:flutter/material.dart';
 
 // 2. 第三方库
 import 'package:get/get.dart';
+import 'package:objectbox/objectbox.dart';
 
 // 3. 项目内导入(优先聚合导出)
 import 'package:daily_satori/app_exports.dart';
+import 'package:daily_satori/app/styles/index.dart';
 ```
 
-### 🎯 代码质量约束 (强制)
+## 🎯 代码质量强制约束
 
-#### 1. 函数长度限制
-- ✅ **必须**：每个函数/方法不超过 **50 行**
-- ✅ **必须**：代码缩进不超过 **3 层**
-- ✅ **推荐**：超过50行的函数必须拆分为多个小函数
-- ✅ **推荐**：使用提取方法(Extract Method)重构复杂逻辑
+### 1. 函数长度限制
+- ✅ **每个函数/方法不超过 50 行代码**
+- ✅ **代码缩进不超过 3 层**
+- 超过限制时必须拆分为多个小函数
 
-#### 2. 函数拆分原则
+### 2. 函数拆分原则
+
+#### 基本原则
 - 每个函数只做一件事
-- 函数名清楚表达意图
+- 函数名清晰表达意图
 - 避免副作用
 - 保持抽象层次一致
 
-#### 3. 提取方法 (Extract Method)
+#### 提取方法 (Extract Method)
 将复杂逻辑拆分为独立的小函数：
 
 ```dart
@@ -287,7 +311,7 @@ BoxDecoration _buildDecoration(BuildContext context) {
 }
 ```
 
-#### 4. 缩进控制
+#### 缩进控制
 使用提前 return 和提取函数避免深层嵌套：
 
 ```dart
@@ -315,7 +339,7 @@ void _processItem(Item item) {
 }
 ```
 
-### 📝 日志规范
+### 3. 日志规范
 
 #### 必须添加日志的场景
 - 用户操作（点击、输入、导航）
@@ -370,7 +394,7 @@ class ChatController extends BaseGetXController {
 }
 ```
 
-### 📚 文档注释规范
+### 4. 文档注释规范
 
 #### 必须添加文档注释
 - 所有 public 类
@@ -447,7 +471,7 @@ class MyWidget extends StatelessWidget {
 // ========================================================================
 ```
 
-### 🎨 Flutter 最佳实践
+### 5. Flutter 最佳实践
 
 #### Widget 构建原则
 ```dart
@@ -504,7 +528,7 @@ Widget build(BuildContext context) {
 }
 ```
 
-### 🗂️ 代码组织
+### 6. 代码组织
 
 #### 类成员顺序
 1. 常量
@@ -550,65 +574,54 @@ class MyPage extends StatelessWidget {
 }
 ```
 
-## 🏆 功能模块规范
+### 6. 样式系统约束
 
-### 首页 (Home)
-- 底部导航：文章、日记、读书、设置
+```dart
+// ✅ 必须使用统一样式系统
+import 'package:daily_satori/app/styles/index.dart';
 
-### 文章模块 (Articles, ArticleDetail)
-- 列表：分页、搜索、标签/收藏/日期筛选
-- 详情：截图分享、图片管理、AI生成Markdown
-- 状态共享：依赖状态服务跨页面更新
+// ✅ 使用主题感知颜色
+AppColors.getPrimary(context)
+AppColors.getSurface(context)
 
-### 日记模块 (Diary)
-- `DiaryEditor` 组件供读书页复用
+// ✅ 使用标准间距
+Dimensions.spacingS/M/L
+Dimensions.paddingPage
 
-### 读书模块 (Books) - **强约束**
-- ✅ **必须**始终显示"添加感悟"悬浮按钮(FAB)
-- 位置：右下角 `FloatingActionButtonLocation.endFloat`
-- 图标：`Icons.edit_note` | tooltip: `添加感悟`
-- 点击行为：预填模板 + 打开 `DiaryEditor`
-- ❌ **禁止**在无观点时隐藏FAB
+// ✅ 使用标准字体
+AppTypography.titleLarge
+AppTypography.bodyMedium
 
-### 备份与还原
-- 本地备份、归档/解档
-- **图片路径恢复**：从备份恢复后自动修复路径
-- 使用 `FileService.i.resolveLocalMediaPath`
-
-### AI 能力
-- 翻译、摘要、HTML→Markdown
-- 配置：assets + 设置可覆盖
-
-### 其他服务
-- Web内容解析、ADBlock
-- 应用升级、剪贴板监控、磁盘清理
-- 分享功能
-
-## ⚙️ 服务注册
-
-- 新服务实现 `AppService`
-- 在 `ServiceRegistry.registerAll()` 注册
-- 按优先级：critical/high/normal/low
-- 资源管理：Controller 中正确 dispose
-
-
-## 📝 代码质量检查
-
-### 强制执行 flutter analyze
-```bash
-# ✅ 每次代码修改后必须执行
-flutter analyze
-
-# ✅ 确保输出: No issues found!
+// ❌ 禁止硬编码
+Color(0xFF5E8BFF)
+EdgeInsets.all(16)
+TextStyle(fontSize: 14)
 ```
 
-**执行要求**：
-- 修改代码后立即执行
-- 修复所有 error、warning、info
-- 再次执行确认无问题
-- 提交前最终检查
+### 7. GetX 架构约束
 
-## 🔍 检查清单
+```dart
+// ✅ 必须继承 BaseGetXController
+class MyController extends BaseGetXController {
+  // ✅ 使用响应式变量
+  final count = 0.obs;
+
+  // ✅ 使用 safeExecute 处理异步
+  Future<void> loadData() async {
+    await safeExecute(() async {
+      // 异步逻辑...
+    });
+  }
+}
+
+// ✅ UI 使用 Obx 更新
+Obx(() => Text('Count: ${controller.count.value}'))
+
+// ❌ 禁止 Get.find() 查找其他控制器
+// ❌ 禁止直接使用 Get.toNamed()，使用 NavigationService
+```
+
+## 🔍 代码审查检查清单
 
 ### 架构约束
 - [ ] 继承 `BaseGetXController`
@@ -650,23 +663,31 @@ flutter analyze
 - [ ] 避免在 build 中创建对象
 - [ ] 正确处理资源释放 (dispose)
 
-### 功能约束
-- [ ] 读书页FAB始终显示
-- [ ] 备份恢复后路径修复
-- [ ] UTC存储与本地化显示
+### 安全与隐私
 - [ ] 敏感信息不输出日志
+- [ ] UTC存储与本地化显示
+- [ ] 正确处理用户数据
 
 ## ⚠️ 违规后果
+
 - 代码审查不通过
 - PR被拒绝
 - 需重构后重新提交
-- **未执行analyze的代码直接拒绝**
+- **未执行 analyze 的代码直接拒绝**
 
-## 🔄 文档维护
-- 架构/服务/功能变更需同步更新
-- 新增模块补充到相应章节
-- 确保文档与代码一致
+## 📚 参考文档
+
+- **完整规范**: 项目根目录 `CLAUDE.md`
+- **架构设计**: 查看 CLAUDE.md 中的系统架构章节
+- **功能模块**: 查看 CLAUDE.md 中的功能模块规范
+
+## 🔄 文档同步
+
+本文件与 `CLAUDE.md` 保持同步更新，确保：
+- GitHub Copilot 生成的代码遵循相同规范
+- Claude Code 生成的代码遵循相同规范
+- 所有开发者使用一致的编码标准
 
 ---
 
-**所有开发者必须严格遵守这些约束。如有疑问，开发前讨论确认。**
+**这些规范是强制性的，所有生成的代码必须遵守。**

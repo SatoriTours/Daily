@@ -188,121 +188,133 @@ class MessageBubble extends StatelessWidget {
     return Container(
       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
       padding: Dimensions.paddingS,
-      decoration: BoxDecoration(
-        color: _getBackgroundColor(context),
-        borderRadius: BorderRadius.circular(Dimensions.radiusS),
-        border: _getBorder(context),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 3, offset: const Offset(0, 1))],
-      ),
+      decoration: _buildMessageDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (message.showThinking && message.type == ChatMessageType.thinking) ...[
-            Row(
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.getOnSurfaceVariant(context)),
-                  ),
-                ),
-                Dimensions.horizontalSpacerS,
-                Text(
-                  'ai_chat.thinking'.t,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.getOnSurfaceVariant(context),
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            ),
-            Dimensions.verticalSpacerS,
-          ],
-          // 对于 AI 助手的回复使用 Markdown 渲染，其他消息用普通文本
-          if (message.type == ChatMessageType.assistant && message.content.trim().isNotEmpty)
-            MarkdownBody(
-              data: message.content,
-              selectable: true,
-              styleSheet: MarkdownStyleSheet(
-                // 段落样式 - 紧凑布局
-                p: _getTextStyle(context).copyWith(height: 1.4),
-                pPadding: const EdgeInsets.only(bottom: 4),
-
-                // 标题样式 - 减小间距和字体
-                h1: AppTypography.titleLarge.copyWith(
-                  color: AppColors.getOnSurface(context),
-                  fontWeight: FontWeight.bold,
-                  height: 1.3,
-                ),
-                h1Padding: const EdgeInsets.only(top: 8, bottom: 4),
-
-                h2: AppTypography.titleMedium.copyWith(
-                  color: AppColors.getOnSurface(context),
-                  fontWeight: FontWeight.bold,
-                  height: 1.3,
-                ),
-                h2Padding: const EdgeInsets.only(top: 6, bottom: 3),
-
-                h3: AppTypography.titleSmall.copyWith(
-                  color: AppColors.getOnSurface(context),
-                  fontWeight: FontWeight.w600,
-                  height: 1.3,
-                ),
-                h3Padding: const EdgeInsets.only(top: 4, bottom: 2),
-
-                h4: AppTypography.bodyLarge.copyWith(
-                  color: AppColors.getOnSurface(context),
-                  fontWeight: FontWeight.w600,
-                ),
-
-                // 强调和斜体
-                strong: _getTextStyle(
-                  context,
-                ).copyWith(fontWeight: FontWeight.bold, color: AppColors.getPrimary(context)),
-                em: _getTextStyle(
-                  context,
-                ).copyWith(fontStyle: FontStyle.italic, color: AppColors.getOnSurfaceVariant(context)),
-
-                // 列表样式 - 更紧凑
-                listBullet: _getTextStyle(context).copyWith(height: 1.3),
-                listIndent: 16,
-                listBulletPadding: const EdgeInsets.only(right: 4),
-
-                // 代码样式 - 优化背景和边距
-                code: AppTypography.bodySmall.copyWith(
-                  fontFamily: 'monospace',
-                  backgroundColor: AppColors.getSurfaceContainer(context),
-                  color: AppColors.getPrimary(context),
-                ),
-                codeblockPadding: const EdgeInsets.all(12),
-                codeblockDecoration: BoxDecoration(
-                  color: AppColors.getSurfaceContainer(context),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.2)),
-                ),
-
-                // 引用块样式 - 增加视觉层次
-                blockquotePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                blockquoteDecoration: BoxDecoration(
-                  color: AppColors.getSurfaceContainer(context).withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border(left: BorderSide(color: AppColors.getPrimary(context), width: 4)),
-                ),
-
-                // 水平线样式
-                horizontalRuleDecoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: AppColors.getOutline(context).withValues(alpha: 0.3), width: 1),
-                  ),
-                ),
-              ),
-            )
-          else
-            Text(message.content, style: _getTextStyle(context)),
+          if (message.showThinking && message.type == ChatMessageType.thinking) _buildThinkingIndicator(context),
+          _buildMessageText(context),
         ],
       ),
+    );
+  }
+
+  /// 构建消息装饰
+  BoxDecoration _buildMessageDecoration(BuildContext context) {
+    return BoxDecoration(
+      color: _getBackgroundColor(context),
+      borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      border: _getBorder(context),
+      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 3, offset: const Offset(0, 1))],
+    );
+  }
+
+  /// 构建思考指示器
+  Widget _buildThinkingIndicator(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.getOnSurfaceVariant(context)),
+              ),
+            ),
+            Dimensions.horizontalSpacerS,
+            Text(
+              'ai_chat.thinking'.t,
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.getOnSurfaceVariant(context),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        Dimensions.verticalSpacerS,
+      ],
+    );
+  }
+
+  /// 构建消息文本
+  Widget _buildMessageText(BuildContext context) {
+    if (message.type == ChatMessageType.assistant && message.content.trim().isNotEmpty) {
+      return MarkdownBody(data: message.content, selectable: true, styleSheet: _buildMarkdownStyleSheet(context));
+    }
+    return Text(message.content, style: _getTextStyle(context));
+  }
+
+  /// 构建 Markdown 样式表
+  MarkdownStyleSheet _buildMarkdownStyleSheet(BuildContext context) {
+    return MarkdownStyleSheet(
+      // 段落样式
+      p: _getTextStyle(context).copyWith(height: 1.4),
+      pPadding: const EdgeInsets.only(bottom: 4),
+      // 标题样式
+      h1: _buildHeadingStyle(context, AppTypography.titleLarge),
+      h1Padding: const EdgeInsets.only(top: 8, bottom: 4),
+      h2: _buildHeadingStyle(context, AppTypography.titleMedium),
+      h2Padding: const EdgeInsets.only(top: 6, bottom: 3),
+      h3: _buildHeadingStyle(context, AppTypography.titleSmall, FontWeight.w600),
+      h3Padding: const EdgeInsets.only(top: 4, bottom: 2),
+      h4: AppTypography.bodyLarge.copyWith(color: AppColors.getOnSurface(context), fontWeight: FontWeight.w600),
+      // 强调样式
+      strong: _getTextStyle(context).copyWith(fontWeight: FontWeight.bold, color: AppColors.getPrimary(context)),
+      em: _getTextStyle(context).copyWith(fontStyle: FontStyle.italic, color: AppColors.getOnSurfaceVariant(context)),
+      // 列表样式
+      listBullet: _getTextStyle(context).copyWith(height: 1.3),
+      listIndent: 16,
+      listBulletPadding: const EdgeInsets.only(right: 4),
+      // 代码样式
+      code: _buildCodeStyle(context),
+      codeblockPadding: const EdgeInsets.all(12),
+      codeblockDecoration: _buildCodeBlockDecoration(context),
+      // 引用块样式
+      blockquotePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      blockquoteDecoration: _buildBlockquoteDecoration(context),
+      // 水平线样式
+      horizontalRuleDecoration: _buildHorizontalRuleDecoration(context),
+    );
+  }
+
+  /// 构建标题样式
+  TextStyle _buildHeadingStyle(BuildContext context, TextStyle baseStyle, [FontWeight weight = FontWeight.bold]) {
+    return baseStyle.copyWith(color: AppColors.getOnSurface(context), fontWeight: weight, height: 1.3);
+  }
+
+  /// 构建代码样式
+  TextStyle _buildCodeStyle(BuildContext context) {
+    return AppTypography.bodySmall.copyWith(
+      fontFamily: 'monospace',
+      backgroundColor: AppColors.getSurfaceContainer(context),
+      color: AppColors.getPrimary(context),
+    );
+  }
+
+  /// 构建代码块装饰
+  BoxDecoration _buildCodeBlockDecoration(BuildContext context) {
+    return BoxDecoration(
+      color: AppColors.getSurfaceContainer(context),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.2)),
+    );
+  }
+
+  /// 构建引用块装饰
+  BoxDecoration _buildBlockquoteDecoration(BuildContext context) {
+    return BoxDecoration(
+      color: AppColors.getSurfaceContainer(context).withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(8),
+      border: Border(left: BorderSide(color: AppColors.getPrimary(context), width: 4)),
+    );
+  }
+
+  /// 构建水平线装饰
+  BoxDecoration _buildHorizontalRuleDecoration(BuildContext context) {
+    return BoxDecoration(
+      border: Border(top: BorderSide(color: AppColors.getOutline(context).withValues(alpha: 0.3), width: 1)),
     );
   }
 
