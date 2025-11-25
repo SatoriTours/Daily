@@ -2,17 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/extensions/i18n_extension.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/modules/ai_chat/models/search_result.dart';
 import 'chat_message.dart';
 import 'search_result_card.dart';
 
 /// 聊天消息气泡组件
+///
+/// 根据消息类型渲染不同样式的气泡
+/// 支持用户消息、助手消息、系统消息、工具消息等多种类型
+/// 可显示处理步骤、搜索结果、子消息等附加信息
 class MessageBubble extends StatelessWidget {
+  // ========================================================================
+  // 属性
+  // ========================================================================
+
+  /// 聊天消息数据
   final ChatMessage message;
+
+  /// 重试回调函数
+  /// 当消息发送失败时，用户可点击重试按钮触发
   final VoidCallback? onRetry;
-  final bool isSubMessage; // 标记是否为子消息
+
+  /// 是否为子消息
+  /// 子消息会使用不同的布局和样式
+  final bool isSubMessage;
 
   const MessageBubble({super.key, required this.message, this.onRetry, this.isSubMessage = false});
+
+  // ========================================================================
+  // UI构建
+  // ========================================================================
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +89,13 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
+  // ========================================================================
+  // 辅助方法
+  // ========================================================================
+
   /// 获取对齐方式
+  ///
+  /// 用户消息右对齐，其他消息左对齐
   CrossAxisAlignment _getCrossAxisAlignment() {
     switch (message.type) {
       case ChatMessageType.user:
@@ -83,6 +109,9 @@ class MessageBubble extends StatelessWidget {
   }
 
   /// 构建消息头部
+  ///
+  /// 显示消息发送者标识和时间戳
+  /// 系统消息和思考消息不显示头部
   Widget _buildMessageHeader(BuildContext context) {
     if (message.type == ChatMessageType.system || message.type == ChatMessageType.thinking) {
       return const SizedBox.shrink();
@@ -152,6 +181,9 @@ class MessageBubble extends StatelessWidget {
   }
 
   /// 构建消息内容
+  ///
+  /// 根据消息类型选择合适的渲染方式
+  /// Markdown 渲染用于助手消息，普通文本用于其他类型
   Widget _buildMessageContent(BuildContext context) {
     return Container(
       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
@@ -248,20 +280,22 @@ class MessageBubble extends StatelessWidget {
                 codeblockDecoration: BoxDecoration(
                   color: AppColors.getSurfaceContainer(context),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.getOutline(context).withOpacity(0.2)),
+                  border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.2)),
                 ),
 
                 // 引用块样式 - 增加视觉层次
                 blockquotePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 blockquoteDecoration: BoxDecoration(
-                  color: AppColors.getSurfaceContainer(context).withOpacity(0.5),
+                  color: AppColors.getSurfaceContainer(context).withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(8),
                   border: Border(left: BorderSide(color: AppColors.getPrimary(context), width: 4)),
                 ),
 
                 // 水平线样式
                 horizontalRuleDecoration: BoxDecoration(
-                  border: Border(top: BorderSide(color: AppColors.getOutline(context).withOpacity(0.3), width: 1)),
+                  border: Border(
+                    top: BorderSide(color: AppColors.getOutline(context).withValues(alpha: 0.3), width: 1),
+                  ),
                 ),
               ),
             )
@@ -273,7 +307,13 @@ class MessageBubble extends StatelessWidget {
   }
 
   /// 构建处理步骤列表
+  ///
+  /// 显示AI处理过程中的各个步骤，包括进行中、完成和错误状态
   Widget _buildProcessingSteps(BuildContext context) {
+    if (message.processingSteps != null && message.processingSteps!.isNotEmpty) {
+      logger.d('[MessageBubble] 渲染处理步骤: ${message.processingSteps!.length} 个');
+    }
+
     return Container(
       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
       padding: Dimensions.paddingS,
@@ -338,7 +378,13 @@ class MessageBubble extends StatelessWidget {
   }
 
   /// 构建子消息
+  ///
+  /// 嵌套显示子消息，使用左侧缩进表示层级关系
   Widget _buildSubMessages(BuildContext context) {
+    if (message.subMessages != null && message.subMessages!.isNotEmpty) {
+      logger.d('[MessageBubble] 渲染子消息: ${message.subMessages!.length} 个');
+    }
+
     return Container(
       padding: const EdgeInsets.only(left: 24), // 左侧缩进显示层级关系
       child: Column(
@@ -358,15 +404,22 @@ class MessageBubble extends StatelessWidget {
   }
 
   /// 构建重试按钮
+  ///
+  /// 当消息发送失败时显示，允许用户重新发送
   Widget _buildRetryButton(BuildContext context) {
     return TextButton.icon(
-      onPressed: onRetry,
+      onPressed: () {
+        logger.i('[MessageBubble] 用户点击重试按钮');
+        onRetry?.call();
+      },
       icon: Icon(Icons.refresh, size: Dimensions.iconSizeS, color: AppColors.getError(context)),
       label: Text('ai_chat.retry'.t, style: AppTypography.bodySmall.copyWith(color: AppColors.getError(context))),
     );
   }
 
   /// 获取背景颜色
+  ///
+  /// 根据消息类型返回对应的背景颜色
   Color _getBackgroundColor(BuildContext context) {
     switch (message.type) {
       case ChatMessageType.user:
@@ -382,7 +435,9 @@ class MessageBubble extends StatelessWidget {
     }
   }
 
-  /// 获取边框
+  /// 获取边框样式
+  ///
+  /// 工具消息显示边框，其他类型无边框
   Border? _getBorder(BuildContext context) {
     if (message.type == ChatMessageType.tool) {
       return Border.all(color: AppColors.getSecondary(context).withValues(alpha: 0.3), width: 1);
@@ -391,6 +446,8 @@ class MessageBubble extends StatelessWidget {
   }
 
   /// 获取文本样式
+  ///
+  /// 根据消息类型和错误状态返回合适的文本样式
   TextStyle _getTextStyle(BuildContext context) {
     final baseStyle = message.type == ChatMessageType.user
         ? AppTypography.bodyMedium.copyWith(color: AppColors.getOnPrimary(context))
@@ -404,11 +461,18 @@ class MessageBubble extends StatelessWidget {
   }
 
   /// 构建搜索结果列表
+  ///
+  /// 使用可折叠组件显示搜索结果，避免占用过多空间
   Widget _buildSearchResults(BuildContext context) {
+    if (message.searchResults != null && message.searchResults!.isNotEmpty) {
+      logger.d('[MessageBubble] 渲染搜索结果: ${message.searchResults!.length} 条');
+    }
     return _CollapsibleSearchResults(searchResults: message.searchResults!);
   }
 
   /// 格式化时间
+  ///
+  /// 将时间戳转换为相对时间或绝对时间格式
   String _formatTime(DateTime time) {
     final now = DateTime.now();
     final difference = now.difference(time);
@@ -426,6 +490,8 @@ class MessageBubble extends StatelessWidget {
 }
 
 /// 可折叠的搜索结果组件
+///
+/// 提供折叠/展开功能，默认折叠以节省空间
 class _CollapsibleSearchResults extends StatefulWidget {
   final List<dynamic> searchResults;
 
@@ -450,6 +516,7 @@ class _CollapsibleSearchResultsState extends State<_CollapsibleSearchResults> {
             onTap: () {
               setState(() {
                 _isExpanded = !_isExpanded;
+                logger.d('[MessageBubble] 搜索结果${_isExpanded ? "展开" : "折叠"}');
               });
             },
             borderRadius: BorderRadius.circular(Dimensions.radiusS),

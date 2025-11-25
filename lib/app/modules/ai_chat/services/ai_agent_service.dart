@@ -8,15 +8,52 @@ import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import '../models/tool_call.dart';
 import '../models/search_result.dart';
 
-/// AI Agent 服务 - 智能搜索和内容分析
+/// AI Agent 服务
 ///
-/// 核心流程：分析意图 → 生成计划 → 执行搜索 → 生成答案
+/// 负责智能搜索和内容分析的核心服务
+///
+/// **核心流程**:
+/// 1. 分析意图 - 理解用户想要查找什么类型的内容
+/// 2. 生成计划 - 制定搜索策略和关键词
+/// 3. 执行搜索 - 在文章、日记、书籍中搜索
+/// 4. 生成答案 - 用AI总结搜索结果
 class AIAgentService {
+  // ========================================================================
+  // 单例模式
+  // ========================================================================
+
   static AIAgentService? _instance;
   static AIAgentService get i => _instance ??= AIAgentService._();
   AIAgentService._();
 
-  /// 处理用户查询 - 主流程入口
+  // ========================================================================
+  // 常量配置
+  // ========================================================================
+
+  /// 搜索结果最大数量
+  static const int _maxSearchResults = 10;
+
+  /// 内容分析最大长度
+  static const int _maxContentLength = 6000;
+
+  /// 内容摘要预览长度
+  static const int _summaryPreviewLength = 150;
+
+  // ========================================================================
+  // 主流程方法
+  // ========================================================================
+
+  /// 处理用户查询
+  ///
+  /// 这是AI Agent的主入口方法，完整处理用户的查询请求
+  ///
+  /// [query] 用户查询内容
+  /// [onStep] 步骤更新回调
+  /// [onToolCall] 工具调用回调
+  /// [onResult] 结果更新回调
+  /// [onSearchResults] 搜索结果回调
+  ///
+  /// 返回AI生成的最终答案
   Future<String> processQuery({
     required String query,
     required Function(String step, String status) onStep,
@@ -24,55 +61,110 @@ class AIAgentService {
     required Function(String result) onResult,
     required Function(List<SearchResult> results) onSearchResults,
   }) async {
-    try {
-      logger.i('[AI Agent] 🚀 开始处理: $query');
+    logger.i('[AIAgentService] ========== 开始处理查询 ==========');
+    logger.i('[AIAgentService] 查询内容: $query');
 
-      // 步骤1: 分析意图
-      onStep('ai_chat.step_analyzing_query'.t, 'processing');
-      final intent = await _analyzeIntent(query);
-      logger.i('[AI Agent] ✅ 意图: ${intent.description}');
-      onStep('ai_chat.step_analyzing_query'.t, 'completed');
+    try {
+      // 步骤1: 分析用户意图
+      final intent = await _executeStep(
+        onStep,
+        'ai_chat.step_analyzing_query'.t,
+        () => _analyzeIntent(query),
+        '意图: ',
+      );
 
       // 步骤2: 生成搜索计划
-      onStep('ai_chat.step_planning_tools'.t, 'processing');
-      final toolPlan = await _generateToolPlan(query, intent);
-      logger.i('[AI Agent] ✅ 计划: ${toolPlan.length}个搜索任务');
-      onStep('ai_chat.step_planning_tools'.t, 'completed');
+      final toolPlan = await _executeStep(
+        onStep,
+        'ai_chat.step_planning_tools'.t,
+        () => _generateToolPlan(query, intent),
+        '计划: ',
+      );
 
-      // 步骤3: 执行搜索
-      onStep('ai_chat.step_searching'.t, 'processing');
-      final allSearchResults = await _executeAllSearches(toolPlan);
-      logger.i('[AI Agent] ✅ 搜索: 共找到${allSearchResults.length}条结果');
-      onStep('ai_chat.step_searching'.t, 'completed');
+      // 步骤3: 执行所有搜索
+      final searchResults = await _executeStep(
+        onStep,
+        'ai_chat.step_searching'.t,
+        () => _executeSearchPlan(toolPlan),
+        '搜索: ',
+      );
 
       // 步骤4: 生成AI答案
-      onStep('ai_chat.step_summarizing'.t, 'processing');
-      final summary = await _summarizeResults(query, allSearchResults);
-      logger.i('[AI Agent] ✅ 完成: 已生成AI答案');
-      onStep('ai_chat.step_summarizing'.t, 'completed');
+      final answer = await _executeStep(
+        onStep,
+        'ai_chat.step_summarizing'.t,
+        () => _generateAnswer(query, searchResults),
+        '完成: ',
+      );
 
-      onResult(summary);
-      onSearchResults(allSearchResults);
+      // 通知结果
+      onResult(answer);
+      onSearchResults(searchResults);
 
-      logger.i('[AI Agent] 🎉 处理完成\n');
-      return summary;
+      logger.i('[AIAgentService] ========== 处理完成 ==========\n');
+      return answer;
+
     } catch (e, stackTrace) {
-      logger.e('[AI Agent] ❌ 处理失败: $e\n$stackTrace');
+      logger.e('[AIAgentService] 处理失败', error: e, stackTrace: stackTrace);
       onStep('ai_chat.step_error_occurred'.t, 'error');
       rethrow;
     }
   }
 
-  /// 执行所有搜索任务
-  Future<List<SearchResult>> _executeAllSearches(List<ToolCall> toolPlan) async {
+  /// 执行步骤（通用步骤执行器）
+  ///
+  /// [onStep] 步骤回调
+  /// [stepName] 步骤名称
+  /// [action] 要执行的操作
+  /// [logPrefix] 日志前缀
+  ///
+  /// 返回操作的结果
+  Future<T> _executeStep<T>(
+    Function(String, String) onStep,
+    String stepName,
+    Future<T> Function() action,
+    String logPrefix,
+  ) async {
+    // 开始步骤
+    onStep(stepName, 'processing');
+
+    // 执行操作
+    final result = await action();
+
+    // 记录日志
+    String resultLog;
+    if (result is QueryIntent) {
+      resultLog = result.description;
+    } else if (result is List<ToolCall>) {
+      resultLog = '${result.length}个搜索任务';
+    } else if (result is List<SearchResult>) {
+      resultLog = '找到${result.length}条结果';
+    } else {
+      resultLog = '已生成答案';
+    }
+    logger.i('[AIAgentService] $logPrefix$resultLog');
+
+    // 完成步骤
+    onStep(stepName, 'completed');
+
+    return result;
+  }
+
+  /// 执行搜索计划
+  ///
+  /// [toolPlan] 工具调用计划列表
+  /// 返回所有搜索结果
+  Future<List<SearchResult>> _executeSearchPlan(List<ToolCall> toolPlan) async {
     final allResults = <SearchResult>[];
 
     for (var i = 0; i < toolPlan.length; i++) {
       final toolCall = toolPlan[i];
+      logger.d('[AIAgentService] 执行任务 ${i + 1}/${toolPlan.length}: ${toolCall.name}');
+
       final results = await _executeToolCall(toolCall);
 
       if (results.isNotEmpty) {
-        logger.d('[AI Agent]   任务${i + 1}: ${results.length}条 [${toolCall.type.name}]');
+        logger.d('[AIAgentService] 任务${i + 1}完成: ${results.length}条结果');
       }
       allResults.addAll(results);
     }
@@ -80,59 +172,139 @@ class AIAgentService {
     return allResults;
   }
 
+  // ========================================================================
+  // 步骤实现 - 意图分析
+  // ========================================================================
+
   /// 分析用户意图
+  ///
+  /// 使用AI分析用户查询，判断用户想要查找什么类型的内容
+  ///
+  /// [query] 用户查询
+  /// 返回查询意图类型
   Future<QueryIntent> _analyzeIntent(String query) async {
+    logger.d('[AIAgentService] 开始分析意图');
+
+    // 模拟思考时间
     await Future.delayed(const Duration(milliseconds: 800));
 
-    final prompt = _Prompts.intentAnalysis.replaceAll('{query}', query);
+    // 调用AI分析
+    final prompt = _buildPrompt(_Prompts.intentAnalysis, {'query': query});
     final aiResult = await AiService.i.getCompletion(prompt, functionType: 0);
-    final intentStr = aiResult.trim().toLowerCase();
 
-    QueryIntent intent = QueryIntent.general;
-    if (intentStr.contains('article')) {
-      intent = QueryIntent.articles;
-    } else if (intentStr.contains('diary')) {
-      intent = QueryIntent.diary;
-    } else if (intentStr.contains('book')) {
-      intent = QueryIntent.books;
-    } else if (intentStr.contains('summary')) {
-      intent = QueryIntent.summary;
-    }
+    // 解析意图
+    final intent = _parseIntentResult(aiResult);
 
+    logger.d('[AIAgentService] 意图分析完成: ${intent.description}');
     return intent;
   }
 
+  /// 解析AI返回的意图结果
+  ///
+  /// [aiResult] AI返回的文本
+  /// 返回对应的QueryIntent枚举
+  QueryIntent _parseIntentResult(String aiResult) {
+    final intentStr = aiResult.trim().toLowerCase();
+
+    if (intentStr.contains('article')) {
+      return QueryIntent.articles;
+    } else if (intentStr.contains('diary')) {
+      return QueryIntent.diary;
+    } else if (intentStr.contains('book')) {
+      return QueryIntent.books;
+    } else if (intentStr.contains('summary')) {
+      return QueryIntent.summary;
+    }
+
+    return QueryIntent.general;
+  }
+
+  // ========================================================================
+  // 步骤实现 - 计划生成
+  // ========================================================================
+
   /// 生成搜索计划
+  ///
+  /// 根据用户意图和查询内容，生成详细的搜索计划
+  ///
+  /// [query] 用户查询
+  /// [intent] 查询意图
+  /// 返回工具调用计划列表
   Future<List<ToolCall>> _generateToolPlan(String query, QueryIntent intent) async {
+    logger.d('[AIAgentService] 开始生成搜索计划');
+
+    // 模拟思考时间
     await Future.delayed(const Duration(milliseconds: 1200));
 
     // 提取搜索参数
-    final searchKeywords = await _extractSearchKeywords(query);
+    final keywords = await _extractSearchKeywords(query);
     final dateRange = await _extractDateRange(query);
     final filters = await _extractFilters(query);
 
-    final effectiveQuery = searchKeywords.isEmpty ? query : searchKeywords;
+    // 选择有效的查询词
+    final effectiveQuery = keywords.isNotEmpty ? keywords : query;
 
-    // 根据意图生成搜索计划
+    logger.d('[AIAgentService] 搜索关键词: $effectiveQuery');
+
+    // 根据意图生成计划
+    final toolCalls = _buildToolCallsByIntent(
+      intent,
+      effectiveQuery,
+      keywords,
+      dateRange,
+      filters,
+    );
+
+    logger.d('[AIAgentService] 计划生成完成: ${toolCalls.length}个任务');
+    return toolCalls;
+  }
+
+  /// 根据意图构建工具调用列表
+  ///
+  /// [intent] 查询意图
+  /// [effectiveQuery] 有效查询词
+  /// [keywords] 提取的关键词
+  /// [dateRange] 日期范围
+  /// [filters] 过滤条件
+  ///
+  /// 返回工具调用列表
+  List<ToolCall> _buildToolCallsByIntent(
+    QueryIntent intent,
+    String effectiveQuery,
+    String keywords,
+    DateTimeRange? dateRange,
+    Map<String, dynamic> filters,
+  ) {
     final toolCalls = <ToolCall>[];
+
     switch (intent) {
       case QueryIntent.articles:
-        toolCalls.add(ToolCall.searchArticles(query: effectiveQuery, filters: filters));
+        toolCalls.add(ToolCall.searchArticles(
+          query: effectiveQuery,
+          filters: filters,
+        ));
         break;
+
       case QueryIntent.diary:
-        toolCalls.add(ToolCall.searchDiary(query: effectiveQuery, dateRange: dateRange));
+        toolCalls.add(ToolCall.searchDiary(
+          query: effectiveQuery,
+          dateRange: dateRange,
+        ));
         break;
+
       case QueryIntent.books:
         toolCalls.add(ToolCall.searchBooks(query: effectiveQuery));
         break;
+
       case QueryIntent.summary:
-        if (searchKeywords.isNotEmpty) {
-          toolCalls.add(ToolCall.searchArticles(query: searchKeywords, filters: {}));
-          toolCalls.add(ToolCall.searchDiary(query: searchKeywords, dateRange: dateRange));
+        if (keywords.isNotEmpty) {
+          toolCalls.add(ToolCall.searchArticles(query: keywords, filters: {}));
+          toolCalls.add(ToolCall.searchDiary(query: keywords, dateRange: dateRange));
         } else {
-          toolCalls.add(ToolCall.searchAll(query: query));
+          toolCalls.add(ToolCall.searchAll(query: effectiveQuery));
         }
         break;
+
       case QueryIntent.general:
         toolCalls.add(ToolCall.searchAll(query: effectiveQuery));
         break;
@@ -140,6 +312,10 @@ class AIAgentService {
 
     return toolCalls;
   }
+
+  // ========================================================================
+  // 参数提取方法
+  // ========================================================================
 
   /// 执行工具调用
   Future<List<SearchResult>> _executeToolCall(ToolCall toolCall) async {
@@ -158,10 +334,23 @@ class AIAgentService {
     }
   }
 
-  /// 总结搜索结果
-  Future<String> _summarizeResults(String query, List<SearchResult> results) async {
+  // ========================================================================
+  // 步骤实现 - 答案生成
+  // ========================================================================
+
+  /// 生成最终答案
+  ///
+  /// 根据搜索结果生成AI答案
+  ///
+  /// [query] 用户查询
+  /// [results] 搜索结果列表
+  /// 返回AI生成的答案
+  Future<String> _generateAnswer(String query, List<SearchResult> results) async {
+    logger.d('[AIAgentService] 开始生成答案');
+
     await Future.delayed(const Duration(milliseconds: 800));
 
+    // 处理空结果
     if (results.isEmpty) {
       return await _handleEmptyResults(query);
     }
@@ -169,70 +358,118 @@ class AIAgentService {
     // 获取完整内容
     final fullContents = await _fetchFullContents(results);
     if (fullContents.isEmpty) {
+      logger.w('[AIAgentService] 内容加载失败');
       return '😔 **未找到相关内容**\n\n很抱歉，搜索到的内容无法加载。';
     }
 
-    // 生成AI答案
-    final articles = results.where((r) => r.type == SearchResultType.article).length;
-    final diaries = results.where((r) => r.type == SearchResultType.diary).length;
-    final books = results.where((r) => r.type == SearchResultType.book).length;
+    // 统计结果类型
+    final stats = _calculateResultStats(results);
+    logger.d('[AIAgentService] 结果统计: ${stats['articles']}篇文章, ${stats['diaries']}条日记, ${stats['books']}本书');
 
-    return await _generateAIAnswer(query, fullContents, articles, diaries, books);
+    // 生成AI答案
+    return await _generateAIResponse(query, fullContents, stats);
   }
 
-  /// 处理空结果
+  /// 处理空结果情况
+  ///
+  /// 当没有搜索到结果时，分析是否为外部问题并返回适当的回复
+  ///
+  /// [query] 用户查询
+  /// 返回空结果的回复消息
   Future<String> _handleEmptyResults(String query) async {
-    final prompt = _Prompts.emptyResultAnalysis.replaceAll('{query}', query);
+    logger.i('[AIAgentService] 处理空结果');
+
+    final prompt = _buildPrompt(_Prompts.emptyResultAnalysis, {'query': query});
     final aiResult = await AiService.i.getCompletion(prompt, functionType: 0);
     final isExternalQuestion = aiResult.trim().toLowerCase().contains('external');
 
     if (isExternalQuestion) {
-      return _Messages.externalQuestionResponse.replaceAll('{query}', query);
+      logger.d('[AIAgentService] 识别为外部问题');
+      return _buildMessage(_Messages.externalQuestionResponse, {'query': query});
     }
-    return _Messages.noResultsResponse.replaceAll('{query}', query);
+
+    logger.d('[AIAgentService] 识别为搜索无结果');
+    return _buildMessage(_Messages.noResultsResponse, {'query': query});
   }
 
+  /// 统计搜索结果
+  ///
+  /// [results] 搜索结果列表
+  /// 返回包含各类型数量的统计映射
+  Map<String, int> _calculateResultStats(List<SearchResult> results) {
+    return {
+      'articles': results.where((r) => r.type == SearchResultType.article).length,
+      'diaries': results.where((r) => r.type == SearchResultType.diary).length,
+      'books': results.where((r) => r.type == SearchResultType.book).length,
+    };
+  }
+
+  // ========================================================================
+  // 内容提取方法
+  // ========================================================================
+
   /// 提取搜索关键词
+  ///
+  /// 使用AI从查询中提取核心关键词，包括同义词扩展
+  ///
+  /// [query] 用户查询
+  /// 返回提取的关键词字符串
   Future<String> _extractSearchKeywords(String query) async {
-    final prompt = _Prompts.keywordExtraction.replaceAll('{query}', query);
+    final prompt = _buildPrompt(_Prompts.keywordExtraction, {'query': query});
     final aiResult = await AiService.i.getCompletion(prompt, functionType: 0);
     final keywords = aiResult.trim();
 
-    logger.d('[AI Agent]   关键词: $keywords');
+    logger.d('[AIAgentService] 提取关键词: $keywords');
     return keywords.isNotEmpty ? keywords : query;
   }
 
   /// 提取过滤条件
+  ///
+  /// 从查询中提取过滤条件（如收藏、标签等）
+  ///
+  /// [query] 用户查询
+  /// 返回过滤条件映射
   Future<Map<String, dynamic>> _extractFilters(String query) async {
     final filters = <String, dynamic>{};
 
     try {
-      final prompt = _Prompts.filterExtraction.replaceAll('{query}', query);
+      final prompt = _buildPrompt(_Prompts.filterExtraction, {'query': query});
       final aiResult = await AiService.i.getCompletion(prompt, functionType: 0);
 
       if (aiResult.contains('"favorite": true') || aiResult.contains("'favorite': true")) {
         filters['favorite'] = true;
+        logger.d('[AIAgentService] 添加过滤条件: favorite=true');
       }
       if (aiResult.contains('"hasTags": true') || aiResult.contains("'hasTags': true")) {
         filters['hasTags'] = true;
+        logger.d('[AIAgentService] 添加过滤条件: hasTags=true');
       }
     } catch (e) {
-      logger.e('[AI Agent] 提取过滤条件失败: $e');
+      logger.e('[AIAgentService] 提取过滤条件失败', error: e);
     }
 
     return filters;
   }
 
   /// 提取日期范围
+  ///
+  /// 从查询中提取时间范围（如今天、本周等）
+  ///
+  /// [query] 用户查询
+  /// 返回日期范围，如果没有则返回null
   Future<DateTimeRange?> _extractDateRange(String query) async {
     try {
-      final prompt = _Prompts.dateExtraction.replaceAll('{query}', query);
+      final prompt = _buildPrompt(_Prompts.dateExtraction, {'query': query});
       final aiResult = await AiService.i.getCompletion(prompt, functionType: 0);
       final timeType = aiResult.trim().toLowerCase();
 
-      return _parseDateRange(timeType);
+      final dateRange = _parseDateRange(timeType);
+      if (dateRange != null) {
+        logger.d('[AIAgentService] 提取日期范围: $timeType');
+      }
+      return dateRange;
     } catch (e) {
-      logger.e('[AI Agent] 日期提取失败: $e');
+      logger.e('[AIAgentService] 日期提取失败', error: e);
       return null;
     }
   }
@@ -275,7 +512,12 @@ class AIAgentService {
   }
 
   /// 获取搜索结果的完整内容
+  ///
+  /// [results] 搜索结果列表
+  /// 返回内容映射 (键: 类型:ID, 值: 完整内容)
   Future<Map<String, String>> _fetchFullContents(List<SearchResult> results) async {
+    logger.d('[AIAgentService] 开始提取内容，共${results.length}条结果');
+
     final fullContents = <String, String>{};
 
     for (final result in results) {
@@ -285,10 +527,11 @@ class AIAgentService {
           fullContents['${result.type}:${result.id}'] = content;
         }
       } catch (e) {
-        logger.e('[AI Agent] 内容提取失败: ${result.type}:${result.id}', error: e);
+        logger.e('[AIAgentService] 内容提取失败: ${result.type}:${result.id}', error: e);
       }
     }
 
+    logger.d('[AIAgentService] 内容提取完成，共${fullContents.length}条有效内容');
     return fullContents;
   }
 
@@ -338,38 +581,109 @@ class AIAgentService {
     return '【书籍】${book.title}\n作者: ${book.author}\n\n$intro';
   }
 
-  /// 生成AI答案
-  Future<String> _generateAIAnswer(
+  /// 生成AI响应
+  ///
+  /// 使用AI分析内容并生成最终答案
+  ///
+  /// [query] 用户查询
+  /// [fullContents] 完整内容映射
+  /// [stats] 结果统计
+  /// 返回AI生成的答案
+  Future<String> _generateAIResponse(
     String query,
     Map<String, String> fullContents,
-    int articles,
-    int diaries,
-    int books,
+    Map<String, int> stats,
   ) async {
     if (fullContents.isEmpty) {
       return '抱歉，未找到相关内容。';
     }
 
-    // 合并内容（限制长度）
-    final allContent = fullContents.values.join('\n\n---\n\n');
-    final contentToAnalyze = allContent.length > 6000 ? allContent.substring(0, 6000) : allContent;
+    logger.d('[AIAgentService] 开始生成AI响应');
 
-    // 生成答案
-    final prompt = _Prompts.answerGeneration.replaceAll('{query}', query).replaceAll('{content}', contentToAnalyze);
+    // 合并并限制内容长度
+    final allContent = fullContents.values.join('\n\n---\n\n');
+    final contentToAnalyze = _limitContentLength(allContent, _maxContentLength);
+
+    // 构建提示词并调用AI
+    final prompt = _buildPrompt(
+      _Prompts.answerGeneration,
+      {'query': query, 'content': contentToAnalyze},
+    );
 
     final aiResponse = await AiService.i.getCompletion(prompt, functionType: 0);
+
+    logger.d('[AIAgentService] AI响应生成完成');
     return aiResponse.trim();
   }
 
+  // ========================================================================
+  // 工具辅助方法
+  // ========================================================================
+
+  /// 构建提示词
+  ///
+  /// 使用参数映射替换提示词模板中的占位符
+  ///
+  /// [template] 提示词模板
+  /// [params] 参数映射
+  /// 返回构建好的提示词
+  String _buildPrompt(String template, Map<String, String> params) {
+    var result = template;
+    params.forEach((key, value) {
+      result = result.replaceAll('{$key}', value);
+    });
+    return result;
+  }
+
+  /// 构建消息
+  ///
+  /// 使用参数映射替换消息模板中的占位符
+  ///
+  /// [template] 消息模板
+  /// [params] 参数映射
+  /// 返回构建好的消息
+  String _buildMessage(String template, Map<String, String> params) {
+    return _buildPrompt(template, params);
+  }
+
+  /// 限制内容长度
+  ///
+  /// [content] 原始内容
+  /// [maxLength] 最大长度
+  /// 返回限制长度后的内容
+  String _limitContentLength(String content, int maxLength) {
+    if (content.length <= maxLength) {
+      return content;
+    }
+    logger.d('[AIAgentService] 内容过长，截断至$maxLength字符');
+    return content.substring(0, maxLength);
+  }
+
+  // ========================================================================
+  // 搜索实现方法
+  // ========================================================================
+
   /// 搜索文章
+  ///
+  /// [params] 搜索参数 {
+  ///   'query': 关键词,
+  ///   'filters': {过滤条件}
+  /// }
+  /// 返回文章搜索结果列表
   List<SearchResult> _searchArticles(Map<String, dynamic> params) {
     final keyword = params['query'] as String?;
-    if (keyword == null || keyword.isEmpty) return [];
+    if (keyword == null || keyword.isEmpty) {
+      logger.w('[AIAgentService] 文章搜索: 关键词为空');
+      return [];
+    }
+
+    logger.d('[AIAgentService] 搜索文章: $keyword');
 
     final filters = params['filters'] as Map<String, dynamic>?;
-    final keywords = keyword.split(' ').where((k) => k.trim().isNotEmpty).toList();
+    final keywords = _splitKeywords(keyword);
     final articleMap = <int, dynamic>{};
 
+    // 使用每个关键词搜索，去重
     for (final kw in keywords) {
       final articles = ArticleRepository.i.findArticles(
         keyword: kw,
@@ -381,14 +695,9 @@ class AIAgentService {
       }
     }
 
-    return articleMap.values.take(10).map((article) {
-      String? summary;
-      if (article.aiContent?.isNotEmpty == true) {
-        summary = article.aiContent;
-      } else if (article.content?.isNotEmpty == true) {
-        summary = article.content!.length > 150 ? article.content!.substring(0, 150) : article.content;
-      }
-
+    // 转换为搜索结果
+    final results = articleMap.values.take(_maxSearchResults).map((article) {
+      final summary = _extractArticleSummary(article);
       return SearchResult.fromArticle(
         id: article.id,
         title: article.title ?? '无标题',
@@ -397,16 +706,28 @@ class AIAgentService {
         isFavorite: article.isFavorite,
       );
     }).toList();
+
+    logger.d('[AIAgentService] 文章搜索完成: ${results.length}条');
+    return results;
   }
 
   /// 搜索日记
+  ///
+  /// [params] 搜索参数 {'query': 关键词}
+  /// 返回日记搜索结果列表
   List<SearchResult> _searchDiary(Map<String, dynamic> params) {
     final keyword = params['query'] as String?;
-    if (keyword == null || keyword.isEmpty) return [];
+    if (keyword == null || keyword.isEmpty) {
+      logger.w('[AIAgentService] 日记搜索: 关键词为空');
+      return [];
+    }
 
-    final keywords = keyword.split(' ').where((k) => k.trim().isNotEmpty).toList();
+    logger.d('[AIAgentService] 搜索日记: $keyword');
+
+    final keywords = _splitKeywords(keyword);
     final diaryMap = <int, dynamic>{};
 
+    // 使用每个关键词搜索，去重
     for (final kw in keywords) {
       final diaries = DiaryRepository.i.findByContentPaginated(kw, 1);
       for (final diary in diaries) {
@@ -414,34 +735,42 @@ class AIAgentService {
       }
     }
 
-    return diaryMap.values.take(10).map((diary) {
+    // 转换为搜索结果
+    final results = diaryMap.values.take(_maxSearchResults).map((diary) {
       final content = diary.content;
-      final firstLine = content.split('\n').first;
-      final title = firstLine.length > 30 ? '${firstLine.substring(0, 30)}...' : firstLine;
-
-      List<String>? tagList;
-      if (diary.tags?.isNotEmpty == true) {
-        tagList = diary.tags!.split(',').where((String t) => t.trim().isNotEmpty).toList();
-      }
+      final title = _extractDiaryTitle(content);
+      final tags = _extractDiaryTags(diary.tags);
 
       return SearchResult.fromDiary(
         id: diary.id,
-        title: title.isNotEmpty ? title : '无标题',
-        summary: content.length > 150 ? '${content.substring(0, 150)}...' : content,
+        title: title,
+        summary: _limitContentLength(content, _summaryPreviewLength),
         createdAt: diary.createdAt,
-        tags: tagList,
+        tags: tags,
       );
     }).toList();
+
+    logger.d('[AIAgentService] 日记搜索完成: ${results.length}条');
+    return results;
   }
 
   /// 搜索书籍
+  ///
+  /// [params] 搜索参数 {'query': 关键词}
+  /// 返回书籍搜索结果列表
   List<SearchResult> _searchBooks(Map<String, dynamic> params) {
     final keyword = params['query'] as String?;
-    if (keyword == null || keyword.isEmpty) return [];
+    if (keyword == null || keyword.isEmpty) {
+      logger.w('[AIAgentService] 书籍搜索: 关键词为空');
+      return [];
+    }
 
-    final keywords = keyword.split(' ').where((k) => k.trim().isNotEmpty).toList();
+    logger.d('[AIAgentService] 搜索书籍: $keyword');
+
+    final keywords = _splitKeywords(keyword);
     final bookMap = <int, dynamic>{};
 
+    // 使用每个关键词搜索，去重
     for (final kw in keywords) {
       final books = BookRepository.i.findByTitle(kw);
       for (final book in books) {
@@ -449,7 +778,8 @@ class AIAgentService {
       }
     }
 
-    return bookMap.values.take(10).map((book) {
+    // 转换为搜索结果
+    final results = bookMap.values.take(_maxSearchResults).map((book) {
       return SearchResult.fromBook(
         id: book.id,
         title: book.title,
@@ -457,11 +787,86 @@ class AIAgentService {
         createdAt: book.createdAt,
       );
     }).toList();
+
+    logger.d('[AIAgentService] 书籍搜索完成: ${results.length}条');
+    return results;
   }
 
   /// 搜索所有内容
+  ///
+  /// 在文章、日记、书籍中全面搜索
+  ///
+  /// [params] 搜索参数
+  /// 返回所有类型的搜索结果
   List<SearchResult> _searchAll(Map<String, dynamic> params) {
-    return [..._searchArticles(params), ..._searchDiary(params), ..._searchBooks(params)];
+    logger.d('[AIAgentService] 执行全面搜索');
+
+    return [
+      ..._searchArticles(params),
+      ..._searchDiary(params),
+      ..._searchBooks(params),
+    ];
+  }
+
+  // ========================================================================
+  // 数据提取辅助方法
+  // ========================================================================
+
+  /// 分割关键词
+  ///
+  /// 将关键词字符串按空格分割成列表
+  ///
+  /// [keyword] 关键词字符串
+  /// 返回关键词列表
+  List<String> _splitKeywords(String keyword) {
+    return keyword.split(' ').where((k) => k.trim().isNotEmpty).toList();
+  }
+
+  /// 提取文章摘要
+  ///
+  /// 优先使用AI内容，其次使用原始内容
+  ///
+  /// [article] 文章对象
+  /// 返回摘要文本
+  String? _extractArticleSummary(dynamic article) {
+    if (article.aiContent?.isNotEmpty == true) {
+      return article.aiContent;
+    }
+
+    if (article.content?.isNotEmpty == true) {
+      return _limitContentLength(article.content, _summaryPreviewLength);
+    }
+
+    return null;
+  }
+
+  /// 提取日记标题
+  ///
+  /// 从内容第一行提取标题
+  ///
+  /// [content] 日记内容
+  /// 返回标题文本
+  String _extractDiaryTitle(String content) {
+    final firstLine = content.split('\n').first;
+    final title = firstLine.length > 30
+        ? '${firstLine.substring(0, 30)}...'
+        : firstLine;
+    return title.isNotEmpty ? title : '无标题';
+  }
+
+  /// 提取日记标签
+  ///
+  /// 从标签字符串解析为标签列表
+  ///
+  /// [tagsString] 标签字符串（逗号分隔）
+  /// 返回标签列表
+  List<String>? _extractDiaryTags(String? tagsString) {
+    if (tagsString?.isNotEmpty != true) return null;
+
+    return tagsString!
+        .split(',')
+        .where((t) => t.trim().isNotEmpty)
+        .toList();
   }
 }
 
