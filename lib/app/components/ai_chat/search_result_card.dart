@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/modules/ai_chat/models/search_result.dart';
+import 'package:daily_satori/app/pages/ai_chat/models/search_result.dart';
 
 /// 搜索结果卡片组件
 ///

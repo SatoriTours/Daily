@@ -9,7 +9,7 @@
 ### 唯一推荐用法 - 使用.t扩展方法
 
 ```dart
-import 'package:daily_satori/app/extensions/i18n_extension.dart';
+import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 // 基本翻译 - 所有国际化调用都使用这种方式
 'button.save'.t           // 获取"保存"
@@ -126,6 +126,6 @@ hintText: 'hint.search_articles'.t
 ## ⚠️ 重要注意事项
 
 1. **避免与GetX冲突**: 不要使用`.tr`，始终使用`.t`
-2. **导入必要**: 使用时需要导入`import 'package:daily_satori/app/extensions/i18n_extension.dart';`
+2. **导入必要**: 使用时需要导入`import 'package:daily_satori/app/utils/i18n_extension.dart';`（或通过 `app_exports.dart` 自动获得）
 3. **键名规范**: 使用小写字母和下划线，采用分层结构
 4. **const限制**: 包含`.t`调用的列表不能使用`const`关键字

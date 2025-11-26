@@ -1,0 +1,10 @@
+import 'package:daily_satori/app/pages/articles/controllers/articles_controller.dart';
+import 'package:daily_satori/app_exports.dart';
+
+class LeftBarController extends BaseController {
+  ArticlesController get articlesController => Get.find<ArticlesController>();
+
+  List<TagModel> get tags => TagRepository.i.allModels();
+
+  final isTagsExpanded = true.obs;
+}

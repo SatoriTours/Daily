@@ -8,7 +8,7 @@ import 'package:daily_satori/app/services/web_service/api_utils/auth_middleware.
 import 'package:daily_satori/app/services/web_service/api_utils/request_utils.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/response_utils.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/session_manager.dart';
-import 'package:daily_satori/app/modules/diary/controllers/diary_controller.dart' as app_controller;
+import 'package:daily_satori/app/pages/diary/controllers/diary_controller.dart' as app_controller;
 
 /// 日记控制器
 class DiaryController {

@@ -21,5 +21,5 @@ export 'app/services/services.dart';
 // 导出常用路由
 export 'app/routes/app_pages.dart';
 
-// 导出基础控制器
-export 'app/controllers/base_controller.dart';
+// 导出核心基础类
+export 'app/core/base_getx_controller.dart';
