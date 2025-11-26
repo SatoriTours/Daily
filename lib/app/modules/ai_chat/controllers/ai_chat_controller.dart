@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/extensions/i18n_extension.dart';
+import 'package:daily_satori/app/controllers/base_controller.dart';
 import '../../../components/ai_chat/chat_message.dart';
 import '../services/ai_agent_service.dart';
 import '../models/tool_call.dart';
@@ -14,7 +15,13 @@ import '../models/tool_call.dart';
 /// - 发送和重试消息
 /// - 与AI Agent服务交互
 /// - 处理步骤和工具调用的更新
-class AIChatController extends GetxController {
+class AIChatController extends BaseGetXController {
+  // ========================================================================
+  // 构造函数
+  // ========================================================================
+
+  AIChatController(super._appStateService);
+
   // ========================================================================
   // 属性
   // ========================================================================
@@ -168,10 +175,7 @@ class AIChatController extends GetxController {
 
   /// 添加用户消息
   void _addUserMessage(String content) {
-    final userMessage = ChatMessage.user(
-      id: _generateMessageId(),
-      content: content,
-    );
+    final userMessage = ChatMessage.user(id: _generateMessageId(), content: content);
     messages.add(userMessage);
     logger.d('[AIChatController] 添加用户消息: ${userMessage.id}');
   }
@@ -278,10 +282,7 @@ class AIChatController extends GetxController {
   /// [message] 要更新的助手消息
   /// [result] AI生成的最终答案
   void _updateAssistantMessage(ChatMessage message, String result) {
-    final updatedMessage = message.copyWith(
-      status: MessageStatus.completed,
-      content: result,
-    );
+    final updatedMessage = message.copyWith(status: MessageStatus.completed, content: result);
 
     final index = messages.indexOf(message);
     if (index != -1) {
@@ -328,16 +329,9 @@ class AIChatController extends GetxController {
     if (processingMessage == null) return;
 
     final stepStatus = _parseStepStatus(statusString);
-    final updatedSteps = _updateStepsList(
-      processingMessage.processingSteps ?? [],
-      stepDescription,
-      stepStatus,
-    );
+    final updatedSteps = _updateStepsList(processingMessage.processingSteps ?? [], stepDescription, stepStatus);
 
-    _updateMessageInList(
-      processingMessage,
-      processingMessage.copyWith(processingSteps: updatedSteps),
-    );
+    _updateMessageInList(processingMessage, processingMessage.copyWith(processingSteps: updatedSteps));
 
     logger.d('[AIChatController] 更新步骤: $stepDescription -> $statusString');
   }
@@ -356,15 +350,9 @@ class AIChatController extends GetxController {
       description: toolCall.description,
     );
 
-    final updatedSubMessages = [
-      ...(processingMessage.subMessages ?? []),
-      toolMessage,
-    ];
+    final updatedSubMessages = [...(processingMessage.subMessages ?? []), toolMessage];
 
-    _updateMessageInList(
-      processingMessage,
-      processingMessage.copyWith(subMessages: updatedSubMessages),
-    );
+    _updateMessageInList(processingMessage, processingMessage.copyWith(subMessages: updatedSubMessages));
 
     logger.d('[AIChatController] 添加工具调用: ${toolCall.name}');
   }
@@ -376,10 +364,7 @@ class AIChatController extends GetxController {
     final processingMessage = _findProcessingMessage();
     if (processingMessage == null) return;
 
-    _updateMessageInList(
-      processingMessage,
-      processingMessage.copyWith(content: result),
-    );
+    _updateMessageInList(processingMessage, processingMessage.copyWith(content: result));
 
     final preview = result.length > 50 ? '${result.substring(0, 50)}...' : result;
     logger.d('[AIChatController] 更新消息内容: $preview');
@@ -392,10 +377,7 @@ class AIChatController extends GetxController {
     final processingMessage = _findProcessingMessage();
     if (processingMessage == null) return;
 
-    _updateMessageInList(
-      processingMessage,
-      processingMessage.copyWith(searchResults: results),
-    );
+    _updateMessageInList(processingMessage, processingMessage.copyWith(searchResults: results));
 
     logger.d('[AIChatController] 更新搜索结果: ${results.length}条');
   }
@@ -451,11 +433,7 @@ class AIChatController extends GetxController {
   /// [stepDescription] 步骤描述
   /// [status] 新状态
   /// 返回更新后的步骤列表
-  List<ProcessingStep> _updateStepsList(
-    List<ProcessingStep> currentSteps,
-    String stepDescription,
-    StepStatus status,
-  ) {
+  List<ProcessingStep> _updateStepsList(List<ProcessingStep> currentSteps, String stepDescription, StepStatus status) {
     final steps = List<ProcessingStep>.from(currentSteps);
     final existingIndex = steps.indexWhere((s) => s.description == stepDescription);
 
@@ -464,12 +442,14 @@ class AIChatController extends GetxController {
       steps[existingIndex] = steps[existingIndex].copyWith(status: status);
     } else {
       // 添加新步骤
-      steps.add(ProcessingStep(
-        id: _generateMessageId(),
-        description: stepDescription,
-        status: status,
-        timestamp: DateTime.now(),
-      ));
+      steps.add(
+        ProcessingStep(
+          id: _generateMessageId(),
+          description: stepDescription,
+          status: status,
+          timestamp: DateTime.now(),
+        ),
+      );
     }
 
     return steps;
@@ -496,10 +476,8 @@ class AIChatController extends GetxController {
   int get messageCount => messages.length;
 
   /// 获取用户消息数量
-  int get userMessageCount =>
-      messages.where((m) => m.type == ChatMessageType.user).length;
+  int get userMessageCount => messages.where((m) => m.type == ChatMessageType.user).length;
 
   /// 获取助手消息数量
-  int get assistantMessageCount =>
-      messages.where((m) => m.type == ChatMessageType.assistant).length;
+  int get assistantMessageCount => messages.where((m) => m.type == ChatMessageType.assistant).length;
 }

@@ -21,7 +21,9 @@ class SettingsView extends GetView<SettingsController> {
     return Scaffold(
       backgroundColor: AppTheme.getColorScheme(context).surface,
       appBar: _buildAppBar(context),
-      body: Obx(() => controller.isLoading.value ? StyleGuide.getLoadingState(context) : _buildSettingsList(context)),
+      body: Obx(
+        () => controller.isPageLoading.value ? StyleGuide.getLoadingState(context) : _buildSettingsList(context),
+      ),
     );
   }
 
@@ -35,7 +37,11 @@ class SettingsView extends GetView<SettingsController> {
       elevation: 0,
       backgroundColor: AppTheme.getColorScheme(context).surface,
       actions: [
-        IconButton(icon: const Icon(Icons.info_outline), tooltip: 'dialog.about'.t, onPressed: () => _showAboutDialog(context)),
+        IconButton(
+          icon: const Icon(Icons.info_outline),
+          tooltip: 'dialog.about'.t,
+          onPressed: () => _showAboutDialog(context),
+        ),
       ],
     );
   }

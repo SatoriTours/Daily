@@ -4,7 +4,13 @@ import 'package:daily_satori/app_exports.dart';
 ///
 /// 负责管理插件中心页面的UI状态和用户交互
 /// 数据管理由PluginCenterStateService负责
-class PluginCenterController extends GetxController {
+class PluginCenterController extends BaseGetXController {
+  // ========================================================================
+  // 构造函数
+  // ========================================================================
+
+  PluginCenterController(super._appStateService);
+
   // MARK: - 状态服务
 
   late final PluginCenterStateService _pluginCenterStateService;
@@ -18,6 +24,7 @@ class PluginCenterController extends GetxController {
   RxString get pluginServerUrl => _pluginCenterStateService.pluginServerUrl;
 
   /// 是否正在加载 - 引用自StateService
+  @override
   RxBool get isLoading => _pluginCenterStateService.isLoading;
 
   /// 正在更新的插件名 - 引用自StateService

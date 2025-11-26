@@ -9,11 +9,22 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:daily_satori/app/controllers/base_controller.dart';
 
-class SettingsController extends GetxController {
+class SettingsController extends BaseGetXController {
+  // ========================================================================
+  // 构造函数
+  // ========================================================================
+
+  SettingsController(super._appStateService);
+
+  // ========================================================================
+  // 属性
+  // ========================================================================
+
   final webServiceAddress = ''.obs;
   final webAccessUrl = ''.obs;
-  final isLoading = true.obs;
+  final isPageLoading = true.obs;
   final appVersion = ''.obs;
 
   // WebSocket连接状态
@@ -38,7 +49,7 @@ class SettingsController extends GetxController {
   }
 
   Future<void> _loadAppVersion() async {
-    isLoading.value = true;
+    isPageLoading.value = true;
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       appVersion.value = '${packageInfo.version}+${packageInfo.buildNumber}';
@@ -46,7 +57,7 @@ class SettingsController extends GetxController {
       logger.e('加载应用版本信息失败: $e');
       appVersion.value = '未知版本';
     } finally {
-      isLoading.value = false;
+      isPageLoading.value = false;
     }
   }
 
@@ -78,21 +89,26 @@ class SettingsController extends GetxController {
 
     if (selectedDirectory != null) {
       final backupDir = selectedDirectory;
-      logger.i('选择备份目录: $backupDir');
+      logger.i('[SettingsController] 选择备份目录: $backupDir');
       SettingRepository.i.saveSetting(SettingService.backupDirKey, backupDir);
     }
   }
 
+  /// 复制Web服务地址到剪贴板
   void copyWebServiceAddress() {
+    logger.i('[SettingsController] 复制Web服务地址: ${webServiceAddress.value}');
     Clipboard.setData(ClipboardData(text: webServiceAddress.value));
   }
 
+  /// 复制Web访问URL到剪贴板
   void copyWebAccessUrl() {
+    logger.i('[SettingsController] 复制Web访问URL: ${webAccessUrl.value}');
     Clipboard.setData(ClipboardData(text: webAccessUrl.value));
   }
 
   /// 重新用AI分析所有网页
   void reAnalyzeAllWebpages() {
+    logger.i('[SettingsController] 重新分析所有网页');
     // 获取所有文章
     ArticleRepository.i.updateEmptyStatusToPending();
     // ArticleRepository.i.updateAllStatusToCompleted();

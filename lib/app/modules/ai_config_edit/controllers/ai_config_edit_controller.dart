@@ -3,6 +3,7 @@ import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/controllers/base_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:get/get.dart';
@@ -12,7 +13,7 @@ import 'package:get/get.dart';
 /// 负责AI配置的编辑和创建操作，包括：
 /// - 创建新配置
 /// - 编辑现有配置
-class AIConfigEditController extends GetxController {
+class AIConfigEditController extends BaseGetXController {
   /// 当前编辑的配置
   final AIConfigModel? aiConfig;
 
@@ -43,6 +44,7 @@ class AIConfigEditController extends GetxController {
   String get apiAddress => _apiAddress.value;
   String get name => _name.value;
   bool get inheritFromGeneral => _inheritFromGeneral.value;
+  @override
   bool get isInitialized => _initialized.value;
 
   /// 是否显示自定义API地址
@@ -116,7 +118,9 @@ class AIConfigEditController extends GetxController {
   }
 
   /// 构造函数
-  AIConfigEditController() : aiConfig = Get.arguments?['aiConfig'], apiPresets = PluginService.i.getAiModels();
+  AIConfigEditController(super._appStateService)
+    : aiConfig = Get.arguments?['aiConfig'],
+      apiPresets = PluginService.i.getAiModels();
 
   @override
   void onInit() {

@@ -61,32 +61,6 @@ class ArticleDetailController extends BaseGetXController {
             // 不需要处理
             break;
         }
-          }
-    });
-
-    // 监听文章更新事件流
-    ever(_articleStateService.articleUpdateEvent, (event) {
-      if (event.affectsArticle(articleModel.id)) {
-        logger.d("[ArticleDetail] 检测到文章事件: $event");
-
-        switch (event.type) {
-          case ArticleEventType.updated:
-            if (event.article != null) {
-              articleModel = event.article!;
-              article.value = event.article!;
-              loadTags();
-            }
-            break;
-          case ArticleEventType.deleted:
-            // 如果文章被删除，返回上一页
-            logger.i("[ArticleDetail] 文章已被删除，返回列表");
-            Get.back();
-            break;
-          case ArticleEventType.created:
-          case ArticleEventType.none:
-            // 不需要处理
-            break;
-        }
       }
     });
   }
