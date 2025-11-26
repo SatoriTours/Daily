@@ -58,9 +58,10 @@ lib/app/
 | **View** | Widget渲染、Obx响应式绑定 |
 
 ### 4. 依赖注入约束
-- ✅ **必须**使用现代 API: `Bindings` + `void dependencies()`
+- ✅ **必须**使用当前推荐 API: `Binding` + `List<Bind>`
 - ✅ 服务必须在 `ServiceRegistry` 注册
-- ❌ **禁止**旧 API: `Binding` + `List<Bind>`
+- ✅ 使用 `Bind.lazyPut()` 确保控制器只在需要时创建
+- ❌ **禁止**已废弃 API: `Bindings` + `void dependencies()`
 
 ### 5. Widget 组件规范
 - ✅ **推荐** `StatelessWidget` 用于纯展示组件
@@ -619,11 +620,12 @@ flutter analyze
 - [ ] 直接使用 GetX 路由（Get.toNamed/back/offAllNamed）
 - [ ] 导航操作添加了日志记录
 - [ ] 服务在 `ServiceRegistry` 注册
+- [ ] 使用 `Binding` + `List<Bind>` 依赖注入
 
 ### GetX 实践
 - [ ] 变量使用 `.obs`
 - [ ] UI使用 `Obx()` 更新
-- [ ] 依赖注入用 `Get.put()` / `Get.lazyPut()`
+- [ ] 依赖注入用 `Bind.lazyPut()`
 - [ ] 避免控制器相互查找
 - [ ] 明确定义事件类型
 

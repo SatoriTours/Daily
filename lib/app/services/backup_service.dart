@@ -19,9 +19,14 @@ import 'package:daily_satori/app/models/diary_model.dart';
 
 /// 备份项配置类，定义备份内容和目标
 class BackupItem {
-  final String name; // 备份项名称
-  final String sourcePath; // 源路径
-  final String zipFileName; // 目标文件名
+  /// 备份项名称
+  final String name;
+
+  /// 源路径
+  final String sourcePath;
+
+  /// 目标文件名
+  final String zipFileName;
 
   const BackupItem({required this.name, required this.sourcePath, required this.zipFileName});
 }
@@ -165,57 +170,25 @@ class BackupService {
     await backupTimeFile.writeAsString(time.toIso8601String());
   }
 
-  // 从备份恢复文件
+  /// 从备份恢复文件
   Future<bool> restoreBackup(String backupName) async {
-    String backupFolder = path.join(backupDir, 'daily_satori_backup_$backupName');
-    String appDocDir = (await getApplicationDocumentsDirectory()).path;
+    final backupFolder = path.join(backupDir, 'daily_satori_backup_$backupName');
+    final appDocDir = (await getApplicationDocumentsDirectory()).path;
 
     DialogUtils.showLoading();
 
     try {
-      // 检查备份文件是否都存在
-      List<File> backupFiles = [];
-      bool allFilesExist = true;
-
-      for (final item in _backupItems) {
-        final zipFile = File(path.join(backupFolder, item.zipFileName));
-        backupFiles.add(zipFile);
-
-        if (!await zipFile.exists()) {
-          logger.e("备份文件不存在: ${zipFile.path}");
-          allFilesExist = false;
-          break;
-        }
-      }
-
-      if (!allFilesExist) {
-        logger.e("备份文件不完整，无法恢复");
-        Get.back();
+      // 检查备份文件是否完整
+      final backupFiles = await _validateBackupFiles(backupFolder);
+      if (backupFiles == null) {
         return false;
       }
 
       // 恢复所有备份项
-      for (int i = 0; i < _backupItems.length; i++) {
-        final item = _backupItems[i];
-        final zipFile = backupFiles[i];
+      await _restoreAllBackupItems(backupFiles, appDocDir);
 
-        // 确定恢复的目标路径
-        String destinationPath;
-        if (item.zipFileName == 'objectbox.zip') {
-          destinationPath = path.join(appDocDir, ObjectboxService.dbDir);
-        } else {
-          // 为其他项目从源路径提取目标目录名
-          final dirName = path.basename(item.sourcePath);
-          destinationPath = path.join(appDocDir, dirName);
-        }
-
-        logger.i("恢复备份 ${item.name} 到 $destinationPath");
-        await _extractZipFile(zipFile, destinationPath);
-      }
-
-      // 解压完成后，修正数据库中保存的本地图片路径
-      await _fixDiaryImagePaths();
-      await _fixArticleImagePaths();
+      // 修正图片路径
+      await _fixAllImagePaths();
 
       logger.i("恢复备份完成: $backupFolder => $appDocDir");
       Get.back();
@@ -225,6 +198,55 @@ class BackupService {
       Get.back();
       return false;
     }
+  }
+
+  /// 验证备份文件是否完整
+  Future<List<File>?> _validateBackupFiles(String backupFolder) async {
+    final backupFiles = <File>[];
+
+    for (final item in _backupItems) {
+      final zipFile = File(path.join(backupFolder, item.zipFileName));
+      backupFiles.add(zipFile);
+
+      if (!await zipFile.exists()) {
+        logger.e("备份文件不存在: ${zipFile.path}");
+        logger.e("备份文件不完整，无法恢复");
+        Get.back();
+        return null;
+      }
+    }
+
+    return backupFiles;
+  }
+
+  /// 恢复所有备份项
+  Future<void> _restoreAllBackupItems(List<File> backupFiles, String appDocDir) async {
+    for (int i = 0; i < _backupItems.length; i++) {
+      final item = _backupItems[i];
+      final zipFile = backupFiles[i];
+
+      final destinationPath = _getDestinationPath(item, appDocDir);
+
+      logger.i("恢复备份 ${item.name} 到 $destinationPath");
+      await _extractZipFile(zipFile, destinationPath);
+    }
+  }
+
+  /// 获取备份项的目标路径
+  String _getDestinationPath(BackupItem item, String appDocDir) {
+    if (item.zipFileName == 'objectbox.zip') {
+      return path.join(appDocDir, ObjectboxService.dbDir);
+    } else {
+      // 为其他项目从源路径提取目标目录名
+      final dirName = path.basename(item.sourcePath);
+      return path.join(appDocDir, dirName);
+    }
+  }
+
+  /// 修正所有图片路径
+  Future<void> _fixAllImagePaths() async {
+    await _fixDiaryImagePaths();
+    await _fixArticleImagePaths();
   }
 
   // 解压缩文件

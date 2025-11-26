@@ -25,7 +25,7 @@ class CustomPopupMenu<T> extends StatelessWidget {
       padding: EdgeInsets.zero,
       color: AppColors.getSurface(context),
       elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
       itemBuilder: (context) => _buildPopupMenuItems(context),
       onSelected: onSelected,
     );
@@ -36,14 +36,14 @@ class CustomPopupMenu<T> extends StatelessWidget {
   PopupMenuEntry<T> _buildPopupMenuItem(BuildContext context, CustomMenuItem<T> item) {
     return PopupMenuItem<T>(
       value: item.value,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: Dimensions.paddingHorizontalM,
       child: Row(
         children: [
-          Icon(item.icon, size: 20, color: AppColors.getOnSurface(context)),
-          const SizedBox(width: 12),
+          Icon(item.icon, size: Dimensions.iconSizeS, color: AppColors.getOnSurface(context)),
+          Dimensions.horizontalSpacerS,
           Text(
             item.title,
-            style: TextStyle(fontSize: 14, color: AppColors.getOnSurface(context), fontWeight: FontWeight.w500),
+            style: AppTypography.labelSmall.copyWith(color: AppColors.getOnSurface(context)),
           ),
         ],
       ),

@@ -205,7 +205,7 @@ class MessageBubble extends StatelessWidget {
       color: _getBackgroundColor(context),
       borderRadius: BorderRadius.circular(Dimensions.radiusS),
       border: _getBorder(context),
-      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 3, offset: const Offset(0, 1))],
+      boxShadow: [BoxShadow(color: AppColors.getOnSurface(context).withValues(alpha: 0.03), blurRadius: 3, offset: const Offset(0, 1))],
     );
   }
 
@@ -297,7 +297,7 @@ class MessageBubble extends StatelessWidget {
   BoxDecoration _buildCodeBlockDecoration(BuildContext context) {
     return BoxDecoration(
       color: AppColors.getSurfaceContainer(context),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(Dimensions.radiusS),
       border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.2)),
     );
   }
@@ -306,7 +306,7 @@ class MessageBubble extends StatelessWidget {
   BoxDecoration _buildBlockquoteDecoration(BuildContext context) {
     return BoxDecoration(
       color: AppColors.getSurfaceContainer(context).withValues(alpha: 0.5),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(Dimensions.radiusS),
       border: Border(left: BorderSide(color: AppColors.getPrimary(context), width: 4)),
     );
   }
@@ -365,10 +365,10 @@ class MessageBubble extends StatelessWidget {
         );
         break;
       case StepStatus.completed:
-        leadingIcon = Icon(Icons.check_circle, size: 14, color: Colors.green);
+        leadingIcon = Icon(Icons.check_circle, size: Dimensions.iconSizeXs, color: AppColors.getSuccess(context));
         break;
       case StepStatus.error:
-        leadingIcon = Icon(Icons.error, size: 14, color: AppColors.getError(context));
+        leadingIcon = Icon(Icons.error, size: Dimensions.iconSizeXs, color: AppColors.getError(context));
         break;
     }
 

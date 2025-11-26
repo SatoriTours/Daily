@@ -135,7 +135,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
 
           // 提示信息
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: Dimensions.paddingM,
             decoration: BoxDecoration(
               color: colorScheme.primary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(Dimensions.radiusM),
@@ -179,7 +179,10 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.symmetric(
+      horizontal: Dimensions.spacingL,
+      vertical: Dimensions.spacingM,
+    ),
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
@@ -229,7 +232,10 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.symmetric(
+      horizontal: Dimensions.spacingL,
+      vertical: Dimensions.spacingS,
+    ),
       decoration: BoxDecoration(
         color: cardColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),

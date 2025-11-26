@@ -5,6 +5,9 @@ import '../utils/diary_utils.dart';
 
 /// 日记列表控制器
 class DiaryController extends BaseGetXController with WidgetsBindingObserver {
+  // ========== 构造函数 ==========
+  DiaryController(super._appStateService, this._diaryStateService);
+
   /// UI状态
   final selectedDate = DateTime.now().obs;
   final searchQuery = ''.obs;
@@ -13,7 +16,7 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
   final currentTag = ''.obs;
 
   /// 状态服务
-  late final DiaryStateService _diaryStateService;
+  final DiaryStateService _diaryStateService;
 
   /// 日记数据 - 引用自StateService
   RxList<DiaryModel> get diaries => _diaryStateService.diaries;
@@ -34,7 +37,7 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
   @override
   void onInit() {
     super.onInit();
-    _initStateServices();
+    _initDiaryListeners();
     _loadDiaries();
     _extractTags();
     _createImageDirectory(); // 创建图片目录
@@ -43,9 +46,8 @@ class DiaryController extends BaseGetXController with WidgetsBindingObserver {
     searchController.addListener(_onSearchTextChanged);
   }
 
-  void _initStateServices() {
-    _diaryStateService = Get.find<DiaryStateService>();
-
+  /// 初始化日记相关监听器
+  void _initDiaryListeners() {
     // 监听全局标签过滤
     ever(_diaryStateService.globalTagFilter, (tag) {
       if (tag.isNotEmpty) {

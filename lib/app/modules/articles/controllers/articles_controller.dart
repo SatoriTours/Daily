@@ -7,9 +7,14 @@ import 'package:daily_satori/app/extensions/i18n_extension.dart';
 /// 负责文章列表的展示、搜索、过滤、分页加载等功能
 /// 通过 ArticleStateService 管理文章数据状态
 class ArticlesController extends BaseGetXController with WidgetsBindingObserver {
+  // ========== 构造函数 ==========
+  ArticlesController(super._appStateService, this._articleStateService);
+
   // ========== 状态服务 ==========
-  late final ArticleStateService _articleStateService;
-  late final AppStateService _appStateService;
+  final ArticleStateService _articleStateService;
+
+  // 获取appStateService的便捷访问器
+  AppStateService get _appStateService => appStateService;
 
   // ========== 过滤状态 ==========
   final onlyFavorite = false.obs;
@@ -42,9 +47,10 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
   @override
   void onInit() {
     super.onInit();
-    _initStateServices();
     _initScrollListener();
     _initLifecycleObserver();
+    _initGlobalSearchListener();
+    _initArticleUpdateListener();
     _loadInitialData();
   }
 
@@ -229,10 +235,8 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
 
   // ========== 私有方法 - 初始化 ==========
 
-  void _initStateServices() {
-    _articleStateService = Get.find<ArticleStateService>();
-    _appStateService = Get.find<AppStateService>();
-
+  /// 初始化全局搜索监听器
+  void _initGlobalSearchListener() {
     // 监听全局搜索状态
     ever(_articleStateService.globalSearchQuery, (query) {
       if (query.isNotEmpty) {
@@ -240,7 +244,10 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
         reloadArticles();
       }
     });
+  }
 
+  /// 初始化文章更新事件监听器
+  void _initArticleUpdateListener() {
     // 监听文章更新事件
     ever(_articleStateService.articleUpdateEvent, (event) {
       logger.d("[Articles] 检测到文章事件: $event");

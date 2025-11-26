@@ -113,18 +113,20 @@ NavigationService.i.toNamed(...); // 如果只是转发，就是多余的
 
 ### 5. 依赖注入
 ```dart
-// ✅ 使用现代 API
-class MyBinding extends Bindings {
+// ✅ 使用当前推荐 API
+class MyBinding extends Binding {
   @override
-  void dependencies() {
-    Get.lazyPut(() => MyController());
+  List<Bind> dependencies() {
+    return [Bind.lazyPut(() => MyController())];
   }
 }
 
-// ❌ 禁止旧 API
-class MyBinding extends Binding { // 禁止
+// ❌ 禁止已废弃 API
+class MyBinding extends Bindings { // 禁止
   @override
-  List<Bind> dependencies() => []; // 禁止
+  void dependencies() { // 禁止
+    Get.lazyPut(() => MyController()); // 禁止
+  }
 }
 ```
 
@@ -648,11 +650,12 @@ Obx(() => Text('Count: ${controller.count.value}'))
 - [ ] 直接使用 GetX 路由（Get.toNamed/back/offAllNamed）
 - [ ] 导航操作添加了日志记录
 - [ ] 服务在 `ServiceRegistry` 注册
+- [ ] 使用 `Binding` + `List<Bind>` 依赖注入
 
 ### GetX 实践
 - [ ] 变量使用 `.obs`
 - [ ] UI使用 `Obx()` 更新
-- [ ] 依赖注入用 `Get.put()` / `Get.lazyPut()`
+- [ ] 依赖注入用 `Bind.lazyPut()`
 - [ ] 避免控制器相互查找
 - [ ] 明确定义事件类型
 

@@ -93,10 +93,10 @@ class CommonCalendar extends StatelessWidget {
 
     return InkWell(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(Dimensions.radiusXl),
       child: Container(
-        padding: const EdgeInsets.all(8),
-        child: Icon(icon, size: 18, color: colorScheme.onSurfaceVariant),
+        padding: Dimensions.paddingS,
+        child: Icon(icon, size: Dimensions.iconSizeS, color: colorScheme.onSurfaceVariant),
       ),
     );
   }
@@ -106,8 +106,8 @@ class CommonCalendar extends StatelessWidget {
     const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      margin: const EdgeInsets.only(bottom: 4),
+      padding: Dimensions.paddingHorizontalM.copyWith(top: Dimensions.spacingS, bottom: Dimensions.spacingS),
+      margin: EdgeInsets.only(bottom: Dimensions.spacingXs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: weekdays.map((day) {

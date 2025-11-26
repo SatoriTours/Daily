@@ -215,7 +215,7 @@ class _ChatInputState extends State<ChatInput> {
                 padding: EdgeInsets.all(Dimensions.spacingS),
                 child: Icon(
                   widget.sendIcon ?? Icons.send_rounded,
-                  color: _isEmpty || widget.disabled ? AppColors.getOnSurfaceVariant(context) : Colors.white,
+                  color: _isEmpty || widget.disabled ? AppColors.getOnSurfaceVariant(context) : AppColors.getOnPrimary(context),
                   size: 20,
                 ),
               ),
@@ -351,7 +351,7 @@ class SimpleChatInput extends StatelessWidget {
           padding: EdgeInsets.all(Dimensions.spacingS),
           child: Icon(
             Icons.send_rounded,
-            color: disabled ? AppColors.getOnSurfaceVariant(context) : Colors.white,
+            color: disabled ? AppColors.getOnSurfaceVariant(context) : AppColors.getOnPrimary(context),
             size: 20,
           ),
         ),

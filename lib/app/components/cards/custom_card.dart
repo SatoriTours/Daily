@@ -17,7 +17,7 @@ import 'package:daily_satori/app/styles/index.dart';
 ///   onTap: () => print('卡片被点击'),
 ///   child: Text('卡片内容'),
 ///   elevation: 2.0,
-///   padding: EdgeInsets.all(16.0),
+///   padding: Dimensions.paddingM,
 /// )
 /// ```
 class CustomCard extends StatelessWidget {
@@ -29,7 +29,7 @@ class CustomCard extends StatelessWidget {
   final VoidCallback? onTap;
   /// 内边距
   ///
-  /// 默认为 EdgeInsets.all(16.0)
+  /// 默认为 Dimensions.paddingM
   final EdgeInsetsGeometry? padding;
   /// 阴影高度
   ///
@@ -53,10 +53,10 @@ class CustomCard extends StatelessWidget {
   }
   /// 构建卡片内容
   Widget _buildCardContent() {
-    final cardChild = Padding(padding: padding ?? const EdgeInsets.all(16.0), child: child);
+    final cardChild = Padding(padding: padding ?? Dimensions.paddingM, child: child);
     if (onTap == null) {
       return cardChild;
     }
-    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(12), child: cardChild);
+    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(Dimensions.radiusM), child: cardChild);
   }
 }

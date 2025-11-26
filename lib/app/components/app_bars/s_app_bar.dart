@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 通用可复用 AppBar
 ///
@@ -56,10 +57,7 @@ class SAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark
-        ? (backgroundColorDark ?? const Color(0xFF121212))
-        : (backgroundColorLight ?? Theme.of(context).colorScheme.primary);
+    final bg = backgroundColorLight ?? backgroundColorDark ?? AppColors.getSurface(context);
 
     final titleWidget = onTitleDoubleTap == null ? title : GestureDetector(onDoubleTap: onTitleDoubleTap, child: title);
 

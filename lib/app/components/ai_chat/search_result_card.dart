@@ -17,6 +17,7 @@ class SearchResultCard extends StatelessWidget {
   /// 搜索结果数据
   final SearchResult result;
 
+  /// 构造函数，确保接收搜索结果数据
   const SearchResultCard({super.key, required this.result});
 
   // ========================================================================
@@ -26,7 +27,7 @@ class SearchResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: EdgeInsets.only(bottom: Dimensions.spacingXs),
+      margin: const EdgeInsets.only(bottom: 4),
       elevation: 0,
       color: AppColors.getSurfaceContainerHighest(context),
       shape: RoundedRectangleBorder(

@@ -1,4 +1,5 @@
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -119,7 +120,7 @@ class DialogUtils {
   }
 
   /// 显示全屏加载提示
-  static void showLoading({String tips = '', Color barrierColor = const Color(0x80000000)}) {
+  static void showLoading({String tips = '', Color? barrierColor}) {
     logger.i("显示加载提示: $tips $_isLoadingShown");
     if (_isLoadingShown) return; // 如果已经显示了loading，直接返回
     logger.i("显示加载提示1: $tips");
@@ -139,7 +140,7 @@ class DialogUtils {
         ),
       ),
       barrierDismissible: false,
-      barrierColor: barrierColor,
+      barrierColor: barrierColor ?? const Color(0x80000000),
     );
     _isLoadingShown = true;
   }
@@ -174,9 +175,9 @@ class _CustomDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: dialogTheme.backgroundColor ?? theme.colorScheme.surface,
       elevation: dialogTheme.elevation ?? 0,
-      shape: dialogTheme.shape ?? RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      shape: dialogTheme.shape ?? RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: Dimensions.paddingDialog,
         child: IntrinsicHeight(
           child: Column(
             mainAxisSize: MainAxisSize.min,

@@ -6,6 +6,9 @@ import 'package:daily_satori/app/config/app_config.dart';
 /// 提供标准的 GetX 控制器功能，包括状态管理、
 /// 生命周期管理和常用的工具方法
 abstract class BaseGetXController extends GetxController {
+  /// 构造函数 - 通过依赖注入获取状态服务
+  BaseGetXController(this._appStateService);
+
   /// 是否已初始化
   final RxBool _isInitialized = false.obs;
 
@@ -15,8 +18,11 @@ abstract class BaseGetXController extends GetxController {
   /// 错误消息
   final RxString errorMessage = ''.obs;
 
-  /// 状态服务
-  late final AppStateService _appStateService;
+  /// 状态服务 - 通过依赖注入获取
+  final AppStateService _appStateService;
+
+  /// 获取应用状态服务的便捷访问器（子类可访问）
+  AppStateService get appStateService => _appStateService;
 
   /// 是否已初始化
   bool get isInitialized => _isInitialized.value;
@@ -124,13 +130,8 @@ abstract class BaseGetXController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _initServices();
     _isInitialized.value = true;
     logger.i('$runtimeType 初始化完成');
-  }
-
-  void _initServices() {
-    _appStateService = Get.find<AppStateService>();
   }
 
   @override

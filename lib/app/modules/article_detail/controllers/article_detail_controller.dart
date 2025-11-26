@@ -3,6 +3,9 @@ import 'package:daily_satori/app/utils/string_extensions.dart';
 import 'package:daily_satori/app/modules/articles/controllers/articles_controller.dart';
 
 class ArticleDetailController extends BaseGetXController {
+  // ========== 构造函数 ==========
+  ArticleDetailController(super._appStateService, this._articleStateService);
+
   /// 当前文章模型
   late ArticleModel articleModel;
 
@@ -13,18 +16,18 @@ class ArticleDetailController extends BaseGetXController {
   final tags = ''.obs;
 
   /// 状态服务
-  late final ArticleStateService _articleStateService;
+  final ArticleStateService _articleStateService;
 
   @override
   void onInit() {
     super.onInit();
-    _articleStateService = Get.find<ArticleStateService>();
     _loadArticle();
-    _initStateServices();
+    _initActiveArticleListener();
     loadTags();
   }
 
-  void _initStateServices() {
+  /// 初始化活跃文章监听器
+  void _initActiveArticleListener() {
     // 监听活跃文章变化
     ever(_articleStateService.activeArticle, (activeArticle) {
       if (activeArticle != null && activeArticle.id == articleModel.id) {
@@ -33,6 +36,32 @@ class ArticleDetailController extends BaseGetXController {
         article.value = activeArticle;
         loadTags();
       }
+    });
+
+    // 监听文章更新事件流
+    ever(_articleStateService.articleUpdateEvent, (event) {
+      if (event.affectsArticle(articleModel.id)) {
+        logger.d("[ArticleDetail] 检测到文章事件: $event");
+
+        switch (event.type) {
+          case ArticleEventType.updated:
+            if (event.article != null) {
+              articleModel = event.article!;
+              article.value = event.article!;
+              loadTags();
+            }
+            break;
+          case ArticleEventType.deleted:
+            // 如果文章被删除，返回上一页
+            logger.i("[ArticleDetail] 文章已被删除，返回列表");
+            Get.back();
+            break;
+          case ArticleEventType.created:
+          case ArticleEventType.none:
+            // 不需要处理
+            break;
+        }
+          }
     });
 
     // 监听文章更新事件流

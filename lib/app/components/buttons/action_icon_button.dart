@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 操作按钮组件
 ///
@@ -32,7 +32,7 @@ class ActionIconButton extends StatelessWidget {
 
   /// 图标大小
   ///
-  /// 默认为 16
+  /// 默认为 Dimensions.iconSizeS
   final double size;
 
   /// 工具提示文本
@@ -45,14 +45,14 @@ class ActionIconButton extends StatelessWidget {
   /// [icon] 按钮图标
   /// [onTap] 按钮点击回调
   /// [color] 自定义颜色，可选
-  /// [size] 图标大小，默认为 16
+  /// [size] 图标大小，默认为 Dimensions.iconSizeS
   /// [tooltip] 工具提示文本，可选
   const ActionIconButton({
     super.key,
     required this.icon,
     required this.onTap,
     this.color,
-    this.size = 16,
+    this.size = Dimensions.iconSizeS,
     this.tooltip,
   });
 
@@ -71,10 +71,10 @@ class ActionIconButton extends StatelessWidget {
   Widget _buildButton(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(Dimensions.radiusL),
       child: Container(
-        width: 28,
-        height: 24,
+        width: Dimensions.buttonHeight - 8,
+        height: Dimensions.buttonHeight - 16,
         alignment: Alignment.center,
         child: Icon(icon, size: size, color: _getButtonColor(context)),
       ),
@@ -83,6 +83,6 @@ class ActionIconButton extends StatelessWidget {
 
   /// 获取按钮颜色
   Color _getButtonColor(BuildContext context) {
-    return color ?? AppTheme.getColorScheme(context).onSurfaceVariant.withAlpha(179);
+    return color ?? AppColors.getOnSurfaceVariant(context).withAlpha(179);
   }
 }

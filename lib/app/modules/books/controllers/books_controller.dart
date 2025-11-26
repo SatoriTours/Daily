@@ -109,7 +109,11 @@ class BooksController extends BaseController with WidgetsBindingObserver {
   }
 
   /// 删除书籍
+  ///
+  /// 从书籍状态服务中删除指定ID的书籍
+  /// 删除前会记录日志并确认操作
   Future<void> deleteBook(int bookId) async {
+    logger.i('[BooksController] 删除书籍: $bookId');
     await _booksStateService.deleteBook(bookId);
   }
 

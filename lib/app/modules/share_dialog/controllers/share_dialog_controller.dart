@@ -6,6 +6,9 @@ import 'package:daily_satori/app/components/dialogs/processing_dialog.dart';
 /// 分享对话框控制器
 /// 管理网页内容的保存和更新
 class ShareDialogController extends BaseGetXController {
+  // ========== 构造函数 ==========
+  ShareDialogController(super._appStateService, this._articleStateService);
+
   static const platform = MethodChannel('android/back/desktop');
 
   // 状态变量
@@ -31,12 +34,11 @@ class ShareDialogController extends BaseGetXController {
   final RxBool titleEdited = false.obs;
 
   // 状态服务
-  late final ArticleStateService _articleStateService;
+  final ArticleStateService _articleStateService;
 
   @override
   void onInit() {
     super.onInit();
-    _articleStateService = Get.find<ArticleStateService>();
     _initDefaultValues();
   }
 
