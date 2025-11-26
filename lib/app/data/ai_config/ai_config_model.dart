@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/models/base/entity_model.dart';
+import 'package:daily_satori/app/data/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
 
 /// AI配置模型类

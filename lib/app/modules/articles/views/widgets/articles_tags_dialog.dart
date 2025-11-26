@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
-import 'package:daily_satori/app/models/tag_model.dart';
+import 'package:daily_satori/app/data/tag/tag_model.dart';
 import 'package:daily_satori/app/extensions/i18n_extension.dart';
 
 /// 文章标签对话框

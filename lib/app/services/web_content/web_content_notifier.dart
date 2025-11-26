@@ -1,8 +1,7 @@
 import 'package:get/get.dart';
 import 'package:daily_satori/app/services/state/article_state_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/repositories/repositories.dart';
-import 'package:daily_satori/app/models/article_status.dart';
+import 'package:daily_satori/app/data/index.dart';
 
 /// 网页内容通知器
 /// 专门负责通知UI更新文章状态，通过状态服务避免直接依赖控制器

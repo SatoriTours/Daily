@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/models/diary_model.dart';
+import 'package:daily_satori/app/data/diary/diary_model.dart';
 
 import '../../controllers/diary_controller.dart';
 import 'diary_editor.dart';

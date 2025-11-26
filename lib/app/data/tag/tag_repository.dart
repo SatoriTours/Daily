@@ -1,8 +1,8 @@
 import 'package:daily_satori/app/objectbox/tag.dart';
-import 'package:daily_satori/app/models/tag_model.dart';
-import 'package:daily_satori/app/repositories/base_repository.dart';
+import 'package:daily_satori/app/data/tag/tag_model.dart';
+import 'package:daily_satori/app/data/base/base_repository.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
-import 'package:daily_satori/app/models/article_model.dart';
+import 'package:daily_satori/app/data/article/article_model.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/objectbox.g.dart';

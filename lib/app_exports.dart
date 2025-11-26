@@ -8,13 +8,12 @@ library;
 // 导出工具类
 export 'app/utils/utils.dart';
 
-// 导出所有模型
+// 导出 Flutter 和 GetX
 export 'package:flutter/material.dart' hide VoidCallback;
 export 'package:get/get.dart';
-export 'app/models/models.dart';
 
-// 导出所有仓储
-export 'app/repositories/repositories.dart';
+// 导出数据层（模型和仓储）
+export 'app/data/index.dart';
 
 // 导出常用服务
 export 'app/services/services.dart';

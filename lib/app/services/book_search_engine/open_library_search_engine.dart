@@ -1,5 +1,4 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/models/book_search_result.dart';
 import 'package:daily_satori/app/services/book_search_engine/book_search_engine.dart';
 import 'package:dio/dio.dart';
 import 'package:pinyin/pinyin.dart';

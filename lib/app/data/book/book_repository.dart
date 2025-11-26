@@ -1,8 +1,8 @@
-import 'package:daily_satori/app/models/book.dart';
+import 'package:daily_satori/app/data/book/book.dart';
 import 'package:daily_satori/app/objectbox/book.dart';
 import 'package:daily_satori/app/objectbox/book_viewpoint.dart';
-import 'package:daily_satori/app/repositories/base_repository.dart';
-import 'package:daily_satori/app/repositories/book_viewpoint_repository.dart';
+import 'package:daily_satori/app/data/base/base_repository.dart';
+import 'package:daily_satori/app/data/book_viewpoint/book_viewpoint_repository.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 书籍存储库

@@ -1,8 +1,6 @@
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/models/article_model.dart';
-import 'package:daily_satori/app/models/article_status.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
-import 'package:daily_satori/app/repositories/repositories.dart';
+import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/utils/string_extensions.dart';
 import 'package:daily_satori/app/services/web_content/content_extractor.dart';
 

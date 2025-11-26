@@ -1,7 +1,7 @@
 import 'package:daily_satori/app/objectbox/screenshot.dart';
-import 'package:daily_satori/app/models/screenshot_model.dart';
-import 'package:daily_satori/app/models/article_model.dart';
-import 'package:daily_satori/app/repositories/base_repository.dart';
+import 'package:daily_satori/app/data/screenshot/screenshot_model.dart';
+import 'package:daily_satori/app/data/article/article_model.dart';
+import 'package:daily_satori/app/data/base/base_repository.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 截图仓储类

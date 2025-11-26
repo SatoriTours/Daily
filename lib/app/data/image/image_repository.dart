@@ -1,7 +1,7 @@
 import 'package:daily_satori/app/objectbox/image.dart';
-import 'package:daily_satori/app/models/image_model.dart';
-import 'package:daily_satori/app/models/article_model.dart';
-import 'package:daily_satori/app/repositories/base_repository.dart';
+import 'package:daily_satori/app/data/image/image_model.dart';
+import 'package:daily_satori/app/data/article/article_model.dart';
+import 'package:daily_satori/app/data/base/base_repository.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 图片仓储类

@@ -1,7 +1,7 @@
 import 'package:daily_satori/app/config/app_config.dart';
-import 'package:daily_satori/app/models/session_model.dart';
+import 'package:daily_satori/app/data/session/session_model.dart';
 import 'package:daily_satori/app/objectbox/session.dart';
-import 'package:daily_satori/app/repositories/base_repository.dart';
+import 'package:daily_satori/app/data/base/base_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 

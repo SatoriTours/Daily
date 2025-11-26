@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:yaml/yaml.dart';
 import 'package:daily_satori/app/services/service_base.dart';
-import 'package:daily_satori/app/repositories/setting_repository.dart';
+import 'package:daily_satori/app/data/setting/setting_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 
 /// 支持的语言枚举

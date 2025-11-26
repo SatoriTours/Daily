@@ -1,5 +1,5 @@
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
-import 'package:daily_satori/app/repositories/repositories.dart';
+import 'package:daily_satori/app/data/index.dart';
 
 class SettingProvider extends CacheProvider {
   String _value(String key) {

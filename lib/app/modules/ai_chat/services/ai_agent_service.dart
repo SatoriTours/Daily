@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/extensions/i18n_extension.dart';
-import 'package:daily_satori/app/repositories/article_repository.dart';
-import 'package:daily_satori/app/repositories/diary_repository.dart';
-import 'package:daily_satori/app/repositories/book_repository.dart';
+import 'package:daily_satori/app/data/article/article_repository.dart';
+import 'package:daily_satori/app/data/diary/diary_repository.dart';
+import 'package:daily_satori/app/data/book/book_repository.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import '../models/tool_call.dart';
 import '../models/search_result.dart';
@@ -66,12 +66,7 @@ class AIAgentService {
 
     try {
       // 步骤1: 分析用户意图
-      final intent = await _executeStep(
-        onStep,
-        'ai_chat.step_analyzing_query'.t,
-        () => _analyzeIntent(query),
-        '意图: ',
-      );
+      final intent = await _executeStep(onStep, 'ai_chat.step_analyzing_query'.t, () => _analyzeIntent(query), '意图: ');
 
       // 步骤2: 生成搜索计划
       final toolPlan = await _executeStep(
@@ -103,7 +98,6 @@ class AIAgentService {
 
       logger.i('[AIAgentService] ========== 处理完成 ==========\n');
       return answer;
-
     } catch (e, stackTrace) {
       logger.e('[AIAgentService] 处理失败', error: e, stackTrace: stackTrace);
       onStep('ai_chat.step_error_occurred'.t, 'error');
@@ -247,13 +241,7 @@ class AIAgentService {
     logger.d('[AIAgentService] 搜索关键词: $effectiveQuery');
 
     // 根据意图生成计划
-    final toolCalls = _buildToolCallsByIntent(
-      intent,
-      effectiveQuery,
-      keywords,
-      dateRange,
-      filters,
-    );
+    final toolCalls = _buildToolCallsByIntent(intent, effectiveQuery, keywords, dateRange, filters);
 
     logger.d('[AIAgentService] 计划生成完成: ${toolCalls.length}个任务');
     return toolCalls;
@@ -279,17 +267,11 @@ class AIAgentService {
 
     switch (intent) {
       case QueryIntent.articles:
-        toolCalls.add(ToolCall.searchArticles(
-          query: effectiveQuery,
-          filters: filters,
-        ));
+        toolCalls.add(ToolCall.searchArticles(query: effectiveQuery, filters: filters));
         break;
 
       case QueryIntent.diary:
-        toolCalls.add(ToolCall.searchDiary(
-          query: effectiveQuery,
-          dateRange: dateRange,
-        ));
+        toolCalls.add(ToolCall.searchDiary(query: effectiveQuery, dateRange: dateRange));
         break;
 
       case QueryIntent.books:
@@ -589,11 +571,7 @@ class AIAgentService {
   /// [fullContents] 完整内容映射
   /// [stats] 结果统计
   /// 返回AI生成的答案
-  Future<String> _generateAIResponse(
-    String query,
-    Map<String, String> fullContents,
-    Map<String, int> stats,
-  ) async {
+  Future<String> _generateAIResponse(String query, Map<String, String> fullContents, Map<String, int> stats) async {
     if (fullContents.isEmpty) {
       return '抱歉，未找到相关内容。';
     }
@@ -605,10 +583,7 @@ class AIAgentService {
     final contentToAnalyze = _limitContentLength(allContent, _maxContentLength);
 
     // 构建提示词并调用AI
-    final prompt = _buildPrompt(
-      _Prompts.answerGeneration,
-      {'query': query, 'content': contentToAnalyze},
-    );
+    final prompt = _buildPrompt(_Prompts.answerGeneration, {'query': query, 'content': contentToAnalyze});
 
     final aiResponse = await AiService.i.getCompletion(prompt, functionType: 0);
 
@@ -801,11 +776,7 @@ class AIAgentService {
   List<SearchResult> _searchAll(Map<String, dynamic> params) {
     logger.d('[AIAgentService] 执行全面搜索');
 
-    return [
-      ..._searchArticles(params),
-      ..._searchDiary(params),
-      ..._searchBooks(params),
-    ];
+    return [..._searchArticles(params), ..._searchDiary(params), ..._searchBooks(params)];
   }
 
   // ========================================================================
@@ -848,9 +819,7 @@ class AIAgentService {
   /// 返回标题文本
   String _extractDiaryTitle(String content) {
     final firstLine = content.split('\n').first;
-    final title = firstLine.length > 30
-        ? '${firstLine.substring(0, 30)}...'
-        : firstLine;
+    final title = firstLine.length > 30 ? '${firstLine.substring(0, 30)}...' : firstLine;
     return title.isNotEmpty ? title : '无标题';
   }
 
@@ -863,10 +832,7 @@ class AIAgentService {
   List<String>? _extractDiaryTags(String? tagsString) {
     if (tagsString?.isNotEmpty != true) return null;
 
-    return tagsString!
-        .split(',')
-        .where((t) => t.trim().isNotEmpty)
-        .toList();
+    return tagsString!.split(',').where((t) => t.trim().isNotEmpty).toList();
   }
 }
 

@@ -3,7 +3,6 @@ import 'package:daily_satori/app/extensions/i18n_extension.dart';
 import 'package:daily_satori/app/modules/books/controllers/books_controller.dart';
 import 'package:daily_satori/app/modules/books/views/widgets/widgets.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app/models/book.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/components/menus/s_popup_menu_item.dart';
 import 'package:daily_satori/app/modules/diary/controllers/diary_controller.dart';

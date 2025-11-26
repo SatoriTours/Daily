@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app/models/book_search_result.dart';
+import 'package:daily_satori/app/data/book/book_search_result.dart';
 import 'package:daily_satori/app/modules/books/controllers/book_search_controller.dart';
 import 'package:daily_satori/app/extensions/i18n_extension.dart';
 

@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/models/book_search_result.dart';
+import 'package:daily_satori/app/data/book/book_search_result.dart';
 
 /// 书籍搜索引擎抽象基类
 ///

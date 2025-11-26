@@ -1,6 +1,4 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/models/book.dart';
-import 'package:daily_satori/app/models/book_viewpoint.dart';
 
 /// 读书页面控制器
 ///

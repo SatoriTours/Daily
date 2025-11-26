@@ -1,6 +1,6 @@
-import 'package:daily_satori/app/models/diary_model.dart';
+import 'package:daily_satori/app/data/diary/diary_model.dart';
 import 'package:daily_satori/app/objectbox/diary.dart';
-import 'package:daily_satori/app/repositories/base_repository.dart';
+import 'package:daily_satori/app/data/base/base_repository.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 日记仓库,负责管理日记的存储和检索操作

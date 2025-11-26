@@ -1,5 +1,4 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/models/book_search_result.dart';
 
 /// 书籍搜索控制器
 class BookSearchController extends BaseController {

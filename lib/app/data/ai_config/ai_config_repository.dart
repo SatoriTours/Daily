@@ -1,6 +1,6 @@
-import 'package:daily_satori/app/models/models.dart';
+import 'package:daily_satori/app/data/ai_config/ai_config_model.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
-import 'package:daily_satori/app/repositories/base_repository.dart';
+import 'package:daily_satori/app/data/base/base_repository.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// AI配置存储库

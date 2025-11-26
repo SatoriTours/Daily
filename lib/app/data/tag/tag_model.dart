@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/models/base/entity_model.dart';
+import 'package:daily_satori/app/data/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
 
 /// 标签数据模型类

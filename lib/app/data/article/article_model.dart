@@ -1,8 +1,8 @@
-import 'package:daily_satori/app/models/base/entity_model.dart';
+import 'package:daily_satori/app/data/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/objectbox/tag.dart';
-import 'package:daily_satori/app/models/article_status.dart';
+import 'package:daily_satori/app/data/article/article_status.dart';
 
 /// 文章数据模型类
 class ArticleModel extends EntityModel<Article> {

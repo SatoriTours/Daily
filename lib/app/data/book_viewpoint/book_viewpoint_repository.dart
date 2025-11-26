@@ -1,6 +1,6 @@
-import 'package:daily_satori/app/models/book_viewpoint.dart';
+import 'package:daily_satori/app/data/book_viewpoint/book_viewpoint.dart';
 import 'package:daily_satori/app/objectbox/book_viewpoint.dart';
-import 'package:daily_satori/app/repositories/base_repository.dart';
+import 'package:daily_satori/app/data/base/base_repository.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 书籍观点存储库

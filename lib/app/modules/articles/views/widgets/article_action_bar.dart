@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/models/article_model.dart';
+import 'package:daily_satori/app/data/article/article_model.dart';
 import 'package:daily_satori/app/styles/app_theme.dart';
 
 /// 文章操作栏组件

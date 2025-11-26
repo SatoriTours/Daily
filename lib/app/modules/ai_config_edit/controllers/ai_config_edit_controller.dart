@@ -1,6 +1,5 @@
-import 'package:daily_satori/app/models/models.dart';
+import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
-import 'package:daily_satori/app/repositories/repositories.dart';
 import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/controllers/base_controller.dart';

@@ -1,9 +1,8 @@
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
-import 'package:daily_satori/app/models/article_model.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
-import 'package:daily_satori/app/repositories/repositories.dart';
+import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/auth_middleware.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/request_utils.dart';

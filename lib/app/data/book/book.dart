@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/models/base/entity_model.dart';
+import 'package:daily_satori/app/data/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/book.dart';
 
 /// 书籍模型

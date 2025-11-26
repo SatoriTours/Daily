@@ -1,6 +1,4 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/models/book.dart';
-import 'package:daily_satori/app/models/book_viewpoint.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:intl/intl.dart';
 

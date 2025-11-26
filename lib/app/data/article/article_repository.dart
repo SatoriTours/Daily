@@ -1,9 +1,9 @@
-import 'package:daily_satori/app/repositories/base_repository.dart';
+import 'package:daily_satori/app/data/base/base_repository.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
-import 'package:daily_satori/app/models/article_model.dart';
+import 'package:daily_satori/app/data/article/article_model.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
-import 'package:daily_satori/app/models/article_status.dart';
+import 'package:daily_satori/app/data/article/article_status.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
 /// 文章仓储类

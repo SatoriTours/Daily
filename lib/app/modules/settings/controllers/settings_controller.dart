@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/repositories/repositories.dart';
+import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/app/services/web_service/web_service.dart';
 import 'package:file_picker/file_picker.dart';

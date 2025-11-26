@@ -1,6 +1,6 @@
 import 'package:daily_satori/app/objectbox/setting.dart';
-import 'package:daily_satori/app/models/setting_model.dart';
-import 'package:daily_satori/app/repositories/base_repository.dart';
+import 'package:daily_satori/app/data/setting/setting_model.dart';
+import 'package:daily_satori/app/data/base/base_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/objectbox.g.dart';
 
