@@ -4,7 +4,7 @@ import 'package:daily_satori/app_exports.dart';
 ///
 /// 负责管理插件中心页面的UI状态和用户交互
 /// 数据管理由PluginCenterStateService负责
-class PluginCenterController extends BaseGetXController {
+class PluginCenterController extends BaseController {
   // ========================================================================
   // 构造函数
   // ========================================================================

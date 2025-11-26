@@ -34,9 +34,7 @@ abstract class BaseListController<T> extends BaseController {
   final selectedDate = Rx<DateTime?>(null);
   final isFavoriteFilter = false.obs;
 
-  // 状态管理
-  final isLoading = false.obs;
-  final errorMessage = ''.obs;
+  // 状态管理（继承自 BaseController 的 isLoading 和 errorMessage）
   final isRefreshing = false.obs;
 
   // 滚动控制

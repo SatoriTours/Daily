@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../utils/diary_utils.dart';
 
 /// 日记列表控制器
-class DiaryController extends BaseGetXController with WidgetsBindingObserver {
+class DiaryController extends BaseController with WidgetsBindingObserver {
   // ========== 构造函数 ==========
   DiaryController(super._appStateService, this._diaryStateService);
 

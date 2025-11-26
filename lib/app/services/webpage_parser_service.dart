@@ -8,8 +8,6 @@ import 'package:daily_satori/app/services/ai_service/ai_article_processor.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/state/article_state_service.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
-// 清理未使用的依赖（AI 具体处理已在 AiArticleProcessor 内）
-import 'package:daily_satori/app/utils/string_extensions.dart';
 import 'package:get/get.dart';
 import 'package:daily_satori/app/pages/article_detail/controllers/article_detail_controller.dart';
 
@@ -71,7 +69,7 @@ class WebpageParserService {
     logger.i("[初始化文章] 开始");
 
     // 验证URL
-    if (url.isNullOrEmpty) {
+    if (url.isEmpty) {
       throw Exception("URL不能为空");
     }
 

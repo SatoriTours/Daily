@@ -4,7 +4,7 @@ import 'package:daily_satori/app_exports.dart';
 ///
 /// 负责管理AI配置页面的UI状态和用户交互
 /// 数据管理由AIConfigStateService负责
-class AIConfigController extends BaseGetXController {
+class AIConfigController extends BaseController {
   /// 构造函数
   AIConfigController(super._appStateService, this._aiConfigStateService);
 

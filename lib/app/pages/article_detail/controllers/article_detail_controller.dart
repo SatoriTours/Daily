@@ -1,8 +1,7 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/utils/string_extensions.dart';
 import 'package:daily_satori/app/pages/articles/controllers/articles_controller.dart';
 
-class ArticleDetailController extends BaseGetXController {
+class ArticleDetailController extends BaseController {
   // ========== 构造函数 ==========
   ArticleDetailController(super._appStateService, this._articleStateService);
 
@@ -107,13 +106,13 @@ class ArticleDetailController extends BaseGetXController {
   /// 生成文章的Markdown内容
   Future<void> generateMarkdownContent() async {
     // 检查HTML内容是否存在
-    if (articleModel.htmlContent.isNullOrEmpty) {
+    if (articleModel.htmlContent == null || articleModel.htmlContent!.isEmpty) {
       logger.i("无法生成Markdown：HTML内容为空");
       return;
     }
 
     // 检查是否已经生成过Markdown内容
-    if (articleModel.aiMarkdownContent.isNotNullOrEmpty) {
+    if (articleModel.aiMarkdownContent != null && articleModel.aiMarkdownContent!.isNotEmpty) {
       logger.i("Markdown内容已存在，跳过生成");
       return;
     }

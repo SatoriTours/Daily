@@ -18,13 +18,12 @@
 ### 分层原则
 ```
 lib/app/
-├── core/             # 核心基础类(base_getx_controller等)
 ├── pages/            # 功能页面(bindings/controllers/views)
 ├── services/         # 全局服务(含state/状态服务)
 ├── data/             # 数据层(模型+仓储，按实体分组)
-├── components/       # 可复用组件
+├── components/       # 可复用组件(统一导出: components/index.dart)
 ├── styles/           # 样式系统
-├── utils/            # 工具类(含i18n扩展等)
+├── utils/            # 工具类(基础控制器、i18n扩展等)
 └── routes/           # 路由配置
 ```
 

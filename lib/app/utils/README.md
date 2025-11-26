@@ -1,88 +1,61 @@
 # 工具类说明文档
 
-本项目使用了以下工具类来组织辅助功能：
+本目录包含项目的所有工具类和基础控制器。
 
-## 工具类结构
+## 目录结构
 
-- **AppInfoUtils**: 应用信息相关工具
-  - 获取应用版本信息
-  - 获取应用包名
-  - 获取应用名称
+### 基础控制器
+- **base_controller.dart**: GetX 控制器基类（含状态管理、加载状态、错误处理、导航）
+- **base_list_controller.dart**: 列表控制器基类（含分页、搜索、过滤）
 
-- **ClipboardUtils**: 剪贴板操作工具
-  - 获取剪贴板文本
-  - 设置剪贴板文本
+### 字符串与文本处理
+- **string_utils.dart**: 字符串工具类
+  - `StringUtils`: 静态方法类（中文检测、子串截取、URL提取等）
+- **i18n_extension.dart**: 国际化扩展，提供 `.t` 翻译方法
 
-- **DateTimeUtils**: 日期和时间处理工具
-  - 获取当前时间的ISO格式
-  - 更新数据的时间戳
-  - 格式化日期时间为本地格式
+### UI 与交互
+- **ui_utils.dart**: UI 工具类（Snackbar、成功/错误提示）
+- **dialog_utils.dart**: 对话框工具类（提示框、确认框、输入框、加载框）
 
-- **DialogUtils**: 对话框显示工具
-  - 显示提示对话框
-  - 显示确认对话框
-  - 显示输入对话框
+### 系统与设备
+- **clipboard_utils.dart**: 剪贴板工具类（监听、URL提取）
+- **app_info_utils.dart**: 应用信息工具类（版本号、包名、环境判断）
 
-- **StringUtils**: 字符串处理工具
-  - 检查文本是否包含中文
-  - 获取文本的子串
-  - 获取文本的第一行
-  - 从主机名获取顶级域名
-  - 从文本中提取URL
+### 数据处理
+- **date_time_utils.dart**: 日期时间工具类（格式化、时间戳处理）
+- **random_utils.dart**: 随机工具类（生成随机ID、密码）
 
-- **UIUtils**: UI相关工具
-  - 显示成功提示
-  - 显示错误提示
-  - 显示加载提示
-  - 显示确认对话框
+## 使用方式
 
-## 如何使用
+### 推荐方式：通过 app_exports.dart 导入
+```dart
+import 'package:daily_satori/app_exports.dart';
 
-有两种方式导入这些工具类：
+// 所有工具类都可直接使用
+void example() {
+  final hasChineseChars = StringUtils.isChinese('你好');
+  UIUtils.showSuccess('操作成功');
+  'button.save'.t; // i18n 翻译
+}
+```
 
-### 1. 直接导入特定工具类
-
+### 按需导入特定工具
 ```dart
 import 'package:daily_satori/app/utils/string_utils.dart';
-
-// 使用示例
-void example() {
-  final hasChineseChars = StringUtils.isChinese('你好');
-}
+import 'package:daily_satori/app/utils/dialog_utils.dart';
 ```
 
-### 2. 使用集中导出文件
-
+### 使用统一导出文件
 ```dart
 import 'package:daily_satori/app/utils/utils.dart';
-
-// 使用示例
-void example() {
-  final hasChineseChars = StringUtils.isChinese('你好');
-  UIUtils.showSuccess('操作成功');
-}
-```
-
-### 3. 通过全局导出文件（向后兼容）
-
-```dart
-import 'package:daily_satori/global.dart';
-
-// 使用示例（新代码中建议直接使用工具类）
-void example() {
-  // 旧方式（仍支持但不推荐）
-  final hasChineseChars = isChinese('你好');
-  successNotice('操作成功');
-
-  // 新方式（推荐）
-  final hasChineseChars2 = StringUtils.isChinese('你好');
-  UIUtils.showSuccess('操作成功');
-}
 ```
 
 ## 最佳实践
 
-- 对于新代码，建议直接使用工具类中的方法，而不是使用全局函数
-- 对于工具类中的方法，所有必要的参数都应该通过命名参数传递
-- 所有工具类都使用私有构造函数，防止实例化
-- 工具类方法应该是静态的，便于调用
+1. **新代码推荐使用 `app_exports.dart`**，它已导出所有常用工具
+2. **工具类使用静态方法**，便于调用且无需实例化
+3. **控制器继承**：
+   - 简单控制器继承 `BaseController`
+   - 需要状态管理的控制器继承 `BaseGetXController`
+   - 列表页面控制器继承 `BaseListController`
+4. **国际化**：使用 `'key'.t` 语法进行翻译

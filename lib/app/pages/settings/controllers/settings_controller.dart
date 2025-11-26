@@ -9,9 +9,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:daily_satori/app/core/base_getx_controller.dart';
 
-class SettingsController extends BaseGetXController {
+class SettingsController extends BaseController {
   // ========================================================================
   // 构造函数
   // ========================================================================

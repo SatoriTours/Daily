@@ -5,7 +5,7 @@ import 'package:daily_satori/app/config/app_config.dart';
 ///
 /// 负责文章列表的展示、搜索、过滤、分页加载等功能
 /// 通过 ArticleStateService 管理文章数据状态
-class ArticlesController extends BaseGetXController with WidgetsBindingObserver {
+class ArticlesController extends BaseController with WidgetsBindingObserver {
   // ========== 构造函数 ==========
   ArticlesController(super._appStateService, this._articleStateService);
 
@@ -13,7 +13,7 @@ class ArticlesController extends BaseGetXController with WidgetsBindingObserver 
   final ArticleStateService _articleStateService;
 
   // 获取appStateService的便捷访问器
-  AppStateService get _appStateService => appStateService;
+  AppStateService get _appStateService => appStateService!;
 
   // ========== 过滤状态 ==========
   final onlyFavorite = false.obs;

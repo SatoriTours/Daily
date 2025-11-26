@@ -1,9 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/utils/i18n_extension.dart';
-import 'package:daily_satori/app/core/base_getx_controller.dart';
+import 'package:daily_satori/app_exports.dart';
 import '../../../components/ai_chat/chat_message.dart';
 import '../services/ai_agent_service.dart';
 import '../models/tool_call.dart';
@@ -15,7 +11,7 @@ import '../models/tool_call.dart';
 /// - 发送和重试消息
 /// - 与AI Agent服务交互
 /// - 处理步骤和工具调用的更新
-class AIChatController extends BaseGetXController {
+class AIChatController extends BaseController {
   // ========================================================================
   // 构造函数
   // ========================================================================

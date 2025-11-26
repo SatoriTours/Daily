@@ -1,18 +1,12 @@
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
-import 'package:daily_satori/app/services/plugin_service.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/core/base_getx_controller.dart';
-import 'package:flutter/material.dart';
-import 'package:daily_satori/app/utils/ui_utils.dart';
-import 'package:get/get.dart';
 
 /// AI配置编辑控制器
 ///
 /// 负责AI配置的编辑和创建操作，包括：
 /// - 创建新配置
 /// - 编辑现有配置
-class AIConfigEditController extends BaseGetXController {
+class AIConfigEditController extends BaseController {
   /// 当前编辑的配置
   final AIConfigModel? aiConfig;
 

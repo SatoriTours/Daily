@@ -5,7 +5,7 @@ import 'package:daily_satori/app/components/dialogs/processing_dialog.dart';
 
 /// 分享对话框控制器
 /// 管理网页内容的保存和更新
-class ShareDialogController extends BaseGetXController {
+class ShareDialogController extends BaseController {
   // ========== 构造函数 ==========
   ShareDialogController(super._appStateService, this._articleStateService);
 

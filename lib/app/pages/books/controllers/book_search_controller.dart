@@ -3,7 +3,6 @@ import 'package:daily_satori/app_exports.dart';
 /// 书籍搜索控制器
 class BookSearchController extends BaseController {
   final RxList<BookSearchResult> searchResults = <BookSearchResult>[].obs;
-  final RxBool isLoading = false.obs;
   final TextEditingController searchController = TextEditingController();
   final RxString searchTerm = ''.obs;
 
