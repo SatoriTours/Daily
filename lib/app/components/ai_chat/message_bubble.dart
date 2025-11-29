@@ -36,6 +36,11 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 调试日志：检查搜索结果
+    if (message.type == ChatMessageType.assistant) {
+      logger.d('[MessageBubble] 助手消息 - searchResults: ${message.searchResults?.length ?? 0}条');
+    }
+
     // 如果是空内容的助手消息（只有子消息或处理步骤），不渲染外层主内容气泡
     if (message.type == ChatMessageType.assistant && message.content.trim().isEmpty) {
       return Container(
@@ -205,7 +210,13 @@ class MessageBubble extends StatelessWidget {
       color: _getBackgroundColor(context),
       borderRadius: BorderRadius.circular(Dimensions.radiusS),
       border: _getBorder(context),
-      boxShadow: [BoxShadow(color: AppColors.getOnSurface(context).withValues(alpha: 0.03), blurRadius: 3, offset: const Offset(0, 1))],
+      boxShadow: [
+        BoxShadow(
+          color: AppColors.getOnSurface(context).withValues(alpha: 0.03),
+          blurRadius: 3,
+          offset: const Offset(0, 1),
+        ),
+      ],
     );
   }
 

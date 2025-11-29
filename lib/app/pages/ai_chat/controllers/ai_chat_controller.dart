@@ -279,8 +279,8 @@ class AIChatController extends BaseController {
   /// 调用AI Agent处理查询
   ///
   /// [query] 用户查询内容
-  /// 返回AI生成的答案
-  Future<String> _processWithAIAgent(String query) async {
+  /// 返回AI生成的答案和搜索结果
+  Future<MCPAgentResult> _processWithAIAgent(String query) async {
     logger.d('[AIChatController] 开始调用MCP Agent');
 
     final result = await _mcpAgentService.processQuery(
@@ -296,20 +296,35 @@ class AIChatController extends BaseController {
   /// 更新助手消息为完成状态
   ///
   /// [messageId] 要更新的助手消息ID
-  /// [result] AI生成的最终答案
-  void _updateAssistantMessageById(String messageId, String result) {
+  /// [result] AI Agent 返回的结果（包含答案和搜索结果）
+  void _updateAssistantMessageById(String messageId, MCPAgentResult result) {
     final index = messages.indexWhere((m) => m.id == messageId);
     if (index != -1) {
       final message = messages[index];
+
+      // 准备搜索结果
+      final searchResultsList = result.searchResults.isNotEmpty ? result.searchResults : null;
+      logger.d('[AIChatController] 搜索结果数量: ${result.searchResults.length}');
+      if (searchResultsList != null) {
+        for (var i = 0; i < searchResultsList.length; i++) {
+          logger.d('[AIChatController] 搜索结果[$i]: ${searchResultsList[i].type} - ${searchResultsList[i].title}');
+        }
+      }
+
       final updatedMessage = message.copyWith(
         status: MessageStatus.completed,
-        content: result,
-        // 清空子消息和步骤，只显示最终结果
+        content: result.answer,
+        // 清空子消息和步骤，但保留搜索结果用于展示
         subMessages: null,
         processingSteps: null,
+        searchResults: searchResultsList,
       );
+
+      // 验证更新后的消息
+      logger.d('[AIChatController] 更新后消息searchResults: ${updatedMessage.searchResults?.length ?? 0}条');
+
       messages[index] = updatedMessage;
-      logger.i('[AIChatController] 更新助手消息为完成状态, 内容长度: ${result.length}');
+      logger.i('[AIChatController] 更新助手消息为完成状态, 内容长度: ${result.answer.length}, 搜索结果: ${result.searchResults.length}条');
     } else {
       logger.w('[AIChatController] 未找到消息ID: $messageId');
     }

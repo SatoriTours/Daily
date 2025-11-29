@@ -4,8 +4,22 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/ai_config_service.dart';
+import 'package:daily_satori/app/pages/ai_chat/models/search_result.dart';
 import 'mcp_tool_definition.dart';
 import 'mcp_tool_executor.dart';
+
+/// MCP Agent 处理结果
+///
+/// 包含 AI 生成的答案和搜索到的原始数据
+class MCPAgentResult {
+  /// AI 生成的总结答案
+  final String answer;
+
+  /// 搜索到的原始数据（用于展示给用户查看）
+  final List<SearchResult> searchResults;
+
+  const MCPAgentResult({required this.answer, required this.searchResults});
+}
 
 /// MCP Agent 服务
 ///
@@ -46,8 +60,8 @@ class MCPAgentService {
   /// [onStep] 步骤更新回调 (stepName, status)
   /// [onToolCall] 工具调用回调
   ///
-  /// 返回 AI 生成的最终答案
-  Future<String> processQuery({
+  /// 返回包含 AI 答案和搜索结果的 MCPAgentResult
+  Future<MCPAgentResult> processQuery({
     required String query,
     required Function(String step, String status) onStep,
     Function(String toolName, Map<String, dynamic> args)? onToolCall,
@@ -57,6 +71,9 @@ class MCPAgentService {
 
     // 当前步骤名称（用于状态切换）
     String? currentStepName;
+
+    // 收集的搜索结果
+    final List<SearchResult> collectedResults = [];
 
     // 辅助函数：更新步骤状态
     void updateStep(String stepName, String status) {
@@ -72,7 +89,7 @@ class MCPAgentService {
       // 创建 OpenAI 客户端
       final client = await _createClient();
       if (client == null) {
-        return _buildErrorResponse('AI 服务未配置，请先在设置中配置 OpenAI API');
+        return MCPAgentResult(answer: _buildErrorResponse('AI 服务未配置，请先在设置中配置 OpenAI API'), searchResults: []);
       }
 
       // 步骤1: 理解问题
@@ -96,7 +113,7 @@ class MCPAgentService {
         final response = await _sendChatCompletion(client, messages);
         if (response == null) {
           logger.e('[MCPAgentService] AI 请求返回 null');
-          return _buildErrorResponse('AI 请求失败，请稍后重试');
+          return MCPAgentResult(answer: _buildErrorResponse('AI 请求失败，请稍后重试'), searchResults: collectedResults);
         }
 
         final choice = response.choices.first;
@@ -129,10 +146,13 @@ class MCPAgentService {
               onToolCall(toolName, argsMap);
             }
 
-            // 执行工具
+            // 执行工具并收集搜索结果
             final toolResult = await _toolExecutor.executeTool(toolName, toolArgs);
+            final searchResults = _extractSearchResults(toolName, toolResult);
+            collectedResults.addAll(searchResults);
 
             logger.i('[MCPAgentService] 工具结果: ${_truncateLog(toolResult)}');
+            logger.i('[MCPAgentService] 收集到 ${searchResults.length} 条搜索结果');
 
             // 将工具结果添加到消息历史
             messages.add(ChatCompletionMessage.tool(toolCallId: toolCall.id, content: toolResult));
@@ -174,7 +194,9 @@ class MCPAgentService {
       }
 
       logger.i('[MCPAgentService] ========== 处理完成 ==========');
-      return finalAnswer ?? _buildErrorResponse('无法生成回答');
+      logger.i('[MCPAgentService] 总共收集 ${collectedResults.length} 条搜索结果');
+
+      return MCPAgentResult(answer: finalAnswer ?? _buildErrorResponse('无法生成回答'), searchResults: collectedResults);
     } catch (e, stackTrace) {
       logger.e('[MCPAgentService] 处理失败', error: e, stackTrace: stackTrace);
       // 标记当前步骤为错误
@@ -182,8 +204,156 @@ class MCPAgentService {
         onStep(currentStepName!, 'error');
       }
       onStep('处理失败', 'error');
-      return _buildErrorResponse('处理失败: $e');
+      return MCPAgentResult(answer: _buildErrorResponse('处理失败: $e'), searchResults: collectedResults);
     }
+  }
+
+  // ========================================================================
+  // 私有方法 - 搜索结果提取
+  // ========================================================================
+
+  /// 从工具结果中提取搜索结果
+  ///
+  /// [toolName] 工具名称
+  /// [toolResult] 工具返回的 JSON 字符串
+  List<SearchResult> _extractSearchResults(String toolName, String toolResult) {
+    logger.d('[MCPAgentService] 开始提取搜索结果, 工具: $toolName');
+    try {
+      final data = jsonDecode(toolResult) as Map<String, dynamic>;
+      logger.d('[MCPAgentService] 解析数据键: ${data.keys.toList()}');
+
+      // 提取日记结果
+      if (toolName.contains('diary') && data['diaries'] != null) {
+        final diaries = data['diaries'] as List;
+        logger.d('[MCPAgentService] 找到 ${diaries.length} 条日记数据');
+        return _extractDiaryResults(diaries);
+      }
+
+      // 提取文章结果
+      if (toolName.contains('article') && data['articles'] != null) {
+        final articles = data['articles'] as List;
+        logger.d('[MCPAgentService] 找到 ${articles.length} 条文章数据');
+        return _extractArticleResults(articles);
+      }
+
+      // 提取书籍结果
+      if (toolName.contains('book') && data['books'] != null) {
+        final books = data['books'] as List;
+        logger.d('[MCPAgentService] 找到 ${books.length} 条书籍数据');
+        return _extractBookResults(books);
+      }
+
+      logger.d('[MCPAgentService] 未匹配到任何数据类型');
+      return [];
+    } catch (e) {
+      logger.w('[MCPAgentService] 提取搜索结果失败: $e');
+      return [];
+    }
+  }
+
+  /// 从日记数据提取搜索结果
+  List<SearchResult> _extractDiaryResults(List diaries) {
+    final results = <SearchResult>[];
+    for (var i = 0; i < diaries.length; i++) {
+      try {
+        final d = diaries[i] as Map<String, dynamic>;
+
+        // 处理 tags 字段（可能是字符串或列表）
+        List<String>? tagsList;
+        final tagsValue = d['tags'];
+        if (tagsValue is List) {
+          tagsList = tagsValue.map((t) => t.toString()).toList();
+        } else if (tagsValue is String && tagsValue.isNotEmpty) {
+          tagsList = tagsValue.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+        }
+
+        final result = SearchResult.fromDiary(
+          id: d['id'] as int,
+          title: _generateDiaryTitle(d),
+          summary: _truncateContent(d['content'] as String?, maxLength: 100),
+          createdAt: _parseDateTime(d['createdAt']),
+          tags: tagsList,
+        );
+        results.add(result);
+        logger.d('[MCPAgentService] 日记[$i]: id=${result.id}, title=${result.title}');
+      } catch (e) {
+        logger.w('[MCPAgentService] 提取日记[$i]失败: $e');
+      }
+    }
+    return results;
+  }
+
+  /// 从文章数据提取搜索结果
+  List<SearchResult> _extractArticleResults(List articles) {
+    final results = <SearchResult>[];
+    for (var i = 0; i < articles.length; i++) {
+      try {
+        final a = articles[i] as Map<String, dynamic>;
+        final result = SearchResult.fromArticle(
+          id: a['id'] as int,
+          title: a['title'] as String? ?? '未知标题',
+          summary: _truncateContent(a['summary'] as String?, maxLength: 100),
+          createdAt: _parseDateTime(a['createdAt']),
+          isFavorite: a['isFavorite'] as bool?,
+        );
+        results.add(result);
+        logger.d('[MCPAgentService] 文章[$i]: id=${result.id}, title=${result.title}');
+      } catch (e) {
+        logger.w('[MCPAgentService] 提取文章[$i]失败: $e');
+      }
+    }
+    return results;
+  }
+
+  /// 从书籍数据提取搜索结果
+  List<SearchResult> _extractBookResults(List books) {
+    final results = <SearchResult>[];
+    for (var i = 0; i < books.length; i++) {
+      try {
+        final b = books[i] as Map<String, dynamic>;
+        final result = SearchResult.fromBook(
+          id: b['id'] as int,
+          title: b['title'] as String? ?? '未知书名',
+          summary: b['author'] as String?,
+          createdAt: _parseDateTime(b['createdAt']),
+        );
+        results.add(result);
+        logger.d('[MCPAgentService] 书籍[$i]: id=${result.id}, title=${result.title}');
+      } catch (e) {
+        logger.w('[MCPAgentService] 提取书籍[$i]失败: $e');
+      }
+    }
+    return results;
+  }
+
+  /// 生成日记标题
+  String _generateDiaryTitle(Map<String, dynamic> diary) {
+    final createdAt = _parseDateTime(diary['createdAt']);
+    if (createdAt != null) {
+      return '${createdAt.year}年${createdAt.month}月${createdAt.day}日的日记';
+    }
+    return '日记';
+  }
+
+  /// 截断内容
+  String? _truncateContent(String? content, {int maxLength = 100}) {
+    if (content == null || content.isEmpty) return null;
+    if (content.length <= maxLength) return content;
+    return '${content.substring(0, maxLength)}...';
+  }
+
+  /// 解析日期时间
+  DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
   }
 
   // ========================================================================
@@ -294,13 +464,19 @@ class MCPAgentService {
    - "今天写了什么" = 调用 `get_diary_by_date` 并传入 "today"
    - "有多少文章" = 调用 `get_article_count`
 
-2. **回答格式**:
+2. **回答必须是总结式的**:
+   - **绝对不要**直接返回工具返回的原始数据或 JSON
+   - **必须**用自然语言总结和概括内容
+   - 如果是日记，提取关键信息并用流畅的语言转述
+   - 如果是文章或书籍，简要介绍内容要点
+   - 如果找到多条结果，简要列出标题即可，不要展示全部内容
+
+3. **回答格式**:
    - 使用 Markdown 格式
    - 重要信息用 **加粗**
    - 适当使用表情符号让回答更生动
-   - 如果找到多条结果，用列表展示
 
-3. **无结果处理**:
+4. **无结果处理**:
    - 如果没有找到数据，友好地告知用户
    - 可以建议用户尝试其他搜索条件
 

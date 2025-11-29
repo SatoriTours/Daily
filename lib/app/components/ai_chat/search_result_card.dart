@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/pages/ai_chat/models/search_result.dart';
+import 'package:daily_satori/app/data/diary/diary_repository.dart';
+import 'package:daily_satori/app/data/book/book_repository.dart';
+import 'package:daily_satori/app/pages/diary/utils/diary_utils.dart';
 
 /// 搜索结果卡片组件
 ///
@@ -78,7 +82,7 @@ class SearchResultCard extends StatelessWidget {
   /// 导航到详情页
   ///
   /// 根据搜索结果类型导航到对应的详情页面
-  /// 文章类型支持导航，日记和书籍功能待开发
+  /// 文章导航到详情页，日记和书籍显示对话框
   void _navigateToDetail() {
     logger.i('[SearchResultCard] 点击搜索结果: ${result.type.name} - ${result.title}');
 
@@ -88,15 +92,174 @@ class SearchResultCard extends StatelessWidget {
         Get.toNamed(Routes.articleDetail, arguments: result.id);
         break;
       case SearchResultType.diary:
-        logger.d('[SearchResultCard] 日记详情功能待开发');
-        // 日记编辑器路由暂时未定义，可以后续添加
-        Get.snackbar('提示', '日记详情功能开发中');
+        logger.d('[SearchResultCard] 显示日记详情对话框: ${result.id}');
+        _showDiaryDialog();
         break;
       case SearchResultType.book:
-        logger.d('[SearchResultCard] 书籍详情功能待开发');
-        // 书籍详情路由暂时未定义，可以后续添加
-        Get.snackbar('提示', '书籍详情功能开发中');
+        logger.d('[SearchResultCard] 显示书籍详情对话框: ${result.id}');
+        _showBookDialog();
         break;
     }
+  }
+
+  /// 显示日记详情对话框
+  void _showDiaryDialog() {
+    logger.d('[SearchResultCard] 尝试查找日记, ID: ${result.id}');
+    final diary = DiaryRepository.i.find(result.id);
+    if (diary == null) {
+      logger.w('[SearchResultCard] 找不到日记, ID: ${result.id}');
+      Get.snackbar('提示', '找不到该日记');
+      return;
+    }
+
+    logger.d('[SearchResultCard] 找到日记, 标题: ${result.title}, 内容长度: ${diary.content.length}');
+    Get.dialog(
+      _ContentDialog(
+        title: result.title,
+        content: diary.content.isNotEmpty ? diary.content : '（暂无内容）',
+        createdAt: diary.createdAt,
+        tags: diary.tags,
+        icon: '📔',
+      ),
+    );
+  }
+
+  /// 显示书籍详情对话框
+  void _showBookDialog() {
+    final book = BookRepository.i.find(result.id);
+    if (book == null) {
+      Get.snackbar('提示', '找不到该书籍');
+      return;
+    }
+
+    Get.dialog(
+      _ContentDialog(
+        title: book.title,
+        content: '**作者**: ${book.author}\n\n${book.introduction}',
+        createdAt: book.createdAt,
+        icon: '📖',
+      ),
+    );
+  }
+}
+
+/// 内容详情对话框
+///
+/// 用于显示日记或书籍的详细内容（全屏显示）
+class _ContentDialog extends StatelessWidget {
+  final String title;
+  final String content;
+  final DateTime? createdAt;
+  final String? tags;
+  final String icon;
+
+  const _ContentDialog({required this.title, required this.content, this.createdAt, this.tags, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog.fullscreen(
+      backgroundColor: DiaryStyles.getBackgroundColor(context),
+      child: Scaffold(
+        backgroundColor: DiaryStyles.getBackgroundColor(context),
+        appBar: AppBar(
+          backgroundColor: DiaryStyles.getCardBackgroundColor(context),
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.close, color: DiaryStyles.getPrimaryTextColor(context)),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Row(
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 24)),
+              SizedBox(width: Dimensions.spacingS),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: DiaryStyles.getPrimaryTextColor(context),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (createdAt != null)
+                      Text(
+                        _formatDateTime(createdAt!),
+                        style: TextStyle(fontSize: 12, color: DiaryStyles.getSecondaryTextColor(context)),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        body: _buildContent(context),
+      ),
+    );
+  }
+
+  /// 构建对话框内容
+  Widget _buildContent(BuildContext context) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(Dimensions.spacingM),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标签列表
+          if (tags != null && tags!.isNotEmpty) ...[_buildTags(context), SizedBox(height: Dimensions.spacingM)],
+          // 使用与日记页面相同的 Markdown 渲染
+          MarkdownBody(
+            data: content,
+            selectable: true,
+            styleSheet: DiaryUtils.getMarkdownStyleSheet(context),
+            softLineBreak: true,
+            fitContent: true,
+            shrinkWrap: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建标签列表（与日记页面风格一致）
+  Widget _buildTags(BuildContext context) {
+    return Wrap(
+      spacing: Dimensions.spacingS,
+      runSpacing: Dimensions.spacingS,
+      children: tags!.split(',').map((tag) {
+        final trimmedTag = tag.trim();
+        if (trimmedTag.isEmpty) return const SizedBox.shrink();
+        return Container(
+          padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs),
+          decoration: BoxDecoration(
+            color: DiaryStyles.getAccentColor(context).withAlpha(20),
+            borderRadius: Dimensions.borderRadiusM,
+            border: Border.all(color: DiaryStyles.getAccentColor(context).withAlpha(50), width: 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.tag, size: 14, color: DiaryStyles.getAccentColor(context)),
+              SizedBox(width: Dimensions.spacingXs),
+              Text(
+                trimmedTag,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: DiaryStyles.getAccentColor(context)),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// 格式化日期时间
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.year}年${dateTime.month}月${dateTime.day}日 '
+        '${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 }
