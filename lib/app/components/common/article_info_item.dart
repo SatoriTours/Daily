@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 文章信息项组件
 ///
@@ -19,8 +19,8 @@ class ArticleInfoItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: colorScheme.onSurfaceVariant.withAlpha(179)),
-        const SizedBox(width: 4),
+        Icon(icon, size: Dimensions.iconSizeXs, color: colorScheme.onSurfaceVariant.withAlpha(179)),
+        Dimensions.horizontalSpacerXs,
         Text(
           text,
           style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant.withAlpha(179)),

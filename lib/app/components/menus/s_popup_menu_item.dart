@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 通用的弹出菜单项（统一图标、间距、尺寸等样式）
 class SPopupMenuItem<T> extends PopupMenuItem<T> {
@@ -8,17 +9,17 @@ class SPopupMenuItem<T> extends PopupMenuItem<T> {
     required IconData icon,
     required String text,
     Color? iconColor,
-    double iconSize = 20,
-    double spacing = 8,
+    double? iconSize,
+    double? spacing,
     TextStyle? textStyle,
     EdgeInsets? padding,
     super.enabled,
   }) : super(
-         padding: padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+         padding: padding ?? EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
          child: Row(
            children: [
-             Icon(icon, size: iconSize, color: iconColor),
-             SizedBox(width: spacing),
+             Icon(icon, size: iconSize ?? Dimensions.iconSizeM, color: iconColor),
+             SizedBox(width: spacing ?? Dimensions.spacingS),
              Text(text, style: textStyle),
            ],
          ),
