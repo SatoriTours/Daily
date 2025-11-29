@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:daily_satori/app_exports.dart';
 import '../../../components/ai_chat/chat_message.dart';
-import '../services/ai_agent_service.dart';
-import '../models/tool_call.dart';
+import '../services/mcp/index.dart';
 
 /// AI聊天控制器
 ///
@@ -40,8 +39,8 @@ class AIChatController extends BaseController {
   /// 当前会话ID（用于追踪会话）
   final String sessionId = 'chat_${DateTime.now().millisecondsSinceEpoch}';
 
-  /// AI Agent 服务实例
-  final AIAgentService _aiAgentService = AIAgentService.i;
+  /// MCP Agent 服务实例
+  final MCPAgentService _mcpAgentService = MCPAgentService.i;
 
   /// 消息ID生成计数器
   int _messageCounter = 0;
@@ -106,8 +105,8 @@ class AIChatController extends BaseController {
       // 4. 调用AI Agent处理查询
       final result = await _processWithAIAgent(trimmedContent);
 
-      // 5. 更新助手消息为完成状态
-      _updateAssistantMessage(assistantMessage, result);
+      // 5. 更新助手消息为完成状态（使用消息ID查找）
+      _updateAssistantMessageById(assistantMessage.id, result);
 
       logger.i('[AIChatController] 消息处理完成');
     } catch (e, stackTrace) {
@@ -282,31 +281,37 @@ class AIChatController extends BaseController {
   /// [query] 用户查询内容
   /// 返回AI生成的答案
   Future<String> _processWithAIAgent(String query) async {
-    logger.d('[AIChatController] 开始调用AI Agent');
+    logger.d('[AIChatController] 开始调用MCP Agent');
 
-    final result = await _aiAgentService.processQuery(
+    final result = await _mcpAgentService.processQuery(
       query: query,
       onStep: _handleStepUpdate,
-      onToolCall: _handleToolCall,
-      onResult: _handleResultUpdate,
-      onSearchResults: _handleSearchResults,
+      // 不传递 onToolCall，不显示工具调用详情
     );
 
-    logger.d('[AIChatController] AI Agent处理完成');
+    logger.d('[AIChatController] MCP Agent处理完成');
     return result;
   }
 
   /// 更新助手消息为完成状态
   ///
-  /// [message] 要更新的助手消息
+  /// [messageId] 要更新的助手消息ID
   /// [result] AI生成的最终答案
-  void _updateAssistantMessage(ChatMessage message, String result) {
-    final updatedMessage = message.copyWith(status: MessageStatus.completed, content: result);
-
-    final index = messages.indexOf(message);
+  void _updateAssistantMessageById(String messageId, String result) {
+    final index = messages.indexWhere((m) => m.id == messageId);
     if (index != -1) {
+      final message = messages[index];
+      final updatedMessage = message.copyWith(
+        status: MessageStatus.completed,
+        content: result,
+        // 清空子消息和步骤，只显示最终结果
+        subMessages: null,
+        processingSteps: null,
+      );
       messages[index] = updatedMessage;
-      logger.d('[AIChatController] 更新助手消息为完成状态');
+      logger.i('[AIChatController] 更新助手消息为完成状态, 内容长度: ${result.length}');
+    } else {
+      logger.w('[AIChatController] 未找到消息ID: $messageId');
     }
   }
 
@@ -318,21 +323,6 @@ class AIChatController extends BaseController {
   void _handleStepUpdate(String step, String status) {
     currentStep.value = step;
     _updateProcessingStep(step, status);
-  }
-
-  /// 处理工具调用（AI Agent回调）
-  void _handleToolCall(ToolCall toolCall) {
-    _addToolCallToProcessingMessage(toolCall);
-  }
-
-  /// 处理结果更新（AI Agent回调）
-  void _handleResultUpdate(String result) {
-    _updateProcessingMessageContent(result);
-  }
-
-  /// 处理搜索结果（AI Agent回调）
-  void _handleSearchResults(List<dynamic> results) {
-    _updateProcessingMessageSearchResults(results);
   }
 
   // ========================================================================
@@ -353,52 +343,6 @@ class AIChatController extends BaseController {
     _updateMessageInList(processingMessage, processingMessage.copyWith(processingSteps: updatedSteps));
 
     logger.d('[AIChatController] 更新步骤: $stepDescription -> $statusString');
-  }
-
-  /// 添加工具调用到处理中的消息
-  ///
-  /// [toolCall] 工具调用信息
-  void _addToolCallToProcessingMessage(ToolCall toolCall) {
-    final processingMessage = _findProcessingMessage();
-    if (processingMessage == null) return;
-
-    final toolMessage = ChatMessage.tool(
-      id: _generateMessageId(),
-      toolName: toolCall.name,
-      toolData: toolCall.parameters,
-      description: toolCall.description,
-    );
-
-    final updatedSubMessages = <ChatMessage>[...(processingMessage.subMessages ?? []), toolMessage];
-
-    _updateMessageInList(processingMessage, processingMessage.copyWith(subMessages: updatedSubMessages));
-
-    logger.d('[AIChatController] 添加工具调用: ${toolCall.name}');
-  }
-
-  /// 更新处理中消息的内容
-  ///
-  /// [result] AI生成的内容
-  void _updateProcessingMessageContent(String result) {
-    final processingMessage = _findProcessingMessage();
-    if (processingMessage == null) return;
-
-    _updateMessageInList(processingMessage, processingMessage.copyWith(content: result));
-
-    final preview = result.length > 50 ? '${result.substring(0, 50)}...' : result;
-    logger.d('[AIChatController] 更新消息内容: $preview');
-  }
-
-  /// 更新处理中消息的搜索结果
-  ///
-  /// [results] 搜索结果列表
-  void _updateProcessingMessageSearchResults(List<dynamic> results) {
-    final processingMessage = _findProcessingMessage();
-    if (processingMessage == null) return;
-
-    _updateMessageInList(processingMessage, processingMessage.copyWith(searchResults: results));
-
-    logger.d('[AIChatController] 更新搜索结果: ${results.length}条');
   }
 
   // ========================================================================
