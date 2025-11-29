@@ -86,7 +86,7 @@ class ArticleDetailController extends BaseController {
 
   /// 加载并格式化文章标签
   void loadTags() {
-    tags.value = articleModel.tags.map((tag) => "#${tag.name}").join(', ');
+    tags.value = articleModel.tags.map((tag) => tag.name).join(', ');
   }
 
   /// 删除当前文章

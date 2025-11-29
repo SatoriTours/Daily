@@ -69,12 +69,7 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
             ),
           ),
           Dimensions.horizontalSpacerS,
-          Text(
-            'AI整理中',
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.getOnSurface(context).withValues(alpha: Opacities.high),
-            ),
-          ),
+          Text('AI整理中', style: AppTypography.bodySmall.copyWith(color: AppColors.getPrimary(context))),
         ],
       ),
     );

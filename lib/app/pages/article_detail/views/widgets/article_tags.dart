@@ -17,48 +17,35 @@ class ArticleTags extends StatelessWidget {
   Widget build(BuildContext context) {
     if (tags.isEmpty) return const SizedBox.shrink();
 
-    final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
     final tagList = tags.split(', ').where((tag) => tag.trim().isNotEmpty).toList();
 
     if (tagList.isEmpty) return const SizedBox.shrink();
 
     return Wrap(
-      spacing: Dimensions.spacingXs,
-      runSpacing: Dimensions.spacingXs,
-      children: tagList.map((tag) => _buildTag(context, tag, colorScheme, textTheme)).toList(),
+      spacing: Dimensions.spacingS,
+      runSpacing: Dimensions.spacingS,
+      children: tagList.map((tag) => _buildTag(context, tag)).toList(),
     );
   }
 
   /// 构建单个标签
-  Widget _buildTag(BuildContext context, String tag, ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildTag(BuildContext context, String tag) {
+    final accentColor = DiaryStyles.getAccentColor(context);
     return Container(
+      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [colorScheme.primaryContainer.withAlpha(80), colorScheme.primaryContainer.withAlpha(50)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(Dimensions.radiusM),
-        border: Border.all(color: colorScheme.primary.withAlpha(40), width: 0.5),
-        boxShadow: [BoxShadow(color: colorScheme.shadow.withAlpha(8), blurRadius: 2, offset: const Offset(0, 1))],
+        color: accentColor.withAlpha(20),
+        borderRadius: Dimensions.borderRadiusM,
+        border: Border.all(color: accentColor.withAlpha(50), width: 1),
       ),
-      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingS, vertical: Dimensions.spacingXs / 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 标签图标（更小）
-          Icon(Icons.label_outline, size: Dimensions.iconSizeXs, color: colorScheme.primary.withAlpha(180)),
-          Dimensions.horizontalSpacerXs,
-          // 标签文本（更小）
+          Icon(Icons.tag, size: 14, color: accentColor),
+          SizedBox(width: Dimensions.spacingXs),
           Text(
             tag,
-            style: textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurface.withAlpha(200),
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.1,
-              fontSize: 11,
-            ),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: accentColor),
           ),
         ],
       ),
