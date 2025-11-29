@@ -23,10 +23,6 @@ class PluginCenterController extends BaseController {
   /// 插件服务器地址 - 引用自StateService
   RxString get pluginServerUrl => _pluginCenterStateService.pluginServerUrl;
 
-  /// 是否正在加载 - 引用自StateService
-  @override
-  RxBool get isLoading => _pluginCenterStateService.isLoading;
-
   /// 正在更新的插件名 - 引用自StateService
   RxString get updatingPlugin => _pluginCenterStateService.updatingPlugin;
 
@@ -36,7 +32,7 @@ class PluginCenterController extends BaseController {
   void onInit() {
     super.onInit();
     _initStateService();
-    _pluginCenterStateService.loadPluginData();
+    _loadPluginData();
   }
 
   void _initStateService() {
@@ -46,8 +42,18 @@ class PluginCenterController extends BaseController {
   // MARK: - 数据操作（委托给StateService）
 
   /// 加载插件数据
+  Future<void> _loadPluginData() async {
+    isLoading.value = true;
+    try {
+      await _pluginCenterStateService.loadPluginData();
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /// 重新加载插件数据（供外部调用）
   Future<void> loadPluginData() async {
-    await _pluginCenterStateService.loadPluginData();
+    await _loadPluginData();
   }
 
   /// 更新插件服务器URL

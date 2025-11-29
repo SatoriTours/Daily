@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
@@ -32,10 +33,12 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
     return PreferredSize(
       preferredSize: const Size.fromHeight(kToolbarHeight),
       child: GetBuilder<AIConfigEditController>(
-        builder: (controller) => AppBar(
-          title: Text(controller.pageTitle, style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.w600)),
+        builder: (controller) => SAppBar(
+          title: Text(controller.pageTitle, style: const TextStyle(color: Colors.white)),
           centerTitle: true,
-          backgroundColor: AppColors.getSurface(context),
+          backgroundColorLight: AppColors.primary,
+          backgroundColorDark: AppColors.backgroundDark,
+          foregroundColor: Colors.white,
         ),
       ),
     );
@@ -169,11 +172,7 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
   Widget _buildInheritOptionContent(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildInheritOptionRow(context),
-        Dimensions.verticalSpacerS,
-        _buildInheritOptionHint(context),
-      ],
+      children: [_buildInheritOptionRow(context), Dimensions.verticalSpacerS, _buildInheritOptionHint(context)],
     );
   }
 

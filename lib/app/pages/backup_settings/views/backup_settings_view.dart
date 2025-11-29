@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
@@ -13,15 +14,16 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        title: Text('备份与恢复', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+      appBar: SAppBar(
+        title: const Text('备份与恢复', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: colorScheme.surface,
+        backgroundColorLight: AppColors.primary,
+        backgroundColorDark: AppColors.backgroundDark,
+        foregroundColor: Colors.white,
       ),
       body: Obx(() {
         // 收集所有响应式状态

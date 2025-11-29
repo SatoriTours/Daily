@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/components/common/feature_icon.dart';
+import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import '../controllers/ai_config_controller.dart';
 import '../models/ai_config_types.dart';
 import 'widgets/ai_config_info_dialog.dart';
@@ -31,13 +32,19 @@ class AIConfigView extends GetView<AIConfigController> {
 
   /// 构建应用栏
   PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      title: const Text('AI 配置管理'),
+    return SAppBar(
+      title: const Text('AI 配置管理', style: TextStyle(color: Colors.white)),
       centerTitle: true,
       elevation: 0,
-      backgroundColor: AppColors.getSurface(context),
+      backgroundColorLight: AppColors.primary,
+      backgroundColorDark: AppColors.backgroundDark,
+      foregroundColor: Colors.white,
       actions: [
-        IconButton(icon: const Icon(Icons.info_outline), tooltip: 'AI配置说明', onPressed: () => _showInfoDialog(context)),
+        IconButton(
+          icon: const Icon(Icons.info_outline, color: Colors.white),
+          tooltip: 'AI配置说明',
+          onPressed: () => _showInfoDialog(context),
+        ),
       ],
     );
   }

@@ -6,6 +6,8 @@ import 'package:daily_satori/app/pages/plugin_center/controllers/plugin_center_c
 class PluginCenterBinding extends Binding {
   @override
   List<Bind> dependencies() {
-    return [Bind.lazyPut<PluginCenterController>(() => PluginCenterController(Get.find<AppStateService>()))];
+    return [
+      Bind.lazyPut<PluginCenterController>(() => PluginCenterController(Get.find<AppStateService>()), fenix: true),
+    ];
   }
 }

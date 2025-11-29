@@ -9,10 +9,10 @@ class AIConfigBinding extends Binding {
   @override
   List<Bind> dependencies() {
     return [
-      Bind.lazyPut<AIConfigController>(() => AIConfigController(
-        Get.find<AppStateService>(),
-        Get.find<AIConfigStateService>(),
-      )),
+      Bind.lazyPut<AIConfigController>(
+        () => AIConfigController(Get.find<AppStateService>(), Get.find<AIConfigStateService>()),
+        fenix: true,
+      ),
     ];
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:daily_satori/app/utils/utils.dart';
 
+import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -13,15 +14,16 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: AppBar(
-        title: Text('从备份恢复', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+      appBar: SAppBar(
+        title: const Text('从备份恢复', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: colorScheme.surface,
+        backgroundColorLight: AppColors.primary,
+        backgroundColorDark: AppColors.backgroundDark,
+        foregroundColor: Colors.white,
       ),
       body: Padding(padding: Dimensions.paddingPage, child: Obx(() => _buildBody(context))),
     );

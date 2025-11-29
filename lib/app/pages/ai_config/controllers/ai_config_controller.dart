@@ -26,10 +26,6 @@ class AIConfigController extends BaseController {
   /// 获取AI配置列表
   RxList<AIConfigModel> get configs => _aiConfigStateService.configs;
 
-  /// 获取加载状态
-  @override
-  RxBool get isLoading => _aiConfigStateService.isLoading;
-
   /// 编辑类型选择
   final RxInt selectedFunctionType = 0.obs;
 
@@ -41,30 +37,34 @@ class AIConfigController extends BaseController {
   void onInit() {
     super.onInit();
     logger.d('[AIConfigController] 初始化');
-    _aiConfigStateService.loadConfigs();
+    _loadConfigs();
   }
 
   // ========================================================================
   // 公共方法 - 配置操作
   // ========================================================================
 
+  /// 加载配置
+  Future<void> _loadConfigs() async {
+    isLoading.value = true;
+    try {
+      await _aiConfigStateService.loadConfigs();
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   /// 创建新配置
   Future<void> createNewConfig() async {
     logger.i('[AIConfigController] 创建新配置');
-    final result = await Get.toNamed(
-      Routes.aiConfigEdit,
-      arguments: {'functionType': selectedFunctionType.value},
-    );
+    final result = await Get.toNamed(Routes.aiConfigEdit, arguments: {'functionType': selectedFunctionType.value});
     _handleEditResult(result);
   }
 
   /// 编辑配置
   Future<void> editConfig(AIConfigModel config) async {
     logger.i('[AIConfigController] 编辑配置: ${config.name}');
-    final result = await Get.toNamed(
-      Routes.aiConfigEdit,
-      arguments: {'aiConfig': config},
-    );
+    final result = await Get.toNamed(Routes.aiConfigEdit, arguments: {'aiConfig': config});
     _handleEditResult(result);
   }
 

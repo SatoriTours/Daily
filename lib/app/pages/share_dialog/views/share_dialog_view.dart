@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/components/index.dart';
 import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
@@ -26,10 +27,15 @@ class ShareDialogView extends GetView<ShareDialogController> {
 
   // 构建顶部应用栏
   PreferredSizeWidget _buildAppBar(BuildContext context, bool isUpdate) {
-    return AppBar(
-      title: Text(isUpdate ? 'ui.updateArticle'.t : 'ui.saveLink'.t, style: AppTypography.appBarTitle),
-      automaticallyImplyLeading: !isUpdate,
+    return SAppBar(
+      title: Text(isUpdate ? 'ui.updateArticle'.t : 'ui.saveLink'.t, style: const TextStyle(color: Colors.white)),
+      centerTitle: true,
+      // 更新模式下不显示返回按钮
+      leading: isUpdate ? const SizedBox.shrink() : null,
       elevation: 0,
+      backgroundColorLight: AppColors.primary,
+      backgroundColorDark: AppColors.backgroundDark,
+      foregroundColor: Colors.white,
     );
   }
 

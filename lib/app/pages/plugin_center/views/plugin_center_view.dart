@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/components/common/feature_icon.dart';
 import 'package:daily_satori/app/pages/plugin_center/controllers/plugin_center_controller.dart';
 import 'package:daily_satori/app/pages/plugin_center/views/widgets/server_url_dialog.dart';
@@ -29,26 +30,26 @@ class PluginCenterView extends GetView<PluginCenterController> {
 
   /// 构建应用栏
   PreferredSizeWidget _buildAppBar(BuildContext context, bool hasPlugins, bool isUpdatingAny) {
-    return AppBar(
-      title: const Text('插件中心'),
+    return SAppBar(
+      title: const Text('插件中心', style: TextStyle(color: Colors.white)),
       centerTitle: true,
       elevation: 0,
-      backgroundColor: AppColors.getSurface(context),
+      backgroundColorLight: AppColors.primary,
+      backgroundColorDark: AppColors.backgroundDark,
+      foregroundColor: Colors.white,
       actions: [
         // 更新所有按钮
         IconButton(
           icon: Icon(
             Icons.refresh_rounded,
-            color: (hasPlugins && !isUpdatingAny)
-                ? AppColors.getPrimary(context)
-                : AppColors.getOnSurface(context).withValues(alpha: Opacities.low),
+            color: (hasPlugins && !isUpdatingAny) ? Colors.white : Colors.white.withValues(alpha: Opacities.half),
           ),
           tooltip: '更新所有插件',
           onPressed: (hasPlugins && !isUpdatingAny) ? () => _updateAllPlugins(context) : null,
         ),
         // 服务器设置按钮
         IconButton(
-          icon: const Icon(Icons.settings_rounded),
+          icon: const Icon(Icons.settings_rounded, color: Colors.white),
           tooltip: '服务器设置',
           onPressed: () => ServerUrlDialog.show(context, controller),
         ),
