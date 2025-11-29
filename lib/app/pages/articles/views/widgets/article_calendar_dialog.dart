@@ -63,7 +63,12 @@ class ArticleCalendarDialog extends GetView<ArticlesController> {
     final textTheme = AppTypography.getTextTheme();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      padding: const EdgeInsets.fromLTRB(
+        Dimensions.spacingL - 4,
+        Dimensions.spacingM,
+        Dimensions.spacingL - 4,
+        Dimensions.spacingS,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -72,7 +77,7 @@ class ArticleCalendarDialog extends GetView<ArticlesController> {
             style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500, color: colorScheme.onSurface),
           ),
           IconButton(
-            icon: Icon(FeatherIcons.x, size: 20, color: colorScheme.onSurfaceVariant),
+            icon: Icon(FeatherIcons.x, size: Dimensions.iconSizeM, color: colorScheme.onSurfaceVariant),
             onPressed: () => Navigator.pop(context),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -93,7 +98,7 @@ class ArticleCalendarDialog extends GetView<ArticlesController> {
         Navigator.pop(context);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: Dimensions.paddingVerticalM,
         alignment: Alignment.center,
         child: Text(
           'article.view_all_articles'.t,

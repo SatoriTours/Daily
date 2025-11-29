@@ -1,6 +1,6 @@
 import 'package:daily_satori/app/pages/left_bar/controllers/left_bar_controller.dart';
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 class LeftBarView extends GetView<LeftBarController> {
   const LeftBarView({super.key});
@@ -18,9 +18,9 @@ class LeftBarView extends GetView<LeftBarController> {
       body: Column(
         children: [
           _buildHeader(context),
-          const SizedBox(height: 8),
+          Dimensions.verticalSpacerS,
           _buildActions(context),
-          const SizedBox(height: 8),
+          Dimensions.verticalSpacerS,
           Divider(color: colorScheme.outline),
           Expanded(child: _buildTagsList(context)),
         ],
@@ -33,12 +33,17 @@ class LeftBarView extends GetView<LeftBarController> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(
+        Dimensions.spacingM,
+        Dimensions.spacingM,
+        Dimensions.spacingM,
+        Dimensions.spacingS,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('欢迎使用 Daily Satori', style: textTheme.headlineMedium),
-          const SizedBox(height: 4),
+          Dimensions.verticalSpacerXs,
           Text(
             '您的个人阅读助手',
             style: textTheme.bodyMedium?.copyWith(color: AppTheme.getColorScheme(context).onSurfaceVariant),
@@ -52,10 +57,10 @@ class LeftBarView extends GetView<LeftBarController> {
     final colorScheme = AppTheme.getColorScheme(context);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: Dimensions.paddingHorizontalM,
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: Dimensions.borderRadiusM,
         boxShadow: [BoxShadow(color: Colors.black.withAlpha(13), blurRadius: 5, offset: const Offset(0, 2))],
       ),
       child: Row(
@@ -71,7 +76,7 @@ class LeftBarView extends GetView<LeftBarController> {
               },
             ),
           ),
-          Container(width: 1, height: 30, color: colorScheme.outline),
+          Container(width: 1, height: Dimensions.spacingL + Dimensions.spacingXs, color: colorScheme.outline),
           Expanded(
             child: _buildActionButton(
               context,
@@ -83,7 +88,7 @@ class LeftBarView extends GetView<LeftBarController> {
               },
             ),
           ),
-          Container(width: 1, height: 30, color: colorScheme.outline),
+          Container(width: 1, height: Dimensions.spacingL + Dimensions.spacingXs, color: colorScheme.outline),
           Expanded(
             child: _buildActionButton(
               context,
@@ -108,14 +113,14 @@ class LeftBarView extends GetView<LeftBarController> {
 
     return InkWell(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: Dimensions.borderRadiusM,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: Dimensions.paddingVerticalM,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 24, color: colorScheme.primary),
-            const SizedBox(height: 4),
+            Icon(icon, size: Dimensions.iconSizeL, color: colorScheme.primary),
+            Dimensions.verticalSpacerXs,
             Text(label, style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurface)),
           ],
         ),
@@ -134,7 +139,7 @@ class LeftBarView extends GetView<LeftBarController> {
 
     return ListView.builder(
       itemCount: controller.tags.length,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
       itemBuilder: (context, index) => _buildTagItem(context, controller.tags[index]),
     );
   }
@@ -148,18 +153,18 @@ class LeftBarView extends GetView<LeftBarController> {
         controller.articlesController.filterByTag(tag.id, tag.name ?? '');
         Get.back();
       },
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: Dimensions.borderRadiusS,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS + 2),
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: colorScheme.outline.withAlpha(128), width: 0.5)),
         ),
         child: Row(
           children: [
-            Icon(Icons.tag, size: 18, color: colorScheme.primary),
-            const SizedBox(width: 12),
+            Icon(Icons.tag, size: Dimensions.iconSizeS, color: colorScheme.primary),
+            Dimensions.horizontalSpacerM,
             Expanded(child: Text(tag.name ?? '', style: textTheme.bodyMedium)),
-            Icon(Icons.chevron_right, size: 16, color: colorScheme.onSurfaceVariant),
+            Icon(Icons.chevron_right, size: Dimensions.iconSizeXs, color: colorScheme.onSurfaceVariant),
           ],
         ),
       ),

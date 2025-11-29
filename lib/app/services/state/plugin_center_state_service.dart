@@ -1,5 +1,5 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/config/app_config.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 插件中心状态服务
 ///
@@ -103,7 +103,7 @@ class PluginCenterStateService extends GetxService {
         }
 
         // 短暂延迟，让用户能看到完成状态
-        await Future.delayed(AnimationConfig.duration);
+        await Future.delayed(Animations.durationNormal);
       }
 
       // 更新完成后重新加载插件数据

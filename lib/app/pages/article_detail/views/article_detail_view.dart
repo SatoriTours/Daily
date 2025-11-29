@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:daily_satori/app/data/index.dart' show ArticleStatus;
+import 'package:daily_satori/app/styles/index.dart';
 
 import '../controllers/article_detail_controller.dart';
 import 'widgets/article_detail_app_bar.dart';
@@ -48,27 +49,32 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
 
   // 简洁横幅：仅显示一条带图标和文字的细条
   Widget _buildSlimBanner(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      margin: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
       decoration: BoxDecoration(
-        color: cs.primaryContainer.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: cs.primary.withValues(alpha: 0.2), width: 0.5),
+        color: AppColors.getPrimaryContainer(context).withValues(alpha: Opacities.extraLow),
+        borderRadius: BorderRadius.circular(Dimensions.radiusS),
+        border: Border.all(color: AppColors.getPrimary(context).withValues(alpha: Opacities.low), width: 0.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary.withValues(alpha: 0.7)),
+            width: Dimensions.iconSizeXs,
+            height: Dimensions.iconSizeXs,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.getPrimary(context).withValues(alpha: Opacities.high),
+            ),
           ),
-          const SizedBox(width: 10),
-          Text('AI整理中', style: tt.bodySmall?.copyWith(color: cs.onSurface.withValues(alpha: 0.75), fontSize: 13)),
+          Dimensions.horizontalSpacerS,
+          Text(
+            'AI整理中',
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.getOnSurface(context).withValues(alpha: Opacities.high),
+            ),
+          ),
         ],
       ),
     );

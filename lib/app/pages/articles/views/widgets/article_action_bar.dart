@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app/data/article/article_model.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 文章操作栏组件
 ///
@@ -29,12 +29,12 @@ class ArticleActionBar extends StatelessWidget {
         if (isProcessing)
           Container(
             width: 28,
-            height: 24,
+            height: Dimensions.spacingL,
             alignment: Alignment.center,
-            margin: const EdgeInsets.only(right: 8),
+            margin: const EdgeInsets.only(right: Dimensions.spacingS),
             child: SizedBox(
-              width: 16,
-              height: 16,
+              width: Dimensions.iconSizeXs,
+              height: Dimensions.iconSizeXs,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
@@ -44,11 +44,18 @@ class ArticleActionBar extends StatelessWidget {
         _buildActionButton(
           context,
           articleModel.isFavorite ? Icons.favorite : Icons.favorite_border,
-          articleModel.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+          articleModel.isFavorite
+              ? colorScheme.error
+              : colorScheme.onSurfaceVariant.withValues(alpha: Opacities.medium),
           onFavoriteToggle,
         ),
-        const SizedBox(width: 8),
-        _buildActionButton(context, Icons.share, colorScheme.onSurfaceVariant.withValues(alpha: 0.7), onShare),
+        Dimensions.horizontalSpacerS,
+        _buildActionButton(
+          context,
+          Icons.share,
+          colorScheme.onSurfaceVariant.withValues(alpha: Opacities.medium),
+          onShare,
+        ),
       ],
     );
   }
@@ -56,12 +63,12 @@ class ArticleActionBar extends StatelessWidget {
   Widget _buildActionButton(BuildContext context, IconData icon, Color color, VoidCallback? onTap) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(Dimensions.radiusL),
       child: Container(
         width: 28,
-        height: 24,
+        height: Dimensions.spacingL,
         alignment: Alignment.center,
-        child: Icon(icon, size: 16, color: color),
+        child: Icon(icon, size: Dimensions.iconSizeXs, color: color),
       ),
     );
   }

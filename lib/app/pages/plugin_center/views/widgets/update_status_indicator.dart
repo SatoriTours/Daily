@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
 
 /// 更新状态指示器组件
@@ -16,28 +17,41 @@ class UpdateStatusIndicator extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingS + 2, horizontal: Dimensions.spacingM),
       decoration: BoxDecoration(
-        color: Colors.blue.withAlpha(20),
-        border: Border(bottom: BorderSide(color: Colors.blue.withAlpha(26), width: 1)),
+        color: AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow),
+        border: Border(
+          bottom: BorderSide(color: AppColors.getPrimary(context).withValues(alpha: Opacities.low), width: 1),
+        ),
       ),
       child: Row(
         children: [
-          const SizedBox(
-            width: 18,
-            height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2.5, valueColor: AlwaysStoppedAnimation<Color>(Colors.blue)),
+          SizedBox(
+            width: Dimensions.iconSizeS,
+            height: Dimensions.iconSizeS,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
+            ),
           ),
-          const SizedBox(width: 16),
+          Dimensions.horizontalSpacerM,
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('正在更新插件', style: TextStyle(color: Colors.blue, fontSize: 14, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 2),
+                Text(
+                  '正在更新插件',
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: AppColors.getPrimary(context),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Dimensions.verticalSpacerXs,
                 Text(
                   updatingFileName,
-                  style: TextStyle(color: Colors.blue.withAlpha(179), fontSize: 12),
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.getPrimary(context).withValues(alpha: Opacities.mediumHigh),
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

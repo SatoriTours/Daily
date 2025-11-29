@@ -9,7 +9,6 @@ import 'package:daily_satori/app/services/state/app_state_service.dart';
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
-import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/components/search/generic_search_bar.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'widgets/articles_tags_dialog.dart';
@@ -51,8 +50,8 @@ class _ArticlesAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return SAppBar(
-      backgroundColorDark: const Color(0xFF121212),
-      backgroundColorLight: const Color(0xFF5E8BFF),
+      backgroundColorDark: AppColors.backgroundDark,
+      backgroundColorLight: AppColors.primary,
       elevation: 0.5,
       leading: _buildCalendarButton(context),
       title: _buildTitle(),
@@ -116,7 +115,7 @@ class _ArticlesAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   void _scrollToTop() {
     if (controller.scrollController.hasClients) {
-      controller.scrollController.animateTo(0, duration: AnimationConfig.duration, curve: Curves.easeInOut);
+      controller.scrollController.animateTo(0, duration: Animations.durationNormal, curve: Curves.easeInOut);
     }
   }
 

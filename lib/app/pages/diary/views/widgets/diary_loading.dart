@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 日记加载状态组件
 class DiaryLoading extends StatelessWidget {
@@ -15,7 +16,7 @@ class DiaryLoading extends StatelessWidget {
         children: [
           CircularProgressIndicator(color: DiaryStyle.accentColor(context)),
           if (message != null) ...[
-            const SizedBox(height: 16),
+            Dimensions.verticalSpacerM,
             Text(message!, style: TextStyle(fontSize: 14, color: DiaryStyle.secondaryTextColor(context))),
           ],
         ],

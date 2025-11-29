@@ -14,6 +14,7 @@ export 'base/borders.dart';
 export 'base/shadows.dart';
 export 'base/opacities.dart';
 export 'base/border_styles.dart';
+export 'base/animations.dart';
 
 // 组件样式
 export 'components/button_styles.dart';

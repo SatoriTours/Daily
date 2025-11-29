@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 日记卡片的更多操作菜单
 class DiaryMoreMenu extends StatelessWidget {
@@ -14,19 +15,23 @@ class DiaryMoreMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
       padding: EdgeInsets.zero,
-      iconSize: 16,
-      icon: Icon(FeatherIcons.moreHorizontal, size: 16, color: DiaryStyle.secondaryTextColor(context)),
-      splashRadius: 12,
+      iconSize: Dimensions.iconSizeXs,
+      icon: Icon(
+        FeatherIcons.moreHorizontal,
+        size: Dimensions.iconSizeXs,
+        color: DiaryStyle.secondaryTextColor(context),
+      ),
+      splashRadius: Dimensions.spacingS + 4,
       tooltip: '更多选项',
       elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusM),
       itemBuilder: (context) => [
         PopupMenuItem<String>(
           value: 'edit',
           child: Row(
             children: [
-              Icon(FeatherIcons.edit2, size: 16, color: DiaryStyle.accentColor(context)),
-              const SizedBox(width: 8),
+              Icon(FeatherIcons.edit2, size: Dimensions.iconSizeXs, color: DiaryStyle.accentColor(context)),
+              Dimensions.horizontalSpacerS,
               Text('编辑日记'),
             ],
           ),
@@ -35,8 +40,8 @@ class DiaryMoreMenu extends StatelessWidget {
           value: 'delete',
           child: Row(
             children: [
-              Icon(FeatherIcons.trash2, size: 16, color: Colors.red),
-              const SizedBox(width: 8),
+              Icon(FeatherIcons.trash2, size: Dimensions.iconSizeXs, color: Colors.red),
+              Dimensions.horizontalSpacerS,
               Text('删除日记', style: TextStyle(color: Colors.red)),
             ],
           ),

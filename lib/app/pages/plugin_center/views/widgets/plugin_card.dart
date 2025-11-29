@@ -1,5 +1,6 @@
 import 'package:daily_satori/app/pages/plugin_center/controllers/plugin_center_controller.dart';
 import 'package:daily_satori/app/services/plugin_service.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -18,24 +19,24 @@ class PluginCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: Dimensions.spacingM),
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusM),
       child: Obx(() {
         final isUpdating = controller.updatingPlugin.value == plugin.fileName;
 
         return Padding(
-          padding: const EdgeInsets.all(16),
+          padding: Dimensions.paddingM,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 标题行
               _buildTitleRow(context, isUpdating),
-              const SizedBox(height: 12),
+              Dimensions.verticalSpacerM,
 
               // 描述
               _buildDescription(context),
-              const SizedBox(height: 16),
+              Dimensions.verticalSpacerM,
 
               // 更新时间
               _buildUpdateTime(context),
@@ -53,57 +54,76 @@ class PluginCard extends StatelessWidget {
       children: [
         // 图标
         Container(
-          decoration: BoxDecoration(color: Colors.blue.withAlpha(26), borderRadius: BorderRadius.circular(8)),
-          padding: const EdgeInsets.all(8),
-          child: const Icon(Icons.settings_input_svideo, color: Colors.blue, size: 20),
+          decoration: BoxDecoration(
+            color: AppColors.getPrimary(context).withValues(alpha: Opacities.low),
+            borderRadius: Dimensions.borderRadiusS,
+          ),
+          padding: Dimensions.paddingS,
+          child: Icon(Icons.settings_input_svideo, color: AppColors.getPrimary(context), size: Dimensions.iconSizeM),
         ),
-        const SizedBox(width: 12),
+        Dimensions.horizontalSpacerM,
 
         // 文件名
         Expanded(
-          child: Text(plugin.fileName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, height: 1.2)),
+          child: Text(plugin.fileName, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold)),
         ),
 
         // 更新按钮或进度指示器
-        if (isUpdating) _buildUpdatingIndicator() else _buildUpdateButton(),
+        if (isUpdating) _buildUpdatingIndicator(context) else _buildUpdateButton(context),
       ],
     );
   }
 
   /// 构建更新中指示器
-  Widget _buildUpdatingIndicator() {
+  Widget _buildUpdatingIndicator(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: Colors.blue.withAlpha(26), borderRadius: BorderRadius.circular(16)),
-      child: const Row(
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingXs + 2),
+      decoration: BoxDecoration(
+        color: AppColors.getPrimary(context).withValues(alpha: Opacities.low),
+        borderRadius: BorderRadius.circular(Dimensions.radiusCircular),
+      ),
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.blue)),
+            width: Dimensions.iconSizeXs - 2,
+            height: Dimensions.iconSizeXs - 2,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
+            ),
           ),
-          SizedBox(width: 8),
-          Text('更新中', style: TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
+          Dimensions.horizontalSpacerS,
+          Text(
+            '更新中',
+            style: AppTypography.labelSmall.copyWith(color: AppColors.getPrimary(context), fontWeight: FontWeight.w500),
+          ),
         ],
       ),
     );
   }
 
   /// 构建更新按钮
-  Widget _buildUpdateButton() {
+  Widget _buildUpdateButton(BuildContext context) {
+    final isEnabled = controller.updatingPlugin.isEmpty;
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(Dimensions.radiusCircular),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: controller.updatingPlugin.isEmpty ? () => _updatePlugin() : null,
+        borderRadius: BorderRadius.circular(Dimensions.radiusCircular),
+        onTap: isEnabled ? () => _updatePlugin() : null,
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: Dimensions.paddingS,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.refresh, color: controller.updatingPlugin.isEmpty ? Colors.blue : Colors.grey, size: 22),
+              Icon(
+                Icons.refresh,
+                color: isEnabled
+                    ? AppColors.getPrimary(context)
+                    : AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+                size: Dimensions.iconSizeM + 2,
+              ),
             ],
           ),
         ),
@@ -115,26 +135,35 @@ class PluginCard extends StatelessWidget {
   Widget _buildDescription(BuildContext context) {
     return Text(
       plugin.description,
-      style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withAlpha(179), fontSize: 14, height: 1.4),
+      style: AppTypography.bodyMedium.copyWith(
+        color: AppColors.getOnSurface(context).withValues(alpha: Opacities.mediumHigh),
+        height: 1.4,
+      ),
     );
   }
 
   /// 构建更新时间信息
   Widget _buildUpdateTime(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs + 2),
       decoration: BoxDecoration(
-        color: Theme.of(context).dividerColor.withAlpha(26),
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.getOnSurface(context).withValues(alpha: Opacities.extraLow),
+        borderRadius: Dimensions.borderRadiusS,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.update, size: 14, color: Theme.of(context).textTheme.bodySmall?.color?.withAlpha(153)),
-          const SizedBox(width: 6),
+          Icon(
+            Icons.update,
+            size: Dimensions.iconSizeXs - 2,
+            color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+          ),
+          Dimensions.horizontalSpacerXs,
           Text(
             '上次更新: ${controller.getUpdateTimeText(plugin.lastUpdateTime)}',
-            style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withAlpha(153)),
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+            ),
           ),
         ],
       ),

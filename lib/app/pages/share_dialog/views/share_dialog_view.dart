@@ -111,8 +111,12 @@ class ShareDialogView extends GetView<ShareDialogController> {
       children: [
         Row(
           children: [
-            Icon(Icons.link_rounded, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
-            const SizedBox(width: 8),
+            Icon(
+              Icons.link_rounded,
+              size: Dimensions.iconSizeS,
+              color: theme.colorScheme.primary.withValues(alpha: Opacities.highOpaque),
+            ),
+            Dimensions.horizontalSpacerS,
             Text('ui.link'.t, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
             const Spacer(),
             if (isUpdate) ...[
@@ -122,12 +126,12 @@ class ShareDialogView extends GetView<ShareDialogController> {
                   children: [
                     Icon(
                       Icons.refresh_rounded,
-                      size: 14,
+                      size: Dimensions.iconSizeXs - 2,
                       color: controller.refreshAndAnalyze.value
                           ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                          : theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.mediumHigh),
                     ),
-                    const SizedBox(width: 6),
+                    Dimensions.horizontalSpacerXs,
                     Text(
                       'ui.aiAnalysis'.t,
                       style: AppTypography.bodySmall.copyWith(
@@ -135,10 +139,10 @@ class ShareDialogView extends GetView<ShareDialogController> {
                         fontWeight: FontWeight.w500,
                         color: controller.refreshAndAnalyze.value
                             ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+                            : theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.highOpaque),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    Dimensions.horizontalSpacerS,
                     Transform.scale(
                       scale: 0.8,
                       child: Switch.adaptive(
@@ -183,12 +187,16 @@ class ShareDialogView extends GetView<ShareDialogController> {
       children: [
         Row(
           children: [
-            Icon(Icons.title_rounded, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
-            const SizedBox(width: 8),
+            Icon(
+              Icons.title_rounded,
+              size: Dimensions.iconSizeS,
+              color: theme.colorScheme.primary.withValues(alpha: Opacities.highOpaque),
+            ),
+            Dimensions.horizontalSpacerS,
             Text('ui.title'.t, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
           ],
         ),
-        const SizedBox(height: 10),
+        Dimensions.verticalSpacerS,
         TextField(
           controller: controller.titleController,
           maxLines: null,
@@ -197,25 +205,34 @@ class ShareDialogView extends GetView<ShareDialogController> {
           style: AppTypography.bodyMedium.copyWith(fontSize: 15, height: 1.5),
           decoration: InputDecoration(
             hintText: 'ui.inputOrModifyArticleTitle'.t,
-            hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+            hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.half)),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3), width: 0.5),
+              borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
+              borderSide: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: Opacities.high),
+                width: 0.5,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25), width: 0.5),
+              borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
+              borderSide: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: Opacities.medium),
+                width: 0.5,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.6), width: 1),
+              borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
+              borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: Opacities.medium), width: 1),
             ),
             filled: true,
             fillColor: theme.colorScheme.surface,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.spacingM - 2,
+              vertical: Dimensions.spacingM - 2,
+            ),
             counterStyle: AppTypography.bodySmall.copyWith(
               fontSize: 11,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.medium),
             ),
           ),
           inputFormatters: [LengthLimitingTextInputFormatter(120)],
@@ -232,20 +249,24 @@ class ShareDialogView extends GetView<ShareDialogController> {
       children: [
         Row(
           children: [
-            Icon(Icons.comment_outlined, size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.8)),
-            const SizedBox(width: 8),
+            Icon(
+              Icons.comment_outlined,
+              size: Dimensions.iconSizeS,
+              color: theme.colorScheme.primary.withValues(alpha: Opacities.highOpaque),
+            ),
+            Dimensions.horizontalSpacerS,
             Text('ui.comment'.t, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
-            const SizedBox(width: 6),
+            Dimensions.horizontalSpacerXs,
             Text(
               'ui.optional'.t,
               style: AppTypography.bodySmall.copyWith(
                 fontSize: 12,
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.medium),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        Dimensions.verticalSpacerS,
         TextField(
           controller: controller.commentController,
           maxLines: null,
@@ -253,22 +274,31 @@ class ShareDialogView extends GetView<ShareDialogController> {
           style: AppTypography.bodyMedium.copyWith(fontSize: 14, height: 1.6),
           decoration: InputDecoration(
             hintText: 'ui.addCommentInfo'.t,
-            hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+            hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.half)),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3), width: 0.5),
+              borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
+              borderSide: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: Opacities.high),
+                width: 0.5,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.25), width: 0.5),
+              borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
+              borderSide: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: Opacities.medium),
+                width: 0.5,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.6), width: 1),
+              borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
+              borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: Opacities.medium), width: 1),
             ),
             filled: true,
             fillColor: theme.colorScheme.surface,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.spacingM - 2,
+              vertical: Dimensions.spacingM - 2,
+            ),
           ),
         ),
       ],

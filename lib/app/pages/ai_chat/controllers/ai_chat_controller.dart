@@ -112,7 +112,8 @@ class AIChatController extends BaseController {
       logger.i('[AIChatController] 消息处理完成');
     } catch (e, stackTrace) {
       logger.e('[AIChatController] 处理消息失败', error: e, stackTrace: stackTrace);
-      _addErrorMessage();
+      // 将处理中的消息标记为错误状态
+      _markProcessingMessageAsError();
     } finally {
       _stopProcessing();
       _scrollToBottom();
@@ -130,6 +131,12 @@ class AIChatController extends BaseController {
       return;
     }
 
+    // 避免重复重试
+    if (isProcessing.value) {
+      logger.w('[AIChatController] 正在处理中，忽略重试请求');
+      return;
+    }
+
     logger.i('[AIChatController] 重试消息: ${message.id}');
 
     try {
@@ -137,7 +144,7 @@ class AIChatController extends BaseController {
       final userMessage = _findPreviousUserMessage(message);
 
       if (userMessage != null) {
-        // 移除失败的助手消息
+        // 移除失败的助手消息（包括其所有步骤状态）
         messages.remove(message);
         logger.d('[AIChatController] 已移除失败消息，准备重试');
 
@@ -186,15 +193,31 @@ class AIChatController extends BaseController {
     );
   }
 
-  /// 添加错误消息
-  void _addErrorMessage() {
-    final errorMessage = ChatMessage.assistant(
-      id: _generateMessageId(),
-      content: 'ai_chat.error_occurred'.t,
+  /// 将处理中的消息标记为错误状态
+  ///
+  /// 当处理失败时调用，将消息状态改为 error，
+  /// 并将所有 processing 状态的步骤标记为 error
+  void _markProcessingMessageAsError() {
+    final processingMessage = _findProcessingMessage();
+    if (processingMessage == null) return;
+
+    // 将所有 processing 状态的步骤标记为 error
+    final updatedSteps = processingMessage.processingSteps?.map((step) {
+      if (step.status == StepStatus.processing) {
+        return step.copyWith(status: StepStatus.error);
+      }
+      return step;
+    }).toList();
+
+    // 更新消息状态为错误
+    final errorMessage = processingMessage.copyWith(
       status: MessageStatus.error,
+      content: 'ai_chat.error_occurred'.t,
+      processingSteps: updatedSteps,
     );
-    messages.add(errorMessage);
-    logger.d('[AIChatController] 添加错误消息');
+
+    _updateMessageInList(processingMessage, errorMessage);
+    logger.d('[AIChatController] 将处理中消息标记为错误状态');
   }
 
   /// 添加欢迎消息

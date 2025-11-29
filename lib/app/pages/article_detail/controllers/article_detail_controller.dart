@@ -1,5 +1,4 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/pages/articles/controllers/articles_controller.dart';
 
 class ArticleDetailController extends BaseController {
   // ========== 构造函数 ==========
@@ -71,11 +70,8 @@ class ArticleDetailController extends BaseController {
       // 从数据库重新获取最新状态
       articleModel = ArticleRepository.i.findModel(argument.id) ?? argument;
     } else if (argument is int) {
-      // 通过ID查找文章，优先从列表控制器获取引用
-      final articleRef = Get.isRegistered<ArticlesController>()
-          ? Get.find<ArticlesController>().getRef(argument)
-          : ArticleRepository.i.findModel(argument);
-
+      // 通过ID查找文章
+      final articleRef = ArticleRepository.i.findModel(argument);
       if (articleRef == null) {
         throw ArgumentError('Article not found with ID: $argument');
       }

@@ -22,7 +22,7 @@ class ServerUrlDialog {
         padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: Dimensions.paddingL,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -31,13 +31,13 @@ class ServerUrlDialog {
                 Row(
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: Dimensions.iconSizeXxl - Dimensions.spacingS,
+                      height: Dimensions.iconSizeXxl - Dimensions.spacingS,
                       decoration: BoxDecoration(
                         color: colorScheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(Dimensions.radiusS),
                       ),
-                      child: Icon(Icons.dns_rounded, color: colorScheme.primary, size: 20),
+                      child: Icon(Icons.dns_rounded, color: colorScheme.primary, size: Dimensions.iconSizeM),
                     ),
                     Dimensions.horizontalSpacerM,
                     Expanded(
@@ -76,7 +76,7 @@ class ServerUrlDialog {
                     ),
                     filled: true,
                     fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    contentPadding: Dimensions.paddingM,
                   ),
                   style: textTheme.bodyLarge,
                   keyboardType: TextInputType.url,
@@ -89,7 +89,7 @@ class ServerUrlDialog {
 
                 // 提示信息
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: Dimensions.paddingM,
                   decoration: BoxDecoration(
                     color: colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(Dimensions.radiusS),
@@ -98,7 +98,7 @@ class ServerUrlDialog {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.info_outline_rounded, size: 18, color: colorScheme.primary),
+                      Icon(Icons.info_outline_rounded, size: Dimensions.iconSizeS, color: colorScheme.primary),
                       Dimensions.horizontalSpacerS,
                       Expanded(
                         child: Text(

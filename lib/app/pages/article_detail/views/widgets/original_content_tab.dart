@@ -42,43 +42,11 @@ class OriginalContentTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 标题区域
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [colorScheme.primaryContainer.withAlpha(30), colorScheme.surface],
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  controller.articleModel.showTitle(),
-                  style: textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    height: 1.3,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  height: 3,
-                  width: 60,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [colorScheme.primary, colorScheme.primary.withAlpha(0)]),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildTitleSection(context, textTheme, colorScheme),
 
           // Markdown内容区域
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: Dimensions.paddingPage,
             child: MarkdownBody(
               data: markdownContent,
               selectable: true,
@@ -107,48 +75,53 @@ class OriginalContentTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 标题区域
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [colorScheme.primaryContainer.withAlpha(30), colorScheme.surface],
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  controller.articleModel.showTitle(),
-                  style: textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    height: 1.3,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  height: 3,
-                  width: 60,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [colorScheme.primary, colorScheme.primary.withAlpha(0)]),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildTitleSection(context, textTheme, colorScheme),
 
           // HTML内容区域
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: Dimensions.paddingPage,
             child: Html(
               data: htmlContent,
               style: HtmlStyles.getStyles(context),
               onLinkTap: (url, _, _) => _handleLinkTap(null, url, null),
               shrinkWrap: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建标题区域
+  Widget _buildTitleSection(BuildContext context, TextTheme textTheme, ColorScheme colorScheme) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(Dimensions.spacingL, Dimensions.spacingXl, Dimensions.spacingL, Dimensions.spacingL),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [colorScheme.primaryContainer.withAlpha(30), colorScheme.surface],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            controller.articleModel.showTitle(),
+            style: textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              height: 1.3,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          Dimensions.verticalSpacerM,
+          Container(
+            height: 3,
+            width: 60,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [colorScheme.primary, colorScheme.primary.withAlpha(0)]),
+              borderRadius: BorderRadius.circular(Dimensions.radiusXs),
             ),
           ),
         ],

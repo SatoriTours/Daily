@@ -4,6 +4,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:daily_satori/app/components/webview/base_webview.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/config/app_config.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 无头浏览器数据模型
 class HeadlessWebViewResult {
@@ -269,7 +270,7 @@ class _HeadlessWebViewSession {
 
   /// 启动DOM稳定性检测
   void _startDOMStabilityCheck(InAppWebViewController controller) {
-    _stabilityTimer = Timer.periodic(AnimationConfig.longDuration, (timer) async {
+    _stabilityTimer = Timer.periodic(Animations.durationSlow, (timer) async {
       try {
         if (_isCompleted) {
           timer.cancel();

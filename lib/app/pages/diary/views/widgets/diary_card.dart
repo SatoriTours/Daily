@@ -1,6 +1,7 @@
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app_exports.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import '../../utils/diary_utils.dart';
 import 'diary_timestamp.dart';
 import 'diary_more_menu.dart';
@@ -19,7 +20,7 @@ class DiaryCard extends StatefulWidget {
 }
 
 class _DiaryCardState extends State<DiaryCard> {
-  // ---- UI 常量 ----
+  // ---- UI 常量 - 使用 Dimensions 常量 ----
   static const double _kCardRadius = 12.0;
   static const double _kPillRadius = 8.0;
   static const double _kSmallIcon = 14.0;
@@ -149,11 +150,11 @@ class _DiaryCardState extends State<DiaryCard> {
           _buildMarkdownContent(context, contentWithoutTags),
 
           // 标签列表 - 移到"显示更多"按钮之前
-          if (_hasTags) ...[const SizedBox(height: 12), _buildTags(context)],
+          if (_hasTags) ...[SizedBox(height: Dimensions.spacingS + 4), _buildTags(context)],
 
           // 图片显示
           if (widget.diary.images != null && widget.diary.images!.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            SizedBox(height: Dimensions.spacingS + 4),
             DiaryImageGallery(imagesString: widget.diary.images!),
           ],
 
@@ -161,7 +162,7 @@ class _DiaryCardState extends State<DiaryCard> {
           if (_needsExpand) _buildExpandToggleButton(context),
 
           // 将来源胶囊放在最底部
-          if (deepLink != null) ...[const SizedBox(height: 10), _buildSourcePill(context, deepLink)],
+          if (deepLink != null) ...[SizedBox(height: Dimensions.spacingS + 2), _buildSourcePill(context, deepLink)],
         ],
       ),
     );
@@ -186,7 +187,7 @@ class _DiaryCardState extends State<DiaryCard> {
       onTap: () => _navigateToViewpoint(info.viewpointId),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingS),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(_kPillRadius),
@@ -196,7 +197,7 @@ class _DiaryCardState extends State<DiaryCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(Icons.menu_book, size: _kSmallIcon, color: accent),
-            const SizedBox(width: 6),
+            SizedBox(width: Dimensions.spacingXs + 2),
             Expanded(
               child: Text(
                 _buildSourceLabel(meta),
@@ -242,9 +243,9 @@ class _DiaryCardState extends State<DiaryCard> {
   /// 构建Markdown图片
   Widget _buildMarkdownImage(BuildContext context, Uri uri) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: Dimensions.paddingVerticalS,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(8.0),
+        borderRadius: Dimensions.borderRadiusS,
         child: Image.network(
           uri.toString(),
           fit: BoxFit.contain,
@@ -252,7 +253,7 @@ class _DiaryCardState extends State<DiaryCard> {
             height: 150,
             decoration: BoxDecoration(
               color: DiaryStyle.tagBackgroundColor(context),
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: Dimensions.borderRadiusS,
             ),
             child: Center(child: Icon(Icons.broken_image_outlined, color: DiaryStyle.secondaryTextColor(context))),
           ),
@@ -264,23 +265,27 @@ class _DiaryCardState extends State<DiaryCard> {
   /// 构建标签列表
   Widget _buildTags(BuildContext context) {
     final List<String> tags = _tagsList;
-    return Wrap(spacing: 8, runSpacing: 8, children: tags.map((tag) => _buildTagItem(context, tag)).toList());
+    return Wrap(
+      spacing: Dimensions.spacingS,
+      runSpacing: Dimensions.spacingS,
+      children: tags.map((tag) => _buildTagItem(context, tag)).toList(),
+    );
   }
 
   /// 构建单个标签项
   Widget _buildTagItem(BuildContext context, String tag) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs),
       decoration: BoxDecoration(
         color: DiaryStyle.accentColor(context).withAlpha(20),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: Dimensions.borderRadiusM,
         border: Border.all(color: DiaryStyle.accentColor(context).withAlpha(50), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.tag, size: _kSmallIcon, color: DiaryStyle.accentColor(context)),
-          const SizedBox(width: 4),
+          SizedBox(width: Dimensions.spacingXs),
           Text(
             tag,
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: DiaryStyle.accentColor(context)),
@@ -295,9 +300,12 @@ class _DiaryCardState extends State<DiaryCard> {
     final accent = DiaryStyle.accentColor(context);
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 16.0),
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      decoration: BoxDecoration(color: accent.withAlpha(20), borderRadius: BorderRadius.circular(6.0)),
+      margin: EdgeInsets.only(top: Dimensions.spacingM),
+      padding: EdgeInsets.symmetric(vertical: Dimensions.spacingXs + 2),
+      decoration: BoxDecoration(
+        color: accent.withAlpha(20),
+        borderRadius: BorderRadius.circular(Dimensions.radiusXs + 2),
+      ),
       child: GestureDetector(
         onTap: _toggleExpand,
         behavior: HitTestBehavior.opaque,
@@ -309,7 +317,11 @@ class _DiaryCardState extends State<DiaryCard> {
                 _isExpanded ? '收起内容' : '查看更多',
                 style: TextStyle(color: accent, fontSize: 13.0, fontWeight: FontWeight.w500),
               ),
-              Icon(_isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 16.0, color: accent),
+              Icon(
+                _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                size: Dimensions.iconSizeXs,
+                color: accent,
+              ),
             ],
           ),
         ),

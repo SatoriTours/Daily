@@ -24,8 +24,8 @@ class ArticleTags extends StatelessWidget {
     if (tagList.isEmpty) return const SizedBox.shrink();
 
     return Wrap(
-      spacing: 6.0,
-      runSpacing: 6.0,
+      spacing: Dimensions.spacingXs,
+      runSpacing: Dimensions.spacingXs,
       children: tagList.map((tag) => _buildTag(context, tag, colorScheme, textTheme)).toList(),
     );
   }
@@ -39,17 +39,17 @@ class ArticleTags extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(Dimensions.radiusM),
         border: Border.all(color: colorScheme.primary.withAlpha(40), width: 0.5),
         boxShadow: [BoxShadow(color: colorScheme.shadow.withAlpha(8), blurRadius: 2, offset: const Offset(0, 1))],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingS, vertical: Dimensions.spacingXs / 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           // 标签图标（更小）
-          Icon(Icons.label_outline, size: 11, color: colorScheme.primary.withAlpha(180)),
-          const SizedBox(width: 4),
+          Icon(Icons.label_outline, size: Dimensions.iconSizeXs, color: colorScheme.primary.withAlpha(180)),
+          Dimensions.horizontalSpacerXs,
           // 标签文本（更小）
           Text(
             tag,

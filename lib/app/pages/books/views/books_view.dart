@@ -58,10 +58,10 @@ class BooksView extends GetView<BooksController> {
   /// 构建添加书籍按钮
   Widget _buildAddBookButton() {
     return IconButton(
-      icon: const Icon(Icons.add, size: 20),
+      icon: Icon(Icons.add, size: Dimensions.iconSizeM),
       onPressed: controller.showAddBookDialog,
       tooltip: 'tooltip.add_book'.t,
-      padding: const EdgeInsets.all(8),
+      padding: Dimensions.paddingS,
       constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
     );
   }
@@ -69,7 +69,7 @@ class BooksView extends GetView<BooksController> {
   /// 构建更多菜单（三点）
   Widget _buildMoreMenu(BuildContext context) {
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_horiz, size: 20),
+      icon: Icon(Icons.more_horiz, size: Dimensions.iconSizeM),
       onSelected: (value) => _handleMoreMenuSelection(value, context),
       itemBuilder: (context) => [
         SPopupMenuItem<String>(value: 'shuffle', icon: Icons.shuffle, text: 'menu.shuffle'.t),
@@ -120,13 +120,13 @@ class BooksView extends GetView<BooksController> {
   /// 构建过滤对话框标题
   Widget _buildFilterDialogHeader(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: Dimensions.paddingM,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text('title.select_book'.t, style: AppTypography.titleMedium),
           IconButton(
-            icon: const Icon(Icons.close, size: 20),
+            icon: Icon(Icons.close, size: Dimensions.iconSizeM),
             onPressed: () => Navigator.pop(context),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
@@ -140,7 +140,7 @@ class BooksView extends GetView<BooksController> {
   Widget _buildFilterDialogList(BuildContext context, List<BookModel> books) {
     return Expanded(
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: Dimensions.paddingVerticalS,
         itemCount: books.length + 1, // +1 用于"所有书籍"选项
         itemBuilder: (context, index) {
           // 第一项是"所有书籍"
@@ -158,21 +158,21 @@ class BooksView extends GetView<BooksController> {
   /// 构建过滤对话框底部
   Widget _buildFilterDialogFooter(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: Dimensions.paddingM,
       child: Center(
         child: InkWell(
           onTap: () {
             controller.selectBook(-1);
             controller.loadAllViewpoints();
           },
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(Dimensions.radiusL + 4),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.clear, size: 16, color: AppColors.getPrimary(context)),
-                const SizedBox(width: 8),
+                Icon(Icons.clear, size: Dimensions.iconSizeXs, color: AppColors.getPrimary(context)),
+                Dimensions.horizontalSpacerS,
                 Text('查看所有观点', style: AppTypography.bodyMedium.copyWith(color: AppColors.getPrimary(context))),
               ],
             ),
@@ -187,7 +187,7 @@ class BooksView extends GetView<BooksController> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final backgroundColor = isSelected
-        ? AppColors.getPrimary(context).withValues(alpha: isDark ? 0.25 : 0.08)
+        ? AppColors.getPrimary(context).withValues(alpha: isDark ? Opacities.mediumHigh : Opacities.low)
         : Colors.transparent;
     final textColor = isSelected
         ? (isDark ? Colors.white : AppColors.getPrimary(context))
@@ -203,7 +203,7 @@ class BooksView extends GetView<BooksController> {
         Navigator.pop(context);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        padding: EdgeInsets.symmetric(vertical: Dimensions.spacingM - 4, horizontal: Dimensions.spacingM),
         color: backgroundColor,
         child: _buildFilterItemContent(book, textColor, isSelected, context),
       ),
@@ -214,8 +214,8 @@ class BooksView extends GetView<BooksController> {
   Widget _buildFilterItemContent(BookModel? book, Color textColor, bool isSelected, BuildContext context) {
     return Row(
       children: [
-        Icon(book == null ? Icons.all_inclusive : Icons.book_outlined, size: 20, color: textColor),
-        const SizedBox(width: 12),
+        Icon(book == null ? Icons.all_inclusive : Icons.book_outlined, size: Dimensions.iconSizeM, color: textColor),
+        Dimensions.horizontalSpacerS,
         Expanded(
           child: Text(
             book?.title ?? 'book.all_books'.t,
@@ -225,7 +225,7 @@ class BooksView extends GetView<BooksController> {
             ),
           ),
         ),
-        if (isSelected) Icon(Icons.check_circle, color: textColor, size: 20),
+        if (isSelected) Icon(Icons.check_circle, color: textColor, size: Dimensions.iconSizeM),
       ],
     );
   }
@@ -248,8 +248,8 @@ class BooksView extends GetView<BooksController> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.auto_stories, size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
+          Icon(Icons.auto_stories, size: 64, color: Colors.grey),
+          Dimensions.verticalSpacerM,
           Text('empty.no_viewpoint'.t, style: AppTypography.titleMedium),
         ],
       ),
@@ -268,14 +268,19 @@ class BooksView extends GetView<BooksController> {
         final viewpoint = controller.allViewpoints[index];
         final book = BookRepository.i.find(viewpoint.bookId);
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: EdgeInsets.fromLTRB(
+            Dimensions.spacingM,
+            Dimensions.spacingS,
+            Dimensions.spacingM,
+            Dimensions.spacingM,
+          ),
           child: ViewpointCard(viewpoint: viewpoint, book: book),
         );
       },
     );
   }
 
-  /// 悬浮“记感想”按钮，始终可见不被遮挡
+  /// 悬浮"记感想"按钮，始终可见不被遮挡
   Widget _buildFloatingQuickJournal(BuildContext context) {
     final theme = Theme.of(context);
     final bg = theme.colorScheme.primary;
@@ -290,7 +295,7 @@ class BooksView extends GetView<BooksController> {
       hoverElevation: 6,
       focusElevation: 5,
       highlightElevation: 6,
-      child: Icon(Icons.edit_note, color: fg, size: 20),
+      child: Icon(Icons.edit_note, color: fg, size: Dimensions.iconSizeM),
     );
   }
 

@@ -148,7 +148,7 @@ class SettingsView extends GetView<SettingsController> {
     required List<Widget> items,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: Dimensions.spacingM),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -171,10 +171,10 @@ class SettingsView extends GetView<SettingsController> {
     final textTheme = AppTheme.getTextTheme(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: colorScheme.primary),
+          Icon(icon, size: Dimensions.iconSizeXs, color: colorScheme.primary),
           Dimensions.horizontalSpacerS,
           Text(
             title,
@@ -201,10 +201,15 @@ class SettingsView extends GetView<SettingsController> {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: Dimensions.paddingM,
         child: Row(
           children: [
-            FeatureIcon(icon: icon, iconColor: color, containerSize: 32, iconSize: 16),
+            FeatureIcon(
+              icon: icon,
+              iconColor: color,
+              containerSize: Dimensions.iconSizeXl,
+              iconSize: Dimensions.iconSizeXs,
+            ),
             Dimensions.horizontalSpacerM,
             Expanded(child: _buildSettingItemText(context, title, subtitle)),
             _buildSettingItemTrailingIcon(context),
@@ -223,7 +228,10 @@ class SettingsView extends GetView<SettingsController> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: textTheme.titleSmall),
-        Text(subtitle, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 179))),
+        Text(
+          subtitle,
+          style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: Opacities.mediumHigh)),
+        ),
       ],
     );
   }
@@ -231,7 +239,11 @@ class SettingsView extends GetView<SettingsController> {
   /// 构建设置项尾部图标
   Widget _buildSettingItemTrailingIcon(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
-    return Icon(Icons.chevron_right, color: colorScheme.onSurface.withValues(alpha: 77), size: 18);
+    return Icon(
+      Icons.chevron_right,
+      color: colorScheme.onSurface.withValues(alpha: Opacities.medium),
+      size: Dimensions.iconSizeS,
+    );
   }
 
   /// 构建版本信息
@@ -270,9 +282,12 @@ class SettingsView extends GetView<SettingsController> {
       applicationName: 'Daily Satori',
       applicationVersion: 'v${controller.appVersion.value}',
       applicationIcon: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(color: colorScheme.primary, borderRadius: BorderRadius.circular(10)),
+        width: Dimensions.iconSizeXxl - Dimensions.spacingS,
+        height: Dimensions.iconSizeXxl - Dimensions.spacingS,
+        decoration: BoxDecoration(
+          color: colorScheme.primary,
+          borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
+        ),
         child: Icon(Icons.article, color: colorScheme.onPrimary),
       ),
       children: [
@@ -307,7 +322,7 @@ class SettingsView extends GetView<SettingsController> {
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  padding: const EdgeInsets.fromLTRB(Dimensions.spacingL, 0, Dimensions.spacingL, Dimensions.spacingL),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -336,15 +351,29 @@ class SettingsView extends GetView<SettingsController> {
     final colorScheme = AppTheme.getColorScheme(context);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+      padding: const EdgeInsets.fromLTRB(
+        Dimensions.spacingL,
+        Dimensions.spacingM,
+        Dimensions.spacingL,
+        Dimensions.spacingM,
+      ),
       child: Row(
         children: [
-          FeatureIcon(icon: Icons.language_rounded, iconColor: primaryColor, containerSize: 40, iconSize: 22),
+          FeatureIcon(
+            icon: Icons.language_rounded,
+            iconColor: primaryColor,
+            containerSize: Dimensions.iconSizeXxl - Dimensions.spacingS,
+            iconSize: Dimensions.iconSizeM + 2,
+          ),
           Dimensions.horizontalSpacerM,
           Text('setting.web_server'.t, style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
           const Spacer(),
           IconButton(
-            icon: Icon(Icons.close_rounded, size: 22, color: colorScheme.onSurface.withValues(alpha: 0.6)),
+            icon: Icon(
+              Icons.close_rounded,
+              size: Dimensions.iconSizeM + 2,
+              color: colorScheme.onSurface.withValues(alpha: Opacities.medium),
+            ),
             onPressed: () => Navigator.pop(context),
             tooltip: 'button.close'.t,
           ),
@@ -452,8 +481,8 @@ class SettingsView extends GetView<SettingsController> {
   /// 构建状态指示点
   Widget _buildStatusDot(Color color) {
     return Container(
-      width: 10,
-      height: 10,
+      width: Dimensions.spacingS + 2,
+      height: Dimensions.spacingS + 2,
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
@@ -498,7 +527,7 @@ class SettingsView extends GetView<SettingsController> {
     const tipText = 'setting.network_tip';
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: Dimensions.paddingM,
       decoration: BoxDecoration(
         color: primaryColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
@@ -507,7 +536,7 @@ class SettingsView extends GetView<SettingsController> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lightbulb_outline_rounded, size: 18, color: primaryColor),
+          Icon(Icons.lightbulb_outline_rounded, size: Dimensions.iconSizeS, color: primaryColor),
           Dimensions.horizontalSpacerS,
           Expanded(
             child: Text(
@@ -531,8 +560,8 @@ class SettingsView extends GetView<SettingsController> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
-        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.fromLTRB(Dimensions.spacingL, Dimensions.spacingM + 4, Dimensions.spacingL, 0),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM),
         title: _buildPasswordDialogTitle(),
         content: _buildPasswordDialogContent(context, passwordController, isPasswordVisible, colorScheme, textTheme),
         actions: _buildPasswordDialogActions(context, passwordController),
@@ -546,7 +575,12 @@ class SettingsView extends GetView<SettingsController> {
 
     return Row(
       children: [
-        FeatureIcon(icon: Icons.password_rounded, iconColor: Colors.orange, containerSize: 36, iconSize: 20),
+        FeatureIcon(
+          icon: Icons.password_rounded,
+          iconColor: Colors.orange,
+          containerSize: Dimensions.iconSizeXl + Dimensions.spacingXs,
+          iconSize: Dimensions.iconSizeM,
+        ),
         Dimensions.horizontalSpacerM,
         Text('setting.server_password'.t, style: textTheme?.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
       ],
@@ -577,11 +611,11 @@ class SettingsView extends GetView<SettingsController> {
   /// 构建密码提示卡片
   Widget _buildPasswordTipCard(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: Dimensions.paddingM,
       decoration: _buildTipCardDecoration(colorScheme),
       child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, size: 16, color: colorScheme.primary),
+          Icon(Icons.info_outline_rounded, size: Dimensions.iconSizeXs, color: colorScheme.primary),
           Dimensions.horizontalSpacerS,
           Expanded(
             child: Text(
@@ -631,14 +665,17 @@ class SettingsView extends GetView<SettingsController> {
       border: _buildInputBorder(colorScheme.outline, 1),
       focusedBorder: _buildInputBorder(colorScheme.primary, 2),
       enabledBorder: _buildInputBorder(colorScheme.outline, 1),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM - 2),
     );
   }
 
   /// 构建密码可见性切换按钮
   Widget _buildPasswordVisibilityToggle(RxBool isPasswordVisible) {
     return IconButton(
-      icon: Icon(isPasswordVisible.value ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 20),
+      icon: Icon(
+        isPasswordVisible.value ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+        size: Dimensions.iconSizeM,
+      ),
       onPressed: () => isPasswordVisible.value = !isPasswordVisible.value,
       tooltip: isPasswordVisible.value ? 'button.hide_password'.t : 'button.show_password'.t,
     );
@@ -688,7 +725,7 @@ class SettingsView extends GetView<SettingsController> {
     final cardIconColor = iconColor ?? color ?? colorScheme.primary;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: Dimensions.paddingM,
       decoration: _buildInfoCardDecoration(colorScheme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -716,7 +753,7 @@ class SettingsView extends GetView<SettingsController> {
 
     return Row(
       children: [
-        Icon(icon, size: 20, color: iconColor),
+        Icon(icon, size: Dimensions.iconSizeM, color: iconColor),
         Dimensions.horizontalSpacerS,
         Text(title, style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
         const Spacer(),
@@ -743,11 +780,11 @@ class SettingsView extends GetView<SettingsController> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(Dimensions.radiusM),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM - 2),
         decoration: decoration,
         child: Row(
           children: [
-            Icon(icon, size: 22, color: itemColor),
+            Icon(icon, size: Dimensions.iconSizeM + 2, color: itemColor),
             Dimensions.horizontalSpacerM,
             Expanded(child: _buildServerSettingText(context, title, subtitle)),
             _buildTrailingIcon(colorScheme),
@@ -776,8 +813,11 @@ class SettingsView extends GetView<SettingsController> {
       children: [
         Text(title, style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
         if (subtitle != null) ...[
-          const SizedBox(height: 2),
-          Text(subtitle, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6))),
+          Dimensions.verticalSpacerXs,
+          Text(
+            subtitle,
+            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: Opacities.medium)),
+          ),
         ],
       ],
     );
@@ -785,7 +825,11 @@ class SettingsView extends GetView<SettingsController> {
 
   /// 构建尾部箭头图标
   Widget _buildTrailingIcon(ColorScheme colorScheme) {
-    return Icon(Icons.chevron_right_rounded, color: colorScheme.onSurface.withValues(alpha: 0.4), size: 20);
+    return Icon(
+      Icons.chevron_right_rounded,
+      color: colorScheme.onSurface.withValues(alpha: Opacities.low),
+      size: Dimensions.iconSizeM,
+    );
   }
 
   /// 构建区域标题
@@ -797,7 +841,7 @@ class SettingsView extends GetView<SettingsController> {
 
     return Row(
       children: [
-        Icon(icon, size: 18, color: colorScheme.primary),
+        Icon(icon, size: Dimensions.iconSizeS, color: colorScheme.primary),
         Dimensions.horizontalSpacerS,
         Text(
           title,

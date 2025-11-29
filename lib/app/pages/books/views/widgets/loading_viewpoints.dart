@@ -12,9 +12,9 @@ class LoadingViewpoints extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.auto_stories, size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
+          Dimensions.verticalSpacerM,
           Text('正在为《${book.title}》提取观点...', style: AppTypography.titleMedium),
-          const SizedBox(height: 16),
+          Dimensions.verticalSpacerM,
           const CircularProgressIndicator(),
         ],
       ),

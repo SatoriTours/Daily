@@ -73,7 +73,7 @@ class PluginCenterView extends GetView<PluginCenterController> {
         itemCount: plugins.length,
         padding: Dimensions.paddingPage,
         physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        separatorBuilder: (context, index) => Dimensions.verticalSpacerM,
         itemBuilder: (context, index) {
           final plugin = plugins[index];
           final isUpdating = controller.updatingPlugin.value == plugin.fileName;
@@ -96,10 +96,14 @@ class PluginCenterView extends GetView<PluginCenterController> {
           children: [
             // 空状态图标
             Container(
-              width: 120,
-              height: 120,
+              width: Dimensions.iconSizeXxl * 2.5,
+              height: Dimensions.iconSizeXxl * 2.5,
               decoration: BoxDecoration(color: colorScheme.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
-              child: Icon(Icons.extension_off_rounded, size: 60, color: colorScheme.primary.withValues(alpha: 0.5)),
+              child: Icon(
+                Icons.extension_off_rounded,
+                size: Dimensions.iconSizeXxl + Dimensions.spacingM,
+                color: colorScheme.primary.withValues(alpha: 0.5),
+              ),
             ),
             Dimensions.verticalSpacerL,
 
@@ -122,7 +126,7 @@ class PluginCenterView extends GetView<PluginCenterController> {
                 // 刷新按钮
                 ElevatedButton.icon(
                   onPressed: controller.loadPluginData,
-                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  icon: const Icon(Icons.refresh_rounded, size: Dimensions.iconSizeS),
                   label: const Text('刷新'),
                   style: ButtonStyles.getPrimaryStyle(context),
                 ),
@@ -131,7 +135,7 @@ class PluginCenterView extends GetView<PluginCenterController> {
                 // 设置按钮
                 OutlinedButton.icon(
                   onPressed: () => ServerUrlDialog.show(context, controller),
-                  icon: const Icon(Icons.settings_rounded, size: 18),
+                  icon: const Icon(Icons.settings_rounded, size: Dimensions.iconSizeS),
                   label: const Text('设置'),
                   style: ButtonStyles.getOutlinedStyle(context),
                 ),
@@ -195,17 +199,17 @@ class PluginCenterView extends GetView<PluginCenterController> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const SizedBox(width: 8),
+            Dimensions.horizontalSpacerS,
             // 更新时间 - 右对齐
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   Icons.schedule_rounded,
-                  size: 14,
+                  size: Dimensions.iconSizeXs - 2,
                   color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
                 ),
-                const SizedBox(width: 4),
+                Dimensions.horizontalSpacerXs,
                 Text(
                   timeText,
                   style: AppTypography.bodySmall.copyWith(
@@ -216,7 +220,7 @@ class PluginCenterView extends GetView<PluginCenterController> {
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        Dimensions.verticalSpacerXs,
 
         // 描述 - 使用 high 透明度提升可读性
         if (plugin.description.isNotEmpty)
@@ -261,7 +265,7 @@ class PluginCenterView extends GetView<PluginCenterController> {
   /// 构建更新中指示器
   Widget _buildUpdatingIndicator(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs),
       decoration: BoxDecoration(
         color: AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow),
         borderRadius: BorderRadius.circular(Dimensions.radiusCircular),
@@ -270,14 +274,14 @@ class PluginCenterView extends GetView<PluginCenterController> {
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            width: 12,
-            height: 12,
+            width: Dimensions.spacingM - Dimensions.spacingXs,
+            height: Dimensions.spacingM - Dimensions.spacingXs,
             child: CircularProgressIndicator(
               strokeWidth: 2,
               valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
             ),
           ),
-          const SizedBox(width: 6),
+          Dimensions.horizontalSpacerXs,
           Text('更新中', style: AppTypography.labelSmall.copyWith(color: AppColors.getPrimary(context))),
         ],
       ),
@@ -293,7 +297,7 @@ class PluginCenterView extends GetView<PluginCenterController> {
       backgroundColor: AppColors.getSurface(context),
       shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
+        padding: Dimensions.paddingL,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

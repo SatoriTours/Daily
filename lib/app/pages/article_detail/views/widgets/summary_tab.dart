@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import 'package:daily_satori/app/pages/article_detail/controllers/article_detail_controller.dart';
 import 'package:daily_satori/app/pages/article_detail/views/widgets/article_image_view.dart';
 import 'package:daily_satori/app/pages/article_detail/views/widgets/article_tags.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 文章摘要标签页
 /// 显示文章的基本信息，包括：
@@ -21,7 +21,7 @@ class SummaryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(vertical: 24),
+      padding: EdgeInsets.symmetric(vertical: Dimensions.spacingL),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -30,18 +30,31 @@ class SummaryTab extends StatelessWidget {
 
           // 标题区域
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            padding: EdgeInsets.fromLTRB(
+              Dimensions.spacingL,
+              Dimensions.spacingL,
+              Dimensions.spacingL,
+              Dimensions.spacingM,
+            ),
             child: Text(controller.articleModel.showTitle(), style: AppTheme.getTextTheme(context).headlineMedium),
           ),
 
           // 标签区域
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingL, vertical: Dimensions.spacingM),
             child: Obx(() => ArticleTags(tags: controller.tags.value)),
           ),
 
           // 内容区域（优化格式化显示）
-          Padding(padding: const EdgeInsets.fromLTRB(24, 16, 24, 24), child: _buildFormattedContent(context)),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              Dimensions.spacingL,
+              Dimensions.spacingM,
+              Dimensions.spacingL,
+              Dimensions.spacingL,
+            ),
+            child: _buildFormattedContent(context),
+          ),
 
           // 评论区域（如果有）
           if (_hasComment) _buildCommentSection(context),
@@ -65,7 +78,7 @@ class SummaryTab extends StatelessWidget {
         // 如果有独立的摘要部分，先显示
         if (sections['summary']?.isNotEmpty ?? false) ...[
           Text(sections['summary']!, style: textTheme.bodyLarge?.copyWith(height: 1.8, color: colorScheme.onSurface)),
-          if (sections['hasKeyPoints'] == true) const SizedBox(height: 32),
+          if (sections['hasKeyPoints'] == true) Dimensions.verticalSpacerXl,
         ],
 
         // 核心观点部分
@@ -74,7 +87,7 @@ class SummaryTab extends StatelessWidget {
             '核心观点',
             style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
           ),
-          const SizedBox(height: 20),
+          Dimensions.verticalSpacerM,
           // 使用带索引的方式构建核心观点列表
           ...sections['keyPoints'].asMap().entries.map<Widget>((entry) => _buildKeyPoint(context, entry)),
         ],
@@ -100,15 +113,15 @@ class SummaryTab extends StatelessWidget {
     final cleanPoint = point.replaceFirst(RegExp(r'^\d+\.\s*'), '');
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: EdgeInsets.only(bottom: Dimensions.spacingL),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 数字序号（圆形背景）
           Container(
-            margin: const EdgeInsets.only(top: 2, right: 16),
-            width: 28,
-            height: 28,
+            margin: EdgeInsets.only(top: Dimensions.spacingXs / 2, right: Dimensions.spacingM),
+            width: Dimensions.iconSizeL,
+            height: Dimensions.iconSizeL,
             decoration: BoxDecoration(color: colorScheme.primary, shape: BoxShape.circle),
             child: Center(
               child: Text(
@@ -183,7 +196,7 @@ class SummaryTab extends StatelessWidget {
   /// 构建头图组件
   Widget _buildHeaderImage() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.only(bottom: Dimensions.spacingS),
       child: ArticleImageView(
         imagePath: controller.articleModel.getHeaderImagePath(),
         controller: controller,
@@ -197,12 +210,12 @@ class SummaryTab extends StatelessWidget {
     final textTheme = AppTheme.getTextTheme(context);
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: Dimensions.paddingPage,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('评论', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
+          Dimensions.verticalSpacerM,
           Text(controller.articleModel.comment ?? '', style: textTheme.bodyMedium),
         ],
       ),

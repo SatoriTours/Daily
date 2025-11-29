@@ -6,7 +6,6 @@ import 'package:daily_satori/app/pages/diary/controllers/diary_controller.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/diary_editor.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
-import 'package:daily_satori/app/config/app_config.dart';
 
 /// 观点内容组件
 class ViewpointContent extends StatefulWidget {
@@ -40,7 +39,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
   void didUpdateWidget(ViewpointContent oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.currentIndex != widget.currentIndex) {
-      _pageController.animateToPage(widget.currentIndex, duration: AnimationConfig.duration, curve: Curves.easeInOut);
+      _pageController.animateToPage(widget.currentIndex, duration: Animations.durationNormal, curve: Curves.easeInOut);
     }
   }
 
@@ -72,7 +71,12 @@ class _ViewpointContentState extends State<ViewpointContent> {
       itemBuilder: (context, index) {
         final viewpoint = widget.viewpoints[index];
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: EdgeInsets.fromLTRB(
+            Dimensions.spacingM,
+            Dimensions.spacingS,
+            Dimensions.spacingM,
+            Dimensions.spacingM,
+          ),
           child: ViewpointCard(viewpoint: viewpoint, book: widget.book),
         );
       },
@@ -82,7 +86,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
   /// 构建顶部区域
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: EdgeInsets.fromLTRB(Dimensions.spacingM, Dimensions.spacingS + 4, Dimensions.spacingM, 0),
       child: Column(
         children: [_buildBookInfoRow(context), _buildExpandedInfoSection(context), const Divider(height: 24)],
       ),
@@ -105,14 +109,14 @@ class _ViewpointContentState extends State<ViewpointContent> {
           _isBookInfoExpanded = !_isBookInfoExpanded;
         });
       },
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: Dimensions.borderRadiusS,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: Dimensions.paddingVerticalXs,
         child: Row(
           children: [
             Expanded(child: _buildBookBasicInfo(context)),
             _buildQuickJournalButton(context),
-            const SizedBox(width: 8),
+            Dimensions.horizontalSpacerS,
             _buildNavigationButtons(context),
           ],
         ),
@@ -120,22 +124,22 @@ class _ViewpointContentState extends State<ViewpointContent> {
     );
   }
 
-  /// 顶部“记感想”按钮，减少滚动
+  /// 顶部"记感想"按钮，减少滚动
   Widget _buildQuickJournalButton(BuildContext context) {
     final primary = AppColors.getPrimary(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return OutlinedButton.icon(
       style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs + 2),
         minimumSize: const Size(0, 0),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        side: BorderSide(color: primary.withValues(alpha: isDark ? 0.9 : 0.6)),
+        side: BorderSide(color: primary.withValues(alpha: isDark ? Opacities.veryLowOpaque : Opacities.higherOpaque)),
         foregroundColor: primary,
         shape: const StadiumBorder(),
       ),
       onPressed: _openJournalForCurrentViewpoint,
-      icon: const Icon(Icons.edit_note, size: 16),
-      label: const Text('记感想', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+      icon: Icon(Icons.edit_note, size: Dimensions.iconSizeXs),
+      label: Text('记感想', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
     );
   }
 
@@ -174,7 +178,11 @@ class _ViewpointContentState extends State<ViewpointContent> {
   Widget _buildBookBasicInfo(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [_buildBookTitleRow(context), const SizedBox(height: 2), _buildAuthorInfo(context)],
+      children: [
+        _buildBookTitleRow(context),
+        SizedBox(height: Dimensions.spacingXs / 2),
+        _buildAuthorInfo(context),
+      ],
     );
   }
 
@@ -202,7 +210,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
   Widget _buildExpandIcon(BuildContext context) {
     return Icon(
       _isBookInfoExpanded ? Icons.expand_less : Icons.expand_more,
-      size: 20,
+      size: Dimensions.iconSizeM,
       color: AppColors.getPrimary(context),
     );
   }
@@ -231,12 +239,12 @@ class _ViewpointContentState extends State<ViewpointContent> {
     return IconButton(
       icon: Icon(
         Icons.arrow_back_ios,
-        size: 16,
-        color: canGoPrevious ? AppColors.getPrimary(context) : Colors.grey.withValues(alpha: 0.3),
+        size: Dimensions.iconSizeXs,
+        color: canGoPrevious ? AppColors.getPrimary(context) : Colors.grey.withValues(alpha: Opacities.high),
       ),
       onPressed: canGoPrevious ? widget.controller.previousViewpoint : null,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      constraints: BoxConstraints(minWidth: Dimensions.chipHeight, minHeight: Dimensions.chipHeight),
       visualDensity: VisualDensity.compact,
     );
   }
@@ -255,12 +263,12 @@ class _ViewpointContentState extends State<ViewpointContent> {
     return IconButton(
       icon: Icon(
         Icons.arrow_forward_ios,
-        size: 16,
-        color: canGoNext ? AppColors.getPrimary(context) : Colors.grey.withValues(alpha: 0.3),
+        size: Dimensions.iconSizeXs,
+        color: canGoNext ? AppColors.getPrimary(context) : Colors.grey.withValues(alpha: Opacities.high),
       ),
       onPressed: canGoNext ? widget.controller.nextViewpoint : null,
       padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      constraints: BoxConstraints(minWidth: Dimensions.chipHeight, minHeight: Dimensions.chipHeight),
       visualDensity: VisualDensity.compact,
     );
   }
@@ -268,8 +276,8 @@ class _ViewpointContentState extends State<ViewpointContent> {
   /// 构建展开的书籍详细信息
   Widget _buildExpandedBookInfo(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(top: Dimensions.spacingS + 4),
+      padding: Dimensions.paddingM,
       decoration: _buildExpandedInfoDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,9 +292,9 @@ class _ViewpointContentState extends State<ViewpointContent> {
   /// 构建展开信息的装饰样式
   BoxDecoration _buildExpandedInfoDecoration(BuildContext context) {
     return BoxDecoration(
-      color: AppColors.getSurface(context).withValues(alpha: 0.5),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.getPrimary(context).withValues(alpha: 0.1), width: 1),
+      color: AppColors.getSurface(context).withValues(alpha: Opacities.half),
+      borderRadius: Dimensions.borderRadiusM,
+      border: Border.all(color: AppColors.getPrimary(context).withValues(alpha: Opacities.low), width: 1),
     );
   }
 
@@ -294,7 +302,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
   Widget _buildBookInfoTopRow(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [_buildBookCover(context), const SizedBox(width: 16), _buildBookDetails(context)],
+      children: [_buildBookCover(context), Dimensions.horizontalSpacerM, _buildBookDetails(context)],
     );
   }
 
@@ -305,11 +313,21 @@ class _ViewpointContentState extends State<ViewpointContent> {
       height: 120,
       decoration: BoxDecoration(
         color: AppColors.getSurface(context),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))],
+        borderRadius: Dimensions.borderRadiusS,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: Opacities.low),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Center(
-        child: Icon(Icons.menu_book, size: 36, color: AppColors.getPrimary(context).withValues(alpha: 0.5)),
+        child: Icon(
+          Icons.menu_book,
+          size: Dimensions.iconSizeXxl - 12,
+          color: AppColors.getPrimary(context).withValues(alpha: Opacities.half),
+        ),
       ),
     );
   }
@@ -321,9 +339,9 @@ class _ViewpointContentState extends State<ViewpointContent> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildBookTitle(context),
-          const SizedBox(height: 8),
+          Dimensions.verticalSpacerS,
           _buildBookAuthor(context),
-          const SizedBox(height: 4),
+          SizedBox(height: Dimensions.spacingXs),
           _buildBookCategory(context),
           _buildIntroductionTitle(context),
         ],
@@ -352,7 +370,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
       return const SizedBox();
     }
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: EdgeInsets.only(top: Dimensions.spacingS + 4),
       child: Text('简介', style: Get.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
     );
   }
@@ -360,7 +378,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
   /// 构建书籍简介内容
   Widget _buildBookIntroduction(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: EdgeInsets.only(top: Dimensions.spacingS + 4),
       child: Text(widget.book.introduction, style: Get.textTheme.bodyMedium?.copyWith(height: 1.5)),
     );
   }

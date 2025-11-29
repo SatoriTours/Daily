@@ -56,7 +56,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+                color: colorScheme.primaryContainer.withValues(alpha: Opacities.high),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.folder_open_rounded, size: 64, color: colorScheme.primary),
@@ -67,18 +67,22 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
             Dimensions.verticalSpacerM,
             Text(
               '选择一个文件夹存储您的应用数据备份',
-              style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: Opacities.higherOpaque),
+              ),
               textAlign: TextAlign.center,
             ),
             Dimensions.verticalSpacerL,
             Dimensions.verticalSpacerL,
             ElevatedButton.icon(
               onPressed: () => controller.selectBackupDirectory(),
-              icon: const Icon(Icons.create_new_folder_rounded, size: 20),
+              icon: Icon(Icons.create_new_folder_rounded, size: Dimensions.iconSizeM),
               label: const Text('选择备份目录'),
-              style: ButtonStyles.getPrimaryStyle(
-                context,
-              ).copyWith(padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 32, vertical: 16))),
+              style: ButtonStyles.getPrimaryStyle(context).copyWith(
+                padding: WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: Dimensions.spacingXl, vertical: Dimensions.spacingM),
+                ),
+              ),
             ),
           ],
         ),
@@ -137,16 +141,16 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
           Container(
             padding: Dimensions.paddingM,
             decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.08),
+              color: colorScheme.primary.withValues(alpha: Opacities.low),
               borderRadius: BorderRadius.circular(Dimensions.radiusM),
-              border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2), width: 1),
+              border: Border.all(color: colorScheme.primary.withValues(alpha: Opacities.medium), width: 1),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.lightbulb_outline_rounded, size: 20, color: colorScheme.primary),
+                    Icon(Icons.lightbulb_outline_rounded, size: Dimensions.iconSizeM, color: colorScheme.primary),
                     Dimensions.horizontalSpacerS,
                     Text(
                       '备份说明',
@@ -161,7 +165,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
                   '• 建议定期备份数据以防丢失',
                   style: textTheme.bodySmall?.copyWith(
                     height: 1.6,
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                    color: colorScheme.onSurface.withValues(alpha: Opacities.highOpaque),
                   ),
                 ),
               ],
@@ -179,14 +183,11 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(
-      horizontal: Dimensions.spacingL,
-      vertical: Dimensions.spacingM,
-    ),
+      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingL, vertical: Dimensions.spacingM),
       decoration: BoxDecoration(
-        color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+        color: colorScheme.primaryContainer.withValues(alpha: Opacities.high),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
-        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3), width: 1),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: Opacities.high), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,8 +195,8 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
           Row(
             children: [
               SizedBox(
-                width: 24,
-                height: 24,
+                width: Dimensions.spacingL,
+                height: Dimensions.spacingL,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
                   valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
@@ -211,14 +212,16 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
           Dimensions.verticalSpacerL,
           LinearProgressIndicator(
             value: backupProgress,
-            backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.2),
+            backgroundColor: colorScheme.primaryContainer.withValues(alpha: Opacities.medium),
             valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(Dimensions.radiusXs),
           ),
           Dimensions.verticalSpacerS,
           Text(
             '请勿关闭应用或离开此页面',
-            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: Opacities.higherOpaque),
+            ),
           ),
         ],
       ),
@@ -232,26 +235,23 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(
-      horizontal: Dimensions.spacingL,
-      vertical: Dimensions.spacingS,
-    ),
+      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingL, vertical: Dimensions.spacingS),
       decoration: BoxDecoration(
-        color: cardColor.withValues(alpha: 0.08),
+        color: cardColor.withValues(alpha: Opacities.low),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
-        border: Border.all(color: cardColor.withValues(alpha: 0.25), width: 1.5),
+        border: Border.all(color: cardColor.withValues(alpha: Opacities.mediumHigh), width: 1.5),
       ),
       child: Row(
         children: [
           // 48x48 图标容器
           Container(
-            width: 48,
-            height: 48,
+            width: Dimensions.iconSizeXxl,
+            height: Dimensions.iconSizeXxl,
             decoration: BoxDecoration(
-              color: cardColor.withValues(alpha: 0.15),
+              color: cardColor.withValues(alpha: Opacities.mediumLow),
               borderRadius: BorderRadius.circular(Dimensions.radiusS),
             ),
-            child: Icon(Icons.folder_rounded, size: 26, color: cardColor),
+            child: Icon(Icons.folder_rounded, size: Dimensions.iconSizeXl - 6, color: cardColor),
           ),
           Dimensions.horizontalSpacerM,
           // 路径文本
@@ -263,10 +263,10 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
                   '备份位置',
                   style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: cardColor),
                 ),
-                const SizedBox(height: 4),
+                Dimensions.verticalSpacerXs,
                 Text(
                   controller.backupDirectory.value,
-                  style: textTheme.bodySmall?.copyWith(color: cardColor.withValues(alpha: 0.7)),
+                  style: textTheme.bodySmall?.copyWith(color: cardColor.withValues(alpha: Opacities.highOpaque)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -279,12 +279,12 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
             onTap: () => controller.selectBackupDirectory(),
             borderRadius: BorderRadius.circular(Dimensions.radiusS),
             child: Container(
-              padding: const EdgeInsets.all(8),
+              padding: Dimensions.paddingS,
               decoration: BoxDecoration(
-                color: cardColor.withValues(alpha: 0.15),
+                color: cardColor.withValues(alpha: Opacities.mediumLow),
                 borderRadius: BorderRadius.circular(Dimensions.radiusS),
               ),
-              child: Icon(Icons.edit_outlined, size: 20, color: cardColor),
+              child: Icon(Icons.edit_outlined, size: Dimensions.iconSizeM, color: cardColor),
             ),
           ),
         ],
@@ -308,22 +308,22 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
       borderRadius: BorderRadius.circular(Dimensions.radiusM),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(18),
+        padding: EdgeInsets.all(Dimensions.spacingM + 2),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
+          color: color.withValues(alpha: Opacities.low),
           borderRadius: BorderRadius.circular(Dimensions.radiusM),
-          border: Border.all(color: color.withValues(alpha: 0.25), width: 1.5),
+          border: Border.all(color: color.withValues(alpha: Opacities.mediumHigh), width: 1.5),
         ),
         child: Row(
           children: [
             Container(
-              width: 48,
-              height: 48,
+              width: Dimensions.iconSizeXxl,
+              height: Dimensions.iconSizeXxl,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
+                color: color.withValues(alpha: Opacities.mediumLow),
                 borderRadius: BorderRadius.circular(Dimensions.radiusS),
               ),
-              child: Icon(icon, size: 26, color: color),
+              child: Icon(icon, size: Dimensions.iconSizeXl - 6, color: color),
             ),
             Dimensions.horizontalSpacerM,
             Expanded(
@@ -335,13 +335,20 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
                     style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: color),
                   ),
                   if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(subtitle, style: textTheme.bodySmall?.copyWith(color: color.withValues(alpha: 0.7))),
+                    Dimensions.verticalSpacerXs,
+                    Text(
+                      subtitle,
+                      style: textTheme.bodySmall?.copyWith(color: color.withValues(alpha: Opacities.highOpaque)),
+                    ),
                   ],
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, size: 22, color: color.withValues(alpha: 0.6)),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: Dimensions.iconSizeM + 2,
+              color: color.withValues(alpha: Opacities.higherOpaque),
+            ),
           ],
         ),
       ),
@@ -355,13 +362,13 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
 
     return Row(
       children: [
-        Icon(icon, size: 20, color: colorScheme.primary),
+        Icon(icon, size: Dimensions.iconSizeM, color: colorScheme.primary),
         Dimensions.horizontalSpacerS,
         Text(
           title,
           style: textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
-            color: colorScheme.onSurface.withValues(alpha: 0.9),
+            color: colorScheme.onSurface.withValues(alpha: Opacities.veryLowOpaque),
           ),
         ),
       ],

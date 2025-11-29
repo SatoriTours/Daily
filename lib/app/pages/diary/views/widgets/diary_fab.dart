@@ -1,6 +1,6 @@
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/config/app_config.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 日记悬浮按钮组件
 ///
@@ -29,7 +29,7 @@ class _DiaryFabState extends State<DiaryFab> with SingleTickerProviderStateMixin
 
   /// 初始化动画控制器和动画
   void _initAnimations() {
-    _animationController = AnimationController(duration: AnimationConfig.duration, vsync: this);
+    _animationController = AnimationController(duration: Animations.durationNormal, vsync: this);
 
     _rotationAnimation = Tween<double>(
       begin: 0,
@@ -65,7 +65,7 @@ class _DiaryFabState extends State<DiaryFab> with SingleTickerProviderStateMixin
             child: Center(
               child: RotationTransition(
                 turns: _rotationAnimation,
-                child: Icon(FeatherIcons.plus, size: 18, color: theme.colorScheme.onPrimary),
+                child: Icon(FeatherIcons.plus, size: Dimensions.iconSizeS, color: theme.colorScheme.onPrimary),
               ),
             ),
           ),

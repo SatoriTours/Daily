@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 日记标签组件
 class DiaryTags extends StatelessWidget {
@@ -12,14 +13,21 @@ class DiaryTags extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<String> tags = tagsString.split(',');
 
-    return Wrap(spacing: 8, runSpacing: 8, children: tags.map((tag) => _buildTagItem(context, tag)).toList());
+    return Wrap(
+      spacing: Dimensions.spacingS,
+      runSpacing: Dimensions.spacingS,
+      children: tags.map((tag) => _buildTagItem(context, tag)).toList(),
+    );
   }
 
   /// 构建单个标签项
   Widget _buildTagItem(BuildContext context, String tag) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(color: DiaryStyle.tagBackgroundColor(context), borderRadius: BorderRadius.circular(10)),
+      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingXs + 2, vertical: Dimensions.spacingXs - 1),
+      decoration: BoxDecoration(
+        color: DiaryStyle.tagBackgroundColor(context),
+        borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

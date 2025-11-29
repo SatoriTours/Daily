@@ -40,10 +40,10 @@ class BookSearchView extends GetView<BookSearchController> {
       child: TextField(
         controller: controller.searchController,
         autofocus: true,
-        decoration: InputStyles.getSearchDecoration(
-          context,
-          hintText: 'hint.title'.t,
-        ).copyWith(contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), isDense: true),
+        decoration: InputStyles.getSearchDecoration(context, hintText: 'hint.title'.t).copyWith(
+          contentPadding: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingXs),
+          isDense: true,
+        ),
         onSubmitted: (value) {
           if (value.trim().isNotEmpty) {
             controller.searchBooks(value.trim());
@@ -84,13 +84,17 @@ class BookSearchView extends GetView<BookSearchController> {
       decoration: BoxDecoration(
         color: AppColors.getSurface(context),
         border: Border(
-          bottom: BorderSide(color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.1), width: 1),
+          bottom: BorderSide(color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.low), width: 1),
         ),
       ),
       child: Row(
         children: [
-          Icon(Icons.library_books_outlined, size: 16, color: AppColors.getOnSurfaceVariant(context)),
-          const SizedBox(width: 8),
+          Icon(
+            Icons.library_books_outlined,
+            size: Dimensions.iconSizeXs,
+            color: AppColors.getOnSurfaceVariant(context),
+          ),
+          Dimensions.horizontalSpacerS,
           Text(
             '找到 ${controller.searchResults.length} 本相关书籍',
             style: AppTypography.bodyMedium.copyWith(
@@ -127,7 +131,7 @@ class BookSearchView extends GetView<BookSearchController> {
           Icon(
             Icons.search_off_rounded,
             size: 64,
-            color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.3),
+            color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.high),
           ),
           Dimensions.verticalSpacerM,
           Text(
@@ -138,7 +142,7 @@ class BookSearchView extends GetView<BookSearchController> {
           Text(
             '请尝试使用更具体的关键词',
             style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.7),
+              color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.highOpaque),
             ),
           ),
         ],
@@ -151,14 +155,18 @@ class BookSearchView extends GetView<BookSearchController> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.menu_book_rounded, size: 64, color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.3)),
+          Icon(
+            Icons.menu_book_rounded,
+            size: 64,
+            color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.high),
+          ),
           Dimensions.verticalSpacerM,
           Text('搜索您想添加的书籍', style: AppTypography.bodyLarge.copyWith(color: AppColors.getOnSurfaceVariant(context))),
           Dimensions.verticalSpacerS,
           Text(
             '输入书名、作者或关键词进行搜索',
             style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.7),
+              color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.highOpaque),
             ),
           ),
         ],
@@ -212,19 +220,19 @@ class BookSearchView extends GetView<BookSearchController> {
                         width: 80,
                         height: 120,
                         decoration: BoxDecoration(
-                          color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.1),
+                          color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.low),
                           borderRadius: BorderRadius.circular(Dimensions.radiusS),
                         ),
                         child: Icon(
                           Icons.book,
                           size: 40,
-                          color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.3),
+                          color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.high),
                         ),
                       );
                     },
                   ),
                 ),
-                const SizedBox(width: 12),
+                Dimensions.horizontalSpacerS,
               ],
               // 书籍信息
               Expanded(
@@ -248,11 +256,14 @@ class BookSearchView extends GetView<BookSearchController> {
                           ),
                         ),
                         if (result.category.isNotEmpty) ...[
-                          const SizedBox(width: 12),
+                          Dimensions.horizontalSpacerS,
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: Dimensions.spacingS + 2,
+                              vertical: Dimensions.spacingXs,
+                            ),
                             decoration: BoxDecoration(
-                              color: AppColors.getPrimary(context).withValues(alpha: 0.1),
+                              color: AppColors.getPrimary(context).withValues(alpha: Opacities.low),
                               borderRadius: BorderRadius.circular(Dimensions.radiusS),
                             ),
                             child: Text(
@@ -264,15 +275,15 @@ class BookSearchView extends GetView<BookSearchController> {
                       ],
                     ),
                     // 作者信息
-                    const SizedBox(height: 8),
+                    Dimensions.verticalSpacerS,
                     Row(
                       children: [
                         Icon(
                           Icons.person_outline,
-                          size: 14,
-                          color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.7),
+                          size: Dimensions.iconSizeXs - 2,
+                          color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.highOpaque),
                         ),
-                        const SizedBox(width: 6),
+                        SizedBox(width: Dimensions.spacingXs + 2),
                         Expanded(
                           child: Text(
                             result.author,
@@ -285,7 +296,7 @@ class BookSearchView extends GetView<BookSearchController> {
                     ),
                     // 简介
                     if (result.introduction.isNotEmpty) ...[
-                      const SizedBox(height: 12),
+                      Dimensions.verticalSpacerS,
                       Text(
                         result.introduction,
                         style: AppTypography.bodySmall.copyWith(
@@ -298,10 +309,10 @@ class BookSearchView extends GetView<BookSearchController> {
                     ],
                     // 出版信息
                     if (result.publishYear.isNotEmpty || result.isbn.isNotEmpty) ...[
-                      const SizedBox(height: 12),
+                      Dimensions.verticalSpacerS,
                       Wrap(
-                        spacing: 16,
-                        runSpacing: 8,
+                        spacing: Dimensions.spacingM,
+                        runSpacing: Dimensions.spacingS,
                         children: [
                           if (result.publishYear.isNotEmpty)
                             Row(
@@ -309,14 +320,18 @@ class BookSearchView extends GetView<BookSearchController> {
                               children: [
                                 Icon(
                                   Icons.calendar_today_outlined,
-                                  size: 14,
-                                  color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.6),
+                                  size: Dimensions.iconSizeXs - 2,
+                                  color: AppColors.getOnSurfaceVariant(
+                                    context,
+                                  ).withValues(alpha: Opacities.higherOpaque),
                                 ),
-                                const SizedBox(width: 4),
+                                Dimensions.horizontalSpacerXs,
                                 Text(
                                   result.publishYear,
                                   style: AppTypography.labelSmall.copyWith(
-                                    color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.8),
+                                    color: AppColors.getOnSurfaceVariant(
+                                      context,
+                                    ).withValues(alpha: Opacities.mediumOpaque),
                                   ),
                                 ),
                               ],
@@ -327,14 +342,18 @@ class BookSearchView extends GetView<BookSearchController> {
                               children: [
                                 Icon(
                                   Icons.book_outlined,
-                                  size: 14,
-                                  color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.6),
+                                  size: Dimensions.iconSizeXs - 2,
+                                  color: AppColors.getOnSurfaceVariant(
+                                    context,
+                                  ).withValues(alpha: Opacities.higherOpaque),
                                 ),
-                                const SizedBox(width: 4),
+                                Dimensions.horizontalSpacerXs,
                                 Text(
                                   'ISBN: ${result.isbn}',
                                   style: AppTypography.labelSmall.copyWith(
-                                    color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.8),
+                                    color: AppColors.getOnSurfaceVariant(
+                                      context,
+                                    ).withValues(alpha: Opacities.mediumOpaque),
                                   ),
                                 ),
                               ],
@@ -343,12 +362,16 @@ class BookSearchView extends GetView<BookSearchController> {
                       ),
                     ],
                     // 添加提示
-                    const SizedBox(height: 12),
+                    Dimensions.verticalSpacerS,
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Icon(Icons.add_circle_outline, size: 16, color: AppColors.getPrimary(context)),
-                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.add_circle_outline,
+                          size: Dimensions.iconSizeXs,
+                          color: AppColors.getPrimary(context),
+                        ),
+                        Dimensions.horizontalSpacerXs,
                         Text(
                           '点击添加到书架',
                           style: AppTypography.labelSmall.copyWith(

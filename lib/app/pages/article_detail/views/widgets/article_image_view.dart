@@ -51,7 +51,7 @@ class ArticleImageView extends StatelessWidget {
     Get.dialog(
       Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.black.withAlpha(179),
+          backgroundColor: Colors.black.withValues(alpha: Opacities.high),
           elevation: 0,
           automaticallyImplyLeading: false,
           actions: [

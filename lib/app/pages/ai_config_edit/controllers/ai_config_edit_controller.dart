@@ -1,5 +1,6 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
+import 'package:daily_satori/app/pages/ai_config/models/ai_config_types.dart';
 
 /// AI配置编辑控制器
 ///
@@ -24,7 +25,6 @@ class AIConfigEditController extends BaseController {
   final _isEditMode = false.obs;
   final _modelName = ''.obs;
   final _apiToken = ''.obs;
-  final _apiAddress = ''.obs;
   final _name = ''.obs;
   final _inheritFromGeneral = false.obs;
   final _initialized = false.obs;
@@ -34,7 +34,6 @@ class AIConfigEditController extends BaseController {
   bool get isEditMode => _isEditMode.value;
   String get modelName => _modelName.value;
   String get apiToken => _apiToken.value;
-  String get apiAddress => _apiAddress.value;
   String get name => _name.value;
   bool get inheritFromGeneral => _inheritFromGeneral.value;
   @override
@@ -67,13 +66,13 @@ class AIConfigEditController extends BaseController {
   /// 判断是否为系统预设配置类型（不可修改名称）
   bool get isSystemConfig {
     if (aiConfig == null) return false;
-    return aiConfig!.functionType >= 0 && aiConfig!.functionType <= 3;
+    return AIConfigTypes.isSystemConfig(aiConfig!.functionType);
   }
 
   /// 判断是否为特殊配置类型（可以继承通用配置）
   bool get isSpecialConfig {
     if (aiConfig == null) return false;
-    return aiConfig!.functionType >= 1 && aiConfig!.functionType <= 3; // 文章总结、书本解读、日记总结
+    return AIConfigTypes.isSpecialConfig(aiConfig!.functionType);
   }
 
   /// 设置继承模式
@@ -85,16 +84,13 @@ class AIConfigEditController extends BaseController {
       apiAddressController.clear();
       apiTokenController.clear();
       modelNameController.clear();
-      _apiAddress.value = '';
       _apiToken.value = '';
       _modelName.value = '';
 
       // 重置API提供商选择
       _selectedApiPresetIndex.value = 0;
-      availableModels.clear();
     } else {
-      // 切换到独立模式：设置默认值
-      _apiAddress.value = '';
+      // 切换到独立模式：重置响应式变量
       _apiToken.value = '';
       _modelName.value = '';
     }

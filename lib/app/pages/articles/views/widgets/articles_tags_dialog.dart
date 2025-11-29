@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/data/tag/tag_model.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
@@ -32,13 +32,13 @@ class ArticlesTagsDialog extends StatelessWidget {
       children: [
         // 标题栏
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: Dimensions.paddingM,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('article.select_tag'.t, style: textTheme.titleMedium),
               IconButton(
-                icon: const Icon(FeatherIcons.x, size: 20),
+                icon: Icon(FeatherIcons.x, size: Dimensions.iconSizeM),
                 onPressed: () => Navigator.pop(context),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
@@ -51,29 +51,33 @@ class ArticlesTagsDialog extends StatelessWidget {
 
         // 标签列表
         SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-          child: Wrap(spacing: 8, runSpacing: 8, children: tags.map((tag) => _buildTagItem(context, tag)).toList()),
+          padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingS, horizontal: Dimensions.spacingM - 4),
+          child: Wrap(
+            spacing: Dimensions.spacingS,
+            runSpacing: Dimensions.spacingS,
+            children: tags.map((tag) => _buildTagItem(context, tag)).toList(),
+          ),
         ),
 
         Divider(height: 1, color: colorScheme.outline.withAlpha(128)),
 
         // 清除过滤按钮
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: Dimensions.paddingM,
           child: Center(
             child: InkWell(
               onTap: () {
                 onClearFilters();
                 Navigator.pop(context);
               },
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(Dimensions.radiusL + 4),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(FeatherIcons.x, size: 16, color: colorScheme.primary),
-                    const SizedBox(width: 8),
+                    Icon(FeatherIcons.x, size: Dimensions.iconSizeXs, color: colorScheme.primary),
+                    Dimensions.horizontalSpacerS,
                     Text('清除所有过滤', style: TextStyle(color: colorScheme.primary)),
                   ],
                 ),
@@ -99,10 +103,10 @@ class ArticlesTagsDialog extends StatelessWidget {
         onTagSelected(tag.id, tag.name ?? '');
         Navigator.pop(context);
       },
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(Dimensions.radiusL),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(color: backgroundColor, borderRadius: BorderRadius.circular(16)),
+        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM - 4, vertical: Dimensions.spacingXs + 2),
+        decoration: BoxDecoration(color: backgroundColor, borderRadius: BorderRadius.circular(Dimensions.radiusL)),
         child: Text(tag.name ?? '', style: TextStyle(fontSize: 13, color: textColor)),
       ),
     );

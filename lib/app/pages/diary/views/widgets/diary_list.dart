@@ -1,4 +1,5 @@
 import 'package:daily_satori/app_exports.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 import 'diary_card.dart';
 import 'diary_empty_state.dart';
@@ -57,7 +58,12 @@ class DiaryList extends StatelessWidget {
 
     return ListView.builder(
       controller: scrollController,
-      padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 80),
+      padding: EdgeInsets.only(
+        left: Dimensions.spacingM,
+        right: Dimensions.spacingM,
+        top: Dimensions.spacingS,
+        bottom: 80,
+      ),
       itemCount: sortedDiaries.length,
       itemBuilder: (context, index) => _buildDiaryCard(context, sortedDiaries[index]),
     );

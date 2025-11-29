@@ -2,7 +2,7 @@ import 'package:get_time_ago/get_time_ago.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/components/common/smart_image.dart';
 import 'package:daily_satori/app/components/common/article_info_item.dart';
-import 'package:daily_satori/app/styles/app_theme.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'article_action_bar.dart';
 
 /// 文章卡片组件
@@ -34,7 +34,7 @@ class ArticleCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS + 2)),
       child: Stack(children: [_buildMainContent(context), if (_hasError) _buildErrorBadge(context)]),
     );
   }
@@ -42,13 +42,17 @@ class ArticleCard extends StatelessWidget {
   Widget _buildMainContent(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM - 4, vertical: Dimensions.spacingS + 2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
-          children: [_buildArticleInfo(context), const SizedBox(height: 6), _buildBottomBar(context)],
+          children: [
+            _buildArticleInfo(context),
+            const SizedBox(height: Dimensions.spacingXs + 2),
+            _buildBottomBar(context),
+          ],
         ),
       ),
     );
@@ -58,7 +62,7 @@ class ArticleCard extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_hasImage) ...[_buildImage(), const SizedBox(width: 12)],
+        if (_hasImage) ...[_buildImage(), Dimensions.horizontalSpacerS],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -88,7 +92,7 @@ class ArticleCard extends StatelessWidget {
 
   Widget _buildErrorMessage(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: Dimensions.spacingS),
       child: Text(
         articleModel.aiContent ?? '内容处理失败',
         style: AppTheme.getTextTheme(context).bodySmall?.copyWith(color: AppTheme.getColorScheme(context).error),
@@ -106,18 +110,18 @@ class ArticleCard extends StatelessWidget {
       width: 90,
       height: 70,
       fit: BoxFit.cover,
-      borderRadius: 8,
+      borderRadius: Dimensions.radiusS,
     );
   }
 
   Widget _buildBottomBar(BuildContext context) {
     final url = Uri.parse(articleModel.url ?? '');
     return SizedBox(
-      height: 24,
+      height: Dimensions.spacingL,
       child: Row(
         children: [
           ArticleInfoItem(icon: Icons.public, text: StringUtils.getTopLevelDomain(url.host)),
-          const SizedBox(width: 12),
+          Dimensions.horizontalSpacerS,
           ArticleInfoItem(
             icon: Icons.access_time,
             text: GetTimeAgo.parse(articleModel.createdAt, pattern: 'MM-dd'),
@@ -140,10 +144,13 @@ class ArticleCard extends StatelessWidget {
       top: 0,
       right: 0,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingS, vertical: Dimensions.spacingXs),
         decoration: BoxDecoration(
           color: colorScheme.error,
-          borderRadius: const BorderRadius.only(topRight: Radius.circular(10), bottomLeft: Radius.circular(10)),
+          borderRadius: const BorderRadius.only(
+            topRight: Radius.circular(Dimensions.radiusS + 2),
+            bottomLeft: Radius.circular(Dimensions.radiusS + 2),
+          ),
         ),
         child: Text('加载失败', style: TextStyle(color: colorScheme.onError, fontSize: 12)),
       ),

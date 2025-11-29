@@ -5,13 +5,10 @@
 library;
 
 export 'ai_config.dart'; // AI配置：超时时间、内容长度限制等
-export 'animation_config.dart'; // 动画配置：时长、曲线等
 export 'backup_config.dart'; // 备份配置：备份间隔、文件格式等
 export 'cache_config.dart'; // 缓存配置：过期时间、大小限制等
 export 'database_config.dart'; // 数据库配置：版本、名称、大小等
 export 'date_format_config.dart'; // 日期格式配置：显示格式、本地化等
-export 'dialog_config.dart'; // 对话框配置：超时时间、延迟等
-export 'dimension_config.dart'; // 尺寸配置：内边距、组件高度、图标大小等
 export 'directory_config.dart'; // 目录配置：应用目录、缓存目录等
 export 'download_config.dart'; // 下载配置：超时时间等
 export 'image_config.dart'; // 图片配置：大小限制、缓存时长等

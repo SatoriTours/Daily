@@ -1,5 +1,6 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:flutter/services.dart'; // 导入用于访问剪贴板
@@ -153,7 +154,12 @@ class _DiaryEditorState extends State<DiaryEditor> {
   Widget build(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.9,
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 8, left: 16, right: 16, top: 4),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + Dimensions.spacingS,
+        left: Dimensions.spacingM,
+        right: Dimensions.spacingM,
+        top: Dimensions.spacingXs,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -200,7 +206,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
   Widget _buildToolbar(BuildContext context) {
     return Container(
       height: 48,
-      margin: const EdgeInsets.only(top: 8),
+      margin: EdgeInsets.only(top: Dimensions.spacingS),
       child: Row(
         children: [
           // Markdown 工具栏 - 现在把撤销、重做和粘贴按钮也放进去
@@ -245,12 +251,12 @@ class _DiaryEditorState extends State<DiaryEditor> {
       child: Container(
         width: 36,
         height: 36,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
+        margin: EdgeInsets.symmetric(horizontal: Dimensions.spacingXs / 2),
         child: IconButton(
           onPressed: onPressed,
           icon: Icon(
             icon,
-            size: 16,
+            size: Dimensions.iconSizeXs,
             color: onPressed == null
                 ? DiaryStyle.primaryTextColor(context).withAlpha(77) // 禁用状态
                 : isAccent
@@ -277,7 +283,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
       focusedBorder: InputBorder.none,
       errorBorder: InputBorder.none,
       disabledBorder: InputBorder.none,
-      contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      contentPadding: EdgeInsets.symmetric(vertical: Dimensions.spacingS + 4, horizontal: Dimensions.spacingM),
     );
   }
 

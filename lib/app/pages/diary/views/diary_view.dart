@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/components/indicators/s_filter_indicator.dart';
-import 'package:daily_satori/app/config/app_config.dart';
 import '../controllers/diary_controller.dart';
 import 'widgets/diary_list.dart';
 import 'widgets/diary_tags_dialog.dart';
@@ -97,14 +96,19 @@ class DiaryView extends GetView<DiaryController> {
       title: filterText,
       onClear: controller.clearFilters,
       // 调整与现有布局相近的外边距
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      margin: EdgeInsets.fromLTRB(
+        Dimensions.spacingM,
+        Dimensions.spacingS + 4,
+        Dimensions.spacingM,
+        Dimensions.spacingS,
+      ),
     );
   }
 
   /// 构建搜索栏
   Widget _buildSearchBar(bool shouldShowSearchBar) {
     return AnimatedPositioned(
-      duration: AnimationConfig.duration,
+      duration: Animations.durationNormal,
       curve: Curves.easeInOut,
       top: shouldShowSearchBar ? 0 : -60,
       left: 0,
@@ -123,8 +127,8 @@ class DiaryView extends GetView<DiaryController> {
   /// 构建悬浮按钮
   Widget _buildFloatingButton(BuildContext context) {
     return Positioned(
-      right: 24,
-      bottom: 24,
+      right: Dimensions.spacingL,
+      bottom: Dimensions.spacingL,
       child: SafeArea(bottom: true, right: true, child: DiaryFab(onPressed: () => _showEditorDialog(context))),
     );
   }
@@ -149,10 +153,10 @@ class DiaryView extends GetView<DiaryController> {
   /// 构建AppBar按钮
   Widget _buildAppBarButton(BuildContext context, IconData icon, Color color, VoidCallback onPressed) {
     return IconButton(
-      icon: Icon(icon, color: color, size: 20),
-      splashRadius: 24,
+      icon: Icon(icon, color: color, size: Dimensions.iconSizeM),
+      splashRadius: Dimensions.spacingL,
       onPressed: onPressed,
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(Dimensions.spacingS + 4),
       tooltip: icon == FeatherIcons.calendar
           ? '日历'
           : icon == FeatherIcons.search
@@ -165,7 +169,7 @@ class DiaryView extends GetView<DiaryController> {
   void _scrollToTop() {
     logger.d('双击标题，滚动到顶部');
     if (controller.scrollController.hasClients) {
-      controller.scrollController.animateTo(0, duration: AnimationConfig.duration, curve: Curves.easeInOut);
+      controller.scrollController.animateTo(0, duration: Animations.durationNormal, curve: Curves.easeInOut);
     }
   }
 
