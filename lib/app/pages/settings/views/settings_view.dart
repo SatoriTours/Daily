@@ -1,4 +1,5 @@
 import 'package:daily_satori/app/components/common/feature_icon.dart';
+import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:flutter/material.dart';
@@ -31,14 +32,16 @@ class SettingsView extends GetView<SettingsController> {
 
   /// 构建顶部导航栏
   PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      title: Text('title.settings'.t),
+    return SAppBar(
+      title: Text('title.settings'.t, style: const TextStyle(color: Colors.white)),
       centerTitle: true,
       elevation: 0,
-      backgroundColor: AppTheme.getColorScheme(context).surface,
+      backgroundColorLight: AppColors.primary,
+      backgroundColorDark: AppColors.backgroundDark,
+      foregroundColor: Colors.white,
       actions: [
         IconButton(
-          icon: const Icon(Icons.info_outline),
+          icon: const Icon(Icons.info_outline, color: Colors.white),
           tooltip: 'dialog.about'.t,
           onPressed: () => _showAboutDialog(context),
         ),

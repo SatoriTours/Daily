@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
+import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import '../controllers/ai_chat_controller.dart';
 import '../../../components/ai_chat/chat_interface.dart';
 
@@ -45,32 +46,20 @@ class AIChatView extends GetView<AIChatController> {
 
   /// 构建应用栏
   PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
+    return SAppBar(
       title: _buildAppBarTitle(context),
-      backgroundColor: AppColors.getSurface(context),
+      backgroundColorLight: AppColors.primary,
+      backgroundColorDark: AppColors.backgroundDark,
+      foregroundColor: Colors.white,
       elevation: 0,
-      scrolledUnderElevation: 1,
+      centerTitle: true,
       actions: _buildAppBarActions(context),
     );
   }
 
   /// 构建应用栏标题
   Widget _buildAppBarTitle(BuildContext context) {
-    return Row(
-      children: [
-        // AI图标
-        Container(
-          padding: Dimensions.paddingS,
-          decoration: BoxDecoration(
-            color: AppColors.getPrimary(context).withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(Dimensions.radiusCircular),
-          ),
-          child: Icon(Icons.auto_awesome_outlined, size: Dimensions.iconSizeM, color: AppColors.getPrimary(context)),
-        ),
-        Dimensions.horizontalSpacerM,
-        Text('ai_chat.title'.t),
-      ],
-    );
+    return Text('ai_chat.title'.t, style: const TextStyle(color: Colors.white));
   }
 
   /// 构建应用栏操作按钮
@@ -78,13 +67,13 @@ class AIChatView extends GetView<AIChatController> {
     return [
       // 新对话按钮
       IconButton(
-        icon: Icon(Icons.refresh, color: AppColors.getOnSurface(context)),
+        icon: const Icon(Icons.refresh, color: Colors.white),
         onPressed: controller.clearMessages,
         tooltip: 'ai_chat.new_chat'.t,
       ),
       // 帮助按钮
       IconButton(
-        icon: Icon(Icons.info_outline, color: AppColors.getOnSurface(context)),
+        icon: const Icon(Icons.info_outline, color: Colors.white),
         onPressed: () => _showHelpDialog(context),
         tooltip: 'ai_chat.help'.t,
       ),
