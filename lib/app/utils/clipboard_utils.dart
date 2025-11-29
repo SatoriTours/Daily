@@ -50,10 +50,12 @@ class ClipboardUtils {
     bool Function(String url)? urlValidator,
     bool showConfirmation = true,
   }) async {
-    logger.i('检查剪切板URL');
-
     final text = await getText();
     final url = extractUrl(text);
+
+    logger.d('[ClipboardUtils] 剪切板原文: ${text.length > 50 ? '${text.substring(0, 50)}...' : text}');
+    logger.d('[ClipboardUtils] 提取URL: $url');
+    logger.d('[ClipboardUtils] 上次处理: $_lastProcessedText');
 
     // 验证URL
     bool isValidUrl = url.isNotEmpty && url.startsWith('http');
@@ -63,6 +65,7 @@ class ClipboardUtils {
 
     // 检查URL是否有效且未处理过
     if (isValidUrl && url != _lastProcessedText) {
+      logger.i('[ClipboardUtils] 检测到新URL，准备弹窗');
       if (showConfirmation) {
         // 显示确认对话框
         await _showUrlConfirmation(
@@ -74,10 +77,12 @@ class ClipboardUtils {
             }
             onUrlDetected(url);
             _lastProcessedText = url;
+            logger.i('[ClipboardUtils] URL已处理: $url');
           },
           onCanceled: () {
-            // 用户取消，但记录URL以避免重复提示
+            // 用户取消，记录URL以避免同一URL重复提示
             _lastProcessedText = url;
+            logger.i('[ClipboardUtils] 用户取消，记录URL: $url');
           },
         );
       } else {
@@ -87,7 +92,10 @@ class ClipboardUtils {
         }
         onUrlDetected(url);
         _lastProcessedText = url;
+        logger.i('[ClipboardUtils] URL已处理(无确认): $url');
       }
+    } else if (url.isNotEmpty) {
+      logger.d('[ClipboardUtils] URL未通过检查: isValid=$isValidUrl, sameAsLast=${url == _lastProcessedText}');
     }
   }
 
