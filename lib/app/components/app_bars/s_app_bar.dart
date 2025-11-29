@@ -57,7 +57,16 @@ class SAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = backgroundColorLight ?? backgroundColorDark ?? AppColors.getSurface(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final Color bg;
+
+    if (isDark) {
+      // 暗黑模式：优先使用 backgroundColorDark，否则使用默认 surface
+      bg = backgroundColorDark ?? AppColors.getSurface(context);
+    } else {
+      // 浅色模式：优先使用 backgroundColorLight，否则使用默认 surface
+      bg = backgroundColorLight ?? AppColors.getSurface(context);
+    }
 
     final titleWidget = onTitleDoubleTap == null ? title : GestureDetector(onDoubleTap: onTitleDoubleTap, child: title);
 

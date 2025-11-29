@@ -1,5 +1,4 @@
 import 'package:feather_icons/feather_icons.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:intl/intl.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
@@ -21,7 +20,7 @@ class DiaryView extends GetView<DiaryController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: DiaryStyle.backgroundColor(context),
+      backgroundColor: DiaryStyles.getBackgroundColor(context),
       appBar: _buildAppBar(context),
       body: Obx(() {
         final shouldShowSearchBar = controller.isSearchVisible.value || controller.searchQuery.isNotEmpty;
@@ -136,8 +135,8 @@ class DiaryView extends GetView<DiaryController> {
   /// 构建AppBar
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return SAppBar(
-      backgroundColorDark: const Color(0xFF121212),
-      backgroundColorLight: DiaryStyle.accentColor(context),
+      backgroundColorDark: AppColors.backgroundDark,
+      backgroundColorLight: DiaryStyles.getAccentColor(context),
       elevation: 1,
       leading: _buildAppBarButton(context, FeatherIcons.calendar, Colors.white, () => _showCalendarDialog(context)),
       title: Text('我的日记', style: AppTypography.titleLarge),
@@ -194,7 +193,7 @@ class DiaryView extends GetView<DiaryController> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: DiaryStyle.bottomSheetColor(context),
+      backgroundColor: DiaryStyles.getBottomSheetColor(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
@@ -212,7 +211,7 @@ class DiaryView extends GetView<DiaryController> {
     FocusManager.instance.primaryFocus?.unfocus();
     showModalBottomSheet(
       context: context,
-      backgroundColor: DiaryStyle.bottomSheetColor(context),
+      backgroundColor: DiaryStyles.getBottomSheetColor(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
@@ -236,7 +235,7 @@ class DiaryView extends GetView<DiaryController> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: DiaryStyle.bottomSheetColor(context),
+      backgroundColor: DiaryStyles.getBottomSheetColor(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
@@ -260,7 +259,7 @@ class DiaryView extends GetView<DiaryController> {
     }
     showModalBottomSheet(
       context: context,
-      backgroundColor: DiaryStyle.bottomSheetColor(context),
+      backgroundColor: DiaryStyles.getBottomSheetColor(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),

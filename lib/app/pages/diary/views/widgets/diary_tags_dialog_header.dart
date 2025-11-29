@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 
 /// 日记标签对话框标题
 class DiaryTagsDialogHeader extends StatelessWidget {
@@ -18,10 +18,10 @@ class DiaryTagsDialogHeader extends StatelessWidget {
         children: [
           Text(
             title,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: DiaryStyle.primaryTextColor(context)),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: DiaryStyles.getPrimaryTextColor(context)),
           ),
           IconButton(
-            icon: Icon(FeatherIcons.x, size: 20, color: DiaryStyle.secondaryTextColor(context)),
+            icon: Icon(FeatherIcons.x, size: 20, color: DiaryStyles.getSecondaryTextColor(context)),
             onPressed: onClose,
           ),
         ],

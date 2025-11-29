@@ -369,7 +369,7 @@ class AIChatController extends BaseController {
       description: toolCall.description,
     );
 
-    final updatedSubMessages = [...(processingMessage.subMessages ?? []), toolMessage];
+    final updatedSubMessages = <ChatMessage>[...(processingMessage.subMessages ?? []), toolMessage];
 
     _updateMessageInList(processingMessage, processingMessage.copyWith(subMessages: updatedSubMessages));
 

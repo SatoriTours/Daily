@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
 /// 日记空状态组件
@@ -32,22 +31,22 @@ class DiaryEmptyState extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isDark
-                    ? DiaryStyle.accentColor(context).withAlpha(20)
-                    : DiaryStyle.accentColor(context).withAlpha(12),
+                    ? DiaryStyles.getAccentColor(context).withAlpha(20)
+                    : DiaryStyles.getAccentColor(context).withAlpha(12),
               ),
-              child: Icon(icon, size: 40, color: DiaryStyle.accentColor(context)),
+              child: Icon(icon, size: 40, color: DiaryStyles.getAccentColor(context)),
             ),
             Dimensions.verticalSpacerL,
             Text(
               message,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: DiaryStyle.primaryTextColor(context)),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: DiaryStyles.getPrimaryTextColor(context)),
               textAlign: TextAlign.center,
             ),
             if (subMessage != null) ...[
               Dimensions.verticalSpacerS,
               Text(
                 subMessage!,
-                style: TextStyle(fontSize: 14, color: DiaryStyle.secondaryTextColor(context)),
+                style: TextStyle(fontSize: 14, color: DiaryStyles.getSecondaryTextColor(context)),
                 textAlign: TextAlign.center,
               ),
             ],

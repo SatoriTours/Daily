@@ -4,7 +4,6 @@ import 'package:daily_satori/app/pages/books/views/widgets/viewpoint_card.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/pages/diary/controllers/diary_controller.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/diary_editor.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
 /// 观点内容组件
@@ -166,7 +165,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: DiaryStyle.bottomSheetColor(context),
+      backgroundColor: DiaryStyles.getBottomSheetColor(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),

@@ -148,18 +148,39 @@ AppShadows.getLShadow(context)     // 大阴影 - 对话框
 AppShadows.getXlShadow(context)    // 特大阴影 - 模态框
 ```
 
-### 边框 (BorderStyles)
+### 边框宽度 (Dimensions)
 
 ```dart
-// 边框宽度
-BorderStyles.extraThin   // 0.5px
-BorderStyles.thin        // 1.0px
-BorderStyles.medium      // 1.5px
-BorderStyles.thick       // 2.0px
+// 边框宽度常量
+Dimensions.borderWidthXs   // 0.5px - 极细边框
+Dimensions.borderWidthS    // 1.0px - 细边框
+Dimensions.borderWidthM    // 1.5px - 中等边框
+Dimensions.borderWidthL    // 2.0px - 粗边框
+Dimensions.borderWidthXl   // 4.0px - 极粗边框
+```
 
-// 边框工具
-BorderStyles.getTopBorder(color)     // 顶部边框
-BorderStyles.getBottomBorder(color)  // 底部边框
+### 边框方法 (AppBorders)
+
+```dart
+// 主题感知边框
+AppBorders.getBaseBorder(context)      // 基本边框（自动适应主题）
+AppBorders.getPrimaryBorder(context)   // 主题色边框
+AppBorders.getCardBorder(context)      // 卡片边框
+
+// 单边边框（需手动指定颜色）
+AppBorders.getTopBorder(color, opacity: 0.3)     // 顶部边框
+AppBorders.getBottomBorder(color, opacity: 0.3)  // 底部边框
+AppBorders.getLeftBorder(color, opacity: 0.3)    // 左侧边框
+AppBorders.getRightBorder(color, opacity: 0.3)   // 右侧边框
+
+// 输入框边框
+AppBorders.getInputBorder(context)         // 默认状态
+AppBorders.getInputFocusedBorder(context)  // 聚焦状态
+AppBorders.getInputErrorBorder(context)    // 错误状态
+
+// 分隔线
+AppBorders.getDivider(context)             // 水平分隔线
+AppBorders.getVerticalDivider(context)     // 垂直分隔线
 ```
 
 ## 🔧 组件样式速查

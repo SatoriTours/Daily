@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 
 import '../../controllers/diary_controller.dart';
 import 'diary_tags_dialog_header.dart';
@@ -19,7 +19,7 @@ class DiaryTagsDialog extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         DiaryTagsDialogHeader(onClose: () => Navigator.pop(context)),
-        Divider(height: 1, thickness: 0.5, color: DiaryStyle.dividerColor(context)),
+        Divider(height: 1, thickness: 0.5, color: DiaryStyles.getDividerColor(context)),
         DiaryTagsList(
           tags: controller.tags,
           onTagSelected: (tag) {
@@ -27,7 +27,7 @@ class DiaryTagsDialog extends StatelessWidget {
             Navigator.pop(context);
           },
         ),
-        Divider(height: 1, thickness: 0.5, color: DiaryStyle.dividerColor(context)),
+        Divider(height: 1, thickness: 0.5, color: DiaryStyles.getDividerColor(context)),
         DiaryClearFiltersButton(
           onPressed: () {
             controller.clearFilters();

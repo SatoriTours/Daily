@@ -65,7 +65,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
       padding: Dimensions.paddingBottomForm,
       decoration: BoxDecoration(
         color: AppColors.getSurface(context),
-        border: BorderStyles.getTopBorder(AppColors.getOutline(context), opacity: Opacities.medium),
+        border: AppBorders.getTopBorder(AppColors.getOutline(context), opacity: Opacities.medium),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: Opacities.ultraLow),
@@ -166,7 +166,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
             borderRadius: BorderRadius.circular(Dimensions.radiusS),
             border: Border.all(
               color: AppColors.getOutlineVariant(context).withValues(alpha: Opacities.mediumHigh),
-              width: BorderStyles.extraThin,
+              width: Dimensions.borderWidthXs,
             ),
           ),
           child: SelectableText(

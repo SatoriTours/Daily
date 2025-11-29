@@ -117,7 +117,51 @@ class AppBorders {
     return BoxDecoration(
       color: backgroundColor ?? (isDark ? AppColors.surfaceDark : AppColors.surface),
       borderRadius: borderRadius ?? BorderRadius.circular(Dimensions.radiusS),
-      border: Border.all(color: isDark ? AppColors.primaryLight : AppColors.primary, width: 1.5),
+      border: Border.all(color: isDark ? AppColors.primaryLight : AppColors.primary, width: Dimensions.borderWidthM),
+    );
+  }
+
+  // ========================================================================
+  // 单边边框方法
+  // ========================================================================
+
+  /// 获取顶部边框
+  static Border getTopBorder(Color color, {double opacity = 0.3, double width = Dimensions.borderWidthXs}) {
+    return Border(
+      top: BorderSide(
+        color: color.withValues(alpha: opacity),
+        width: width,
+      ),
+    );
+  }
+
+  /// 获取底部边框
+  static Border getBottomBorder(Color color, {double opacity = 0.3, double width = Dimensions.borderWidthXs}) {
+    return Border(
+      bottom: BorderSide(
+        color: color.withValues(alpha: opacity),
+        width: width,
+      ),
+    );
+  }
+
+  /// 获取左侧边框
+  static Border getLeftBorder(Color color, {double opacity = 0.3, double width = Dimensions.borderWidthXs}) {
+    return Border(
+      left: BorderSide(
+        color: color.withValues(alpha: opacity),
+        width: width,
+      ),
+    );
+  }
+
+  /// 获取右侧边框
+  static Border getRightBorder(Color color, {double opacity = 0.3, double width = Dimensions.borderWidthXs}) {
+    return Border(
+      right: BorderSide(
+        color: color.withValues(alpha: opacity),
+        width: width,
+      ),
     );
   }
 }

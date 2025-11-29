@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
 /// 日记标签组件
@@ -25,14 +24,14 @@ class DiaryTags extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingXs + 2, vertical: Dimensions.spacingXs - 1),
       decoration: BoxDecoration(
-        color: DiaryStyle.tagBackgroundColor(context),
+        color: DiaryStyles.getTagBackgroundColor(context),
         borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(FeatherIcons.hash, size: 10, color: DiaryStyle.secondaryTextColor(context)),
-          Text(tag, style: TextStyle(fontSize: 10, color: DiaryStyle.secondaryTextColor(context))),
+          Icon(FeatherIcons.hash, size: 10, color: DiaryStyles.getSecondaryTextColor(context)),
+          Text(tag, style: TextStyle(fontSize: 10, color: DiaryStyles.getSecondaryTextColor(context))),
         ],
       ),
     );

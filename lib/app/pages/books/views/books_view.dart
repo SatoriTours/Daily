@@ -6,7 +6,6 @@ import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/components/menus/s_popup_menu_item.dart';
 import 'package:daily_satori/app/pages/diary/controllers/diary_controller.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/diary_editor.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
 /// 读书页面
@@ -328,7 +327,7 @@ class BooksView extends GetView<BooksController> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: DiaryStyle.bottomSheetColor(context),
+      backgroundColor: DiaryStyles.getBottomSheetColor(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 import 'package:daily_satori/app/pages/diary/utils/diary_utils.dart';
 
 /// Markdown工具栏组件
@@ -169,8 +169,8 @@ class MarkdownToolbar extends StatelessWidget {
     // 使用isActive参数决定颜色，而不仅仅依赖于onPressed是否为null
     final Color iconColor =
         (!isActive || onPressed == null)
-            ? DiaryStyle.primaryTextColor(context).withAlpha(77) // 禁用状态
-            : DiaryStyle.primaryTextColor(context);
+            ? DiaryStyles.getPrimaryTextColor(context).withAlpha(77) // 禁用状态
+            : DiaryStyles.getPrimaryTextColor(context);
 
     return Tooltip(
       message: tooltip,
@@ -195,7 +195,7 @@ class MarkdownToolbar extends StatelessWidget {
       margin: const EdgeInsets.only(left: 8),
       child: IconButton(
         onPressed: onPressed,
-        icon: Icon(FeatherIcons.check, size: 18, color: DiaryStyle.accentColor(context)),
+        icon: Icon(FeatherIcons.check, size: 18, color: DiaryStyles.getAccentColor(context)),
         tooltip: text,
         padding: const EdgeInsets.all(0),
         visualDensity: VisualDensity.compact,

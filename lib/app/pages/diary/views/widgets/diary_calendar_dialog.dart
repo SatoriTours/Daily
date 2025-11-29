@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:intl/intl.dart';
 
@@ -36,10 +36,10 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildHeader(context),
-          Divider(height: 1, thickness: 0.5, color: DiaryStyle.dividerColor(context)),
+          Divider(height: 1, thickness: 0.5, color: DiaryStyles.getDividerColor(context)),
           _buildCalendarHeader(context),
           Expanded(child: SingleChildScrollView(child: _buildCalendar(context))),
-          Divider(height: 1, thickness: 0.5, color: DiaryStyle.dividerColor(context)),
+          Divider(height: 1, thickness: 0.5, color: DiaryStyles.getDividerColor(context)),
           _buildAllDiariesButton(context),
           SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
@@ -55,10 +55,10 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
         children: [
           Text(
             '日记日历',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: DiaryStyle.primaryTextColor(context)),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: DiaryStyles.getPrimaryTextColor(context)),
           ),
           IconButton(
-            icon: Icon(FeatherIcons.x, size: 20, color: DiaryStyle.secondaryTextColor(context)),
+            icon: Icon(FeatherIcons.x, size: 20, color: DiaryStyles.getSecondaryTextColor(context)),
             onPressed: () => Navigator.pop(context),
             splashRadius: 20,
             padding: EdgeInsets.zero,
@@ -79,7 +79,7 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
         children: [
           Text(
             monthFormat.format(_displayedMonth),
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: DiaryStyle.accentColor(context)),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: DiaryStyles.getAccentColor(context)),
           ),
           Row(
             children: [
@@ -107,7 +107,7 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.all(8),
-        child: Icon(icon, size: 18, color: DiaryStyle.secondaryTextColor(context)),
+        child: Icon(icon, size: 18, color: DiaryStyles.getSecondaryTextColor(context)),
       ),
     );
   }
@@ -194,8 +194,8 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
                     fontSize: 13,
                     color:
                         isWeekend
-                            ? DiaryStyle.accentColor(context).withAlpha(180)
-                            : DiaryStyle.secondaryTextColor(context),
+                            ? DiaryStyles.getAccentColor(context).withAlpha(180)
+                            : DiaryStyles.getSecondaryTextColor(context),
                     fontWeight: isWeekend ? FontWeight.w500 : FontWeight.normal,
                   ),
                 ),
@@ -209,11 +209,11 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
     // 选择适当的背景颜色
     Color bgColor;
     if (isSelected) {
-      bgColor = DiaryStyle.accentColor(context);
+      bgColor = DiaryStyles.getAccentColor(context);
     } else if (isToday) {
-      bgColor = DiaryStyle.accentColor(context).withAlpha(30);
+      bgColor = DiaryStyles.getAccentColor(context).withAlpha(30);
     } else if (diaryCount > 0) {
-      bgColor = DiaryStyle.accentColor(context).withAlpha(10);
+      bgColor = DiaryStyles.getAccentColor(context).withAlpha(10);
     } else {
       bgColor = Colors.transparent;
     }
@@ -225,7 +225,7 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
         color: bgColor,
         border:
             diaryCount > 0 && !isSelected
-                ? Border.all(color: DiaryStyle.accentColor(context).withAlpha(80), width: 1)
+                ? Border.all(color: DiaryStyles.getAccentColor(context).withAlpha(80), width: 1)
                 : null,
       ),
       child: Stack(
@@ -238,7 +238,7 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: (isToday || isSelected || diaryCount > 0) ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : DiaryStyle.primaryTextColor(context),
+                color: isSelected ? Colors.white : DiaryStyles.getPrimaryTextColor(context),
               ),
             ),
           ),
@@ -250,9 +250,9 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
                 width: 13,
                 height: 13,
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white.withAlpha(235) : DiaryStyle.accentColor(context).withAlpha(235),
+                  color: isSelected ? Colors.white.withAlpha(235) : DiaryStyles.getAccentColor(context).withAlpha(235),
                   shape: BoxShape.circle,
-                  border: isSelected ? Border.all(color: DiaryStyle.accentColor(context), width: 0.5) : null,
+                  border: isSelected ? Border.all(color: DiaryStyles.getAccentColor(context), width: 0.5) : null,
                   boxShadow: [
                     BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 1, offset: const Offset(0, 0.5)),
                   ],
@@ -261,7 +261,7 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
                   child: Text(
                     diaryCount > 99 ? '99+' : diaryCount.toString(),
                     style: TextStyle(
-                      color: isSelected ? DiaryStyle.accentColor(context) : Colors.white,
+                      color: isSelected ? DiaryStyles.getAccentColor(context) : Colors.white,
                       fontSize: 8,
                       fontWeight: FontWeight.bold,
                     ),
@@ -297,7 +297,7 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
         alignment: Alignment.center,
         child: Text(
           '查看全部日记',
-          style: TextStyle(color: DiaryStyle.accentColor(context), fontWeight: FontWeight.w500, fontSize: 15),
+          style: TextStyle(color: DiaryStyles.getAccentColor(context), fontWeight: FontWeight.w500, fontSize: 15),
         ),
       ),
     );

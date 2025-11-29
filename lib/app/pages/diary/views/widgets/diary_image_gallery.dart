@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:get/get.dart';
@@ -46,10 +46,10 @@ class DiaryImageGallery extends StatelessWidget {
         height: 100,
         margin: const EdgeInsets.only(right: 8),
         decoration: BoxDecoration(
-          color: DiaryStyle.tagBackgroundColor(context),
+          color: DiaryStyles.getTagBackgroundColor(context),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(FeatherIcons.image, color: DiaryStyle.primaryTextColor(context)),
+        child: Icon(FeatherIcons.image, color: DiaryStyles.getPrimaryTextColor(context)),
       ),
     );
   }

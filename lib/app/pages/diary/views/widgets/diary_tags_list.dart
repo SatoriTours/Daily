@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 
 /// 日记标签列表组件
 class DiaryTagsList extends StatelessWidget {
@@ -16,7 +16,7 @@ class DiaryTagsList extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.all(16),
           child: Center(
-            child: Text('暂无标签', style: TextStyle(color: DiaryStyle.secondaryTextColor(context), fontSize: 14)),
+            child: Text('暂无标签', style: TextStyle(color: DiaryStyles.getSecondaryTextColor(context), fontSize: 14)),
           ),
         );
       }
@@ -36,8 +36,8 @@ class DiaryTagsList extends StatelessWidget {
     return InkWell(
       onTap: () => onTagSelected(tag),
       child: Chip(
-        label: Text('#$tag', style: TextStyle(color: DiaryStyle.primaryTextColor(context), fontSize: 13)),
-        backgroundColor: DiaryStyle.tagBackgroundColor(context),
+        label: Text('#$tag', style: TextStyle(color: DiaryStyles.getPrimaryTextColor(context), fontSize: 13)),
+        backgroundColor: DiaryStyles.getTagBackgroundColor(context),
         padding: const EdgeInsets.symmetric(horizontal: 4),
         visualDensity: VisualDensity.compact,
       ),

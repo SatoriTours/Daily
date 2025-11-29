@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 import 'package:feather_icons/feather_icons.dart';
 
 import '../../controllers/diary_controller.dart';
@@ -18,7 +18,7 @@ class DiaryInput extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: DiaryStyle.cardColor(context),
+        color: DiaryStyles.getCardBackgroundColor(context),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withAlpha(Theme.of(context).brightness == Brightness.dark ? 77 : 13),
@@ -32,7 +32,7 @@ class DiaryInput extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
-            color: DiaryStyle.inputBackgroundColor(context),
+            color: DiaryStyles.getInputBackgroundColor(context),
             borderRadius: BorderRadius.circular(24),
           ),
           child: Row(
@@ -47,7 +47,7 @@ class DiaryInput extends StatelessWidget {
                   ),
                 ),
               ),
-              Icon(FeatherIcons.edit2, color: DiaryStyle.secondaryTextColor(context), size: 18),
+              Icon(FeatherIcons.edit2, color: DiaryStyles.getSecondaryTextColor(context), size: 18),
             ],
           ),
         ),
@@ -64,7 +64,7 @@ class DiaryInput extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: DiaryStyle.bottomSheetColor(context),
+      backgroundColor: DiaryStyles.getBottomSheetColor(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),

@@ -224,6 +224,22 @@ class Dimensions {
   /// 分隔线水平内边距 - 16.0
   static const double dividerIndent = 16.0;
 
+  // 边框宽度常量
+  /// 极细边框宽度 - 0.5
+  static const double borderWidthXs = 0.5;
+
+  /// 细边框宽度 - 1.0
+  static const double borderWidthS = 1.0;
+
+  /// 中等边框宽度 - 1.5
+  static const double borderWidthM = 1.5;
+
+  /// 粗边框宽度 - 2.0
+  static const double borderWidthL = 2.0;
+
+  /// 极粗边框宽度 - 4.0
+  static const double borderWidthXl = 4.0;
+
   // 间隔组件预设（垂直）
   /// 极小垂直间隔 - 4.0
   static const SizedBox verticalSpacerXs = SizedBox(height: spacingXs);

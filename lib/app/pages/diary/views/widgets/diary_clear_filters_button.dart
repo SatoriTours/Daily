@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 
 /// 日记清除筛选按钮
 class DiaryClearFiltersButton extends StatelessWidget {
@@ -18,10 +18,10 @@ class DiaryClearFiltersButton extends StatelessWidget {
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: DiaryStyle.inputBackgroundColor(context),
+            color: DiaryStyles.getInputBackgroundColor(context),
             borderRadius: BorderRadius.circular(24),
           ),
-          child: Text(text, style: TextStyle(color: DiaryStyle.primaryTextColor(context), fontWeight: FontWeight.w500)),
+          child: Text(text, style: TextStyle(color: DiaryStyles.getPrimaryTextColor(context), fontWeight: FontWeight.w500)),
         ),
       ),
     );

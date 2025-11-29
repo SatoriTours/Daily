@@ -1,5 +1,4 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:feather_icons/feather_icons.dart';
@@ -172,7 +171,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
               autofocus: true,
               textAlignVertical: TextAlignVertical.top,
               decoration: _getInputDecoration(context),
-              style: TextStyle(fontSize: 16, height: 1.5, color: DiaryStyle.primaryTextColor(context)),
+              style: TextStyle(fontSize: 16, height: 1.5, color: DiaryStyles.getPrimaryTextColor(context)),
               onTap: () {
                 // 在文本字段内点击时，可以记录当前位置供工具栏使用
               },
@@ -258,10 +257,10 @@ class _DiaryEditorState extends State<DiaryEditor> {
             icon,
             size: Dimensions.iconSizeXs,
             color: onPressed == null
-                ? DiaryStyle.primaryTextColor(context).withAlpha(77) // 禁用状态
+                ? DiaryStyles.getPrimaryTextColor(context).withAlpha(77) // 禁用状态
                 : isAccent
-                ? DiaryStyle.accentColor(context)
-                : DiaryStyle.primaryTextColor(context),
+                ? DiaryStyles.getAccentColor(context)
+                : DiaryStyles.getPrimaryTextColor(context),
           ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
@@ -406,7 +405,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: Icon(FeatherIcons.grid, color: DiaryStyle.accentColor(context)),
+                leading: Icon(FeatherIcons.grid, color: DiaryStyles.getAccentColor(context)),
                 title: Text('menu.convert_to_table'.t),
                 onTap: () {
                   _convertToTable(selectedText, selection);
@@ -414,7 +413,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
                 },
               ),
               ListTile(
-                leading: Icon(FeatherIcons.list, color: DiaryStyle.accentColor(context)),
+                leading: Icon(FeatherIcons.list, color: DiaryStyles.getAccentColor(context)),
                 title: Text('menu.convert_to_list'.t),
                 onTap: () {
                   _convertToList(selectedText, selection);
@@ -422,7 +421,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
                 },
               ),
               ListTile(
-                leading: Icon(FeatherIcons.terminal, color: DiaryStyle.accentColor(context)),
+                leading: Icon(FeatherIcons.terminal, color: DiaryStyles.getAccentColor(context)),
                 title: Text('menu.format_as_code_block'.t),
                 onTap: () {
                   _convertToCodeBlock(selectedText, selection);
@@ -430,7 +429,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
                 },
               ),
               ListTile(
-                leading: Icon(FeatherIcons.star, color: DiaryStyle.accentColor(context)),
+                leading: Icon(FeatherIcons.star, color: DiaryStyles.getAccentColor(context)),
                 title: Text('menu.add_emphasis'.t),
                 onTap: () {
                   _addEmphasis(selectedText, selection);
@@ -517,7 +516,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: DiaryStyle.backgroundColor(context),
+      backgroundColor: DiaryStyles.getBackgroundColor(context),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (BuildContext context) {
         return DiaryTagSelectorDialog(
@@ -538,7 +537,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: Icon(FeatherIcons.image, color: DiaryStyle.accentColor(context)),
+                leading: Icon(FeatherIcons.image, color: DiaryStyles.getAccentColor(context)),
                 title: Text('menu.select_from_gallery'.t),
                 onTap: () {
                   Navigator.pop(context);
@@ -546,7 +545,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
                 },
               ),
               ListTile(
-                leading: Icon(FeatherIcons.camera, color: DiaryStyle.accentColor(context)),
+                leading: Icon(FeatherIcons.camera, color: DiaryStyles.getAccentColor(context)),
                 title: Text('menu.take_photo'.t),
                 onTap: () {
                   Navigator.pop(context);

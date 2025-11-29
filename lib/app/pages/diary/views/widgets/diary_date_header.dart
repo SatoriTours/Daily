@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 import '../../utils/diary_utils.dart';
 
 /// 日记日期标题组件
@@ -14,7 +14,7 @@ class DiaryDateHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       margin: const EdgeInsets.only(bottom: 4),
       decoration: BoxDecoration(
-        color: DiaryStyle.tagBackgroundColor(context).withAlpha(128),
+        color: DiaryStyles.getTagBackgroundColor(context).withAlpha(128),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -22,7 +22,7 @@ class DiaryDateHeader extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w500,
-          color: DiaryStyle.secondaryTextColor(context),
+          color: DiaryStyles.getSecondaryTextColor(context),
           letterSpacing: 0.5,
         ),
       ),

@@ -1,5 +1,4 @@
 import 'package:feather_icons/feather_icons.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
@@ -122,7 +121,7 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
         height: 60,
         padding: Dimensions.paddingS,
         decoration: BoxDecoration(
-          color: DiaryStyle.cardColor(context),
+          color: DiaryStyles.getCardBackgroundColor(context),
           boxShadow: [BoxShadow(color: Colors.black.withAlpha(15), offset: const Offset(0, 2), blurRadius: 4)],
         ),
         child: Row(
@@ -140,7 +139,7 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
   /// 构建返回按钮
   Widget _buildBackButton() {
     return IconButton(
-      icon: Icon(FeatherIcons.arrowLeft, color: DiaryStyle.primaryTextColor(context), size: Dimensions.iconSizeM),
+      icon: Icon(FeatherIcons.arrowLeft, color: DiaryStyles.getPrimaryTextColor(context), size: Dimensions.iconSizeM),
       onPressed: _handleClose,
       splashRadius: Dimensions.spacingL,
       tooltip: '返回',
@@ -153,7 +152,7 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
       height: 36,
       margin: Dimensions.paddingHorizontalXs,
       decoration: BoxDecoration(
-        color: DiaryStyle.inputBackgroundColor(context),
+        color: DiaryStyles.getInputBackgroundColor(context),
         borderRadius: BorderRadius.circular(18),
       ),
       child: TextField(
@@ -161,12 +160,12 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
         focusNode: widget.searchFocusNode,
         decoration: InputDecoration(
           hintText: '搜索日记内容...',
-          hintStyle: TextStyle(color: DiaryStyle.secondaryTextColor(context), fontSize: 14),
+          hintStyle: TextStyle(color: DiaryStyles.getSecondaryTextColor(context), fontSize: 14),
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
           isDense: true,
         ),
-        style: TextStyle(color: DiaryStyle.primaryTextColor(context), fontSize: 14),
+        style: TextStyle(color: DiaryStyles.getPrimaryTextColor(context), fontSize: 14),
         textInputAction: TextInputAction.search,
         onSubmitted: (_) => _performSearch(),
       ),
@@ -176,7 +175,7 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
   /// 构建搜索按钮
   Widget _buildSearchButton() {
     return IconButton(
-      icon: Icon(FeatherIcons.search, color: DiaryStyle.accentColor(context), size: Dimensions.iconSizeM),
+      icon: Icon(FeatherIcons.search, color: DiaryStyles.getAccentColor(context), size: Dimensions.iconSizeM),
       onPressed: _performSearch,
       splashRadius: Dimensions.spacingL,
       tooltip: '搜索',
@@ -189,7 +188,7 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
       opacity: _showClearButton ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 200),
       child: IconButton(
-        icon: Icon(FeatherIcons.x, color: DiaryStyle.primaryTextColor(context), size: Dimensions.iconSizeM),
+        icon: Icon(FeatherIcons.x, color: DiaryStyles.getPrimaryTextColor(context), size: Dimensions.iconSizeM),
         onPressed: _showClearButton ? _clearSearch : null,
         splashRadius: Dimensions.spacingL,
         tooltip: '清除',

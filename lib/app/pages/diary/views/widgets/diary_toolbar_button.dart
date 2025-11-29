@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 
 /// 日记工具栏按钮
 class DiaryToolbarButton extends StatelessWidget {
@@ -29,7 +29,7 @@ class DiaryToolbarButton extends StatelessWidget {
           icon: Icon(
             icon,
             size: 16,
-            color: isAccent ? DiaryStyle.accentColor(context) : DiaryStyle.primaryTextColor(context),
+            color: isAccent ? DiaryStyles.getAccentColor(context) : DiaryStyles.getPrimaryTextColor(context),
           ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),

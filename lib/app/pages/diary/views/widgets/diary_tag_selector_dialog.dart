@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
+import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 import '../../controllers/diary_controller.dart';
@@ -121,12 +121,12 @@ class _DiaryTagSelectorDialogState extends State<DiaryTagSelectorDialog> {
             // 标题栏
             _buildHeader(context),
 
-            Divider(height: 1, thickness: 0.5, color: DiaryStyle.dividerColor(context)),
+            Divider(height: 1, thickness: 0.5, color: DiaryStyles.getDividerColor(context)),
 
             // 新标签输入框
             _buildNewTagInput(context),
 
-            Divider(height: 1, thickness: 0.5, color: DiaryStyle.dividerColor(context)),
+            Divider(height: 1, thickness: 0.5, color: DiaryStyles.getDividerColor(context)),
 
             // 现有标签列表
             if (widget.controller.tags.isNotEmpty) _buildExistingTagsList(context),
@@ -144,15 +144,15 @@ class _DiaryTagSelectorDialogState extends State<DiaryTagSelectorDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Icon(FeatherIcons.tag, size: 20, color: DiaryStyle.primaryTextColor(context)),
+          Icon(FeatherIcons.tag, size: 20, color: DiaryStyles.getPrimaryTextColor(context)),
           const SizedBox(width: 8),
           Text(
             'button.add_tag'.t,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: DiaryStyle.primaryTextColor(context)),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: DiaryStyles.getPrimaryTextColor(context)),
           ),
           const Spacer(),
           IconButton(
-            icon: Icon(FeatherIcons.x, size: 20, color: DiaryStyle.primaryTextColor(context)),
+            icon: Icon(FeatherIcons.x, size: 20, color: DiaryStyles.getPrimaryTextColor(context)),
             onPressed: () => Navigator.pop(context),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -176,13 +176,13 @@ class _DiaryTagSelectorDialogState extends State<DiaryTagSelectorDialog> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 isDense: true,
               ),
-              style: TextStyle(fontSize: 14, color: DiaryStyle.primaryTextColor(context)),
+              style: TextStyle(fontSize: 14, color: DiaryStyles.getPrimaryTextColor(context)),
               onSubmitted: (_) => _addNewTag(),
             ),
           ),
           const SizedBox(width: 8),
           IconButton(
-            icon: Icon(FeatherIcons.plus, color: DiaryStyle.accentColor(context)),
+            icon: Icon(FeatherIcons.plus, color: DiaryStyles.getAccentColor(context)),
             onPressed: _addNewTag,
             tooltip: 'button.add'.t,
           ),
@@ -199,7 +199,7 @@ class _DiaryTagSelectorDialogState extends State<DiaryTagSelectorDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('ui.existing_tags'.t, style: TextStyle(fontSize: 12, color: DiaryStyle.secondaryTextColor(context))),
+              Text('ui.existing_tags'.t, style: TextStyle(fontSize: 12, color: DiaryStyles.getSecondaryTextColor(context))),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
@@ -218,14 +218,14 @@ class _DiaryTagSelectorDialogState extends State<DiaryTagSelectorDialog> {
                         }
                       });
                     },
-                    selectedColor: DiaryStyle.accentColor(context).withAlpha(51),
-                    checkmarkColor: DiaryStyle.accentColor(context),
+                    selectedColor: DiaryStyles.getAccentColor(context).withAlpha(51),
+                    checkmarkColor: DiaryStyles.getAccentColor(context),
                     labelStyle: TextStyle(
                       fontSize: 13,
-                      color: isSelected ? DiaryStyle.accentColor(context) : DiaryStyle.primaryTextColor(context),
+                      color: isSelected ? DiaryStyles.getAccentColor(context) : DiaryStyles.getPrimaryTextColor(context),
                     ),
                     side: BorderSide(
-                      color: isSelected ? DiaryStyle.accentColor(context) : DiaryStyle.dividerColor(context),
+                      color: isSelected ? DiaryStyles.getAccentColor(context) : DiaryStyles.getDividerColor(context),
                       width: 1,
                     ),
                     showCheckmark: true,
@@ -257,7 +257,7 @@ class _DiaryTagSelectorDialogState extends State<DiaryTagSelectorDialog> {
               onPressed: _selectedTags.isEmpty ? null : _insertTagsToContent,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                backgroundColor: DiaryStyle.accentColor(context),
+                backgroundColor: DiaryStyles.getAccentColor(context),
               ),
               child: Text('button.insert'.t, style: const TextStyle(color: Colors.white)),
             ),

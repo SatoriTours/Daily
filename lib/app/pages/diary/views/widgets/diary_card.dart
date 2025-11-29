@@ -1,5 +1,4 @@
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:daily_satori/app/styles/diary_style.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import '../../utils/diary_utils.dart';
@@ -91,9 +90,9 @@ class _DiaryCardState extends State<DiaryCard> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: DiaryStyle.cardColor(context),
+        color: DiaryStyles.getCardBackgroundColor(context),
         borderRadius: BorderRadius.circular(_kCardRadius),
-        boxShadow: DiaryStyle.cardShadow(context),
+        boxShadow: DiaryStyles.getCardShadow(context),
       ),
       child: Material(
         color: Colors.transparent,
@@ -176,9 +175,9 @@ class _DiaryCardState extends State<DiaryCard> {
 
   /// 构建底部“来自读书”来源胶囊（整块可点击跳转）
   Widget _buildSourcePill(BuildContext context, _DeepLinkInfo info) {
-    final accent = DiaryStyle.accentColor(context);
-    final textColor = DiaryStyle.secondaryTextColor(context);
-    final bg = DiaryStyle.tagBackgroundColor(context);
+    final accent = DiaryStyles.getAccentColor(context);
+    final textColor = DiaryStyles.getSecondaryTextColor(context);
+    final bg = DiaryStyles.getTagBackgroundColor(context);
 
     final meta = _getBookMeta(info.viewpointId);
 
@@ -252,10 +251,10 @@ class _DiaryCardState extends State<DiaryCard> {
           errorBuilder: (context, error, stackTrace) => Container(
             height: 150,
             decoration: BoxDecoration(
-              color: DiaryStyle.tagBackgroundColor(context),
+              color: DiaryStyles.getTagBackgroundColor(context),
               borderRadius: Dimensions.borderRadiusS,
             ),
-            child: Center(child: Icon(Icons.broken_image_outlined, color: DiaryStyle.secondaryTextColor(context))),
+            child: Center(child: Icon(Icons.broken_image_outlined, color: DiaryStyles.getSecondaryTextColor(context))),
           ),
         ),
       ),
@@ -277,18 +276,18 @@ class _DiaryCardState extends State<DiaryCard> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs),
       decoration: BoxDecoration(
-        color: DiaryStyle.accentColor(context).withAlpha(20),
+        color: DiaryStyles.getAccentColor(context).withAlpha(20),
         borderRadius: Dimensions.borderRadiusM,
-        border: Border.all(color: DiaryStyle.accentColor(context).withAlpha(50), width: 1),
+        border: Border.all(color: DiaryStyles.getAccentColor(context).withAlpha(50), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.tag, size: _kSmallIcon, color: DiaryStyle.accentColor(context)),
+          Icon(Icons.tag, size: _kSmallIcon, color: DiaryStyles.getAccentColor(context)),
           SizedBox(width: Dimensions.spacingXs),
           Text(
             tag,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: DiaryStyle.accentColor(context)),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: DiaryStyles.getAccentColor(context)),
           ),
         ],
       ),
@@ -297,7 +296,7 @@ class _DiaryCardState extends State<DiaryCard> {
 
   /// 构建展开/折叠按钮
   Widget _buildExpandToggleButton(BuildContext context) {
-    final accent = DiaryStyle.accentColor(context);
+    final accent = DiaryStyles.getAccentColor(context);
     return Container(
       width: double.infinity,
       margin: EdgeInsets.only(top: Dimensions.spacingM),
