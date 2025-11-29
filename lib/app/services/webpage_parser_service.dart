@@ -23,13 +23,15 @@ class WebpageParserService {
   /// 保存网页（对外API）
   ///
   /// 用于创建新文章或更新现有文章，并处理网页内容
+  /// [userTitle] 用户手动编辑的标题，如果提供则跳过 AI 标题处理
   Future<ArticleModel> saveWebpage({
     required String url,
     required String comment,
     bool isUpdate = false,
     int articleID = 0,
+    String? userTitle,
   }) async {
-    logger.i("[保存网页] 开始 - URL=$url, 更新=$isUpdate, ID=$articleID");
+    logger.i("[保存网页] 开始 - URL=$url, 更新=$isUpdate, ID=$articleID, userTitle=$userTitle");
 
     try {
       // 步骤1: 初始化文章
@@ -37,6 +39,15 @@ class WebpageParserService {
 
       // 步骤2: 获取网页内容
       final fetched = await _processWebContentFetch(article);
+
+      // 步骤2.5: 如果用户提供了标题，立即应用（在 AI 处理之前）
+      if (userTitle != null && userTitle.trim().isNotEmpty) {
+        final trimmedTitle = userTitle.trim();
+        article.title = trimmedTitle;
+        article.aiTitle = trimmedTitle;
+        ArticleRepository.i.updateModel(article);
+        logger.i("[保存网页] 已应用用户标题: $trimmedTitle");
+      }
 
       // 步骤3: AI处理（异步执行）
       if (fetched) {

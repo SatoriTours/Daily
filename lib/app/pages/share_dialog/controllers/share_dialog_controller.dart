@@ -118,6 +118,9 @@ class ShareDialogController extends BaseController {
         if (isUpdate.value && !refreshAndAnalyze.value) {
           await _updateArticleFieldsOnly();
         } else {
+          // 计算用户编辑的标题（如果有的话）
+          final userEditedTitle = _getUserEditedTitle();
+
           final newArticle = await ProcessingDialog.show(
             context: Get.context!,
             messageKey: 'component.ai_analyzing',
@@ -127,6 +130,7 @@ class ShareDialogController extends BaseController {
                 comment: commentController.text,
                 isUpdate: isUpdate.value,
                 articleID: articleID.value,
+                userTitle: userEditedTitle,
               );
             },
           );
@@ -143,8 +147,8 @@ class ShareDialogController extends BaseController {
           } else {
             throw Exception('文章保存失败');
           }
-          // 保存后再应用用户手动输入的标题与标签
-          await _applyManualFieldsPostProcess();
+          // 保存后再应用用户手动输入的标签
+          await _applyManualTagsPostProcess();
         }
       },
       loadingMessage: '保存中...',
@@ -170,24 +174,34 @@ class ShareDialogController extends BaseController {
     await _saveAndNotify(article, log: '文章字段已更新(无重新抓取)');
   }
 
-  /// 在重新抓取并AI分析后应用用户手动输入字段
-  Future<void> _applyManualFieldsPostProcess() async {
-    if (articleID.value <= 0) return; // 新增模式: saveWebpage 内部创建了文章, 需要重新找到ID
-    final article = ArticleRepository.i.findModel(articleID.value);
-    if (article == null) return;
+  /// 获取用户编辑的标题（如果用户编辑过且不为空）
+  String? _getUserEditedTitle() {
+    final manualTitle = titleController.text.trim();
+    if (titleEdited.value && manualTitle.isNotEmpty) {
+      logger.i('[ShareDialog] 用户编辑了标题: "$manualTitle"');
+      return manualTitle;
+    }
+    return null;
+  }
 
-    bool changed = false;
-    changed = _setTitleIfEdited(article) || changed;
+  /// 在重新抓取并AI分析后应用用户手动输入的标签（标题已在 saveWebpage 中处理）
+  Future<void> _applyManualTagsPostProcess() async {
+    logger.d('[ShareDialog] _applyManualTagsPostProcess: articleID=${articleID.value}');
+    if (articleID.value <= 0) return;
+    final article = ArticleRepository.i.findModel(articleID.value);
+    if (article == null) {
+      logger.w('[ShareDialog] 找不到文章: ${articleID.value}');
+      return;
+    }
 
     // 标签
     final rawTags = tagsController.text.trim();
     if (rawTags.isNotEmpty || tagList.isNotEmpty) {
       final tagNames = _getEffectiveTagNames(rawTags);
-      changed = await _mergeTags(article, tagNames) || changed;
-    }
-
-    if (changed) {
-      await _saveAndNotify(article, log: '已应用手动标题/标签修改');
+      final changed = await _mergeTags(article, tagNames);
+      if (changed) {
+        await _saveAndNotify(article, log: '已应用手动标签修改');
+      }
     }
   }
 
@@ -308,12 +322,18 @@ class ShareDialogController extends BaseController {
 
   // ===== 私有通用方法（提炼复用） =====
 
-  /// 如果用户在本次会话中编辑过标题，则覆盖标题并清空 aiTitle；返回是否有修改
+  /// 如果用户在本次会话中编辑过标题且不为空，则覆盖标题并设置 aiTitle；返回是否有修改
   bool _setTitleIfEdited(ArticleModel article) {
     final manualTitle = titleController.text.trim();
-    if (titleEdited.value && manualTitle.isNotEmpty && manualTitle != (article.title ?? '')) {
+    logger.d(
+      '[ShareDialog] _setTitleIfEdited: titleEdited=${titleEdited.value}, manualTitle="$manualTitle", initialTitle="$_initialTitleText"',
+    );
+    // 只要用户编辑过标题且不为空，就用用户的标题
+    if (titleEdited.value && manualTitle.isNotEmpty) {
+      logger.i('[ShareDialog] 应用用户编辑的标题: "$manualTitle"');
       article.title = manualTitle;
-      article.aiTitle = '';
+      // 同时设置 aiTitle，防止后续 AI 处理覆盖，并确保 showTitle() 返回用户的标题
+      article.aiTitle = manualTitle;
       return true;
     }
     return false;

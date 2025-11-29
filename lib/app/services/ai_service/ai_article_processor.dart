@@ -32,6 +32,14 @@ class AiArticleProcessor {
 
   Future<void> _processTitle(ArticleModel article) async {
     final articleId = article.id;
+
+    // 先重新从数据库获取最新状态，检查是否已有用户设置的 aiTitle
+    final freshArticle = ArticleRepository.i.findModel(articleId);
+    if (freshArticle != null && freshArticle.aiTitle != null && freshArticle.aiTitle!.isNotEmpty) {
+      logger.d('[AI:标题] 已有 aiTitle，跳过处理 #$articleId');
+      return;
+    }
+
     final title = article.title ?? '';
     final content = article.content ?? '';
 
