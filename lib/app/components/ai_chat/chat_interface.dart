@@ -244,7 +244,7 @@ class _ChatInterfaceState extends State<ChatInterface> {
 
     return ListView.builder(
       controller: _scrollController,
-      padding: Dimensions.paddingVerticalM,
+      padding: const EdgeInsets.only(top: 16, bottom: 24),
       itemCount: widget.messages.length,
       itemBuilder: (context, index) {
         final message = widget.messages[index];

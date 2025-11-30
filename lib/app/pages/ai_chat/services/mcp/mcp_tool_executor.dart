@@ -301,8 +301,9 @@ class MCPToolExecutor {
 
   Map<String, dynamic> _articleToMap(dynamic article) => {
     'id': article.id,
-    'title': article.title ?? article.aiTitle ?? '无标题',
-    'summary': _truncate(article.aiContent ?? article.content ?? '', 300),
+    'title': article.aiTitle ?? article.title ?? '无标题',
+    'content': _truncate(article.aiContent ?? '', 800),
+    'comment': article.comment ?? '',
     'url': article.url,
     'isFavorite': article.isFavorite,
     'createdAt': _formatDate(article.createdAt),
