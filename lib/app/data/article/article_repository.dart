@@ -217,6 +217,15 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   }
 
   /// 复杂条件查询文章(支持多个过滤条件)
+  ///
+  /// [keyword] 搜索关键词，会在 title, aiTitle, content, aiContent, comment 中搜索
+  /// [isFavorite] 是否为收藏文章
+  /// [tagIds] 标签ID列表（暂未实现）
+  /// [startDate] 开始日期
+  /// [endDate] 结束日期
+  /// [referenceId] 参考ID（用于分页）
+  /// [isGreaterThan] 是否大于参考ID
+  /// [limit] 返回数量限制
   List<ArticleModel> findArticles({
     String? keyword,
     bool? isFavorite,
@@ -229,11 +238,14 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   }) {
     Condition<Article>? condition;
 
-    // 构建查询条件
+    // 构建关键词查询条件（扩展搜索范围）
     if (keyword != null && keyword.isNotEmpty) {
       final keywordCondition = Article_.title
           .contains(keyword, caseSensitive: false)
-          .or(Article_.content.contains(keyword, caseSensitive: false));
+          .or(Article_.aiTitle.contains(keyword, caseSensitive: false))
+          .or(Article_.content.contains(keyword, caseSensitive: false))
+          .or(Article_.aiContent.contains(keyword, caseSensitive: false))
+          .or(Article_.comment.contains(keyword, caseSensitive: false));
       condition = keywordCondition;
     }
 
@@ -272,13 +284,19 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   }
 
   /// 分页复杂条件查询
+  ///
+  /// [keyword] 搜索关键词，会在 title, aiTitle, content, aiContent, comment 中搜索
+  /// [page] 页码，从1开始
   List<ArticleModel> findArticlesPaginated({String? keyword, int page = 1}) {
     Condition<Article>? condition;
 
     if (keyword != null && keyword.isNotEmpty) {
       condition = Article_.title
           .contains(keyword, caseSensitive: false)
-          .or(Article_.content.contains(keyword, caseSensitive: false));
+          .or(Article_.aiTitle.contains(keyword, caseSensitive: false))
+          .or(Article_.content.contains(keyword, caseSensitive: false))
+          .or(Article_.aiContent.contains(keyword, caseSensitive: false))
+          .or(Article_.comment.contains(keyword, caseSensitive: false));
     }
 
     final query = condition != null

@@ -494,16 +494,16 @@ class MCPAgentService {
 ## 工具使用指南
 
 ### 日记相关
-- `get_latest_diary`: 获取最新的日记（回答"最近的日记"、"最新日记"等问题）
-- `get_diary_by_date`: 获取指定日期的日记（回答"今天/昨天的日记"等问题）
+- `get_latest_diary`: 获取最新的日记
+- `get_diary_by_date`: 获取指定日期的日记，**date 参数必须是 YYYY-MM-DD 格式**
 - `search_diary_by_content`: 按关键词搜索日记内容
 - `get_diary_by_tag`: 按标签获取日记
 - `get_diary_count`: 获取日记总数
 
 ### 文章相关
 - `get_latest_articles`: 获取最新收藏的文章
-- `search_articles`: 按关键词搜索文章
-- `get_favorite_articles`: 获取标星收藏的文章
+- `search_articles`: 按关键词搜索文章（用户说的"收藏的文章"就是所有文章）
+- `get_favorite_articles`: 获取标记为"喜爱"的文章（仅当用户明确说"喜爱"、"喜欢"时使用）
 - `get_article_count`: 获取文章总数
 
 ### 书籍相关
@@ -515,28 +515,22 @@ class MCPAgentService {
 ### 综合
 - `get_statistics`: 获取应用数据统计
 
-## 重要提示
+## 日期处理规则（重要！）
 
-1. **理解用户意图**:
-   - "最近的日记" = 调用 `get_latest_diary`，而不是搜索"最近"这个关键词
-   - "今天写了什么" = 调用 `get_diary_by_date` 并传入 "today"
-   - "有多少文章" = 调用 `get_article_count`
+当用户提到日期时，你必须将其转换为 **YYYY-MM-DD** 格式：
+- "今天" → "${DateTime.now().toString().substring(0, 10)}"
+- "昨天" → "${DateTime.now().subtract(const Duration(days: 1)).toString().substring(0, 10)}"
+- "前天" → "${DateTime.now().subtract(const Duration(days: 2)).toString().substring(0, 10)}"
+- "上周一" → 计算出具体日期
 
-2. **回答必须是总结式的**:
-   - **绝对不要**直接返回工具返回的原始数据或 JSON
-   - **必须**用自然语言总结和概括内容
-   - 如果是日记，提取关键信息并用流畅的语言转述
-   - 如果是文章或书籍，简要介绍内容要点
-   - 如果找到多条结果，简要列出标题即可，不要展示全部内容
+**示例**：用户问"今天的日记" → 调用 `get_diary_by_date(date: "${DateTime.now().toString().substring(0, 10)}")`
 
-3. **回答格式**:
-   - 使用 Markdown 格式
-   - 重要信息用 **加粗**
-   - 适当使用表情符号让回答更生动
+## 回答格式要求
 
-4. **无结果处理**:
-   - 如果没有找到数据，友好地告知用户
-   - 可以建议用户尝试其他搜索条件
+1. **总结式回答**：用自然语言总结，不要返回原始 JSON
+2. **Markdown 格式**：重要信息用 **加粗**
+3. **适当使用表情**：让回答更生动
+4. **无结果时**：友好告知，建议其他搜索条件
 
 当前时间: ${DateTime.now().toString().substring(0, 19)}
 ''';
