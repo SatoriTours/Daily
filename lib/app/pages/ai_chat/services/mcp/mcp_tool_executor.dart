@@ -5,13 +5,6 @@ import 'package:daily_satori/app/data/diary/diary_repository.dart';
 import 'package:daily_satori/app/data/book/book_repository.dart';
 import 'package:daily_satori/app/data/book_viewpoint/book_viewpoint_repository.dart';
 
-/// 带分数的搜索结果项
-class _ScoredItem<T> {
-  final T item;
-  final int score;
-  _ScoredItem(this.item, this.score);
-}
-
 /// MCP 工具执行器
 ///
 /// 负责执行 AI 调用的工具，连接到 ObjectBox 仓储层
@@ -63,6 +56,7 @@ class MCPToolExecutor {
       // 书籍
       'get_latest_books' => _getLatestBooks(params),
       'search_books' => _searchBooks(params),
+      'search_book_notes' => _searchBookNotes(params),
       'get_book_viewpoints' => _getBookViewpoints(params),
       'get_book_count' => _getBookCount(),
       // 综合
@@ -98,12 +92,7 @@ class MCPToolExecutor {
     if (keyword == null) return _errorResponse('缺少参数: keyword');
 
     final limit = _intParam(params, 'limit', 20);
-    final results = _searchWithKeywords(
-      keyword,
-      (kw) => DiaryRepository.i.findByContent(kw),
-      (diary) => '${diary.content} ${diary.tags}',
-      limit,
-    );
+    final results = _searchWithKeywords(keyword, (kw) => DiaryRepository.i.findByContent(kw, limit: 50), limit);
     return _successResponse({'keyword': keyword, 'diaries': results.map(_diaryToMap).toList()});
   }
 
@@ -138,8 +127,6 @@ class MCPToolExecutor {
     final results = _searchWithKeywords(
       keyword,
       (kw) => ArticleRepository.i.findArticles(keyword: kw, limit: 50),
-      (article) =>
-          '${article.title ?? ''} ${article.aiTitle ?? ''} ${article.aiContent ?? ''} ${article.comment ?? ''}',
       limit,
     );
     return _successResponse({'keyword': keyword, 'articles': results.map(_articleToMap).toList()});
@@ -172,8 +159,11 @@ class MCPToolExecutor {
     final limit = _intParam(params, 'limit', 20);
     final results = _searchWithKeywords(
       keyword,
-      (kw) => [...BookRepository.i.findByTitle(kw), ...BookRepository.i.findByAuthor(kw)],
-      (book) => '${book.title} ${book.author} ${book.category}',
+      (kw) => [
+        ...BookRepository.i.findByTitle(kw),
+        ...BookRepository.i.findByAuthor(kw),
+        ...BookRepository.i.findByCategory(kw),
+      ],
       limit,
     );
     return _successResponse({'keyword': keyword, 'books': results.map(_bookToMap).toList()});
@@ -197,6 +187,30 @@ class MCPToolExecutor {
     return _successResponse({'count': BookRepository.i.count()});
   }
 
+  /// 搜索读书笔记
+  String _searchBookNotes(Map<String, dynamic> params) {
+    final keyword = params['keyword'] as String?;
+    if (keyword == null) return _errorResponse('缺少参数: keyword');
+
+    final limit = _intParam(params, 'limit', 20);
+    final results = _searchWithKeywords(keyword, (kw) => BookViewpointRepository.i.findByContent(kw, limit: 50), limit);
+
+    // 获取关联的书籍信息
+    final viewpointsWithBooks = results.map((vp) {
+      final book = BookRepository.i.find(vp.bookId);
+      return {
+        'id': vp.id,
+        'title': vp.title,
+        'content': _truncate(vp.content, 500),
+        'bookId': vp.bookId,
+        'bookTitle': book?.title ?? '未知书籍',
+        'bookAuthor': book?.author ?? '',
+      };
+    }).toList();
+
+    return _successResponse({'keyword': keyword, 'notes': viewpointsWithBooks});
+  }
+
   // ========================================================================
   // 综合工具
   // ========================================================================
@@ -215,85 +229,60 @@ class MCPToolExecutor {
   // 通用搜索逻辑
   // ========================================================================
 
-  /// 多关键词搜索（去重 + 相关性过滤 + 排序）
+  /// 多关键词搜索（去重 + 按时间排序）
   ///
   /// [keyword] 搜索关键词（逗号或空格分隔）
   /// [searcher] 搜索函数
-  /// [textExtractor] 从搜索结果中提取用于计算相关性的文本
   /// [limit] 返回数量限制
-  List<T> _searchWithKeywords<T>(
-    String keyword,
-    List<T> Function(String) searcher,
-    String Function(T) textExtractor,
-    int limit,
-  ) {
+  List<T> _searchWithKeywords<T>(String keyword, List<T> Function(String) searcher, int limit) {
     final keywords = _parseKeywords(keyword);
-    if (keywords.isEmpty) return [];
+    if (keywords.isEmpty) {
+      logger.w('[MCPToolExecutor] 无有效关键词: $keyword');
+      return [];
+    }
 
-    final resultMap = <int, _ScoredItem<T>>{};
+    logger.d('[MCPToolExecutor] 解析关键词: $keywords');
+    final resultMap = <int, T>{};
 
-    // 搜索并计算相关性分数
+    // 搜索并去重
     for (final kw in keywords) {
-      for (final item in searcher(kw)) {
+      final items = searcher(kw);
+      logger.d('[MCPToolExecutor] 关键词 "$kw" 找到 ${items.length} 条');
+      for (final item in items) {
         final id = _getId(item);
         if (!resultMap.containsKey(id)) {
-          final text = textExtractor(item);
-          final score = _calculateRelevanceScore(text, keywords);
-          resultMap[id] = _ScoredItem(item, score);
+          resultMap[id] = item;
         }
       }
     }
 
-    // 过滤低相关性结果（至少匹配一个关键词）
-    final filtered = resultMap.values.where((s) => s.score > 0).toList();
+    // 按时间倒序排序
+    final results = resultMap.values.toList();
+    results.sort((a, b) => _getTime(b).compareTo(_getTime(a)));
 
-    // 按相关性分数排序（分数相同则按时间倒序）
-    filtered.sort((a, b) {
-      final scoreCompare = b.score.compareTo(a.score);
-      if (scoreCompare != 0) return scoreCompare;
-      return _getTime(b.item).compareTo(_getTime(a.item));
-    });
+    final returnCount = results.length > limit ? limit : results.length;
+    logger.i('[MCPToolExecutor] 搜索 "$keyword": 共${results.length}条, 返回$returnCount条');
 
-    logger.d('[MCPToolExecutor] 搜索结果: 原始${resultMap.length}条, 过滤后${filtered.length}条');
-
-    return filtered.take(limit).map((s) => s.item).toList();
+    return results.take(limit).toList();
   }
 
   /// 解析关键词
+  ///
+  /// 支持逗号、中文逗号、空格分隔
+  /// 中文单字符也允许（如"卡"），英文需要2字符以上
   List<String> _parseKeywords(String keyword) {
-    return keyword
-        .split(RegExp(r'[\s,，]+'))
-        .map((k) => k.trim().toLowerCase())
-        .where((k) => k.isNotEmpty && k.length >= 2)
-        .toList();
+    return keyword.split(RegExp(r'[\s,，]+')).map((k) => k.trim().toLowerCase()).where((k) {
+      if (k.isEmpty) return false;
+      // 中文字符允许单字
+      if (_containsChinese(k)) return true;
+      // 英文需要至少2个字符
+      return k.length >= 2;
+    }).toList();
   }
 
-  /// 计算相关性分数
-  ///
-  /// 基于关键词匹配数量和匹配质量计算分数
-  int _calculateRelevanceScore(String text, List<String> keywords) {
-    if (text.isEmpty) return 0;
-
-    final lowerText = text.toLowerCase();
-    var score = 0;
-
-    for (final keyword in keywords) {
-      if (lowerText.contains(keyword)) {
-        // 基础分：匹配到关键词 +10 分
-        score += 10;
-
-        // 额外分：关键词越长，匹配越精准，加分越多
-        score += keyword.length;
-
-        // 额外分：如果在标题/开头位置匹配到，加分
-        if (lowerText.startsWith(keyword) ||
-            lowerText.substring(0, (lowerText.length * 0.2).toInt()).contains(keyword)) {
-          score += 5;
-        }
-      }
-    }
-
-    return score;
+  /// 检查字符串是否包含中文
+  bool _containsChinese(String text) {
+    return RegExp(r'[\u4e00-\u9fa5]').hasMatch(text);
   }
 
   int _getId(dynamic item) => item.id as int;
@@ -363,7 +352,7 @@ class MCPToolExecutor {
   String _errorResponse(String message) => jsonEncode({'success': false, 'error': message});
 
   int _countItems(Map<String, dynamic> data) {
-    for (final key in ['diaries', 'articles', 'books', 'viewpoints']) {
+    for (final key in ['diaries', 'articles', 'books', 'viewpoints', 'notes']) {
       if (data[key] is List) return (data[key] as List).length;
     }
     return data['count'] as int? ?? 0;

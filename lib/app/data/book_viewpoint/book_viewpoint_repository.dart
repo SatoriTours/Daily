@@ -50,4 +50,19 @@ class BookViewpointRepository extends BaseRepository<BookViewpoint, BookViewpoin
       saveMany(models);
     }
   }
+
+  /// 搜索读书笔记内容
+  ///
+  /// [keyword] 搜索关键词，在 title 和 content 中搜索
+  /// [limit] 返回数量限制
+  List<BookViewpoint> findByContent(String keyword, {int? limit}) {
+    final condition = BookViewpoint_.title
+        .contains(keyword, caseSensitive: false)
+        .or(BookViewpoint_.content.contains(keyword, caseSensitive: false));
+    final query = box.query(condition).order(BookViewpoint_.id, flags: Order.descending).build();
+    if (limit != null) {
+      query.limit = limit;
+    }
+    return executeQuery(query);
+  }
 }

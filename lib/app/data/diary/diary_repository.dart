@@ -49,12 +49,16 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
   /// 全文查找日记内容和标签
   ///
   /// [keyword] 搜索关键词，会在 content 和 tags 中搜索
-  List<DiaryModel> findByContent(String keyword) {
+  /// [limit] 返回数量限制，默认无限制
+  List<DiaryModel> findByContent(String keyword, {int? limit}) {
     // 同时搜索内容和标签，提高搜索命中率
     final condition = Diary_.content
         .contains(keyword, caseSensitive: false)
         .or(Diary_.tags.contains(keyword, caseSensitive: false));
     final query = box.query(condition).order(Diary_.createdAt, flags: Order.descending).build();
+    if (limit != null) {
+      query.limit = limit;
+    }
     return executeQuery(query).map(toModel).toList();
   }
 

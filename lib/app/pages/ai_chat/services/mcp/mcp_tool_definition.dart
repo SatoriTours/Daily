@@ -180,11 +180,22 @@ class MCPToolRegistry {
     ),
     MCPToolDefinition(
       name: 'search_books',
-      description: '''按标题或作者搜索书籍。
-用于回答如"有没有《xxx》这本书"、"xxx 作者的书"等问题。''',
+      description: '''按标题、作者或分类搜索书籍。
+用于回答如"有没有《xxx》这本书"、"xxx 作者的书"、"关于投资的书"等问题。''',
       parameters: {
-        'keyword': const MCPParameterDefinition(type: 'string', description: '搜索关键词（匹配书名或作者），多个关键词用逗号分隔'),
+        'keyword': const MCPParameterDefinition(type: 'string', description: '搜索关键词（匹配书名、作者或分类），多个关键词用逗号分隔'),
         'limit': const MCPParameterDefinition(type: 'integer', description: '返回的最大数量，默认为 15', defaultValue: 15),
+      },
+      required: ['keyword'],
+    ),
+    MCPToolDefinition(
+      name: 'search_book_notes',
+      description: '''搜索读书笔记内容。
+用于回答如"关于 xxx 的读书笔记"、"书中关于 xxx 的内容"等问题。
+当用户询问某个主题相关的内容时，也应该搜索读书笔记。''',
+      parameters: {
+        'keyword': const MCPParameterDefinition(type: 'string', description: '搜索关键词（匹配笔记标题或内容），多个关键词用逗号分隔'),
+        'limit': const MCPParameterDefinition(type: 'integer', description: '返回的最大数量，默认为 20', defaultValue: 20),
       },
       required: ['keyword'],
     ),
