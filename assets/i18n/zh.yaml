@@ -364,3 +364,19 @@ ai_chat:
 
   help_tips_title: 使用技巧
   help_tips_content: • 使用具体的关键词搜索\n• 可以指定时间范围\n• 支持多轮对话细化需求\n• 可以询问相关建议
+
+# 周报总结
+weekly_summary:
+  title: 周报
+  refresh: 刷新周报
+  generating: 正在生成周报...
+  generating_hint: AI 正在分析您这周的文章和日记，请稍候
+  no_summary: 暂无周报
+  no_summary_hint: 当一周结束后，系统会自动生成周报总结
+  generate_now: 立即生成
+  generate_success: 周报生成成功
+  generate_failed: 周报生成失败，请稍后重试
+  articles: 篇文章
+  diaries: 篇日记
+  retry: 重试
+  week_label: 第{week}周

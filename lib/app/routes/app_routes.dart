@@ -21,6 +21,7 @@ abstract class Routes {
   static const books = '/books';
   static const bookSearch = '/book-search';
   static const aiChat = '/ai-chat';
+  static const weeklySummary = '/weekly-summary';
 }
 
 /// 应用程序路由名称
@@ -71,4 +72,7 @@ abstract class RouteNames {
 
   /// AI聊天助手页面
   static const aiChat = 'AIChat';
+
+  /// 周报总结页面
+  static const weeklySummary = 'WeeklySummary';
 }

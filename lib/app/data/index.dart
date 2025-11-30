@@ -94,3 +94,10 @@ export 'setting/setting_repository.dart';
 
 export 'tag/tag_model.dart';
 export 'tag/tag_repository.dart';
+
+// ========================================================================
+// 周报
+// ========================================================================
+
+export 'weekly_summary/weekly_summary_model.dart';
+export 'weekly_summary/weekly_summary_repository.dart';

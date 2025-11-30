@@ -5,7 +5,7 @@ import 'package:daily_satori/app/pages/articles/views/articles_view.dart';
 import 'package:daily_satori/app/pages/books/views/books_view.dart';
 import 'package:daily_satori/app/pages/diary/views/diary_view.dart';
 import 'package:daily_satori/app/pages/ai_chat/views/ai_chat_view.dart';
-import 'package:daily_satori/app/pages/settings/views/settings_view.dart';
+import 'package:daily_satori/app/pages/weekly_summary/views/weekly_summary_view.dart';
 
 /// HomeView: 应用主页视图
 /// 包含:
@@ -44,7 +44,7 @@ class HomeView extends GetView<HomeController> {
       case 3:
         return const AIChatView();
       case 4:
-        return const SettingsView();
+        return const WeeklySummaryView();
       default:
         return const SizedBox.shrink();
     }
@@ -74,9 +74,9 @@ class HomeView extends GetView<HomeController> {
           label: 'ai_chat.title'.t,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline),
-          activeIcon: Icon(Icons.person),
-          label: 'nav.settings'.t,
+          icon: Icon(Icons.summarize_outlined),
+          activeIcon: Icon(Icons.summarize),
+          label: 'weekly_summary.title'.t,
         ),
       ],
     );
@@ -92,7 +92,7 @@ class HomeView extends GetView<HomeController> {
   /// 记录页面切换日志
   void _logPageSwitch(int index) {
     if (kDebugMode) {
-      final pages = ['nav.articles'.t, 'nav.diary'.t, 'nav.books'.t, 'ai_chat.title'.t, 'nav.settings'.t];
+      final pages = ['nav.articles'.t, 'nav.diary'.t, 'nav.books'.t, 'ai_chat.title'.t, 'weekly_summary.title'.t];
       logger.i('切换到${pages[index]} [$_tag:${DateTime.now()}]');
     }
   }

@@ -364,3 +364,19 @@ ai_chat:
 
   help_tips_title: Usage Tips
   help_tips_content: • Use specific keywords for searching\n• You can specify time ranges\n• Support multi-turn conversations\n• Can ask for related suggestions
+
+# Weekly Summary
+weekly_summary:
+  title: Weekly
+  refresh: Refresh
+  generating: Generating weekly summary...
+  generating_hint: AI is analyzing your articles and diaries this week
+  no_summary: No weekly summary
+  no_summary_hint: The system will automatically generate a summary when a week ends
+  generate_now: Generate Now
+  generate_success: Weekly summary generated successfully
+  generate_failed: Failed to generate weekly summary, please try again later
+  articles: articles
+  diaries: diaries
+  retry: Retry
+  week_label: Week {week}

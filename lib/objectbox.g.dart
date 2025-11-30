@@ -24,6 +24,7 @@ import 'app/objectbox/screenshot.dart';
 import 'app/objectbox/session.dart';
 import 'app/objectbox/setting.dart';
 import 'app/objectbox/tag.dart';
+import 'app/objectbox/weekly_summary.dart';
 
 export 'package:objectbox/objectbox.dart'; // so that callers only have to import this file
 
@@ -173,6 +174,7 @@ final _entities = <obx_int.ModelEntity>[
         type: 11,
         flags: 520,
         indexId: const obx_int.IdUid(1, 2082700956413604628),
+        relationField: 'article',
         relationTarget: 'Article',
       ),
       obx_int.ModelProperty(
@@ -215,6 +217,7 @@ final _entities = <obx_int.ModelEntity>[
         type: 11,
         flags: 520,
         indexId: const obx_int.IdUid(2, 624864476904013174),
+        relationField: 'article',
         relationTarget: 'Article',
       ),
       obx_int.ModelProperty(
@@ -612,6 +615,82 @@ final _entities = <obx_int.ModelEntity>[
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
   ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(12, 4216195315971151498),
+    name: 'WeeklySummary',
+    lastPropertyId: const obx_int.IdUid(11, 8821229632329301129),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 1987391418909210641),
+        name: 'id',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 1000286852120184293),
+        name: 'createdAt',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 4546650673086751007),
+        name: 'updatedAt',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 6895180609363813736),
+        name: 'weekStartDate',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 2815935016459792790),
+        name: 'weekEndDate',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(6, 7094082185024409893),
+        name: 'content',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(7, 8528273225945086749),
+        name: 'articleCount',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(8, 5645080397791382198),
+        name: 'diaryCount',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(9, 2594367991343489071),
+        name: 'articleIds',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(10, 3161506860774036935),
+        name: 'diaryIds',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 8821229632329301129),
+        name: 'status',
+        type: 9,
+        flags: 0,
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
 ];
 
 /// Shortcut for [obx.Store.new] that passes [getObjectBoxModel] and for Flutter
@@ -652,7 +731,7 @@ Future<obx.Store> openStore({
 obx_int.ModelDefinition getObjectBoxModel() {
   final model = obx_int.ModelInfo(
     entities: _entities,
-    lastEntityId: const obx_int.IdUid(11, 7263170726412899592),
+    lastEntityId: const obx_int.IdUid(12, 4216195315971151498),
     lastIndexId: const obx_int.IdUid(6, 7022087712099044524),
     lastRelationId: const obx_int.IdUid(4, 6883695399629113204),
     lastSequenceId: const obx_int.IdUid(0, 0),
@@ -1444,6 +1523,100 @@ obx_int.ModelDefinition getObjectBoxModel() {
         return object;
       },
     ),
+    WeeklySummary: obx_int.EntityDefinition<WeeklySummary>(
+      model: _entities[10],
+      toOneRelations: (WeeklySummary object) => [],
+      toManyRelations: (WeeklySummary object) => {},
+      getId: (WeeklySummary object) => object.id,
+      setId: (WeeklySummary object, int id) {
+        object.id = id;
+      },
+      objectToFB: (WeeklySummary object, fb.Builder fbb) {
+        final contentOffset = fbb.writeString(object.content);
+        final articleIdsOffset = object.articleIds == null
+            ? null
+            : fbb.writeString(object.articleIds!);
+        final diaryIdsOffset = object.diaryIds == null
+            ? null
+            : fbb.writeString(object.diaryIds!);
+        final statusOffset = fbb.writeString(object.status);
+        fbb.startTable(12);
+        fbb.addInt64(0, object.id);
+        fbb.addInt64(1, object.createdAt.millisecondsSinceEpoch);
+        fbb.addInt64(2, object.updatedAt.millisecondsSinceEpoch);
+        fbb.addInt64(3, object.weekStartDate.millisecondsSinceEpoch);
+        fbb.addInt64(4, object.weekEndDate.millisecondsSinceEpoch);
+        fbb.addOffset(5, contentOffset);
+        fbb.addInt64(6, object.articleCount);
+        fbb.addInt64(7, object.diaryCount);
+        fbb.addOffset(8, articleIdsOffset);
+        fbb.addOffset(9, diaryIdsOffset);
+        fbb.addOffset(10, statusOffset);
+        fbb.finish(fbb.endTable());
+        return object.id;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final idParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          4,
+          0,
+        );
+        final weekStartDateParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 10, 0),
+        );
+        final weekEndDateParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 12, 0),
+        );
+        final contentParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 14, '');
+        final articleCountParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          16,
+          0,
+        );
+        final diaryCountParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          18,
+          0,
+        );
+        final articleIdsParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 20);
+        final diaryIdsParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 22);
+        final statusParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 24, '');
+        final createdAtParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 6, 0),
+        );
+        final updatedAtParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 8, 0),
+        );
+        final object = WeeklySummary(
+          id: idParam,
+          weekStartDate: weekStartDateParam,
+          weekEndDate: weekEndDateParam,
+          content: contentParam,
+          articleCount: articleCountParam,
+          diaryCount: diaryCountParam,
+          articleIds: articleIdsParam,
+          diaryIds: diaryIdsParam,
+          status: statusParam,
+          createdAt: createdAtParam,
+          updatedAt: updatedAtParam,
+        );
+
+        return object;
+      },
+    ),
   };
 
   return obx_int.ModelDefinition(model, bindings);
@@ -1855,5 +2028,63 @@ class BookViewpoint_ {
   /// See [BookViewpoint.updatedAt].
   static final updatedAt = obx.QueryDateProperty<BookViewpoint>(
     _entities[9].properties[6],
+  );
+}
+
+/// [WeeklySummary] entity fields to define ObjectBox queries.
+class WeeklySummary_ {
+  /// See [WeeklySummary.id].
+  static final id = obx.QueryIntegerProperty<WeeklySummary>(
+    _entities[10].properties[0],
+  );
+
+  /// See [WeeklySummary.createdAt].
+  static final createdAt = obx.QueryDateProperty<WeeklySummary>(
+    _entities[10].properties[1],
+  );
+
+  /// See [WeeklySummary.updatedAt].
+  static final updatedAt = obx.QueryDateProperty<WeeklySummary>(
+    _entities[10].properties[2],
+  );
+
+  /// See [WeeklySummary.weekStartDate].
+  static final weekStartDate = obx.QueryDateProperty<WeeklySummary>(
+    _entities[10].properties[3],
+  );
+
+  /// See [WeeklySummary.weekEndDate].
+  static final weekEndDate = obx.QueryDateProperty<WeeklySummary>(
+    _entities[10].properties[4],
+  );
+
+  /// See [WeeklySummary.content].
+  static final content = obx.QueryStringProperty<WeeklySummary>(
+    _entities[10].properties[5],
+  );
+
+  /// See [WeeklySummary.articleCount].
+  static final articleCount = obx.QueryIntegerProperty<WeeklySummary>(
+    _entities[10].properties[6],
+  );
+
+  /// See [WeeklySummary.diaryCount].
+  static final diaryCount = obx.QueryIntegerProperty<WeeklySummary>(
+    _entities[10].properties[7],
+  );
+
+  /// See [WeeklySummary.articleIds].
+  static final articleIds = obx.QueryStringProperty<WeeklySummary>(
+    _entities[10].properties[8],
+  );
+
+  /// See [WeeklySummary.diaryIds].
+  static final diaryIds = obx.QueryStringProperty<WeeklySummary>(
+    _entities[10].properties[9],
+  );
+
+  /// See [WeeklySummary.status].
+  static final status = obx.QueryStringProperty<WeeklySummary>(
+    _entities[10].properties[10],
   );
 }

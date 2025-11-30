@@ -30,6 +30,8 @@ import 'package:daily_satori/app/pages/share_dialog/bindings/share_dialog_bindin
 import 'package:daily_satori/app/pages/share_dialog/views/share_dialog_view.dart';
 import 'package:daily_satori/app/pages/ai_chat/bindings/ai_chat_binding.dart';
 import 'package:daily_satori/app/pages/ai_chat/views/ai_chat_view.dart';
+import 'package:daily_satori/app/pages/weekly_summary/bindings/weekly_summary_binding.dart';
+import 'package:daily_satori/app/pages/weekly_summary/views/weekly_summary_view.dart';
 
 part 'app_routes.dart';
 
@@ -111,6 +113,12 @@ class AppPages {
       page: () => const AIChatView(),
       binding: AIChatBinding(),
       transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: Routes.weeklySummary,
+      page: () => const WeeklySummaryView(),
+      binding: WeeklySummaryBinding(),
+      transition: Transition.noTransition,
     ),
   ];
 }
