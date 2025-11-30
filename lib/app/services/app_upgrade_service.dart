@@ -68,16 +68,25 @@ class AppUpgradeService {
     try {
       await Future.wait([_getCurrentVersion(), _getLatestVersionFromGithub()]);
       logger.i("当前版本: $_currentVersion, 最新版本: $_latestVersion, 需要更新: $needUpgrade");
+
+      // 开发模式下永远显示有更新，便于测试
+      if (!AppInfoUtils.isProduction) {
+        logger.i("[开发模式] 强制显示有新版本");
+        return true;
+      }
+
       return needUpgrade;
     } catch (e) {
       logger.e("检查版本失败: $e");
+
       return false;
     }
   }
 
   // 下载并安装新版本
   Future<void> _downAndInstallApp() async {
-    if (!needUpgrade) return;
+    // 生产模式下检查是否需要更新，开发模式下跳过此检查
+    if (AppInfoUtils.isProduction && !needUpgrade) return;
 
     await DialogUtils.showConfirm(
       title: '检测到新版本',
@@ -91,20 +100,25 @@ class AppUpgradeService {
           }
         }
 
-        DialogUtils.showLoading(tips: '正在下载更新包...');
+        DialogUtils.showDownloadProgress(title: '正在下载更新', initialText: '准备下载...');
         try {
-          final appFilePath = await HttpService.i.downloadFile(_downloadURL);
+          final appFilePath = await HttpService.i.downloadFileWithProgress(
+            _downloadURL,
+            onProgress: (received, total) {
+              DialogUtils.updateDownloadProgress(received, total);
+            },
+          );
           logger.i("下载文件到: $appFilePath");
 
           if (appFilePath.isEmpty) {
-            DialogUtils.hideLoading();
+            DialogUtils.hideDownloadProgress();
             UIUtils.showError('下载失败，请检查网络后重试');
             return;
           }
 
           // 非生产环境：只下载不安装
           if (!AppInfoUtils.isProduction) {
-            DialogUtils.hideLoading();
+            DialogUtils.hideDownloadProgress();
             UIUtils.showSuccess('安装包已下载到: $appFilePath\n调试版本请手动安装');
             return;
           }
@@ -115,7 +129,7 @@ class AppUpgradeService {
             appFilePath,
             type: isApk ? 'application/vnd.android.package-archive' : null,
           );
-          DialogUtils.hideLoading();
+          DialogUtils.hideDownloadProgress();
 
           logger.i("打开文件结果: ${result.type} ${result.message}");
           if (result.type != ResultType.done) {
@@ -124,7 +138,7 @@ class AppUpgradeService {
             UIUtils.showSuccess('安装包已准备就绪，请按提示完成安装');
           }
         } catch (e) {
-          DialogUtils.hideLoading();
+          DialogUtils.hideDownloadProgress();
           logger.e("下载或安装失败: $e");
           UIUtils.showError("更新失败，请稍后重试");
         }

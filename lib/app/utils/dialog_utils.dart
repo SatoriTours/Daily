@@ -153,6 +153,64 @@ class DialogUtils {
     }
   }
 
+  // 下载进度对话框状态
+  static bool _isProgressShown = false;
+  static final _progressValue = 0.0.obs;
+  static final _progressText = ''.obs;
+
+  /// 显示下载进度对话框
+  ///
+  /// [title] 对话框标题
+  /// [initialText] 初始提示文本
+  static void showDownloadProgress({String title = '正在下载', String initialText = '准备下载...'}) {
+    logger.i("[DialogUtils] 显示下载进度对话框");
+    if (_isProgressShown) return;
+
+    _progressValue.value = 0.0;
+    _progressText.value = initialText;
+
+    Get.dialog(
+      PopScope(
+        canPop: false,
+        child: _DownloadProgressDialog(title: title, progressValue: _progressValue, progressText: _progressText),
+      ),
+      barrierDismissible: false,
+      barrierColor: const Color(0x80000000),
+    );
+    _isProgressShown = true;
+  }
+
+  /// 更新下载进度
+  ///
+  /// [received] 已下载字节数
+  /// [total] 总字节数
+  static void updateDownloadProgress(int received, int total) {
+    if (!_isProgressShown) return;
+
+    if (total > 0) {
+      _progressValue.value = received / total;
+      final receivedMB = (received / 1024 / 1024).toStringAsFixed(2);
+      final totalMB = (total / 1024 / 1024).toStringAsFixed(2);
+      final percent = (_progressValue.value * 100).toStringAsFixed(1);
+      _progressText.value = '$receivedMB MB / $totalMB MB ($percent%)';
+    } else {
+      // 未知总大小，只显示已下载
+      final receivedMB = (received / 1024 / 1024).toStringAsFixed(2);
+      _progressText.value = '已下载 $receivedMB MB';
+    }
+  }
+
+  /// 隐藏下载进度对话框
+  static void hideDownloadProgress() {
+    if (_isProgressShown) {
+      logger.i("[DialogUtils] 隐藏下载进度对话框");
+      _isProgressShown = false;
+      _progressValue.value = 0.0;
+      _progressText.value = '';
+      _closeDialog();
+    }
+  }
+
   static void _closeDialog() {
     Get.closeDialog();
   }
@@ -212,6 +270,62 @@ class _CustomDialog extends StatelessWidget {
               Row(mainAxisAlignment: MainAxisAlignment.end, children: actions),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 下载进度对话框组件
+class _DownloadProgressDialog extends StatelessWidget {
+  final String title;
+  final Rx<double> progressValue;
+  final RxString progressText;
+
+  const _DownloadProgressDialog({required this.title, required this.progressValue, required this.progressText});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dialogTheme = theme.dialogTheme;
+
+    return Dialog(
+      backgroundColor: dialogTheme.backgroundColor ?? theme.colorScheme.surface,
+      elevation: dialogTheme.elevation ?? 0,
+      shape: dialogTheme.shape ?? RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
+      child: Padding(
+        padding: Dimensions.paddingDialog,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 标题
+            Text(
+              title,
+              style:
+                  dialogTheme.titleTextStyle ??
+                  theme.textTheme.headlineSmall?.copyWith(color: theme.colorScheme.onSurface),
+            ),
+            const SizedBox(height: Dimensions.spacingL),
+            // 进度条
+            Obx(
+              () => LinearProgressIndicator(
+                value: progressValue.value > 0 ? progressValue.value : null,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                minHeight: 6,
+                borderRadius: BorderRadius.circular(Dimensions.radiusXs),
+              ),
+            ),
+            const SizedBox(height: Dimensions.spacingM),
+            // 进度文本
+            Obx(
+              () => Text(
+                progressText.value,
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ),
+          ],
         ),
       ),
     );

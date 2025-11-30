@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 
 import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/service_base.dart';
+import 'package:daily_satori/app/utils/app_info_utils.dart';
 
 class HttpService implements AppService {
   // 单例模式
@@ -37,6 +39,16 @@ class HttpService implements AppService {
         maxRedirects: 5,
       ),
     );
+
+    // 开发模式下忽略 SSL 证书验证（解决代理/VPN 环境下的证书问题）
+    if (!AppInfoUtils.isProduction) {
+      logger.i("[HttpService] 开发模式：跳过 SSL 证书验证");
+      (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
+        final client = HttpClient();
+        client.badCertificateCallback = (cert, host, port) => true;
+        return client;
+      };
+    }
 
     // 如需全局 HTTP 代理（例如企业网络或调试抓包），可在运行环境中设置：
     // - 环境变量 HTTP_PROXY/HTTPS_PROXY（系统级）
@@ -76,6 +88,33 @@ class HttpService implements AppService {
 
     // 直接使用原始地址下载
     if (await _downloadAnyFile(url, savePath)) return savePath;
+
+    return '';
+  }
+
+  /// 下载文件（带进度回调）
+  ///
+  /// [url] 文件URL
+  /// [onProgress] 进度回调，参数为 (已下载字节数, 总字节数)
+  /// 返回本地保存路径,失败返回空字符串
+  Future<String> downloadFileWithProgress(String url, {void Function(int received, int total)? onProgress}) async {
+    if (url.isEmpty) {
+      return '';
+    }
+
+    logger.i("开始下载文件(带进度): $url");
+
+    final fileName = url.split('/').last;
+    // APK 优先下载到临时目录，避免外部存储权限限制 & 提高安装器可访问性
+    final isApk = fileName.toLowerCase().endsWith('.apk');
+    final savePath = isApk
+        ? await FileService.i.getTempDownloadPath(fileName)
+        : FileService.i.getDownloadPath(fileName);
+
+    // 使用带进度的下载方法
+    if (await _downloadAnyFileWithProgress(url, savePath, onProgress: onProgress)) {
+      return savePath;
+    }
 
     return '';
   }
@@ -139,10 +178,20 @@ class HttpService implements AppService {
 
   /// 通用文件下载（不限制为图片类型），做基础校验：存在且非空
   Future<bool> _downloadAnyFile(String url, String savePath) async {
+    return _downloadAnyFileWithProgress(url, savePath);
+  }
+
+  /// 通用文件下载（带进度回调），做基础校验：存在且非空
+  Future<bool> _downloadAnyFileWithProgress(
+    String url,
+    String savePath, {
+    void Function(int received, int total)? onProgress,
+  }) async {
     try {
       await dio.download(
         url,
         savePath,
+        onReceiveProgress: onProgress,
         options: Options(
           responseType: ResponseType.bytes,
           followRedirects: true,
