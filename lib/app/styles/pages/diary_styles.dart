@@ -5,140 +5,89 @@ import 'package:daily_satori/app/styles/base/typography.dart';
 import 'package:daily_satori/app/styles/base/shadows.dart';
 
 /// 日记模块样式类
-/// 提供日记模块的特定样式定义，遵循统一的设计风格
+///
+/// 提供日记模块的特定样式定义。
+///
+/// **使用指南**：
+/// - 颜色获取优先使用 [AppColors] 中的主题感知方法
+/// - 本类仅保留日记模块独有的样式方法
+///
+/// **迁移说明**：
+/// - `getBackgroundColor` → `AppColors.getBackground(context)`
+/// - `getCardBackgroundColor` → `AppColors.getSurface(context)`
+/// - `getPrimaryTextColor` → `AppColors.getOnSurface(context)`
+/// - `getSecondaryTextColor` → `AppColors.getOnSurfaceVariant(context)`
+/// - `getInputBackgroundColor` → `AppColors.getSurfaceContainer(context)`
+/// - `getAccentColor` → `AppColors.getPrimary(context)`
+/// - `getDividerColor` → `AppColors.getOutline(context)`
+/// - `getBottomSheetColor` → `AppColors.getSurface(context)`
 class DiaryStyles {
-  // 私有构造函数，防止实例化
   DiaryStyles._();
 
+  // ========================================================================
+  // 颜色方法 - 为了向后兼容保留，推荐直接使用 AppColors
+  // ========================================================================
+
   /// 获取日记页面背景色
-  static Color getBackgroundColor(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? AppColors.backgroundDark : AppColors.background;
-  }
+  /// @deprecated 使用 `AppColors.getBackground(context)` 替代
+  static Color getBackgroundColor(BuildContext context) =>
+      AppColors.getBackground(context);
 
   /// 获取日记卡片背景色
-  static Color getCardBackgroundColor(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? AppColors.surfaceDark : AppColors.surface;
-  }
+  /// @deprecated 使用 `AppColors.getSurface(context)` 替代
+  static Color getCardBackgroundColor(BuildContext context) =>
+      AppColors.getSurface(context);
 
   /// 获取卡片阴影
-  static List<BoxShadow> getCardShadow(BuildContext context) {
-    return AppShadows.getCardShadow(context);
-  }
+  /// @deprecated 使用 `AppShadows.getCardShadow(context)` 替代
+  static List<BoxShadow> getCardShadow(BuildContext context) =>
+      AppShadows.getCardShadow(context);
 
   /// 获取主要文本颜色
-  static Color getPrimaryTextColor(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? AppColors.onSurfaceDark : AppColors.onSurface;
-  }
+  /// @deprecated 使用 `AppColors.getOnSurface(context)` 替代
+  static Color getPrimaryTextColor(BuildContext context) =>
+      AppColors.getOnSurface(context);
 
   /// 获取次要文本颜色
-  static Color getSecondaryTextColor(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? AppColors.onSurfaceVariantDark : AppColors.onSurfaceVariant;
-  }
+  /// @deprecated 使用 `AppColors.getOnSurfaceVariant(context)` 替代
+  static Color getSecondaryTextColor(BuildContext context) =>
+      AppColors.getOnSurfaceVariant(context);
 
   /// 获取时间文本颜色
-  static Color getTimeTextColor(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark
-        ? AppColors.onSurfaceVariantDark.withValues(alpha: 0.8)
-        : AppColors.onSurfaceVariant.withValues(alpha: 0.8);
-  }
+  static Color getTimeTextColor(BuildContext context) =>
+      AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.8);
 
   /// 获取输入框背景颜色
-  static Color getInputBackgroundColor(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? AppColors.surfaceContainerDark : AppColors.surfaceContainer;
-  }
-
-  /// 获取标签背景颜色
-  static Color getTagBackgroundColor(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? AppColors.primaryLight.withValues(alpha: 0.15) : AppColors.primary.withValues(alpha: 0.1);
-  }
-
-  /// 获取标签文本颜色
-  static Color getTagTextColor(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? AppColors.primaryLight : AppColors.primary;
-  }
+  /// @deprecated 使用 `AppColors.getSurfaceContainer(context)` 替代
+  static Color getInputBackgroundColor(BuildContext context) =>
+      AppColors.getSurfaceContainer(context);
 
   /// 获取强调色
-  static Color getAccentColor(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? AppColors.primaryLight : AppColors.primary;
-  }
+  /// @deprecated 使用 `AppColors.getPrimary(context)` 替代
+  static Color getAccentColor(BuildContext context) =>
+      AppColors.getPrimary(context);
 
   /// 获取分割线颜色
-  static Color getDividerColor(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? AppColors.outlineDark : AppColors.outline;
-  }
+  /// @deprecated 使用 `AppColors.getOutline(context)` 替代
+  static Color getDividerColor(BuildContext context) =>
+      AppColors.getOutline(context);
 
   /// 获取底部抽屉背景色
-  static Color getBottomSheetColor(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return isDark ? AppColors.surfaceDark : AppColors.surface;
-  }
+  /// @deprecated 使用 `AppColors.getSurface(context)` 替代
+  static Color getBottomSheetColor(BuildContext context) =>
+      AppColors.getSurface(context);
 
-  /// 获取日记卡片装饰
-  static BoxDecoration getCardDecoration(BuildContext context) {
-    return BoxDecoration(
-      color: getCardBackgroundColor(context),
-      borderRadius: BorderRadius.circular(Dimensions.radiusM),
-      boxShadow: getCardShadow(context),
-      border: Border.all(color: getDividerColor(context), width: 1),
-    );
-  }
+  // ========================================================================
+  // 标签样式 - 日记模块独有
+  // ========================================================================
 
-  /// 获取日记卡片内边距
-  static EdgeInsets getCardPadding() => const EdgeInsets.all(Dimensions.spacingM);
+  /// 获取标签背景颜色
+  static Color getTagBackgroundColor(BuildContext context) =>
+      AppColors.getPrimary(context).withValues(alpha: 0.12);
 
-  /// 获取日记项目外边距
-  static EdgeInsets getDiaryItemMargin() =>
-      const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS);
-
-  /// 获取日记标题文本样式
-  static TextStyle getTitleTextStyle(BuildContext context) {
-    return AppTypography.getThemedStyle(
-      context,
-      AppTypography.titleMedium,
-      lightColor: getPrimaryTextColor(context),
-      darkColor: getPrimaryTextColor(context),
-    );
-  }
-
-  /// 获取日记内容文本样式
-  static TextStyle getContentTextStyle(BuildContext context) {
-    return AppTypography.getThemedStyle(
-      context,
-      AppTypography.bodyMedium,
-      lightColor: getPrimaryTextColor(context),
-      darkColor: getPrimaryTextColor(context),
-    );
-  }
-
-  /// 获取日记时间文本样式
-  static TextStyle getTimeTextStyle(BuildContext context) {
-    return AppTypography.getThemedStyle(
-      context,
-      AppTypography.captionText,
-      lightColor: getTimeTextColor(context),
-      darkColor: getTimeTextColor(context),
-    );
-  }
-
-  /// 获取标签文本样式
-  static TextStyle getTagTextStyle(BuildContext context) {
-    return AppTypography.getThemedStyle(
-      context,
-      AppTypography.chipText,
-      lightColor: getTagTextColor(context),
-      darkColor: getTagTextColor(context),
-    );
-  }
+  /// 获取标签文本颜色
+  static Color getTagTextColor(BuildContext context) =>
+      AppColors.getPrimary(context);
 
   /// 获取标签装饰
   static BoxDecoration getTagDecoration(BuildContext context) {
@@ -148,35 +97,103 @@ class DiaryStyles {
     );
   }
 
+  /// 获取标签文本样式
+  static TextStyle getTagTextStyle(BuildContext context) {
+    return AppTypography.chipText.copyWith(color: getTagTextColor(context));
+  }
+
   /// 获取标签内边距
-  static EdgeInsets getTagPadding() =>
-      const EdgeInsets.symmetric(horizontal: Dimensions.spacingS, vertical: Dimensions.spacingXxs);
+  static EdgeInsets getTagPadding() => const EdgeInsets.symmetric(
+        horizontal: Dimensions.spacingS,
+        vertical: Dimensions.spacingXxs,
+      );
+
+  // ========================================================================
+  // 卡片样式
+  // ========================================================================
+
+  /// 获取日记卡片装饰
+  static BoxDecoration getCardDecoration(BuildContext context) {
+    return BoxDecoration(
+      color: AppColors.getSurface(context),
+      borderRadius: BorderRadius.circular(Dimensions.radiusM),
+      boxShadow: AppShadows.getCardShadow(context),
+      border: Border.all(color: AppColors.getOutline(context), width: 1),
+    );
+  }
+
+  /// 获取日记卡片内边距
+  static EdgeInsets getCardPadding() => Dimensions.paddingCard;
+
+  /// 获取日记项目外边距
+  static EdgeInsets getDiaryItemMargin() => const EdgeInsets.symmetric(
+        horizontal: Dimensions.spacingM,
+        vertical: Dimensions.spacingS,
+      );
+
+  // ========================================================================
+  // 文本样式
+  // ========================================================================
+
+  /// 获取日记标题文本样式
+  static TextStyle getTitleTextStyle(BuildContext context) {
+    return AppTypography.titleMedium.copyWith(
+      color: AppColors.getOnSurface(context),
+    );
+  }
+
+  /// 获取日记内容文本样式
+  static TextStyle getContentTextStyle(BuildContext context) {
+    return AppTypography.bodyMedium.copyWith(
+      color: AppColors.getOnSurface(context),
+    );
+  }
+
+  /// 获取日记时间文本样式
+  static TextStyle getTimeTextStyle(BuildContext context) {
+    return AppTypography.captionText.copyWith(
+      color: getTimeTextColor(context),
+    );
+  }
+
+  // ========================================================================
+  // 底部表单样式
+  // ========================================================================
 
   /// 获取底部表单装饰
   static BoxDecoration getBottomSheetDecoration(BuildContext context) {
     return BoxDecoration(
-      color: getBottomSheetColor(context),
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
+      color: AppColors.getSurface(context),
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(Dimensions.radiusL),
+      ),
       boxShadow: AppShadows.getBottomSheetShadow(context),
     );
   }
 
   /// 获取底部表单形状
   static RoundedRectangleBorder getBottomSheetShape() {
-    return const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)));
+    return const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
+    );
   }
 
   /// 获取底部表单内边距
-  static EdgeInsets getBottomSheetPadding() =>
-      const EdgeInsets.fromLTRB(Dimensions.spacingM, Dimensions.spacingM, Dimensions.spacingM, Dimensions.spacingXxl);
+  static EdgeInsets getBottomSheetPadding() => const EdgeInsets.fromLTRB(
+        Dimensions.spacingM,
+        Dimensions.spacingM,
+        Dimensions.spacingM,
+        Dimensions.spacingXxl,
+      );
+
+  // ========================================================================
+  // 浮动按钮样式
+  // ========================================================================
 
   /// 获取浮动按钮颜色
-  static Color getFabColor(BuildContext context) {
-    return getAccentColor(context);
-  }
+  /// @deprecated 使用 `AppColors.getPrimary(context)` 替代
+  static Color getFabColor(BuildContext context) => AppColors.getPrimary(context);
 
   /// 获取浮动按钮图标颜色
-  static Color getFabIconColor(BuildContext context) {
-    return Colors.white;
-  }
+  static Color getFabIconColor(BuildContext context) => Colors.white;
 }

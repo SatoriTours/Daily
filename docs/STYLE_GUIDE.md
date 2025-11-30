@@ -1,6 +1,8 @@
 # 🎨 Daily Satori 样式系统快速参考
 
-> 本文档提供样式系统的快速查询参考，详细规范请参考根目录 [`CLAUDE.md`](../CLAUDE.md)
+> 本文档提供样式系统的快速查询参考，详细规范请参考 [`CODING_STANDARDS.md`](./CODING_STANDARDS.md)
+
+---
 
 ## 📦 快速导入
 
@@ -9,40 +11,81 @@
 import 'package:daily_satori/app/styles/index.dart';
 ```
 
+---
+
+## 🏗️ 样式系统架构
+
+```
+lib/app/styles/
+├── index.dart           # 统一导出（唯一入口）
+├── base/                # 基础样式 - 设计系统核心 Token
+│   ├── colors.dart      # AppColors - 主题感知颜色
+│   ├── dimensions.dart  # Dimensions - 尺寸、间距、圆角
+│   ├── typography.dart  # AppTypography - 字体样式
+│   ├── borders.dart     # AppBorders - 边框样式
+│   ├── shadows.dart     # AppShadows - 阴影样式
+│   ├── opacities.dart   # Opacities - 透明度常量
+│   └── animations.dart  # Animations - 动画时长和曲线
+├── components/          # 组件样式 - 可复用 UI 组件
+│   ├── button_styles.dart    # ButtonStyles
+│   ├── card_styles.dart      # CardStyles
+│   ├── input_styles.dart     # InputStyles
+│   ├── list_styles.dart      # ListStyles
+│   ├── dialog_styles.dart    # DialogStyles
+│   ├── accordion_styles.dart # AccordionStyles
+│   └── snackbar_styles.dart  # SnackbarStyles
+├── pages/               # 页面样式 - 特定页面独有
+│   └── diary_styles.dart     # DiaryStyles（日记模块）
+├── theme/               # 主题配置
+│   ├── app_theme.dart        # AppTheme - 主题入口
+│   └── theme_data.dart       # AppThemeData - 主题数据
+├── style_guide.dart     # StyleGuide - 高级样式封装
+├── markdown_styles.dart # Markdown 渲染样式
+└── html_styles.dart     # HTML 渲染样式
+```
+
+---
+
 ## 🎯 核心原则
 
-1. **始终使用** `import 'package:daily_satori/app/styles/index.dart';`
-2. **永不硬编码** 数值、颜色、字体样式
-3. **优先使用** StyleGuide > 组件样式 > 基础 Tokens
-4. **主题感知** 所有颜色和阴影必须适配主题
+1. **统一导入** - 始终使用 `import 'package:daily_satori/app/styles/index.dart';`
+2. **禁止硬编码** - 永不硬编码数值、颜色、字体样式
+3. **主题感知** - 所有颜色使用 `AppColors.getXxx(context)` 方法
+4. **使用优先级**：
+   - 优先使用 `StyleGuide` 高级方法
+   - 其次使用组件样式类 (`ButtonStyles`, `InputStyles` 等)
+   - 再次使用基础 Tokens (`Dimensions`, `AppColors`, `AppTypography`)
+   - 最后才使用 `.copyWith()` 微调
 
-## 🎯 常用样式速查表
+---
+
+## 🎨 基础样式速查
 
 ### 颜色 (AppColors)
 
 ```dart
-// 主色系
-AppColors.getPrimary(context)                    // 主色
-AppColors.getSurface(context)                    // 表面色
-AppColors.getBackground(context)                 // 背景色
+// 主色系 - 所有方法自动适配亮色/暗色模式
+AppColors.getPrimary(context)              // 主色
+AppColors.getSurface(context)              // 表面色
+AppColors.getBackground(context)           // 背景色
 
 // 容器色
-AppColors.getSurfaceContainer(context)           // 容器背景
-AppColors.getSurfaceContainerHighest(context)    // 高亮容器
+AppColors.getSurfaceContainer(context)     // 容器背景
+AppColors.getSurfaceContainerHighest(context)  // 高亮容器
 
 // 文本色
-AppColors.getOnSurface(context)                  // 主文本
-AppColors.getOnSurfaceVariant(context)           // 次要文本
+AppColors.getOnSurface(context)            // 主文本
+AppColors.getOnSurfaceVariant(context)     // 次要文本
 
 // 边框色
-AppColors.getOutline(context)                    // 主边框
-AppColors.getOutlineVariant(context)             // 次要边框
+AppColors.getOutline(context)              // 主边框
+AppColors.getOutlineVariant(context)       // 次要边框
 
 // 功能色
-AppColors.getSuccess(context)                    // 成功
-AppColors.getError(context)                      // 错误
-AppColors.getWarning(context)                    // 警告
-AppColors.getInfo(context)                       // 信息
+AppColors.getSuccess(context)              // 成功
+AppColors.getError(context)                // 错误
+AppColors.getWarning(context)              // 警告
+AppColors.getInfo(context)                 // 信息
 ```
 
 ### 间距 (Dimensions)
@@ -126,6 +169,49 @@ AppTypography.appBarTitle      // AppBar标题
 AppTypography.chipText         // 标签文本
 ```
 
+### 阴影 (AppShadows)
+
+```dart
+AppShadows.getXsShadow(context)    // 极小阴影
+AppShadows.getSShadow(context)     // 小阴影
+AppShadows.getMShadow(context)     // 中等阴影 - 卡片
+AppShadows.getLShadow(context)     // 大阴影 - 对话框
+AppShadows.getXlShadow(context)    // 特大阴影 - 模态框
+
+// 语义化别名
+AppShadows.getCardShadow(context)       // 卡片阴影
+AppShadows.getDialogShadow(context)     // 对话框阴影
+AppShadows.getBottomSheetShadow(context) // 底部表单阴影
+```
+
+### 边框 (AppBorders)
+
+```dart
+// 基本边框
+AppBorders.getBaseBorder(context)      // 基本边框
+AppBorders.getPrimaryBorder(context)   // 主题色边框
+AppBorders.getCardBorder(context)      // 卡片边框
+
+// 输入框边框
+AppBorders.getInputBorder(context)         // 默认状态
+AppBorders.getInputFocusedBorder(context)  // 聚焦状态
+AppBorders.getInputErrorBorder(context)    // 错误状态
+
+// 分隔线
+AppBorders.getDivider(context)             // 水平分隔线
+AppBorders.getVerticalDivider(context)     // 垂直分隔线
+```
+
+### 边框宽度 (Dimensions)
+
+```dart
+Dimensions.borderWidthXs   // 0.5px - 极细边框
+Dimensions.borderWidthS    // 1.0px - 细边框
+Dimensions.borderWidthM    // 1.5px - 中等边框
+Dimensions.borderWidthL    // 2.0px - 粗边框
+Dimensions.borderWidthXl   // 4.0px - 极粗边框
+```
+
 ### 透明度 (Opacities)
 
 ```dart
@@ -138,50 +224,7 @@ Opacities.half          // 0.5  (50%)
 Opacities.mediumOpaque  // 0.8  (80%)
 ```
 
-### 阴影 (AppShadows)
-
-```dart
-AppShadows.getXsShadow(context)    // 极小阴影
-AppShadows.getSShadow(context)     // 小阴影
-AppShadows.getMShadow(context)     // 中等阴影 - 卡片
-AppShadows.getLShadow(context)     // 大阴影 - 对话框
-AppShadows.getXlShadow(context)    // 特大阴影 - 模态框
-```
-
-### 边框宽度 (Dimensions)
-
-```dart
-// 边框宽度常量
-Dimensions.borderWidthXs   // 0.5px - 极细边框
-Dimensions.borderWidthS    // 1.0px - 细边框
-Dimensions.borderWidthM    // 1.5px - 中等边框
-Dimensions.borderWidthL    // 2.0px - 粗边框
-Dimensions.borderWidthXl   // 4.0px - 极粗边框
-```
-
-### 边框方法 (AppBorders)
-
-```dart
-// 主题感知边框
-AppBorders.getBaseBorder(context)      // 基本边框（自动适应主题）
-AppBorders.getPrimaryBorder(context)   // 主题色边框
-AppBorders.getCardBorder(context)      // 卡片边框
-
-// 单边边框（需手动指定颜色）
-AppBorders.getTopBorder(color, opacity: 0.3)     // 顶部边框
-AppBorders.getBottomBorder(color, opacity: 0.3)  // 底部边框
-AppBorders.getLeftBorder(color, opacity: 0.3)    // 左侧边框
-AppBorders.getRightBorder(color, opacity: 0.3)   // 右侧边框
-
-// 输入框边框
-AppBorders.getInputBorder(context)         // 默认状态
-AppBorders.getInputFocusedBorder(context)  // 聚焦状态
-AppBorders.getInputErrorBorder(context)    // 错误状态
-
-// 分隔线
-AppBorders.getDivider(context)             // 水平分隔线
-AppBorders.getVerticalDivider(context)     // 垂直分隔线
-```
+---
 
 ## 🔧 组件样式速查
 
@@ -217,6 +260,52 @@ ElevatedButton(
   style: ButtonStyles.getDangerStyle(context),
   child: Text('删除', style: AppTypography.buttonText),
 )
+
+// 小型按钮
+ElevatedButton(
+  style: ButtonStyles.getPrimarySmallStyle(context),
+  child: Text('小按钮'),
+)
+```
+
+### 卡片 (CardStyles)
+
+```dart
+// 标准卡片 - 带边框和阴影
+Container(
+  decoration: CardStyles.getStandardDecoration(context),
+  child: ...,
+)
+
+// 无阴影卡片 - 带边框，无阴影
+Container(
+  decoration: CardStyles.getFlatDecoration(context),
+  child: ...,
+)
+
+// 无边框卡片 - 带阴影，无边框
+Container(
+  decoration: CardStyles.getBorderlessDecoration(context),
+  child: ...,
+)
+
+// 简洁卡片 - 无边框无阴影
+Container(
+  decoration: CardStyles.getSimpleDecoration(context),
+  child: ...,
+)
+
+// 强调卡片 - 主题色边框
+Container(
+  decoration: CardStyles.getAccentDecoration(context),
+  child: ...,
+)
+
+// 容器卡片 - 较浅背景
+Container(
+  decoration: CardStyles.getContainerDecoration(context),
+  child: ...,
+)
 ```
 
 ### 输入框 (InputStyles)
@@ -224,36 +313,47 @@ ElevatedButton(
 ```dart
 // 标准输入框
 TextField(
-  decoration: InputStyles.getInputDecoration(
-    context,
-    hintText: '请输入内容',
-  ),
+  decoration: InputStyles.getInputDecoration(context, hintText: '请输入内容'),
 )
 
 // 搜索框
 TextField(
-  decoration: InputStyles.getSearchDecoration(
-    context,
-    hintText: '搜索...',
-  ),
+  decoration: InputStyles.getSearchDecoration(context, hintText: '搜索...'),
 )
 
 // 无边框输入框
 TextField(
-  decoration: InputStyles.getCleanInputDecoration(
-    context,
-    hintText: '记录...',
-  ),
+  decoration: InputStyles.getCleanInputDecoration(context, hintText: '记录...'),
 )
 
 // 标题输入框
 TextField(
-  decoration: InputStyles.getTitleInputDecoration(
-    context,
-    hintText: '标题',
-  ),
+  decoration: InputStyles.getTitleInputDecoration(context, hintText: '标题'),
 )
 ```
+
+### 列表 (ListStyles)
+
+```dart
+// 列表项装饰
+Container(
+  decoration: ListStyles.getListItemDecoration(context, isSelected: false),
+  child: ...,
+)
+
+// 列表分隔线
+ListStyles.getDivider(context)
+
+// 列表标题
+ListStyles.createListHeader(
+  context,
+  title: '分组标题',
+  onAction: () {},
+  actionText: '查看更多',
+)
+```
+
+---
 
 ## 🎯 StyleGuide 高级应用
 
@@ -265,7 +365,7 @@ Container(
   decoration: StyleGuide.getPageContainerDecoration(context),
 )
 
-// 卡片
+// 卡片（推荐使用 CardStyles）
 Container(
   decoration: StyleGuide.getCardDecoration(context),
 )
@@ -320,13 +420,14 @@ StyleGuide.getStandardGridLayout(
 )
 ```
 
+---
+
 ## ✅ 最佳实践示例
 
 ### 完整页面示例
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
 class ExampleView extends StatelessWidget {
@@ -357,7 +458,7 @@ class ExampleView extends StatelessWidget {
             // 卡片
             Container(
               padding: Dimensions.paddingCard,
-              decoration: StyleGuide.getCardDecoration(context),
+              decoration: CardStyles.getStandardDecoration(context),
               child: Column(
                 children: [
                   Text('卡片标题', style: AppTypography.titleMedium),
@@ -405,6 +506,8 @@ class ExampleView extends StatelessWidget {
 }
 ```
 
+---
+
 ## ❌ 常见错误示例
 
 ### 错误 1：硬编码数值
@@ -427,7 +530,6 @@ BorderRadius.circular(Dimensions.radiusS)
 // ❌ 错误
 color: Color(0xFF5E8BFF)
 color: Colors.blue
-color: Color.fromRGBO(94, 139, 255, 1.0)
 
 // ✅ 正确
 color: AppColors.getPrimary(context)
@@ -439,11 +541,9 @@ color: AppColors.getSurface(context)
 ```dart
 // ❌ 错误
 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)
-style: TextStyle(fontSize: 14)
 
 // ✅ 正确
 style: AppTypography.titleMedium
-style: AppTypography.bodyMedium
 ```
 
 ### 错误 4：手动判断主题
@@ -460,21 +560,19 @@ color: AppColors.getOnSurface(context)
 ### 错误 5：过度使用 copyWith
 
 ```dart
-// ❌ 错误：修改了太多属性
+// ❌ 错误：修改太多属性
 style: AppTypography.bodyMedium.copyWith(
   fontSize: 14,
   fontWeight: FontWeight.w500,
   height: 1.3,
-  letterSpacing: 0.5,
 )
 
 // ✅ 正确：使用预定义样式或仅修改颜色
 style: AppTypography.titleSmall
-// 或
-style: AppTypography.bodyMedium.copyWith(
-  color: AppColors.getPrimary(context),
-)
+style: AppTypography.bodyMedium.copyWith(color: AppColors.getPrimary(context))
 ```
+
+---
 
 ## 📝 检查清单
 
@@ -484,17 +582,20 @@ style: AppTypography.bodyMedium.copyWith(
 - [ ] 没有硬编码的数值（EdgeInsets, SizedBox, double值）
 - [ ] 没有硬编码的颜色（Color(), Colors.xxx）
 - [ ] 没有硬编码的字体样式（TextStyle()）
-- [ ] 使用 AppColors.getXxx(context) 获取颜色
-- [ ] 使用 Dimensions 常量设置尺寸
-- [ ] 使用 AppTypography 预定义字体样式
-- [ ] 优先使用 StyleGuide 高级方法
-- [ ] 按钮使用 ButtonStyles
-- [ ] 输入框使用 InputStyles
+- [ ] 使用 `AppColors.getXxx(context)` 获取颜色（主题感知）
+- [ ] 使用 `Dimensions` 常量设置尺寸
+- [ ] 使用 `AppTypography` 预定义字体样式
+- [ ] 优先使用 `StyleGuide` 高级方法
+- [ ] 按钮使用 `ButtonStyles`
+- [ ] 卡片使用 `CardStyles`
+- [ ] 输入框使用 `InputStyles`
+
+---
 
 ## 🔗 参考资源
 
-- [CLAUDE.md - 完整编码规范](../CLAUDE.md)
-- [样式系统源码](../lib/app/styles/)
+- [编码规范](./CODING_STANDARDS.md) - 完整编码规范
+- [样式系统源码](../lib/app/styles/) - 查看实现细节
 
 ---
 

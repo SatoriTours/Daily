@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Flutter](https://img.shields.io/badge/Flutter-%3E%3D3.0-blue.svg)](https://flutter.dev/)
-[![Version](https://img.shields.io/badge/Version-3.6.60-brightgreen.svg)](https://github.com/SatoriTours/Daily/releases)
+[![Version](https://img.shields.io/badge/Version-3.6.63-brightgreen.svg)](https://github.com/SatoriTours/Daily/releases)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/SatoriTours/Daily/pulls)
 
 [功能特性](#-功能特性) · [快速开始](#-快速开始) · [更新日志](#-更新日志) · [参与贡献](#-参与贡献)
@@ -126,6 +126,26 @@ Web 服务：shelf + WebSocket
 ```
 
 ## 📋 更新日志
+
+### v3.6.63 (2025-11-30)
+
+**🚀 性能优化**
+- 主页面延迟加载，显著提升应用启动速度
+- 应用更新支持下载进度条显示
+
+**🤖 AI 搜索增强**
+- 优化 AI 文章搜索逻辑，结果更精准
+- 改进搜索结果处理和显示效果
+- 优化 AI Chat 代码架构，更简洁高效
+
+**🎨 界面优化**
+- 优化 Markdown 渲染样式
+- 改进 AI 对话界面显示效果
+- 优化文章处理逻辑
+
+**🐛 问题修复**
+- 修复剪切板相关问题
+- 修复 AI 搜索的已知问题
 
 ### v3.6.60 (2025-11-24) 🎉
 
