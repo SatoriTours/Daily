@@ -127,17 +127,145 @@ class MCPAgentService {
         _completeStep(currentStepName, onStep);
       }
 
-      logger.i('[MCPAgentService] 处理完成，收集 ${collectedResults.length} 条结果');
-      return MCPAgentResult(
-        answer: finalAnswer ?? MCPPrompts.buildErrorResponse('无法生成回答'),
-        searchResults: collectedResults,
-      );
+      // 过滤掉答案中未引用的搜索结果
+      final filteredResults = _filterRelevantResults(collectedResults, finalAnswer ?? '');
+      logger.i('[MCPAgentService] 处理完成，收集 ${collectedResults.length} 条结果，过滤后 ${filteredResults.length} 条');
+
+      // 移除答案中的引用标记（不需要显示给用户）
+      final cleanAnswer = _removeRefsTag(finalAnswer ?? MCPPrompts.buildErrorResponse('无法生成回答'));
+
+      return MCPAgentResult(answer: cleanAnswer, searchResults: filteredResults);
     } catch (e, stackTrace) {
       logger.e('[MCPAgentService] 处理失败', error: e, stackTrace: stackTrace);
       if (currentStepName != null) onStep(currentStepName!, 'error');
       onStep('处理失败', 'error');
       return MCPAgentResult(answer: MCPPrompts.buildErrorResponse('处理失败: $e'), searchResults: collectedResults);
     }
+  }
+
+  /// 过滤出答案中引用的搜索结果
+  ///
+  /// 从 AI 回答中解析引用标记，只保留被引用的结果
+  /// 如果 AI 没有正确返回引用标记，则使用标题匹配作为备用逻辑
+  List<SearchResult> _filterRelevantResults(List<SearchResult> results, String answer) {
+    if (results.isEmpty || answer.isEmpty) return results;
+
+    // 解析 AI 返回的引用标记: <!-- refs: article_123, diary_456, book_789 -->
+    final refsMatch = RegExp(r'<!--\s*refs:\s*([^>]+)\s*-->').firstMatch(answer);
+
+    // 如果没有找到引用标记，返回全部结果（AI 可能没有按格式返回）
+    if (refsMatch == null) {
+      logger.w('[MCPAgentService] 未找到引用标记，使用备用匹配逻辑');
+      return _filterByTitleMatch(results, answer);
+    }
+
+    final refsContent = refsMatch.group(1)?.trim() ?? '';
+
+    // 如果标记为 none，返回空列表
+    if (refsContent.toLowerCase() == 'none') {
+      logger.i('[MCPAgentService] AI 标记无引用内容');
+      return [];
+    }
+
+    // 如果内容为空，使用备用逻辑
+    if (refsContent.isEmpty) {
+      logger.w('[MCPAgentService] 引用标记内容为空，使用备用匹配逻辑');
+      return _filterByTitleMatch(results, answer);
+    }
+
+    // 解析引用的 ID 列表
+    final referencedIds = <String, Set<int>>{'article': <int>{}, 'diary': <int>{}, 'book': <int>{}};
+
+    final refs = refsContent.split(',').map((s) => s.trim());
+    for (final ref in refs) {
+      final match = RegExp(r'(article|diary|book)_(\d+)').firstMatch(ref);
+      if (match != null) {
+        final type = match.group(1)!;
+        final id = int.tryParse(match.group(2)!);
+        if (id != null) {
+          referencedIds[type]!.add(id);
+        }
+      }
+    }
+
+    // 如果解析后没有任何 ID，使用备用逻辑
+    final totalIds = referencedIds.values.fold<int>(0, (sum, set) => sum + set.length);
+    if (totalIds == 0) {
+      logger.w('[MCPAgentService] 未能解析出有效 ID，使用备用匹配逻辑');
+      return _filterByTitleMatch(results, answer);
+    }
+
+    logger.i(
+      '[MCPAgentService] 解析引用: articles=${referencedIds['article']}, diaries=${referencedIds['diary']}, books=${referencedIds['book']}',
+    );
+
+    // 过滤结果
+    final filtered = results.where((result) {
+      switch (result.type) {
+        case SearchResultType.article:
+          return referencedIds['article']!.contains(result.id);
+        case SearchResultType.diary:
+          return referencedIds['diary']!.contains(result.id);
+        case SearchResultType.book:
+          return referencedIds['book']!.contains(result.id);
+      }
+    }).toList();
+
+    // 如果过滤后为空但原本有结果，可能是 AI 标注不完整，使用备用逻辑
+    if (filtered.isEmpty && results.isNotEmpty) {
+      logger.w('[MCPAgentService] 按 ID 过滤后无结果，使用备用匹配逻辑');
+      return _filterByTitleMatch(results, answer);
+    }
+
+    return filtered;
+  }
+
+  /// 备用过滤逻辑：通过标题匹配判断是否被引用
+  List<SearchResult> _filterByTitleMatch(List<SearchResult> results, String answer) {
+    final answerLower = answer.toLowerCase();
+
+    return results.where((result) {
+      // 检查标题的关键部分是否在答案中出现
+      final title = result.title;
+
+      // 提取标题中的关键词（至少2个字符）
+      final keywords = title
+          .replaceAll(RegExp(r'[^\w\u4e00-\u9fa5]'), ' ')
+          .split(RegExp(r'\s+'))
+          .where((w) => w.length >= 2)
+          .toList();
+
+      // 如果标题中的关键词在答案中出现，认为被引用
+      for (final keyword in keywords) {
+        if (answerLower.contains(keyword.toLowerCase())) {
+          return true;
+        }
+      }
+
+      // 如果是日记，检查日期格式是否匹配
+      if (result.type == SearchResultType.diary && result.createdAt != null) {
+        final date = result.createdAt!;
+        final datePatterns = [
+          '${date.month}月${date.day}日',
+          '${date.year}年${date.month}月${date.day}日',
+          '${date.month}/${date.day}',
+        ];
+        for (final pattern in datePatterns) {
+          if (answer.contains(pattern)) {
+            return true;
+          }
+        }
+      }
+
+      return false;
+    }).toList();
+  }
+
+  /// 移除答案中的引用标记
+  ///
+  /// 引用标记只用于内部处理，不需要显示给用户
+  String _removeRefsTag(String answer) {
+    return answer.replaceAll(RegExp(r'\n*<!--\s*refs:[^>]*-->\s*$'), '').trim();
   }
 
   void _completeStep(String? currentStepName, Function(String, String) onStep) {
