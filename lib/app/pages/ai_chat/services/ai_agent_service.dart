@@ -262,16 +262,12 @@ class AIAgentService {
         break;
 
       case QueryIntent.summary:
-        if (keywords.isNotEmpty) {
-          toolCalls.add(ToolCall.searchArticles(query: keywords, filters: {}));
-          toolCalls.add(ToolCall.searchDiary(query: keywords, dateRange: dateRange));
-        } else {
-          toolCalls.add(ToolCall.searchAll(query: effectiveQuery));
-        }
-        break;
-
       case QueryIntent.general:
-        toolCalls.add(ToolCall.searchAll(query: effectiveQuery));
+        // 当用户未明确指定搜索范围或需要综合搜索时，同时搜索所有内容类型
+        logger.d('[AIAgentService] 执行综合搜索: 文章 + 日记 + 书籍, 关键词: $effectiveQuery');
+        toolCalls.add(ToolCall.searchArticles(query: effectiveQuery, filters: filters));
+        toolCalls.add(ToolCall.searchDiary(query: effectiveQuery, dateRange: dateRange));
+        toolCalls.add(ToolCall.searchBooks(query: effectiveQuery));
         break;
     }
 

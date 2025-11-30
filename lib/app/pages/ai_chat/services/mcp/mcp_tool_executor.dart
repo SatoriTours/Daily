@@ -187,12 +187,31 @@ class MCPToolExecutor {
       return jsonEncode({'error': '缺少必需参数: keyword'});
     }
 
-    final limit = _getIntParam(params, 'limit', defaultValue: 10, max: 50);
+    final limit = _getIntParam(params, 'limit', defaultValue: 20, max: 50);
 
     logger.d('[MCPToolExecutor] 搜索日记: $keyword');
 
-    final diaries = DiaryRepository.i.findByContent(keyword);
-    final results = diaries
+    // 将关键词拆分，支持多关键词搜索
+    final keywords = _splitKeywords(keyword);
+    final diaryMap = <int, dynamic>{}; // 使用 Map 去重
+
+    // 对每个关键词进行搜索
+    for (final kw in keywords) {
+      if (kw.isEmpty) continue;
+      logger.d('[MCPToolExecutor] 搜索关键词: $kw');
+      final diaries = DiaryRepository.i.findByContent(kw);
+      for (final diary in diaries) {
+        if (!diaryMap.containsKey(diary.id)) {
+          diaryMap[diary.id] = diary;
+        }
+      }
+    }
+
+    // 按创建时间排序并限制数量
+    final sortedDiaries = diaryMap.values.toList()
+      ..sort((a, b) => (b.createdAt?.millisecondsSinceEpoch ?? 0).compareTo(a.createdAt?.millisecondsSinceEpoch ?? 0));
+
+    final results = sortedDiaries
         .take(limit)
         .map(
           (diary) => {
@@ -203,6 +222,8 @@ class MCPToolExecutor {
           },
         )
         .toList();
+
+    logger.d('[MCPToolExecutor] 搜索完成: 关键词数=${keywords.length}, 结果数=${results.length}');
 
     return jsonEncode({'success': true, 'keyword': keyword, 'count': results.length, 'diaries': results});
   }
@@ -276,12 +297,33 @@ class MCPToolExecutor {
       return jsonEncode({'error': '缺少必需参数: keyword'});
     }
 
-    final limit = _getIntParam(params, 'limit', defaultValue: 10, max: 50);
+    final limit = _getIntParam(params, 'limit', defaultValue: 20, max: 50);
 
     logger.d('[MCPToolExecutor] 搜索文章: $keyword');
 
-    final articles = ArticleRepository.i.findArticles(keyword: keyword, limit: limit);
-    final results = articles
+    // 将关键词拆分，支持多关键词搜索
+    final keywords = _splitKeywords(keyword);
+    final articleMap = <int, dynamic>{}; // 使用 Map 去重
+
+    // 对每个关键词进行搜索
+    for (final kw in keywords) {
+      if (kw.isEmpty) continue;
+      logger.d('[MCPToolExecutor] 搜索关键词: $kw');
+      final articles = ArticleRepository.i.findArticles(keyword: kw, limit: 20);
+      for (final article in articles) {
+        // 用 ID 去重
+        if (!articleMap.containsKey(article.id)) {
+          articleMap[article.id] = article;
+        }
+      }
+    }
+
+    // 按创建时间排序并限制数量
+    final sortedArticles = articleMap.values.toList()
+      ..sort((a, b) => (b.createdAt?.millisecondsSinceEpoch ?? 0).compareTo(a.createdAt?.millisecondsSinceEpoch ?? 0));
+
+    final results = sortedArticles
+        .take(limit)
         .map(
           (article) => {
             'id': article.id,
@@ -294,14 +336,27 @@ class MCPToolExecutor {
         )
         .toList();
 
+    logger.d('[MCPToolExecutor] 搜索完成: 关键词数=${keywords.length}, 结果数=${results.length}');
+
     return jsonEncode({'success': true, 'keyword': keyword, 'count': results.length, 'articles': results});
   }
 
-  /// 获取收藏文章
+  /// 拆分关键词
+  ///
+  /// 支持空格、逗号分隔的多关键词
+  List<String> _splitKeywords(String keyword) {
+    // 按空格和逗号分割
+    final parts = keyword.split(RegExp(r'[\s,，]+'));
+    // 过滤空字符串和常见停用词
+    final stopWords = {'的', '了', '是', '在', '和', '与', '或', '如何', '怎么', '什么', '哪些', '哪个'};
+    return parts.map((p) => p.trim()).where((p) => p.isNotEmpty && !stopWords.contains(p)).toList();
+  }
+
+  /// 获取标记为喜爱的文章
   String _getFavoriteArticles(Map<String, dynamic> params) {
     final limit = _getIntParam(params, 'limit', defaultValue: 10, max: 50);
 
-    logger.d('[MCPToolExecutor] 获取收藏文章');
+    logger.d('[MCPToolExecutor] 获取喜爱的文章 (isFavorite=true)');
 
     final articles = ArticleRepository.i.findArticles(isFavorite: true, limit: limit);
     final results = articles
@@ -361,21 +416,33 @@ class MCPToolExecutor {
       return jsonEncode({'error': '缺少必需参数: keyword'});
     }
 
-    final limit = _getIntParam(params, 'limit', defaultValue: 10, max: 50);
+    final limit = _getIntParam(params, 'limit', defaultValue: 20, max: 50);
 
     logger.d('[MCPToolExecutor] 搜索书籍: $keyword');
 
-    // 搜索书名和作者
-    final byTitle = BookRepository.i.findByTitle(keyword);
-    final byAuthor = BookRepository.i.findByAuthor(keyword);
+    // 将关键词拆分，支持多关键词搜索
+    final keywords = _splitKeywords(keyword);
+    final bookMap = <int, dynamic>{}; // 使用 Map 去重
 
-    // 合并去重
-    final bookMap = <int, dynamic>{};
-    for (final book in [...byTitle, ...byAuthor]) {
-      bookMap[book.id] = book;
+    // 对每个关键词进行搜索
+    for (final kw in keywords) {
+      if (kw.isEmpty) continue;
+      logger.d('[MCPToolExecutor] 搜索关键词: $kw');
+      // 搜索书名和作者
+      final byTitle = BookRepository.i.findByTitle(kw);
+      final byAuthor = BookRepository.i.findByAuthor(kw);
+      for (final book in [...byTitle, ...byAuthor]) {
+        if (!bookMap.containsKey(book.id)) {
+          bookMap[book.id] = book;
+        }
+      }
     }
 
-    final results = bookMap.values
+    // 按创建时间排序并限制数量
+    final sortedBooks = bookMap.values.toList()
+      ..sort((a, b) => (b.createdAt?.millisecondsSinceEpoch ?? 0).compareTo(a.createdAt?.millisecondsSinceEpoch ?? 0));
+
+    final results = sortedBooks
         .take(limit)
         .map(
           (book) => {
@@ -387,6 +454,8 @@ class MCPToolExecutor {
           },
         )
         .toList();
+
+    logger.d('[MCPToolExecutor] 搜索完成: 关键词数=${keywords.length}, 结果数=${results.length}');
 
     return jsonEncode({'success': true, 'keyword': keyword, 'count': results.length, 'books': results});
   }

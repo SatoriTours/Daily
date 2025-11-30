@@ -140,9 +140,10 @@ class MCPToolRegistry {
     ),
     MCPToolDefinition(
       name: 'search_articles',
-      description: '''按关键词搜索文章。
-搜索文章的标题和内容。
-用于回答如"关于 Flutter 的文章"、"包含机器学习的文章"等问题。''',
+      description: '''按关键词搜索收藏的文章。
+搜索所有收藏文章的标题和内容。
+用于回答如"关于 Flutter 的文章"、"收藏的文章中有关于 xxx 的吗"、"从收藏的文章中找 xxx"等问题。
+注意：用户说的"收藏的文章"就是指所有文章，应该用这个工具搜索。''',
       parameters: {
         'keyword': const MCPParameterDefinition(type: 'string', description: '搜索关键词'),
         'limit': const MCPParameterDefinition(type: 'integer', description: '返回的最大数量，默认为 10', defaultValue: 10),
@@ -151,8 +152,9 @@ class MCPToolRegistry {
     ),
     MCPToolDefinition(
       name: 'get_favorite_articles',
-      description: '''获取收藏（标星）的文章。
-用于回答如"我标星的文章"、"收藏的文章有哪些"等问题。''',
+      description: '''获取标记为喜爱的文章。
+仅用于用户明确提到"喜爱"、"喜欢"、"标记为喜爱"、"我喜欢的文章"时使用。
+注意："收藏的文章"不等于"喜爱的文章"，搜索收藏的文章应使用 search_articles。''',
       parameters: {
         'limit': const MCPParameterDefinition(type: 'integer', description: '返回的最大数量，默认为 10', defaultValue: 10),
       },
