@@ -1,6 +1,7 @@
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/weekly_summary_prompts.dart';
 import 'package:daily_satori/app/utils/app_info_utils.dart';
 
 /// 周报服务
@@ -265,44 +266,7 @@ class WeeklySummaryService {
 
   /// 构建调试模式的AI提示词
   String _buildDebugSummaryPrompt(List<ArticleModel> articles, List<DiaryModel> diaries) {
-    final buffer = StringBuffer();
-
-    buffer.writeln('请帮我总结以下最近的内容。');
-    buffer.writeln();
-    buffer.writeln('要求：');
-    buffer.writeln('1. 用纯 Markdown 格式输出，禁止输出 JSON 或其他格式');
-    buffer.writeln('2. 直接输出 Markdown 内容，不要用 ```markdown ``` 包裹');
-    buffer.writeln('3. 分析阅读/收藏的内容主题和趋势');
-    buffer.writeln('4. 提取关键洞察和学习要点');
-    buffer.writeln('5. 如果有日记，分析情绪变化和重要事件');
-    buffer.writeln('6. 给出简短的总结和建议');
-    buffer.writeln('7. 在提到具体文章或日记时，用特殊格式标注：[[article:ID:标题]] 或 [[diary:ID:日期]]');
-    buffer.writeln('8. 输出结构化、美观、易读');
-    buffer.writeln();
-
-    if (articles.isNotEmpty) {
-      buffer.writeln('## 最近收藏的文章（共${articles.length}篇）');
-      buffer.writeln();
-      for (final article in articles) {
-        buffer.writeln('### 文章ID: ${article.id}');
-        buffer.writeln('- 标题: ${article.aiTitle ?? article.title ?? "无标题"}');
-        buffer.writeln('- 摘要: ${article.aiContent ?? article.content ?? "无内容"}');
-        buffer.writeln();
-      }
-    }
-
-    if (diaries.isNotEmpty) {
-      buffer.writeln('## 最近的日记（共${diaries.length}篇）');
-      buffer.writeln();
-      for (final diary in diaries) {
-        final date = diary.createdAt;
-        buffer.writeln('### 日记ID: ${diary.id} (${date.month}月${date.day}日)');
-        buffer.writeln(diary.content);
-        buffer.writeln();
-      }
-    }
-
-    return buffer.toString();
+    return buildDebugSummaryPrompt(articles, diaries);
   }
 
   /// 调试模式空周报
@@ -375,46 +339,7 @@ class WeeklySummaryService {
     DateTime weekStart,
     DateTime weekEnd,
   ) {
-    final buffer = StringBuffer();
-
-    buffer.writeln('请帮我总结以下一周（${weekStart.month}月${weekStart.day}日 - ${weekEnd.month}月${weekEnd.day}日）的内容。');
-    buffer.writeln();
-    buffer.writeln('要求：');
-    buffer.writeln('1. 用纯 Markdown 格式输出，禁止输出 JSON 或其他格式');
-    buffer.writeln('2. 直接输出 Markdown 内容，不要用 ```markdown ``` 包裹');
-    buffer.writeln('3. 分析这周阅读/收藏的内容主题和趋势');
-    buffer.writeln('4. 提取关键洞察和学习要点');
-    buffer.writeln('5. 如果有日记，分析情绪变化和重要事件');
-    buffer.writeln('6. 给出简短的周度总结和建议');
-    buffer.writeln('7. 在提到具体文章或日记时，用特殊格式标注：[[article:ID:标题]] 或 [[diary:ID:日期]]');
-    buffer.writeln('8. 输出结构化、美观、易读');
-    buffer.writeln();
-
-    // 添加文章内容
-    if (articles.isNotEmpty) {
-      buffer.writeln('## 本周收藏的文章（共${articles.length}篇）');
-      buffer.writeln();
-      for (final article in articles) {
-        buffer.writeln('### 文章ID: ${article.id}');
-        buffer.writeln('- 标题: ${article.aiTitle ?? article.title ?? "无标题"}');
-        buffer.writeln('- 摘要: ${article.aiContent ?? article.content ?? "无内容"}');
-        buffer.writeln();
-      }
-    }
-
-    // 添加日记内容
-    if (diaries.isNotEmpty) {
-      buffer.writeln('## 本周的日记（共${diaries.length}篇）');
-      buffer.writeln();
-      for (final diary in diaries) {
-        final date = diary.createdAt;
-        buffer.writeln('### 日记ID: ${diary.id} (${date.month}月${date.day}日)');
-        buffer.writeln(diary.content);
-        buffer.writeln();
-      }
-    }
-
-    return buffer.toString();
+    return buildProductionSummaryPrompt(articles, diaries, weekStart, weekEnd);
   }
 
   /// 生成空周报内容
