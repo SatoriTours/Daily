@@ -344,12 +344,10 @@ class MCPToolExecutor {
   /// 拆分关键词
   ///
   /// 支持空格、逗号分隔的多关键词
+  /// 注意：停用词过滤由 AI 在生成关键词时处理，这里只做简单分割
   List<String> _splitKeywords(String keyword) {
-    // 按空格和逗号分割
-    final parts = keyword.split(RegExp(r'[\s,，]+'));
-    // 过滤空字符串和常见停用词
-    final stopWords = {'的', '了', '是', '在', '和', '与', '或', '如何', '怎么', '什么', '哪些', '哪个'};
-    return parts.map((p) => p.trim()).where((p) => p.isNotEmpty && !stopWords.contains(p)).toList();
+    // 按空格和逗号分割，过滤空字符串
+    return keyword.split(RegExp(r'[\s,，]+')).map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
   }
 
   /// 获取标记为喜爱的文章
