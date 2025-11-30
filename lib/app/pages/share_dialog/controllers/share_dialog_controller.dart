@@ -275,8 +275,10 @@ class ShareDialogController extends BaseController {
       // 更新模式：返回文章详情页
       _navigateToDetail();
     } else if (fromClipboard.value) {
-      // 从剪切板来的新增模式：只关闭对话框
+      // 从剪切板来的新增模式：只关闭对话框，然后延迟检查剪切板
       Get.back();
+      // 延迟检查剪切板，检测用户是否复制了新URL
+      ClipboardMonitorService.i.checkAfterDelay();
     } else {
       // 从分享来的新增模式：
       // - Production 模式：关闭app返回到之前的应用
@@ -286,6 +288,8 @@ class ShareDialogController extends BaseController {
       } else {
         logger.d('[ShareDialog] 非生产环境，保存后只关闭对话框（方便调试）');
         Get.back();
+        // 延迟检查剪切板
+        ClipboardMonitorService.i.checkAfterDelay();
       }
     }
   }

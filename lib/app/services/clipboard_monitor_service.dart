@@ -41,6 +41,15 @@ class ClipboardMonitorService with WidgetsBindingObserver {
     }
   }
 
+  /// 公开方法：延迟检查剪切板
+  ///
+  /// 用于在分享对话框关闭后调用，延迟一小段时间再检查
+  /// 以便检测用户是否复制了新的URL
+  Future<void> checkAfterDelay({int delayMs = 500}) async {
+    await Future.delayed(Duration(milliseconds: delayMs));
+    await _checkClipboardSafe(source: 'afterShareDialog');
+  }
+
   /// 安全触发检查（带异常保护与日志）
   Future<void> _checkClipboardSafe({required String source}) async {
     try {
