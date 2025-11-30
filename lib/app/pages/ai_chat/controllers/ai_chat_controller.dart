@@ -5,11 +5,7 @@ import '../services/mcp/index.dart';
 
 /// AI聊天控制器
 ///
-/// 负责管理AI聊天界面的状态和交互，包括：
-/// - 消息列表管理
-/// - 发送和重试消息
-/// - 与AI Agent服务交互
-/// - 处理步骤和工具调用的更新
+/// 负责管理AI聊天界面的状态和交互
 class AIChatController extends BaseController {
   // ========================================================================
   // 构造函数
@@ -21,28 +17,14 @@ class AIChatController extends BaseController {
   // 属性
   // ========================================================================
 
-  /// 消息列表
   final RxList<ChatMessage> messages = <ChatMessage>[].obs;
-
-  /// 是否正在处理用户请求
   final RxBool isProcessing = false.obs;
-
-  /// 当前处理步骤描述
   final RxString currentStep = ''.obs;
-
-  /// 输入框控制器
   final TextEditingController inputController = TextEditingController();
-
-  /// 滚动控制器
   final ScrollController scrollController = ScrollController();
-
-  /// 当前会话ID（用于追踪会话）
   final String sessionId = 'chat_${DateTime.now().millisecondsSinceEpoch}';
 
-  /// MCP Agent 服务实例
   final MCPAgentService _mcpAgentService = MCPAgentService.i;
-
-  /// 消息ID生成计数器
   int _messageCounter = 0;
 
   // ========================================================================
@@ -57,14 +39,8 @@ class AIChatController extends BaseController {
   }
 
   @override
-  void onReady() {
-    super.onReady();
-    logger.i('[AIChatController] AI聊天助手准备就绪');
-  }
-
-  @override
   void onClose() {
-    logger.d('[AIChatController] 销毁控制器，清理资源');
+    logger.d('[AIChatController] 销毁控制器');
     inputController.dispose();
     scrollController.dispose();
     super.onClose();
@@ -75,91 +51,49 @@ class AIChatController extends BaseController {
   // ========================================================================
 
   /// 发送消息
-  ///
-  /// 处理用户输入的消息，调用AI Agent进行处理
-  ///
-  /// [content] 用户输入的消息内容
   Future<void> sendMessage(String content) async {
     final trimmedContent = content.trim();
-
-    // 检查输入是否有效且未在处理中
-    if (trimmedContent.isEmpty || isProcessing.value) {
-      logger.d('[AIChatController] 忽略发送：内容为空或正在处理中');
-      return;
-    }
+    if (trimmedContent.isEmpty || isProcessing.value) return;
 
     logger.i('[AIChatController] 发送消息: $trimmedContent');
 
     try {
-      // 1. 添加用户消息到列表
       _addUserMessage(trimmedContent);
-
-      // 2. 创建并添加处理中的助手消息
-      final assistantMessage = _createProcessingAssistantMessage();
+      final assistantMessage = _createProcessingMessage();
       messages.add(assistantMessage);
 
-      // 3. 开始处理
-      _startProcessing();
+      isProcessing.value = true;
+      currentStep.value = 'ai_chat.step_start'.t;
       _scrollToBottom();
 
-      // 4. 调用AI Agent处理查询
-      final result = await _processWithAIAgent(trimmedContent);
+      final result = await _mcpAgentService.processQuery(query: trimmedContent, onStep: _handleStepUpdate);
 
-      // 5. 更新助手消息为完成状态（使用消息ID查找）
-      _updateAssistantMessageById(assistantMessage.id, result);
-
+      _updateMessage(assistantMessage.id, result);
       logger.i('[AIChatController] 消息处理完成');
     } catch (e, stackTrace) {
       logger.e('[AIChatController] 处理消息失败', error: e, stackTrace: stackTrace);
-      // 将处理中的消息标记为错误状态
-      _markProcessingMessageAsError();
+      _markLastAssistantAsError();
     } finally {
-      _stopProcessing();
+      isProcessing.value = false;
+      currentStep.value = '';
       _scrollToBottom();
     }
   }
 
   /// 重试失败的消息
-  ///
-  /// 找到对应的用户消息并重新发送
-  ///
-  /// [message] 需要重试的助手消息
   Future<void> retryMessage(ChatMessage message) async {
-    if (message.type != ChatMessageType.assistant) {
-      logger.w('[AIChatController] 只能重试助手消息');
-      return;
-    }
-
-    // 避免重复重试
-    if (isProcessing.value) {
-      logger.w('[AIChatController] 正在处理中，忽略重试请求');
-      return;
-    }
+    if (message.type != ChatMessageType.assistant || isProcessing.value) return;
 
     logger.i('[AIChatController] 重试消息: ${message.id}');
 
-    try {
-      // 找到此助手消息之前的最近用户消息
-      final userMessage = _findPreviousUserMessage(message);
-
-      if (userMessage != null) {
-        // 移除失败的助手消息（包括其所有步骤状态）
-        messages.remove(message);
-        logger.d('[AIChatController] 已移除失败消息，准备重试');
-
-        // 重新发送用户消息
-        await sendMessage(userMessage.content);
-      } else {
-        logger.w('[AIChatController] 未找到对应的用户消息');
-      }
-    } catch (e, stackTrace) {
-      logger.e('[AIChatController] 重试消息失败', error: e, stackTrace: stackTrace);
+    final userMessage = _findPreviousUserMessage(message);
+    if (userMessage != null) {
+      messages.remove(message);
+      await sendMessage(userMessage.content);
     }
   }
 
   /// 清除所有消息
-  ///
-  /// 清空消息列表并重新添加欢迎消息
   void clearMessages() {
     logger.i('[AIChatController] 清除所有消息');
     messages.clear();
@@ -167,23 +101,16 @@ class AIChatController extends BaseController {
   }
 
   // ========================================================================
-  // 私有辅助方法 - 消息管理
+  // 消息管理
   // ========================================================================
 
-  /// 生成唯一的消息ID
-  String _generateMessageId() {
-    return '${sessionId}_${_messageCounter++}';
-  }
+  String _generateMessageId() => '${sessionId}_${_messageCounter++}';
 
-  /// 添加用户消息
   void _addUserMessage(String content) {
-    final userMessage = ChatMessage.user(id: _generateMessageId(), content: content);
-    messages.add(userMessage);
-    logger.d('[AIChatController] 添加用户消息: ${userMessage.id}');
+    messages.add(ChatMessage.user(id: _generateMessageId(), content: content));
   }
 
-  /// 创建处理中的助手消息
-  ChatMessage _createProcessingAssistantMessage() {
+  ChatMessage _createProcessingMessage() {
     return ChatMessage.assistant(
       id: _generateMessageId(),
       content: '',
@@ -192,248 +119,104 @@ class AIChatController extends BaseController {
     );
   }
 
-  /// 将处理中的消息标记为错误状态
-  ///
-  /// 当处理失败时调用，将消息状态改为 error，
-  /// 并将所有 processing 状态的步骤标记为 error
-  void _markProcessingMessageAsError() {
-    final processingMessage = _findProcessingMessage();
-    if (processingMessage == null) return;
-
-    // 将所有 processing 状态的步骤标记为 error
-    final updatedSteps = processingMessage.processingSteps?.map((step) {
-      if (step.status == StepStatus.processing) {
-        return step.copyWith(status: StepStatus.error);
-      }
-      return step;
-    }).toList();
-
-    // 更新消息状态为错误
-    final errorMessage = processingMessage.copyWith(
-      status: MessageStatus.error,
-      content: 'ai_chat.error_occurred'.t,
-      processingSteps: updatedSteps,
-    );
-
-    _updateMessageInList(processingMessage, errorMessage);
-    logger.d('[AIChatController] 将处理中消息标记为错误状态');
-  }
-
-  /// 添加欢迎消息
   void _addWelcomeMessage() {
-    final welcomeMessage = ChatMessage.assistant(
-      id: _generateMessageId(),
-      content: '''👋 **欢迎使用AI助手！**
-
-我可以帮助您：
-
-📚 **搜索文章**，📔 **查找日记**，📖 **搜索书籍**，📋 **智能总结**
-
-💡 **使用示例**：
-- "查找关于Flutter开发的文章"
-- "最近一周的日记"
-- "搜索海外电话卡相关内容"
-
-请告诉我您想要查找什么，我会为您快速找到答案！''',
-      status: MessageStatus.completed,
+    messages.add(
+      ChatMessage.assistant(
+        id: _generateMessageId(),
+        content: MCPPrompts.welcomeMessage,
+        status: MessageStatus.completed,
+      ),
     );
-    messages.add(welcomeMessage);
-    logger.d('[AIChatController] 添加欢迎消息');
   }
 
-  /// 查找助手消息之前的用户消息
-  ///
-  /// [assistantMessage] 助手消息
-  /// 返回对应的用户消息，如果未找到则返回null
-  ChatMessage? _findPreviousUserMessage(ChatMessage assistantMessage) {
-    final assistantIndex = messages.indexOf(assistantMessage);
-    if (assistantIndex == -1) return null;
+  void _updateMessage(String messageId, MCPAgentResult result) {
+    final index = messages.indexWhere((m) => m.id == messageId);
+    if (index == -1) return;
 
-    // 从助手消息往前查找最近的用户消息
-    for (var i = assistantIndex - 1; i >= 0; i--) {
-      if (messages[i].type == ChatMessageType.user) {
-        return messages[i];
+    messages[index] = messages[index].copyWith(
+      status: MessageStatus.completed,
+      content: result.answer,
+      subMessages: null,
+      processingSteps: null,
+      searchResults: result.searchResults.isNotEmpty ? result.searchResults : null,
+    );
+  }
+
+  void _markLastAssistantAsError() {
+    for (var i = messages.length - 1; i >= 0; i--) {
+      final message = messages[i];
+      if (message.type == ChatMessageType.assistant && message.isProcessing) {
+        final updatedSteps = message.processingSteps?.map((step) {
+          return step.status == StepStatus.processing ? step.copyWith(status: StepStatus.error) : step;
+        }).toList();
+
+        messages[i] = message.copyWith(
+          status: MessageStatus.error,
+          content: 'ai_chat.error_occurred'.t,
+          processingSteps: updatedSteps,
+        );
+        break;
       }
+    }
+  }
+
+  ChatMessage? _findPreviousUserMessage(ChatMessage assistantMessage) {
+    final index = messages.indexOf(assistantMessage);
+    if (index == -1) return null;
+
+    for (var i = index - 1; i >= 0; i--) {
+      if (messages[i].type == ChatMessageType.user) return messages[i];
     }
     return null;
   }
 
   // ========================================================================
-  // 私有辅助方法 - 处理状态管理
+  // 步骤更新
   // ========================================================================
 
-  /// 开始处理状态
-  void _startProcessing() {
-    isProcessing.value = true;
-    currentStep.value = 'ai_chat.step_start'.t;
-    logger.d('[AIChatController] 开始处理');
-  }
-
-  /// 停止处理状态
-  void _stopProcessing() {
-    isProcessing.value = false;
-    currentStep.value = '';
-    logger.d('[AIChatController] 处理结束');
-  }
-
-  /// 调用AI Agent处理查询
-  ///
-  /// [query] 用户查询内容
-  /// 返回AI生成的答案和搜索结果
-  Future<MCPAgentResult> _processWithAIAgent(String query) async {
-    logger.d('[AIChatController] 开始调用MCP Agent');
-
-    final result = await _mcpAgentService.processQuery(
-      query: query,
-      onStep: _handleStepUpdate,
-      // 不传递 onToolCall，不显示工具调用详情
-    );
-
-    logger.d('[AIChatController] MCP Agent处理完成');
-    return result;
-  }
-
-  /// 更新助手消息为完成状态
-  ///
-  /// [messageId] 要更新的助手消息ID
-  /// [result] AI Agent 返回的结果（包含答案和搜索结果）
-  void _updateAssistantMessageById(String messageId, MCPAgentResult result) {
-    final index = messages.indexWhere((m) => m.id == messageId);
-    if (index != -1) {
-      final message = messages[index];
-
-      // 准备搜索结果
-      final searchResultsList = result.searchResults.isNotEmpty ? result.searchResults : null;
-      logger.d('[AIChatController] 搜索结果数量: ${result.searchResults.length}');
-      if (searchResultsList != null) {
-        for (var i = 0; i < searchResultsList.length; i++) {
-          logger.d('[AIChatController] 搜索结果[$i]: ${searchResultsList[i].type} - ${searchResultsList[i].title}');
-        }
-      }
-
-      final updatedMessage = message.copyWith(
-        status: MessageStatus.completed,
-        content: result.answer,
-        // 清空子消息和步骤，但保留搜索结果用于展示
-        subMessages: null,
-        processingSteps: null,
-        searchResults: searchResultsList,
-      );
-
-      // 验证更新后的消息
-      logger.d('[AIChatController] 更新后消息searchResults: ${updatedMessage.searchResults?.length ?? 0}条');
-
-      messages[index] = updatedMessage;
-      logger.i('[AIChatController] 更新助手消息为完成状态, 内容长度: ${result.answer.length}, 搜索结果: ${result.searchResults.length}条');
-    } else {
-      logger.w('[AIChatController] 未找到消息ID: $messageId');
-    }
-  }
-
-  // ========================================================================
-  // 私有辅助方法 - AI Agent回调处理
-  // ========================================================================
-
-  /// 处理步骤更新（AI Agent回调）
   void _handleStepUpdate(String step, String status) {
     currentStep.value = step;
     _updateProcessingStep(step, status);
   }
 
-  // ========================================================================
-  // 私有辅助方法 - 消息内容更新
-  // ========================================================================
-
-  /// 更新处理中消息的步骤状态
-  ///
-  /// [stepDescription] 步骤描述
-  /// [statusString] 状态字符串 (processing/completed/error/pending)
   void _updateProcessingStep(String stepDescription, String statusString) {
-    final processingMessage = _findProcessingMessage();
-    if (processingMessage == null) return;
+    final processingIndex = messages.lastIndexWhere((m) => m.type == ChatMessageType.assistant && m.isProcessing);
+    if (processingIndex == -1) return;
 
+    final message = messages[processingIndex];
     final stepStatus = _parseStepStatus(statusString);
-    final updatedSteps = _updateStepsList(processingMessage.processingSteps ?? [], stepDescription, stepStatus);
+    final steps = List<ProcessingStep>.from(message.processingSteps ?? []);
 
-    _updateMessageInList(processingMessage, processingMessage.copyWith(processingSteps: updatedSteps));
-
-    logger.d('[AIChatController] 更新步骤: $stepDescription -> $statusString');
-  }
-
-  // ========================================================================
-  // 私有工具方法
-  // ========================================================================
-
-  /// 查找当前处理中的助手消息
-  ///
-  /// 返回正在处理的助手消息，如果未找到则返回null
-  ChatMessage? _findProcessingMessage() {
-    for (var i = messages.length - 1; i >= 0; i--) {
-      final message = messages[i];
-      if (message.type == ChatMessageType.assistant && message.isProcessing) {
-        return message;
-      }
-    }
-    return null;
-  }
-
-  /// 在消息列表中更新消息
-  ///
-  /// [oldMessage] 旧消息
-  /// [newMessage] 新消息
-  void _updateMessageInList(ChatMessage oldMessage, ChatMessage newMessage) {
-    final index = messages.indexOf(oldMessage);
-    if (index != -1) {
-      messages[index] = newMessage;
-    }
-  }
-
-  /// 解析步骤状态字符串
-  ///
-  /// [statusString] 状态字符串
-  /// 返回对应的StepStatus枚举
-  StepStatus _parseStepStatus(String statusString) {
-    switch (statusString) {
-      case 'processing':
-        return StepStatus.processing;
-      case 'completed':
-        return StepStatus.completed;
-      case 'error':
-        return StepStatus.error;
-      default:
-        return StepStatus.pending;
-    }
-  }
-
-  /// 更新步骤列表
-  ///
-  /// [currentSteps] 当前步骤列表
-  /// [stepDescription] 步骤描述
-  /// [status] 新状态
-  /// 返回更新后的步骤列表
-  List<ProcessingStep> _updateStepsList(List<ProcessingStep> currentSteps, String stepDescription, StepStatus status) {
-    final steps = List<ProcessingStep>.from(currentSteps);
     final existingIndex = steps.indexWhere((s) => s.description == stepDescription);
-
     if (existingIndex != -1) {
-      // 更新现有步骤
-      steps[existingIndex] = steps[existingIndex].copyWith(status: status);
+      steps[existingIndex] = steps[existingIndex].copyWith(status: stepStatus);
     } else {
-      // 添加新步骤
       steps.add(
         ProcessingStep(
           id: _generateMessageId(),
           description: stepDescription,
-          status: status,
+          status: stepStatus,
           timestamp: DateTime.now(),
         ),
       );
     }
 
-    return steps;
+    messages[processingIndex] = message.copyWith(processingSteps: steps);
   }
 
-  /// 滚动到底部
+  StepStatus _parseStepStatus(String statusString) {
+    return switch (statusString) {
+      'processing' => StepStatus.processing,
+      'completed' => StepStatus.completed,
+      'error' => StepStatus.error,
+      _ => StepStatus.pending,
+    };
+  }
+
+  // ========================================================================
+  // UI 辅助
+  // ========================================================================
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (scrollController.hasClients) {
@@ -447,15 +230,10 @@ class AIChatController extends BaseController {
   }
 
   // ========================================================================
-  // 公共Getter - 统计信息
+  // 统计信息
   // ========================================================================
 
-  /// 获取消息总数量
   int get messageCount => messages.length;
-
-  /// 获取用户消息数量
   int get userMessageCount => messages.where((m) => m.type == ChatMessageType.user).length;
-
-  /// 获取助手消息数量
   int get assistantMessageCount => messages.where((m) => m.type == ChatMessageType.assistant).length;
 }

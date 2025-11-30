@@ -6,3 +6,4 @@ library;
 export 'mcp_tool_definition.dart';
 export 'mcp_tool_executor.dart';
 export 'mcp_agent_service.dart';
+export 'mcp_prompts.dart';
