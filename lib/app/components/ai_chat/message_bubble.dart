@@ -259,45 +259,47 @@ class MessageBubble extends StatelessWidget {
 
   /// 构建 Markdown 样式表
   MarkdownStyleSheet _buildMarkdownStyleSheet(BuildContext context) {
+    final textColor = AppColors.getOnSurface(context);
+    final secondaryColor = AppColors.getOnSurfaceVariant(context);
+
     return MarkdownStyleSheet(
-      // 段落样式
-      p: _getTextStyle(context).copyWith(height: 1.4),
-      pPadding: const EdgeInsets.only(bottom: 4),
-      // 标题样式
-      h1: _buildHeadingStyle(context, AppTypography.titleLarge),
-      h1Padding: const EdgeInsets.only(top: 8, bottom: 4),
-      h2: _buildHeadingStyle(context, AppTypography.titleMedium),
-      h2Padding: const EdgeInsets.only(top: 6, bottom: 3),
-      h3: _buildHeadingStyle(context, AppTypography.titleSmall, FontWeight.w600),
-      h3Padding: const EdgeInsets.only(top: 4, bottom: 2),
-      h4: AppTypography.bodyLarge.copyWith(color: AppColors.getOnSurface(context), fontWeight: FontWeight.w600),
+      // 全局块间距 - 控制列表项等块元素之间的间距
+      blockSpacing: 6,
+      // 段落样式 - 使用较小字体和紧凑行距
+      p: AppTypography.bodySmall.copyWith(color: textColor, height: 1.35),
+      pPadding: const EdgeInsets.only(bottom: 2),
+      // 标题样式 - 整体调小
+      h1: AppTypography.titleMedium.copyWith(color: textColor, fontWeight: FontWeight.bold, height: 1.2),
+      h1Padding: const EdgeInsets.only(top: 6, bottom: 2),
+      h2: AppTypography.titleSmall.copyWith(color: textColor, fontWeight: FontWeight.bold, height: 1.2),
+      h2Padding: const EdgeInsets.only(top: 4, bottom: 2),
+      h3: AppTypography.bodyLarge.copyWith(color: textColor, fontWeight: FontWeight.w600, height: 1.2),
+      h3Padding: const EdgeInsets.only(top: 3, bottom: 1),
+      h4: AppTypography.bodyMedium.copyWith(color: textColor, fontWeight: FontWeight.w600, height: 1.2),
       // 强调样式
-      strong: _getTextStyle(context).copyWith(fontWeight: FontWeight.bold, color: AppColors.getPrimary(context)),
-      em: _getTextStyle(context).copyWith(fontStyle: FontStyle.italic, color: AppColors.getOnSurfaceVariant(context)),
-      // 列表样式
-      listBullet: _getTextStyle(context).copyWith(height: 1.3),
-      listIndent: 16,
-      listBulletPadding: const EdgeInsets.only(right: 4),
+      strong: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.bold, color: AppColors.getPrimary(context)),
+      em: AppTypography.bodySmall.copyWith(fontStyle: FontStyle.italic, color: secondaryColor),
+      // 列表样式 - 适中行距
+      listBullet: AppTypography.bodySmall.copyWith(color: textColor, height: 1.25),
+      listIndent: 14,
+      listBulletPadding: const EdgeInsets.only(right: 2),
+      orderedListAlign: WrapAlignment.start,
+      unorderedListAlign: WrapAlignment.start,
       // 代码样式
       code: _buildCodeStyle(context),
-      codeblockPadding: const EdgeInsets.all(12),
+      codeblockPadding: const EdgeInsets.all(8),
       codeblockDecoration: _buildCodeBlockDecoration(context),
       // 引用块样式
-      blockquotePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      blockquotePadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       blockquoteDecoration: _buildBlockquoteDecoration(context),
       // 水平线样式
       horizontalRuleDecoration: _buildHorizontalRuleDecoration(context),
     );
   }
 
-  /// 构建标题样式
-  TextStyle _buildHeadingStyle(BuildContext context, TextStyle baseStyle, [FontWeight weight = FontWeight.bold]) {
-    return baseStyle.copyWith(color: AppColors.getOnSurface(context), fontWeight: weight, height: 1.3);
-  }
-
   /// 构建代码样式
   TextStyle _buildCodeStyle(BuildContext context) {
-    return AppTypography.bodySmall.copyWith(
+    return AppTypography.labelMedium.copyWith(
       fontFamily: 'monospace',
       backgroundColor: AppColors.getSurfaceContainer(context),
       color: AppColors.getPrimary(context),
