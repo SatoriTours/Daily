@@ -82,9 +82,18 @@ class WeeklySummaryController extends BaseController {
   }
 
   /// 打开日记详情
-  void openDiary(int diaryId) {
+  ///
+  /// 获取日记数据，触发 View 显示对话框
+  DiaryModel? openDiary(int diaryId) {
     logger.i('[WeeklySummaryController] 打开日记: $diaryId');
-    // TODO: 实现日记详情页面跳转
+
+    final diary = DiaryRepository.i.find(diaryId);
+    if (diary == null) {
+      showError('weekly_summary.diary_not_found'.t);
+      return null;
+    }
+
+    return diary;
   }
 
   // ========================================================================

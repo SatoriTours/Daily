@@ -56,8 +56,8 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
                 )
               : IconButton(
                   icon: const Icon(Icons.refresh, color: Colors.white),
-                  tooltip: 'weekly_summary.refresh'.t,
-                  onPressed: controller.checkAndGenerate,
+                  tooltip: 'weekly_summary.regenerate'.t,
+                  onPressed: controller.regenerateCurrentSummary,
                 ),
         ),
       ],
@@ -169,14 +169,14 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
 
   Widget _buildWeekSelector(BuildContext context) {
     return Container(
-      height: 56,
+      height: 44,
       decoration: BoxDecoration(
         color: AppColors.getSurfaceContainer(context),
-        border: Border(bottom: BorderSide(color: AppColors.getOutlineVariant(context), width: 1)),
+        border: Border(bottom: BorderSide(color: AppColors.getOutlineVariant(context), width: 0.5)),
       ),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         itemCount: controller.summaries.length,
         itemBuilder: (context, index) {
           final summary = controller.summaries[index];
@@ -195,13 +195,17 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
         label: Text(summary.weekLabel),
         selected: isSelected,
         onSelected: (_) => controller.selectSummary(summary),
+        showCheckmark: false,
         backgroundColor: AppColors.getSurface(context),
         selectedColor: AppColors.getPrimary(context).withValues(alpha: 0.2),
-        labelStyle: AppTypography.labelMedium.copyWith(
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        labelStyle: AppTypography.labelSmall.copyWith(
           color: isSelected ? AppColors.getPrimary(context) : AppColors.getOnSurfaceVariant(context),
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
         side: BorderSide(color: isSelected ? AppColors.getPrimary(context) : AppColors.getOutlineVariant(context)),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
       ),
     );
   }
@@ -216,98 +220,50 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
       return const SizedBox.shrink();
     }
 
-    return SingleChildScrollView(
-      padding: Dimensions.paddingPage,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 统计卡片
-          _buildStatsCard(context, summary),
-          Dimensions.verticalSpacerM,
-          // 内容卡片
-          _buildContentCard(context, summary),
-        ],
-      ),
-    );
-  }
-
-  /// 构建统计卡片
-  Widget _buildStatsCard(BuildContext context, WeeklySummaryModel summary) {
-    return Container(
-      padding: Dimensions.paddingCard,
-      decoration: CardStyles.getStandardDecoration(context),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatItem(
-              context,
-              icon: Icons.article_outlined,
-              label: 'weekly_summary.articles'.t,
-              value: summary.articleCount.toString(),
-              color: Colors.blue,
-            ),
-          ),
-          Container(width: 1, height: 40, color: AppColors.getOutlineVariant(context)),
-          Expanded(
-            child: _buildStatItem(
-              context,
-              icon: Icons.book_outlined,
-              label: 'weekly_summary.diaries'.t,
-              value: summary.diaryCount.toString(),
-              color: Colors.green,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 28),
-        Dimensions.verticalSpacerXs,
-        Text(value, style: AppTypography.headingMedium.copyWith(color: AppColors.getOnSurface(context))),
-        Text(label, style: AppTypography.labelSmall.copyWith(color: AppColors.getOnSurfaceVariant(context))),
-      ],
-    );
+    return SingleChildScrollView(padding: const EdgeInsets.all(12), child: _buildContentCard(context, summary));
   }
 
   /// 构建内容卡片
   Widget _buildContentCard(BuildContext context, WeeklySummaryModel summary) {
     return Container(
       width: double.infinity,
-      padding: Dimensions.paddingCard,
+      padding: const EdgeInsets.all(12),
       decoration: CardStyles.getStandardDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题行
+          // 标题行 - 包含统计信息
           Row(
             children: [
-              Icon(Icons.auto_awesome, color: AppColors.getPrimary(context), size: 20),
-              Dimensions.horizontalSpacerS,
-              Text(
-                summary.weekTitle,
-                style: AppTypography.titleMedium.copyWith(color: AppColors.getOnSurface(context)),
-              ),
-              const Spacer(),
-              if (summary.isFailed)
-                TextButton.icon(
-                  onPressed: controller.regenerateCurrentSummary,
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: Text('weekly_summary.retry'.t),
-                  style: ButtonStyles.getTextStyle(context),
+              Icon(Icons.auto_awesome, color: AppColors.getPrimary(context), size: 18),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  summary.weekTitle,
+                  style: AppTypography.titleSmall.copyWith(color: AppColors.getOnSurface(context)),
                 ),
+              ),
+              // 紧凑统计
+              Icon(Icons.article_outlined, color: Colors.blue, size: 14),
+              const SizedBox(width: 2),
+              Text(
+                '${summary.articleCount}',
+                style: AppTypography.labelSmall.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.book_outlined, color: Colors.green, size: 14),
+              const SizedBox(width: 2),
+              Text(
+                '${summary.diaryCount}',
+                style: AppTypography.labelSmall.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+              ),
+              if (summary.isFailed) ...[
+                const SizedBox(width: 8),
+                Icon(Icons.error_outline, color: Colors.red, size: 16),
+              ],
             ],
           ),
-          Dimensions.verticalSpacerM,
+          const SizedBox(height: 12),
           // Markdown 内容
           _buildMarkdownContent(context, summary.content),
         ],
@@ -346,7 +302,7 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
         ),
       ),
       onTapLink: (text, href, title) {
-        _handleLinkTap(href);
+        _handleLinkTap(context, href);
       },
     );
   }
@@ -369,7 +325,7 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
   }
 
   /// 处理链接点击
-  void _handleLinkTap(String? href) {
+  void _handleLinkTap(BuildContext context, String? href) {
     if (href == null) return;
 
     if (href.startsWith('article:')) {
@@ -380,8 +336,147 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
     } else if (href.startsWith('diary:')) {
       final id = int.tryParse(href.substring(6));
       if (id != null) {
-        controller.openDiary(id);
+        final diary = controller.openDiary(id);
+        if (diary != null) {
+          _showDiaryDetailSheet(context, diary);
+        }
       }
     }
+  }
+
+  /// 显示日记详情底部弹出框
+  void _showDiaryDetailSheet(BuildContext context, DiaryModel diary) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.getSurface(context),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL))),
+      builder: (context) => _DiaryDetailSheet(diary: diary),
+    );
+  }
+}
+
+/// 日记详情底部弹出框
+class _DiaryDetailSheet extends StatelessWidget {
+  final DiaryModel diary;
+
+  const _DiaryDetailSheet({required this.diary});
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.getSurface(context),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
+          ),
+          child: Column(
+            children: [
+              // 拖动指示器
+              _buildDragHandle(context),
+              // 标题栏
+              _buildHeader(context),
+              // 分隔线
+              Divider(height: 1, color: AppColors.getOutlineVariant(context)),
+              // 内容
+              Expanded(child: _buildContent(context, scrollController)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 构建拖动指示器
+  Widget _buildDragHandle(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 12, bottom: 8),
+      width: 40,
+      height: 4,
+      decoration: BoxDecoration(color: AppColors.getOutlineVariant(context), borderRadius: BorderRadius.circular(2)),
+    );
+  }
+
+  /// 构建标题栏
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Icon(Icons.book_outlined, color: AppColors.getPrimary(context), size: 24),
+          Dimensions.horizontalSpacerS,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'weekly_summary.diary_detail'.t,
+                  style: AppTypography.titleMedium.copyWith(color: AppColors.getOnSurface(context)),
+                ),
+                Text(
+                  _formatDate(diary.createdAt),
+                  style: AppTypography.labelSmall.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.close, color: AppColors.getOnSurfaceVariant(context)),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 格式化日期
+  String _formatDate(DateTime? date) {
+    if (date == null) return '';
+    final local = date.toLocal();
+    return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  /// 构建内容
+  Widget _buildContent(BuildContext context, ScrollController scrollController) {
+    final tagList = diary.tags?.split(',').where((t) => t.trim().isNotEmpty).toList() ?? [];
+
+    return SingleChildScrollView(
+      controller: scrollController,
+      padding: Dimensions.paddingCard,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 日记内容
+          SelectableText(
+            diary.content,
+            style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context), height: 1.6),
+          ),
+          // 标签（如有）
+          if (tagList.isNotEmpty) ...[
+            Dimensions.verticalSpacerL,
+            Wrap(spacing: 8, runSpacing: 8, children: tagList.map((tag) => _buildTag(context, tag)).toList()),
+          ],
+          // 底部安全区域
+          SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+        ],
+      ),
+    );
+  }
+
+  /// 构建标签
+  Widget _buildTag(BuildContext context, String tag) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.getPrimary(context).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(Dimensions.radiusCircular),
+      ),
+      child: Text('#$tag', style: AppTypography.labelSmall.copyWith(color: AppColors.getPrimary(context))),
+    );
   }
 }

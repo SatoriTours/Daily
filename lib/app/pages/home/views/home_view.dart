@@ -74,9 +74,9 @@ class HomeView extends GetView<HomeController> {
           label: 'ai_chat.title'.t,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.summarize_outlined),
-          activeIcon: Icon(Icons.summarize),
-          label: 'weekly_summary.title'.t,
+          icon: Icon(Icons.person_outlined),
+          activeIcon: Icon(Icons.person),
+          label: 'nav.settings'.t,
         ),
       ],
     );
