@@ -5,6 +5,13 @@ import 'package:daily_satori/app/data/diary/diary_repository.dart';
 import 'package:daily_satori/app/data/book/book_repository.dart';
 import 'package:daily_satori/app/data/book_viewpoint/book_viewpoint_repository.dart';
 
+/// 带分数的搜索结果项
+class _ScoredItem<T> {
+  final T item;
+  final int score;
+  _ScoredItem(this.item, this.score);
+}
+
 /// MCP 工具执行器
 ///
 /// 负责执行 AI 调用的工具，连接到 ObjectBox 仓储层
@@ -91,7 +98,12 @@ class MCPToolExecutor {
     if (keyword == null) return _errorResponse('缺少参数: keyword');
 
     final limit = _intParam(params, 'limit', 20);
-    final results = _searchWithKeywords(keyword, (kw) => DiaryRepository.i.findByContent(kw), limit);
+    final results = _searchWithKeywords(
+      keyword,
+      (kw) => DiaryRepository.i.findByContent(kw),
+      (diary) => '${diary.content} ${diary.tags}',
+      limit,
+    );
     return _successResponse({'keyword': keyword, 'diaries': results.map(_diaryToMap).toList()});
   }
 
@@ -123,10 +135,11 @@ class MCPToolExecutor {
     if (keyword == null) return _errorResponse('缺少参数: keyword');
 
     final limit = _intParam(params, 'limit', 20);
-    // 每个关键词搜索更多结果，以便去重后仍有足够数量
     final results = _searchWithKeywords(
       keyword,
       (kw) => ArticleRepository.i.findArticles(keyword: kw, limit: 50),
+      (article) =>
+          '${article.title ?? ''} ${article.aiTitle ?? ''} ${article.aiContent ?? ''} ${article.comment ?? ''}',
       limit,
     );
     return _successResponse({'keyword': keyword, 'articles': results.map(_articleToMap).toList()});
@@ -157,9 +170,12 @@ class MCPToolExecutor {
     if (keyword == null) return _errorResponse('缺少参数: keyword');
 
     final limit = _intParam(params, 'limit', 20);
-    final results = _searchWithKeywords(keyword, (kw) {
-      return [...BookRepository.i.findByTitle(kw), ...BookRepository.i.findByAuthor(kw)];
-    }, limit);
+    final results = _searchWithKeywords(
+      keyword,
+      (kw) => [...BookRepository.i.findByTitle(kw), ...BookRepository.i.findByAuthor(kw)],
+      (book) => '${book.title} ${book.author} ${book.category}',
+      limit,
+    );
     return _successResponse({'keyword': keyword, 'books': results.map(_bookToMap).toList()});
   }
 
@@ -199,21 +215,85 @@ class MCPToolExecutor {
   // 通用搜索逻辑
   // ========================================================================
 
-  /// 多关键词搜索（去重 + 排序）
-  List<T> _searchWithKeywords<T>(String keyword, List<T> Function(String) searcher, int limit) {
-    final keywords = keyword.split(RegExp(r'[\s,，]+')).where((k) => k.isNotEmpty);
-    final resultMap = <int, T>{};
+  /// 多关键词搜索（去重 + 相关性过滤 + 排序）
+  ///
+  /// [keyword] 搜索关键词（逗号或空格分隔）
+  /// [searcher] 搜索函数
+  /// [textExtractor] 从搜索结果中提取用于计算相关性的文本
+  /// [limit] 返回数量限制
+  List<T> _searchWithKeywords<T>(
+    String keyword,
+    List<T> Function(String) searcher,
+    String Function(T) textExtractor,
+    int limit,
+  ) {
+    final keywords = _parseKeywords(keyword);
+    if (keywords.isEmpty) return [];
 
+    final resultMap = <int, _ScoredItem<T>>{};
+
+    // 搜索并计算相关性分数
     for (final kw in keywords) {
       for (final item in searcher(kw)) {
         final id = _getId(item);
-        resultMap.putIfAbsent(id, () => item);
+        if (!resultMap.containsKey(id)) {
+          final text = textExtractor(item);
+          final score = _calculateRelevanceScore(text, keywords);
+          resultMap[id] = _ScoredItem(item, score);
+        }
       }
     }
 
-    // 按时间倒序
-    final sorted = resultMap.values.toList()..sort((a, b) => _getTime(b).compareTo(_getTime(a)));
-    return sorted.take(limit).toList();
+    // 过滤低相关性结果（至少匹配一个关键词）
+    final filtered = resultMap.values.where((s) => s.score > 0).toList();
+
+    // 按相关性分数排序（分数相同则按时间倒序）
+    filtered.sort((a, b) {
+      final scoreCompare = b.score.compareTo(a.score);
+      if (scoreCompare != 0) return scoreCompare;
+      return _getTime(b.item).compareTo(_getTime(a.item));
+    });
+
+    logger.d('[MCPToolExecutor] 搜索结果: 原始${resultMap.length}条, 过滤后${filtered.length}条');
+
+    return filtered.take(limit).map((s) => s.item).toList();
+  }
+
+  /// 解析关键词
+  List<String> _parseKeywords(String keyword) {
+    return keyword
+        .split(RegExp(r'[\s,，]+'))
+        .map((k) => k.trim().toLowerCase())
+        .where((k) => k.isNotEmpty && k.length >= 2)
+        .toList();
+  }
+
+  /// 计算相关性分数
+  ///
+  /// 基于关键词匹配数量和匹配质量计算分数
+  int _calculateRelevanceScore(String text, List<String> keywords) {
+    if (text.isEmpty) return 0;
+
+    final lowerText = text.toLowerCase();
+    var score = 0;
+
+    for (final keyword in keywords) {
+      if (lowerText.contains(keyword)) {
+        // 基础分：匹配到关键词 +10 分
+        score += 10;
+
+        // 额外分：关键词越长，匹配越精准，加分越多
+        score += keyword.length;
+
+        // 额外分：如果在标题/开头位置匹配到，加分
+        if (lowerText.startsWith(keyword) ||
+            lowerText.substring(0, (lowerText.length * 0.2).toInt()).contains(keyword)) {
+          score += 5;
+        }
+      }
+    }
+
+    return score;
   }
 
   int _getId(dynamic item) => item.id as int;
