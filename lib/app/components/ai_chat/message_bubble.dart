@@ -50,10 +50,8 @@ class MessageBubble extends StatelessWidget {
           crossAxisAlignment: _getCrossAxisAlignment(),
           children: [
             _buildMessageHeader(context),
-            if (message.processingSteps != null && message.processingSteps!.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              _buildProcessingSteps(context),
-            ],
+            // 只有在消息未完成时才显示处理步骤
+            if (_shouldShowProcessingSteps()) ...[const SizedBox(height: 6), _buildProcessingSteps(context)],
             if (message.searchResults != null && message.searchResults!.isNotEmpty) ...[
               const SizedBox(height: 8),
               _buildSearchResults(context),
@@ -76,10 +74,7 @@ class MessageBubble extends StatelessWidget {
           _buildMessageHeader(context),
           const SizedBox(height: 6),
           _buildMessageContent(context),
-          if (message.processingSteps != null && message.processingSteps!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _buildProcessingSteps(context),
-          ],
+          // 消息有内容后不再显示处理步骤
           if (message.searchResults != null && message.searchResults!.isNotEmpty) ...[
             const SizedBox(height: 8),
             _buildSearchResults(context),
@@ -97,6 +92,25 @@ class MessageBubble extends StatelessWidget {
   // ========================================================================
   // 辅助方法
   // ========================================================================
+
+  /// 判断是否应该显示处理步骤
+  ///
+  /// 只有在消息正在处理中（无内容）时才显示处理步骤
+  /// 当消息已完成生成内容后，隐藏处理步骤
+  bool _shouldShowProcessingSteps() {
+    if (message.processingSteps == null || message.processingSteps!.isEmpty) {
+      return false;
+    }
+    // 如果消息已经有内容，说明搜索已完成，隐藏处理步骤
+    if (message.content.trim().isNotEmpty) {
+      return false;
+    }
+    // 如果消息状态为已完成，也隐藏处理步骤
+    if (message.status == MessageStatus.completed) {
+      return false;
+    }
+    return true;
+  }
 
   /// 获取对齐方式
   ///
@@ -116,9 +130,12 @@ class MessageBubble extends StatelessWidget {
   /// 构建消息头部
   ///
   /// 显示消息发送者标识和时间戳
-  /// 系统消息和思考消息不显示头部
+  /// 系统消息、思考消息和用户消息不显示头部
   Widget _buildMessageHeader(BuildContext context) {
-    if (message.type == ChatMessageType.system || message.type == ChatMessageType.thinking) {
+    // 用户消息、系统消息、思考消息不显示头部
+    if (message.type == ChatMessageType.user ||
+        message.type == ChatMessageType.system ||
+        message.type == ChatMessageType.thinking) {
       return const SizedBox.shrink();
     }
 
@@ -147,11 +164,6 @@ class MessageBubble extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        ] else if (message.type == ChatMessageType.user) ...[
-          Text(
-            'ai_chat.you'.t,
-            style: AppTypography.labelSmall.copyWith(color: AppColors.getOnSurfaceVariant(context)),
           ),
         ] else if (message.type == ChatMessageType.tool) ...[
           Container(
