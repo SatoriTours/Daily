@@ -101,11 +101,12 @@ class MCPToolRegistry {
     MCPToolDefinition(
       name: 'search_diary_by_content',
       description: '''按内容关键词搜索日记。
+搜索日记的内容和标签。
 用于回答如"关于旅行的日记"、"记录了工作的日记"等问题。
 按创建时间倒序返回匹配的日记。''',
       parameters: {
-        'keyword': const MCPParameterDefinition(type: 'string', description: '搜索关键词'),
-        'limit': const MCPParameterDefinition(type: 'integer', description: '返回的最大数量，默认为 10', defaultValue: 10),
+        'keyword': const MCPParameterDefinition(type: 'string', description: '搜索关键词，多个关键词用逗号分隔'),
+        'limit': const MCPParameterDefinition(type: 'integer', description: '返回的最大数量，默认为 20', defaultValue: 20),
       },
       required: ['keyword'],
     ),
@@ -141,12 +142,12 @@ class MCPToolRegistry {
     MCPToolDefinition(
       name: 'search_articles',
       description: '''按关键词搜索收藏的文章。
-搜索所有收藏文章的标题和内容。
+搜索所有收藏文章的标题、内容、AI摘要和用户备注。
 用于回答如"关于 Flutter 的文章"、"收藏的文章中有关于 xxx 的吗"、"从收藏的文章中找 xxx"等问题。
 注意：用户说的"收藏的文章"就是指所有文章，应该用这个工具搜索。''',
       parameters: {
-        'keyword': const MCPParameterDefinition(type: 'string', description: '搜索关键词'),
-        'limit': const MCPParameterDefinition(type: 'integer', description: '返回的最大数量，默认为 10', defaultValue: 10),
+        'keyword': const MCPParameterDefinition(type: 'string', description: '搜索关键词，多个关键词用逗号分隔'),
+        'limit': const MCPParameterDefinition(type: 'integer', description: '返回的最大数量，默认为 20', defaultValue: 20),
       },
       required: ['keyword'],
     ),
@@ -182,8 +183,8 @@ class MCPToolRegistry {
       description: '''按标题或作者搜索书籍。
 用于回答如"有没有《xxx》这本书"、"xxx 作者的书"等问题。''',
       parameters: {
-        'keyword': const MCPParameterDefinition(type: 'string', description: '搜索关键词（匹配书名或作者）'),
-        'limit': const MCPParameterDefinition(type: 'integer', description: '返回的最大数量，默认为 10', defaultValue: 10),
+        'keyword': const MCPParameterDefinition(type: 'string', description: '搜索关键词（匹配书名或作者），多个关键词用逗号分隔'),
+        'limit': const MCPParameterDefinition(type: 'integer', description: '返回的最大数量，默认为 15', defaultValue: 15),
       },
       required: ['keyword'],
     ),

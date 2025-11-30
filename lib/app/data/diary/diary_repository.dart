@@ -46,14 +46,23 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
     return searchByString(property: Diary_.tags, searchText: tag);
   }
 
-  /// 全文查找日记内容
+  /// 全文查找日记内容和标签
+  ///
+  /// [keyword] 搜索关键词，会在 content 和 tags 中搜索
   List<DiaryModel> findByContent(String keyword) {
-    return searchByString(property: Diary_.content, searchText: keyword);
+    // 同时搜索内容和标签，提高搜索命中率
+    final condition = Diary_.content
+        .contains(keyword, caseSensitive: false)
+        .or(Diary_.tags.contains(keyword, caseSensitive: false));
+    final query = box.query(condition).order(Diary_.createdAt, flags: Order.descending).build();
+    return executeQuery(query).map(toModel).toList();
   }
 
-  /// 分页全文查找日记内容
+  /// 分页全文查找日记内容和标签
   List<DiaryModel> findByContentPaginated(String keyword, int page) {
-    final condition = Diary_.content.contains(keyword);
+    final condition = Diary_.content
+        .contains(keyword, caseSensitive: false)
+        .or(Diary_.tags.contains(keyword, caseSensitive: false));
     return findByConditionPaginated(condition: condition, page: page, orderBy: Diary_.createdAt, descending: true);
   }
 
