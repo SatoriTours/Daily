@@ -15,7 +15,7 @@ class ViewpointCard extends StatelessWidget {
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusM),
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
+        padding: const EdgeInsets.fromLTRB(
           Dimensions.spacingM,
           Dimensions.spacingS,
           Dimensions.spacingM,
@@ -61,7 +61,7 @@ class ViewpointCard extends StatelessWidget {
             Text('书籍案例', style: AppTypography.labelLarge.copyWith(color: AppColors.getPrimary(context))),
           ],
         ),
-        SizedBox(height: Dimensions.spacingM - 2),
+        const SizedBox(height: Dimensions.spacingM - 2),
         Text(viewpoint.example, style: AppTypography.bodyLarge),
       ],
     );
@@ -76,8 +76,8 @@ class ViewpointCard extends StatelessWidget {
         Expanded(
           child: Row(
             children: [
-              Icon(Icons.calendar_today, size: Dimensions.iconSizeXs - 2, color: Colors.grey),
-              SizedBox(width: Dimensions.spacingXs + 2),
+              const Icon(Icons.calendar_today, size: Dimensions.iconSizeXs - 2, color: Colors.grey),
+              const SizedBox(width: Dimensions.spacingXs + 2),
               Text(formattedDate, style: AppTypography.labelSmall.copyWith(color: Colors.grey)),
             ],
           ),
@@ -91,8 +91,8 @@ class ViewpointCard extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Icon(Icons.menu_book, size: Dimensions.iconSizeXs - 2, color: Colors.grey),
-        SizedBox(width: Dimensions.spacingXs + 2),
+        const Icon(Icons.menu_book, size: Dimensions.iconSizeXs - 2, color: Colors.grey),
+        const SizedBox(width: Dimensions.spacingXs + 2),
         Text(
           book != null ? '《${book.title}》· ${book.author}' : '未知书籍',
           style: AppTypography.bodySmall.copyWith(color: Colors.grey),

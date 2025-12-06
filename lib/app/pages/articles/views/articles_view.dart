@@ -130,7 +130,7 @@ class _ArticlesAppBar extends StatelessWidget implements PreferredSizeWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
+      shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
       builder: (context) => ArticlesTagsDialog(
         tags: tags,
         selectedTagId: controller.tagId.value,
@@ -148,7 +148,7 @@ class _ArticlesAppBar extends StatelessWidget implements PreferredSizeWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
+      shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
       isScrollControlled: true,
       builder: (context) => ArticleCalendarDialog(
         articleCountMap: controller.getDailyArticleCounts(),

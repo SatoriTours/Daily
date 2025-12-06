@@ -96,7 +96,7 @@ class OriginalContentTab extends StatelessWidget {
   Widget _buildTitleSection(BuildContext context, TextTheme textTheme, ColorScheme colorScheme) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(Dimensions.spacingL, Dimensions.spacingXl, Dimensions.spacingL, Dimensions.spacingL),
+      padding: const EdgeInsets.fromLTRB(Dimensions.spacingL, Dimensions.spacingXl, Dimensions.spacingL, Dimensions.spacingL),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,

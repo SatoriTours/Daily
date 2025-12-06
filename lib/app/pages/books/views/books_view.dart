@@ -59,7 +59,7 @@ class BooksView extends GetView<BooksController> {
   /// 构建添加书籍按钮
   Widget _buildAddBookButton() {
     return IconButton(
-      icon: Icon(Icons.add, size: Dimensions.iconSizeM),
+      icon: const Icon(Icons.add, size: Dimensions.iconSizeM),
       onPressed: controller.showAddBookDialog,
       tooltip: 'tooltip.add_book'.t,
       padding: Dimensions.paddingS,
@@ -70,7 +70,7 @@ class BooksView extends GetView<BooksController> {
   /// 构建更多菜单（三点）
   Widget _buildMoreMenu(BuildContext context) {
     return PopupMenuButton<String>(
-      icon: Icon(Icons.more_horiz, size: Dimensions.iconSizeM),
+      icon: const Icon(Icons.more_horiz, size: Dimensions.iconSizeM),
       onSelected: (value) => _handleMoreMenuSelection(value, context),
       itemBuilder: (context) => [
         SPopupMenuItem<String>(value: 'shuffle', icon: Icons.shuffle, text: 'menu.shuffle'.t),
@@ -101,7 +101,7 @@ class BooksView extends GetView<BooksController> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
       builder: (context) => Column(
@@ -127,7 +127,7 @@ class BooksView extends GetView<BooksController> {
         children: [
           Text('title.select_book'.t, style: AppTypography.titleMedium),
           IconButton(
-            icon: Icon(Icons.close, size: Dimensions.iconSizeM),
+            icon: const Icon(Icons.close, size: Dimensions.iconSizeM),
             onPressed: () => Navigator.pop(context),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
@@ -168,7 +168,7 @@ class BooksView extends GetView<BooksController> {
           },
           borderRadius: BorderRadius.circular(Dimensions.radiusL + 4),
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+            padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -204,7 +204,7 @@ class BooksView extends GetView<BooksController> {
         Navigator.pop(context);
       },
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: Dimensions.spacingM - 4, horizontal: Dimensions.spacingM),
+        padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingM - 4, horizontal: Dimensions.spacingM),
         color: backgroundColor,
         child: _buildFilterItemContent(book, textColor, isSelected, context),
       ),
@@ -249,7 +249,7 @@ class BooksView extends GetView<BooksController> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.auto_stories, size: 64, color: Colors.grey),
+          const Icon(Icons.auto_stories, size: 64, color: Colors.grey),
           Dimensions.verticalSpacerM,
           Text('empty.no_viewpoint'.t, style: AppTypography.titleMedium),
         ],
@@ -269,7 +269,7 @@ class BooksView extends GetView<BooksController> {
         final viewpoint = controller.allViewpoints[index];
         final book = BookRepository.i.find(viewpoint.bookId);
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
+          padding: const EdgeInsets.fromLTRB(
             Dimensions.spacingM,
             Dimensions.spacingS,
             Dimensions.spacingM,
@@ -330,7 +330,7 @@ class BooksView extends GetView<BooksController> {
       context: context,
       isScrollControlled: true,
       backgroundColor: DiaryStyles.getBottomSheetColor(context),
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
       builder: (context) => DiaryEditor(controller: diaryController),

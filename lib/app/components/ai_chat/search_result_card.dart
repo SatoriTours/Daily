@@ -42,12 +42,12 @@ class SearchResultCard extends StatelessWidget {
         onTap: () => _navigateToDetail(),
         borderRadius: BorderRadius.circular(Dimensions.radiusS),
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+          padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
           child: Row(
             children: [
               // 类型图标
-              Text(result.typeIcon, style: TextStyle(fontSize: 16)),
-              SizedBox(width: Dimensions.spacingS),
+              Text(result.typeIcon, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: Dimensions.spacingS),
               // 标题
               Expanded(
                 child: Text(
@@ -62,11 +62,11 @@ class SearchResultCard extends StatelessWidget {
               ),
               // 收藏图标
               if (result.isFavorite == true) ...[
-                SizedBox(width: Dimensions.spacingXs),
+                const SizedBox(width: Dimensions.spacingXs),
                 Icon(Icons.favorite, size: 14, color: AppColors.getError(context)),
               ],
               // 箭头图标
-              SizedBox(width: Dimensions.spacingXs),
+              const SizedBox(width: Dimensions.spacingXs),
               Icon(Icons.chevron_right, size: 18, color: AppColors.getOnSurfaceVariant(context)),
             ],
           ),
@@ -171,7 +171,7 @@ class _ContentDialog extends StatelessWidget {
           title: Row(
             children: [
               Text(icon, style: const TextStyle(fontSize: 24)),
-              SizedBox(width: Dimensions.spacingS),
+              const SizedBox(width: Dimensions.spacingS),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,12 +206,12 @@ class _ContentDialog extends StatelessWidget {
   /// 构建对话框内容
   Widget _buildContent(BuildContext context) {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(Dimensions.spacingM),
+      padding: const EdgeInsets.all(Dimensions.spacingM),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 标签列表
-          if (tags != null && tags!.isNotEmpty) ...[_buildTags(context), SizedBox(height: Dimensions.spacingM)],
+          if (tags != null && tags!.isNotEmpty) ...[_buildTags(context), const SizedBox(height: Dimensions.spacingM)],
           // 使用与日记页面相同的 Markdown 渲染
           MarkdownBody(
             data: content,
@@ -235,7 +235,7 @@ class _ContentDialog extends StatelessWidget {
         final trimmedTag = tag.trim();
         if (trimmedTag.isEmpty) return const SizedBox.shrink();
         return Container(
-          padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs),
+          padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs),
           decoration: BoxDecoration(
             color: DiaryStyles.getAccentColor(context).withAlpha(20),
             borderRadius: Dimensions.borderRadiusM,
@@ -245,7 +245,7 @@ class _ContentDialog extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.tag, size: 14, color: DiaryStyles.getAccentColor(context)),
-              SizedBox(width: Dimensions.spacingXs),
+              const SizedBox(width: Dimensions.spacingXs),
               Text(
                 trimmedTag,
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: DiaryStyles.getAccentColor(context)),

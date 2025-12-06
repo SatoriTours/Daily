@@ -77,7 +77,7 @@ class SelectionBottomSheet extends StatelessWidget {
       onTap: onTap,
       child: Container(
         color: isSelected ? AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow) : null,
-        padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingS, vertical: Dimensions.spacingM),
+        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingS, vertical: Dimensions.spacingM),
         child: Text(
           item,
           style: AppTypography.bodyMedium.copyWith(
@@ -104,7 +104,7 @@ void showSelectionBottomSheet({
     context: context,
     isScrollControlled: true,
     backgroundColor: AppColors.getSurface(context),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL))),
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL))),
     builder: (context) =>
         SelectionBottomSheet(title: title, items: items, selectedValue: selectedValue, onSelected: onSelected),
   );

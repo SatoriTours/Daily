@@ -21,7 +21,7 @@ class SummaryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(vertical: Dimensions.spacingL),
+      padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingL),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -30,7 +30,7 @@ class SummaryTab extends StatelessWidget {
 
           // 标题区域
           Padding(
-            padding: EdgeInsets.fromLTRB(
+            padding: const EdgeInsets.fromLTRB(
               Dimensions.spacingL,
               Dimensions.spacingL,
               Dimensions.spacingL,
@@ -41,13 +41,13 @@ class SummaryTab extends StatelessWidget {
 
           // 标签区域
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingL, vertical: Dimensions.spacingM),
+            padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingL, vertical: Dimensions.spacingM),
             child: Obx(() => ArticleTags(tags: controller.tags.value)),
           ),
 
           // 内容区域（优化格式化显示）
           Padding(
-            padding: EdgeInsets.fromLTRB(
+            padding: const EdgeInsets.fromLTRB(
               Dimensions.spacingL,
               Dimensions.spacingM,
               Dimensions.spacingL,
@@ -113,13 +113,13 @@ class SummaryTab extends StatelessWidget {
     final cleanPoint = point.replaceFirst(RegExp(r'^\d+\.\s*'), '');
 
     return Padding(
-      padding: EdgeInsets.only(bottom: Dimensions.spacingL),
+      padding: const EdgeInsets.only(bottom: Dimensions.spacingL),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 数字序号（圆形背景）
           Container(
-            margin: EdgeInsets.only(top: Dimensions.spacingXs / 2, right: Dimensions.spacingM),
+            margin: const EdgeInsets.only(top: Dimensions.spacingXs / 2, right: Dimensions.spacingM),
             width: Dimensions.iconSizeL,
             height: Dimensions.iconSizeL,
             decoration: BoxDecoration(color: colorScheme.primary, shape: BoxShape.circle),
@@ -196,7 +196,7 @@ class SummaryTab extends StatelessWidget {
   /// 构建头图组件
   Widget _buildHeaderImage() {
     return Padding(
-      padding: EdgeInsets.only(bottom: Dimensions.spacingS),
+      padding: const EdgeInsets.only(bottom: Dimensions.spacingS),
       child: ArticleImageView(
         imagePath: controller.articleModel.getHeaderImagePath(),
         controller: controller,

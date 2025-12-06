@@ -22,7 +22,7 @@ class DiaryTags extends StatelessWidget {
   /// 构建单个标签项
   Widget _buildTagItem(BuildContext context, String tag) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingXs + 2, vertical: Dimensions.spacingXs - 1),
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingXs + 2, vertical: Dimensions.spacingXs - 1),
       decoration: BoxDecoration(
         color: DiaryStyles.getTagBackgroundColor(context),
         borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),

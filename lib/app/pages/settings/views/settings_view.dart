@@ -578,7 +578,7 @@ class SettingsView extends GetView<SettingsController> {
 
     return Row(
       children: [
-        FeatureIcon(
+        const FeatureIcon(
           icon: Icons.password_rounded,
           iconColor: Colors.orange,
           containerSize: Dimensions.iconSizeXl + Dimensions.spacingXs,

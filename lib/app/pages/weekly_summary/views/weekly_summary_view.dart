@@ -43,8 +43,8 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
       actions: [
         Obx(
           () => controller.isGenerating.value
-              ? Padding(
-                  padding: const EdgeInsets.all(12),
+              ? const Padding(
+                  padding: EdgeInsets.all(12),
                   child: SizedBox(
                     width: 24,
                     height: 24,
@@ -244,14 +244,14 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
                 ),
               ),
               // 紧凑统计
-              Icon(Icons.article_outlined, color: Colors.blue, size: 14),
+              const Icon(Icons.article_outlined, color: Colors.blue, size: 14),
               const SizedBox(width: 2),
               Text(
                 '${summary.articleCount}',
                 style: AppTypography.labelSmall.copyWith(color: AppColors.getOnSurfaceVariant(context)),
               ),
               const SizedBox(width: 8),
-              Icon(Icons.book_outlined, color: Colors.green, size: 14),
+              const Icon(Icons.book_outlined, color: Colors.green, size: 14),
               const SizedBox(width: 2),
               Text(
                 '${summary.diaryCount}',
@@ -259,7 +259,7 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
               ),
               if (summary.isFailed) ...[
                 const SizedBox(width: 8),
-                Icon(Icons.error_outline, color: Colors.red, size: 16),
+                const Icon(Icons.error_outline, color: Colors.red, size: 16),
               ],
             ],
           ),
@@ -359,7 +359,7 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.getSurface(context),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL))),
       builder: (context) => _DiaryDetailSheet(diary: diary),
     );
   }
@@ -382,7 +382,7 @@ class _DiaryDetailSheet extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: AppColors.getSurface(context),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
           ),
           child: Column(
             children: [

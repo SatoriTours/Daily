@@ -50,8 +50,8 @@ class ArticleDetailView extends GetView<ArticleDetailController> {
   // 简洁横幅：仅显示一条带图标和文字的细条
   Widget _buildSlimBanner(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
-      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+      margin: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
       decoration: BoxDecoration(
         color: AppColors.getPrimaryContainer(context).withValues(alpha: Opacities.extraLow),
         borderRadius: BorderRadius.circular(Dimensions.radiusS),

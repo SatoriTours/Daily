@@ -38,7 +38,7 @@ class ArticlesTagsDialog extends StatelessWidget {
             children: [
               Text('article.select_tag'.t, style: textTheme.titleMedium),
               IconButton(
-                icon: Icon(FeatherIcons.x, size: Dimensions.iconSizeM),
+                icon: const Icon(FeatherIcons.x, size: Dimensions.iconSizeM),
                 onPressed: () => Navigator.pop(context),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 40, minHeight: 40),

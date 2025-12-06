@@ -114,7 +114,7 @@ class SatoriPrinter extends LogPrinter {
     // 优先：从本项目 package 帧中提取 文件名 + 行号
     // 典型帧：
     // #4      Some.fn (package:daily_satori/app/pages/diary/views/diary_view.dart:83:11)
-    final projectPath = 'package:daily_satori/';
+    const projectPath = 'package:daily_satori/';
     final fileLocPattern = RegExp(r'\((?:package:|file:)([^:]+):(\d+):\d+\)');
 
     for (final line in lines) {

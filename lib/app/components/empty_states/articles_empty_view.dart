@@ -19,7 +19,7 @@ class ArticlesEmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return EmptyStateWidget(
+    return const EmptyStateWidget(
       icon: Icons.article_outlined,
       titleKey: 'component.empty_articles_title',
       subtitleKey: 'component.empty_articles_subtitle',

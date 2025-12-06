@@ -41,7 +41,7 @@ class BookSearchView extends GetView<BookSearchController> {
         controller: controller.searchController,
         autofocus: true,
         decoration: InputStyles.getSearchDecoration(context, hintText: 'hint.title'.t).copyWith(
-          contentPadding: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingXs),
+          contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingXs),
           isDense: true,
         ),
         onSubmitted: (value) {
@@ -192,7 +192,7 @@ class BookSearchView extends GetView<BookSearchController> {
 
   Widget _buildResultCard(BuildContext context, BookSearchResult result) {
     return Card(
-      margin: EdgeInsets.only(bottom: Dimensions.spacingM),
+      margin: const EdgeInsets.only(bottom: Dimensions.spacingM),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
@@ -258,7 +258,7 @@ class BookSearchView extends GetView<BookSearchController> {
                         if (result.category.isNotEmpty) ...[
                           Dimensions.horizontalSpacerS,
                           Container(
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                               horizontal: Dimensions.spacingS + 2,
                               vertical: Dimensions.spacingXs,
                             ),
@@ -283,7 +283,7 @@ class BookSearchView extends GetView<BookSearchController> {
                           size: Dimensions.iconSizeXs - 2,
                           color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.highOpaque),
                         ),
-                        SizedBox(width: Dimensions.spacingXs + 2),
+                        const SizedBox(width: Dimensions.spacingXs + 2),
                         Expanded(
                           child: Text(
                             result.author,

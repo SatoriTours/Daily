@@ -322,7 +322,7 @@ class AIConfigEditView extends GetView<AIConfigEditController> {
     required Widget child,
   }) {
     return Padding(
-      padding: EdgeInsets.only(bottom: Dimensions.spacingL),
+      padding: const EdgeInsets.only(bottom: Dimensions.spacingL),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

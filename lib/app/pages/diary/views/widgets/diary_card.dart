@@ -149,11 +149,11 @@ class _DiaryCardState extends State<DiaryCard> {
           _buildMarkdownContent(context, contentWithoutTags),
 
           // 标签列表 - 移到"显示更多"按钮之前
-          if (_hasTags) ...[SizedBox(height: Dimensions.spacingS + 4), _buildTags(context)],
+          if (_hasTags) ...[const SizedBox(height: Dimensions.spacingS + 4), _buildTags(context)],
 
           // 图片显示
           if (widget.diary.images != null && widget.diary.images!.isNotEmpty) ...[
-            SizedBox(height: Dimensions.spacingS + 4),
+            const SizedBox(height: Dimensions.spacingS + 4),
             DiaryImageGallery(imagesString: widget.diary.images!),
           ],
 
@@ -161,7 +161,7 @@ class _DiaryCardState extends State<DiaryCard> {
           if (_needsExpand) _buildExpandToggleButton(context),
 
           // 将来源胶囊放在最底部
-          if (deepLink != null) ...[SizedBox(height: Dimensions.spacingS + 2), _buildSourcePill(context, deepLink)],
+          if (deepLink != null) ...[const SizedBox(height: Dimensions.spacingS + 2), _buildSourcePill(context, deepLink)],
         ],
       ),
     );
@@ -186,7 +186,7 @@ class _DiaryCardState extends State<DiaryCard> {
       onTap: () => _navigateToViewpoint(info.viewpointId),
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingS),
+        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingS),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(_kPillRadius),
@@ -196,7 +196,7 @@ class _DiaryCardState extends State<DiaryCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(Icons.menu_book, size: _kSmallIcon, color: accent),
-            SizedBox(width: Dimensions.spacingXs + 2),
+            const SizedBox(width: Dimensions.spacingXs + 2),
             Expanded(
               child: Text(
                 _buildSourceLabel(meta),
@@ -274,7 +274,7 @@ class _DiaryCardState extends State<DiaryCard> {
   /// 构建单个标签项
   Widget _buildTagItem(BuildContext context, String tag) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs),
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs),
       decoration: BoxDecoration(
         color: DiaryStyles.getAccentColor(context).withAlpha(20),
         borderRadius: Dimensions.borderRadiusM,
@@ -284,7 +284,7 @@ class _DiaryCardState extends State<DiaryCard> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.tag, size: _kSmallIcon, color: DiaryStyles.getAccentColor(context)),
-          SizedBox(width: Dimensions.spacingXs),
+          const SizedBox(width: Dimensions.spacingXs),
           Text(
             tag,
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: DiaryStyles.getAccentColor(context)),
@@ -299,8 +299,8 @@ class _DiaryCardState extends State<DiaryCard> {
     final accent = DiaryStyles.getAccentColor(context);
     return Container(
       width: double.infinity,
-      margin: EdgeInsets.only(top: Dimensions.spacingM),
-      padding: EdgeInsets.symmetric(vertical: Dimensions.spacingXs + 2),
+      margin: const EdgeInsets.only(top: Dimensions.spacingM),
+      padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingXs + 2),
       decoration: BoxDecoration(
         color: accent.withAlpha(20),
         borderRadius: BorderRadius.circular(Dimensions.radiusXs + 2),

@@ -17,8 +17,8 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: SAppBar(
-        title: const Text('从备份恢复', style: TextStyle(color: Colors.white)),
+      appBar: const SAppBar(
+        title: Text('从备份恢复', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         elevation: 0,
         backgroundColorLight: AppColors.primary,
@@ -58,10 +58,10 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
       padding: Dimensions.paddingVerticalM,
       child: Obx(
         () => ElevatedButton.icon(
-          icon: Icon(Icons.restore_rounded, size: Dimensions.iconSizeM + 2),
+          icon: const Icon(Icons.restore_rounded, size: Dimensions.iconSizeM + 2),
           label: Text("还原选中的备份", style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.w600)),
           style: ButtonStyles.getPrimaryStyle(context).copyWith(
-            padding: WidgetStatePropertyAll(
+            padding: const WidgetStatePropertyAll(
               EdgeInsets.symmetric(horizontal: Dimensions.spacingXl, vertical: Dimensions.spacingM),
             ),
           ),
@@ -190,7 +190,7 @@ class _BackupItem extends StatelessWidget {
           width: isSelected ? 2 : 1,
         ),
       ),
-      margin: EdgeInsets.symmetric(vertical: Dimensions.spacingXs + 2),
+      margin: const EdgeInsets.symmetric(vertical: Dimensions.spacingXs + 2),
       color: isSelected ? primary.withValues(alpha: Opacities.low) : colorScheme.surface,
       child: InkWell(
         onTap: onTap,
@@ -283,7 +283,7 @@ class _BackupList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.builder(
       itemCount: itemCount,
-      padding: EdgeInsets.only(top: Dimensions.spacingS),
+      padding: const EdgeInsets.only(top: Dimensions.spacingS),
       physics: const BouncingScrollPhysics(),
       itemBuilder: (context, index) => _BackupItem(
         index: index,

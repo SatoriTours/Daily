@@ -143,7 +143,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
     } else {
       // 新建模式，添加默认标题格式
       widget.controller.contentController.text = '# ';
-      widget.controller.contentController.selection = TextSelection.collapsed(
+      widget.controller.contentController.selection = const TextSelection.collapsed(
         offset: 2, // 将光标放在 "# " 之后
       );
     }
@@ -205,7 +205,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
   Widget _buildToolbar(BuildContext context) {
     return Container(
       height: 48,
-      margin: EdgeInsets.only(top: Dimensions.spacingS),
+      margin: const EdgeInsets.only(top: Dimensions.spacingS),
       child: Row(
         children: [
           // Markdown 工具栏 - 现在把撤销、重做和粘贴按钮也放进去
@@ -250,7 +250,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
       child: Container(
         width: 36,
         height: 36,
-        margin: EdgeInsets.symmetric(horizontal: Dimensions.spacingXs / 2),
+        margin: const EdgeInsets.symmetric(horizontal: Dimensions.spacingXs / 2),
         child: IconButton(
           onPressed: onPressed,
           icon: Icon(
@@ -282,7 +282,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
       focusedBorder: InputBorder.none,
       errorBorder: InputBorder.none,
       disabledBorder: InputBorder.none,
-      contentPadding: EdgeInsets.symmetric(vertical: Dimensions.spacingS + 4, horizontal: Dimensions.spacingM),
+      contentPadding: const EdgeInsets.symmetric(vertical: Dimensions.spacingS + 4, horizontal: Dimensions.spacingM),
     );
   }
 

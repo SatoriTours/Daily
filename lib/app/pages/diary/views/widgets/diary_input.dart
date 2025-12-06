@@ -65,7 +65,7 @@ class DiaryInput extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: DiaryStyles.getBottomSheetColor(context),
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
       builder: (context) => DiaryEditor(controller: controller),

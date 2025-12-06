@@ -58,24 +58,24 @@ class HomeView extends GetView<HomeController> {
       type: BottomNavigationBarType.fixed,
       items: [
         BottomNavigationBarItem(
-          icon: Icon(Icons.article_outlined),
-          activeIcon: Icon(Icons.article),
+          icon: const Icon(Icons.article_outlined),
+          activeIcon: const Icon(Icons.article),
           label: 'nav.articles'.t,
         ),
-        BottomNavigationBarItem(icon: Icon(Icons.book_outlined), activeIcon: Icon(Icons.book), label: 'nav.diary'.t),
+        BottomNavigationBarItem(icon: const Icon(Icons.book_outlined), activeIcon: const Icon(Icons.book), label: 'nav.diary'.t),
         BottomNavigationBarItem(
-          icon: Icon(Icons.menu_book_outlined),
-          activeIcon: Icon(Icons.menu_book),
+          icon: const Icon(Icons.menu_book_outlined),
+          activeIcon: const Icon(Icons.menu_book),
           label: 'nav.books'.t,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.smart_toy_outlined),
-          activeIcon: Icon(Icons.smart_toy),
+          icon: const Icon(Icons.smart_toy_outlined),
+          activeIcon: const Icon(Icons.smart_toy),
           label: 'ai_chat.title'.t,
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person_outlined),
-          activeIcon: Icon(Icons.person),
+          icon: const Icon(Icons.person_outlined),
+          activeIcon: const Icon(Icons.person),
           label: 'nav.settings'.t,
         ),
       ],

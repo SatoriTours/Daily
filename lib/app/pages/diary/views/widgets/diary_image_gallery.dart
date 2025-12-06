@@ -103,7 +103,7 @@ class DiaryImageGallery extends StatelessWidget {
 
                 if (!file.existsSync()) {
                   return PhotoViewGalleryPageOptions.customChild(
-                    child: Center(child: Icon(FeatherIcons.image, color: Colors.white70, size: 48)),
+                    child: const Center(child: Icon(FeatherIcons.image, color: Colors.white70, size: 48)),
                   );
                 }
 
@@ -114,7 +114,7 @@ class DiaryImageGallery extends StatelessWidget {
                   maxScale: PhotoViewComputedScale.covered * 5.0,
                   heroAttributes: PhotoViewHeroAttributes(tag: resolved),
                   errorBuilder: (context, error, stackTrace) {
-                    return Center(child: Icon(FeatherIcons.alertCircle, color: Colors.white70, size: 48));
+                    return const Center(child: Icon(FeatherIcons.alertCircle, color: Colors.white70, size: 48));
                   },
                 );
               },

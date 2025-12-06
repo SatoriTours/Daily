@@ -21,7 +21,7 @@ class DiaryEmptyState extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingXxl),
+        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingXxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

@@ -356,8 +356,8 @@ class WeeklySummaryService {
     // weekday: 1=周一, 7=周日
     if (now.weekday == 7) {
       // 本周日还没过完，返回上上周
-      final lastSunday = today.subtract(Duration(days: 7));
-      final lastMonday = lastSunday.subtract(Duration(days: 6));
+      final lastSunday = today.subtract(const Duration(days: 7));
+      final lastMonday = lastSunday.subtract(const Duration(days: 6));
       return (lastMonday, lastSunday);
     }
 
@@ -365,8 +365,8 @@ class WeeklySummaryService {
     // 计算上周一和上周日
     final daysFromMonday = now.weekday - 1; // 今天距离本周一的天数
     final thisMonday = today.subtract(Duration(days: daysFromMonday));
-    final lastSunday = thisMonday.subtract(Duration(days: 1));
-    final lastMonday = lastSunday.subtract(Duration(days: 6));
+    final lastSunday = thisMonday.subtract(const Duration(days: 1));
+    final lastMonday = lastSunday.subtract(const Duration(days: 6));
 
     return (lastMonday, lastSunday);
   }
@@ -376,7 +376,7 @@ class WeeklySummaryService {
     final allArticles = ArticleRepository.i.all();
     return allArticles.where((article) {
       final createdAt = article.createdAt;
-      return createdAt.isAfter(start.subtract(Duration(seconds: 1))) && createdAt.isBefore(end.add(Duration(days: 1)));
+      return createdAt.isAfter(start.subtract(const Duration(seconds: 1))) && createdAt.isBefore(end.add(const Duration(days: 1)));
     }).toList();
   }
 
@@ -385,7 +385,7 @@ class WeeklySummaryService {
     final allDiaries = DiaryRepository.i.findAll();
     return allDiaries.where((diary) {
       final createdAt = diary.createdAt;
-      return createdAt.isAfter(start.subtract(Duration(seconds: 1))) && createdAt.isBefore(end.add(Duration(days: 1)));
+      return createdAt.isAfter(start.subtract(const Duration(seconds: 1))) && createdAt.isBefore(end.add(const Duration(days: 1)));
     }).toList();
   }
 
@@ -394,7 +394,7 @@ class WeeklySummaryService {
     final allViewpoints = BookViewpointRepository.i.all();
     return allViewpoints.where((vp) {
       final createdAt = vp.createdAt;
-      return createdAt.isAfter(start.subtract(Duration(seconds: 1))) && createdAt.isBefore(end.add(Duration(days: 1)));
+      return createdAt.isAfter(start.subtract(const Duration(seconds: 1))) && createdAt.isBefore(end.add(const Duration(days: 1)));
     }).toList();
   }
 

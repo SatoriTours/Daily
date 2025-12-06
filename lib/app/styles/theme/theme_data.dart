@@ -67,12 +67,12 @@ class AppThemeData {
       ),
 
       // 悬浮按钮主题
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 2,
-        shape: const CircleBorder(),
-        extendedPadding: const EdgeInsets.all(Dimensions.spacingM),
+        shape: CircleBorder(),
+        extendedPadding: EdgeInsets.all(Dimensions.spacingM),
       ),
 
       // 底部导航栏主题
@@ -123,7 +123,7 @@ class AppThemeData {
           return Colors.transparent;
         }),
         checkColor: WidgetStateProperty.all(Colors.white),
-        side: BorderSide(color: AppColors.onSurfaceVariant, width: 1.5),
+        side: const BorderSide(color: AppColors.onSurfaceVariant, width: 1.5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
 
@@ -148,23 +148,23 @@ class AppThemeData {
         errorStyle: AppTypography.errorText.copyWith(color: AppColors.error),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.outline, width: 1.0),
+          borderSide: const BorderSide(color: AppColors.outline, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.outline, width: 1.0),
+          borderSide: const BorderSide(color: AppColors.outline, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.primary, width: 2.0),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2.0),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.error, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.error, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
@@ -188,7 +188,7 @@ class AppThemeData {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
-          side: BorderSide(color: AppColors.primary, width: 1.5),
+          side: const BorderSide(color: AppColors.primary, width: 1.5),
           padding: Dimensions.paddingButton,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
           minimumSize: const Size.fromHeight(Dimensions.buttonHeight),
@@ -211,7 +211,7 @@ class AppThemeData {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusM),
-          side: BorderSide(color: AppColors.outline, width: 1.0),
+          side: const BorderSide(color: AppColors.outline, width: 1.0),
         ),
         color: AppColors.surface,
         margin: Dimensions.marginCard,
@@ -243,7 +243,7 @@ class AppThemeData {
       ),
 
       // 分隔线主题
-      dividerTheme: DividerThemeData(color: AppColors.outline, thickness: 1, space: Dimensions.spacingM),
+      dividerTheme: const DividerThemeData(color: AppColors.outline, thickness: 1, space: Dimensions.spacingM),
 
       // 标签主题
       chipTheme: ChipThemeData(
@@ -334,12 +334,12 @@ class AppThemeData {
       ),
 
       // 悬浮按钮主题
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.primaryLight,
         foregroundColor: Colors.black,
         elevation: 2,
-        shape: const CircleBorder(),
-        extendedPadding: const EdgeInsets.all(Dimensions.spacingM),
+        shape: CircleBorder(),
+        extendedPadding: EdgeInsets.all(Dimensions.spacingM),
       ),
 
       // 底部导航栏主题
@@ -390,7 +390,7 @@ class AppThemeData {
           return Colors.transparent;
         }),
         checkColor: WidgetStateProperty.all(Colors.black),
-        side: BorderSide(color: AppColors.onSurfaceVariantDark, width: 1.5),
+        side: const BorderSide(color: AppColors.onSurfaceVariantDark, width: 1.5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
 
@@ -415,23 +415,23 @@ class AppThemeData {
         errorStyle: AppTypography.errorText.copyWith(color: AppColors.errorDark),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.outlineDark, width: 1.0),
+          borderSide: const BorderSide(color: AppColors.outlineDark, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.outlineDark, width: 1.0),
+          borderSide: const BorderSide(color: AppColors.outlineDark, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.primaryLight, width: 2.0),
+          borderSide: const BorderSide(color: AppColors.primaryLight, width: 2.0),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.errorDark, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.errorDark, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.errorDark, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.errorDark, width: 1.5),
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
@@ -455,7 +455,7 @@ class AppThemeData {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primaryLight,
-          side: BorderSide(color: AppColors.primaryLight, width: 1.5),
+          side: const BorderSide(color: AppColors.primaryLight, width: 1.5),
           padding: Dimensions.paddingButton,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
           minimumSize: const Size.fromHeight(Dimensions.buttonHeight),
@@ -478,7 +478,7 @@ class AppThemeData {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusM),
-          side: BorderSide(color: AppColors.outlineDark, width: 1.0),
+          side: const BorderSide(color: AppColors.outlineDark, width: 1.0),
         ),
         color: AppColors.surfaceDark,
         margin: Dimensions.marginCard,
@@ -510,7 +510,7 @@ class AppThemeData {
       ),
 
       // 分隔线主题
-      dividerTheme: DividerThemeData(color: AppColors.outlineDark, thickness: 1, space: Dimensions.spacingM),
+      dividerTheme: const DividerThemeData(color: AppColors.outlineDark, thickness: 1, space: Dimensions.spacingM),
 
       // 标签主题
       chipTheme: ChipThemeData(

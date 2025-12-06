@@ -17,8 +17,8 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: SAppBar(
-        title: const Text('备份与恢复', style: TextStyle(color: Colors.white)),
+      appBar: const SAppBar(
+        title: Text('备份与恢复', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         elevation: 0,
         backgroundColorLight: AppColors.primary,
@@ -78,10 +78,10 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
             Dimensions.verticalSpacerL,
             ElevatedButton.icon(
               onPressed: () => controller.selectBackupDirectory(),
-              icon: Icon(Icons.create_new_folder_rounded, size: Dimensions.iconSizeM),
+              icon: const Icon(Icons.create_new_folder_rounded, size: Dimensions.iconSizeM),
               label: const Text('选择备份目录'),
               style: ButtonStyles.getPrimaryStyle(context).copyWith(
-                padding: WidgetStatePropertyAll(
+                padding: const WidgetStatePropertyAll(
                   EdgeInsets.symmetric(horizontal: Dimensions.spacingXl, vertical: Dimensions.spacingM),
                 ),
               ),
@@ -185,7 +185,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingL, vertical: Dimensions.spacingM),
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingL, vertical: Dimensions.spacingM),
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer.withValues(alpha: Opacities.high),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
@@ -233,11 +233,11 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
   /// 构建目录卡片
   Widget _buildDirectoryCard(BuildContext context) {
     final textTheme = AppTheme.getTextTheme(context);
-    final cardColor = Colors.teal;
+    const cardColor = Colors.teal;
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingL, vertical: Dimensions.spacingS),
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingL, vertical: Dimensions.spacingS),
       decoration: BoxDecoration(
         color: cardColor.withValues(alpha: Opacities.low),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
@@ -253,7 +253,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
               color: cardColor.withValues(alpha: Opacities.mediumLow),
               borderRadius: BorderRadius.circular(Dimensions.radiusS),
             ),
-            child: Icon(Icons.folder_rounded, size: Dimensions.iconSizeXl - 6, color: cardColor),
+            child: const Icon(Icons.folder_rounded, size: Dimensions.iconSizeXl - 6, color: cardColor),
           ),
           Dimensions.horizontalSpacerM,
           // 路径文本
@@ -286,7 +286,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
                 color: cardColor.withValues(alpha: Opacities.mediumLow),
                 borderRadius: BorderRadius.circular(Dimensions.radiusS),
               ),
-              child: Icon(Icons.edit_outlined, size: Dimensions.iconSizeM, color: cardColor),
+              child: const Icon(Icons.edit_outlined, size: Dimensions.iconSizeM, color: cardColor),
             ),
           ),
         ],
@@ -310,7 +310,7 @@ class BackupSettingsView extends GetView<BackupSettingsController> {
       borderRadius: BorderRadius.circular(Dimensions.radiusM),
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.all(Dimensions.spacingM + 2),
+        padding: const EdgeInsets.all(Dimensions.spacingM + 2),
         decoration: BoxDecoration(
           color: color.withValues(alpha: Opacities.low),
           borderRadius: BorderRadius.circular(Dimensions.radiusM),

@@ -15,7 +15,7 @@ class SPopupMenuItem<T> extends PopupMenuItem<T> {
     EdgeInsets? padding,
     super.enabled,
   }) : super(
-         padding: padding ?? EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+         padding: padding ?? const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
          child: Row(
            children: [
              Icon(icon, size: iconSize ?? Dimensions.iconSizeM, color: iconColor),

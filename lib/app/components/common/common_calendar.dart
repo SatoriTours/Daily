@@ -107,7 +107,7 @@ class CommonCalendar extends StatelessWidget {
 
     return Container(
       padding: Dimensions.paddingHorizontalM.copyWith(top: Dimensions.spacingS, bottom: Dimensions.spacingS),
-      margin: EdgeInsets.only(bottom: Dimensions.spacingXs),
+      margin: const EdgeInsets.only(bottom: Dimensions.spacingXs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: weekdays.map((day) {

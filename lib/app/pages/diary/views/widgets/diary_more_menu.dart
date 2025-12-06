@@ -31,11 +31,11 @@ class DiaryMoreMenu extends StatelessWidget {
             children: [
               Icon(FeatherIcons.edit2, size: Dimensions.iconSizeXs, color: DiaryStyles.getAccentColor(context)),
               Dimensions.horizontalSpacerS,
-              Text('编辑日记'),
+              const Text('编辑日记'),
             ],
           ),
         ),
-        PopupMenuItem<String>(
+        const PopupMenuItem<String>(
           value: 'delete',
           child: Row(
             children: [

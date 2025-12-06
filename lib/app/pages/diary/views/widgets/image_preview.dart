@@ -21,7 +21,7 @@ class ImagePreview extends StatelessWidget {
     if (images.isEmpty) return const SizedBox.shrink();
 
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 8),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
@@ -52,9 +52,9 @@ class ImagePreview extends StatelessWidget {
                 child: GestureDetector(
                   onTap: () => onDelete(index),
                   child: Container(
-                    padding: EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(color: Colors.black.withAlpha(128), shape: BoxShape.circle),
-                    child: Icon(FeatherIcons.x, size: 14, color: Colors.white),
+                    child: const Icon(FeatherIcons.x, size: 14, color: Colors.white),
                   ),
                 ),
               ),
@@ -73,16 +73,16 @@ class ImagePreview extends StatelessWidget {
       decoration: BoxDecoration(color: Colors.grey.withAlpha(77), borderRadius: BorderRadius.circular(8)),
       child: Stack(
         children: [
-          Center(child: Icon(FeatherIcons.image, color: Colors.grey)),
+          const Center(child: Icon(FeatherIcons.image, color: Colors.grey)),
           Positioned(
             right: 2,
             top: 2,
             child: GestureDetector(
               onTap: () => onDelete(index),
               child: Container(
-                padding: EdgeInsets.all(4),
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(color: Colors.black.withAlpha(128), shape: BoxShape.circle),
-                child: Icon(FeatherIcons.x, size: 14, color: Colors.white),
+                child: const Icon(FeatherIcons.x, size: 14, color: Colors.white),
               ),
             ),
           ),

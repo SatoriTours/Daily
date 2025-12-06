@@ -14,7 +14,7 @@ class RequestUtils {
       return jsonDecode(body);
     } catch (e) {
       logger.e('解析请求体失败: $e');
-      throw FormatException('无效的JSON请求体');
+      throw const FormatException('无效的JSON请求体');
     }
   }
 

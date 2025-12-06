@@ -32,7 +32,7 @@ class ArticleTags extends StatelessWidget {
   Widget _buildTag(BuildContext context, String tag) {
     final accentColor = DiaryStyles.getAccentColor(context);
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs),
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs),
       decoration: BoxDecoration(
         color: accentColor.withAlpha(20),
         borderRadius: Dimensions.borderRadiusM,
@@ -42,7 +42,7 @@ class ArticleTags extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.tag, size: 14, color: accentColor),
-          SizedBox(width: Dimensions.spacingXs),
+          const SizedBox(width: Dimensions.spacingXs),
           Text(
             tag,
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: accentColor),

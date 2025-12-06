@@ -95,7 +95,7 @@ class DiaryView extends GetView<DiaryController> {
       title: filterText,
       onClear: controller.clearFilters,
       // 调整与现有布局相近的外边距
-      margin: EdgeInsets.fromLTRB(
+      margin: const EdgeInsets.fromLTRB(
         Dimensions.spacingM,
         Dimensions.spacingS + 4,
         Dimensions.spacingM,
@@ -155,7 +155,7 @@ class DiaryView extends GetView<DiaryController> {
       icon: Icon(icon, color: color, size: Dimensions.iconSizeM),
       splashRadius: Dimensions.spacingL,
       onPressed: onPressed,
-      padding: EdgeInsets.all(Dimensions.spacingS + 4),
+      padding: const EdgeInsets.all(Dimensions.spacingS + 4),
       tooltip: icon == FeatherIcons.calendar
           ? '日历'
           : icon == FeatherIcons.search
@@ -194,7 +194,7 @@ class DiaryView extends GetView<DiaryController> {
       context: context,
       isScrollControlled: true,
       backgroundColor: DiaryStyles.getBottomSheetColor(context),
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
       builder: (context) => DiaryEditDialog(diary: diary, controller: controller),
@@ -212,7 +212,7 @@ class DiaryView extends GetView<DiaryController> {
     showModalBottomSheet(
       context: context,
       backgroundColor: DiaryStyles.getBottomSheetColor(context),
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
       builder: (context) => DiaryTagsDialog(controller: controller),
@@ -236,7 +236,7 @@ class DiaryView extends GetView<DiaryController> {
       context: context,
       isScrollControlled: true,
       backgroundColor: DiaryStyles.getBottomSheetColor(context),
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
       builder: (context) => DiaryEditor(controller: controller),
@@ -260,7 +260,7 @@ class DiaryView extends GetView<DiaryController> {
     showModalBottomSheet(
       context: context,
       backgroundColor: DiaryStyles.getBottomSheetColor(context),
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
       isScrollControlled: true,

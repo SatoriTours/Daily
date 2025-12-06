@@ -162,7 +162,7 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
           hintText: '搜索日记内容...',
           hintStyle: TextStyle(color: DiaryStyles.getSecondaryTextColor(context), fontSize: 14),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+          contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
           isDense: true,
         ),
         style: TextStyle(color: DiaryStyles.getPrimaryTextColor(context), fontSize: 14),

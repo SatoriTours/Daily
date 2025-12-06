@@ -58,7 +58,7 @@ class DiaryList extends StatelessWidget {
 
     return ListView.builder(
       controller: scrollController,
-      padding: EdgeInsets.only(
+      padding: const EdgeInsets.only(
         left: Dimensions.spacingM,
         right: Dimensions.spacingM,
         top: Dimensions.spacingS,

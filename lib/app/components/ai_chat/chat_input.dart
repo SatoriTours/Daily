@@ -148,7 +148,7 @@ class _ChatInputState extends State<ChatInput> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
       decoration: BoxDecoration(
         color: AppColors.getSurface(context),
         border: Border(top: BorderSide(color: AppColors.getOutline(context).withValues(alpha: 0.2))),
@@ -157,7 +157,7 @@ class _ChatInputState extends State<ChatInput> {
         child: Column(
           children: [
             _buildInputField(context),
-            if (widget.showSendButton) SizedBox(height: Dimensions.spacingS),
+            if (widget.showSendButton) const SizedBox(height: Dimensions.spacingS),
             if (widget.showSendButton) _buildSendButton(context),
           ],
         ),
@@ -168,7 +168,7 @@ class _ChatInputState extends State<ChatInput> {
   /// 构建输入框
   Widget _buildInputField(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(minHeight: 40, maxHeight: 120),
+      constraints: const BoxConstraints(minHeight: 40, maxHeight: 120),
       decoration: BoxDecoration(
         color: AppColors.getSurfaceContainerHighest(context),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
@@ -185,7 +185,7 @@ class _ChatInputState extends State<ChatInput> {
           hintText: widget.hintText ?? 'ai_chat.input_hint'.t,
           hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+          contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
           isDense: true,
         ),
         style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context)),
@@ -212,7 +212,7 @@ class _ChatInputState extends State<ChatInput> {
               onTap: _isEmpty || widget.disabled ? null : _onSend,
               borderRadius: BorderRadius.circular(Dimensions.radiusM),
               child: Container(
-                padding: EdgeInsets.all(Dimensions.spacingS),
+                padding: const EdgeInsets.all(Dimensions.spacingS),
                 child: Icon(
                   widget.sendIcon ?? Icons.send_rounded,
                   color: _isEmpty || widget.disabled ? AppColors.getOnSurfaceVariant(context) : AppColors.getOnPrimary(context),
@@ -292,7 +292,7 @@ class SimpleChatInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
       decoration: BoxDecoration(
         color: AppColors.getSurface(context),
         border: Border(top: BorderSide(color: AppColors.getOutline(context).withValues(alpha: 0.2))),
@@ -302,7 +302,7 @@ class SimpleChatInput extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(child: _buildInputField(context)),
-            SizedBox(width: Dimensions.spacingS),
+            const SizedBox(width: Dimensions.spacingS),
             _buildSendButton(context),
           ],
         ),
@@ -313,7 +313,7 @@ class SimpleChatInput extends StatelessWidget {
   /// 构建输入框
   Widget _buildInputField(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(minHeight: 40, maxHeight: 120),
+      constraints: const BoxConstraints(minHeight: 40, maxHeight: 120),
       decoration: BoxDecoration(
         color: AppColors.getSurfaceContainerHighest(context),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
@@ -329,7 +329,7 @@ class SimpleChatInput extends StatelessWidget {
           hintText: hintText ?? 'ai_chat.input_hint'.t,
           hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
           border: InputBorder.none,
-          contentPadding: EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+          contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
           isDense: true,
         ),
         style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context)),
@@ -348,7 +348,7 @@ class SimpleChatInput extends StatelessWidget {
         onTap: disabled ? null : () => _handleSend(controller?.text ?? ''),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
         child: Container(
-          padding: EdgeInsets.all(Dimensions.spacingS),
+          padding: const EdgeInsets.all(Dimensions.spacingS),
           child: Icon(
             Icons.send_rounded,
             color: disabled ? AppColors.getOnSurfaceVariant(context) : AppColors.getOnPrimary(context),
