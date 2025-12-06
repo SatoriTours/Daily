@@ -27,7 +27,7 @@ class WebService {
     logger.i("[初始化服务] WebService");
     await _httpServer.start();
     await _webSocketTunnel.startConnect();
-    logger.i('Web服务初始化完成');
+    logger.i('WebService 服务初始化完成');
   }
 
   /// 获取应用访问地址

@@ -65,16 +65,17 @@ class AppHttpServer {
 
   /// 注册静态资源路由
   Future<void> _registerStaticRoutes() async {
-    // 图片文件目录
-    final imagesDir = FileService.i.imagesBasePath;
+    // 图片文件目录（转换为绝对路径）
+    final imagesDir = FileService.i.toAbsolutePath(FileService.i.imagesBasePath);
     final imagesHandler = createStaticHandler(imagesDir, serveFilesOutsidePath: true);
-    final diaryImagesDir = FileService.i.diaryImagesBasePath;
+
+    final diaryImagesDir = FileService.i.toAbsolutePath(FileService.i.diaryImagesBasePath);
     final diaryImagesHandler = createStaticHandler(diaryImagesDir, serveFilesOutsidePath: true);
 
     _router.mount('/images', imagesHandler);
     _router.mount('/diary_images', diaryImagesHandler);
 
-    // 内置静态资源
+    // 内置静态资源（仅限 website 目录）
     _router.mount('/assets', _assetHandler);
 
     // 管理后台页面
@@ -84,10 +85,18 @@ class AppHttpServer {
     logger.i('静态资源路由已注册: /images, /assets, /admin');
   }
 
-  /// 处理内置静态资源
+  /// 处理内置静态资源（仅限 website 目录）
   Future<shelf.Response> _assetHandler(shelf.Request request) async {
     try {
-      final assetPath = 'assets${request.url.path}';
+      // 只允许访问 assets/website 目录下的资源
+      final requestPath = request.url.path;
+
+      // 安全检查：防止路径遍历攻击
+      if (requestPath.contains('..')) {
+        return shelf.Response.forbidden('非法路径');
+      }
+
+      final assetPath = 'assets/website$requestPath';
       final data = await rootBundle.load(assetPath);
 
       // 确定内容类型
