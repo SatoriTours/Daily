@@ -249,6 +249,9 @@ class PluginService {
   /// 获取书籍搜索提示词
   String getBookSearch() => _aiPrompts['book_search'] ?? '';
 
+  /// 获取周报模板
+  String getWeeklySummaryTemplate() => _aiPrompts['weekly_summary_template'] ?? '';
+
   /// 获取API提供商预设列表
   List<AiModel> getAiModels() => _aiModels;
 }
