@@ -365,7 +365,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
     if (_selectedImages.isEmpty) return [];
 
     List<String> savedPaths = [];
-    final String dirPath = await widget.controller.getImageSavePath();
+    final String dirPath = FileService.i.diaryImagesBasePath;
 
     for (int i = 0; i < _selectedImages.length; i++) {
       final XFile image = _selectedImages[i];
@@ -373,7 +373,7 @@ class _DiaryEditorState extends State<DiaryEditor> {
       final String filePath = '$dirPath/$fileName';
 
       // 复制图片到应用目录
-      final File savedImage = File(filePath);
+      final File savedImage = File(FileService.i.toAbsolutePath(filePath));
       await savedImage.writeAsBytes(await image.readAsBytes());
 
       savedPaths.add(filePath);
