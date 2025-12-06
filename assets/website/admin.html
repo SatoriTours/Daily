@@ -1173,7 +1173,7 @@
                                 <a :href="detailItem.url" target="_blank">查看原文</a>
                             </span>
                         </div>
-                        <div class="detail-modal-body" v-html="formatContent(detailItem.content || detailItem.aiContent || '')"></div>
+                        <div class="detail-modal-body markdown-body" v-html="formatContent(detailItem.content || detailItem.aiContent || '')"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1244,6 +1244,38 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.5.1/github-markdown-light.min.css">
+    <style>
+        /* Markdown 样式覆盖 */
+        .markdown-body {
+            font-size: 15px;
+            line-height: 1.8;
+        }
+        .markdown-body img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        .markdown-body pre {
+            background: #f6f8fa;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        .markdown-body code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .markdown-body blockquote {
+            border-left: 4px solid var(--primary-color);
+            padding-left: 16px;
+            color: #666;
+            margin: 16px 0;
+        }
+    </style>
     <script>
         const { createApp, ref, computed, onMounted, watch } = Vue;
 
@@ -1617,6 +1649,10 @@
 
                 const formatContent = (content) => {
                     if (!content) return '';
+                    // 使用 marked 解析 Markdown
+                    if (typeof marked !== 'undefined') {
+                        return marked.parse(content);
+                    }
                     return content.replaceAll('\n', '<br>');
                 };
 

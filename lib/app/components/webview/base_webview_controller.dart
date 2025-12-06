@@ -1,5 +1,4 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:daily_satori/app/components/webview/flutter_inappwebview_screenshot.dart';
 
 /// WebView 控制器基类
 ///
@@ -8,7 +7,6 @@ import 'package:daily_satori/app/components/webview/flutter_inappwebview_screens
 /// - 页面滚动控制
 /// - JavaScript 交互
 /// - CSS 注入
-/// - 页面截图
 /// - 页面翻译
 ///
 /// 使用示例:
@@ -119,13 +117,6 @@ class BaseWebViewController {
   }
 
   // MARK: - 页面功能
-
-  /// 捕获全屏截图
-  ///
-  /// 返回截图的 Base64 编码字符串列表
-  Future<List<String>> captureFullScreenshot() async {
-    return await captureFullPageScreenshot(webViewController);
-  }
 
   /// 将页面翻译为简体中文
   ///

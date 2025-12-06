@@ -266,6 +266,7 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
     if (pickedImages.isNotEmpty) {
       // 保存图片并获取路径
       List<String> newImagePaths = [];
+      // 获取绝对路径用于实际保存
       final String dirPath = await getImageSavePath();
 
       for (int i = 0; i < pickedImages.length; i++) {
@@ -277,7 +278,9 @@ class DiaryController extends BaseController with WidgetsBindingObserver {
         final File savedImage = File(filePath);
         await savedImage.writeAsBytes(await image.readAsBytes());
 
-        newImagePaths.add(filePath);
+        // 存储相对路径到列表（用于数据库）
+        final String relativePath = FileService.i.getDiaryImagePath(fileName);
+        newImagePaths.add(relativePath);
       }
 
       setState(() {

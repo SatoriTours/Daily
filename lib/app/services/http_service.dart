@@ -57,16 +57,19 @@ class HttpService implements AppService {
 
   /// 下载图片
   /// [url] 图片URL
-  /// 返回本地保存路径,失败返回空字符串
+  /// 返回本地保存的相对路径（用于存储到数据库），失败返回空字符串
   Future<String> downloadImage(String url) async {
     if (url.isEmpty) {
       return '';
     }
 
     final imageName = FileService.i.generateFileNameByUrl(url);
-    final imagePath = FileService.i.getImagePath(imageName);
+    // 获取相对路径（用于存储到数据库）
+    final relativePath = FileService.i.getImagePath(imageName);
+    // 获取绝对路径（用于实际文件操作）
+    final absolutePath = FileService.i.toAbsolutePath(relativePath);
 
-    return await _downloadImageFile(url, imagePath) ? imagePath : '';
+    return await _downloadImageFile(url, absolutePath) ? relativePath : '';
   }
 
   /// 下载文件

@@ -18,7 +18,6 @@ class FileService {
   late String _appPath;
   late String _imagesBasePath;
   late String _diaryImagesBasePath;
-  late String _screenshotsBasePath;
   late String _downloadsPath;
   late String _publicPath;
   late String _tempPath;
@@ -26,7 +25,6 @@ class FileService {
   // Getters
   String get imagesBasePath => _imagesBasePath;
   String get diaryImagesBasePath => _diaryImagesBasePath;
-  String get screenshotsBasePath => _screenshotsBasePath;
   String get downloadsPath => _downloadsPath;
   String get publicPath => _publicPath;
   String get tempPath => _tempPath;
@@ -39,13 +37,20 @@ class FileService {
     _appPath = (await getApplicationDocumentsDirectory()).path;
     _imagesBasePath = await createDirectory('images');
     _diaryImagesBasePath = await createDirectory('diary_images');
-    _screenshotsBasePath = await createDirectory('screenshots');
     _downloadsPath = await createDirectory('downloads');
     _publicPath = await createDirectory('public');
     _tempPath = (await getTemporaryDirectory()).path;
 
     // 确保公共静态资源目录存在
     await _initializePublicDirectory();
+
+    // 日志输出各路径
+    logger.i("应用根目录: $_appPath");
+    logger.i("图片目录: $_imagesBasePath");
+    logger.i("日记图片目录: $_diaryImagesBasePath");
+    logger.i("下载目录: $_downloadsPath");
+    logger.i("公共资源目录: $_publicPath");
+    logger.i("临时目录: $_tempPath");
   }
 
   // 初始化公共静态资源目录结构
@@ -71,25 +76,73 @@ class FileService {
     return path.join(dir.path, fileName);
   }
 
-  // 获取图片路径
+  // ========================================================================
+  // 路径生成方法 - 返回相对路径（用于存储到数据库）
+  // ========================================================================
+
+  /// 获取图片的相对路径（用于存储到数据库）
   String getImagePath(String imageName) => path.join(_imagesBasePath, imageName);
 
-  // 获取公共资源文件路径
+  /// 获取日记图片的相对路径（用于存储到数据库）
+  String getDiaryImagePath(String imageName) => path.join(_diaryImagesBasePath, imageName);
+
+  /// 获取公共资源的相对路径
   String getPublicPath(String relativePath) => path.join(_publicPath, relativePath);
 
-  // 生成截图路径
-  String getScreenshotPath() {
-    final timestamp = _getCurrentTimestamp();
-    final randomValue = _generateRandomValue();
-    return path.join(_screenshotsBasePath, "$timestamp-$randomValue.png");
-  }
-
-  // 根据URL生成文件名
+  /// 根据URL生成文件名（仅文件名，不包含路径）
   String generateFileNameByUrl(String url) {
     final extension = _getFileExtension(url);
     final timestamp = _getCurrentTimestamp();
     final randomValue = _generateRandomValue();
     return '$timestamp-$randomValue$extension';
+  }
+
+  // ========================================================================
+  // 路径转换方法 - 相对路径与绝对路径互转
+  // ========================================================================
+
+  /// 将相对路径转换为绝对路径（用于实际文件操作）
+  /// [relativePath] 相对于 appPath 的路径，如 images/xxx.jpg
+  /// 返回完整的绝对路径
+  String toAbsolutePath(String relativePath) {
+    if (relativePath.isEmpty) return relativePath;
+
+    // 如果已经是绝对路径，直接返回
+    if (path.isAbsolute(relativePath)) return relativePath;
+
+    return path.join(_appPath, relativePath);
+  }
+
+  /// 将绝对路径转换为相对路径（用于存储到数据库）
+  /// [absolutePath] 绝对路径
+  /// 返回相对于 appPath 的路径
+  String toRelativePath(String absolutePath) {
+    if (absolutePath.isEmpty) return absolutePath;
+
+    // 如果已经是相对路径，直接返回
+    if (path.isRelative(absolutePath)) return absolutePath;
+
+    // 如果路径以 appPath 开头，截取相对部分
+    if (absolutePath.startsWith(_appPath)) {
+      var relative = absolutePath.substring(_appPath.length);
+      // 移除开头的路径分隔符
+      if (relative.startsWith('/') || relative.startsWith('\\')) {
+        relative = relative.substring(1);
+      }
+      return relative;
+    }
+
+    // 尝试从已知目录名称提取相对路径
+    final knownDirs = ['images', 'diary_images', 'public', 'downloads'];
+    for (final dir in knownDirs) {
+      final idx = absolutePath.indexOf('/$dir/');
+      if (idx != -1) {
+        return absolutePath.substring(idx + 1); // 返回 dir/xxx 格式
+      }
+    }
+
+    // 无法转换，返回原路径
+    return absolutePath;
   }
 
   // 创建目录
@@ -99,12 +152,15 @@ class FileService {
     if (!await dir.exists()) {
       await dir.create(recursive: true);
     }
-    return dirPath;
+    return toRelativePath(dirPath);
   }
 
   // 保存文件到公共目录
   Future<String> saveToPublicDirectory(List<int> bytes, String relativePath) async {
-    final fullPath = getPublicPath(relativePath);
+    // getPublicPath 返回相对路径如 public/css/style.css
+    final relPath = getPublicPath(relativePath);
+    // 转换为绝对路径用于实际文件操作
+    final fullPath = toAbsolutePath(relPath);
     final file = File(fullPath);
 
     // 确保父目录存在
@@ -132,24 +188,52 @@ class FileService {
 
   // 将本地路径转换为Web路径
   String convertLocalPathToWebPath(String localPath) {
-    return localPath.replaceAll(appPath, '');
+    if (localPath.isEmpty) return localPath;
+
+    // 查找 /images/ 或 /diary_images/ 的位置，直接截取
+    final imagesIndex = localPath.indexOf('/images/');
+    if (imagesIndex != -1) {
+      return localPath.substring(imagesIndex);
+    }
+
+    final diaryImagesIndex = localPath.indexOf('/diary_images/');
+    if (diaryImagesIndex != -1) {
+      return localPath.substring(diaryImagesIndex);
+    }
+
+    return localPath;
   }
 
-  // 解析并修复存储的本地媒体路径
-  // 用于恢复后旧绝对路径无法直接访问的情况
+  // ========================================================================
+  // 路径解析方法 - 处理存储的路径，返回可用的绝对路径
+  // ========================================================================
+
+  /// 解析并修复存储的本地媒体路径
+  /// 支持相对路径（新格式）和绝对路径（旧格式，用于兼容历史数据）
+  /// 返回可用的绝对路径
   String resolveLocalMediaPath(String storedPath) {
     if (storedPath.isEmpty) return storedPath;
 
     final normalized = path.normalize(storedPath);
 
-    // 若文件本身就存在，直接返回
+    // 1. 如果是相对路径（新格式），直接拼接 appPath
+    if (path.isRelative(normalized)) {
+      final absolutePath = path.join(_appPath, normalized);
+      if (File(absolutePath).existsSync()) return absolutePath;
+
+      // 尝试添加扩展名
+      final withExt = _tryFileWithExtensions(absolutePath);
+      if (withExt != null) return withExt;
+    }
+
+    // 2. 若文件本身就存在（绝对路径且有效），直接返回
     if (File(normalized).existsSync()) return normalized;
 
-    // 尝试添加常见扩展名（处理数据库中存储的文件名没有扩展名的情况）
+    // 3. 尝试添加常见扩展名
     final triedPath = _tryFileWithExtensions(normalized);
     if (triedPath != null) return triedPath;
 
-    // 分割为通用段，查找关键目录
+    // 4. 兼容旧绝对路径：提取关键目录后的相对部分，重新拼接
     final segments = normalized.split(RegExp(r"[\\/]+"));
     final lowerSegments = segments.map((e) => e.toLowerCase()).toList();
 
@@ -158,18 +242,14 @@ class FileService {
       final rel = path.joinAll(segments.sublist(idx + 1));
       final candidate = path.join(_diaryImagesBasePath, rel);
 
-      // 先尝试原路径
       if (File(candidate).existsSync()) return candidate;
 
-      // 尝试添加扩展名
       final withExt = _tryFileWithExtensions(candidate);
       if (withExt != null) return withExt;
 
-      // 尝试仅使用文件名（可能路径结构不同）
       final baseOnly = path.join(_diaryImagesBasePath, path.basename(rel));
       if (File(baseOnly).existsSync()) return baseOnly;
 
-      // 尝试文件名+扩展名
       final baseWithExt = _tryFileWithExtensions(baseOnly);
       if (baseWithExt != null) return baseWithExt;
     }
@@ -179,37 +259,19 @@ class FileService {
       final rel = path.joinAll(segments.sublist(idx + 1));
       final candidate = path.join(_imagesBasePath, rel);
 
-      // 先尝试原路径
       if (File(candidate).existsSync()) return candidate;
 
-      // 尝试添加扩展名
       final withExt = _tryFileWithExtensions(candidate);
       if (withExt != null) return withExt;
 
       final baseOnly = path.join(_imagesBasePath, path.basename(rel));
       if (File(baseOnly).existsSync()) return baseOnly;
 
-      // 尝试文件名+扩展名
       final baseWithExt = _tryFileWithExtensions(baseOnly);
       if (baseWithExt != null) return baseWithExt;
     }
 
-    // 若原路径为相对路径，尝试拼接到两个根目录
-    if (path.isRelative(normalized)) {
-      final candidate1 = path.join(_diaryImagesBasePath, normalized);
-      if (File(candidate1).existsSync()) return candidate1;
-
-      final withExt1 = _tryFileWithExtensions(candidate1);
-      if (withExt1 != null) return withExt1;
-
-      final candidate2 = path.join(_imagesBasePath, normalized);
-      if (File(candidate2).existsSync()) return candidate2;
-
-      final withExt2 = _tryFileWithExtensions(candidate2);
-      if (withExt2 != null) return withExt2;
-    }
-
-    // 最后兜底，返回原路径（由调用方决定回退到网络或占位）
+    // 5. 最后兜底，返回原路径（由调用方决定回退到网络或占位）
     return storedPath;
   }
 
