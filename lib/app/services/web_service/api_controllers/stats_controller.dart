@@ -86,18 +86,17 @@ class StatsController {
 
       // 获取最近5篇日记
       final recentDiaries = DiaryRepository.i.findAllPaginated(1);
-      final diariesJson = recentDiaries
-          .take(5)
-          .map(
-            (d) => {
-              'id': d.id,
-              'type': 'diary',
-              'title': '日记',
-              'content': d.content.length > 100 ? '${d.content.substring(0, 100)}...' : d.content,
-              'createdAt': d.createdAt.toIso8601String(),
-            },
-          )
-          .toList();
+      final diariesJson = recentDiaries.take(5).map((d) {
+        final firstLine = d.content.split('\n').first.trim();
+        final title = firstLine.length > 50 ? '${firstLine.substring(0, 50)}...' : firstLine;
+        return {
+          'id': d.id,
+          'type': 'diary',
+          'title': title.isEmpty ? '日记' : title,
+          'content': d.content.length > 100 ? '${d.content.substring(0, 100)}...' : d.content,
+          'createdAt': d.createdAt.toIso8601String(),
+        };
+      }).toList();
 
       // 获取最近3本书
       final recentBooks = BookRepository.i.allPaginated(page: 1);
