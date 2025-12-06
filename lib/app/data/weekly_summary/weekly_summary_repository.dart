@@ -80,7 +80,17 @@ class WeeklySummaryRepository extends BaseRepository<WeeklySummary, WeeklySummar
   }
 
   /// 更新周报内容
-  void updateContent(int id, String content, int articleCount, int diaryCount, String? articleIds, String? diaryIds) {
+  void updateContent(
+    int id,
+    String content,
+    int articleCount,
+    int diaryCount,
+    String? articleIds,
+    String? diaryIds, {
+    String? viewpointIds,
+    int viewpointCount = 0,
+    String? appIdeas,
+  }) {
     final model = find(id);
     if (model != null) {
       model.content = content;
@@ -88,6 +98,9 @@ class WeeklySummaryRepository extends BaseRepository<WeeklySummary, WeeklySummar
       model.diaryCount = diaryCount;
       model.articleIds = articleIds;
       model.diaryIds = diaryIds;
+      model.viewpointIds = viewpointIds;
+      model.viewpointCount = viewpointCount;
+      model.appIdeas = appIdeas;
       model.status = WeeklySummaryStatus.completed;
       model.entity.updatedAt = DateTime.now();
       save(model);

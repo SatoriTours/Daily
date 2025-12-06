@@ -309,17 +309,26 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
 
   /// 处理内容中的特殊链接格式
   String _processContentLinks(String content) {
-    // 将 [[article:ID:标题]] 转换为 Markdown 链接
-    var processed = content.replaceAllMapped(
-      RegExp(r'\[\[article:(\d+):([^\]]+)\]\]'),
-      (match) => '[📄 ${match.group(2)}](article:${match.group(1)})',
-    );
+    // 将 [[article:ID:标题]] 或 [[article:ID]] 转换为 Markdown 链接
+    var processed = content.replaceAllMapped(RegExp(r'\[\[article:(\d+)(?::([^\]]+))?\]\]'), (match) {
+      final id = match.group(1);
+      final title = match.group(2) ?? '文章$id';
+      return '[📄 $title](article:$id)';
+    });
 
-    // 将 [[diary:ID:日期]] 转换为 Markdown 链接
-    processed = processed.replaceAllMapped(
-      RegExp(r'\[\[diary:(\d+):([^\]]+)\]\]'),
-      (match) => '[📝 ${match.group(2)}](diary:${match.group(1)})',
-    );
+    // 将 [[diary:ID:日期]] 或 [[diary:ID]] 转换为 Markdown 链接
+    processed = processed.replaceAllMapped(RegExp(r'\[\[diary:(\d+)(?::([^\]]+))?\]\]'), (match) {
+      final id = match.group(1);
+      final date = match.group(2) ?? '日记$id';
+      return '[📝 $date](diary:$id)';
+    });
+
+    // 将 [[viewpoint:ID:标题]] 或 [[viewpoint:ID]] 转换为 Markdown 链接
+    processed = processed.replaceAllMapped(RegExp(r'\[\[viewpoint:(\d+)(?::([^\]]+))?\]\]'), (match) {
+      final id = match.group(1);
+      final title = match.group(2) ?? '书摘$id';
+      return '[📖 $title](viewpoint:$id)';
+    });
 
     return processed;
   }

@@ -29,6 +29,9 @@ class WeeklySummaryModel extends EntityModel<WeeklySummary> {
     int diaryCount = 0,
     String? articleIds,
     String? diaryIds,
+    String? viewpointIds,
+    int viewpointCount = 0,
+    String? appIdeas,
     String status = 'pending',
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -43,6 +46,9 @@ class WeeklySummaryModel extends EntityModel<WeeklySummary> {
         diaryCount: diaryCount,
         articleIds: articleIds,
         diaryIds: diaryIds,
+        viewpointIds: viewpointIds,
+        viewpointCount: viewpointCount,
+        appIdeas: appIdeas,
         status: status,
         createdAt: createdAt,
         updatedAt: updatedAt,
@@ -73,6 +79,15 @@ class WeeklySummaryModel extends EntityModel<WeeklySummary> {
   String? get diaryIds => entity.diaryIds;
   set diaryIds(String? value) => entity.diaryIds = value;
 
+  String? get viewpointIds => entity.viewpointIds;
+  set viewpointIds(String? value) => entity.viewpointIds = value;
+
+  int get viewpointCount => entity.viewpointCount;
+  set viewpointCount(int value) => entity.viewpointCount = value;
+
+  String? get appIdeas => entity.appIdeas;
+  set appIdeas(String? value) => entity.appIdeas = value;
+
   WeeklySummaryStatus get status => WeeklySummaryStatus.fromValue(entity.status);
   set status(WeeklySummaryStatus value) => entity.status = value.value;
 
@@ -88,6 +103,12 @@ class WeeklySummaryModel extends EntityModel<WeeklySummary> {
   List<int> get diaryIdList {
     if (diaryIds == null || diaryIds!.isEmpty) return [];
     return diaryIds!.split(',').map((e) => int.tryParse(e) ?? 0).where((e) => e > 0).toList();
+  }
+
+  /// 获取关联的书籍观点ID列表
+  List<int> get viewpointIdList {
+    if (viewpointIds == null || viewpointIds!.isEmpty) return [];
+    return viewpointIds!.split(',').map((e) => int.tryParse(e) ?? 0).where((e) => e > 0).toList();
   }
 
   /// 获取周的显示标题

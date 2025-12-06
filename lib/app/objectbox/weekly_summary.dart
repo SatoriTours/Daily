@@ -41,6 +41,15 @@ class WeeklySummary implements BaseEntity {
   /// 关联的日记ID列表（逗号分隔）
   String? diaryIds;
 
+  /// 关联的书籍观点ID列表（逗号分隔）
+  String? viewpointIds;
+
+  /// 书籍观点数量
+  int viewpointCount;
+
+  /// 产品思考内容（用于下周融合）
+  String? appIdeas;
+
   /// 总结状态：pending, generating, completed, failed
   String status;
 
@@ -53,6 +62,9 @@ class WeeklySummary implements BaseEntity {
     this.diaryCount = 0,
     this.articleIds,
     this.diaryIds,
+    this.viewpointIds,
+    this.viewpointCount = 0,
+    this.appIdeas,
     this.status = 'pending',
     DateTime? createdAt,
     DateTime? updatedAt,

@@ -500,7 +500,7 @@
     },
     {
       "id": "12:4216195315971151498",
-      "lastPropertyId": "11:8821229632329301129",
+      "lastPropertyId": "14:1484743167487950602",
       "name": "WeeklySummary",
       "properties": [
         {
@@ -557,6 +557,21 @@
         {
           "id": "11:8821229632329301129",
           "name": "status",
+          "type": 9
+        },
+        {
+          "id": "12:3084741523290645716",
+          "name": "viewpointIds",
+          "type": 9
+        },
+        {
+          "id": "13:6447251200187275758",
+          "name": "viewpointCount",
+          "type": 6
+        },
+        {
+          "id": "14:1484743167487950602",
+          "name": "appIdeas",
           "type": 9
         }
       ],

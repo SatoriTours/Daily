@@ -74,13 +74,17 @@ class WeeklySummaryService {
     WeeklySummaryRepository.i.updateStatus(summary.id, WeeklySummaryStatus.generating);
 
     try {
-      // 获取该周的文章和日记
+      // 获取该周的文章、日记和书籍观点
       final articles = _getArticlesInRange(weekStart, weekEnd);
       final diaries = _getDiariesInRange(weekStart, weekEnd);
+      final viewpoints = _getViewpointsInRange(weekStart, weekEnd);
 
-      logger.i('[周报服务] 找到 ${articles.length} 篇文章, ${diaries.length} 篇日记');
+      // 获取上周的产品思考
+      final previousAppIdeas = _getPreviousAppIdeas();
 
-      if (articles.isEmpty && diaries.isEmpty) {
+      logger.i('[周报服务] 找到 ${articles.length} 篇文章, ${diaries.length} 篇日记, ${viewpoints.length} 个书摘');
+
+      if (articles.isEmpty && diaries.isEmpty && viewpoints.isEmpty) {
         // 没有内容，标记为完成但内容为空
         WeeklySummaryRepository.i.updateContent(
           summary.id,
@@ -94,7 +98,14 @@ class WeeklySummaryService {
       }
 
       // 准备AI输入
-      final prompt = _buildSummaryPrompt(articles, diaries, weekStart, weekEnd);
+      final prompt = buildProductionSummaryPrompt(
+        articles,
+        diaries,
+        weekStart,
+        weekEnd,
+        viewpoints: viewpoints,
+        previousAppIdeas: previousAppIdeas,
+      );
 
       // 调用AI生成总结
       final aiResult = await AiService.i.getCompletion(prompt);
@@ -105,9 +116,13 @@ class WeeklySummaryService {
         return null;
       }
 
+      // 提取产品灵感部分用于下周融合
+      final appIdeas = _extractAppIdeas(aiResult);
+
       // 保存结果
       final articleIds = articles.map((a) => a.id.toString()).join(',');
       final diaryIds = diaries.map((d) => d.id.toString()).join(',');
+      final viewpointIds = viewpoints.map((v) => v.id.toString()).join(',');
 
       WeeklySummaryRepository.i.updateContent(
         summary.id,
@@ -116,6 +131,9 @@ class WeeklySummaryService {
         diaries.length,
         articleIds,
         diaryIds,
+        viewpointIds: viewpointIds,
+        viewpointCount: viewpoints.length,
+        appIdeas: appIdeas,
       );
 
       logger.i('[周报服务] 周报生成完成');
@@ -204,19 +222,28 @@ class WeeklySummaryService {
     WeeklySummaryRepository.i.updateStatus(summary.id, WeeklySummaryStatus.generating);
 
     try {
-      // 获取最近的文章和日记
+      // 获取最近的文章、日记和书籍观点
       final articles = _getRecentArticles();
       final diaries = _getRecentDiaries();
+      final viewpoints = _getRecentViewpoints();
 
-      logger.i('[周报服务-调试] 找到 ${articles.length} 篇文章, ${diaries.length} 篇日记');
+      // 获取上周的产品思考
+      final previousAppIdeas = _getPreviousAppIdeas();
 
-      if (articles.isEmpty && diaries.isEmpty) {
+      logger.i('[周报服务-调试] 找到 ${articles.length} 篇文章, ${diaries.length} 篇日记, ${viewpoints.length} 个书摘');
+
+      if (articles.isEmpty && diaries.isEmpty && viewpoints.isEmpty) {
         WeeklySummaryRepository.i.updateContent(summary.id, _generateDebugEmptySummary(), 0, 0, null, null);
         return WeeklySummaryRepository.i.find(summary.id);
       }
 
       // 准备AI输入
-      final prompt = _buildDebugSummaryPrompt(articles, diaries);
+      final prompt = buildDebugSummaryPrompt(
+        articles,
+        diaries,
+        viewpoints: viewpoints,
+        previousAppIdeas: previousAppIdeas,
+      );
 
       // 调用AI生成总结
       final aiResult = await AiService.i.getCompletion(prompt);
@@ -227,9 +254,13 @@ class WeeklySummaryService {
         return null;
       }
 
+      // 提取产品灵感部分用于下周融合
+      final appIdeas = _extractAppIdeas(aiResult);
+
       // 保存结果
       final articleIds = articles.map((a) => a.id.toString()).join(',');
       final diaryIds = diaries.map((d) => d.id.toString()).join(',');
+      final viewpointIds = viewpoints.map((v) => v.id.toString()).join(',');
 
       WeeklySummaryRepository.i.updateContent(
         summary.id,
@@ -238,6 +269,9 @@ class WeeklySummaryService {
         diaries.length,
         articleIds,
         diaryIds,
+        viewpointIds: viewpointIds,
+        viewpointCount: viewpoints.length,
+        appIdeas: appIdeas,
       );
 
       logger.i('[周报服务-调试] 调试周报生成完成');
@@ -264,9 +298,32 @@ class WeeklySummaryService {
     return allDiaries.take(_debugDataLimit).toList();
   }
 
-  /// 构建调试模式的AI提示词
-  String _buildDebugSummaryPrompt(List<ArticleModel> articles, List<DiaryModel> diaries) {
-    return buildDebugSummaryPrompt(articles, diaries);
+  /// 获取最近的书籍观点
+  List<BookViewpointModel> _getRecentViewpoints() {
+    final allViewpoints = BookViewpointRepository.i.all();
+    // 取前N条
+    return allViewpoints.take(_debugDataLimit).toList();
+  }
+
+  /// 获取上周的产品思考内容
+  String? _getPreviousAppIdeas() {
+    // 获取最近一个已完成的周报
+    final recentSummaries = WeeklySummaryRepository.i.findRecent(2);
+    if (recentSummaries.length < 2) return null;
+
+    // 返回上一个周报的产品思考
+    return recentSummaries[1].appIdeas;
+  }
+
+  /// 从 AI 结果中提取产品灵感部分
+  String? _extractAppIdeas(String aiResult) {
+    // 尝试提取"产品灵感"部分的内容
+    final regex = RegExp(r'###?\s*💡?\s*产品灵感([\s\S]*?)(?=###|---|$)', multiLine: true);
+    final match = regex.firstMatch(aiResult);
+    if (match != null) {
+      return match.group(1)?.trim();
+    }
+    return null;
   }
 
   /// 调试模式空周报
@@ -332,14 +389,13 @@ class WeeklySummaryService {
     }).toList();
   }
 
-  /// 构建AI总结提示词
-  String _buildSummaryPrompt(
-    List<ArticleModel> articles,
-    List<DiaryModel> diaries,
-    DateTime weekStart,
-    DateTime weekEnd,
-  ) {
-    return buildProductionSummaryPrompt(articles, diaries, weekStart, weekEnd);
+  /// 获取指定日期范围内的书籍观点
+  List<BookViewpointModel> _getViewpointsInRange(DateTime start, DateTime end) {
+    final allViewpoints = BookViewpointRepository.i.all();
+    return allViewpoints.where((vp) {
+      final createdAt = vp.createdAt;
+      return createdAt.isAfter(start.subtract(Duration(seconds: 1))) && createdAt.isBefore(end.add(Duration(days: 1)));
+    }).toList();
   }
 
   /// 生成空周报内容

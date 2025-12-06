@@ -618,7 +618,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(12, 4216195315971151498),
     name: 'WeeklySummary',
-    lastPropertyId: const obx_int.IdUid(11, 8821229632329301129),
+    lastPropertyId: const obx_int.IdUid(14, 1484743167487950602),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -684,6 +684,24 @@ final _entities = <obx_int.ModelEntity>[
       obx_int.ModelProperty(
         id: const obx_int.IdUid(11, 8821229632329301129),
         name: 'status',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(12, 3084741523290645716),
+        name: 'viewpointIds',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(13, 6447251200187275758),
+        name: 'viewpointCount',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(14, 1484743167487950602),
+        name: 'appIdeas',
         type: 9,
         flags: 0,
       ),
@@ -1540,7 +1558,13 @@ obx_int.ModelDefinition getObjectBoxModel() {
             ? null
             : fbb.writeString(object.diaryIds!);
         final statusOffset = fbb.writeString(object.status);
-        fbb.startTable(12);
+        final viewpointIdsOffset = object.viewpointIds == null
+            ? null
+            : fbb.writeString(object.viewpointIds!);
+        final appIdeasOffset = object.appIdeas == null
+            ? null
+            : fbb.writeString(object.appIdeas!);
+        fbb.startTable(15);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.createdAt.millisecondsSinceEpoch);
         fbb.addInt64(2, object.updatedAt.millisecondsSinceEpoch);
@@ -1552,6 +1576,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(8, articleIdsOffset);
         fbb.addOffset(9, diaryIdsOffset);
         fbb.addOffset(10, statusOffset);
+        fbb.addOffset(11, viewpointIdsOffset);
+        fbb.addInt64(12, object.viewpointCount);
+        fbb.addOffset(13, appIdeasOffset);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1591,6 +1618,18 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final diaryIdsParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 22);
+        final viewpointIdsParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 26);
+        final viewpointCountParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          28,
+          0,
+        );
+        final appIdeasParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 30);
         final statusParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 24, '');
@@ -1609,6 +1648,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
           diaryCount: diaryCountParam,
           articleIds: articleIdsParam,
           diaryIds: diaryIdsParam,
+          viewpointIds: viewpointIdsParam,
+          viewpointCount: viewpointCountParam,
+          appIdeas: appIdeasParam,
           status: statusParam,
           createdAt: createdAtParam,
           updatedAt: updatedAtParam,
@@ -2086,5 +2128,20 @@ class WeeklySummary_ {
   /// See [WeeklySummary.status].
   static final status = obx.QueryStringProperty<WeeklySummary>(
     _entities[10].properties[10],
+  );
+
+  /// See [WeeklySummary.viewpointIds].
+  static final viewpointIds = obx.QueryStringProperty<WeeklySummary>(
+    _entities[10].properties[11],
+  );
+
+  /// See [WeeklySummary.viewpointCount].
+  static final viewpointCount = obx.QueryIntegerProperty<WeeklySummary>(
+    _entities[10].properties[12],
+  );
+
+  /// See [WeeklySummary.appIdeas].
+  static final appIdeas = obx.QueryStringProperty<WeeklySummary>(
+    _entities[10].properties[13],
   );
 }
