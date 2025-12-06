@@ -97,12 +97,17 @@ tooltip:
   clear: 清除
   search: 搜索
 
+# 标签
+label:
+  password: 密码
+
 # 输入框提示
 hint:
   search_articles: 搜索文章...
   search_content: 记录现在，畅想未来...
   select_first: 请先选择需要转换的文本
   enter_new_tag: 输入新标签...
+  enter_server_password: 请输入服务器密码
   title: 请输入标题
 
 # 文章模块
@@ -184,6 +189,7 @@ setting:
   restart_service: 重启服务
   restart_service_subtitle: 重新启动 Web 服务器
   password_tip: 密码长度为 6-20 位
+  network_tip: 确保您的设备与访问端在同一局域网内，通过浏览器访问上方地址即可管理您的数据。
 
 # 应用描述
 app:

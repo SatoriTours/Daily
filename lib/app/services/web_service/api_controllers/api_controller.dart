@@ -5,7 +5,9 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/web_service/api_controllers/auth_controller.dart';
 import 'package:daily_satori/app/services/web_service/api_controllers/article_controller.dart';
+import 'package:daily_satori/app/services/web_service/api_controllers/book_controller.dart';
 import 'package:daily_satori/app/services/web_service/api_controllers/diary_controller.dart';
+import 'package:daily_satori/app/services/web_service/api_controllers/stats_controller.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/response_utils.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/auth_middleware.dart';
 import 'package:path/path.dart' as path;
@@ -24,6 +26,12 @@ class ApiController {
 
     // 日记API
     router.mount('/diary', DiaryController().router.call);
+
+    // 书籍API
+    router.mount('/books', BookController().router.call);
+
+    // 统计API
+    router.mount('/stats', StatsController().router.call);
 
     // 文件上传API
     final filePipeline = const Pipeline().addMiddleware(AuthMiddleware.requireAuth());

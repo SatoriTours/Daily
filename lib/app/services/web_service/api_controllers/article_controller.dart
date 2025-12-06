@@ -290,7 +290,7 @@ class ArticleController {
       'url': article.url,
       'isFavorite': article.isFavorite,
       'comment': article.comment,
-      'status': article.status,
+      'status': article.status.value,
       'coverImage': FileService.i.convertLocalPathToWebPath(article.coverImage ?? ''),
       'coverImageUrl': article.coverImageUrl,
       'pubDate': article.pubDate?.toIso8601String(),

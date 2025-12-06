@@ -565,6 +565,7 @@ class SettingsView extends GetView<SettingsController> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
         contentPadding: const EdgeInsets.fromLTRB(Dimensions.spacingL, Dimensions.spacingM + 4, Dimensions.spacingL, 0),
         actionsPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM),
+        actionsAlignment: MainAxisAlignment.end,
         title: _buildPasswordDialogTitle(),
         content: _buildPasswordDialogContent(context, passwordController, isPasswordVisible, colorScheme, textTheme),
         actions: _buildPasswordDialogActions(context, passwordController),
@@ -661,8 +662,7 @@ class SettingsView extends GetView<SettingsController> {
   /// 构建密码输入框装饰
   InputDecoration _buildPasswordInputDecoration(RxBool isPasswordVisible, ColorScheme colorScheme) {
     return InputDecoration(
-      labelText: 'label.password',
-      hintText: 'hint.enter_server_password',
+      hintText: 'hint.enter_server_password'.t,
       prefixIcon: const Icon(Icons.lock_outline_rounded),
       suffixIcon: _buildPasswordVisibilityToggle(isPasswordVisible),
       border: _buildInputBorder(colorScheme.outline, 1),
@@ -695,18 +695,34 @@ class SettingsView extends GetView<SettingsController> {
   /// 构建密码对话框操作按钮
   List<Widget> _buildPasswordDialogActions(BuildContext context, TextEditingController passwordController) {
     return [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        style: ButtonStyles.getTextStyle(context),
-        child: Text('button.cancel'.t),
-      ),
-      ElevatedButton(
-        onPressed: () {
-          Navigator.pop(context);
-          controller.saveWebServerPassword(passwordController.text);
-        },
-        style: ButtonStyles.getPrimaryStyle(context),
-        child: Text('button.save'.t),
+      SizedBox(
+        width: double.infinity,
+        child: Row(
+          children: [
+            // 取消按钮占 30%
+            Expanded(
+              flex: 3,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: ButtonStyles.getOutlinedStyle(context),
+                child: Text('button.cancel'.t),
+              ),
+            ),
+            Dimensions.horizontalSpacerS,
+            // 保存按钮占 70%
+            Expanded(
+              flex: 7,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  controller.saveWebServerPassword(passwordController.text);
+                },
+                style: ButtonStyles.getPrimaryStyle(context),
+                child: Text('button.save'.t),
+              ),
+            ),
+          ],
+        ),
       ),
     ];
   }

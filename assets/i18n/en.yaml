@@ -97,12 +97,17 @@ tooltip:
   clear: Clear
   search: Search
 
+# Labels
+label:
+  password: Password
+
 # Input field hints
 hint:
   search_articles: Search articles...
   search_content: Record the present, imagine the future...
   select_first: Please select the text to convert first
   enter_new_tag: Enter new tag...
+  enter_server_password: Enter server password
   title: Please enter title
 
 # Article module
@@ -184,6 +189,7 @@ setting:
   restart_service: Restart Service
   restart_service_subtitle: Restart web server
   password_tip: Password length should be 6-20 characters
+  network_tip: Ensure your device and access point are on the same local network. Access the address above via browser to manage your data.
 
 # App description
 app:

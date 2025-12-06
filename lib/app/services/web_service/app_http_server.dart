@@ -77,7 +77,11 @@ class AppHttpServer {
     // 内置静态资源
     _router.mount('/assets', _assetHandler);
 
-    logger.i('静态资源路由已注册: /images, /assets');
+    // 管理后台页面
+    _router.get('/admin', _adminHandler);
+    _router.get('/admin/', _adminHandler);
+
+    logger.i('静态资源路由已注册: /images, /assets, /admin');
   }
 
   /// 处理内置静态资源
@@ -93,6 +97,17 @@ class AppHttpServer {
     } catch (e) {
       logger.e('加载内置资源失败: $e');
       return shelf.Response.notFound('资源不存在');
+    }
+  }
+
+  /// 管理后台页面处理
+  Future<shelf.Response> _adminHandler(shelf.Request request) async {
+    try {
+      final data = await rootBundle.load('assets/website/admin.html');
+      return shelf.Response.ok(data.buffer.asUint8List(), headers: {'Content-Type': 'text/html; charset=utf-8'});
+    } catch (e) {
+      logger.e('加载管理后台页面失败: $e');
+      return shelf.Response.notFound('管理后台页面不存在');
     }
   }
 
