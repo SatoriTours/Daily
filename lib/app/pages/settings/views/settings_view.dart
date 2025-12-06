@@ -408,7 +408,7 @@ class SettingsView extends GetView<SettingsController> {
   Widget _buildHttpAddressCard(BuildContext context, Color primaryColor, TextTheme textTheme) {
     return _buildInfoCard(
       context: context,
-      title: 'setting.http_server_address',
+      title: 'setting.http_server_address'.t,
       content: Obx(
         () => SelectableText(
           controller.webServiceAddress.value,
@@ -421,7 +421,7 @@ class SettingsView extends GetView<SettingsController> {
         icon: Icon(Icons.copy_rounded, size: 20, color: primaryColor),
         onPressed: () {
           controller.copyWebServiceAddress();
-          UIUtils.showSuccess('message.copy_success');
+          UIUtils.showSuccess('message.copy_success'.t);
         },
         tooltip: 'button.copy_address'.t,
       ),
@@ -432,7 +432,7 @@ class SettingsView extends GetView<SettingsController> {
   Widget _buildWebSocketAddressCard(BuildContext context, Color primaryColor, TextTheme textTheme) {
     return _buildInfoCard(
       context: context,
-      title: 'setting.websocket_access',
+      title: 'setting.websocket_access'.t,
       content: Obx(
         () => SelectableText(
           controller.webAccessUrl.value,
@@ -445,7 +445,7 @@ class SettingsView extends GetView<SettingsController> {
         icon: Icon(Icons.copy_rounded, size: 20, color: primaryColor),
         onPressed: () {
           controller.copyWebAccessUrl();
-          UIUtils.showSuccess('message.copy_success');
+          UIUtils.showSuccess('message.copy_success'.t);
         },
         tooltip: 'button.copy_address'.t,
       ),
@@ -456,7 +456,7 @@ class SettingsView extends GetView<SettingsController> {
   Widget _buildConnectionStatusCard(BuildContext context, TextTheme textTheme) {
     return _buildInfoCard(
       context: context,
-      title: 'setting.connection_status',
+      title: 'setting.connection_status'.t,
       content: Obx(() => _buildConnectionStatusIndicator(textTheme)),
       icon: Icons.network_check_rounded,
       iconColor: Colors.green,

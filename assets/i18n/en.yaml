@@ -172,6 +172,8 @@ dialog:
 setting:
   web_server: Web Server
   web_server_address: HTTP Server Address
+  http_server_address: HTTP Server Address
+  websocket_access: WebSocket Remote Access
   web_server_subtitle: Configure remote access and proxy settings
   websocket_remote: WebSocket Remote Access
   connection_status: Connection Status

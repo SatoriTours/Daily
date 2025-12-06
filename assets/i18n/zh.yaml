@@ -172,6 +172,8 @@ dialog:
 setting:
   web_server: Web服务器
   web_server_address: HTTP服务器地址
+  http_server_address: HTTP服务器地址
+  websocket_access: WebSocket远程访问
   web_server_subtitle: 配置远程访问与代理设置
   websocket_remote: WebSocket远程访问
   connection_status: 连接状态
