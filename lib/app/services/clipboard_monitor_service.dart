@@ -37,6 +37,8 @@ class ClipboardMonitorService with WidgetsBindingObserver {
   @override
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed) {
+      // 延迟一小段时间再检查，确保系统剪贴板已同步
+      await Future.delayed(const Duration(milliseconds: 300));
       await _checkClipboardSafe(source: 'resumed');
     }
   }

@@ -271,6 +271,9 @@ class ShareDialogController extends BaseController {
 
   /// 点击取消按钮
   void backToPreviousStep() {
+    // 重置剪贴板已处理状态，允许检测新的 URL
+    ClipboardUtils.resetProcessedState();
+
     if (isUpdate.value) {
       // 更新模式：返回文章详情页
       _navigateToDetail();

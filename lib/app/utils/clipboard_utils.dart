@@ -15,6 +15,14 @@ class ClipboardUtils {
     _lastProcessedText = url;
   }
 
+  /// 重置已处理状态，允许检测新的 URL
+  ///
+  /// 在文章保存成功后调用，这样用户复制新 URL 时可以被检测到
+  static void resetProcessedState() {
+    _lastProcessedText = '';
+    logger.d('[ClipboardUtils] 已重置处理状态');
+  }
+
   /// 获取剪贴板文本
   static Future<String> getText() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
