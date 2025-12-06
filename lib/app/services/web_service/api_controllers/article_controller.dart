@@ -280,13 +280,31 @@ class ArticleController {
     }
   }
 
+  /// 转换 Markdown 内容中的图片路径为 Web 可访问路径
+  String _convertContentImages(String content) {
+    if (content.isEmpty) return content;
+
+    // 匹配 Markdown 图片格式: ![alt](path)
+    final imgRegex = RegExp(r'!\[([^\]]*)\]\(([^)]+)\)');
+
+    return content.replaceAllMapped(imgRegex, (match) {
+      final alt = match.group(1) ?? '';
+      final path = match.group(2) ?? '';
+      final convertedPath = FileService.i.convertLocalPathToWebPath(path);
+      return '![$alt]($convertedPath)';
+    });
+  }
+
   /// 将文章模型转换为JSON格式
   Map<String, dynamic> _articleToJson(ArticleModel article) {
+    final content = article.showContent();
+    final aiMarkdownContent = article.aiMarkdownContent ?? '';
+
     return {
       'id': article.id,
       'title': article.showTitle(),
-      'content': article.showContent(),
-      'aiMarkdownContent': article.aiMarkdownContent,
+      'content': _convertContentImages(content),
+      'aiMarkdownContent': _convertContentImages(aiMarkdownContent),
       'url': article.url,
       'isFavorite': article.isFavorite,
       'comment': article.comment,

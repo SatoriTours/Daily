@@ -279,11 +279,26 @@ class DiaryController {
     }
   }
 
+  /// 转换 Markdown 内容中的图片路径为 Web 可访问路径
+  String _convertContentImages(String content) {
+    if (content.isEmpty) return content;
+
+    // 匹配 Markdown 图片格式: ![alt](path)
+    final imgRegex = RegExp(r'!\[([^\]]*)\]\(([^)]+)\)');
+
+    return content.replaceAllMapped(imgRegex, (match) {
+      final alt = match.group(1) ?? '';
+      final path = match.group(2) ?? '';
+      final convertedPath = FileService.i.convertLocalPathToWebPath(path);
+      return '![$alt]($convertedPath)';
+    });
+  }
+
   /// 将日记模型转换为JSON格式
   Map<String, dynamic> _diaryToJson(DiaryModel diary) {
     return {
       'id': diary.id,
-      'content': diary.content,
+      'content': _convertContentImages(diary.content),
       'tags': diary.tags,
       'mood': diary.mood,
       'images': diary.imagesList.map((e) => FileService.i.convertLocalPathToWebPath(e)).toList(),

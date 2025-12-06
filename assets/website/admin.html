@@ -1136,6 +1136,111 @@
             font-weight: 500;
         }
 
+        /* 日记图片预览 - 卡片内 */
+        .diary-images-preview {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .diary-images-preview img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid var(--border-color);
+            transition: all 0.2s;
+        }
+
+        .diary-images-preview img:hover {
+            transform: scale(1.05);
+            border-color: var(--primary-color);
+        }
+
+        .diary-images-preview .more-images {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        /* 日记详情图片画廊 */
+        .diary-images-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .diary-images-gallery img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .diary-images-gallery img:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        /* 图片查看器弹窗 */
+        .image-viewer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-out;
+        }
+
+        .image-viewer-overlay img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .image-viewer-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .image-viewer-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
         .diary-actions {
             display: flex;
             gap: 8px;
@@ -1684,11 +1789,20 @@
                                             <p class="diary-excerpt">
                                                 {{ truncate(diary.content, 120) }}
                                             </p>
+                                            <!-- 日记图片预览 -->
+                                            <div v-if="diary.images && diary.images.length > 0" class="diary-images-preview" @click.stop>
+                                                <img v-for="(img, index) in diary.images.slice(0, 3)" :key="index" :src="img" @click="openImageViewer(img)" :alt="'图片 ' + (index + 1)">
+                                                <div v-if="diary.images.length > 3" class="more-images">+{{ diary.images.length - 3 }}</div>
+                                            </div>
                                             <div class="diary-footer">
                                                 <div class="diary-meta">
                                                     <span>
                                                         <i class="bi bi-calendar3"></i>
                                                         {{ formatDate(diary.createdAt) }}
+                                                    </span>
+                                                    <span v-if="diary.images && diary.images.length > 0">
+                                                        <i class="bi bi-image"></i>
+                                                        {{ diary.images.length }} 张图片
                                                     </span>
                                                 </div>
                                             </div>
@@ -1838,8 +1952,15 @@
                             <span v-if="detailItem.updatedAt && detailItem.updatedAt !== detailItem.createdAt">
                                 <i class="bi bi-pencil"></i> 更新于 {{ formatDate(detailItem.updatedAt) }}
                             </span>
+                            <span v-if="detailItem.images && detailItem.images.length > 0">
+                                <i class="bi bi-image"></i> {{ detailItem.images.length }} 张图片
+                            </span>
                         </div>
                         <div class="detail-modal-body markdown-body" v-html="formatContent(detailItem.content || '')"></div>
+                        <!-- 日记图片画廊 -->
+                        <div v-if="detailItem.images && detailItem.images.length > 0" class="diary-images-gallery">
+                            <img v-for="(img, index) in detailItem.images" :key="index" :src="img" @click="openImageViewer(img)" :alt="'图片 ' + (index + 1)">
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1954,6 +2075,14 @@
                 {{ toast.message }}
             </div>
         </div>
+
+        <!-- 图片查看器弹窗 -->
+        <div v-if="showImageViewer" class="image-viewer-overlay" @click="closeImageViewer">
+            <button class="image-viewer-close" @click="closeImageViewer">
+                <i class="bi bi-x-lg"></i>
+            </button>
+            <img :src="currentViewImage" @click.stop alt="图片预览">
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.min.js"></script>
@@ -2030,6 +2159,10 @@
                 // 详情弹窗
                 const showDiaryDetailModal = ref(false);
                 const showBookDetailModal = ref(false);
+
+                // 图片查看器
+                const showImageViewer = ref(false);
+                const currentViewImage = ref('');
 
                 // 详情
                 const detailItem = ref({});
@@ -2307,6 +2440,17 @@
                     showDeleteModal.value = true;
                 };
 
+                // 图片查看器函数
+                const openImageViewer = (imageUrl) => {
+                    currentViewImage.value = imageUrl;
+                    showImageViewer.value = true;
+                };
+
+                const closeImageViewer = () => {
+                    showImageViewer.value = false;
+                    currentViewImage.value = '';
+                };
+
                 // 获取日记标题
                 const getDiaryTitle = (content) => {
                     if (!content) return '无标题';
@@ -2480,6 +2624,7 @@
                     books, booksLoading, bookSearchQuery, bookPagination,
                     detailItem, detailType, showDetailModal, detailLoading,
                     showDiaryDetailModal, showBookDetailModal,
+                    showImageViewer, currentViewImage,
                     submitUrl, submitting,
                     showDeleteModal, showSubmitModal, toasts,
                     login, logout, navigate, goBack,
@@ -2489,6 +2634,7 @@
                     viewArticle, viewDiary, viewBook,
                     confirmDelete, confirmDeleteFromDetail, executeDelete,
                     confirmDeleteFromDiaryDetail, confirmDeleteFromBookDetail,
+                    openImageViewer, closeImageViewer,
                     getDiaryTitle,
                     submitArticle,
                     formatDate, truncate, formatContent,
