@@ -751,6 +751,246 @@
             }
         }
 
+        /* 日记卡片样式 */
+        .diary-card {
+            display: flex;
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .diary-card:hover {
+            background: #f8f9fa;
+        }
+
+        .diary-card:last-child {
+            border-bottom: none;
+        }
+
+        .diary-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            overflow: hidden;
+            flex-shrink: 0;
+            margin-right: 16px;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #388e3c;
+            font-size: 20px;
+        }
+
+        .diary-body {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .diary-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .diary-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .diary-title:hover {
+            color: var(--primary-color);
+        }
+
+        .diary-excerpt {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 10px;
+            flex: 1;
+        }
+
+        .diary-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #999;
+        }
+
+        .diary-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .diary-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .diary-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .diary-actions .action-btn {
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .diary-card:hover .diary-actions .action-btn {
+            opacity: 1;
+        }
+
+        /* 书籍卡片样式 */
+        .book-card {
+            display: flex;
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .book-card:hover {
+            background: #f8f9fa;
+        }
+
+        .book-card:last-child {
+            border-bottom: none;
+        }
+
+        .book-cover {
+            width: 60px;
+            height: 80px;
+            border-radius: 6px;
+            overflow: hidden;
+            flex-shrink: 0;
+            margin-right: 16px;
+            background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .book-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .book-cover .no-cover {
+            color: #7b1fa2;
+            font-size: 24px;
+        }
+
+        .book-body {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .book-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .book-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .book-title:hover {
+            color: var(--primary-color);
+        }
+
+        .book-author {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .book-description {
+            font-size: 14px;
+            color: #888;
+            line-height: 1.6;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 10px;
+            flex: 1;
+        }
+
+        .book-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #999;
+        }
+
+        .book-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .book-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .book-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .book-actions .action-btn {
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .book-card:hover .book-actions .action-btn {
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .diary-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+            .book-cover {
+                width: 50px;
+                height: 66px;
+            }
+            .diary-excerpt,
+            .book-description {
+                display: none;
+            }
+        }
+
         /* 详情弹窗样式 */
         .detail-modal {
             width: 90%;
@@ -1033,9 +1273,11 @@
                         <div class="data-card">
                             <div class="data-card-header">
                                 <h3>日记列表</h3>
-                                <div class="search-box">
-                                    <input type="text" v-model="diarySearchQuery" placeholder="搜索日记..." @keyup.enter="searchDiaries">
-                                    <button class="btn btn-primary" @click="searchDiaries">搜索</button>
+                                <div class="header-actions-right">
+                                    <div class="search-box">
+                                        <input type="text" v-model="diarySearchQuery" placeholder="搜索日记..." @keyup.enter="searchDiaries">
+                                        <button class="btn btn-primary" @click="searchDiaries">搜索</button>
+                                    </div>
                                 </div>
                             </div>
                             <div v-if="diariesLoading" class="loading">
@@ -1047,31 +1289,31 @@
                                     <i class="bi bi-journal"></i>
                                     <p>暂无日记</p>
                                 </div>
-                                <table v-else class="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>内容</th>
-                                            <th>创建时间</th>
-                                            <th>操作</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="diary in diaries" :key="diary.id">
-                                            <td>{{ diary.id }}</td>
-                                            <td class="title-cell">{{ truncate(diary.content, 80) }}</td>
-                                            <td>{{ formatDate(diary.createdAt) }}</td>
-                                            <td>
-                                                <button class="action-btn view" @click="viewDiary(diary)">
-                                                    <i class="bi bi-eye"></i> 查看
-                                                </button>
-                                                <button class="action-btn delete" @click="confirmDelete('diary', diary.id)">
-                                                    <i class="bi bi-trash"></i> 删除
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                <div v-else class="article-feed">
+                                    <div class="diary-card" v-for="diary in diaries" :key="diary.id" @click="viewDiary(diary)">
+                                        <div class="diary-icon">
+                                            <i class="bi bi-journal-text"></i>
+                                        </div>
+                                        <div class="diary-body">
+                                            <div class="diary-header">
+                                                <h4 class="diary-title">
+                                                    {{ diary.title || getDiaryTitle(diary.content) }}
+                                                </h4>
+                                            </div>
+                                            <p class="diary-excerpt">
+                                                {{ truncate(diary.content, 120) }}
+                                            </p>
+                                            <div class="diary-footer">
+                                                <div class="diary-meta">
+                                                    <span>
+                                                        <i class="bi bi-calendar3"></i>
+                                                        {{ formatDate(diary.createdAt) }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="pagination-wrapper">
                                     <div class="pagination-info">
                                         共 {{ diaryPagination.totalItems }} 条，第 {{ diaryPagination.page }} / {{ diaryPagination.totalPages }} 页
@@ -1092,6 +1334,12 @@
                         <div class="data-card">
                             <div class="data-card-header">
                                 <h3>书籍列表</h3>
+                                <div class="header-actions-right">
+                                    <div class="search-box">
+                                        <input type="text" v-model="bookSearchQuery" placeholder="搜索书籍..." @keyup.enter="searchBooks">
+                                        <button class="btn btn-primary" @click="searchBooks">搜索</button>
+                                    </div>
+                                </div>
                             </div>
                             <div v-if="booksLoading" class="loading">
                                 <div class="spinner"></div>
@@ -1102,35 +1350,36 @@
                                     <i class="bi bi-book"></i>
                                     <p>暂无书籍</p>
                                 </div>
-                                <table v-else class="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>书名</th>
-                                            <th>作者</th>
-                                            <th>分类</th>
-                                            <th>创建时间</th>
-                                            <th>操作</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="book in books" :key="book.id">
-                                            <td>{{ book.id }}</td>
-                                            <td class="title-cell">{{ book.title }}</td>
-                                            <td>{{ book.author }}</td>
-                                            <td><span class="tag">{{ book.category || '未分类' }}</span></td>
-                                            <td>{{ formatDate(book.createdAt) }}</td>
-                                            <td>
-                                                <button class="action-btn view" @click="viewBook(book)">
-                                                    <i class="bi bi-eye"></i> 查看
-                                                </button>
-                                                <button class="action-btn delete" @click="confirmDelete('book', book.id)">
-                                                    <i class="bi bi-trash"></i> 删除
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                <div v-else class="article-feed">
+                                    <div class="book-card" v-for="book in books" :key="book.id" @click="viewBook(book)">
+                                        <div class="book-cover">
+                                            <img v-if="book.coverImage" :src="book.coverImage" :alt="book.title">
+                                            <i v-else class="bi bi-book no-cover"></i>
+                                        </div>
+                                        <div class="book-body">
+                                            <div class="book-header">
+                                                <h4 class="book-title">
+                                                    {{ book.title || '未知书名' }}
+                                                </h4>
+                                            </div>
+                                            <div class="book-author" v-if="book.author">
+                                                <i class="bi bi-person"></i> {{ book.author }}
+                                            </div>
+                                            <p class="book-description" v-if="book.description">
+                                                {{ truncate(book.description, 100) }}
+                                            </p>
+                                            <div class="book-footer">
+                                                <div class="book-meta">
+                                                    <span>
+                                                        <i class="bi bi-calendar3"></i>
+                                                        {{ formatDate(book.createdAt) }}
+                                                    </span>
+                                                    <span v-if="book.category" class="tag">{{ book.category }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="pagination-wrapper">
                                     <div class="pagination-info">
                                         共 {{ bookPagination.totalItems }} 条，第 {{ bookPagination.page }} / {{ bookPagination.totalPages }} 页
@@ -1184,6 +1433,89 @@
                     </div>
                     <div class="right-actions">
                         <button class="btn btn-secondary" @click="showDetailModal = false">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日记详情弹窗 -->
+        <div v-if="showDiaryDetailModal" class="modal-overlay" @click.self="showDiaryDetailModal = false">
+            <div class="modal-content detail-modal">
+                <div class="modal-header">
+                    <h3><i class="bi bi-journal-text"></i> 日记详情</h3>
+                    <button class="modal-close" @click="showDiaryDetailModal = false">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="detailLoading" class="loading">
+                        <div class="spinner"></div>
+                        <span>加载中...</span>
+                    </div>
+                    <div v-else class="detail-modal-content">
+                        <h2 class="detail-modal-title">{{ detailItem.title || getDiaryTitle(detailItem.content) }}</h2>
+                        <div class="detail-modal-meta">
+                            <span><i class="bi bi-calendar3"></i> {{ formatDate(detailItem.createdAt) }}</span>
+                            <span v-if="detailItem.updatedAt && detailItem.updatedAt !== detailItem.createdAt">
+                                <i class="bi bi-pencil"></i> 更新于 {{ formatDate(detailItem.updatedAt) }}
+                            </span>
+                        </div>
+                        <div class="detail-modal-body markdown-body" v-html="formatContent(detailItem.content || '')"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="left-actions">
+                        <button class="btn" style="background: #ffebee; color: #c62828;" @click="confirmDeleteFromDiaryDetail">
+                            <i class="bi bi-trash"></i> 删除日记
+                        </button>
+                    </div>
+                    <div class="right-actions">
+                        <button class="btn btn-secondary" @click="showDiaryDetailModal = false">关闭</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 书籍详情弹窗 -->
+        <div v-if="showBookDetailModal" class="modal-overlay" @click.self="showBookDetailModal = false">
+            <div class="modal-content detail-modal">
+                <div class="modal-header">
+                    <h3><i class="bi bi-book"></i> 书籍详情</h3>
+                    <button class="modal-close" @click="showBookDetailModal = false">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="detailLoading" class="loading">
+                        <div class="spinner"></div>
+                        <span>加载中...</span>
+                    </div>
+                    <div v-else class="detail-modal-content">
+                        <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                            <div v-if="detailItem.coverImage" style="flex-shrink: 0;">
+                                <img :src="detailItem.coverImage" :alt="detailItem.title" style="width: 120px; height: 160px; object-fit: cover; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                            </div>
+                            <div style="flex: 1;">
+                                <h2 class="detail-modal-title" style="margin-bottom: 8px;">{{ detailItem.title || '未知书名' }}</h2>
+                                <p v-if="detailItem.author" style="color: #666; margin-bottom: 8px;"><i class="bi bi-person"></i> {{ detailItem.author }}</p>
+                                <p v-if="detailItem.publisher" style="color: #888; font-size: 14px; margin-bottom: 8px;"><i class="bi bi-building"></i> {{ detailItem.publisher }}</p>
+                                <span v-if="detailItem.category" class="tag">{{ detailItem.category }}</span>
+                            </div>
+                        </div>
+                        <div class="detail-modal-meta">
+                            <span><i class="bi bi-calendar3"></i> 添加于 {{ formatDate(detailItem.createdAt) }}</span>
+                            <span v-if="detailItem.isbn"><i class="bi bi-upc"></i> ISBN: {{ detailItem.isbn }}</span>
+                        </div>
+                        <div v-if="detailItem.description" class="detail-modal-body" style="margin-top: 16px;">
+                            <h4 style="font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #333;">简介</h4>
+                            <p style="line-height: 1.8; color: #555;">{{ detailItem.description }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="left-actions">
+                        <button class="btn" style="background: #ffebee; color: #c62828;" @click="confirmDeleteFromBookDetail">
+                            <i class="bi bi-trash"></i> 删除书籍
+                        </button>
+                    </div>
+                    <div class="right-actions">
+                        <button class="btn btn-secondary" @click="showBookDetailModal = false">关闭</button>
                     </div>
                 </div>
             </div>
@@ -1311,7 +1643,12 @@
                 // 书籍数据
                 const books = ref([]);
                 const booksLoading = ref(false);
+                const bookSearchQuery = ref('');
                 const bookPagination = ref({ page: 1, totalPages: 1, totalItems: 0, pageSize: 20 });
+
+                // 详情弹窗
+                const showDiaryDetailModal = ref(false);
+                const showBookDetailModal = ref(false);
 
                 // 详情
                 const detailItem = ref({});
@@ -1552,25 +1889,68 @@
                 };
 
                 const viewDiary = async (diary) => {
+                    showDiaryDetailModal.value = true;
+                    detailLoading.value = true;
+                    detailType.value = 'diary';
                     try {
                         detailItem.value = await api(`/diary/${diary.id}`);
-                        detailType.value = 'diary';
-                        previousPage.value = 'diary';
-                        currentPage.value = 'detail';
                     } catch (err) {
                         showToast('加载日记详情失败: ' + err.message, 'error');
+                        showDiaryDetailModal.value = false;
                     }
+                    detailLoading.value = false;
                 };
 
                 const viewBook = async (book) => {
+                    showBookDetailModal.value = true;
+                    detailLoading.value = true;
+                    detailType.value = 'book';
                     try {
                         detailItem.value = await api(`/books/${book.id}`);
-                        detailType.value = 'book';
-                        previousPage.value = 'books';
-                        currentPage.value = 'detail';
                     } catch (err) {
                         showToast('加载书籍详情失败: ' + err.message, 'error');
+                        showBookDetailModal.value = false;
                     }
+                    detailLoading.value = false;
+                };
+
+                // 从日记详情确认删除
+                const confirmDeleteFromDiaryDetail = () => {
+                    deleteTarget.value = { type: 'diary', id: detailItem.value.id };
+                    showDeleteModal.value = true;
+                };
+
+                // 从书籍详情确认删除
+                const confirmDeleteFromBookDetail = () => {
+                    deleteTarget.value = { type: 'book', id: detailItem.value.id };
+                    showDeleteModal.value = true;
+                };
+
+                // 获取日记标题
+                const getDiaryTitle = (content) => {
+                    if (!content) return '无标题';
+                    const firstLine = content.split('\n')[0].trim();
+                    if (firstLine.length > 30) {
+                        return firstLine.substring(0, 30) + '...';
+                    }
+                    return firstLine || '无标题';
+                };
+
+                // 搜索书籍
+                const searchBooks = async () => {
+                    if (!bookSearchQuery.value.trim()) {
+                        loadBooks();
+                        return;
+                    }
+                    booksLoading.value = true;
+                    try {
+                        const data = await api(`/books/search?q=${encodeURIComponent(bookSearchQuery.value)}`);
+                        books.value = data.items;
+                        bookPagination.value = data.pagination;
+                    } catch (err) {
+                        showToast('搜索失败: ' + err.message, 'error');
+                    }
+                    booksLoading.value = false;
                 };
 
                 // 删除
@@ -1595,6 +1975,8 @@
                         showToast('删除成功', 'success');
                         showDeleteModal.value = false;
                         showDetailModal.value = false;
+                        showDiaryDetailModal.value = false;
+                        showBookDetailModal.value = false;
 
                         if (type === 'article') loadArticles(pagination.value.page);
                         else if (type === 'diary') loadDiaries(diaryPagination.value.page);
@@ -1714,16 +2096,19 @@
                     stats, recentItems, recentLoading,
                     articles, articlesLoading, searchQuery, pagination,
                     diaries, diariesLoading, diarySearchQuery, diaryPagination,
-                    books, booksLoading, bookPagination,
+                    books, booksLoading, bookSearchQuery, bookPagination,
                     detailItem, detailType, showDetailModal, detailLoading,
+                    showDiaryDetailModal, showBookDetailModal,
                     submitUrl, submitting,
                     showDeleteModal, showSubmitModal, toasts,
                     login, logout, navigate, goBack,
                     loadArticles, searchArticles, changePage,
                     loadDiaries, searchDiaries, changeDiaryPage,
-                    loadBooks, changeBookPage,
+                    loadBooks, searchBooks, changeBookPage,
                     viewArticle, viewDiary, viewBook,
                     confirmDelete, confirmDeleteFromDetail, executeDelete,
+                    confirmDeleteFromDiaryDetail, confirmDeleteFromBookDetail,
+                    getDiaryTitle,
                     submitArticle,
                     formatDate, truncate, formatContent,
                     getBadgeClass, getTypeName
