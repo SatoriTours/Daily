@@ -587,6 +587,251 @@
         .badge-success { background: #e8f5e9; color: #388e3c; }
         .badge-warning { background: #fff3e0; color: #f57c00; }
         .badge-info { background: #e3f2fd; color: #1976d2; }
+
+        /* 文章卡片样式 - 类似 Twitter */
+        .article-feed {
+            padding: 0;
+        }
+
+        .article-card {
+            display: flex;
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .article-card:hover {
+            background: #f8f9fa;
+        }
+
+        .article-card:last-child {
+            border-bottom: none;
+        }
+
+        .article-thumb {
+            width: 120px;
+            height: 80px;
+            border-radius: 8px;
+            overflow: hidden;
+            flex-shrink: 0;
+            margin-right: 16px;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .article-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .article-thumb .no-image {
+            color: #bbb;
+            font-size: 32px;
+        }
+
+        .article-body {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .article-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .article-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .article-title:hover {
+            color: var(--primary-color);
+        }
+
+        .article-excerpt {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 10px;
+            flex: 1;
+        }
+
+        .article-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #999;
+        }
+
+        .article-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .article-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .article-meta .bi-star-fill {
+            color: #f5a623;
+        }
+
+        .article-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .article-actions .action-btn {
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .article-card:hover .article-actions .action-btn {
+            opacity: 1;
+        }
+
+        .header-actions-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-add {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-add:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 768px) {
+            .article-thumb {
+                width: 80px;
+                height: 60px;
+            }
+            .article-title {
+                font-size: 14px;
+            }
+            .article-excerpt {
+                display: none;
+            }
+        }
+
+        /* 详情弹窗样式 */
+        .detail-modal {
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .detail-modal .modal-header {
+            flex-shrink: 0;
+        }
+
+        .detail-modal .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .detail-modal-content {
+            padding: 24px;
+        }
+
+        .detail-modal-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            line-height: 1.4;
+        }
+
+        .detail-modal-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .detail-modal-meta span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .detail-modal-meta a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .detail-modal-meta a:hover {
+            text-decoration: underline;
+        }
+
+        .detail-modal-body {
+            line-height: 1.8;
+            color: #333;
+            font-size: 15px;
+        }
+
+        .detail-modal-body p {
+            margin-bottom: 16px;
+        }
+
+        .detail-modal .modal-footer {
+            flex-shrink: 0;
+            justify-content: space-between;
+        }
+
+        .detail-modal .modal-footer .left-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .detail-modal .modal-footer .right-actions {
+            display: flex;
+            gap: 12px;
+        }
     </style>
 </head>
 <body>
@@ -636,10 +881,6 @@
                     <a class="nav-item" :class="{ active: currentPage === 'books' }" @click="navigate('books')">
                         <i class="bi bi-book"></i>
                         <span>书籍管理</span>
-                    </a>
-                    <a class="nav-item" :class="{ active: currentPage === 'submit' }" @click="navigate('submit')">
-                        <i class="bi bi-plus-circle"></i>
-                        <span>提交文章</span>
                     </a>
                     <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
                         <a class="nav-item" @click="logout">
@@ -724,9 +965,14 @@
                         <div class="data-card">
                             <div class="data-card-header">
                                 <h3>文章列表</h3>
-                                <div class="search-box">
-                                    <input type="text" v-model="searchQuery" placeholder="搜索文章..." @keyup.enter="searchArticles">
-                                    <button class="btn btn-primary" @click="searchArticles">搜索</button>
+                                <div class="header-actions-right">
+                                    <div class="search-box">
+                                        <input type="text" v-model="searchQuery" placeholder="搜索文章..." @keyup.enter="searchArticles">
+                                        <button class="btn btn-primary" @click="searchArticles">搜索</button>
+                                    </div>
+                                    <button class="btn-add" @click="showSubmitModal = true">
+                                        <i class="bi bi-plus-lg"></i> 添加文章
+                                    </button>
                                 </div>
                             </div>
                             <div v-if="articlesLoading" class="loading">
@@ -738,35 +984,35 @@
                                     <i class="bi bi-inbox"></i>
                                     <p>暂无文章</p>
                                 </div>
-                                <table v-else class="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>标题</th>
-                                            <th>收藏</th>
-                                            <th>创建时间</th>
-                                            <th>操作</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="article in articles" :key="article.id">
-                                            <td>{{ article.id }}</td>
-                                            <td class="title-cell">{{ article.title || article.aiTitle || '无标题' }}</td>
-                                            <td>
-                                                <i class="bi" :class="article.isFavorite ? 'bi-star-fill text-warning' : 'bi-star'"></i>
-                                            </td>
-                                            <td>{{ formatDate(article.createdAt) }}</td>
-                                            <td>
-                                                <button class="action-btn view" @click="viewArticle(article)">
-                                                    <i class="bi bi-eye"></i> 查看
-                                                </button>
-                                                <button class="action-btn delete" @click="confirmDelete('article', article.id)">
-                                                    <i class="bi bi-trash"></i> 删除
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                <div v-else class="article-feed">
+                                    <div class="article-card" v-for="article in articles" :key="article.id" @click="viewArticle(article)">
+                                        <div class="article-thumb">
+                                            <img v-if="article.coverImage" :src="article.coverImage" :alt="article.title">
+                                            <i v-else class="bi bi-image no-image"></i>
+                                        </div>
+                                        <div class="article-body">
+                                            <div class="article-header">
+                                                <h4 class="article-title">
+                                                    {{ article.title || article.aiTitle || '无标题' }}
+                                                </h4>
+                                            </div>
+                                            <p class="article-excerpt">
+                                                {{ truncate(article.subTitle || article.aiContent || article.content || '', 120) }}
+                                            </p>
+                                            <div class="article-footer">
+                                                <div class="article-meta">
+                                                    <span>
+                                                        <i class="bi bi-calendar3"></i>
+                                                        {{ formatDate(article.createdAt) }}
+                                                    </span>
+                                                    <span v-if="article.isFavorite">
+                                                        <i class="bi bi-star-fill"></i> 已收藏
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="pagination-wrapper">
                                     <div class="pagination-info">
                                         共 {{ pagination.totalItems }} 条，第 {{ pagination.page }} / {{ pagination.totalPages }} 页
@@ -900,47 +1146,47 @@
                         </div>
                     </template>
 
-                    <!-- 提交文章 -->
-                    <template v-if="currentPage === 'submit'">
-                        <div class="data-card">
-                            <div class="data-card-header">
-                                <h3>提交新文章</h3>
-                            </div>
-                            <div style="padding: 24px;">
-                                <form @submit.prevent="submitArticle">
-                                    <div class="form-group">
-                                        <label for="url-input">文章 URL</label>
-                                        <input id="url-input" type="url" v-model="submitUrl" placeholder="https://example.com/article" required>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary" :disabled="submitting">
-                                        {{ submitting ? '提交中...' : '提交文章' }}
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </template>
-
-                    <!-- 详情视图 -->
-                    <template v-if="currentPage === 'detail'">
-                        <a class="back-btn" @click="goBack">
-                            <i class="bi bi-arrow-left"></i> 返回列表
-                        </a>
-                        <div class="detail-card">
-                            <div class="detail-header">
-                                <h2>{{ detailItem.title || detailItem.aiTitle || '无标题' }}</h2>
-                                <div class="detail-meta">
-                                    <span><i class="bi bi-calendar"></i> {{ formatDate(detailItem.createdAt) }}</span>
-                                    <span v-if="detailItem.url">
-                                        <i class="bi bi-link"></i>
-                                        <a :href="detailItem.url" target="_blank">原文链接</a>
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="detail-content" v-html="formatContent(detailItem.content || detailItem.aiContent || '')"></div>
-                        </div>
                     </template>
                 </div>
             </main>
+        </div>
+
+        <!-- 文章详情弹窗 -->
+        <div v-if="showDetailModal" class="modal-overlay" @click.self="showDetailModal = false">
+            <div class="modal-content detail-modal">
+                <div class="modal-header">
+                    <h3><i class="bi bi-file-text"></i> 文章详情</h3>
+                    <button class="modal-close" @click="showDetailModal = false">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="detailLoading" class="loading">
+                        <div class="spinner"></div>
+                        <span>加载中...</span>
+                    </div>
+                    <div v-else class="detail-modal-content">
+                        <h2 class="detail-modal-title">{{ detailItem.title || detailItem.aiTitle || '无标题' }}</h2>
+                        <div class="detail-modal-meta">
+                            <span><i class="bi bi-calendar3"></i> {{ formatDate(detailItem.createdAt) }}</span>
+                            <span v-if="detailItem.isFavorite"><i class="bi bi-star-fill" style="color: #f5a623;"></i> 已收藏</span>
+                            <span v-if="detailItem.url">
+                                <i class="bi bi-link-45deg"></i>
+                                <a :href="detailItem.url" target="_blank">查看原文</a>
+                            </span>
+                        </div>
+                        <div class="detail-modal-body" v-html="formatContent(detailItem.content || detailItem.aiContent || '')"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="left-actions">
+                        <button class="btn" style="background: #ffebee; color: #c62828;" @click="confirmDeleteFromDetail">
+                            <i class="bi bi-trash"></i> 删除文章
+                        </button>
+                    </div>
+                    <div class="right-actions">
+                        <button class="btn btn-secondary" @click="showDetailModal = false">关闭</button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- 删除确认模态框 -->
@@ -957,6 +1203,34 @@
                     <button class="btn btn-secondary" @click="showDeleteModal = false">取消</button>
                     <button class="btn btn-primary" style="background: #c62828;" @click="executeDelete">确认删除</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- 提交文章模态框 -->
+        <div v-if="showSubmitModal" class="modal-overlay" @click.self="showSubmitModal = false">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="bi bi-plus-circle"></i> 添加文章</h3>
+                    <button class="modal-close" @click="showSubmitModal = false">&times;</button>
+                </div>
+                <form @submit.prevent="submitArticle">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="submit-url-input">文章 URL</label>
+                            <input id="submit-url-input" type="url" v-model="submitUrl" placeholder="https://example.com/article" required>
+                            <small style="color: #666; font-size: 12px; margin-top: 6px; display: block;">
+                                输入文章的网页链接，系统将自动解析文章内容
+                            </small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @click="showSubmitModal = false">取消</button>
+                        <button type="submit" class="btn btn-primary" :disabled="submitting">
+                            <i class="bi" :class="submitting ? 'bi-hourglass-split' : 'bi-cloud-upload'"></i>
+                            {{ submitting ? '提交中...' : '提交文章' }}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -1010,6 +1284,8 @@
                 // 详情
                 const detailItem = ref({});
                 const detailType = ref('');
+                const showDetailModal = ref(false);
+                const detailLoading = ref(false);
 
                 // 提交文章
                 const submitUrl = ref('');
@@ -1017,6 +1293,7 @@
 
                 // 模态框
                 const showDeleteModal = ref(false);
+                const showSubmitModal = ref(false);
                 const deleteTarget = ref({ type: '', id: 0 });
 
                 // Toast
@@ -1029,7 +1306,6 @@
                         articles: '文章管理',
                         diary: '日记管理',
                         books: '书籍管理',
-                        submit: '提交文章',
                         detail: '详情'
                     };
                     return titles[currentPage.value] || '管理后台';
@@ -1231,14 +1507,16 @@
 
                 // 查看详情
                 const viewArticle = async (article) => {
+                    showDetailModal.value = true;
+                    detailLoading.value = true;
+                    detailType.value = 'article';
                     try {
                         detailItem.value = await api(`/articles/${article.id}`);
-                        detailType.value = 'article';
-                        previousPage.value = 'articles';
-                        currentPage.value = 'detail';
                     } catch (err) {
                         showToast('加载文章详情失败: ' + err.message, 'error');
+                        showDetailModal.value = false;
                     }
+                    detailLoading.value = false;
                 };
 
                 const viewDiary = async (diary) => {
@@ -1269,6 +1547,11 @@
                     showDeleteModal.value = true;
                 };
 
+                const confirmDeleteFromDetail = () => {
+                    deleteTarget.value = { type: detailType.value, id: detailItem.value.id };
+                    showDeleteModal.value = true;
+                };
+
                 const executeDelete = async () => {
                     const { type, id } = deleteTarget.value;
                     const typeMap = { article: 'articles', diary: 'diary', book: 'books' };
@@ -1279,6 +1562,7 @@
                         });
                         showToast('删除成功', 'success');
                         showDeleteModal.value = false;
+                        showDetailModal.value = false;
 
                         if (type === 'article') loadArticles(pagination.value.page);
                         else if (type === 'diary') loadDiaries(diaryPagination.value.page);
@@ -1299,6 +1583,11 @@
                         });
                         showToast('文章已提交，请在 APP 中继续操作', 'success');
                         submitUrl.value = '';
+                        showSubmitModal.value = false;
+                        // 刷新文章列表
+                        if (currentPage.value === 'articles') {
+                            loadArticles(1);
+                        }
                     } catch (err) {
                         showToast('提交失败: ' + err.message, 'error');
                     }
@@ -1390,15 +1679,15 @@
                     articles, articlesLoading, searchQuery, pagination,
                     diaries, diariesLoading, diarySearchQuery, diaryPagination,
                     books, booksLoading, bookPagination,
-                    detailItem, detailType,
+                    detailItem, detailType, showDetailModal, detailLoading,
                     submitUrl, submitting,
-                    showDeleteModal, toasts,
+                    showDeleteModal, showSubmitModal, toasts,
                     login, logout, navigate, goBack,
                     loadArticles, searchArticles, changePage,
                     loadDiaries, searchDiaries, changeDiaryPage,
                     loadBooks, changeBookPage,
                     viewArticle, viewDiary, viewBook,
-                    confirmDelete, executeDelete,
+                    confirmDelete, confirmDeleteFromDetail, executeDelete,
                     submitArticle,
                     formatDate, truncate, formatContent,
                     getBadgeClass, getTypeName
