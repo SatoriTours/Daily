@@ -157,6 +157,8 @@ flutter:
     - assets/easylistchina+easylist.txt
     - assets/fonts/google/
     - assets/website/
+    - assets/website/js/
+    - assets/website/css/
     - assets/configs/
     - assets/i18n/
 

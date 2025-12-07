@@ -76,7 +76,7 @@ class AppHttpServer {
     _router.mount('/diary_images', diaryImagesHandler);
 
     // 内置静态资源（仅限 website 目录）
-    _router.mount('/assets', _assetHandler);
+    _router.mount('/website', _websiteHandler);
 
     // 管理后台页面
     _router.get('/admin', _adminHandler);
@@ -86,7 +86,7 @@ class AppHttpServer {
   }
 
   /// 处理内置静态资源（仅限 website 目录）
-  Future<shelf.Response> _assetHandler(shelf.Request request) async {
+  Future<shelf.Response> _websiteHandler(shelf.Request request) async {
     try {
       // 只允许访问 assets/website 目录下的资源
       final requestPath = request.url.path;
@@ -96,7 +96,9 @@ class AppHttpServer {
         return shelf.Response.forbidden('非法路径');
       }
 
-      final assetPath = 'assets/website$requestPath';
+      final assetPath = 'assets/website/$requestPath';
+      logger.i('加载内置资源: $assetPath');
+
       final data = await rootBundle.load(assetPath);
 
       // 确定内容类型
