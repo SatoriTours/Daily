@@ -153,30 +153,34 @@ class StatsController {
     }
   }
 
-  /// 获取最新周报
+  /// 获取最新周报列表
   Future<Response> _getWeeklyReport(Request request) async {
     try {
-      // 获取最近一条已完成的周报
-      final recentReports = WeeklySummaryRepository.i.findRecent(1);
+      // 获取最近 5 条已完成的周报
+      final recentReports = WeeklySummaryRepository.i.findRecent(5);
 
       if (recentReports.isEmpty) {
-        return ResponseUtils.success(null);
+        return ResponseUtils.success([]);
       }
 
-      final report = recentReports.first;
+      final reportList = recentReports
+          .map(
+            (report) => {
+              'id': report.id,
+              'content': report.content,
+              'weekStart': report.weekStartDate.toIso8601String(),
+              'weekEnd': report.weekEndDate.toIso8601String(),
+              'articleCount': report.articleCount,
+              'diaryCount': report.diaryCount,
+              'viewpointCount': report.viewpointCount,
+              'status': report.status.value,
+              'createdAt': report.createdAt.toIso8601String(),
+              'updatedAt': report.updatedAt.toIso8601String(),
+            },
+          )
+          .toList();
 
-      return ResponseUtils.success({
-        'id': report.id,
-        'content': report.content,
-        'weekStart': report.weekStartDate.toIso8601String(),
-        'weekEnd': report.weekEndDate.toIso8601String(),
-        'articleCount': report.articleCount,
-        'diaryCount': report.diaryCount,
-        'viewpointCount': report.viewpointCount,
-        'status': report.status.value,
-        'createdAt': report.createdAt.toIso8601String(),
-        'updatedAt': report.updatedAt.toIso8601String(),
-      });
+      return ResponseUtils.success(reportList);
     } catch (e) {
       logger.e('获取周报失败: $e');
       return ResponseUtils.serverError('获取周报时发生错误');

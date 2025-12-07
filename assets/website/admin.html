@@ -385,12 +385,14 @@
         }
 
         .weekly-report-header {
-            padding: 14px 20px;
+            padding: 12px 20px;
             background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
             border-bottom: 1px solid var(--border-color);
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
         .weekly-report-header h3 {
@@ -407,20 +409,47 @@
             color: #0ea5e9;
         }
 
-        .weekly-report-date {
-            font-size: 13px;
-            color: #0369a1;
-            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
-            padding: 6px 14px;
-            border-radius: 16px;
-            font-weight: 500;
+        /* 周报 Tab 导航 */
+        .weekly-report-tabs {
             display: flex;
-            align-items: center;
             gap: 6px;
+            overflow-x: auto;
+            padding: 2px;
         }
 
-        .weekly-report-date i {
+        .weekly-report-tab {
+            padding: 6px 12px;
             font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .weekly-report-tab:hover {
+            background: #f1f5f9;
+            color: var(--text-primary);
+        }
+
+        .weekly-report-tab.active {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: #ffffff;
+            border-color: transparent;
+        }
+
+        .weekly-report-tab.active:hover {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        }
+
+        .weekly-report-tab i {
+            font-size: 11px;
         }
 
         .weekly-report-content {
@@ -1789,22 +1818,27 @@
                                 <!-- 周报卡片 -->
                                 <div class="weekly-report-card">
                                     <div class="weekly-report-header">
-                                        <h3><i class="bi bi-calendar-week"></i> 本周总结</h3>
-                                        <span v-if="weeklyReport" class="weekly-report-date">
-                                            <i class="bi bi-calendar-range"></i>
-                                            {{ formatWeekRange(weeklyReport.weekStart, weeklyReport.weekEnd) }}
-                                        </span>
+                                        <h3><i class="bi bi-calendar-week"></i> 周报总结</h3>
+                                        <div v-if="weeklyReports.length > 0" class="weekly-report-tabs">
+                                            <div v-for="(report, index) in weeklyReports" :key="report.id"
+                                                 class="weekly-report-tab"
+                                                 :class="{ active: currentWeeklyReportIndex === index }"
+                                                 @click="currentWeeklyReportIndex = index">
+                                                <i class="bi bi-calendar-range"></i>
+                                                {{ formatWeekTabLabel(report.weekStart, report.weekEnd, index) }}
+                                            </div>
+                                        </div>
                                     </div>
                                     <div v-if="weeklyReportLoading" class="loading" style="padding: 32px;">
                                         <div class="spinner"></div>
                                         <span>加载中...</span>
                                     </div>
-                                    <div v-else-if="weeklyReport && weeklyReport.content" class="weekly-report-content">
-                                        <div class="markdown-body" v-html="formatContent(weeklyReport.content)"></div>
+                                    <div v-else-if="currentWeeklyReport && currentWeeklyReport.content" class="weekly-report-content">
+                                        <div class="markdown-body" v-html="formatContent(currentWeeklyReport.content)"></div>
                                     </div>
                                     <div v-else class="weekly-report-empty">
                                         <i class="bi bi-journal-text"></i>
-                                        <p>暂无本周总结</p>
+                                        <p>暂无周报总结</p>
                                     </div>
                                 </div>
                             </div>
@@ -2489,10 +2523,16 @@
                 const recentActivityExpanded = ref(false);  // 最近活动默认收起
 
                 // 周报相关
-                const weeklyReport = ref(null);
+                const weeklyReports = ref([]);  // 周报列表
+                const currentWeeklyReportIndex = ref(0);  // 当前选中的周报索引
                 const weeklyReportLoading = ref(false);
 
-                // 格式化周时间范围
+                // 计算当前选中的周报
+                const currentWeeklyReport = computed(() => {
+                    return weeklyReports.value[currentWeeklyReportIndex.value] || null;
+                });
+
+                // 格式化周时间范围（完整格式）
                 const formatWeekRange = (start, end) => {
                     if (!start || !end) return '';
                     const startDate = new Date(start);
@@ -2509,16 +2549,30 @@
                     return `${startMonth}${startDay}日 - ${endMonth}${endDay}日`;
                 };
 
+                // 格式化周报Tab标签（简短格式）
+                const formatWeekTabLabel = (start, end, index) => {
+                    if (!start || !end) return '';
+                    if (index === 0) return '本周';
+                    if (index === 1) return '上周';
+                    const startDate = new Date(start);
+                    const endDate = new Date(end);
+                    const startMonth = startDate.getMonth() + 1;
+                    const startDay = startDate.getDate();
+                    const endDay = endDate.getDate();
+                    return `${startMonth}/${startDay}-${endDay}`;
+                };
+
                 // 加载周报数据
                 const loadWeeklyReport = async () => {
                     weeklyReportLoading.value = true;
                     try {
-                        // 调用后端接口获取最新周报
+                        // 调用后端接口获取周报列表
                         const data = await api('/stats/weekly-report');
-                        weeklyReport.value = data;
+                        weeklyReports.value = Array.isArray(data) ? data : [];
+                        currentWeeklyReportIndex.value = 0;  // 默认选中第一个（最新的）
                     } catch (err) {
                         console.warn('加载周报失败:', err.message);
-                        weeklyReport.value = null;
+                        weeklyReports.value = [];
                     }
                     weeklyReportLoading.value = false;
                 };
@@ -2836,7 +2890,7 @@
 
                     // 数据
                     stats, recentItems, recentLoading, recentActivityExpanded,
-                    weeklyReport, weeklyReportLoading,
+                    weeklyReports, currentWeeklyReportIndex, currentWeeklyReport, weeklyReportLoading,
                     articles, articlesLoading, searchQuery, pagination,
                     diaries, diariesLoading, diarySearchQuery, diaryPagination,
                     books, booksLoading, bookSearchQuery, bookPagination,
@@ -2860,7 +2914,7 @@
 
                     // 工具
                     getDiaryTitle, formatDate, truncate, formatContent, getBadgeClass, getTypeName,
-                    formatWeekRange
+                    formatWeekRange, formatWeekTabLabel
                 };
             }
         }).mount('#app');
