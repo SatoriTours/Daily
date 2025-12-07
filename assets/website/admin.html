@@ -1,4 +1,21 @@
 <!DOCTYPE html>
+<!--
+  Daily Satori Admin Dashboard
+
+  A single-file Vue.js application for managing Daily Satori content.
+
+  Features:
+  - Dashboard with statistics
+  - Article management (list, search, add, delete)
+  - Diary management (list, search, view)
+  - Book management (list, search, view)
+  - Authentication
+
+  Tech Stack:
+  - Vue.js 3 (Composition API)
+  - Bootstrap 5
+  - Marked.js
+-->
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -8,6 +25,27 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /*
+         * CSS Table of Contents
+         *
+         * 1. Variables & Reset
+         * 2. Login Page
+         * 3. Layout (Sidebar, Main Content)
+         * 4. Components
+         *    - Stats Cards
+         *    - Data Cards & Tables
+         *    - Pagination
+         *    - Modals
+         *    - Buttons & Forms
+         *    - Loading & Toast
+         * 5. Views
+         *    - Detail Page
+         *    - Article Feed
+         *    - Diary Card
+         *    - Book Card
+         * 6. Utilities & Responsive
+         */
+
         :root {
             --primary-color: #6366f1;
             --primary-light: #818cf8;
@@ -2044,83 +2082,58 @@
 
         createApp({
             setup() {
-                // 状态
+                // ==================================================================================
+                // 1. 核心状态与通用工具 (Core State & Utilities)
+                // ==================================================================================
                 const isLoggedIn = ref(false);
                 const isConnected = ref(true);
-                const password = ref('');
                 const loading = ref(false);
-                const loginError = ref('');
-                const currentPage = ref('dashboard');
-                const previousPage = ref('');
-                const sidebarOpen = ref(false);
-
-                // 统计数据
-                const stats = ref({});
-                const recentItems = ref([]);
-                const recentLoading = ref(false);
-
-                // 文章数据
-                const articles = ref([]);
-                const articlesLoading = ref(false);
-                const searchQuery = ref('');
-                const pagination = ref({ page: 1, totalPages: 1, totalItems: 0, pageSize: 20 });
-
-                // 日记数据
-                const diaries = ref([]);
-                const diariesLoading = ref(false);
-                const diarySearchQuery = ref('');
-                const diaryPagination = ref({ page: 1, totalPages: 1, totalItems: 0, pageSize: 20 });
-
-                // 书籍数据
-                const books = ref([]);
-                const booksLoading = ref(false);
-                const bookSearchQuery = ref('');
-                const bookPagination = ref({ page: 1, totalPages: 1, totalItems: 0, pageSize: 20 });
-
-                // 详情弹窗
-                const showDiaryDetailModal = ref(false);
-                const showBookDetailModal = ref(false);
-
-                // 图片查看器
-                const showImageViewer = ref(false);
-                const currentViewImage = ref('');
-
-                // 详情
-                const detailItem = ref({});
-                const detailType = ref('');
-                const showDetailModal = ref(false);
-                const detailLoading = ref(false);
-
-                // 提交文章
-                const submitUrl = ref('');
-                const submitting = ref(false);
-
-                // 模态框
-                const showDeleteModal = ref(false);
-                const showSubmitModal = ref(false);
-                const deleteTarget = ref({ type: '', id: 0 });
-
-                // Toast
                 const toasts = ref([]);
 
-                // 计算属性
-                const pageTitle = computed(() => {
-                    const titles = {
-                        dashboard: '仪表盘',
-                        articles: '文章管理',
-                        diary: '日记管理',
-                        books: '书籍管理',
-                        detail: '详情'
-                    };
-                    return titles[currentPage.value] || '管理后台';
-                });
+                // Toast 提示工具
+                const showToast = (message, type = 'success') => {
+                    const id = Date.now();
+                    toasts.value.push({ id, message, type });
+                    setTimeout(() => {
+                        toasts.value = toasts.value.filter(t => t.id !== id);
+                    }, 3000);
+                };
 
-                // API 请求
+                // 格式化工具
+                const formatDate = (dateStr) => {
+                    if (!dateStr) return '-';
+                    const date = new Date(dateStr);
+                    return date.toLocaleDateString('zh-CN') + ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                };
+
+                const truncate = (str, len) => {
+                    if (!str) return '';
+                    return str.length > len ? str.substring(0, len) + '...' : str;
+                };
+
+                const formatContent = (content) => {
+                    if (!content) return '';
+                    if (typeof marked !== 'undefined') {
+                        return marked.parse(content);
+                    }
+                    return content.replaceAll('\n', '<br>');
+                };
+
+                const getBadgeClass = (type) => {
+                    const classes = { article: 'badge-info', diary: 'badge-success', book: 'badge-warning' };
+                    return classes[type] || 'badge-info';
+                };
+
+                const getTypeName = (type) => {
+                    const names = { article: '文章', diary: '日记', book: '书籍' };
+                    return names[type] || type;
+                };
+
+                // ==================================================================================
+                // 2. API 与 网络通信 (API & Network)
+                // ==================================================================================
                 const api = async (endpoint, options = {}) => {
-                    const headers = {
-                        'Content-Type': 'application/json'
-                    };
-
+                    const headers = { 'Content-Type': 'application/json' };
                     const response = await fetch(`/api/v2${endpoint}`, {
                         ...options,
                         credentials: 'same-origin',
@@ -2129,7 +2142,6 @@
 
                     const data = await response.json();
 
-                    // 未授权时跳转到登录页
                     if (response.status === 401) {
                         isLoggedIn.value = false;
                         localStorage.removeItem('isLoggedIn');
@@ -2142,7 +2154,28 @@
                     return data.data;
                 };
 
-                // 登录
+                // 心跳检测
+                let connectionCheckInterval = null;
+                const checkConnection = async () => {
+                    try {
+                        const response = await fetch('/ping', { method: 'GET' });
+                        const text = await response.text();
+                        isConnected.value = response.ok && text === 'pong';
+                    } catch {
+                        isConnected.value = false;
+                    }
+                };
+                const startConnectionCheck = () => {
+                    checkConnection();
+                    connectionCheckInterval = setInterval(checkConnection, 10000);
+                };
+
+                // ==================================================================================
+                // 3. 认证逻辑 (Authentication)
+                // ==================================================================================
+                const password = ref('');
+                const loginError = ref('');
+
                 const login = async () => {
                     loading.value = true;
                     loginError.value = '';
@@ -2153,7 +2186,6 @@
                             credentials: 'same-origin',
                             body: JSON.stringify({ password: password.value })
                         });
-
                         const data = await response.json();
 
                         if (response.ok && data.code === 0) {
@@ -2171,13 +2203,9 @@
                     loading.value = false;
                 };
 
-                // 登出
                 const logout = async () => {
                     try {
-                        await fetch('/api/v2/auth/logout', {
-                            method: 'POST',
-                            credentials: 'same-origin'
-                        });
+                        await fetch('/api/v2/auth/logout', { method: 'POST', credentials: 'same-origin' });
                     } catch (err) {
                         console.warn('登出请求失败:', err.message);
                     }
@@ -2190,7 +2218,24 @@
                     }
                 };
 
-                // 导航
+                // ==================================================================================
+                // 4. 导航与页面管理 (Navigation)
+                // ==================================================================================
+                const currentPage = ref('dashboard');
+                const previousPage = ref('');
+                const sidebarOpen = ref(false);
+
+                const pageTitle = computed(() => {
+                    const titles = {
+                        dashboard: '仪表盘',
+                        articles: '文章管理',
+                        diary: '日记管理',
+                        books: '书籍管理',
+                        detail: '详情'
+                    };
+                    return titles[currentPage.value] || '管理后台';
+                });
+
                 const navigate = (page) => {
                     previousPage.value = currentPage.value;
                     currentPage.value = page;
@@ -2206,7 +2251,13 @@
                     currentPage.value = previousPage.value || 'dashboard';
                 };
 
-                // 加载仪表盘
+                // ==================================================================================
+                // 5. 业务模块：仪表盘 (Dashboard)
+                // ==================================================================================
+                const stats = ref({});
+                const recentItems = ref([]);
+                const recentLoading = ref(false);
+
                 const loadDashboard = async () => {
                     recentLoading.value = true;
                     try {
@@ -2223,7 +2274,14 @@
                     recentLoading.value = false;
                 };
 
-                // 加载文章
+                // ==================================================================================
+                // 6. 业务模块：文章管理 (Articles)
+                // ==================================================================================
+                const articles = ref([]);
+                const articlesLoading = ref(false);
+                const searchQuery = ref('');
+                const pagination = ref({ page: 1, totalPages: 1, totalItems: 0, pageSize: 20 });
+
                 const loadArticles = async (page = 1) => {
                     articlesLoading.value = true;
                     try {
@@ -2257,7 +2315,14 @@
                     loadArticles(page);
                 };
 
-                // 加载日记
+                // ==================================================================================
+                // 7. 业务模块：日记管理 (Diary)
+                // ==================================================================================
+                const diaries = ref([]);
+                const diariesLoading = ref(false);
+                const diarySearchQuery = ref('');
+                const diaryPagination = ref({ page: 1, totalPages: 1, totalItems: 0, pageSize: 20 });
+
                 const loadDiaries = async (page = 1) => {
                     diariesLoading.value = true;
                     try {
@@ -2291,7 +2356,20 @@
                     loadDiaries(page);
                 };
 
-                // 加载书籍
+                const getDiaryTitle = (content) => {
+                    if (!content) return '无标题';
+                    const firstLine = content.split('\n')[0].trim();
+                    return firstLine.length > 30 ? firstLine.substring(0, 30) + '...' : firstLine;
+                };
+
+                // ==================================================================================
+                // 8. 业务模块：书籍管理 (Books)
+                // ==================================================================================
+                const books = ref([]);
+                const booksLoading = ref(false);
+                const bookSearchQuery = ref('');
+                const bookPagination = ref({ page: 1, totalPages: 1, totalItems: 0, pageSize: 20 });
+
                 const loadBooks = async (page = 1) => {
                     booksLoading.value = true;
                     try {
@@ -2304,12 +2382,37 @@
                     booksLoading.value = false;
                 };
 
+                const searchBooks = async () => {
+                    if (!bookSearchQuery.value.trim()) {
+                        loadBooks();
+                        return;
+                    }
+                    booksLoading.value = true;
+                    try {
+                        const data = await api(`/books/search?q=${encodeURIComponent(bookSearchQuery.value)}`);
+                        books.value = data.items;
+                        bookPagination.value = data.pagination;
+                    } catch (err) {
+                        showToast('搜索失败: ' + err.message, 'error');
+                    }
+                    booksLoading.value = false;
+                };
+
                 const changeBookPage = (page) => {
                     if (page < 1 || page > bookPagination.value.totalPages) return;
                     loadBooks(page);
                 };
 
-                // 查看详情
+                // ==================================================================================
+                // 9. 详情查看与模态框 (Details & Modals)
+                // ==================================================================================
+                const detailItem = ref({});
+                const detailType = ref('');
+                const detailLoading = ref(false);
+                const showDetailModal = ref(false);
+                const showDiaryDetailModal = ref(false);
+                const showBookDetailModal = ref(false);
+
                 const viewArticle = async (article) => {
                     showDetailModal.value = true;
                     detailLoading.value = true;
@@ -2349,75 +2452,42 @@
                     detailLoading.value = false;
                 };
 
-                // 从日记详情确认删除
-                const confirmDeleteFromDiaryDetail = () => {
-                    deleteTarget.value = { type: 'diary', id: detailItem.value.id };
-                    showDeleteModal.value = true;
-                };
-
-                // 从书籍详情确认删除
-                const confirmDeleteFromBookDetail = () => {
-                    deleteTarget.value = { type: 'book', id: detailItem.value.id };
-                    showDeleteModal.value = true;
-                };
-
-                // 图片查看器函数
+                // 图片查看器
+                const showImageViewer = ref(false);
+                const currentViewImage = ref('');
                 const openImageViewer = (imageUrl) => {
                     currentViewImage.value = imageUrl;
                     showImageViewer.value = true;
                 };
-
                 const closeImageViewer = () => {
                     showImageViewer.value = false;
                     currentViewImage.value = '';
                 };
 
-                // 获取日记标题
-                const getDiaryTitle = (content) => {
-                    if (!content) return '无标题';
-                    const firstLine = content.split('\n')[0].trim();
-                    if (firstLine.length > 30) {
-                        return firstLine.substring(0, 30) + '...';
-                    }
-                    return firstLine || '无标题';
-                };
+                // ==================================================================================
+                // 10. 操作逻辑：删除与提交 (Actions: Delete & Submit)
+                // ==================================================================================
+                const showDeleteModal = ref(false);
+                const deleteTarget = ref({ type: '', id: 0 });
+                const showSubmitModal = ref(false);
+                const submitUrl = ref('');
+                const submitting = ref(false);
 
-                // 搜索书籍
-                const searchBooks = async () => {
-                    if (!bookSearchQuery.value.trim()) {
-                        loadBooks();
-                        return;
-                    }
-                    booksLoading.value = true;
-                    try {
-                        const data = await api(`/books/search?q=${encodeURIComponent(bookSearchQuery.value)}`);
-                        books.value = data.items;
-                        bookPagination.value = data.pagination;
-                    } catch (err) {
-                        showToast('搜索失败: ' + err.message, 'error');
-                    }
-                    booksLoading.value = false;
-                };
-
-                // 删除
                 const confirmDelete = (type, id) => {
                     deleteTarget.value = { type, id };
                     showDeleteModal.value = true;
                 };
 
-                const confirmDeleteFromDetail = () => {
-                    deleteTarget.value = { type: detailType.value, id: detailItem.value.id };
-                    showDeleteModal.value = true;
-                };
+                const confirmDeleteFromDetail = () => confirmDelete(detailType.value, detailItem.value.id);
+                const confirmDeleteFromDiaryDetail = () => confirmDelete('diary', detailItem.value.id);
+                const confirmDeleteFromBookDetail = () => confirmDelete('book', detailItem.value.id);
 
                 const executeDelete = async () => {
                     const { type, id } = deleteTarget.value;
                     const typeMap = { article: 'articles', diary: 'diary', book: 'books' };
                     const endpoint = typeMap[type] || 'articles';
                     try {
-                        await api(`/${endpoint}/${id}`, {
-                            method: 'DELETE'
-                        });
+                        await api(`/${endpoint}/${id}`, { method: 'DELETE' });
                         showToast('删除成功', 'success');
                         showDeleteModal.value = false;
                         showDetailModal.value = false;
@@ -2432,7 +2502,6 @@
                     }
                 };
 
-                // 提交文章
                 const submitArticle = async () => {
                     submitting.value = true;
                     try {
@@ -2444,83 +2513,21 @@
                         showToast('文章已提交，请在 APP 中继续操作', 'success');
                         submitUrl.value = '';
                         showSubmitModal.value = false;
-                        // 刷新文章列表
-                        if (currentPage.value === 'articles') {
-                            loadArticles(1);
-                        }
+                        if (currentPage.value === 'articles') loadArticles(1);
                     } catch (err) {
                         showToast('提交失败: ' + err.message, 'error');
                     }
                     submitting.value = false;
                 };
 
-                // Toast
-                const showToast = (message, type = 'success') => {
-                    const id = Date.now();
-                    toasts.value.push({ id, message, type });
-                    setTimeout(() => {
-                        toasts.value = toasts.value.filter(t => t.id !== id);
-                    }, 3000);
-                };
-
-                // 工具函数
-                const formatDate = (dateStr) => {
-                    if (!dateStr) return '-';
-                    const date = new Date(dateStr);
-                    return date.toLocaleDateString('zh-CN') + ' ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-                };
-
-                const truncate = (str, len) => {
-                    if (!str) return '';
-                    return str.length > len ? str.substring(0, len) + '...' : str;
-                };
-
-                const formatContent = (content) => {
-                    if (!content) return '';
-                    // 使用 marked 解析 Markdown
-                    if (typeof marked !== 'undefined') {
-                        return marked.parse(content);
-                    }
-                    return content.replaceAll('\n', '<br>');
-                };
-
-                const getBadgeClass = (type) => {
-                    const classes = { article: 'badge-info', diary: 'badge-success', book: 'badge-warning' };
-                    return classes[type] || 'badge-info';
-                };
-
-                const getTypeName = (type) => {
-                    const names = { article: '文章', diary: '日记', book: '书籍' };
-                    return names[type] || type;
-                };
-
-                // 检测连接状态
-                const checkConnection = async () => {
-                    try {
-                        const response = await fetch('/ping', { method: 'GET' });
-                        const text = await response.text();
-                        isConnected.value = response.ok && text === 'pong';
-                    } catch {
-                        isConnected.value = false;
-                    }
-                };
-
-                // 启动定时检测
-                let connectionCheckInterval = null;
-                const startConnectionCheck = () => {
-                    checkConnection();
-                    connectionCheckInterval = setInterval(checkConnection, 10000);
-                };
-
-                // 初始化
+                // ==================================================================================
+                // 11. 初始化 (Initialization)
+                // ==================================================================================
                 onMounted(async () => {
                     const savedLogin = localStorage.getItem('isLoggedIn');
                     if (savedLogin === 'true') {
-                        // 验证会话是否仍然有效
                         try {
-                            const response = await fetch('/api/v2/auth/status', {
-                                credentials: 'same-origin'
-                            });
+                            const response = await fetch('/api/v2/auth/status', { credentials: 'same-origin' });
                             const data = await response.json();
                             if (data.code === 0 && data.data.authenticated) {
                                 isLoggedIn.value = true;
@@ -2537,17 +2544,23 @@
                 });
 
                 return {
+                    // 状态
                     isLoggedIn, isConnected, password, loading, loginError, currentPage, sidebarOpen,
-                    pageTitle,
+                    pageTitle, toasts,
+
+                    // 数据
                     stats, recentItems, recentLoading,
                     articles, articlesLoading, searchQuery, pagination,
                     diaries, diariesLoading, diarySearchQuery, diaryPagination,
                     books, booksLoading, bookSearchQuery, bookPagination,
-                    detailItem, detailType, showDetailModal, detailLoading,
-                    showDiaryDetailModal, showBookDetailModal,
+                    detailItem, detailType, detailLoading,
+
+                    // UI 控制
+                    showDetailModal, showDiaryDetailModal, showBookDetailModal,
                     showImageViewer, currentViewImage,
-                    submitUrl, submitting,
-                    showDeleteModal, showSubmitModal, toasts,
+                    showDeleteModal, showSubmitModal, submitUrl, submitting,
+
+                    // 方法
                     login, logout, navigate, goBack,
                     loadArticles, searchArticles, changePage,
                     loadDiaries, searchDiaries, changeDiaryPage,
@@ -2556,10 +2569,10 @@
                     confirmDelete, confirmDeleteFromDetail, executeDelete,
                     confirmDeleteFromDiaryDetail, confirmDeleteFromBookDetail,
                     openImageViewer, closeImageViewer,
-                    getDiaryTitle,
                     submitArticle,
-                    formatDate, truncate, formatContent,
-                    getBadgeClass, getTypeName
+
+                    // 工具
+                    getDiaryTitle, formatDate, truncate, formatContent, getBadgeClass, getTypeName
                 };
             }
         }).mount('#app');
