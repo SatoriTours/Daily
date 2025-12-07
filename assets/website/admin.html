@@ -639,6 +639,18 @@
             color: var(--text-primary);
         }
 
+        .btn-ghost-danger {
+            background: transparent;
+            color: var(--text-secondary);
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+
+        .btn-ghost-danger:hover {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
         /* 加载状态 - 现代设计 */
         .loading {
             display: flex;
@@ -997,51 +1009,33 @@
             box-shadow: var(--shadow-md);
         }
 
-        .diary-icon {
-            width: 100%;
-            height: 80px;
-            flex-shrink: 0;
-            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #22c55e;
-            font-size: 28px;
-        }
-
         .diary-body {
-            flex: 1;
             display: flex;
             flex-direction: column;
-            padding: 16px;
+            padding: 20px;
+            height: 320px;
         }
 
-        .diary-header {
-            margin-bottom: 8px;
-        }
-
-        .diary-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin: 0;
-            line-height: 1.4;
-        }
-
-        .diary-title:hover {
-            color: var(--primary-color);
-        }
-
-        .diary-excerpt {
-            font-size: 13px;
-            color: var(--text-secondary);
-            line-height: 1.6;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            margin-bottom: 12px;
+        .diary-content {
             flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .diary-content::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 24px;
+            background: linear-gradient(to bottom, transparent, #ffffff);
+            pointer-events: none;
+        }
+
+        .diary-bottom {
+            flex-shrink: 0;
+            margin-top: auto;
         }
 
         .diary-footer {
@@ -1346,11 +1340,12 @@
         }
 
         .detail-modal-title {
-            font-size: 22px;
-            font-weight: 600;
+            font-size: 32px;
+            font-weight: 700;
             color: var(--text-primary);
-            margin-bottom: 16px;
-            line-height: 1.4;
+            margin-bottom: 20px;
+            line-height: 1.3;
+            letter-spacing: -0.02em;
         }
 
         .detail-modal-meta {
@@ -1688,33 +1683,26 @@
                                 </div>
                                 <div v-else class="article-feed">
                                     <div class="diary-card" v-for="diary in diaries" :key="diary.id" @click="viewDiary(diary)">
-                                        <div class="diary-icon">
-                                            <i class="bi bi-journal-text"></i>
-                                        </div>
                                         <div class="diary-body">
-                                            <div class="diary-header">
-                                                <h4 class="diary-title">
-                                                    {{ diary.title || getDiaryTitle(diary.content) }}
-                                                </h4>
+                                            <div class="diary-content markdown-body" v-html="formatContent(diary.content)">
                                             </div>
-                                            <p class="diary-excerpt">
-                                                {{ truncate(diary.content, 120) }}
-                                            </p>
-                                            <!-- 日记图片预览 -->
-                                            <div v-if="diary.images && diary.images.length > 0" class="diary-images-preview" @click.stop>
-                                                <img v-for="(img, index) in diary.images.slice(0, 3)" :key="index" :src="img" @click="openImageViewer(img)" :alt="'图片 ' + (index + 1)">
-                                                <div v-if="diary.images.length > 3" class="more-images">+{{ diary.images.length - 3 }}</div>
-                                            </div>
-                                            <div class="diary-footer">
-                                                <div class="diary-meta">
-                                                    <span>
-                                                        <i class="bi bi-calendar3"></i>
-                                                        {{ formatDate(diary.createdAt) }}
-                                                    </span>
-                                                    <span v-if="diary.images && diary.images.length > 0">
-                                                        <i class="bi bi-image"></i>
-                                                        {{ diary.images.length }} 张图片
-                                                    </span>
+                                            <div class="diary-bottom">
+                                                <!-- 日记图片预览 -->
+                                                <div v-if="diary.images && diary.images.length > 0" class="diary-images-preview" @click.stop>
+                                                    <img v-for="(img, index) in diary.images.slice(0, 3)" :key="index" :src="img" @click="openImageViewer(img)" :alt="'图片 ' + (index + 1)">
+                                                    <div v-if="diary.images.length > 3" class="more-images">+{{ diary.images.length - 3 }}</div>
+                                                </div>
+                                                <div class="diary-footer">
+                                                    <div class="diary-meta">
+                                                        <span>
+                                                            <i class="bi bi-calendar3"></i>
+                                                            {{ formatDate(diary.createdAt) }}
+                                                        </span>
+                                                        <span v-if="diary.images && diary.images.length > 0">
+                                                            <i class="bi bi-image"></i>
+                                                            {{ diary.images.length }} 张图片
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1833,7 +1821,7 @@
                 </div>
                 <div class="modal-footer">
                     <div class="left-actions">
-                        <button class="btn" style="background: #ffebee; color: #c62828;" @click="confirmDeleteFromDetail">
+                        <button class="btn btn-ghost-danger" @click="confirmDeleteFromDetail">
                             <i class="bi bi-trash"></i> 删除文章
                         </button>
                     </div>
@@ -1857,7 +1845,6 @@
                         <span>加载中...</span>
                     </div>
                     <div v-else class="detail-modal-content">
-                        <h2 class="detail-modal-title">{{ detailItem.title || getDiaryTitle(detailItem.content) }}</h2>
                         <div class="detail-modal-meta">
                             <span><i class="bi bi-calendar3"></i> {{ formatDate(detailItem.createdAt) }}</span>
                             <span v-if="detailItem.updatedAt && detailItem.updatedAt !== detailItem.createdAt">
@@ -1876,7 +1863,7 @@
                 </div>
                 <div class="modal-footer">
                     <div class="left-actions">
-                        <button class="btn" style="background: #ffebee; color: #c62828;" @click="confirmDeleteFromDiaryDetail">
+                        <button class="btn btn-ghost-danger" @click="confirmDeleteFromDiaryDetail">
                             <i class="bi bi-trash"></i> 删除日记
                         </button>
                     </div>
@@ -1923,7 +1910,7 @@
                 </div>
                 <div class="modal-footer">
                     <div class="left-actions">
-                        <button class="btn" style="background: #ffebee; color: #c62828;" @click="confirmDeleteFromBookDetail">
+                        <button class="btn btn-ghost-danger" @click="confirmDeleteFromBookDetail">
                             <i class="bi bi-trash"></i> 删除书籍
                         </button>
                     </div>
@@ -2002,8 +1989,31 @@
     <style>
         /* Markdown 样式覆盖 */
         .markdown-body {
-            font-size: 15px;
+            font-size: 16px;
             line-height: 1.8;
+            color: #24292f;
+        }
+        .markdown-body h1 {
+            font-size: 1.4em;
+            border-bottom: 1px solid #eaecef;
+            padding-bottom: 0.3em;
+            margin-top: 24px;
+            margin-bottom: 16px;
+        }
+        .markdown-body h2 {
+            font-size: 1.25em;
+            border-bottom: 1px solid #eaecef;
+            padding-bottom: 0.3em;
+            margin-top: 24px;
+            margin-bottom: 16px;
+        }
+        .markdown-body h3 {
+            font-size: 1.1em;
+            margin-top: 20px;
+            margin-bottom: 12px;
+        }
+        .markdown-body p {
+            margin-bottom: 16px;
         }
         .markdown-body img {
             max-width: 100%;
