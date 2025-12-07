@@ -2235,6 +2235,60 @@
             margin-bottom: 16px;
         }
 
+        /* 文章封面图片样式 */
+        .article-cover-wrapper {
+            position: relative;
+            width: 100%;
+            max-height: 300px;
+            margin-bottom: 20px;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .article-cover-image {
+            width: 100%;
+            height: auto;
+            max-height: 300px;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.3s ease;
+        }
+
+        .article-cover-wrapper:hover .article-cover-image {
+            transform: scale(1.02);
+        }
+
+        .article-cover-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .article-cover-overlay i {
+            font-size: 32px;
+            color: white;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.3s ease;
+        }
+
+        .article-cover-wrapper:hover .article-cover-overlay {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .article-cover-wrapper:hover .article-cover-overlay i {
+            opacity: 1;
+            transform: scale(1);
+        }
+
         .detail-modal .modal-footer {
             flex-shrink: 0;
             justify-content: space-between;
@@ -2751,6 +2805,13 @@
                         <span>加载中...</span>
                     </div>
                     <div v-else class="detail-modal-content">
+                        <!-- 封面图片 -->
+                        <div v-if="detailItem.coverImage" class="article-cover-wrapper" @click="openImageViewer(detailItem.coverImage)">
+                            <img :src="detailItem.coverImage" :alt="detailItem.title || '文章封面'" class="article-cover-image">
+                            <div class="article-cover-overlay">
+                                <i class="bi bi-zoom-in"></i>
+                            </div>
+                        </div>
                         <h2 class="detail-modal-title">{{ detailItem.title || detailItem.aiTitle || '无标题' }}</h2>
                         <div class="detail-modal-meta">
                             <span><i class="bi bi-calendar3"></i> {{ formatDate(detailItem.createdAt) }}</span>
