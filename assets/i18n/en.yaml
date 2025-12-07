@@ -192,6 +192,9 @@ setting:
   restart_service_subtitle: Restart web server
   password_tip: Password length should be 6-20 characters
   network_tip: Ensure your device and access point are on the same local network. Access the address above via browser to manage your data.
+  download_images: Download Article Images
+  download_images_subtitle: Download missing article cover images
+  download_images_progress: Downloading {current}/{total}
 
 # App description
 app:

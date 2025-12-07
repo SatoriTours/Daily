@@ -116,6 +116,7 @@ class SettingsView extends GetView<SettingsController> {
           color: Colors.green,
           onTap: () => Get.toNamed(Routes.backupSettings),
         ),
+        _buildDownloadImagesItem(context),
         _buildSettingItem(
           context: context,
           title: 'setting.web_server'.t,
@@ -133,6 +134,64 @@ class SettingsView extends GetView<SettingsController> {
           onTap: () => AppUpgradeService.i.checkAndDownload(),
         ),
       ],
+    );
+  }
+
+  /// 构建下载文章图片设置项
+  Widget _buildDownloadImagesItem(BuildContext context) {
+    return Obx(() {
+      final isDownloading = controller.isDownloadingImages.value;
+      final progress = controller.downloadProgress.value;
+      final total = controller.downloadTotal.value;
+
+      return _buildSettingItemWithProgress(
+        context: context,
+        title: 'setting.download_images'.t,
+        subtitle: isDownloading
+            ? 'setting.download_images_progress'.t.replaceAll('{current}', '$progress').replaceAll('{total}', '$total')
+            : 'setting.download_images_subtitle'.t,
+        icon: Icons.image_rounded,
+        color: Colors.orange,
+        isLoading: isDownloading,
+        onTap: isDownloading ? null : () => controller.downloadMissingArticleImages(),
+      );
+    });
+  }
+
+  /// 构建带进度的设置项
+  Widget _buildSettingItemWithProgress({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required bool isLoading,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: Dimensions.paddingM,
+        child: Row(
+          children: [
+            FeatureIcon(
+              icon: icon,
+              iconColor: color,
+              containerSize: Dimensions.iconSizeXl,
+              iconSize: Dimensions.iconSizeXs,
+            ),
+            Dimensions.horizontalSpacerM,
+            Expanded(child: _buildSettingItemText(context, title, subtitle)),
+            isLoading
+                ? SizedBox(
+                    width: Dimensions.iconSizeS,
+                    height: Dimensions.iconSizeS,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.getColorScheme(context).primary),
+                  )
+                : _buildSettingItemTrailingIcon(context),
+          ],
+        ),
+      ),
     );
   }
 

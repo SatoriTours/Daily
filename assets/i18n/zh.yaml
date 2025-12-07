@@ -192,6 +192,9 @@ setting:
   restart_service_subtitle: 重新启动 Web 服务器
   password_tip: 密码长度为 6-20 位
   network_tip: 确保您的设备与访问端在同一局域网内，通过浏览器访问上方地址即可管理您的数据。
+  download_images: 下载文章图片
+  download_images_subtitle: 下载缺失的文章封面图片
+  download_images_progress: 正在下载 {current}/{total}
 
 # 应用描述
 app:
