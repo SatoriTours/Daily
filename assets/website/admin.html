@@ -1206,6 +1206,32 @@
             gap: 12px;
         }
 
+        /* 通用图标按钮样式 */
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: #ffffff;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+
+        .icon-btn:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: var(--primary-color);
+        }
+
+        .icon-btn:active {
+            transform: scale(0.95);
+        }
+
         .btn-add {
             display: flex;
             align-items: center;
@@ -1818,10 +1844,7 @@
             margin-top: 8px;
             font-size: 12px;
             color: var(--text-muted);
-            line-height: 1.5;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            line-height: 1.6;
         }
 
         /* 观点手风琴样式 */
@@ -2470,13 +2493,16 @@
                             <div class="data-card-header">
                                 <h3>文章列表</h3>
                                 <div class="header-actions-right">
+                                    <button class="icon-btn" @click="loadArticles(1)" title="刷新列表">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                    <button class="btn-add" @click="showSubmitModal = true">
+                                        <i class="bi bi-plus-lg"></i> 添加
+                                    </button>
                                     <div class="search-box">
                                         <input type="text" v-model="searchQuery" placeholder="搜索文章..." @keyup.enter="searchArticles">
                                         <button class="btn btn-primary" @click="searchArticles">搜索</button>
                                     </div>
-                                    <button class="btn-add" @click="showSubmitModal = true">
-                                        <i class="bi bi-plus-lg"></i> 添加文章
-                                    </button>
                                 </div>
                             </div>
                             <div v-if="articlesLoading" class="loading">
@@ -2538,6 +2564,9 @@
                             <div class="data-card-header">
                                 <h3>日记列表</h3>
                                 <div class="header-actions-right">
+                                    <button class="icon-btn" @click="loadDiaries(1)" title="刷新列表">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
                                     <div class="search-box">
                                         <input type="text" v-model="diarySearchQuery" placeholder="搜索日记..." @keyup.enter="searchDiaries">
                                         <button class="btn btn-primary" @click="searchDiaries">搜索</button>
@@ -3560,19 +3589,23 @@
                 };
 
                 const submitArticle = async () => {
+                    if (!submitUrl.value.trim()) {
+                        showToast('请输入文章URL', 'error');
+                        return;
+                    }
                     submitting.value = true;
                     try {
-                        await fetch('/api/v1/articles', {
+                        await api('/articles', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                            body: `url=${encodeURIComponent(submitUrl.value)}&password=${encodeURIComponent(password.value)}`
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url: submitUrl.value.trim() })
                         });
-                        showToast('文章已提交，请在 APP 中继续操作', 'success');
+                        showToast('文章添加成功', 'success');
                         submitUrl.value = '';
                         showSubmitModal.value = false;
                         if (currentPage.value === 'articles') loadArticles(1);
                     } catch (err) {
-                        showToast('提交失败: ' + err.message, 'error');
+                        showToast('添加失败: ' + err.message, 'error');
                     }
                     submitting.value = false;
                 };

@@ -1,9 +1,9 @@
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
-import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/webpage_parser_service.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/auth_middleware.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/request_utils.dart';
 import 'package:daily_satori/app/services/web_service/api_utils/response_utils.dart';
@@ -150,42 +150,39 @@ class ArticleController {
   }
 
   /// 创建文章
+  ///
+  /// 通过 URL 创建文章，复用 ShareDialog 的逻辑
   Future<Response> _createArticle(Request request) async {
     try {
       // 解析请求体
       final body = await RequestUtils.parseJsonBody(request);
 
-      // 创建文章实体
-      final article = Article(
-        title: body['title'] as String?,
-        content: body['content'] as String?,
-        url: body['url'] as String?,
-        isFavorite: body['isFavorite'] as bool? ?? false,
-        comment: body['comment'] as String?,
-        coverImage: body['coverImage'] as String?,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
+      final url = body['url'] as String?;
+      final comment = body['comment'] as String? ?? '';
 
-      // 创建文章模型
-      final articleModel = ArticleModel(article);
-
-      // 保存文章
-      final articleId = ArticleRepository.i.saveModel(articleModel);
-
-      // 获取新创建的文章
-      final newArticle = ArticleRepository.i.findModel(articleId);
-      if (newArticle == null) {
-        return ResponseUtils.serverError('文章创建失败');
+      if (url == null || url.isEmpty) {
+        return ResponseUtils.validationError('URL不能为空');
       }
 
+      logger.i('[Web API] 开始创建文章: $url');
+
+      // 使用 WebpageParserService 保存网页（复用 ShareDialog 逻辑）
+      final article = await WebpageParserService.i.saveWebpage(
+        url: url,
+        comment: comment,
+        isUpdate: false,
+        articleID: 0,
+      );
+
+      logger.i('[Web API] 文章创建成功: ID=${article.id}');
+
       // 转换为JSON格式
-      final articleJson = _articleToJson(newArticle);
+      final articleJson = _articleToJson(article);
 
       return ResponseUtils.success(articleJson, status: 201);
     } catch (e) {
       logger.e('创建文章失败: $e');
-      return ResponseUtils.serverError('处理创建文章请求时发生错误');
+      return ResponseUtils.serverError('创建文章失败: $e');
     }
   }
 
