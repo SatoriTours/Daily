@@ -278,12 +278,23 @@
             margin: 0 auto;
         }
 
-        /* 统计卡片 - 简洁设计 */
+        /* 仪表盘布局 - 填满页面并让最近活动贴底 */
+        .dashboard-layout {
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - var(--header-height) - 48px);
+        }
+
+        .dashboard-main {
+            flex: 1;
+        }
+
+        /* 统计卡片 - 紧凑设计 */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-bottom: 24px;
+            gap: 12px;
+            margin-bottom: 16px;
         }
 
         @media (max-width: 1200px) {
@@ -294,32 +305,35 @@
 
         @media (max-width: 600px) {
             .stats-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(2, 1fr);
             }
         }
 
         .stat-card {
             background: #ffffff;
-            border-radius: var(--radius-md);
-            padding: 20px;
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
             border: 1px solid var(--border-color);
             transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .stat-card:hover {
-            box-shadow: var(--shadow-md);
+            box-shadow: var(--shadow-sm);
             border-color: #cbd5e1;
         }
 
         .stat-card .stat-icon {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: var(--radius-sm);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
-            margin-bottom: 12px;
+            font-size: 16px;
+            flex-shrink: 0;
         }
 
         .stat-card .stat-icon.blue {
@@ -339,18 +353,179 @@
             color: #f59e0b;
         }
 
+        .stat-card .stat-info {
+            flex: 1;
+            min-width: 0;
+        }
+
         .stat-card .stat-value {
-            font-size: 28px;
+            font-size: 20px;
             font-weight: 700;
             color: var(--text-primary);
-            margin-bottom: 4px;
+            line-height: 1.2;
             letter-spacing: -0.02em;
         }
 
         .stat-card .stat-label {
-            font-size: 13px;
+            font-size: 12px;
             color: var(--text-secondary);
             font-weight: 500;
+        }
+
+        /* 周报卡片样式 */
+        .weekly-report-card {
+            background: #ffffff;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            margin-bottom: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .weekly-report-header {
+            padding: 14px 20px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .weekly-report-header h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .weekly-report-header h3 i {
+            color: #0ea5e9;
+        }
+
+        .weekly-report-date {
+            font-size: 13px;
+            color: #0369a1;
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            padding: 6px 14px;
+            border-radius: 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .weekly-report-date i {
+            font-size: 12px;
+        }
+
+        .weekly-report-content {
+            padding: 16px 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .weekly-report-content .markdown-body {
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        /* 周报中的内部链接样式 */
+        .weekly-report-content .internal-link {
+            color: #0284c7;
+            text-decoration: none;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            padding: 2px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .weekly-report-content .internal-link:hover {
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            color: #0369a1;
+        }
+
+        .weekly-report-content .internal-link i {
+            font-size: 12px;
+            margin-right: 4px;
+        }
+
+        .weekly-report-empty {
+            padding: 32px 20px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .weekly-report-empty i {
+            font-size: 32px;
+            margin-bottom: 8px;
+            display: block;
+            color: #cbd5e1;
+        }
+
+        /* 可折叠面板样式 */
+        .collapsible-card {
+            background: #ffffff;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            margin-top: auto;
+        }
+
+        .collapsible-header {
+            padding: 12px 20px;
+            background: #fafbfc;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .collapsible-header:hover {
+            background: #f1f5f9;
+        }
+
+        .collapsible-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .collapsible-toggle {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+
+        .collapsible-toggle.expanded {
+            transform: rotate(180deg);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible-content.expanded {
+            max-height: 500px;
         }
 
         /* 数据卡片 - 简洁设计 */
@@ -1576,57 +1751,99 @@
                 <div class="content-area">
                     <!-- 仪表盘 -->
                     <template v-if="currentPage === 'dashboard'">
-                        <div class="stats-grid">
-                            <div class="stat-card">
-                                <div class="stat-icon blue"><i class="bi bi-file-text"></i></div>
-                                <div class="stat-value">{{ stats.totals?.articles || 0 }}</div>
-                                <div class="stat-label">文章总数</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon green"><i class="bi bi-journal"></i></div>
-                                <div class="stat-value">{{ stats.totals?.diaries || 0 }}</div>
-                                <div class="stat-label">日记总数</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon purple"><i class="bi bi-book"></i></div>
-                                <div class="stat-value">{{ stats.totals?.books || 0 }}</div>
-                                <div class="stat-label">书籍总数</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-icon orange"><i class="bi bi-star"></i></div>
-                                <div class="stat-value">{{ stats.totals?.favoriteArticles || 0 }}</div>
-                                <div class="stat-label">收藏文章</div>
-                            </div>
-                        </div>
+                        <div class="dashboard-layout">
+                            <!-- 主要内容区 -->
+                            <div class="dashboard-main">
+                                <!-- 统计卡片 - 紧凑横向布局 -->
+                                <div class="stats-grid">
+                                    <div class="stat-card">
+                                        <div class="stat-icon blue"><i class="bi bi-file-text"></i></div>
+                                        <div class="stat-info">
+                                            <div class="stat-value">{{ stats.totals?.articles || 0 }}</div>
+                                            <div class="stat-label">文章总数</div>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-icon green"><i class="bi bi-journal"></i></div>
+                                        <div class="stat-info">
+                                            <div class="stat-value">{{ stats.totals?.diaries || 0 }}</div>
+                                            <div class="stat-label">日记总数</div>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-icon purple"><i class="bi bi-book"></i></div>
+                                        <div class="stat-info">
+                                            <div class="stat-value">{{ stats.totals?.books || 0 }}</div>
+                                            <div class="stat-label">书籍总数</div>
+                                        </div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-icon orange"><i class="bi bi-star"></i></div>
+                                        <div class="stat-info">
+                                            <div class="stat-value">{{ stats.totals?.favoriteArticles || 0 }}</div>
+                                            <div class="stat-label">收藏文章</div>
+                                        </div>
+                                    </div>
+                                </div>
 
-                        <div class="data-card">
-                            <div class="data-card-header">
-                                <h3><i class="bi bi-clock-history"></i> 最近活动</h3>
+                                <!-- 周报卡片 -->
+                                <div class="weekly-report-card">
+                                    <div class="weekly-report-header">
+                                        <h3><i class="bi bi-calendar-week"></i> 本周总结</h3>
+                                        <span v-if="weeklyReport" class="weekly-report-date">
+                                            <i class="bi bi-calendar-range"></i>
+                                            {{ formatWeekRange(weeklyReport.weekStart, weeklyReport.weekEnd) }}
+                                        </span>
+                                    </div>
+                                    <div v-if="weeklyReportLoading" class="loading" style="padding: 32px;">
+                                        <div class="spinner"></div>
+                                        <span>加载中...</span>
+                                    </div>
+                                    <div v-else-if="weeklyReport && weeklyReport.content" class="weekly-report-content">
+                                        <div class="markdown-body" v-html="formatContent(weeklyReport.content)"></div>
+                                    </div>
+                                    <div v-else class="weekly-report-empty">
+                                        <i class="bi bi-journal-text"></i>
+                                        <p>暂无本周总结</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div v-if="recentLoading" class="loading">
-                                <div class="spinner"></div>
-                                <span>加载中...</span>
+
+                            <!-- 最近活动 - 可折叠面板（贴底） -->
+                            <div class="collapsible-card">
+                                <div class="collapsible-header" @click="recentActivityExpanded = !recentActivityExpanded">
+                                    <h3><i class="bi bi-clock-history"></i> 最近活动</h3>
+                                    <div class="collapsible-toggle" :class="{ expanded: recentActivityExpanded }">
+                                        <i class="bi bi-chevron-down"></i>
+                                    </div>
+                                </div>
+                                <div class="collapsible-content" :class="{ expanded: recentActivityExpanded }">
+                                    <div v-if="recentLoading" class="loading" style="padding: 40px;">
+                                        <div class="spinner"></div>
+                                        <span>加载中...</span>
+                                    </div>
+                                    <table v-else class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>类型</th>
+                                                <th>标题</th>
+                                                <th>时间</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="item in recentItems" :key="item.type + '-' + item.id">
+                                                <td>
+                                                    <span class="badge" :class="getBadgeClass(item.type)">
+                                                        {{ getTypeName(item.type) }}
+                                                    </span>
+                                                </td>
+                                                <td class="title-cell">{{ item.title || item.content }}</td>
+                                                <td>{{ formatDate(item.createdAt) }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                            <table v-else class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>类型</th>
-                                        <th>标题</th>
-                                        <th>时间</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="item in recentItems" :key="item.type + '-' + item.id">
-                                        <td>
-                                            <span class="badge" :class="getBadgeClass(item.type)">
-                                                {{ getTypeName(item.type) }}
-                                            </span>
-                                        </td>
-                                        <td class="title-cell">{{ item.title || item.content }}</td>
-                                        <td>{{ formatDate(item.createdAt) }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
                         </div>
                     </template>
 
@@ -2111,12 +2328,24 @@
                     return str.length > len ? str.substring(0, len) + '...' : str;
                 };
 
+                // 解析内部链接格式 [[type:id:title]]
+                const parseInternalLinks = (html) => {
+                    // 匹配 [[diary:34:10月21日]] 或 [[article:123:文章标题]] 格式
+                    const linkPattern = /\[\[(diary|article|book):(\d+):([^\]]+)\]\]/g;
+                    return html.replaceAll(linkPattern, (match, type, id, title) => {
+                        const icons = { diary: 'bi-journal-text', article: 'bi-file-text', book: 'bi-book' };
+                        const icon = icons[type] || 'bi-link';
+                        return `<span class="internal-link" data-type="${type}" data-id="${id}" onclick="window.openInternalLink('${type}', ${id})"><i class="bi ${icon}"></i>${title}</span>`;
+                    });
+                };
+
                 const formatContent = (content) => {
                     if (!content) return '';
-                    if (typeof marked !== 'undefined') {
-                        return marked.parse(content);
-                    }
-                    return content.replaceAll('\n', '<br>');
+                    // 先解析 Markdown，再解析内部链接
+                    const html = (typeof marked !== 'undefined')
+                        ? marked.parse(content)
+                        : content.replaceAll('\n', '<br>');
+                    return parseInternalLinks(html);
                 };
 
                 const getBadgeClass = (type) => {
@@ -2257,12 +2486,52 @@
                 const stats = ref({});
                 const recentItems = ref([]);
                 const recentLoading = ref(false);
+                const recentActivityExpanded = ref(false);  // 最近活动默认收起
+
+                // 周报相关
+                const weeklyReport = ref(null);
+                const weeklyReportLoading = ref(false);
+
+                // 格式化周时间范围
+                const formatWeekRange = (start, end) => {
+                    if (!start || !end) return '';
+                    const startDate = new Date(start);
+                    const endDate = new Date(end);
+                    const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+                    const startMonth = months[startDate.getMonth()];
+                    const endMonth = months[endDate.getMonth()];
+                    const startDay = startDate.getDate();
+                    const endDay = endDate.getDate();
+                    // 如果同一个月，简化显示
+                    if (startDate.getMonth() === endDate.getMonth()) {
+                        return `${startMonth}${startDay}日 - ${endDay}日`;
+                    }
+                    return `${startMonth}${startDay}日 - ${endMonth}${endDay}日`;
+                };
+
+                // 加载周报数据
+                const loadWeeklyReport = async () => {
+                    weeklyReportLoading.value = true;
+                    try {
+                        // 调用后端接口获取最新周报
+                        const data = await api('/stats/weekly-report');
+                        weeklyReport.value = data;
+                    } catch (err) {
+                        console.warn('加载周报失败:', err.message);
+                        weeklyReport.value = null;
+                    }
+                    weeklyReportLoading.value = false;
+                };
 
                 const loadDashboard = async () => {
                     recentLoading.value = true;
                     try {
-                        stats.value = await api('/stats/overview');
-                        const recent = await api('/stats/recent');
+                        // 并行加载统计数据、最近活动和周报
+                        const [statsData, recent] = await Promise.all([
+                            api('/stats/overview'),
+                            api('/stats/recent')
+                        ]);
+                        stats.value = statsData;
                         recentItems.value = [
                             ...recent.articles,
                             ...recent.diaries,
@@ -2272,6 +2541,9 @@
                         console.error('加载仪表盘失败:', err.message);
                     }
                     recentLoading.value = false;
+
+                    // 异步加载周报（不阻塞主要内容）
+                    loadWeeklyReport();
                 };
 
                 // ==================================================================================
@@ -2523,6 +2795,20 @@
                 // ==================================================================================
                 // 11. 初始化 (Initialization)
                 // ==================================================================================
+
+                // 全局函数：打开内部链接（供 v-html 中的点击事件调用）
+                const openInternalLink = async (type, id) => {
+                    if (type === 'diary') {
+                        await viewDiary({ id });
+                    } else if (type === 'article') {
+                        await viewArticle({ id });
+                    } else if (type === 'book') {
+                        await viewBook({ id });
+                    }
+                };
+                // 挂载到全局以便 v-html 中的 onclick 调用
+                globalThis.openInternalLink = openInternalLink;
+
                 onMounted(async () => {
                     const savedLogin = localStorage.getItem('isLoggedIn');
                     if (savedLogin === 'true') {
@@ -2549,7 +2835,8 @@
                     pageTitle, toasts,
 
                     // 数据
-                    stats, recentItems, recentLoading,
+                    stats, recentItems, recentLoading, recentActivityExpanded,
+                    weeklyReport, weeklyReportLoading,
                     articles, articlesLoading, searchQuery, pagination,
                     diaries, diariesLoading, diarySearchQuery, diaryPagination,
                     books, booksLoading, bookSearchQuery, bookPagination,
@@ -2572,7 +2859,8 @@
                     submitArticle,
 
                     // 工具
-                    getDiaryTitle, formatDate, truncate, formatContent, getBadgeClass, getTypeName
+                    getDiaryTitle, formatDate, truncate, formatContent, getBadgeClass, getTypeName,
+                    formatWeekRange
                 };
             }
         }).mount('#app');

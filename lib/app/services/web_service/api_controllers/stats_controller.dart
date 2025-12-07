@@ -20,6 +20,9 @@ class StatsController {
     // 最近活动
     router.get('/recent', pipeline.addHandler(_getRecentActivity));
 
+    // 周报
+    router.get('/weekly-report', pipeline.addHandler(_getWeeklyReport));
+
     return router;
   }
 
@@ -147,6 +150,36 @@ class StatsController {
       return diaries.where((d) => d.createdAt.isAfter(since)).length;
     } catch (e) {
       return 0;
+    }
+  }
+
+  /// 获取最新周报
+  Future<Response> _getWeeklyReport(Request request) async {
+    try {
+      // 获取最近一条已完成的周报
+      final recentReports = WeeklySummaryRepository.i.findRecent(1);
+
+      if (recentReports.isEmpty) {
+        return ResponseUtils.success(null);
+      }
+
+      final report = recentReports.first;
+
+      return ResponseUtils.success({
+        'id': report.id,
+        'content': report.content,
+        'weekStart': report.weekStartDate.toIso8601String(),
+        'weekEnd': report.weekEndDate.toIso8601String(),
+        'articleCount': report.articleCount,
+        'diaryCount': report.diaryCount,
+        'viewpointCount': report.viewpointCount,
+        'status': report.status.value,
+        'createdAt': report.createdAt.toIso8601String(),
+        'updatedAt': report.updatedAt.toIso8601String(),
+      });
+    } catch (e) {
+      logger.e('获取周报失败: $e');
+      return ResponseUtils.serverError('获取周报时发生错误');
     }
   }
 }
