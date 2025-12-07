@@ -26,7 +26,6 @@ class ArticlesView extends GetView<ArticlesController> {
   @override
   Widget build(BuildContext context) {
     logger.i('构建文章列表页面');
-    FocusScope.of(context).unfocus();
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: _ArticlesAppBar(controller: controller),
