@@ -70,6 +70,8 @@ class _MyConsoleOutput extends LogOutput {
 ///   ↳ error: <错误对象>            // 当存在 error 时出现
 ///   ↳ stack: <堆栈前几行>         // 当存在 stackTrace 时出现
 class SatoriPrinter extends LogPrinter {
+  static const int _callerColumn = 96;
+
   @override
   List<String> log(LogEvent event) {
     final levelTag = _levelToTag(event.level);
@@ -77,7 +79,7 @@ class SatoriPrinter extends LogPrinter {
     // 优先使用事件自带的堆栈（若调用端传入 `stackTrace: StackTrace.current`，定位更准确）
     final caller = _callerTag(event.stackTrace); // 形如 [PluginService+93]
 
-    final lines = <String>['[$levelTag] $message     <= $caller'];
+    final lines = <String>[_formatMainLine(levelTag: levelTag, message: message, caller: caller)];
 
     if (event.error != null) {
       lines.add('↳ error: ${event.error}');
@@ -87,6 +89,24 @@ class SatoriPrinter extends LogPrinter {
     }
 
     return lines;
+  }
+
+  String _formatMainLine({required String levelTag, required String message, required String caller}) {
+    final prefix = '[$levelTag] ';
+
+    // 目标：让每一行的 "<=" 从同一列开始，便于肉眼扫读。
+    // 说明：IDE/终端字体非等宽时对齐不保证 100% 精准，但在常见等宽控制台中可读性会明显提升。
+    final prefixWidth = _displayWidth(prefix);
+    final messageWidth = _displayWidth(message);
+    final paddingCount = (_callerColumn - (prefixWidth + messageWidth)).clamp(1, 9999);
+
+    return '$prefix$message${' ' * paddingCount}<= $caller';
+  }
+
+  int _displayWidth(String s) {
+    // 简化处理：按 rune 数量计算显示宽度。
+    // 对 CJK 全角字符的真实宽度（2列）不做特殊处理，避免引入复杂依赖。
+    return s.runes.length;
   }
 
   String _levelToTag(Level level) {

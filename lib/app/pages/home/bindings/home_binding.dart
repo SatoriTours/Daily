@@ -34,14 +34,14 @@ class HomeBinding extends Binding {
     WeeklySummaryBinding().dependencies();
 
     if (kDebugMode) {
-      logger.i('子模块依赖初始化完成 [$_tag:${DateTime.now()}]');
+      logger.i('子模块依赖初始化完成 [$_tag]');
     }
   }
 
   /// 记录绑定日志
   void _logBinding() {
     if (kDebugMode) {
-      logger.i('主页模块依赖注入完成 [$_tag:${DateTime.now()}]');
+      logger.i('主页模块依赖注入完成 [$_tag]');
     }
   }
 }

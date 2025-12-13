@@ -62,7 +62,11 @@ class HomeView extends GetView<HomeController> {
           activeIcon: const Icon(Icons.article),
           label: 'nav.articles'.t,
         ),
-        BottomNavigationBarItem(icon: const Icon(Icons.book_outlined), activeIcon: const Icon(Icons.book), label: 'nav.diary'.t),
+        BottomNavigationBarItem(
+          icon: const Icon(Icons.book_outlined),
+          activeIcon: const Icon(Icons.book),
+          label: 'nav.diary'.t,
+        ),
         BottomNavigationBarItem(
           icon: const Icon(Icons.menu_book_outlined),
           activeIcon: const Icon(Icons.menu_book),
@@ -85,7 +89,7 @@ class HomeView extends GetView<HomeController> {
   /// 记录页面构建日志
   void _logBuild() {
     if (kDebugMode) {
-      logger.i('主页视图构建 [$_tag:${DateTime.now()}]');
+      logger.i('主页视图构建 [$_tag]');
     }
   }
 
@@ -93,7 +97,7 @@ class HomeView extends GetView<HomeController> {
   void _logPageSwitch(int index) {
     if (kDebugMode) {
       final pages = ['nav.articles'.t, 'nav.diary'.t, 'nav.books'.t, 'ai_chat.title'.t, 'weekly_summary.title'.t];
-      logger.i('切换到${pages[index]} [$_tag:${DateTime.now()}]');
+      logger.i('切换到 ${pages[index]} 页面');
     }
   }
 }
