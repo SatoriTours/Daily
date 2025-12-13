@@ -18,7 +18,6 @@
 - **dialog_utils.dart**: 对话框工具类（提示框、确认框、输入框、加载框）
 
 ### 系统与设备
-- **clipboard_utils.dart**: 剪贴板工具类（监听、URL提取）
 - **app_info_utils.dart**: 应用信息工具类（版本号、包名、环境判断）
 
 ### 数据处理

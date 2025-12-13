@@ -39,8 +39,6 @@ class ShareDialogController extends BaseController {
   @override
   void onInit() {
     super.onInit();
-    // 分享对话框打开期间，禁止剪贴板监控弹出其它对话框，避免流程被打断
-    ClipboardMonitorService.i.suspend(reason: 'shareDialog');
     _initDefaultValues();
   }
 
@@ -49,7 +47,6 @@ class ShareDialogController extends BaseController {
     commentController.dispose();
     titleController.dispose();
     tagsController.dispose();
-    ClipboardMonitorService.i.resume(reason: 'shareDialog');
     super.onClose();
   }
 
@@ -78,7 +75,7 @@ class ShareDialogController extends BaseController {
     if (args.containsKey('shareURL') && args['shareURL'] != null) {
       shareURL.value = args['shareURL'];
       logger.i("初始化分享链接: ${shareURL.value}");
-      ClipboardUtils.markUrlProcessed(shareURL.value);
+      ClipboardMonitorService.i.markUrlProcessed(shareURL.value);
     }
 
     // 记录初始标题并监听编辑变化
@@ -300,9 +297,6 @@ class ShareDialogController extends BaseController {
 
   /// 点击取消按钮
   void backToPreviousStep() {
-    // 重置剪贴板已处理状态，允许检测新的 URL
-    ClipboardUtils.resetProcessedState();
-
     if (isUpdate.value) {
       // 更新模式：返回文章详情页
       _navigateToDetail();
