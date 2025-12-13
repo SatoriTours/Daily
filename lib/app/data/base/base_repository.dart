@@ -76,6 +76,10 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
 
   /// 根据 ID 查找 Model
   M? find(int id) {
+    if (id <= 0) {
+      logger.w('[$entityName] 查找非法 ID=$id，忽略');
+      return null;
+    }
     final entity = box.get(id);
     logger.d('[$entityName] 查找 ID=$id: ${entity != null ? '找到' : '未找到'}');
     return entity != null ? toModel(entity) : null;
@@ -98,6 +102,10 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
 
   /// 删除 Model
   bool remove(int id) {
+    if (id <= 0) {
+      logger.w('[$entityName] 删除非法 ID=$id，忽略');
+      return false;
+    }
     final result = box.remove(id);
     logger.d('[$entityName] 删除 ID=$id: ${result ? '成功' : '失败'}');
     return result;

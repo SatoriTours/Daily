@@ -39,6 +39,8 @@ class ShareDialogController extends BaseController {
   @override
   void onInit() {
     super.onInit();
+    // 分享对话框打开期间，禁止剪贴板监控弹出其它对话框，避免流程被打断
+    ClipboardMonitorService.i.suspend(reason: 'shareDialog');
     _initDefaultValues();
   }
 
@@ -47,6 +49,7 @@ class ShareDialogController extends BaseController {
     commentController.dispose();
     titleController.dispose();
     tagsController.dispose();
+    ClipboardMonitorService.i.resume(reason: 'shareDialog');
     super.onClose();
   }
 
@@ -114,46 +117,72 @@ class ShareDialogController extends BaseController {
 
     await safeExecute(
       () async {
-        // 如果是更新并且选择不重新抓取/AI分析，则只做字段更新
-        if (isUpdate.value && !refreshAndAnalyze.value) {
-          await _updateArticleFieldsOnly();
-        } else {
-          // 计算用户编辑的标题（如果有的话）
-          final userEditedTitle = _getUserEditedTitle();
-
-          final newArticle = await ProcessingDialog.show(
-            context: Get.context!,
-            messageKey: 'component.ai_analyzing',
-            onProcess: () async {
-              return await WebpageParserService.i.saveWebpage(
-                url: shareURL.value,
-                comment: commentController.text,
-                isUpdate: isUpdate.value,
-                articleID: articleID.value,
-                userTitle: userEditedTitle,
-              );
-            },
-          );
-
-          // 处理返回的文章数据
-          if (newArticle != null) {
-            // 新增模式：保存后拿到新文章ID
-            if (articleID.value <= 0 && newArticle.id > 0) {
-              articleID.value = newArticle.id;
-              logger.i('[ShareDialog] 新增文章保存完成，ID=${articleID.value}');
-              // 通知文章创建
-              _articleStateService.notifyArticleCreated(newArticle);
-            }
+        try {
+          // 如果是更新并且选择不重新抓取/AI分析，则只做字段更新
+          if (isUpdate.value && !refreshAndAnalyze.value) {
+            await _updateArticleFieldsOnly();
           } else {
-            throw Exception('文章保存失败');
+            // 计算用户编辑的标题（如果有的话）
+            final userEditedTitle = _getUserEditedTitle();
+
+            final newArticle = await ProcessingDialog.show(
+              context: Get.context!,
+              messageKey: 'component.ai_analyzing',
+              onProcess: () async {
+                return await WebpageParserService.i.saveWebpage(
+                  url: shareURL.value,
+                  comment: commentController.text,
+                  isUpdate: isUpdate.value,
+                  articleID: articleID.value,
+                  userTitle: userEditedTitle,
+                );
+              },
+            );
+
+            // 处理返回的文章数据
+            if (newArticle != null) {
+              // 新增模式：保存后拿到新文章ID
+              if (articleID.value <= 0 && newArticle.id > 0) {
+                articleID.value = newArticle.id;
+                logger.i('[ShareDialog] 新增文章保存完成，ID=${articleID.value}');
+                // 通知文章创建
+                _articleStateService.notifyArticleCreated(newArticle);
+              }
+            } else {
+              throw Exception('文章保存失败');
+            }
+            // 保存后再应用用户手动输入的标签
+            await _applyManualTagsPostProcess();
           }
-          // 保存后再应用用户手动输入的标签
-          await _applyManualTagsPostProcess();
+
+          backToPreviousStep();
+        } catch (e) {
+          final msg = e.toString();
+          if (msg.contains('网页已存在')) {
+            // 查找已存在的文章
+            final exist = ArticleRepository.i.findByUrl(shareURL.value);
+            if (exist != null) {
+              await DialogUtils.showConfirm(
+                title: '文章已存在',
+                message: '该文章已存在，是否跳转到详情页？',
+                confirmText: '跳转',
+                cancelText: '取消',
+                onConfirm: () {
+                  // 跳转到详情页
+                  Get.offAllNamed(Routes.articleDetail, arguments: exist.id);
+                },
+              );
+              return;
+            } else {
+              showError('该文章已存在，但未找到详情。');
+              return;
+            }
+          }
+          rethrow;
         }
       },
       loadingMessage: '保存中...',
       errorMessage: '保存失败',
-      onSuccess: (_) => backToPreviousStep(),
     );
   }
 

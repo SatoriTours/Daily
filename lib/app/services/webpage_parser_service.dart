@@ -57,6 +57,12 @@ class WebpageParserService {
       logger.i("[保存网页] 完成 - 文章ID=${article.id}");
       return article;
     } catch (e, stackTrace) {
+      final msg = e.toString();
+      if (msg.contains('网页已存在')) {
+        logger.w('[保存网页] 已存在 - $e');
+        rethrow;
+      }
+
       logger.e("[保存网页] 失败 - $e");
       logger.e(stackTrace.toString());
 
