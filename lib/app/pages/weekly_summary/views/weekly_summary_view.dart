@@ -359,7 +359,9 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.getSurface(context),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
+      ),
       builder: (context) => _DiaryDetailSheet(diary: diary),
     );
   }
