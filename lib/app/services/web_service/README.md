@@ -9,16 +9,23 @@ web_service/
 ├── web_service.dart            # 主服务管理类
 ├── app_http_server.dart        # HTTP 服务器实现
 ├── app_web_socket_tunnel.dart  # WebSocket 隧道实现
-├── api_controllers/            # API 控制器
-│   ├── api_controller.dart     # 主 API 控制器
-│   ├── auth_controller.dart    # 认证控制器
-│   ├── article_controller.dart # 文章控制器
-│   └── diary_controller.dart   # 日记控制器
-└── api_utils/                  # API 工具类
-    ├── response_utils.dart     # 响应工具
-    ├── request_utils.dart      # 请求工具
-    ├── auth_middleware.dart    # 认证中间件
-    └── session_manager.dart    # 会话管理
+├── api/                        # 新版 API 实现（推荐）
+│   ├── controllers/            # 业务控制器
+│   ├── middleware/             # 中间件（认证等）
+│   ├── session/                # Session 管理
+│   └── utils/                  # 请求/响应等工具
+├── api_controllers/            # 兼容层（对外保留旧 import 路径）
+│   ├── api_controller.dart     # v2 路由入口（AppHttpServer 仍使用）
+│   ├── auth_controller.dart    # 导出 api/controllers/auth_controller.dart
+│   ├── article_controller.dart # 导出 api/controllers/article_controller.dart
+│   ├── diary_controller.dart   # 导出 api/controllers/diary_controller.dart
+│   ├── book_controller.dart    # 导出 api/controllers/book_controller.dart
+│   └── stats_controller.dart   # 导出 api/controllers/stats_controller.dart
+└── api_utils/                  # 旧工具（历史/兼容，逐步收敛）
+   ├── response_utils.dart     # 响应工具
+   ├── request_utils.dart      # 请求工具
+   ├── auth_middleware.dart    # 认证中间件
+   └── session_manager.dart    # 会话管理
 ```
 
 ## 核心功能
@@ -52,26 +59,39 @@ WebSocket 隧道提供以下功能：
 
 1. **认证 API**
    - `/api/v2/auth/login`: 用户登录
-   - `/api/v2/auth/logout`: 用户登出
-   - `/api/v2/auth/status`: 获取认证状态
+   - `/api/v2/auth/logout`: 用户登出（需认证）
+   - `/api/v2/auth/status`: 获取认证状态（需认证）
 
 2. **文章 API**
-   - `/api/v2/articles`: 文章列表 (GET) 和创建 (POST)
-   - `/api/v2/articles/:id`: 获取、更新、删除指定文章
-   - `/api/v2/articles/search`: 搜索文章
+   - `/api/v2/articles`: 文章列表 (GET) 和创建 (POST)（需认证）
+   - `/api/v2/articles/:id`: 获取、更新、删除指定文章（需认证）
+   - `/api/v2/articles/search`: 搜索文章（需认证）
+   - `/api/v2/articles/fetch-webpage`: 获取网页信息（需认证）
 
 3. **日记 API**
-   - `/api/v2/diary`: 日记列表 (GET) 和创建 (POST)
-   - `/api/v2/diary/:id`: 获取、更新、删除指定日记
-   - `/api/v2/diary/search`: 搜索日记
+   - `/api/v2/diary`: 日记列表 (GET) 和创建 (POST)（需认证）
+   - `/api/v2/diary/:id`: 获取、更新、删除指定日记（需认证）
+   - `/api/v2/diary/search`: 搜索日记（需认证）
 
-4. **文件上传 API**
+4. **书籍 API**
+   - `/api/v2/books`: 书籍列表 (GET) 和创建 (POST)（需认证）
+   - `/api/v2/books/:id`: 获取、更新、删除指定书籍（需认证）
+   - `/api/v2/books/:id/viewpoints`: 观点列表/创建（需认证）
+
+5. **统计 API**
+   - `/api/v2/stats/overview`: 概览统计（需认证）
+   - `/api/v2/stats/recent`: 最近活动（需认证）
+   - `/api/v2/stats/weekly-report`: 周报数据（需认证）
+
+6. **文件上传 API**
    - `/api/v2/upload`: 文件上传 (multipart/form-data)
 
 ### 静态资源
 
-- `/images/*`: 访问应用图片目录
-- `/assets/*`: 访问应用内置资源
+- `/images/*`: 访问文章图片目录
+- `/diary_images/*`: 访问日记图片目录
+- `/website/*`: 访问内置 Web 资源
+- `/admin`: 管理后台页面
 
 ## 开发指南
 
@@ -96,8 +116,9 @@ WebSocket 隧道提供以下功能：
 ### 安全性
 
 - 所有受保护的 API 都需通过 AuthMiddleware 验证
-- 支持两种认证方式：Cookie 和 Bearer Token
+- 认证使用会话 Cookie（`session_id`），由 `/api/v2/auth/login` 返回
 - 使用会话机制管理用户认证状态
+- 除 `/api/v2/auth/login` 外，`/api/v2` 下接口均需认证
 
 ## 使用示例
 
