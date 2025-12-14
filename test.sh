@@ -119,6 +119,39 @@ run_full_test() {
     flutter test integration_test/full_app_test.dart -d PKJ110
 }
 
+# 综合功能测试（覆盖所有模块）
+run_comprehensive_test() {
+    if ! check_devices; then
+        print_error "需要连接设备才能运行集成测试"
+        return 1
+    fi
+
+    # 检查环境变量
+    if [[ -z "$TEST_AI_TOKEN" ]]; then
+        print_warning "未检测到AI配置，AI功能测试将被跳过"
+        print_info "如需测试AI功能，请配置环境变量："
+        print_info "export TEST_AI_TOKEN=\"your-api-key\""
+        print_info "export TEST_AI_URL=\"https://api.openai.com/v1/chat/completions\""
+        read -p "是否继续？(y/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            return 1
+        fi
+    fi
+
+    print_info "运行综合功能测试（覆盖所有模块）..."
+    print_info "测试内容包括："
+    print_info "- 文章模块（添加、搜索、阅读、分享）"
+    print_info "- 日记模块（创建、编辑、搜索）"
+    print_info "- 读书模块（搜索、添加、记录感悟）"
+    print_info "- AI聊天（搜索、问答）"
+    print_info "- 设置（主题、语言、AI配置）"
+    print_info "- 备份还原"
+    echo
+
+    flutter test integration_test/comprehensive_app_test.dart -d PKJ110
+}
+
 # 清理和准备
 prepare_test() {
     print_info "准备测试环境..."
@@ -151,11 +184,13 @@ show_help() {
     echo "  quick          快速测试（默认，代码分析+单元测试+构建）"
     echo "  basic          基础集成测试（应用启动验证）"
     echo "  full           完整功能测试（需要配置环境变量）"
+    echo "  comprehensive  综合功能测试（覆盖所有功能模块）"
     echo ""
     echo "示例:"
     echo "  $0                # 快速测试"
     echo "  $0 basic          # 基础集成测试"
     echo "  $0 full           # 完整功能测试"
+    echo "  $0 comprehensive  综合功能测试"
     echo "  $0 --check        # 检查环境"
     echo ""
     echo "环境变量配置（完整功能测试需要）:"
@@ -188,6 +223,11 @@ main() {
             prepare_test
             run_quick_test
             run_full_test
+            ;;
+        comprehensive)
+            prepare_test
+            run_quick_test
+            run_comprehensive_test
             ;;
         *)
             print_error "未知选项: $1"

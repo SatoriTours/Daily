@@ -1,8 +1,6 @@
 # 🎨 Daily Satori 样式系统快速参考
 
-> 本文档提供样式系统的快速查询参考，详细规范请参考 [`CODING_STANDARDS.md`](./CODING_STANDARDS.md)
-
----
+> 本文档提供样式系统的快速查询参考，详细规范请参考 [`01-coding-standards.md`](./01-coding-standards.md)
 
 ## 📦 快速导入
 
@@ -10,8 +8,6 @@
 // 一次导入所有样式类
 import 'package:daily_satori/app/styles/index.dart';
 ```
-
----
 
 ## 🏗️ 样式系统架构
 
@@ -44,8 +40,6 @@ lib/app/styles/
 └── html_styles.dart     # HTML 渲染样式
 ```
 
----
-
 ## 🎯 核心原则
 
 1. **统一导入** - 始终使用 `import 'package:daily_satori/app/styles/index.dart';`
@@ -56,8 +50,6 @@ lib/app/styles/
    - 其次使用组件样式类 (`ButtonStyles`, `InputStyles` 等)
    - 再次使用基础 Tokens (`Dimensions`, `AppColors`, `AppTypography`)
    - 最后才使用 `.copyWith()` 微调
-
----
 
 ## 🎨 基础样式速查
 
@@ -224,8 +216,6 @@ Opacities.half          // 0.5  (50%)
 Opacities.mediumOpaque  // 0.8  (80%)
 ```
 
----
-
 ## 🔧 组件样式速查
 
 ### 按钮 (ButtonStyles)
@@ -353,8 +343,6 @@ ListStyles.createListHeader(
 )
 ```
 
----
-
 ## 🎯 StyleGuide 高级应用
 
 ### 容器装饰
@@ -419,8 +407,6 @@ StyleGuide.getStandardGridLayout(
   crossAxisCount: 2,
 )
 ```
-
----
 
 ## ✅ 最佳实践示例
 
@@ -506,8 +492,6 @@ class ExampleView extends StatelessWidget {
 }
 ```
 
----
-
 ## ❌ 常见错误示例
 
 ### 错误 1：硬编码数值
@@ -572,8 +556,6 @@ style: AppTypography.titleSmall
 style: AppTypography.bodyMedium.copyWith(color: AppColors.getPrimary(context))
 ```
 
----
-
 ## 📝 检查清单
 
 在提交代码前，确保：
@@ -590,13 +572,9 @@ style: AppTypography.bodyMedium.copyWith(color: AppColors.getPrimary(context))
 - [ ] 卡片使用 `CardStyles`
 - [ ] 输入框使用 `InputStyles`
 
----
-
 ## 🔗 参考资源
 
-- [编码规范](./CODING_STANDARDS.md) - 完整编码规范
+- [编码规范](./01-coding-standards.md) - 完整编码规范
 - [样式系统源码](../lib/app/styles/) - 查看实现细节
-
----
 
 **记住**：样式系统的目标是创建一致、可维护、美观的用户界面。当你发现需要重复使用的样式时，请添加到样式系统中，而不是复制代码！

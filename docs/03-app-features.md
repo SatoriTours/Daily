@@ -25,8 +25,6 @@
 | 备份还原 | `pages/backup_restore/` | 数据备份与恢复 |
 | 插件中心 | `pages/plugin_center/` | 自定义提示词插件 |
 
----
-
 ## 📰 文章模块
 
 ### 核心功能
@@ -83,8 +81,6 @@ Article {
 - ✅ 使用 `ArticleStateService` 管理列表状态
 - ❌ 禁止直接操作 ObjectBox，必须通过仓储层
 
----
-
 ## 📓 日记模块
 
 ### 核心功能
@@ -118,8 +114,6 @@ Diary {
 - ✅ `DiaryEditor` 组件供读书模块复用
 - ✅ 支持预填模板内容
 - ✅ 使用 `DiaryStateService` 管理状态
-
----
 
 ## 📚 读书模块
 
@@ -185,8 +179,6 @@ FloatingActionButton(
 )
 ```
 
----
-
 ## 🤖 AI 功能模块
 
 ### 1. AI 聊天 (`pages/ai_chat/`)
@@ -247,8 +239,6 @@ services/
 - ✅ 敏感信息（API Key）不输出到日志
 - ✅ AI 调用失败时提供友好的错误提示
 
----
-
 ## ⚙️ 设置与备份
 
 ### 1. 设置页面 (`pages/settings/`)
@@ -273,8 +263,6 @@ services/
 - ✅ 备份包含图片文件
 - ✅ 恢复后自动修复图片路径
 - ✅ 使用 `FileService.i.resolveLocalMediaPath`
-
----
 
 ## 🔧 核心服务说明
 
@@ -313,8 +301,6 @@ services/
 | `ClipboardMonitorService` | 剪贴板监控 |
 | `AppUpgradeService` | 应用更新 |
 
----
-
 ## 📂 数据层结构
 
 ```
@@ -344,8 +330,6 @@ lib/app/data/
     ├── ai_config_model.dart
     └── ai_config_repository.dart
 ```
-
----
 
 ## 🚨 修改代码前的检查清单
 
@@ -377,8 +361,6 @@ lib/app/data/
 - [ ] 图片路径正确恢复
 - [ ] 关联数据完整性保持
 
----
-
 ## 📝 版本更新记录
 
 ### v3.6.60 (2025-11-24)
@@ -390,7 +372,5 @@ lib/app/data/
 - ✨ 智能书籍搜索
 - ✨ 多语言国际化框架
 - 🔧 书籍搜索架构重构
-
----
 
 **⚠️ 重要提示**：修改代码前，请确保阅读并理解本文档中相关模块的说明。如有疑问，请先确认再动手。

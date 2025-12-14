@@ -4,8 +4,6 @@
 >
 > 所有 AI 工具（Claude、GitHub Copilot 等）生成的代码必须遵循本规范。
 
----
-
 ## 📚 技术栈
 
 | 类别 | 技术 |
@@ -16,8 +14,6 @@
 | 网络 | dio, web_socket_channel |
 | WebView | flutter_inappwebview |
 | AI | openai_dart + 配置文件 (assets/configs/) |
-
----
 
 ## 🏗️ 项目架构
 
@@ -43,8 +39,6 @@ lib/app/
 ├── utils/            # 工具类(基础控制器、i18n扩展等)
 └── routes/           # 路由配置
 ```
-
----
 
 ## 🎯 GetX 架构约束
 
@@ -163,8 +157,6 @@ class ArticleController extends BaseGetXController {
 NavigationService.i.toNamed(...); // 如果只是转发，就是多余的
 ```
 
----
-
 ## 🔧 错误处理与数据访问
 
 ### 异步操作
@@ -222,8 +214,6 @@ Text(DateTimeUtils.formatDateTimeToLocal(article.createdAt))
 
 - ✅ 敏感信息存储于 `SettingRepository`
 - ❌ **禁止**在日志中输出 Token/口令
-
----
 
 ## 🎨 统一样式系统
 
@@ -325,8 +315,6 @@ StyleGuide.getErrorState(context, message: '...', onRetry: ...)
 3. 再次使用基础 Tokens (`Dimensions`, `AppColors`, `AppTypography`)
 4. 最后才使用 `.copyWith()` 微调
 
----
-
 ## 📝 代码规范
 
 ### 命名约定
@@ -353,8 +341,6 @@ import 'package:objectbox/objectbox.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/styles/index.dart';
 ```
-
----
 
 ## 🎯 代码质量约束（强制）
 
@@ -557,8 +543,6 @@ class MyWidget extends StatelessWidget {
 // ========================================================================
 ```
 
----
-
 ## 🎨 Flutter 最佳实践
 
 ### Widget 构建原则
@@ -665,16 +649,12 @@ class MyPage extends StatelessWidget {
 }
 ```
 
----
-
 ## ⚙️ 服务注册
 
 - 新服务实现 `AppService` 接口
 - 在 `ServiceRegistry.registerAll()` 注册
 - 按优先级：critical / high / normal / low
 - 资源管理：Controller 中正确 dispose
-
----
 
 ## 📝 代码质量检查
 
@@ -693,8 +673,6 @@ flutter analyze
 - 修复所有 error、warning、info
 - 再次执行确认无问题
 - 提交前最终检查
-
----
 
 ## 🔍 检查清单
 
@@ -751,15 +729,11 @@ flutter analyze
 - [ ] UTC存储与本地化显示
 - [ ] 正确处理用户数据
 
----
-
 ## ⚠️ 违规后果
 
 - 代码审查不通过
 - PR 被拒绝
 - 需重构后重新提交
 - **未执行 analyze 的代码直接拒绝**
-
----
 
 **所有 AI 工具和开发者必须严格遵守这些约束。如有疑问，开发前讨论确认。**
