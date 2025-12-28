@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -11,16 +12,20 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   group('Daily Satori 完整功能测试', () {
+    FlutterExceptionHandler? originalOnError;
+
     setUp(() {
       // 确保错误处理正确设置
+      originalOnError = FlutterError.onError;
       FlutterError.onError = (FlutterErrorDetails details) {
         FlutterError.presentError(details);
+        originalOnError?.call(details);
       };
     });
 
     tearDown(() {
       // 恢复默认错误处理
-      FlutterError.onError = null;
+      FlutterError.onError = originalOnError;
     });
 
     testWidgets('完整功能测试流程', (WidgetTester tester) async {

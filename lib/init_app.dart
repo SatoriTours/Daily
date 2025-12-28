@@ -30,6 +30,12 @@ Future<void> initApp() async {
 
 // 设置全局错误处理器
 void _setupErrorHandlers() {
+  // 在 flutter test / integration_test 环境下，测试框架会管理 FlutterError.onError。
+  // 应用侧覆盖会导致测试结束时出现 "A test overrode FlutterError.onError" 断言。
+  if (const bool.fromEnvironment('FLUTTER_TEST')) {
+    return;
+  }
+
   // 捕获Flutter框架错误
   FlutterError.onError = (FlutterErrorDetails details) {
     // 过滤图片加载404错误，避免污染日志
