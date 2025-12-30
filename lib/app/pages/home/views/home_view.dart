@@ -1,6 +1,7 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:flutter/foundation.dart';
-import '../controllers/home_controller.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/pages/articles/views/articles_view.dart';
 import 'package:daily_satori/app/pages/books/views/books_view.dart';
 import 'package:daily_satori/app/pages/diary/views/diary_view.dart';
@@ -13,23 +14,21 @@ import 'package:daily_satori/app/pages/weekly_summary/views/weekly_summary_view.
 /// 2. 主要内容区域（文章、日记、读书、AI助手、设置）
 /// 3. 懒加载机制 - 只有首次访问时才加载页面
 /// 4. 状态保持 - 切换回来时保持之前的滚动位置等状态
-class HomeView extends GetView<HomeController> {
+class HomeView extends ConsumerWidget {
   const HomeView({super.key});
 
   static const String _tag = 'HomeView';
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     _logBuild();
-    return Obx(() {
-      final currentIndex = controller.currentIndex.value;
-      _logPageSwitch(currentIndex);
+    final state = ref.watch(homeControllerProvider);
+    _logPageSwitch(state.currentIndex);
 
-      return Scaffold(
-        body: _LazyIndexedStack(index: currentIndex, itemCount: 5, itemBuilder: (index) => _buildPage(index)),
-        bottomNavigationBar: _buildNavigationBar(currentIndex),
-      );
-    });
+    return Scaffold(
+      body: _LazyIndexedStack(index: state.currentIndex, itemCount: 5, itemBuilder: (index) => _buildPage(index)),
+      bottomNavigationBar: _buildNavigationBar(state.currentIndex, ref),
+    );
   }
 
   /// 根据索引构建对应页面
@@ -51,10 +50,10 @@ class HomeView extends GetView<HomeController> {
   }
 
   /// 构建底部导航栏
-  Widget _buildNavigationBar(int currentIndex) {
+  Widget _buildNavigationBar(int currentIndex, WidgetRef ref) {
     return BottomNavigationBar(
       currentIndex: currentIndex,
-      onTap: controller.changePage,
+      onTap: (index) => ref.read(homeControllerProvider.notifier).changePage(index),
       type: BottomNavigationBarType.fixed,
       items: [
         BottomNavigationBarItem(

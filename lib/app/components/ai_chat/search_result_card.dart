@@ -1,8 +1,9 @@
+import 'package:daily_satori/app/navigation/app_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/routes/app_routes.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/pages/ai_chat/models/search_result.dart';
 import 'package:daily_satori/app/data/diary/diary_repository.dart';
@@ -89,7 +90,7 @@ class SearchResultCard extends StatelessWidget {
     switch (result.type) {
       case SearchResultType.article:
         logger.d('[SearchResultCard] 导航到文章详情: ${result.id}');
-        Get.toNamed(Routes.articleDetail, arguments: result.id);
+        AppNavigation.toNamed(Routes.articleDetail, arguments: result.id);
         break;
       case SearchResultType.diary:
         logger.d('[SearchResultCard] 显示日记详情对话框: ${result.id}');

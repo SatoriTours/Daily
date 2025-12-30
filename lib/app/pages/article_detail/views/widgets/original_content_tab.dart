@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:daily_satori/app/pages/article_detail/controllers/article_detail_controller.dart';
+import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
@@ -13,27 +14,30 @@ import 'package:daily_satori/app/styles/index.dart';
 /// 支持两种内容格式：
 /// 1. Markdown格式（优先显示）
 /// 2. HTML格式
-class OriginalContentTab extends StatelessWidget {
-  final ArticleDetailController controller;
+class OriginalContentTab extends ConsumerWidget {
+  final ArticleModel? article;
 
-  const OriginalContentTab({super.key, required this.controller});
+  const OriginalContentTab({super.key, required this.article});
 
   @override
-  Widget build(BuildContext context) {
-    return _hasMarkdownContent ? _buildMarkdownView() : _buildHtmlView();
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (article == null) {
+      return const Center(child: Text('文章不存在'));
+    }
+
+    return _hasMarkdownContent ? _buildMarkdownView(context, ref) : _buildHtmlView(context);
   }
 
   /// 判断是否有Markdown内容
-  bool get _hasMarkdownContent => controller.articleModel.aiMarkdownContent?.isNotEmpty ?? false;
+  bool get _hasMarkdownContent => article?.aiMarkdownContent?.isNotEmpty ?? false;
 
   /// 构建Markdown视图
-  Widget _buildMarkdownView() {
-    final markdownContent = controller.articleModel.aiMarkdownContent;
+  Widget _buildMarkdownView(BuildContext context, WidgetRef ref) {
+    final markdownContent = article?.aiMarkdownContent;
     if (markdownContent == null || markdownContent.isEmpty) {
-      return _buildEmptyState(message: "尚未生成Markdown内容", showGenerateButton: true);
+      return _buildEmptyState(context, ref, message: "尚未生成Markdown内容", showGenerateButton: true);
     }
 
-    final context = Get.context!;
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
@@ -60,13 +64,12 @@ class OriginalContentTab extends StatelessWidget {
   }
 
   /// 构建HTML视图
-  Widget _buildHtmlView() {
-    final htmlContent = controller.articleModel.htmlContent;
+  Widget _buildHtmlView(BuildContext context) {
+    final htmlContent = article?.htmlContent;
     if (htmlContent == null || htmlContent.isEmpty) {
-      return _buildEmptyState(message: "无法加载原文内容", showGenerateButton: false);
+      return _buildEmptyState(context, null, message: "无法加载原文内容", showGenerateButton: false);
     }
 
-    final context = Get.context!;
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
@@ -108,7 +111,7 @@ class OriginalContentTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            controller.articleModel.showTitle(),
+            article!.showTitle(),
             style: textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
               height: 1.3,
@@ -130,8 +133,7 @@ class OriginalContentTab extends StatelessWidget {
   }
 
   /// 构建空状态视图
-  Widget _buildEmptyState({required String message, required bool showGenerateButton}) {
-    final context = Get.context!;
+  Widget _buildEmptyState(BuildContext context, WidgetRef? ref, {required String message, required bool showGenerateButton}) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
@@ -145,7 +147,7 @@ class OriginalContentTab extends StatelessWidget {
           if (showGenerateButton) ...[
             Dimensions.verticalSpacerM,
             ElevatedButton.icon(
-              onPressed: _generateMarkdown,
+              onPressed: () => _generateMarkdown(context, ref!),
               icon: const Icon(Icons.article_outlined),
               label: const Text("生成Markdown"),
             ),
@@ -184,19 +186,19 @@ class OriginalContentTab extends StatelessWidget {
   }
 
   /// 生成Markdown内容
-  Future<void> _generateMarkdown() async {
+  Future<void> _generateMarkdown(BuildContext context, WidgetRef ref) async {
     try {
       // 显示加载对话框
       DialogUtils.showLoading(tips: '正在生成Markdown内容，请稍候...');
 
       // 生成Markdown内容
-      await controller.generateMarkdownContent();
+      await ref.read(articleDetailControllerProvider.notifier).generateMarkdownContent();
 
       // 关闭加载对话框
       DialogUtils.hideLoading();
 
       // 检查生成结果
-      if (controller.articleModel.aiMarkdownContent?.isNotEmpty ?? false) {
+      if (article?.aiMarkdownContent?.isNotEmpty ?? false) {
         logger.i('Markdown内容生成成功');
         UIUtils.showSuccess('Markdown内容生成成功');
       } else {

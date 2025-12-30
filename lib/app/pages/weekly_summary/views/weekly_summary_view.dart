@@ -1,25 +1,29 @@
+import 'package:daily_satori/app/navigation/app_navigation.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
-import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/utils/ui_utils.dart';
+import 'package:daily_satori/app/routes/app_routes.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
-import '../controllers/weekly_summary_controller.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:daily_satori/app/data/index.dart';
 
 /// 周报页面视图
 ///
 /// 展示每周的文章和日记总结
-class WeeklySummaryView extends GetView<WeeklySummaryController> {
+class WeeklySummaryView extends ConsumerWidget {
   const WeeklySummaryView({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(weeklySummaryControllerProvider);
+
     return Scaffold(
       backgroundColor: AppColors.getBackground(context),
-      appBar: _buildAppBar(context),
-      body: Obx(() => _buildBody(context)),
+      appBar: _buildAppBar(context, ref, state),
+      body: _buildBody(context, ref, state),
     );
   }
 
@@ -27,7 +31,7 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
   // AppBar
   // ========================================================================
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref, WeeklySummaryControllerState state) {
     return SAppBar(
       title: Text('weekly_summary.title'.t, style: const TextStyle(color: Colors.white)),
       centerTitle: true,
@@ -38,28 +42,26 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
       leading: IconButton(
         icon: const Icon(Icons.settings, color: Colors.white),
         tooltip: 'title.settings'.t,
-        onPressed: () => Get.toNamed(Routes.settings),
+        onPressed: () => AppNavigation.toNamed(Routes.settings),
       ),
       actions: [
-        Obx(
-          () => controller.isGenerating.value
-              ? const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
+        state.isGenerating
+            ? const Padding(
+                padding: EdgeInsets.all(12),
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
-                )
-              : IconButton(
-                  icon: const Icon(Icons.refresh, color: Colors.white),
-                  tooltip: 'weekly_summary.regenerate'.t,
-                  onPressed: controller.regenerateCurrentSummary,
                 ),
-        ),
+              )
+            : IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                tooltip: 'weekly_summary.regenerate'.t,
+                onPressed: () => ref.read(weeklySummaryControllerProvider.notifier).regenerateCurrentSummary(),
+              ),
       ],
     );
   }
@@ -68,25 +70,21 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
   // Body
   // ========================================================================
 
-  Widget _buildBody(BuildContext context) {
-    if (controller.isLoading.value) {
-      return StyleGuide.getLoadingState(context);
-    }
-
-    if (controller.isGenerating.value) {
+  Widget _buildBody(BuildContext context, WidgetRef ref, WeeklySummaryControllerState state) {
+    if (state.isGenerating) {
       return _buildGeneratingState(context);
     }
 
-    if (controller.summaries.isEmpty) {
-      return _buildEmptyState(context);
+    if (state.summaries.isEmpty) {
+      return _buildEmptyState(context, ref);
     }
 
     return Column(
       children: [
         // 周选择器
-        _buildWeekSelector(context),
+        _buildWeekSelector(context, ref, state),
         // 周报内容
-        Expanded(child: _buildSummaryContent(context)),
+        Expanded(child: _buildSummaryContent(context, ref, state)),
       ],
     );
   }
@@ -130,7 +128,7 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
   }
 
   /// 构建空状态
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, WidgetRef ref) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -153,7 +151,7 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
           ),
           Dimensions.verticalSpacerL,
           ElevatedButton.icon(
-            onPressed: controller.checkAndGenerate,
+            onPressed: () => ref.read(weeklySummaryControllerProvider.notifier).checkAndGenerate(),
             icon: const Icon(Icons.auto_awesome),
             label: Text('weekly_summary.generate_now'.t),
             style: ButtonStyles.getPrimaryStyle(context),
@@ -167,7 +165,7 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
   // 周选择器
   // ========================================================================
 
-  Widget _buildWeekSelector(BuildContext context) {
+  Widget _buildWeekSelector(BuildContext context, WidgetRef ref, WeeklySummaryControllerState state) {
     return Container(
       height: 44,
       decoration: BoxDecoration(
@@ -177,24 +175,29 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        itemCount: controller.summaries.length,
+        itemCount: state.summaries.length,
         itemBuilder: (context, index) {
-          final summary = controller.summaries[index];
-          return _buildWeekChip(context, summary);
+          final summary = state.summaries[index];
+          return _buildWeekChip(context, ref, state, summary);
         },
       ),
     );
   }
 
-  Widget _buildWeekChip(BuildContext context, WeeklySummaryModel summary) {
-    final isSelected = controller.currentSummary.value?.id == summary.id;
+  Widget _buildWeekChip(
+    BuildContext context,
+    WidgetRef ref,
+    WeeklySummaryControllerState state,
+    WeeklySummaryModel summary,
+  ) {
+    final isSelected = state.currentSummary?.id == summary.id;
 
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
         label: Text(summary.weekLabel),
         selected: isSelected,
-        onSelected: (_) => controller.selectSummary(summary),
+        onSelected: (_) => ref.read(weeklySummaryControllerProvider.notifier).selectSummary(summary),
         showCheckmark: false,
         backgroundColor: AppColors.getSurface(context),
         selectedColor: AppColors.getPrimary(context).withValues(alpha: 0.2),
@@ -214,17 +217,17 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
   // 周报内容
   // ========================================================================
 
-  Widget _buildSummaryContent(BuildContext context) {
-    final summary = controller.currentSummary.value;
+  Widget _buildSummaryContent(BuildContext context, WidgetRef ref, WeeklySummaryControllerState state) {
+    final summary = state.currentSummary;
     if (summary == null) {
       return const SizedBox.shrink();
     }
 
-    return SingleChildScrollView(padding: const EdgeInsets.all(12), child: _buildContentCard(context, summary));
+    return SingleChildScrollView(padding: const EdgeInsets.all(12), child: _buildContentCard(context, ref, summary));
   }
 
   /// 构建内容卡片
-  Widget _buildContentCard(BuildContext context, WeeklySummaryModel summary) {
+  Widget _buildContentCard(BuildContext context, WidgetRef ref, WeeklySummaryModel summary) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -265,14 +268,14 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
           ),
           const SizedBox(height: 12),
           // Markdown 内容
-          _buildMarkdownContent(context, summary.content),
+          _buildMarkdownContent(context, ref, summary.content),
         ],
       ),
     );
   }
 
   /// 构建 Markdown 内容
-  Widget _buildMarkdownContent(BuildContext context, String content) {
+  Widget _buildMarkdownContent(BuildContext context, WidgetRef ref, String content) {
     // 处理特殊链接格式
     final processedContent = _processContentLinks(content);
 
@@ -302,7 +305,7 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
         ),
       ),
       onTapLink: (text, href, title) {
-        _handleLinkTap(context, href);
+        _handleLinkTap(context, ref, href);
       },
     );
   }
@@ -334,23 +337,41 @@ class WeeklySummaryView extends GetView<WeeklySummaryController> {
   }
 
   /// 处理链接点击
-  void _handleLinkTap(BuildContext context, String? href) {
+  void _handleLinkTap(BuildContext context, WidgetRef ref, String? href) {
     if (href == null) return;
 
     if (href.startsWith('article:')) {
       final id = int.tryParse(href.substring(8));
       if (id != null) {
-        controller.openArticle(id);
+        _openArticle(id);
       }
     } else if (href.startsWith('diary:')) {
       final id = int.tryParse(href.substring(6));
       if (id != null) {
-        final diary = controller.openDiary(id);
+        final diary = _openDiary(id);
         if (diary != null) {
           _showDiaryDetailSheet(context, diary);
         }
       }
     }
+  }
+
+  /// 打开文章详情
+  void _openArticle(int articleId) {
+    AppNavigation.toNamed(Routes.articleDetail, arguments: articleId);
+  }
+
+  /// 打开日记详情
+  ///
+  /// 获取日记数据，触发 View 显示对话框
+  DiaryModel? _openDiary(int diaryId) {
+    final diary = DiaryRepository.i.find(diaryId);
+    if (diary == null) {
+      UIUtils.showError('weekly_summary.diary_not_found'.t);
+      return null;
+    }
+
+    return diary;
   }
 
   /// 显示日记详情底部弹出框

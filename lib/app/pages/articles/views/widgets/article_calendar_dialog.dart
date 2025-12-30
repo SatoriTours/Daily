@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
-import 'package:daily_satori/app/pages/articles/controllers/articles_controller.dart';
 import 'package:daily_satori/app/components/common/common_calendar.dart';
+import 'package:daily_satori/app/providers/articles_controller_provider.dart';
 
 /// 文章日历对话框
 ///
 /// 无状态组件,通过回调函数与外部交互
-class ArticleCalendarDialog extends GetView<ArticlesController> {
+class ArticleCalendarDialog extends ConsumerWidget {
   final Map<DateTime, int> articleCountMap;
   final void Function(DateTime date) onDateSelected;
   final VoidCallback onShowAllArticles;
@@ -22,8 +22,10 @@ class ArticleCalendarDialog extends GetView<ArticlesController> {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = AppTheme.getColorScheme(context);
+    final state = ref.watch(articlesControllerProvider);
+    final controller = ref.read(articlesControllerProvider.notifier);
 
     return Container(
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
@@ -34,19 +36,17 @@ class ArticleCalendarDialog extends GetView<ArticlesController> {
           Divider(height: 1, thickness: 0.5, color: colorScheme.outline.withValues(alpha: 0.5)),
           Expanded(
             child: SingleChildScrollView(
-              child: Obx(
-                () => CommonCalendar(
-                  displayedMonth: controller.calendarDisplayedMonth.value,
-                  selectedDate: controller.calendarSelectedDate.value,
-                  markedDates: articleCountMap,
-                  onDateSelected: (date) {
-                    controller.selectCalendarDate(date);
-                    onDateSelected(date);
-                    Navigator.pop(context);
-                  },
-                  onPreviousMonth: controller.calendarPreviousMonth,
-                  onNextMonth: controller.calendarNextMonth,
-                ),
+              child: CommonCalendar(
+                displayedMonth: state.calendarDisplayedMonth ?? DateTime.now(),
+                selectedDate: state.calendarSelectedDate,
+                markedDates: articleCountMap,
+                onDateSelected: (date) {
+                  controller.selectCalendarDate(date);
+                  onDateSelected(date);
+                  Navigator.pop(context);
+                },
+                onPreviousMonth: controller.calendarPreviousMonth,
+                onNextMonth: controller.calendarNextMonth,
               ),
             ),
           ),

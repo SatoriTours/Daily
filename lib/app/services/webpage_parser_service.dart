@@ -1,15 +1,9 @@
 import 'dart:async';
 import 'package:daily_satori/app/data/index.dart';
-import 'package:flutter/widgets.dart';
 import 'package:daily_satori/app/components/webview/headless_webview.dart';
-import 'package:daily_satori/app/pages/articles/controllers/articles_controller.dart';
-
+import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/services/ai_service/ai_article_processor.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/state/article_state_service.dart';
-import 'package:daily_satori/app/objectbox/article.dart';
-import 'package:get/get.dart';
-import 'package:daily_satori/app/pages/article_detail/controllers/article_detail_controller.dart';
 
 /// 网页解析服务 - 负责网页内容获取、AI处理和持久化
 class WebpageParserService {
@@ -253,36 +247,16 @@ class WebpageParserService {
   // ====================== 辅助方法 ======================
 
   /// 通知UI更新
+  ///
+  /// Riverpod架构下，providers会自动响应Repository数据变化
+  /// 无需手动查找和更新控制器
   void _notifyUI(int articleId) {
     if (articleId <= 0) return;
 
     final article = ArticleRepository.i.findModel(articleId);
     if (article == null) return;
 
-    try {
-      // 通知文章列表更新
-      if (Get.isRegistered<ArticlesController>()) {
-        Get.find<ArticlesController>().updateArticle(articleId);
-      }
-
-      // 通知全局状态服务
-      if (Get.isRegistered<ArticleStateService>()) {
-        Get.find<ArticleStateService>().notifyArticleUpdated(article);
-      }
-
-      // 更新详情页（如果正在显示该文章）
-      if (Get.isRegistered<ArticleDetailController>()) {
-        final controller = Get.find<ArticleDetailController>();
-        if (controller.articleModel.id == articleId) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            controller.articleModel = article;
-            controller.article.value = article;
-            controller.loadTags();
-          });
-        }
-      }
-    } catch (e) {
-      logger.e("[UI通知] 失败 - $e");
-    }
+    // Riverpod providers watching the repository will automatically rebuild
+    logger.d("[UI通知] 文章已更新 - ID=$articleId, 状态=${article.status}");
   }
 }

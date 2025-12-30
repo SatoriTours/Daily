@@ -1,0 +1,230 @@
+/// 文章状态管理 Provider
+///
+/// Riverpod 版本的 ArticleStateService，管理文章列表、活跃文章和更新事件。
+library;
+
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+import 'package:daily_satori/app/config/app_config.dart';
+import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
+
+part 'article_state_provider.freezed.dart';
+part 'article_state_provider.g.dart';
+
+/// 文章事件类型
+@freezed
+abstract class ArticleUpdateEvent with _$ArticleUpdateEvent {
+  const factory ArticleUpdateEvent.none() = ArticleUpdateEventNone;
+  const factory ArticleUpdateEvent.created(ArticleModel article) = ArticleUpdateEventCreated;
+  const factory ArticleUpdateEvent.updated(ArticleModel article) = ArticleUpdateEventUpdated;
+  const factory ArticleUpdateEvent.deleted(int articleId) = ArticleUpdateEventDeleted;
+}
+
+/// 文章状态模型
+@freezed
+abstract class ArticleStateModel with _$ArticleStateModel {
+  const ArticleStateModel._();
+
+  const factory ArticleStateModel({
+    @Default([]) List<ArticleModel> articles,
+    @Default(false) bool isLoading,
+    @Default(-1) int activeArticleId,
+    ArticleModel? activeArticle,
+    @Default(ArticleUpdateEvent.none()) ArticleUpdateEvent articleUpdateEvent,
+    @Default('') String globalSearchQuery,
+    @Default(false) bool isGlobalSearchActive,
+  }) = _ArticleStateModel;
+}
+
+/// 文章状态 Provider
+@riverpod
+class ArticleState extends _$ArticleState {
+  @override
+  ArticleStateModel build() {
+    logger.i('ArticleState Provider 初始化完成');
+    return const ArticleStateModel();
+  }
+
+  /// 设置活跃文章
+  void setActiveArticle(ArticleModel article) {
+    state = state.copyWith(activeArticleId: article.id, activeArticle: article);
+    logger.i('设置活跃文章: ${article.singleLineTitle} (ID: ${article.id})');
+  }
+
+  /// 清除活跃文章
+  void clearActiveArticle() {
+    state = state.copyWith(activeArticleId: -1, activeArticle: null);
+    logger.i('清除活跃文章');
+  }
+
+  /// 通知文章更新
+  void notifyArticleUpdated(ArticleModel article) {
+    logger.i('通知文章更新: ${article.singleLineTitle} (ID: ${article.id})');
+
+    // 如果是当前活跃文章，更新活跃文章引用
+    if (state.activeArticleId == article.id) {
+      state = state.copyWith(activeArticle: article);
+      logger.d('已更新活跃文章引用，状态: ${article.status}');
+    }
+
+    // 发布文章更新事件
+    state = state.copyWith(articleUpdateEvent: ArticleUpdateEvent.updated(article));
+  }
+
+  /// 通知文章删除
+  void notifyArticleDeleted(int articleId) {
+    logger.i('通知文章删除: ID: $articleId');
+
+    // 如果是当前活跃文章，清除活跃文章引用
+    if (state.activeArticleId == articleId) {
+      clearActiveArticle();
+    }
+
+    // 发布文章删除事件
+    state = state.copyWith(articleUpdateEvent: ArticleUpdateEvent.deleted(articleId));
+  }
+
+  /// 通知文章创建
+  void notifyArticleCreated(ArticleModel article) {
+    logger.i('通知文章创建: ${article.singleLineTitle} (ID: ${article.id})');
+
+    // 发布文章创建事件
+    state = state.copyWith(articleUpdateEvent: ArticleUpdateEvent.created(article));
+  }
+
+  /// 设置全局搜索
+  void setGlobalSearch(String query) {
+    state = state.copyWith(globalSearchQuery: query, isGlobalSearchActive: query.isNotEmpty);
+    logger.i('设置全局搜索: $query');
+  }
+
+  /// 清除全局搜索
+  void clearGlobalSearch() {
+    state = state.copyWith(globalSearchQuery: '', isGlobalSearchActive: false);
+    logger.i('清除全局搜索');
+  }
+
+  /// 加载文章列表
+  Future<void> loadArticles({
+    String? keyword,
+    bool? favorite,
+    List<int>? tagIds,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? referenceId,
+    bool? isGreaterThan,
+    int pageSize = PaginationConfig.defaultPageSize,
+  }) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final result = ArticleRepository.i.findArticles(
+        keyword: keyword,
+        isFavorite: favorite,
+        tagIds: tagIds,
+        startDate: startDate,
+        endDate: endDate,
+        referenceId: referenceId,
+        isGreaterThan: isGreaterThan,
+        limit: pageSize,
+      );
+
+      List<ArticleModel> updatedArticles;
+      if (referenceId == null) {
+        // 全新加载，替换所有数据
+        updatedArticles = result;
+      } else if (isGreaterThan == false) {
+        // 向后加载更多
+        updatedArticles = [...state.articles, ...result];
+      } else {
+        // 向前加载
+        updatedArticles = [...result, ...state.articles];
+      }
+
+      state = state.copyWith(articles: updatedArticles);
+      logger.i('加载文章列表完成: ${result.length} 篇');
+    } finally {
+      state = state.copyWith(isLoading: false);
+    }
+  }
+
+  /// 重新加载文章列表（清空后重新加载）
+  Future<void> reloadArticles({
+    String? keyword,
+    bool? favorite,
+    List<int>? tagIds,
+    DateTime? startDate,
+    DateTime? endDate,
+    int pageSize = PaginationConfig.defaultPageSize,
+  }) async {
+    await loadArticles(
+      keyword: keyword,
+      favorite: favorite,
+      tagIds: tagIds,
+      startDate: startDate,
+      endDate: endDate,
+      pageSize: pageSize,
+    );
+  }
+
+  /// 更新列表中的文章
+  void updateArticleInList(int id) {
+    final article = ArticleRepository.i.findModel(id);
+    if (article == null) return;
+
+    logger.i('更新列表中的文章: ${article.singleLineTitle} (ID: $id)');
+
+    final articles = List<ArticleModel>.from(state.articles);
+    final index = articles.indexWhere((item) => item.id == id);
+    if (index != -1) {
+      articles[index] = article;
+      state = state.copyWith(articles: articles);
+    }
+
+    // 如果是当前活跃文章，同步更新
+    if (state.activeArticleId == id) {
+      state = state.copyWith(activeArticle: article);
+    }
+  }
+
+  /// 从列表中移除文章
+  void removeArticleFromList(int id) {
+    final updatedArticles = state.articles.where((article) => article.id != id).toList();
+    state = state.copyWith(articles: updatedArticles);
+    logger.i('从列表中移除文章: ID=$id');
+  }
+
+  /// 合并/插入文章（用于新增或外部更新）
+  void mergeArticle(ArticleModel model) {
+    final articles = List<ArticleModel>.from(state.articles);
+    final index = articles.indexWhere((item) => item.id == model.id);
+
+    if (index == -1) {
+      articles.insert(0, model);
+      logger.i('插入新文章到列表: ${model.singleLineTitle} (ID: ${model.id})');
+    } else {
+      articles[index] = model;
+      logger.i('更新列表中的文章: ${model.singleLineTitle} (ID: ${model.id})');
+    }
+
+    state = state.copyWith(articles: articles);
+  }
+
+  /// 获取某篇文章的共享引用
+  ArticleModel? getArticleRef(int id) {
+    final index = state.articles.indexWhere((item) => item.id == id);
+    if (index == -1) {
+      // 如果列表中没有，从数据库加载
+      final article = ArticleRepository.i.findModel(id);
+      if (article != null) {
+        setActiveArticle(article);
+      }
+      return article;
+    }
+
+    // 设置为活跃文章
+    setActiveArticle(state.articles[index]);
+    return state.articles[index];
+  }
+}

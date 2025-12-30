@@ -1,7 +1,7 @@
+import 'package:daily_satori/app/navigation/app_navigation.dart';
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
 
-import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/routes/app_routes.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 
 class ShareReceiveService {
@@ -42,7 +42,7 @@ class ShareReceiveService {
     if (url.isEmpty) return;
 
     // 直接处理分享内容
-    await Get.toNamed(Routes.shareDialog, arguments: {'shareURL': url});
+    await AppNavigation.toNamed(Routes.shareDialog, arguments: {'shareURL': url});
   }
 
   /// 从文本中提取URL

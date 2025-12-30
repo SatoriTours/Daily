@@ -1,3 +1,4 @@
+import 'package:daily_satori/app/navigation/app_navigation.dart';
 import 'dart:io';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/app/config/app_config.dart';
@@ -190,11 +191,11 @@ class BackupService {
       await _fixAllImagePaths();
 
       logger.i("恢复备份完成: $backupFolder => $appDocDir");
-      Get.back();
+      AppNavigation.back();
       return true;
     } catch (e) {
       logger.e("恢复备份失败: $e");
-      Get.back();
+      AppNavigation.back();
       return false;
     }
   }
@@ -210,7 +211,7 @@ class BackupService {
       if (!await zipFile.exists()) {
         logger.e("备份文件不存在: ${zipFile.path}");
         logger.e("备份文件不完整，无法恢复");
-        Get.back();
+        AppNavigation.back();
         return null;
       }
     }

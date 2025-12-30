@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:daily_satori/app/data/index.dart' show ArticleStatus;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daily_satori/app/providers/providers.dart';
+import 'package:daily_satori/app/data/index.dart' show ArticleStatus, ArticleModel;
 import 'package:daily_satori/app/styles/index.dart';
 
-import '../controllers/article_detail_controller.dart';
 import 'widgets/article_detail_app_bar.dart';
 import 'widgets/original_content_tab.dart';
 import 'widgets/summary_tab.dart';
@@ -13,39 +13,55 @@ import 'widgets/tab_bar_widget.dart';
 /// 包含两个主要标签页：
 /// 1. 摘要页面：显示文章的基本信息和AI生成的摘要
 /// 2. 原文页面：显示文章的完整内容
-class ArticleDetailView extends GetView<ArticleDetailController> {
+class ArticleDetailView extends ConsumerWidget {
   const ArticleDetailView({super.key});
 
   // 根构建：提供 Tab 数量与 Scaffold
   @override
-  Widget build(BuildContext context) => DefaultTabController(length: 2, child: _buildScaffold(context));
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controllerState = ref.watch(articleDetailControllerProvider);
+    final article = controllerState.articleModel;
+
+    return DefaultTabController(
+      length: 2,
+      child: _buildScaffold(context, ref, article),
+    );
+  }
 
   // 页面骨架：AppBar + Body
-  Widget _buildScaffold(BuildContext context) => Scaffold(
-    appBar: ArticleDetailAppBar(controller: controller),
-    body: Column(children: [_buildProcessingBanner(context), _buildTabs(), const ArticleTabBar()]),
-  );
+  Widget _buildScaffold(BuildContext context, WidgetRef ref, ArticleModel? article) {
+    return Scaffold(
+      appBar: ArticleDetailAppBar(article: article),
+      body: Column(
+        children: [
+          _buildProcessingBanner(context, ref, article),
+          _buildTabs(ref, article),
+          const ArticleTabBar(),
+        ],
+      ),
+    );
+  }
 
   // 内容区域：监听文章变化刷新标签页
-  Widget _buildTabs() => Expanded(
-    child: Obx(() {
-      controller.article.value; // 触发重建
-      return TabBarView(
+  Widget _buildTabs(WidgetRef ref, ArticleModel? article) {
+    return Expanded(
+      child: TabBarView(
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          SummaryTab(controller: controller),
-          OriginalContentTab(controller: controller),
+          SummaryTab(article: article),
+          OriginalContentTab(article: article),
         ],
-      );
-    }),
-  );
+      ),
+    );
+  }
 
   // 处理中横幅：仅在 AI 处理中显示
-  Widget _buildProcessingBanner(BuildContext context) => Obx(() {
-    final st = controller.article.value?.status ?? controller.articleModel.status;
+  Widget _buildProcessingBanner(BuildContext context, WidgetRef ref, ArticleModel? article) {
+    final controllerState = ref.watch(articleDetailControllerProvider);
+    final st = article?.status ?? controllerState.articleModel?.status ?? ArticleStatus.pending;
     final busy = st == ArticleStatus.pending || st == ArticleStatus.webContentFetched;
     return busy ? _buildSlimBanner(context) : const SizedBox.shrink();
-  });
+  }
 
   // 简洁横幅：仅显示一条带图标和文字的细条
   Widget _buildSlimBanner(BuildContext context) {

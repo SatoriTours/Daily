@@ -9,11 +9,12 @@
 | 类别 | 技术 |
 |------|------|
 | 框架 | Flutter 3.32.x / Dart 3.8.x |
-| 状态管理 | GetX (GetMaterialApp, Bindings, Controller + Rx) |
+| 状态管理 | Riverpod 3.0 + freezed (代码生成) |
 | 本地存储 | ObjectBox (仓储模式) |
 | 网络 | dio, web_socket_channel |
 | WebView | flutter_inappwebview |
 | AI | openai_dart + 配置文件 (assets/configs/) |
+| 导航 | go_router 14.x |
 
 ## 🏗️ 项目架构
 
@@ -22,8 +23,7 @@
 | 层级 | 路径 | 职责 |
 |------|------|------|
 | 界面层 | `app/pages/*/views` | 界面展示与用户交互 |
-| 控制层 | `app/pages/*/controllers` | GetX Controller，状态管理与生命周期 |
-| 绑定层 | `app/pages/*/bindings` | 依赖注入 |
+| 控制层 | `app/providers/*` | Riverpod Providers，状态管理 |
 | 服务层 | `app/services/*` | 跨模块服务 |
 | 数据层 | `app/data/*` | 数据模型与仓储（按实体分组） |
 
@@ -31,72 +31,99 @@
 
 ```
 lib/app/
-├── pages/            # 功能页面(bindings/controllers/views)
-├── services/         # 全局服务(含state/状态服务)
+├── pages/            # 功能页面(views → ConsumerWidget)
+├── providers/        # Riverpod providers (状态管理)
+├── services/         # 全局服务(AI/Web服务等)
 ├── data/             # 数据层(模型+仓储，按实体分组)
 ├── components/       # 可复用组件(统一导出: components/index.dart)
 ├── styles/           # 样式系统
-├── utils/            # 工具类(基础控制器、i18n扩展等)
-└── routes/           # 路由配置
+├── utils/            # 工具类(i18n扩展等)
+└── routes/           # 路由配置(go_router)
 ```
 
-## 🎯 GetX 架构约束
+## 🎯 Riverpod 架构约束
 
-### 1. 控制器规范
+### 1. Provider 规范
 
 ```dart
-// ✅ 必须继承 BaseGetXController
-class MyController extends BaseGetXController {
-  // ✅ 使用响应式变量
-  final count = 0.obs;
-  final isLoading = false.obs;
+// ✅ 使用 @riverpod 注解 + 代码生成
+@riverpod
+class MyController extends _$MyController {
+  @override
+  MyControllerState build() {
+    return MyControllerState(
+      count: 0,
+      isLoading: false,
+    );
+  }
 
-  // ✅ 使用 safeExecute 处理异步
+  // ✅ 状态修改通过方法
+  void increment() {
+    state = state.copyWith(count: state.count + 1);
+  }
+
+  // ✅ 异步操作使用 AsyncValue.guard
   Future<void> loadData() async {
-    await safeExecute(() async {
-      // 异步逻辑...
-    });
+    state = state.copyWith(isLoading: true);
+    final result = await AsyncValue.guard(() => repository.getData());
+    result.when(
+      data: (data) => state = state.copyWith(count: data, isLoading: false),
+      error: (e, s) => state = state.copyWith(isLoading: false),
+    );
   }
 }
 
-// ❌ 禁止直接继承 GetxController
-// ❌ 禁止使用普通变量管理状态
+// ✅ 使用 freezed 定义不可变状态
+@freezed
+class MyControllerState with _$MyControllerState {
+  const factory MyControllerState({
+    @Default(0) int count,
+    @Default(false) bool isLoading,
+  }) = _MyControllerState;
+}
+
+// ❌ 禁止手动管理状态类
+// ❌ 禁止使用可变状态
 ```
 
 ### 2. 状态管理
 
-- ✅ **必须**使用状态服务管理全局状态（AppStateService, ArticleStateService, DiaryStateService）
-- ✅ **必须**通过事件总线模式进行跨页面通信
-- ❌ **禁止** `Get.find()` 查找其他控制器
-- ❌ **禁止**静态全局变量
+- ✅ **必须**使用 providers 管理全局状态（articleStateProvider, diaryStateProvider）
+- ✅ **必须**使用 `ref.watch()` 进行响应式读取，`ref.read()` 进行一次性读取
+- ✅ **必须**使用 freezed 定义不可变状态模型
+- ❌ **禁止** 直接使用 `.obs`、`Obx()` 等 GetX 模式
+- ❌ **禁止**跨 provider 直接调用，使用 `ref.watch()` / `ref.read()`
 
 ### 3. 数据管理架构
 
 | 层级 | 职责 |
 |------|------|
 | **Repository** | ObjectBox 查询、数据持久化 |
-| **StateService** | 列表数据缓存、业务逻辑、事件通知 |
-| **Controller** | UI交互、用户输入、调用Service |
-| **View** | Widget渲染、Obx响应式绑定 |
+| **StateProvider** | AsyncNotifier，管理数据状态 |
+| **ControllerProvider** | UI状态、用户输入逻辑 |
+| **View** | ConsumerWidget，ref.watch 响应式绑定 |
 
-### 4. 依赖注入
+### 4. Provider 依赖
 
 ```dart
-// ✅ 使用当前推荐 API
-class MyBinding extends Binding {
+// ✅ Provider 之间通过 ref 访问
+@riverpod
+class ArticlesController extends _$ArticlesController {
   @override
-  List<Bind> dependencies() {
-    return [Bind.lazyPut(() => MyController())];
+  ArticlesControllerState build() {
+    // 监听状态服务
+    final articlesAsync = ref.watch(articleStateProvider);
+    return ArticlesControllerState();
+  }
+
+  // 读取其他 provider
+  Future<void> refresh() async {
+    ref.read(articleStateProvider.notifier).loadArticles();
   }
 }
 
-// ❌ 禁止已废弃 API
-class MyBinding extends Bindings { // 禁止
-  @override
-  void dependencies() { // 禁止
-    Get.lazyPut(() => MyController()); // 禁止
-  }
-}
+// ❌ 禁止循环依赖
+// ❌ 禁止在 build 方法外访问 ref
 ```
 
 ### 5. Widget 组件规范
@@ -120,24 +147,60 @@ class MyCard extends StatelessWidget {
   }
 }
 
-// ✅ 父组件使用 Obx 控制状态
-Obx(() => MyCard(
-  title: controller.title.value,
-  onTap: controller.handleTap,
-))
+// ✅ 父组件使用 ConsumerWidget
+class MyView extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(myControllerProvider);
 
-// ❌ 避免组件依赖特定 Controller（GetView 仅用于页面级）
+    return MyCard(
+      title: 'Count: ${state.count}',
+      onTap: () => ref.read(myControllerProvider.notifier).increment(),
+    );
+  }
+}
+
+// ❌ 禁止使用 GetView
+// ❌ 禁止使用 Obx
 ```
 
-### 6. 路由与导航
+### 6. Provider 读取模式
 
 ```dart
-// ✅ 推荐：直接使用 GetX 路由
-logger.i('[Navigation] 导航到文章详情');
-Get.toNamed(Routes.articleDetail, arguments: articleId);
+// ✅ ref.watch() - 响应式读取（Widget 中使用）
+class MyView extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(myControllerProvider);
+    return Text('${state.count}');
+  }
+}
 
-// ✅ 如需复杂逻辑，在 Controller 中封装
-class ArticleController extends BaseGetXController {
+// ✅ ref.read() - 一次性读取（回调、事件中使用）
+void onButtonPressed(WidgetRef ref) {
+  ref.read(myControllerProvider.notifier).increment();
+}
+
+// ✅ ref.listen() - 副作用监听
+ref.listen(myControllerProvider, (previous, next) {
+  if (next.hasError) {
+    showError('操作失败');
+  }
+});
+
+// ❌ 禁止在 build 方法外使用 ref.watch()
+```
+
+### 7. 路由与导航
+
+```dart
+// ✅ 推荐：使用 go_router
+logger.i('[Navigation] 导航到文章详情');
+context.go('/article/$articleId');
+
+// ✅ 复杂逻辑封装在 Provider 方法中
+@riverpod
+class ArticleController extends _$ArticleController {
   void openArticle(Article article) {
     // 权限检查
     if (article.isLocked && !hasPermission) {
@@ -149,12 +212,24 @@ class ArticleController extends BaseGetXController {
     logger.i('[Navigation] 打开文章: ${article.id}');
 
     // 导航
-    Get.toNamed(Routes.articleDetail, arguments: article);
+    context.go('/article/${article.id}');
   }
 }
 
-// ❌ 避免：没有实际价值的简单包装
-NavigationService.i.toNamed(...); // 如果只是转发，就是多余的
+// ✅ 路由定义 (lib/app/routes/router.dart)
+final routerProvider = Provider<GoRouter>((ref) {
+  return GoRouter(
+    routes: [
+      GoRoute(
+        path: '/article/:id',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return ArticleDetailView(articleId: id);
+        },
+      ),
+    ],
+  );
+});
 ```
 
 ## 🔧 错误处理与数据访问
@@ -162,15 +237,29 @@ NavigationService.i.toNamed(...); // 如果只是转发，就是多余的
 ### 异步操作
 
 ```dart
-// ✅ 必须使用 safeExecute
+// ✅ 使用 AsyncValue.guard 包装异步结果
 Future<void> fetchData() async {
-  await safeExecute(() async {
-    final data = await repository.getData();
-    items.value = data;
+  state = const AsyncValue.loading();
+  state = await AsyncValue.guard(() async {
+    return repository.getData();
   });
 }
 
-// ❌ 禁止手动处理异常（除非特殊需求）
+// ✅ 在 Widget 中处理 AsyncValue
+class MyView extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dataAsync = ref.watch(myDataProvider);
+
+    return dataAsync.when(
+      data: (data) => Text('Data: $data'),
+      loading: () => CircularProgressIndicator(),
+      error: (e, s) => ErrorWidget(e),
+    );
+  }
+}
+
+// ❌ 禁止在 Provider 外手动处理异常
 ```
 
 ### 用户反馈

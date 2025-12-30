@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:daily_satori/app/pages/article_detail/controllers/article_detail_controller.dart';
+import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/pages/article_detail/views/widgets/article_image_view.dart';
 import 'package:daily_satori/app/pages/article_detail/views/widgets/article_tags.dart';
+import 'package:daily_satori/app/providers/article_detail_controller_provider.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
 /// 文章摘要标签页
@@ -13,13 +14,20 @@ import 'package:daily_satori/app/styles/index.dart';
 /// - 标签
 /// - 内容摘要（带格式化的核心观点）
 /// - 评论（如果有）
-class SummaryTab extends StatelessWidget {
-  final ArticleDetailController controller;
+class SummaryTab extends ConsumerWidget {
+  final ArticleModel? article;
 
-  const SummaryTab({super.key, required this.controller});
+  const SummaryTab({super.key, required this.article});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (article == null) {
+      return const Center(child: Text('文章不存在'));
+    }
+
+    final controllerState = ref.watch(articleDetailControllerProvider);
+    final tags = controllerState.tags;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingL),
       child: Column(
@@ -36,13 +44,13 @@ class SummaryTab extends StatelessWidget {
               Dimensions.spacingL,
               Dimensions.spacingM,
             ),
-            child: Text(controller.articleModel.showTitle(), style: AppTheme.getTextTheme(context).headlineMedium),
+            child: Text(article!.showTitle(), style: AppTheme.getTextTheme(context).headlineMedium),
           ),
 
           // 标签区域
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingL, vertical: Dimensions.spacingM),
-            child: Obx(() => ArticleTags(tags: controller.tags.value)),
+            child: ArticleTags(tags: tags),
           ),
 
           // 内容区域（优化格式化显示）
@@ -65,7 +73,7 @@ class SummaryTab extends StatelessWidget {
 
   /// 构建格式化的内容（增强核心观点的视觉层次）
   Widget _buildFormattedContent(BuildContext context) {
-    final content = controller.articleModel.showContent();
+    final content = article!.showContent();
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
@@ -188,19 +196,19 @@ class SummaryTab extends StatelessWidget {
 
   /// 判断是否有头图
   bool get _hasHeaderImage =>
-      controller.articleModel.shouldShowHeaderImage() || (controller.articleModel.coverImageUrl?.isNotEmpty ?? false);
+      article!.shouldShowHeaderImage() || (article!.coverImageUrl?.isNotEmpty ?? false);
 
   /// 判断是否有评论
-  bool get _hasComment => controller.articleModel.comment?.isNotEmpty ?? false;
+  bool get _hasComment => article!.comment?.isNotEmpty ?? false;
 
   /// 构建头图组件
   Widget _buildHeaderImage() {
     return Padding(
       padding: const EdgeInsets.only(bottom: Dimensions.spacingS),
       child: ArticleImageView(
-        imagePath: controller.articleModel.getHeaderImagePath(),
-        controller: controller,
-        networkUrl: controller.articleModel.coverImageUrl,
+        imagePath: article!.getHeaderImagePath(),
+        article: article,
+        networkUrl: article!.coverImageUrl,
       ),
     );
   }
@@ -216,7 +224,7 @@ class SummaryTab extends StatelessWidget {
         children: [
           Text('评论', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
           Dimensions.verticalSpacerM,
-          Text(controller.articleModel.comment ?? '', style: textTheme.bodyMedium),
+          Text(article!.comment ?? '', style: textTheme.bodyMedium),
         ],
       ),
     );

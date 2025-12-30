@@ -1,31 +1,30 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/pages/books/controllers/books_controller.dart';
 import 'package:daily_satori/app/pages/books/views/widgets/viewpoint_card.dart';
+import 'package:daily_satori/app/providers/books_controller_provider.dart';
+import 'package:daily_satori/app/providers/diary_controller_provider.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app/pages/diary/controllers/diary_controller.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/diary_editor.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
 /// 观点内容组件
-class ViewpointContent extends StatefulWidget {
-  final BooksController controller;
+class ViewpointContent extends ConsumerStatefulWidget {
   final List<BookViewpointModel> viewpoints;
   final BookModel book;
   final int currentIndex;
   final Function(BookViewpointModel viewpoint)? onDeleteViewpoint;
   const ViewpointContent({
     super.key,
-    required this.controller,
     required this.viewpoints,
     required this.book,
     required this.currentIndex,
     this.onDeleteViewpoint,
   });
   @override
-  State<ViewpointContent> createState() => _ViewpointContentState();
+  ConsumerState<ViewpointContent> createState() => _ViewpointContentState();
 }
 
-class _ViewpointContentState extends State<ViewpointContent> {
+class _ViewpointContentState extends ConsumerState<ViewpointContent> {
   bool _isBookInfoExpanded = false;
   late PageController _pageController;
   @override
@@ -64,7 +63,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
     return PageView.builder(
       controller: _pageController,
       onPageChanged: (index) {
-        widget.controller.currentViewpointIndex.value = index;
+        ref.read(booksControllerProvider.notifier).goToViewpointIndex(index);
       },
       itemCount: widget.viewpoints.length,
       itemBuilder: (context, index) {
@@ -143,10 +142,13 @@ class _ViewpointContentState extends State<ViewpointContent> {
   }
 
   void _openJournalForCurrentViewpoint() {
-    final idx = widget.controller.currentViewpointIndex.value;
+    final idx = ref.read(booksControllerProvider).currentViewpointIndex;
     if (idx < 0 || idx >= widget.viewpoints.length) return;
     final vp = widget.viewpoints[idx];
-    final diaryController = Get.find<DiaryController>();
+    final diaryState = ref.read(diaryControllerProvider);
+    final contentController = diaryState.contentController;
+    if (contentController == null) return;
+
     final title = vp.title.trim();
     final bookTitle = widget.book.title.trim();
     final author = widget.book.author.trim();
@@ -158,7 +160,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
     buffer.writeln();
     // 添加隐藏深链，供来源胶囊识别与回跳使用
     buffer.writeln('[](app://books/viewpoint/${vp.id})');
-    diaryController.contentController
+    contentController
       ..clear()
       ..text = buffer.toString()
       ..selection = TextSelection.collapsed(offset: buffer.length);
@@ -169,7 +171,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
-      builder: (context) => DiaryEditor(controller: diaryController),
+      builder: (context) => const DiaryEditor(),
     );
   }
 
@@ -192,10 +194,9 @@ class _ViewpointContentState extends State<ViewpointContent> {
         Expanded(
           child: Text(
             widget.book.title,
-            style: Get.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppColors.getPrimary(context),
-            ),
+            style: AppTheme.getTextTheme(
+              context,
+            ).titleMedium?.copyWith(fontWeight: FontWeight.bold, color: AppColors.getPrimary(context)),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -218,7 +219,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
   Widget _buildAuthorInfo(BuildContext context) {
     return Text(
       '作者: ${widget.book.author}',
-      style: Get.textTheme.bodySmall,
+      style: AppTheme.getTextTheme(context).bodySmall,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
@@ -241,7 +242,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
         size: Dimensions.iconSizeXs,
         color: canGoPrevious ? AppColors.getPrimary(context) : Colors.grey.withValues(alpha: Opacities.high),
       ),
-      onPressed: canGoPrevious ? widget.controller.previousViewpoint : null,
+      onPressed: canGoPrevious ? ref.read(booksControllerProvider.notifier).previousViewpoint : null,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: Dimensions.chipHeight, minHeight: Dimensions.chipHeight),
       visualDensity: VisualDensity.compact,
@@ -252,7 +253,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
   Widget _buildPageCounter(BuildContext context) {
     return Text(
       '${widget.currentIndex + 1}/${widget.viewpoints.length}',
-      style: Get.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+      style: AppTheme.getTextTheme(context).bodyMedium?.copyWith(fontWeight: FontWeight.w500),
     );
   }
 
@@ -265,7 +266,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
         size: Dimensions.iconSizeXs,
         color: canGoNext ? AppColors.getPrimary(context) : Colors.grey.withValues(alpha: Opacities.high),
       ),
-      onPressed: canGoNext ? widget.controller.nextViewpoint : null,
+      onPressed: canGoNext ? ref.read(booksControllerProvider.notifier).nextViewpoint : null,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: Dimensions.chipHeight, minHeight: Dimensions.chipHeight),
       visualDensity: VisualDensity.compact,
@@ -350,17 +351,20 @@ class _ViewpointContentState extends State<ViewpointContent> {
 
   /// 构建书籍标题
   Widget _buildBookTitle(BuildContext context) {
-    return Text(widget.book.title, style: Get.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold));
+    return Text(
+      widget.book.title,
+      style: AppTheme.getTextTheme(context).titleMedium?.copyWith(fontWeight: FontWeight.bold),
+    );
   }
 
   /// 构建书籍作者信息
   Widget _buildBookAuthor(BuildContext context) {
-    return Text('作者：${widget.book.author}', style: Get.textTheme.bodyMedium);
+    return Text('作者：${widget.book.author}', style: AppTheme.getTextTheme(context).bodyMedium);
   }
 
   /// 构建书籍分类信息
   Widget _buildBookCategory(BuildContext context) {
-    return Text('分类：${widget.book.category}', style: Get.textTheme.bodyMedium);
+    return Text('分类：${widget.book.category}', style: AppTheme.getTextTheme(context).bodyMedium);
   }
 
   /// 构建简介标题（如果有简介）
@@ -370,7 +374,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
     }
     return Padding(
       padding: const EdgeInsets.only(top: Dimensions.spacingS + 4),
-      child: Text('简介', style: Get.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+      child: Text('简介', style: AppTheme.getTextTheme(context).titleSmall?.copyWith(fontWeight: FontWeight.bold)),
     );
   }
 
@@ -378,7 +382,7 @@ class _ViewpointContentState extends State<ViewpointContent> {
   Widget _buildBookIntroduction(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: Dimensions.spacingS + 4),
-      child: Text(widget.book.introduction, style: Get.textTheme.bodyMedium?.copyWith(height: 1.5)),
+      child: Text(widget.book.introduction, style: AppTheme.getTextTheme(context).bodyMedium?.copyWith(height: 1.5)),
     );
   }
 }

@@ -1,11 +1,13 @@
+import 'package:daily_satori/app/navigation/app_navigation.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 
-import 'package:daily_satori/app/pages/article_detail/controllers/article_detail_controller.dart';
+import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/components/common/smart_image.dart';
@@ -13,33 +15,33 @@ import 'package:daily_satori/app/utils/dialog_utils.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 
-class ArticleImageView extends StatelessWidget {
+class ArticleImageView extends ConsumerWidget {
   final String imagePath;
   final BoxFit fit;
-  final ArticleDetailController controller;
+  final ArticleModel? article;
   final String? networkUrl;
 
   const ArticleImageView({
     super.key,
     required this.imagePath,
     this.fit = BoxFit.cover,
-    required this.controller,
+    required this.article,
     this.networkUrl,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final images = [imagePath];
 
     return GestureDetector(
-      onTap: () => _showFullScreenImage(images),
+      onTap: () => _showFullScreenImage(context, ref, images),
       child: Container(
         padding: Dimensions.paddingPage.copyWith(bottom: 0),
         width: double.infinity,
         constraints: const BoxConstraints(maxHeight: 200),
         child: SmartImage(
           localPath: imagePath.isNotEmpty ? imagePath : null,
-          networkUrl: networkUrl ?? controller.articleModel.coverImageUrl,
+          networkUrl: networkUrl ?? article?.coverImageUrl,
           fit: fit,
           borderRadius: Dimensions.radiusM,
         ),
@@ -47,9 +49,10 @@ class ArticleImageView extends StatelessWidget {
     );
   }
 
-  void _showFullScreenImage(List<String> images, {int initialIndex = 0}) {
-    Get.dialog(
-      Scaffold(
+  void _showFullScreenImage(BuildContext context, WidgetRef ref, List<String> images, {int initialIndex = 0}) {
+    showDialog(
+      context: context,
+      builder: (context) => Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.black.withValues(alpha: Opacities.high),
           elevation: 0,
@@ -64,15 +67,16 @@ class ArticleImageView extends StatelessWidget {
                   confirmText: "确认",
                   cancelText: "取消",
                   onConfirm: () async {
-                    await controller.deleteImage(images[initialIndex]);
+                    await ref.read(articleDetailControllerProvider.notifier).deleteImage(images[initialIndex]);
                     UIUtils.showSuccess('删除成功', title: '提示');
+                    AppNavigation.back();
                   },
                 );
               },
             ),
             IconButton(
               icon: const Icon(Icons.close, color: Colors.white),
-              onPressed: () => Get.back(),
+              onPressed: () => AppNavigation.back(),
             ),
           ],
         ),
@@ -105,8 +109,8 @@ class ArticleImageView extends StatelessWidget {
       return FileImage(File(resolved));
     } else if (networkUrl != null && networkUrl!.isNotEmpty) {
       return NetworkImage(networkUrl!);
-    } else if (controller.articleModel.coverImageUrl != null && controller.articleModel.coverImageUrl!.isNotEmpty) {
-      return NetworkImage(controller.articleModel.coverImageUrl!);
+    } else if (article?.coverImageUrl != null && article!.coverImageUrl!.isNotEmpty) {
+      return NetworkImage(article!.coverImageUrl!);
     }
     return FileImage(File(resolved)); // 这里会报错，但会被errorBuilder处理
   }

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import 'package:daily_satori/app/styles/pages/diary_styles.dart';
+import 'package:daily_satori/app/providers/books_controller_provider.dart';
+import 'package:daily_satori/app/providers/home_controller_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/pages/home/controllers/home_controller.dart';
-import 'package:daily_satori/app/pages/books/controllers/books_controller.dart';
-import 'package:get/get.dart';
 
 /// 日记模块的工具类
 class DiaryUtils {
@@ -287,16 +287,14 @@ class DiaryUtils {
   }
 
   /// 打开读书页并定位到指定观点
-  static Future<void> openBookViewpoint(int viewpointId) async {
+  static Future<void> openBookViewpoint(WidgetRef ref, int viewpointId) async {
     logger.d('打开读书观点: ID=$viewpointId');
     try {
       // 切换到底部导航的“读书”页（索引：文章0、日记1、读书2、我的3）
-      final home = Get.find<HomeController>();
-      home.changePage(2);
+      ref.read(homeControllerProvider.notifier).changePage(2);
 
       // 交给读书控制器处理查找与跳转
-      final books = Get.find<BooksController>();
-      await books.openViewpointById(viewpointId);
+      await ref.read(booksControllerProvider.notifier).openViewpointById(viewpointId);
     } catch (e) {
       logger.e('打开读书观点失败: $e');
     }

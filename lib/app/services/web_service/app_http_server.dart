@@ -1,15 +1,15 @@
+import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_routes.dart';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:daily_satori/app/data/index.dart';
-import 'package:daily_satori/app/routes/app_pages.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/web_service/api_controllers/api_controller.dart';
 import 'package:daily_satori/app/services/web_service/web_service.dart';
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
@@ -151,11 +151,12 @@ class AppHttpServer {
 
   /// 创建文章API处理方法
   Future<shelf.Response> _createArticle(Map<String, String> params) async {
-    if (Get.currentRoute == Routes.shareDialog) {
-      return _response(1, '请先把上个页面保存完成');
-    }
+    // TODO: 实现路由检查（已移除GetX）
+    // if (Navigator.canPop(context)) {
+    //   return _response(1, '请先把上个页面保存完成');
+    // }
 
-    Get.toNamed(Routes.shareDialog, arguments: {'articleID': 0, 'shareURL': params['url'], 'update': false});
+    AppNavigation.toNamed(Routes.shareDialog, arguments: {'articleID': 0, 'shareURL': params['url'], 'update': false});
 
     return _response(0, '请在 APP 中继续操作');
   }

@@ -7,8 +7,6 @@ import 'package:daily_satori/app/services/web_service/api/middleware/auth_middle
 import 'package:daily_satori/app/services/web_service/api/utils/markdown_image_utils.dart';
 import 'package:daily_satori/app/services/web_service/api/utils/request_utils.dart';
 import 'package:daily_satori/app/services/web_service/api/utils/response_utils.dart';
-import 'package:daily_satori/app/pages/diary/controllers/diary_controller.dart' as app_controller;
-import 'package:get/get.dart' as getx;
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
@@ -188,7 +186,7 @@ class DiaryController {
   }
 
   void _refreshDiaryList() {
-    final controller = getx.Get.find<app_controller.DiaryController>();
-    controller.loadDiaries();
+    // Web API is stateless, UI will refresh via provider
+    logger.d('Diary list updated via web API');
   }
 }

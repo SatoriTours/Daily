@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show VoidCallback;
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/styles/index.dart';
@@ -6,8 +7,10 @@ import 'diary_timestamp.dart';
 import 'diary_more_menu.dart';
 import 'diary_image_gallery.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 /// 单个日记卡片组件 - 支持Markdown和图片
-class DiaryCard extends StatefulWidget {
+class DiaryCard extends ConsumerStatefulWidget {
   final DiaryModel diary;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
@@ -15,10 +18,10 @@ class DiaryCard extends StatefulWidget {
   const DiaryCard({super.key, required this.diary, required this.onDelete, required this.onEdit});
 
   @override
-  State<DiaryCard> createState() => _DiaryCardState();
+  ConsumerState<DiaryCard> createState() => _DiaryCardState();
 }
 
-class _DiaryCardState extends State<DiaryCard> {
+class _DiaryCardState extends ConsumerState<DiaryCard> {
   // ---- UI 常量 - 使用 Dimensions 常量 ----
   static const double _kCardRadius = 12.0;
   static const double _kPillRadius = 8.0;
@@ -161,7 +164,10 @@ class _DiaryCardState extends State<DiaryCard> {
           if (_needsExpand) _buildExpandToggleButton(context),
 
           // 将来源胶囊放在最底部
-          if (deepLink != null) ...[const SizedBox(height: Dimensions.spacingS + 2), _buildSourcePill(context, deepLink)],
+          if (deepLink != null) ...[
+            const SizedBox(height: Dimensions.spacingS + 2),
+            _buildSourcePill(context, deepLink),
+          ],
         ],
       ),
     );
@@ -351,7 +357,7 @@ class _DiaryCardState extends State<DiaryCard> {
 
   /// 触发“跳转到对应读书观点”
   void _navigateToViewpoint(int viewpointId) {
-    DiaryUtils.openBookViewpoint(viewpointId);
+    DiaryUtils.openBookViewpoint(ref, viewpointId);
   }
 
   // ---- 小工具方法：标签 ----

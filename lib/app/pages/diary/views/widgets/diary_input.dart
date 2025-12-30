@@ -1,17 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:daily_satori/app_exports.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:flutter/material.dart';
 
-import '../../controllers/diary_controller.dart';
 import 'diary_editor.dart';
-import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
 /// 日记输入组件 - 支持Markdown和图片
 class DiaryInput extends StatelessWidget {
-  final DiaryController controller;
-
-  const DiaryInput({super.key, required this.controller});
+  const DiaryInput({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -57,9 +53,6 @@ class DiaryInput extends StatelessWidget {
 
   // 显示扩展编辑器
   void _showExpandedEditor(BuildContext context) {
-    // 清空内容控制器
-    controller.contentController.clear();
-
     // 显示底部编辑器模态框
     showModalBottomSheet(
       context: context,
@@ -68,7 +61,7 @@ class DiaryInput extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
-      builder: (context) => DiaryEditor(controller: controller),
+      builder: (context) => const DiaryEditor(),
     );
   }
 }

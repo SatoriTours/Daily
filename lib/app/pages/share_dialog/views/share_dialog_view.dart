@@ -1,28 +1,29 @@
+import 'package:daily_satori/app/navigation/app_navigation.dart';
 import 'package:daily_satori/app/components/index.dart';
 import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daily_satori/app/providers/providers.dart';
 
-import 'package:daily_satori/app/pages/share_dialog/controllers/share_dialog_controller.dart';
 import 'package:flutter/services.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 /// 分享页面视图
 /// 用于保存链接或添加/更新文章备注信息
-class ShareDialogView extends GetView<ShareDialogController> {
+class ShareDialogView extends ConsumerWidget {
   const ShareDialogView({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      final isUpdate = controller.isUpdate.value;
-      return Scaffold(
-        resizeToAvoidBottomInset: true,
-        appBar: _buildAppBar(context, isUpdate),
-        body: _buildBody(context, isUpdate),
-      );
-    });
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controllerState = ref.watch(shareDialogControllerProvider);
+    final isUpdate = controllerState.isUpdate;
+
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: _buildAppBar(context, isUpdate),
+      body: _buildBody(context, ref, isUpdate),
+    );
   }
 
   // 构建顶部应用栏
@@ -40,7 +41,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   // 构建主体内容
-  Widget _buildBody(BuildContext context, bool isUpdate) {
+  Widget _buildBody(BuildContext context, WidgetRef ref, bool isUpdate) {
     return SafeArea(
       child: Column(
         children: [
@@ -50,23 +51,23 @@ class ShareDialogView extends GetView<ShareDialogController> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildLinkSection(context, isUpdate),
+                  _buildLinkSection(context, ref, isUpdate),
                   Dimensions.verticalSpacerL,
-                  _buildTitleSection(context, isUpdate),
+                  _buildTitleSection(context, ref, isUpdate),
                   Dimensions.verticalSpacerL,
-                  _buildCommentSection(context),
+                  _buildCommentSection(context, ref),
                 ],
               ),
             ),
           ),
-          _buildBottomButton(context, isUpdate),
+          _buildBottomButton(context, ref, isUpdate),
         ],
       ),
     );
   }
 
   // 构建底部按钮区域
-  Widget _buildBottomButton(BuildContext context, bool isUpdate) {
+  Widget _buildBottomButton(BuildContext context, WidgetRef ref, bool isUpdate) {
     return Container(
       padding: Dimensions.paddingBottomForm,
       decoration: BoxDecoration(
@@ -87,7 +88,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
             Expanded(
               child: OutlinedButton(
                 style: StyleGuide.getOutlinedButtonStyle(context),
-                onPressed: () => Get.back(),
+                onPressed: () => AppNavigation.back(),
                 child: Text('ui.cancel'.t, style: AppTypography.buttonText),
               ),
             ),
@@ -96,7 +97,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
               flex: 2,
               child: FilledButton(
                 style: StyleGuide.getPrimaryButtonStyle(context),
-                onPressed: () => controller.onSaveButtonPressed(),
+                onPressed: () => ref.read(shareDialogControllerProvider.notifier).onSaveButtonPressed(context),
                 child: Text(
                   isUpdate ? 'ui.saveChanges'.t : 'ui.save'.t,
                   style: AppTypography.buttonText.copyWith(fontWeight: FontWeight.w600),
@@ -110,8 +111,10 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   // 构建链接区域（简洁版）
-  Widget _buildLinkSection(BuildContext context, bool isUpdate) {
+  Widget _buildLinkSection(BuildContext context, WidgetRef ref, bool isUpdate) {
     final theme = Theme.of(context);
+    final controllerState = ref.watch(shareDialogControllerProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -126,39 +129,37 @@ class ShareDialogView extends GetView<ShareDialogController> {
             Text('ui.link'.t, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
             const Spacer(),
             if (isUpdate) ...[
-              Obx(
-                () => Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.refresh_rounded,
-                      size: Dimensions.iconSizeXs - 2,
-                      color: controller.refreshAndAnalyze.value
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.refresh_rounded,
+                    size: Dimensions.iconSizeXs - 2,
+                    color: controllerState.refreshAndAnalyze
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.mediumHigh),
+                  ),
+                  Dimensions.horizontalSpacerXs,
+                  Text(
+                    'ui.aiAnalysis'.t,
+                    style: AppTypography.bodySmall.copyWith(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: controllerState.refreshAndAnalyze
                           ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.mediumHigh),
+                          : theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.highOpaque),
                     ),
-                    Dimensions.horizontalSpacerXs,
-                    Text(
-                      'ui.aiAnalysis'.t,
-                      style: AppTypography.bodySmall.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: controller.refreshAndAnalyze.value
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.highOpaque),
-                      ),
+                  ),
+                  Dimensions.horizontalSpacerS,
+                  Transform.scale(
+                    scale: 0.8,
+                    child: Switch.adaptive(
+                      value: controllerState.refreshAndAnalyze,
+                      onChanged: (v) => ref.read(shareDialogControllerProvider.notifier).toggleRefreshAndAnalyze(v),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    Dimensions.horizontalSpacerS,
-                    Transform.scale(
-                      scale: 0.8,
-                      child: Switch.adaptive(
-                        value: controller.refreshAndAnalyze.value,
-                        onChanged: (v) => controller.refreshAndAnalyze.value = v,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ],
@@ -176,7 +177,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
             ),
           ),
           child: SelectableText(
-            controller.shareURL.value,
+            controllerState.shareURL,
             style: AppTypography.bodySmall.copyWith(color: AppColors.getOnSurfaceVariant(context), height: 1.4),
             maxLines: 2,
           ),
@@ -186,8 +187,10 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   // 构建标题区域
-  Widget _buildTitleSection(BuildContext context, bool isUpdate) {
+  Widget _buildTitleSection(BuildContext context, WidgetRef ref, bool isUpdate) {
     final theme = Theme.of(context);
+    final titleController = ref.read(shareDialogControllerProvider.notifier).titleController;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -204,7 +207,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
         ),
         Dimensions.verticalSpacerS,
         TextField(
-          controller: controller.titleController,
+          controller: titleController,
           maxLines: null,
           minLines: 2,
           maxLength: InputConfig.maxLength,
@@ -248,8 +251,10 @@ class ShareDialogView extends GetView<ShareDialogController> {
   }
 
   // 构建备注区域
-  Widget _buildCommentSection(BuildContext context) {
+  Widget _buildCommentSection(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final commentController = ref.read(shareDialogControllerProvider.notifier).commentController;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -274,7 +279,7 @@ class ShareDialogView extends GetView<ShareDialogController> {
         ),
         Dimensions.verticalSpacerS,
         TextField(
-          controller: controller.commentController,
+          controller: commentController,
           maxLines: null,
           minLines: 4,
           style: AppTypography.bodyMedium.copyWith(fontSize: 14, height: 1.6),

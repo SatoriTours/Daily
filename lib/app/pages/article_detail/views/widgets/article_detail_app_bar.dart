@@ -1,30 +1,37 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/pages/article_detail/controllers/article_detail_controller.dart';
+import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/providers/article_detail_controller_provider.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
-class ArticleDetailAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final ArticleDetailController controller;
+class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget {
+  final ArticleModel? article;
 
-  const ArticleDetailAppBar({super.key, required this.controller});
+  const ArticleDetailAppBar({super.key, required this.article});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = AppTheme.getTextTheme(context);
 
     return AppBar(
       title: Text(
-        StringUtils.getTopLevelDomain(Uri.parse(controller.articleModel.url ?? '').host),
+        article != null
+            ? StringUtils.getTopLevelDomain(Uri.parse(article!.url ?? '').host)
+            : '',
         style: textTheme.titleLarge?.copyWith(color: Colors.white),
       ),
       centerTitle: true,
-      actions: [_buildAppBarActions(context)],
+      actions: [
+        _buildAppBarActions(context, ref),
+      ],
     );
   }
 
-  Widget _buildAppBarActions(BuildContext context) {
+  Widget _buildAppBarActions(BuildContext context, WidgetRef ref) {
     final colorScheme = AppTheme.getColorScheme(context);
 
     return PopupMenuButton<int>(
@@ -35,7 +42,7 @@ class ArticleDetailAppBar extends StatelessWidget implements PreferredSizeWidget
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
       itemBuilder: (context) => _buildPopupMenuItems(context),
-      onSelected: _handleMenuSelection,
+      onSelected: (value) => _handleMenuSelection(context, ref, value),
     );
   }
 
@@ -67,44 +74,48 @@ class ArticleDetailAppBar extends StatelessWidget implements PreferredSizeWidget
     );
   }
 
-  void _handleMenuSelection(int value) {
+  void _handleMenuSelection(BuildContext context, WidgetRef ref, int value) {
+    if (article == null) return;
+
     switch (value) {
       case 1:
-        _onShareArticle();
+        _onShareArticle(context);
         break;
       case 2:
-        _showDeleteConfirmationDialog();
+        _showDeleteConfirmationDialog(context, ref);
         break;
       case 3:
-        _onCopyURL();
+        _onCopyURL(context);
         break;
       case 4:
-        _onOpenInBrowser();
+        _onOpenInBrowser(context);
         break;
     }
   }
 
-  void _onOpenInBrowser() {
-    launchUrl(Uri.parse(controller.articleModel.url ?? ''));
+  void _onOpenInBrowser(BuildContext context) {
+    if (article?.url == null) return;
+    launchUrl(Uri.parse(article!.url ?? ''));
   }
 
-  void _onShareArticle() {
-    Get.toNamed(Routes.shareDialog, arguments: {'articleID': controller.articleModel.id});
+  void _onShareArticle(BuildContext context) {
+    AppNavigation.toNamed(Routes.shareDialog, arguments: {'articleID': article!.id});
   }
 
-  void _onCopyURL() {
-    Clipboard.setData(ClipboardData(text: controller.articleModel.url ?? ''));
+  void _onCopyURL(BuildContext context) {
+    if (article?.url == null) return;
+    Clipboard.setData(ClipboardData(text: article!.url ?? ''));
     UIUtils.showSuccess('URL已复制到剪贴板');
   }
 
-  void _showDeleteConfirmationDialog() async {
+  void _showDeleteConfirmationDialog(BuildContext context, WidgetRef ref) async {
     await DialogUtils.showConfirm(
       title: "确认删除",
       message: "您确定要删除吗？",
       confirmText: "删除",
       cancelText: "取消",
       onConfirm: () async {
-        await controller.deleteArticle();
+        await ref.read(articleDetailControllerProvider.notifier).deleteArticle();
         UIUtils.showSuccess('删除成功', title: '提示');
       },
     );

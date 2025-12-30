@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:get/get.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/flutter_service.dart';
@@ -22,12 +21,6 @@ import 'package:daily_satori/app/services/book_service.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/share_receive_service.dart';
 import 'package:daily_satori/app/services/clipboard_monitor_service.dart';
-import 'package:daily_satori/app/services/state/app_state_service.dart';
-import 'package:daily_satori/app/services/state/article_state_service.dart';
-import 'package:daily_satori/app/services/state/diary_state_service.dart';
-import 'package:daily_satori/app/services/state/books_state_service.dart';
-import 'package:daily_satori/app/services/state/ai_config_state_service.dart';
-import 'package:daily_satori/app/services/state/plugin_center_state_service.dart';
 import 'package:daily_satori/app/services/i18n/i18n_service.dart';
 
 class ServiceStatus {
@@ -122,60 +115,7 @@ class ServiceRegistry {
     );
 
     // 高优先级
-    register(
-      FunctionAppService(
-        serviceName: 'AppStateService',
-        priority: ServicePriority.high,
-        onInit: () async {
-          Get.put(AppStateService());
-        },
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'ArticleStateService',
-        priority: ServicePriority.high,
-        onInit: () async {
-          Get.put(ArticleStateService());
-        },
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'DiaryStateService',
-        priority: ServicePriority.high,
-        onInit: () async {
-          Get.put(DiaryStateService());
-        },
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'BooksStateService',
-        priority: ServicePriority.high,
-        onInit: () async {
-          Get.put(BooksStateService());
-        },
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'AIConfigStateService',
-        priority: ServicePriority.high,
-        onInit: () async {
-          Get.put(AIConfigStateService());
-        },
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'PluginCenterStateService',
-        priority: ServicePriority.high,
-        onInit: () async {
-          Get.put(PluginCenterStateService());
-        },
-      ),
-    );
+    // Note: State services migrated to Riverpod providers, no longer registered here
     register(
       FunctionAppService(
         serviceName: 'FontService',

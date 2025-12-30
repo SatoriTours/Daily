@@ -140,6 +140,173 @@ export TEST_AI_MODEL="gpt-35-turbo"
 - ✅ 恢复功能入口
 - ✅ 备份历史管理
 
+## 🧪 Riverpod 测试模式
+
+### Provider 测试基础
+
+Riverpod 提供了强大的测试支持，使用 `ProviderContainer` 可以轻松 mock 和验证状态。
+
+### 集成测试模式
+
+```dart
+testWidgets('should display articles with Riverpod', (tester) async {
+  // 1. 创建 ProviderContainer 并添加 mock providers
+  final container = ProviderContainer(
+    overrides: [
+      // Mock 状态服务
+      articleStateProvider.overrideWith((ref) => MockArticleState()),
+      // Mock AI 配置
+      aiConfigProvider.overrideWithValue(MockAIConfig()),
+    ],
+  );
+
+  // 2. 使用 UncontrolledProviderScope 包装测试 widget
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(
+        home: ArticlesView(),
+      ),
+    ),
+  );
+
+  // 3. 等待 widget 加载
+  await tester.pumpAndSettle();
+
+  // 4. 验证 UI
+  expect(find.text('Articles'), findsOneWidget);
+  expect(find.byType(ArticleCard), findsWidgets);
+
+  // 5. 清理 container
+  container.dispose();
+});
+```
+
+### Mock Providers 示例
+
+```dart
+// Mock 状态服务
+class MockArticleState extends _$ArticleState {
+  @override
+  Future<List<ArticleModel>> build() async {
+    return [
+      ArticleModel(id: 1, title: 'Test Article 1'),
+      ArticleModel(id: 2, title: 'Test Article 2'),
+    ];
+  }
+}
+
+// 使用 ProviderContainer.override
+final container = ProviderContainer(
+  overrides: [
+    articleStateProvider.overrideWith((ref) {
+      return MockArticleState();
+    }),
+  ],
+);
+
+// 验证 provider 状态
+final articles = container.read(articleStateProvider);
+expect(articles.value?.length, 2);
+```
+
+### 测试异步状态
+
+```dart
+testWidgets('should handle loading state', (tester) async {
+  final container = ProviderContainer(
+    overrides: [
+      articleStateProvider.overrideWith((ref) {
+        // 返回加载状态
+        return const AsyncValue.loading();
+      }),
+    ],
+  );
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: ArticlesView()),
+    ),
+  );
+
+  // 验证加载指示器
+  expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+  container.dispose();
+});
+
+testWidgets('should handle error state', (tester) async {
+  final container = ProviderContainer(
+    overrides: [
+      articleStateProvider.overrideWith(
+        (ref) => const AsyncValue.error('Test error', StackTrace.empty),
+      ),
+    ],
+  );
+
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: ArticlesView()),
+    ),
+  );
+
+  // 验证错误显示
+  expect(find.text('Test error'), findsOneWidget);
+
+  container.dispose();
+});
+```
+
+### Provider 状态验证
+
+```dart
+void main() {
+  test('articleStateProvider should load articles', () async {
+    final container = ProviderContainer();
+
+    // 触发数据加载
+    await container.read(articleStateProvider.notifier).loadArticles();
+
+    // 验证状态
+    final state = container.read(articleStateProvider);
+    expect(state.isLoading, false);
+    expect(state.value, isNotEmpty);
+    expect(state.hasError, false);
+
+    container.dispose();
+  });
+}
+```
+
+### 测试最佳实践
+
+1. **总是清理 container**: 测试结束后调用 `container.dispose()`
+2. **使用 override 而非修改源代码**: 通过 `ProviderContainer.overrides` mock providers
+3. **测试所有 AsyncValue 状态**: data, loading, error
+4. **使用 UncontrolledProviderScope**: 在 widget 测试中包装 widget
+5. **验证 UI 而非内部状态**: 优先验证用户看到的界面
+
+### ProviderScope 在测试中的使用
+
+```dart
+// ✅ 使用 ProviderScope (简单场景)
+await tester.pumpWidget(
+  ProviderScope(
+    child: MaterialApp(home: MyView()),
+  ),
+);
+
+// ✅ 使用 UncontrolledProviderScope (需要 mock 时)
+await tester.pumpWidget(
+  UncontrolledProviderScope(
+    container: container,  // 自定义 container
+    child: MaterialApp(home: MyView()),
+  ),
+);
+```
+
 ## 🛠️ 故障排除
 
 ### 测试失败：未检测到设备

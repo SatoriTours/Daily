@@ -1,28 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daily_satori/app/providers/providers.dart';
+import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/components/common/feature_icon.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
-import '../controllers/ai_config_controller.dart';
-import '../models/ai_config_types.dart';
-import 'widgets/ai_config_info_dialog.dart';
+import 'package:daily_satori/app/pages/ai_config/models/ai_config_types.dart';
+import 'package:daily_satori/app/pages/ai_config/views/widgets/ai_config_info_dialog.dart';
 
 /// AI配置页面
 ///
-/// 用于管理不同功能的AI配置，包括：
+/// 用于管理不同功能的AI配置,包括：
 /// - 通用配置：所有AI功能的基础配置
 /// - 文章总结：生成文章摘要和关键点
 /// - 书本解读：解析书籍内容和笔记
 /// - 日记总结：分析和生成日记内容
-class AIConfigView extends GetView<AIConfigController> {
+class AIConfigView extends ConsumerWidget {
   const AIConfigView({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(aIConfigControllerProvider);
+
     return Scaffold(
       backgroundColor: AppColors.getSurface(context),
       appBar: _buildAppBar(context),
-      body: _buildBody(context),
+      body: _buildBody(context, ref, state),
     );
   }
 
@@ -54,19 +57,17 @@ class AIConfigView extends GetView<AIConfigController> {
   // ========================================================================
 
   /// 构建主体内容
-  Widget _buildBody(BuildContext context) {
-    return Obx(() {
-      if (controller.isLoading.value) {
-        return StyleGuide.getLoadingState(context);
-      }
+  Widget _buildBody(BuildContext context, WidgetRef ref, AIConfigControllerState state) {
+    if (state.isLoading) {
+      return StyleGuide.getLoadingState(context);
+    }
 
-      final allConfigs = controller.configs;
-      if (allConfigs.isEmpty) {
-        return _buildEmptyState(context);
-      }
+    final configs = state.configs;
+    if (configs.isEmpty) {
+      return _buildEmptyState(context);
+    }
 
-      return _buildConfigList(context, allConfigs);
-    });
+    return _buildConfigList(context, ref, configs);
   }
 
   /// 构建空状态提示
@@ -82,12 +83,12 @@ class AIConfigView extends GetView<AIConfigController> {
   }
 
   /// 构建配置列表
-  Widget _buildConfigList(BuildContext context, List<dynamic> configs) {
+  Widget _buildConfigList(BuildContext context, WidgetRef ref, List<AIConfigModel> configs) {
     return ListView.separated(
       padding: Dimensions.paddingPage,
       itemCount: configs.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) => _buildConfigCard(context, configs[index]),
+      itemBuilder: (context, index) => _buildConfigCard(context, ref, configs[index]),
     );
   }
 
@@ -96,12 +97,12 @@ class AIConfigView extends GetView<AIConfigController> {
   // ========================================================================
 
   /// 构建配置卡片
-  Widget _buildConfigCard(BuildContext context, dynamic config) {
+  Widget _buildConfigCard(BuildContext context, WidgetRef ref, AIConfigModel config) {
     final color = AIConfigTypes.getColor(config.functionType);
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
-        onTap: () => controller.editConfig(config),
+        onTap: () => ref.read(aIConfigControllerProvider.notifier).editConfig(config),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
         child: Padding(
           padding: Dimensions.paddingCard,
@@ -129,7 +130,7 @@ class AIConfigView extends GetView<AIConfigController> {
   }
 
   /// 构建配置信息
-  Widget _buildConfigInfo(BuildContext context, dynamic config) {
+  Widget _buildConfigInfo(BuildContext context, AIConfigModel config) {
     final isInheriting = config.apiAddress.isEmpty && config.functionType != 0;
 
     return Expanded(
@@ -145,7 +146,7 @@ class AIConfigView extends GetView<AIConfigController> {
   }
 
   /// 构建配置名称（带继承标签）
-  Widget _buildConfigNameWithBadge(BuildContext context, dynamic config, bool isInheriting) {
+  Widget _buildConfigNameWithBadge(BuildContext context, AIConfigModel config, bool isInheriting) {
     return Row(
       children: [
         Text(config.name, style: AppTypography.titleSmall),
@@ -167,7 +168,7 @@ class AIConfigView extends GetView<AIConfigController> {
   }
 
   /// 构建配置状态
-  Widget _buildConfigStatus(BuildContext context, dynamic config) {
+  Widget _buildConfigStatus(BuildContext context, AIConfigModel config) {
     if (config.apiAddress.isEmpty) {
       return Text(
         config.functionType == 0 ? '未配置' : '使用通用配置',

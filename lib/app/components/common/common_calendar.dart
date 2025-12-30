@@ -11,7 +11,7 @@ class CommonCalendar extends StatelessWidget {
   final DateTime displayedMonth;
 
   /// 当前选中的日期
-  final DateTime selectedDate;
+  final DateTime? selectedDate;
 
   /// 日期选择回调
   final Function(DateTime date) onDateSelected;
@@ -34,7 +34,7 @@ class CommonCalendar extends StatelessWidget {
   const CommonCalendar({
     super.key,
     required this.displayedMonth,
-    required this.selectedDate,
+    this.selectedDate,
     required this.onDateSelected,
     required this.onPreviousMonth,
     required this.onNextMonth,
@@ -50,7 +50,8 @@ class CommonCalendar extends StatelessWidget {
   }
 
   /// 判断两个日期是否是同一天
-  bool _isSameDay(DateTime a, DateTime b) {
+  bool _isSameDay(DateTime a, DateTime? b) {
+    if (b == null) return false;
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 

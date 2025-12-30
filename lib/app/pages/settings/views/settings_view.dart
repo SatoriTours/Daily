@@ -1,37 +1,38 @@
+import 'package:daily_satori/app/navigation/app_navigation.dart';
 import 'package:daily_satori/app/components/common/feature_icon.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
-import 'package:daily_satori/app/routes/app_pages.dart';
-import '../controllers/settings_controller.dart';
+import 'package:daily_satori/app/routes/app_routes.dart';
 
 /// 设置页面视图
 ///
-/// 提供应用的主要设置功能，包括：
+/// 提供应用的主要设置功能,包括：
 /// - 功能设置：AI配置、插件管理
 /// - 系统管理：备份恢复、Web服务器、版本更新
-class SettingsView extends GetView<SettingsController> {
+class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(settingsControllerProvider);
+
     return Scaffold(
       backgroundColor: AppTheme.getColorScheme(context).surface,
-      appBar: _buildAppBar(context),
-      body: Obx(
-        () => controller.isPageLoading.value ? StyleGuide.getLoadingState(context) : _buildSettingsList(context),
-      ),
+      appBar: _buildAppBar(context, ref),
+      body: state.isPageLoading ? StyleGuide.getLoadingState(context) : _buildSettingsList(context, ref),
     );
   }
 
   // ==================== AppBar ====================
 
   /// 构建顶部导航栏
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref) {
     return SAppBar(
       title: Text('title.settings'.t, style: const TextStyle(color: Colors.white)),
       centerTitle: true,
@@ -43,7 +44,7 @@ class SettingsView extends GetView<SettingsController> {
         IconButton(
           icon: const Icon(Icons.info_outline, color: Colors.white),
           tooltip: 'dialog.about'.t,
-          onPressed: () => _showAboutDialog(context),
+          onPressed: () => _showAboutDialog(context, ref),
         ),
       ],
     );
@@ -52,17 +53,17 @@ class SettingsView extends GetView<SettingsController> {
   // ==================== 主布局 ====================
 
   /// 构建设置列表主体
-  Widget _buildSettingsList(BuildContext context) {
+  Widget _buildSettingsList(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
         Expanded(
           child: ListView(
             physics: const BouncingScrollPhysics(),
             padding: Dimensions.paddingM,
-            children: [_buildFunctionSection(context), _buildSystemSection(context), Dimensions.verticalSpacerL],
+            children: [_buildFunctionSection(context, ref), _buildSystemSection(context, ref), Dimensions.verticalSpacerL],
           ),
         ),
-        _buildVersionInfo(context),
+        _buildVersionInfo(context, ref),
         Dimensions.verticalSpacerM,
       ],
     );
@@ -72,7 +73,7 @@ class SettingsView extends GetView<SettingsController> {
 
   /// 构建功能设置分区
   /// 包含AI配置、插件中心等功能入口
-  Widget _buildFunctionSection(BuildContext context) {
+  Widget _buildFunctionSection(BuildContext context, WidgetRef ref) {
     return _buildSettingsSection(
       context: context,
       title: 'dialog.functions'.t,
@@ -84,7 +85,7 @@ class SettingsView extends GetView<SettingsController> {
           subtitle: 'setting.ai_config_subtitle'.t,
           icon: Icons.smart_toy_rounded,
           color: Colors.blue,
-          onTap: () => Get.toNamed('/ai-config'),
+          onTap: () => AppNavigation.toNamed('/ai-config'),
         ),
         _buildSettingItem(
           context: context,
@@ -92,7 +93,7 @@ class SettingsView extends GetView<SettingsController> {
           subtitle: 'setting.plugin_center_subtitle'.t,
           icon: Icons.extension_rounded,
           color: Colors.deepPurple,
-          onTap: () => Get.toNamed(Routes.pluginCenter),
+          onTap: () => AppNavigation.toNamed(Routes.pluginCenter),
         ),
       ],
     );
@@ -102,7 +103,7 @@ class SettingsView extends GetView<SettingsController> {
 
   /// 构建系统设置分区
   /// 包含备份恢复、Web服务器、版本更新等系统功能
-  Widget _buildSystemSection(BuildContext context) {
+  Widget _buildSystemSection(BuildContext context, WidgetRef ref) {
     return _buildSettingsSection(
       context: context,
       title: 'dialog.system'.t,
@@ -114,16 +115,16 @@ class SettingsView extends GetView<SettingsController> {
           subtitle: 'setting.backup_restore_subtitle'.t,
           icon: Icons.backup_rounded,
           color: Colors.green,
-          onTap: () => Get.toNamed(Routes.backupSettings),
+          onTap: () => AppNavigation.toNamed(Routes.backupSettings),
         ),
-        _buildDownloadImagesItem(context),
+        _buildDownloadImagesItem(context, ref),
         _buildSettingItem(
           context: context,
           title: 'setting.web_server'.t,
           subtitle: 'setting.web_server_subtitle'.t,
           icon: Icons.language_rounded,
           color: Colors.teal,
-          onTap: () => _showWebServerDialog(context),
+          onTap: () => _showWebServerDialog(context, ref),
         ),
         _buildSettingItem(
           context: context,
@@ -138,24 +139,23 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   /// 构建下载文章图片设置项
-  Widget _buildDownloadImagesItem(BuildContext context) {
-    return Obx(() {
-      final isDownloading = controller.isDownloadingImages.value;
-      final progress = controller.downloadProgress.value;
-      final total = controller.downloadTotal.value;
+  Widget _buildDownloadImagesItem(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(settingsControllerProvider);
+    final isDownloading = state.isDownloadingImages;
+    final progress = state.downloadProgress;
+    final total = state.downloadTotal;
 
-      return _buildSettingItemWithProgress(
-        context: context,
-        title: 'setting.download_images'.t,
-        subtitle: isDownloading
-            ? 'setting.download_images_progress'.t.replaceAll('{current}', '$progress').replaceAll('{total}', '$total')
-            : 'setting.download_images_subtitle'.t,
-        icon: Icons.image_rounded,
-        color: Colors.orange,
-        isLoading: isDownloading,
-        onTap: isDownloading ? null : () => controller.downloadMissingArticleImages(),
-      );
-    });
+    return _buildSettingItemWithProgress(
+      context: context,
+      title: 'setting.download_images'.t,
+      subtitle: isDownloading
+          ? 'setting.download_images_progress'.t.replaceAll('{current}', '$progress').replaceAll('{total}', '$total')
+          : 'setting.download_images_subtitle'.t,
+      icon: Icons.image_rounded,
+      color: Colors.orange,
+      isLoading: isDownloading,
+      onTap: isDownloading ? null : () => ref.read(settingsControllerProvider.notifier).downloadMissingArticleImages(),
+    );
   }
 
   /// 构建带进度的设置项
@@ -309,18 +309,17 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   /// 构建版本信息
-  Widget _buildVersionInfo(BuildContext context) {
+  Widget _buildVersionInfo(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(settingsControllerProvider);
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
     return Center(
       child: Column(
         children: [
-          Obx(
-            () => Text(
-              '${'setting.version'.t} ${controller.appVersion.value}',
-              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
-            ),
+          Text(
+            '${'setting.version'.t} ${state.appVersion}',
+            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
           ),
           Dimensions.verticalSpacerS,
           Text(
@@ -335,14 +334,15 @@ class SettingsView extends GetView<SettingsController> {
   // ==================== 对话框 ====================
 
   /// 显示关于应用对话框
-  void _showAboutDialog(BuildContext context) {
+  void _showAboutDialog(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(settingsControllerProvider);
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
     showAboutDialog(
       context: context,
       applicationName: 'Daily Satori',
-      applicationVersion: 'v${controller.appVersion.value}',
+      applicationVersion: 'v${state.appVersion}',
       applicationIcon: Container(
         width: Dimensions.iconSizeXxl - Dimensions.spacingS,
         height: Dimensions.iconSizeXxl - Dimensions.spacingS,
@@ -360,7 +360,7 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   /// 显示Web服务器配置对话框
-  void _showWebServerDialog(BuildContext context) {
+  void _showWebServerDialog(BuildContext context, WidgetRef ref) {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
     final primaryColor = colorScheme.primary;
@@ -389,10 +389,10 @@ class SettingsView extends GetView<SettingsController> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // 服务器信息
-                      _buildServerInfoSection(context, primaryColor, textTheme),
+                      _buildServerInfoSection(context, ref, primaryColor, textTheme),
                       Dimensions.verticalSpacerL,
                       // 服务器管理
-                      _buildServerManagementSection(context),
+                      _buildServerManagementSection(context, ref),
                       Dimensions.verticalSpacerL,
                       // 提示信息
                       _buildServerTipCard(context, primaryColor, colorScheme),
@@ -445,41 +445,41 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   /// 构建服务器信息分区
-  Widget _buildServerInfoSection(BuildContext context, Color primaryColor, TextTheme textTheme) {
+  Widget _buildServerInfoSection(BuildContext context, WidgetRef ref, Color primaryColor, TextTheme textTheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionTitle(context, 'setting.server_info'.t, Icons.info_outline_rounded),
         Dimensions.verticalSpacerM,
         // HTTP服务器地址
-        _buildHttpAddressCard(context, primaryColor, textTheme),
+        _buildHttpAddressCard(context, ref, primaryColor, textTheme),
         Dimensions.verticalSpacerM,
         // WebSocket地址
-        _buildWebSocketAddressCard(context, primaryColor, textTheme),
+        _buildWebSocketAddressCard(context, ref, primaryColor, textTheme),
         Dimensions.verticalSpacerM,
         // 连接状态
-        _buildConnectionStatusCard(context, textTheme),
+        _buildConnectionStatusCard(context, ref, textTheme),
       ],
     );
   }
 
   /// 构建HTTP服务器地址卡片
-  Widget _buildHttpAddressCard(BuildContext context, Color primaryColor, TextTheme textTheme) {
+  Widget _buildHttpAddressCard(BuildContext context, WidgetRef ref, Color primaryColor, TextTheme textTheme) {
+    final state = ref.watch(settingsControllerProvider);
+
     return _buildInfoCard(
       context: context,
       title: 'setting.http_server_address'.t,
-      content: Obx(
-        () => SelectableText(
-          controller.webServiceAddress.value,
-          style: textTheme.bodyMedium?.copyWith(color: primaryColor, fontWeight: FontWeight.w600),
-        ),
+      content: SelectableText(
+        state.webServiceAddress,
+        style: textTheme.bodyMedium?.copyWith(color: primaryColor, fontWeight: FontWeight.w600),
       ),
       icon: Icons.language_rounded,
       iconColor: Colors.blue,
       action: IconButton(
         icon: Icon(Icons.copy_rounded, size: 20, color: primaryColor),
         onPressed: () {
-          controller.copyWebServiceAddress();
+          ref.read(settingsControllerProvider.notifier).copyWebServiceAddress();
           UIUtils.showSuccess('message.copy_success'.t);
         },
         tooltip: 'button.copy_address'.t,
@@ -488,22 +488,22 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   /// 构建WebSocket地址卡片
-  Widget _buildWebSocketAddressCard(BuildContext context, Color primaryColor, TextTheme textTheme) {
+  Widget _buildWebSocketAddressCard(BuildContext context, WidgetRef ref, Color primaryColor, TextTheme textTheme) {
+    final state = ref.watch(settingsControllerProvider);
+
     return _buildInfoCard(
       context: context,
       title: 'setting.websocket_access'.t,
-      content: Obx(
-        () => SelectableText(
-          controller.webAccessUrl.value,
-          style: textTheme.bodyMedium?.copyWith(color: primaryColor, fontWeight: FontWeight.w600),
-        ),
+      content: SelectableText(
+        state.webAccessUrl,
+        style: textTheme.bodyMedium?.copyWith(color: primaryColor, fontWeight: FontWeight.w600),
       ),
       icon: Icons.wifi_rounded,
       iconColor: Colors.deepPurple,
       action: IconButton(
         icon: Icon(Icons.copy_rounded, size: 20, color: primaryColor),
         onPressed: () {
-          controller.copyWebAccessUrl();
+          ref.read(settingsControllerProvider.notifier).copyWebAccessUrl();
           UIUtils.showSuccess('message.copy_success'.t);
         },
         tooltip: 'button.copy_address'.t,
@@ -512,19 +512,20 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   /// 构建连接状态卡片
-  Widget _buildConnectionStatusCard(BuildContext context, TextTheme textTheme) {
+  Widget _buildConnectionStatusCard(BuildContext context, WidgetRef ref, TextTheme textTheme) {
     return _buildInfoCard(
       context: context,
       title: 'setting.connection_status'.t,
-      content: Obx(() => _buildConnectionStatusIndicator(textTheme)),
+      content: (_buildConnectionStatusIndicator(context, ref, textTheme)),
       icon: Icons.network_check_rounded,
       iconColor: Colors.green,
     );
   }
 
   /// 构建连接状态指示器
-  Widget _buildConnectionStatusIndicator(TextTheme textTheme) {
-    final isConnected = controller.isWebSocketConnected.value;
+  Widget _buildConnectionStatusIndicator(BuildContext context, WidgetRef ref, TextTheme textTheme) {
+    final state = ref.watch(settingsControllerProvider);
+    final isConnected = state.isWebSocketConnected;
     final statusColor = isConnected ? Colors.green : Colors.red;
     final statusText = isConnected ? 'status.connected'.t : 'status.disconnected'.t;
 
@@ -554,7 +555,7 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   /// 构建服务器管理分区
-  Widget _buildServerManagementSection(BuildContext context) {
+  Widget _buildServerManagementSection(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -567,7 +568,7 @@ class SettingsView extends GetView<SettingsController> {
           subtitle: 'setting.server_password_subtitle'.t,
           icon: Icons.password_rounded,
           color: Colors.orange,
-          onTap: () => _showPasswordSettingDialog(context),
+          onTap: () => _showPasswordSettingDialog(context, ref),
         ),
         Dimensions.verticalSpacerS,
         // 重启服务
@@ -577,7 +578,7 @@ class SettingsView extends GetView<SettingsController> {
           subtitle: 'setting.restart_service_subtitle'.t,
           icon: Icons.refresh_rounded,
           color: Colors.green,
-          onTap: () => controller.restartWebService(),
+          onTap: () => ref.read(settingsControllerProvider.notifier).restartWebService(),
         ),
       ],
     );
@@ -612,11 +613,10 @@ class SettingsView extends GetView<SettingsController> {
   }
 
   /// 显示密码设置对话框
-  void _showPasswordSettingDialog(BuildContext context) {
-    final passwordController = TextEditingController(text: controller.getWebServerPassword());
+  void _showPasswordSettingDialog(BuildContext context, WidgetRef ref) {
+    final passwordController = TextEditingController(text: ref.read(settingsControllerProvider.notifier).getWebServerPassword());
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
-    final isPasswordVisible = false.obs;
 
     showDialog(
       context: context,
@@ -625,17 +625,19 @@ class SettingsView extends GetView<SettingsController> {
         contentPadding: const EdgeInsets.fromLTRB(Dimensions.spacingL, Dimensions.spacingM + 4, Dimensions.spacingL, 0),
         actionsPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM),
         actionsAlignment: MainAxisAlignment.end,
-        title: _buildPasswordDialogTitle(),
-        content: _buildPasswordDialogContent(context, passwordController, isPasswordVisible, colorScheme, textTheme),
-        actions: _buildPasswordDialogActions(context, passwordController),
+        title: _buildPasswordDialogTitle(textTheme),
+        content: _PasswordDialogContent(
+          passwordController: passwordController,
+          colorScheme: colorScheme,
+          textTheme: textTheme,
+        ),
+        actions: _buildPasswordDialogActions(context, ref, passwordController),
       ),
     );
   }
 
   /// 构建密码对话框标题
-  Widget _buildPasswordDialogTitle() {
-    final textTheme = Get.context != null ? AppTheme.getTextTheme(Get.context!) : null;
-
+  Widget _buildPasswordDialogTitle(TextTheme textTheme) {
     return Row(
       children: [
         const FeatureIcon(
@@ -645,114 +647,13 @@ class SettingsView extends GetView<SettingsController> {
           iconSize: Dimensions.iconSizeM,
         ),
         Dimensions.horizontalSpacerM,
-        Text('setting.server_password'.t, style: textTheme?.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+        Text('setting.server_password'.t, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
       ],
-    );
-  }
-
-  /// 构建密码对话框内容
-  Widget _buildPasswordDialogContent(
-    BuildContext context,
-    TextEditingController passwordController,
-    RxBool isPasswordVisible,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-  ) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 说明文字
-        _buildPasswordTipCard(context, colorScheme, textTheme),
-        Dimensions.verticalSpacerM,
-        // 密码输入框
-        _buildPasswordTextField(context, passwordController, isPasswordVisible, colorScheme, textTheme),
-      ],
-    );
-  }
-
-  /// 构建密码提示卡片
-  Widget _buildPasswordTipCard(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
-    return Container(
-      padding: Dimensions.paddingM,
-      decoration: _buildTipCardDecoration(colorScheme),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline_rounded, size: Dimensions.iconSizeXs, color: colorScheme.primary),
-          Dimensions.horizontalSpacerS,
-          Expanded(
-            child: Text(
-              'setting.password_tip'.t,
-              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.7), height: 1.3),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 构建提示卡片装饰
-  BoxDecoration _buildTipCardDecoration(ColorScheme colorScheme) {
-    return BoxDecoration(
-      color: colorScheme.primary.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(Dimensions.radiusS),
-      border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2), width: 1),
-    );
-  }
-
-  /// 构建密码输入框
-  Widget _buildPasswordTextField(
-    BuildContext context,
-    TextEditingController passwordController,
-    RxBool isPasswordVisible,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-  ) {
-    return Obx(
-      () => TextField(
-        controller: passwordController,
-        obscureText: !isPasswordVisible.value,
-        style: textTheme.bodyMedium,
-        decoration: _buildPasswordInputDecoration(isPasswordVisible, colorScheme),
-      ),
-    );
-  }
-
-  /// 构建密码输入框装饰
-  InputDecoration _buildPasswordInputDecoration(RxBool isPasswordVisible, ColorScheme colorScheme) {
-    return InputDecoration(
-      hintText: 'hint.enter_server_password'.t,
-      prefixIcon: const Icon(Icons.lock_outline_rounded),
-      suffixIcon: _buildPasswordVisibilityToggle(isPasswordVisible),
-      border: _buildInputBorder(colorScheme.outline, 1),
-      focusedBorder: _buildInputBorder(colorScheme.primary, 2),
-      enabledBorder: _buildInputBorder(colorScheme.outline, 1),
-      contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM - 2),
-    );
-  }
-
-  /// 构建密码可见性切换按钮
-  Widget _buildPasswordVisibilityToggle(RxBool isPasswordVisible) {
-    return IconButton(
-      icon: Icon(
-        isPasswordVisible.value ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-        size: Dimensions.iconSizeM,
-      ),
-      onPressed: () => isPasswordVisible.value = !isPasswordVisible.value,
-      tooltip: isPasswordVisible.value ? 'button.hide_password'.t : 'button.show_password'.t,
-    );
-  }
-
-  /// 构建输入框边框
-  OutlineInputBorder _buildInputBorder(Color color, double width) {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(Dimensions.radiusS),
-      borderSide: BorderSide(color: color, width: width),
     );
   }
 
   /// 构建密码对话框操作按钮
-  List<Widget> _buildPasswordDialogActions(BuildContext context, TextEditingController passwordController) {
+  List<Widget> _buildPasswordDialogActions(BuildContext context, WidgetRef ref, TextEditingController passwordController) {
     return [
       SizedBox(
         width: double.infinity,
@@ -774,7 +675,7 @@ class SettingsView extends GetView<SettingsController> {
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  controller.saveWebServerPassword(passwordController.text);
+                  ref.read(settingsControllerProvider.notifier).saveWebServerPassword(passwordController.text);
                 },
                 style: ButtonStyles.getPrimaryStyle(context),
                 child: Text('button.save'.t),
@@ -929,6 +830,113 @@ class SettingsView extends GetView<SettingsController> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 密码对话框内容组件
+class _PasswordDialogContent extends StatefulWidget {
+  final TextEditingController passwordController;
+  final ColorScheme colorScheme;
+  final TextTheme textTheme;
+
+  const _PasswordDialogContent({
+    required this.passwordController,
+    required this.colorScheme,
+    required this.textTheme,
+  });
+
+  @override
+  State<_PasswordDialogContent> createState() => _PasswordDialogContentState();
+}
+
+class _PasswordDialogContentState extends State<_PasswordDialogContent> {
+  bool isPasswordVisible = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 说明文字
+        _buildPasswordTipCard(context),
+        Dimensions.verticalSpacerM,
+        // 密码输入框
+        _buildPasswordTextField(context),
+      ],
+    );
+  }
+
+  /// 构建密码提示卡片
+  Widget _buildPasswordTipCard(BuildContext context) {
+    return Container(
+      padding: Dimensions.paddingM,
+      decoration: _buildTipCardDecoration(),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, size: Dimensions.iconSizeXs, color: widget.colorScheme.primary),
+          Dimensions.horizontalSpacerS,
+          Expanded(
+            child: Text(
+              'setting.password_tip'.t,
+              style: widget.textTheme.bodySmall?.copyWith(color: widget.colorScheme.onSurface.withValues(alpha: 0.7), height: 1.3),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 构建提示卡片装饰
+  BoxDecoration _buildTipCardDecoration() {
+    return BoxDecoration(
+      color: widget.colorScheme.primary.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      border: Border.all(color: widget.colorScheme.primary.withValues(alpha: 0.2), width: 1),
+    );
+  }
+
+  /// 构建密码输入框
+  Widget _buildPasswordTextField(BuildContext context) {
+    return TextField(
+      controller: widget.passwordController,
+      obscureText: !isPasswordVisible,
+      style: widget.textTheme.bodyMedium,
+      decoration: _buildPasswordInputDecoration(),
+    );
+  }
+
+  /// 构建密码输入框装饰
+  InputDecoration _buildPasswordInputDecoration() {
+    return InputDecoration(
+      hintText: 'hint.enter_server_password'.t,
+      prefixIcon: const Icon(Icons.lock_outline_rounded),
+      suffixIcon: _buildPasswordVisibilityToggle(),
+      border: _buildInputBorder(widget.colorScheme.outline, 1),
+      focusedBorder: _buildInputBorder(widget.colorScheme.primary, 2),
+      enabledBorder: _buildInputBorder(widget.colorScheme.outline, 1),
+      contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM - 2),
+    );
+  }
+
+  /// 构建密码可见性切换按钮
+  Widget _buildPasswordVisibilityToggle() {
+    return IconButton(
+      icon: Icon(
+        isPasswordVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+        size: Dimensions.iconSizeM,
+      ),
+      onPressed: () => setState(() => isPasswordVisible = !isPasswordVisible),
+      tooltip: isPasswordVisible ? 'button.hide_password'.t : 'button.show_password'.t,
+    );
+  }
+
+  /// 构建输入框边框
+  OutlineInputBorder _buildInputBorder(Color color, double width) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      borderSide: BorderSide(color: color, width: width),
     );
   }
 }

@@ -1,16 +1,18 @@
-import 'package:daily_satori/app/pages/left_bar/controllers/left_bar_controller.dart';
+import 'package:flutter/material.dart' show VoidCallback;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
-class LeftBarView extends GetView<LeftBarController> {
+class LeftBarView extends ConsumerWidget {
   const LeftBarView({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return _buildPage(context);
+  Widget build(BuildContext context, WidgetRef ref) {
+    return _buildPage(context, ref);
   }
 
-  Widget _buildPage(BuildContext context) {
+  Widget _buildPage(BuildContext context, WidgetRef ref) {
     final colorScheme = AppTheme.getColorScheme(context);
 
     return Scaffold(
@@ -19,10 +21,10 @@ class LeftBarView extends GetView<LeftBarController> {
         children: [
           _buildHeader(context),
           Dimensions.verticalSpacerS,
-          _buildActions(context),
+          _buildActions(context, ref),
           Dimensions.verticalSpacerS,
           Divider(color: colorScheme.outline),
-          Expanded(child: _buildTagsList(context)),
+          Expanded(child: _buildTagsList(context, ref)),
         ],
       ),
     );
@@ -53,7 +55,8 @@ class LeftBarView extends GetView<LeftBarController> {
     );
   }
 
-  Widget _buildActions(BuildContext context) {
+  Widget _buildActions(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(leftBarControllerProvider);
     final colorScheme = AppTheme.getColorScheme(context);
 
     return Container(
@@ -71,8 +74,8 @@ class LeftBarView extends GetView<LeftBarController> {
               icon: Icons.article_outlined,
               label: '全部',
               onPressed: () {
-                controller.articlesController.clearAllFilters();
-                Get.back();
+                ref.read(articlesControllerProvider.notifier).clearAllFilters();
+                AppNavigation.back();
               },
             ),
           ),
@@ -83,8 +86,8 @@ class LeftBarView extends GetView<LeftBarController> {
               icon: Icons.favorite,
               label: '收藏',
               onPressed: () {
-                controller.articlesController.toggleFavorite(true);
-                Get.back();
+                ref.read(articlesControllerProvider.notifier).toggleFavorite(true);
+                AppNavigation.back();
               },
             ),
           ),
@@ -94,7 +97,7 @@ class LeftBarView extends GetView<LeftBarController> {
               context,
               icon: Icons.settings,
               label: '设置',
-              onPressed: () => Get.toNamed('/settings'),
+              onPressed: () => AppNavigation.toNamed('/settings'),
             ),
           ),
         ],
@@ -128,30 +131,31 @@ class LeftBarView extends GetView<LeftBarController> {
     );
   }
 
-  Widget _buildTagsList(BuildContext context) {
+  Widget _buildTagsList(BuildContext context, WidgetRef ref) {
     final colorScheme = AppTheme.getColorScheme(context);
+    final state = ref.watch(leftBarControllerProvider);
 
-    if (controller.tags.isEmpty) {
+    if (state.tags.isEmpty) {
       return Center(
         child: Text('暂无标签', style: TextStyle(color: colorScheme.onSurfaceVariant)),
       );
     }
 
     return ListView.builder(
-      itemCount: controller.tags.length,
+      itemCount: state.tags.length,
       padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
-      itemBuilder: (context, index) => _buildTagItem(context, controller.tags[index]),
+      itemBuilder: (context, index) => _buildTagItem(context, ref, state.tags[index]),
     );
   }
 
-  Widget _buildTagItem(BuildContext context, TagModel tag) {
+  Widget _buildTagItem(BuildContext context, WidgetRef ref, TagModel tag) {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
     return InkWell(
       onTap: () {
-        controller.articlesController.filterByTag(tag.id, tag.name ?? '');
-        Get.back();
+        ref.read(articlesControllerProvider.notifier).filterByTag(tag.id, tag.name ?? '');
+        AppNavigation.back();
       },
       borderRadius: Dimensions.borderRadiusS,
       child: Container(

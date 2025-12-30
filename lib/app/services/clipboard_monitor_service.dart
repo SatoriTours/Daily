@@ -1,11 +1,11 @@
+import 'package:daily_satori/app/navigation/app_navigation.dart';
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/routes/app_pages.dart';
+import 'package:daily_satori/app/routes/app_routes.dart';
 import 'package:daily_satori/app/utils/dialog_utils.dart';
 import 'package:daily_satori/app/utils/string_utils.dart';
 
@@ -88,10 +88,8 @@ class ClipboardMonitorService with WidgetsBindingObserver {
       logger.d('[ClipboardMonitorService] 触发检查: source=$source');
 
       // // 规则(2)：如果当前在 share dialog 页面，直接跳过
-      // if (Get.currentRoute == Routes.shareDialog) {
-      //   logger.d('[ClipboardMonitorService] 跳过：当前在 share dialog 页面');
-      //   return;
-      // }
+      // // 已移除 GetX，Riverpod架构下不需要此检查
+
 
       final clipboardText = await _getClipboardText();
       if (clipboardText.isEmpty) return;
@@ -119,10 +117,8 @@ class ClipboardMonitorService with WidgetsBindingObserver {
       title: '发现URL',
       message: message,
       onConfirm: () {
-        // 二次保护：确认瞬间若已在分享页，则不重复跳转
-        if (Get.currentRoute == Routes.shareDialog) return;
         logger.i('[ClipboardMonitorService] 用户确认处理URL，跳转到分享页');
-        Get.toNamed(Routes.shareDialog, arguments: {'shareURL': url, 'fromClipboard': true});
+        AppNavigation.toNamed(Routes.shareDialog, arguments: {'shareURL': url, 'fromClipboard': true});
       },
       onCancel: () {
         logger.i('[ClipboardMonitorService] 用户取消处理URL');

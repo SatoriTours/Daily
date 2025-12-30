@@ -46,7 +46,7 @@ class AppUpgradeService {
   }
 
   // 后台检查并下载新版本
-  Future<void> checkAndDownloadInbackend() async {
+  Future<void> checkAndDownloadInBackground() async {
     if (!AppInfoUtils.isProduction) return;
     if (await check()) {
       await _downAndInstallApp();

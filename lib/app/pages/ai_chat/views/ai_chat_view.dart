@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
-import '../controllers/ai_chat_controller.dart';
 import '../../../components/ai_chat/chat_interface.dart';
 
 /// AI聊天助手页面
@@ -12,15 +12,45 @@ import '../../../components/ai_chat/chat_interface.dart';
 /// - 发送消息和接收AI响应
 /// - 重试失败的消息
 /// - 查看处理步骤和搜索结果
-class AIChatView extends GetView<AIChatController> {
+class AIChatView extends ConsumerStatefulWidget {
   const AIChatView({super.key});
 
   @override
+  ConsumerState<AIChatView> createState() => _AIChatViewState();
+}
+
+class _AIChatViewState extends ConsumerState<AIChatView> {
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _inputController = TextEditingController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _inputController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // 监听消息变化，自动滚动到底部
+    ref.listen(aIChatControllerProvider.select((s) => s.messages.length), (previous, next) {
+      if (next > (previous ?? 0)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
+        });
+      }
+    });
+
     return Scaffold(
       backgroundColor: AppColors.getBackground(context),
       appBar: _buildAppBar(context),
-      body: _buildChatBody(),
+      body: _buildChatBody(context),
     );
   }
 
@@ -29,18 +59,17 @@ class AIChatView extends GetView<AIChatController> {
   // ========================================================================
 
   /// 构建聊天主体
-  Widget _buildChatBody() {
-    return Obx(
-      () => ChatInterface(
-        messages: controller.messages,
-        onSendMessage: controller.sendMessage,
-        onRetryMessage: controller.retryMessage,
-        scrollController: controller.scrollController,
-        inputController: controller.inputController,
-        isLoading: controller.isProcessing.value,
-        showHeader: false, // 不显示头部，AppBar已有标题
-        headerSubtitle: controller.isProcessing.value ? controller.currentStep.value : null,
-      ),
+  Widget _buildChatBody(BuildContext context) {
+    final state = ref.watch(aIChatControllerProvider);
+    return ChatInterface(
+      messages: state.messages,
+      onSendMessage: (msg) => ref.read(aIChatControllerProvider.notifier).sendMessage(msg),
+      onRetryMessage: (msg) => ref.read(aIChatControllerProvider.notifier).retryMessage(msg),
+      scrollController: _scrollController,
+      inputController: _inputController,
+      isLoading: state.isProcessing,
+      showHeader: false, // 不显示头部，AppBar已有标题
+      headerSubtitle: state.isProcessing ? state.currentStep : null,
     );
   }
 
@@ -68,7 +97,7 @@ class AIChatView extends GetView<AIChatController> {
       // 新对话按钮
       IconButton(
         icon: const Icon(Icons.refresh, color: Colors.white),
-        onPressed: controller.clearMessages,
+        onPressed: () => ref.read(aIChatControllerProvider.notifier).clearMessages(),
         tooltip: 'ai_chat.new_chat'.t,
       ),
       // 帮助按钮

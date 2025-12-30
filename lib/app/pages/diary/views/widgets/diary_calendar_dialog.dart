@@ -1,35 +1,46 @@
-import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/pages/diary_styles.dart';
+import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/providers/diary_controller_provider.dart';
+import 'package:daily_satori/app/providers/diary_state_provider.dart';
+import 'package:daily_satori/app/styles/index.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../controllers/diary_controller.dart';
-
 /// 日记日历对话框
-class DiaryCalendarDialog extends StatefulWidget {
-  final DiaryController controller;
-
-  const DiaryCalendarDialog({super.key, required this.controller});
+class DiaryCalendarDialog extends ConsumerStatefulWidget {
+  const DiaryCalendarDialog({super.key});
 
   @override
-  State<DiaryCalendarDialog> createState() => _DiaryCalendarDialogState();
+  ConsumerState<DiaryCalendarDialog> createState() => _DiaryCalendarDialogState();
 }
 
-class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
+class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
   late DateTime _selectedDate;
   late DateTime _displayedMonth;
-  late Map<DateTime, int> _diaryCountMap;
+  Map<DateTime, int> _diaryCountMap = {};
 
   @override
   void initState() {
     super.initState();
     _selectedDate = DateTime.now();
     _displayedMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
-    _diaryCountMap = widget.controller.getDailyDiaryCounts();
+  }
+
+  Map<DateTime, int> _getDailyDiaryCounts(List<DiaryModel> diaries) {
+    final Map<DateTime, int> counts = {};
+    for (final diary in diaries) {
+      final date = DateTime(diary.createdAt.year, diary.createdAt.month, diary.createdAt.day);
+      counts[date] = (counts[date] ?? 0) + 1;
+    }
+    return counts;
   }
 
   @override
   Widget build(BuildContext context) {
+    final diaries = ref.watch(diaryStateProvider).diaries;
+    _diaryCountMap = _getDailyDiaryCounts(diaries);
+
     return Container(
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
       child: Column(
@@ -55,7 +66,11 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
         children: [
           Text(
             '日记日历',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: DiaryStyles.getPrimaryTextColor(context)),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: DiaryStyles.getPrimaryTextColor(context),
+            ),
           ),
           IconButton(
             icon: Icon(FeatherIcons.x, size: 20, color: DiaryStyles.getSecondaryTextColor(context)),
@@ -107,197 +122,119 @@ class _DiaryCalendarDialogState extends State<DiaryCalendarDialog> {
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.all(8),
-        child: Icon(icon, size: 18, color: DiaryStyles.getSecondaryTextColor(context)),
+        decoration: BoxDecoration(
+          color: AppColors.getSurface(context),
+          shape: BoxShape.circle,
+          border: Border.all(color: DiaryStyles.getDividerColor(context)),
+        ),
+        child: Icon(icon, size: 16, color: DiaryStyles.getPrimaryTextColor(context)),
       ),
     );
   }
 
   Widget _buildCalendar(BuildContext context) {
-    // 计算当月第一天是星期几
-    final firstDayOfMonth = _displayedMonth;
-    final firstWeekday = firstDayOfMonth.weekday;
+    final daysInMonth = DateUtils.getDaysInMonth(_displayedMonth.year, _displayedMonth.month);
+    final firstDayOfWeek = DateTime(_displayedMonth.year, _displayedMonth.month, 1).weekday;
 
-    // 计算当月有多少天
-    final daysInMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 0).day;
+    // 调整周起始日，让周一为第一天 (1=Mon, 7=Sun)
+    // 如果日历显示习惯是周日开始，需要调整逻辑。这里假设周一作为第一列。
+    // Flutter DateUtils weekday is 1 for Monday.
 
-    // 构建日历网格
-    return Column(
-      children: [
-        // 星期头部
-        _buildWeekdayHeader(context),
+    final List<Widget> dayWidgets = [];
 
-        // 日期网格
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 7,
-            childAspectRatio: 1,
-            mainAxisSpacing: 2,
-            crossAxisSpacing: 2,
-          ),
-          itemCount: 42, // 6周 x 7天
-          itemBuilder: (context, index) {
-            // 计算实际日期
-            int day = index - (firstWeekday - 1) + 1;
-
-            // 检查是否在当月范围内
-            if (day < 1 || day > daysInMonth) {
-              return const SizedBox.shrink();
-            }
-
-            // 创建日期对象
-            final date = DateTime(_displayedMonth.year, _displayedMonth.month, day);
-
-            // 检查该日期是否有日记
-            final diaryCount = _diaryCountMap[DateTime(date.year, date.month, date.day)] ?? 0;
-
-            // 当前日期、选中日期的判断
-            final isToday = _isToday(date);
-            final isSelected = _isSameDay(date, _selectedDate);
-
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedDate = date;
-                });
-
-                // 直接应用过滤并关闭对话框
-                widget.controller.filterByDate(date);
-                Navigator.pop(context);
-              },
-              child: _buildDayCell(context, day, diaryCount, isToday, isSelected),
-            );
-          },
+    // Weekday headers
+    final weekDays = ['一', '二', '三', '四', '五', '六', '日'];
+    for (var day in weekDays) {
+      dayWidgets.add(
+        Center(
+          child: Text(day, style: TextStyle(fontSize: 12, color: DiaryStyles.getSecondaryTextColor(context))),
         ),
-      ],
-    );
-  }
-
-  Widget _buildWeekdayHeader(BuildContext context) {
-    const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      margin: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children:
-            weekdays.map((day) {
-              final bool isWeekend = day == '六' || day == '日';
-              return Expanded(
-                child: Text(
-                  day,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color:
-                        isWeekend
-                            ? DiaryStyles.getAccentColor(context).withAlpha(180)
-                            : DiaryStyles.getSecondaryTextColor(context),
-                    fontWeight: isWeekend ? FontWeight.w500 : FontWeight.normal,
-                  ),
-                ),
-              );
-            }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildDayCell(BuildContext context, int day, int diaryCount, bool isToday, bool isSelected) {
-    // 选择适当的背景颜色
-    Color bgColor;
-    if (isSelected) {
-      bgColor = DiaryStyles.getAccentColor(context);
-    } else if (isToday) {
-      bgColor = DiaryStyles.getAccentColor(context).withAlpha(30);
-    } else if (diaryCount > 0) {
-      bgColor = DiaryStyles.getAccentColor(context).withAlpha(10);
-    } else {
-      bgColor = Colors.transparent;
+      );
     }
 
-    return Container(
-      margin: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: bgColor,
-        border:
-            diaryCount > 0 && !isSelected
-                ? Border.all(color: DiaryStyles.getAccentColor(context).withAlpha(80), width: 1)
-                : null,
-      ),
-      child: Stack(
-        fit: StackFit.expand,
-        alignment: Alignment.center,
-        children: [
-          Center(
-            child: Text(
-              day.toString(),
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: (isToday || isSelected || diaryCount > 0) ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : DiaryStyles.getPrimaryTextColor(context),
-              ),
+    // Empty slots before first day
+    for (var i = 1; i < firstDayOfWeek; i++) {
+      dayWidgets.add(const SizedBox());
+    }
+
+    // Days
+    for (var i = 1; i <= daysInMonth; i++) {
+      final date = DateTime(_displayedMonth.year, _displayedMonth.month, i);
+      final isToday = DateUtils.isSameDay(date, DateTime.now());
+      final isSelected = DateUtils.isSameDay(date, _selectedDate);
+      final count = _diaryCountMap[date] ?? 0;
+
+      dayWidgets.add(
+        InkWell(
+          onTap: () {
+            setState(() {
+              _selectedDate = date;
+            });
+            ref.read(diaryControllerProvider.notifier).filterByDate(date);
+            Navigator.pop(context);
+          },
+          child: Container(
+            margin: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? DiaryStyles.getAccentColor(context)
+                  : (isToday ? DiaryStyles.getAccentColor(context).withValues(alpha: 0.1) : null),
+              shape: BoxShape.circle,
+              border: isToday && !isSelected ? Border.all(color: DiaryStyles.getAccentColor(context)) : null,
             ),
-          ),
-          if (diaryCount > 0)
-            Positioned(
-              right: 1,
-              bottom: 1,
-              child: Container(
-                width: 13,
-                height: 13,
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.white.withAlpha(235) : DiaryStyles.getAccentColor(context).withAlpha(235),
-                  shape: BoxShape.circle,
-                  border: isSelected ? Border.all(color: DiaryStyles.getAccentColor(context), width: 0.5) : null,
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 1, offset: const Offset(0, 0.5)),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    diaryCount > 99 ? '99+' : diaryCount.toString(),
-                    style: TextStyle(
-                      color: isSelected ? DiaryStyles.getAccentColor(context) : Colors.white,
-                      fontSize: 8,
-                      fontWeight: FontWeight.bold,
-                    ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Text(
+                  '$i',
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : DiaryStyles.getPrimaryTextColor(context),
+                    fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
-              ),
+                if (count > 0)
+                  Positioned(
+                    bottom: 4,
+                    child: Container(
+                      width: 4,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.white : DiaryStyles.getAccentColor(context),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-        ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 7,
+        children: dayWidgets,
       ),
     );
   }
 
-  // 辅助方法：判断日期是否是今天
-  bool _isToday(DateTime date) {
-    final now = DateTime.now();
-    return date.year == now.year && date.month == now.month && date.day == now.day;
-  }
-
-  // 辅助方法：判断两个日期是否是同一天
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  // 添加查看全部日记按钮
   Widget _buildAllDiariesButton(BuildContext context) {
     return InkWell(
       onTap: () {
-        widget.controller.clearFilters();
+        ref.read(diaryControllerProvider.notifier).clearAllFilters();
         Navigator.pop(context);
       },
       child: Container(
+        width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16),
         alignment: Alignment.center,
         child: Text(
           '查看全部日记',
-          style: TextStyle(color: DiaryStyles.getAccentColor(context), fontWeight: FontWeight.w500, fontSize: 15),
+          style: TextStyle(fontSize: 16, color: DiaryStyles.getAccentColor(context), fontWeight: FontWeight.w500),
         ),
       ),
     );

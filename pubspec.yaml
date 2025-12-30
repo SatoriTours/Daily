@@ -23,11 +23,21 @@ dependencies:
   # JSON序列化
   json_annotation: ^4.9.0
 
-  # GetX 状态管理框架
+  # GetX 状态管理框架（保留用于迁移期）
   get:
     git:
       url: https://github.com/jonataslaw/getx.git
       ref: master
+
+  # Riverpod 状态管理框架
+  flutter_riverpod: ^3.1.0
+  riverpod_annotation: ^4.0.0
+
+  # 不可变状态模型
+  freezed_annotation: ^3.1.0
+
+  # 路由导航（go_router）
+  go_router: ^17.0.1
 
   # 数据库
   sqflite: ^2.4.0
@@ -137,6 +147,13 @@ dev_dependencies:
 
   # 代码生成
   build_runner: ^2.4.15
+
+  # Riverpod 代码生成
+  riverpod_generator: ^4.0.0+1
+  riverpod_lint: ^3.1.0
+
+  # freezed 代码生成
+  freezed: ^3.1.0
 
   # 数据库 orm 框架
   objectbox_generator: any

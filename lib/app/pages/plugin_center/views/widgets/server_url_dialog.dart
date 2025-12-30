@@ -1,6 +1,7 @@
-import 'package:daily_satori/app/pages/plugin_center/controllers/plugin_center_controller.dart';
-import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daily_satori/app/providers/plugin_center_controller_provider.dart';
+import 'package:daily_satori/app/styles/index.dart';
 
 /// 服务器URL设置对话框
 class ServerUrlDialog {
@@ -8,8 +9,9 @@ class ServerUrlDialog {
   ServerUrlDialog._();
 
   /// 显示服务器URL设置对话框
-  static Future<void> show(BuildContext context, PluginCenterController controller) async {
-    final textController = TextEditingController(text: controller.pluginServerUrl.value);
+  static Future<void> show(BuildContext context, WidgetRef ref) async {
+    final controllerState = ref.read(pluginCenterControllerProvider);
+    final textController = TextEditingController(text: controllerState.pluginServerUrl);
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
@@ -127,7 +129,7 @@ class ServerUrlDialog {
                         onPressed: () {
                           final url = textController.text.trim();
                           if (url.isNotEmpty) {
-                            controller.updateServerUrl(url);
+                            ref.read(pluginCenterControllerProvider.notifier).updateServerUrl(url);
                           }
                           Navigator.of(context).pop();
                         },

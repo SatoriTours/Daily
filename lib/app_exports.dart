@@ -8,9 +8,8 @@ library;
 // 导出工具类
 export 'app/utils/utils.dart';
 
-// 导出 Flutter 和 GetX
+// 导出 Flutter
 export 'package:flutter/material.dart' hide VoidCallback;
-export 'package:get/get.dart';
 
 // 导出数据层（模型和仓储）
 export 'app/data/index.dart';
@@ -19,7 +18,6 @@ export 'app/data/index.dart';
 export 'app/services/services.dart';
 
 // 导出常用路由
-export 'app/routes/app_pages.dart';
-
-// 导出基础控制器（已整合到 utils）
-export 'app/utils/base_controller.dart';
+export 'app/routes/app_routes.dart';
+// 导出导航服务（替换 GetX 导航）
+export 'app/navigation/app_navigation.dart';

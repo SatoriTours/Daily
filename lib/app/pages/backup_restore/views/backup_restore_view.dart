@@ -1,18 +1,18 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/utils/utils.dart';
-
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
-import '../controllers/backup_restore_controller.dart';
-
-class BackupRestoreView extends GetView<BackupRestoreController> {
+/// 备份恢复页面
+class BackupRestoreView extends ConsumerWidget {
   const BackupRestoreView({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(backupRestoreControllerProvider);
     final colorScheme = AppTheme.getColorScheme(context);
 
     return Scaffold(
@@ -25,54 +25,52 @@ class BackupRestoreView extends GetView<BackupRestoreController> {
         backgroundColorDark: AppColors.backgroundDark,
         foregroundColor: Colors.white,
       ),
-      body: Padding(padding: Dimensions.paddingPage, child: Obx(() => _buildBody(context))),
+      body: Padding(padding: Dimensions.paddingPage, child: _buildBody(context, ref, state)),
     );
   }
 
-  Widget _buildBody(BuildContext context) {
-    if (controller.backupList.isEmpty) {
+  Widget _buildBody(BuildContext context, WidgetRef ref, BackupRestoreControllerState state) {
+    if (state.backupList.isEmpty) {
       return const _EmptyBackupView();
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _BackupHeader(count: controller.backupList.length),
+        _BackupHeader(count: state.backupList.length),
         Dimensions.verticalSpacerM,
         Expanded(
           child: _BackupList(
-            itemCount: controller.backupList.length,
-            selectedIndex: controller.selectedBackupIndex.value,
-            createdAtOf: (i) => controller.getBackupTime(controller.backupList[i]),
-            onTap: (i) => controller.selectedBackupIndex.value = i,
+            itemCount: state.backupList.length,
+            selectedIndex: state.selectedBackupIndex,
+            createdAtOf: (i) => ref.read(backupRestoreControllerProvider.notifier).getBackupTime(state.backupList[i]),
+            onTap: (i) => ref.read(backupRestoreControllerProvider.notifier).selectBackupIndex(i),
           ),
         ),
-        _buildRestoreButton(context),
+        _buildRestoreButton(context, ref, state),
       ],
     );
   }
 
-  Widget _buildRestoreButton(BuildContext context) {
+  Widget _buildRestoreButton(BuildContext context, WidgetRef ref, BackupRestoreControllerState state) {
     return Container(
       width: double.infinity,
       padding: Dimensions.paddingVerticalM,
-      child: Obx(
-        () => ElevatedButton.icon(
-          icon: const Icon(Icons.restore_rounded, size: Dimensions.iconSizeM + 2),
-          label: Text("还原选中的备份", style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.w600)),
-          style: ButtonStyles.getPrimaryStyle(context).copyWith(
-            padding: const WidgetStatePropertyAll(
-              EdgeInsets.symmetric(horizontal: Dimensions.spacingXl, vertical: Dimensions.spacingM),
-            ),
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.restore_rounded, size: Dimensions.iconSizeM + 2),
+        label: Text("还原选中的备份", style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.w600)),
+        style: ButtonStyles.getPrimaryStyle(context).copyWith(
+          padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: Dimensions.spacingXl, vertical: Dimensions.spacingM),
           ),
-          onPressed: controller.selectedBackupIndex.value >= 0 ? () => _onRestorePressed(context) : null,
         ),
+        onPressed: state.selectedBackupIndex >= 0 ? () => _onRestorePressed(context, ref) : null,
       ),
     );
   }
 
-  Future<void> _onRestorePressed(BuildContext context) async {
-    final result = await controller.restoreBackup();
+  Future<void> _onRestorePressed(BuildContext context, WidgetRef ref) async {
+    final result = await ref.read(backupRestoreControllerProvider.notifier).restoreBackup();
     if (result) {
       UIUtils.showSuccess('备份文件已成功还原', title: '还原成功');
     } else {
