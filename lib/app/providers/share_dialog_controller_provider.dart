@@ -162,7 +162,9 @@ class ShareDialogController extends _$ShareDialogController {
         await _applyManualTagsPostProcess();
       }
 
-      _backToPreviousStep(context);
+      if (context.mounted) {
+        _backToPreviousStep(context);
+      }
     } catch (e) {
       final msg = e.toString();
       if (msg.contains('网页已存在')) {

@@ -418,19 +418,13 @@ class ArticlesController extends _$ArticlesController {
 
     switch (event) {
       case ArticleUpdateEventCreated(:final article):
-        if (article != null) {
           mergeArticle(article);
-        }
         break;
       case ArticleUpdateEventUpdated(:final article):
-        if (article != null) {
           updateArticle(article.id);
-        }
         break;
       case ArticleUpdateEventDeleted(:final articleId):
-        if (articleId != null) {
           removeArticle(articleId);
-        }
         break;
       case ArticleUpdateEventNone():
         // 不需要处理
@@ -451,7 +445,7 @@ class ArticlesController extends _$ArticlesController {
     if (articles.isEmpty) return;
 
     final anchorId = loadAfter ? articles.last.id : articles.first.id;
-    final pageSize = PaginationConfig.defaultPageSize;
+    const pageSize = PaginationConfig.defaultPageSize;
 
     logger.i(loadAfter
         ? '加载ID:$anchorId之后的$pageSize篇文章'

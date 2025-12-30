@@ -35,16 +35,12 @@ abstract class AIConfigControllerState with _$AIConfigControllerState {
 class AIConfigController extends _$AIConfigController {
   @override
   AIConfigControllerState build() {
-    return AIConfigControllerState(
-      configs: AIConfigRepository.i.allModels(),
-    );
+    return AIConfigControllerState(configs: AIConfigRepository.i.allModels());
   }
 
   /// 刷新配置列表
   void refreshConfigs() {
-    state = state.copyWith(
-      configs: AIConfigRepository.i.allModels(),
-    );
+    state = state.copyWith(configs: AIConfigRepository.i.allModels());
   }
 
   /// 切换功能类型
@@ -55,20 +51,14 @@ class AIConfigController extends _$AIConfigController {
   /// 创建新配置
   Future<void> createNewConfig() async {
     logger.i('[AIConfigController] 创建新配置');
-    await AppNavigation.toNamed(
-      Routes.aiConfigEdit,
-      arguments: {'functionType': state.selectedFunctionType},
-    );
+    await AppNavigation.toNamed(Routes.aiConfigEdit, arguments: {'functionType': state.selectedFunctionType});
     refreshConfigs();
   }
 
   /// 编辑配置
   Future<void> editConfig(AIConfigModel config) async {
     logger.i('[AIConfigController] 编辑配置: ${config.name}');
-    await AppNavigation.toNamed(
-      Routes.aiConfigEdit,
-      arguments: {'aiConfig': config.entity},
-    );
+    await AppNavigation.toNamed(Routes.aiConfigEdit, arguments: {'aiConfig': config.entity});
     refreshConfigs();
   }
 

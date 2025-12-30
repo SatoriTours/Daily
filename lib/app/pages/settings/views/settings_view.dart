@@ -516,7 +516,7 @@ class SettingsView extends ConsumerWidget {
     return _buildInfoCard(
       context: context,
       title: 'setting.connection_status'.t,
-      content: (_buildConnectionStatusIndicator(context, ref, textTheme)),
+      content: _buildConnectionStatusIndicator(context, ref, textTheme),
       icon: Icons.network_check_rounded,
       iconColor: Colors.green,
     );

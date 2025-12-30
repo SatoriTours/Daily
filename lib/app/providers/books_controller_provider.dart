@@ -26,9 +26,11 @@ abstract class BooksControllerState with _$BooksControllerState {
     DateTime? lastRefreshTime,
 
     /// PageController (不在freezed中管理)
+    // ignore: invalid_annotation_target
     @JsonKey(includeToJson: false, includeFromJson: false) PageController? pageController,
 
     /// TextEditingController for content (不在freezed中管理)
+    // ignore: invalid_annotation_target
     @JsonKey(includeToJson: false, includeFromJson: false) TextEditingController? contentController,
   }) = _BooksControllerState;
 

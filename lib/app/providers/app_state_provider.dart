@@ -3,7 +3,6 @@
 /// Riverpod 版本的 AppStateService，管理应用级别的状态。
 library;
 
-import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 

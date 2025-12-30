@@ -5,8 +5,6 @@
 library;
 
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:path/path.dart' as p;
@@ -14,9 +12,7 @@ import 'package:path/path.dart' as p;
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/services/index.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/utils/utils.dart';
-import 'package:daily_satori/app/navigation/app_navigation.dart';
 
 part 'backup_restore_controller_provider.freezed.dart';
 part 'backup_restore_controller_provider.g.dart';

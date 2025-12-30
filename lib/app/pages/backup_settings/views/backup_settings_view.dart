@@ -5,7 +5,6 @@ import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app/utils/ui_utils.dart';
 
 class BackupSettingsView extends ConsumerWidget {
   const BackupSettingsView({super.key});
@@ -147,7 +146,7 @@ class BackupSettingsView extends ConsumerWidget {
               color: cardColor.withValues(alpha: Opacities.mediumLow),
               borderRadius: BorderRadius.circular(Dimensions.radiusS),
             ),
-            child: Icon(Icons.folder_rounded, size: Dimensions.iconSizeXl - 6, color: cardColor),
+            child: const Icon(Icons.folder_rounded, size: Dimensions.iconSizeXl - 6, color: cardColor),
           ),
           Dimensions.horizontalSpacerM,
           Expanded(
@@ -178,7 +177,7 @@ class BackupSettingsView extends ConsumerWidget {
                 color: cardColor.withValues(alpha: Opacities.mediumLow),
                 borderRadius: BorderRadius.circular(Dimensions.radiusS),
               ),
-              child: Icon(Icons.edit_outlined, size: Dimensions.iconSizeM, color: cardColor),
+              child: const Icon(Icons.edit_outlined, size: Dimensions.iconSizeM, color: cardColor),
             ),
           ),
         ],

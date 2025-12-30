@@ -56,7 +56,6 @@ class LeftBarView extends ConsumerWidget {
   }
 
   Widget _buildActions(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(leftBarControllerProvider);
     final colorScheme = AppTheme.getColorScheme(context);
 
     return Container(

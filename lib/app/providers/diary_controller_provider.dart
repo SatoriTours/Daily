@@ -39,15 +39,19 @@ abstract class DiaryControllerState with _$DiaryControllerState {
     @Default([]) List<String> tags,
 
     /// ScrollController (不在freezed中管理)
+    // ignore: invalid_annotation_target
     @JsonKey(includeToJson: false, includeFromJson: false) ScrollController? scrollController,
 
     /// 搜索控制器 (不在freezed中管理)
+    // ignore: invalid_annotation_target
     @JsonKey(includeToJson: false, includeFromJson: false) TextEditingController? searchController,
 
     /// 搜索焦点节点 (不在freezed中管理)
+    // ignore: invalid_annotation_target
     @JsonKey(includeToJson: false, includeFromJson: false) FocusNode? searchFocusNode,
 
     /// 内容控制器 (不在freezed中管理)
+    // ignore: invalid_annotation_target
     @JsonKey(includeToJson: false, includeFromJson: false) TextEditingController? contentController,
 
     /// 是否正在加载日记
