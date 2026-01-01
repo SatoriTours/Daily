@@ -48,11 +48,6 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
 
     _animController.forward();
 
-    // 自动聚焦搜索框
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _requestFocus();
-    });
-
     // 初始化清除按钮状态
     _showClearButton = widget.searchController.text.isNotEmpty;
 
@@ -77,14 +72,6 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
     widget.searchController.removeListener(_onTextChanged);
     _animController.dispose();
     super.dispose();
-  }
-
-  /// 请求搜索框焦点
-  void _requestFocus() {
-    FocusScope.of(context).requestFocus(widget.searchFocusNode);
-    widget.searchController.selection = TextSelection.fromPosition(
-      TextPosition(offset: widget.searchController.text.length),
-    );
   }
 
   /// 执行搜索

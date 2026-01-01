@@ -139,23 +139,38 @@ class DiaryController extends _$DiaryController {
     final allTags = <String>{};
     for (final diary in diaries) {
       if (diary.tags != null && diary.tags!.isNotEmpty) {
-        // 假设标签以空格分隔，因为 DiaryUtils.extractTags 使用空格
-        // 或者检查 DiaryUtils.extractTags 的实现
-        // 这里假设是简单的字符串，如果需要分割，应该统一格式
-        // 之前的代码似乎假设 tags 是 List<String>，但 Model 中是 String?
-        // 我们假设它是一个字符串，可能包含多个标签
-        // 如果是 #tag1 #tag2 格式
-        final RegExp tagRegex = RegExp(r'#([a-zA-Z0-9\u4e00-\u9fa5]+)');
-        final matches = tagRegex.allMatches(diary.tags!);
-        for (final match in matches) {
-          final tag = match.group(1);
-          if (tag != null && tag.isNotEmpty) {
-            allTags.add(tag);
+        // DiaryUtils.extractTags 返回的是逗号分隔的格式: tag1,tag2
+        // 同时也支持从日记内容中提取 #tag 格式的标签
+        final tagsString = diary.tags!;
+
+        // 首先尝试逗号分隔格式
+        if (tagsString.contains(',')) {
+          final tagList = tagsString.split(',');
+          for (final tag in tagList) {
+            final trimmedTag = tag.trim();
+            if (trimmedTag.isNotEmpty) {
+              allTags.add(trimmedTag);
+            }
+          }
+        } else {
+          // 尝试空格分隔或单个标签
+          final tagList = tagsString.split(' ');
+          for (final tag in tagList) {
+            // 移除可能的 # 前缀
+            final cleanTag = tag.startsWith('#') ? tag.substring(1) : tag;
+            if (cleanTag.isNotEmpty) {
+              allTags.add(cleanTag.trim());
+            }
           }
         }
       }
     }
     state = state.copyWith(tags: allTags.toList());
+  }
+
+  /// 刷新标签列表（公开方法，供外部调用）
+  void refreshTags() {
+    _extractTags();
   }
 
   /// 创建图片目录
