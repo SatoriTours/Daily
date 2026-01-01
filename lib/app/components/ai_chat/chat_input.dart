@@ -168,11 +168,12 @@ class _ChatInputState extends State<ChatInput> {
   /// 构建输入框
   Widget _buildInputField(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 40, maxHeight: 120),
+      constraints: const BoxConstraints(minHeight: 48, maxHeight: 120),
       decoration: BoxDecoration(
-        color: AppColors.getSurfaceContainerHighest(context),
-        borderRadius: BorderRadius.circular(Dimensions.radiusM),
-        border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.3)),
+        color: AppColors.getSurfaceContainer(context),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.1)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: TextField(
         controller: _controller,
@@ -185,10 +186,10 @@ class _ChatInputState extends State<ChatInput> {
           hintText: widget.hintText ?? 'ai_chat.input_hint'.t,
           hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           isDense: true,
         ),
-        style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context)),
+        style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context), height: 1.5),
         onSubmitted: _onSubmitted,
       ),
     );
@@ -196,28 +197,40 @@ class _ChatInputState extends State<ChatInput> {
 
   /// 构建发送按钮
   Widget _buildSendButton(BuildContext context) {
+    final isEnabled = !_isEmpty && !widget.disabled;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: isEnabled
+                ? (widget.sendButtonColor ?? AppColors.getPrimary(context))
+                : AppColors.getSurfaceContainerHighest(context),
+            shape: BoxShape.circle,
+            boxShadow: isEnabled
+                ? [
+                    BoxShadow(
+                      color: (widget.sendButtonColor ?? AppColors.getPrimary(context)).withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : [],
+          ),
           child: Material(
-            color: _isEmpty || widget.disabled
-                ? AppColors.getSurfaceContainerHighest(context)
-                : (widget.sendButtonColor ?? AppColors.getPrimary(context)),
-            borderRadius: BorderRadius.circular(Dimensions.radiusM),
-            elevation: _isEmpty || widget.disabled ? 0 : 2,
+            color: Colors.transparent,
             child: InkWell(
-              onTap: _isEmpty || widget.disabled ? null : _onSend,
-              borderRadius: BorderRadius.circular(Dimensions.radiusM),
-              child: Container(
-                padding: const EdgeInsets.all(Dimensions.spacingS),
-                child: Icon(
-                  widget.sendIcon ?? Icons.send_rounded,
-                  color: _isEmpty || widget.disabled ? AppColors.getOnSurfaceVariant(context) : AppColors.getOnPrimary(context),
-                  size: 20,
-                ),
+              onTap: isEnabled ? _onSend : null,
+              customBorder: const CircleBorder(),
+              child: Icon(
+                widget.sendIcon ?? Icons.arrow_upward_rounded,
+                color: isEnabled ? AppColors.getOnPrimary(context) : AppColors.getOnSurfaceVariant(context),
+                size: 24,
               ),
             ),
           ),
@@ -292,7 +305,7 @@ class SimpleChatInput extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: AppColors.getSurface(context),
         border: Border(top: BorderSide(color: AppColors.getOutline(context).withValues(alpha: 0.2))),
@@ -302,7 +315,7 @@ class SimpleChatInput extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(child: _buildInputField(context)),
-            const SizedBox(width: Dimensions.spacingS),
+            const SizedBox(width: 8),
             _buildSendButton(context),
           ],
         ),
@@ -313,11 +326,11 @@ class SimpleChatInput extends StatelessWidget {
   /// 构建输入框
   Widget _buildInputField(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 40, maxHeight: 120),
+      constraints: const BoxConstraints(minHeight: 34, maxHeight: 100),
       decoration: BoxDecoration(
-        color: AppColors.getSurfaceContainerHighest(context),
-        borderRadius: BorderRadius.circular(Dimensions.radiusM),
-        border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.3)),
+        color: AppColors.getSurfaceContainer(context),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.1)),
       ),
       child: TextField(
         controller: controller,
@@ -325,14 +338,15 @@ class SimpleChatInput extends StatelessWidget {
         enabled: !disabled,
         maxLines: null,
         minLines: 1,
+        textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           hintText: hintText ?? 'ai_chat.input_hint'.t,
           hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           isDense: true,
         ),
-        style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context)),
+        style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context), height: 1.3),
         textInputAction: TextInputAction.send,
         onSubmitted: disabled ? null : _handleSend,
       ),
@@ -341,18 +355,22 @@ class SimpleChatInput extends StatelessWidget {
 
   /// 构建发送按钮
   Widget _buildSendButton(BuildContext context) {
-    return Material(
-      color: disabled ? AppColors.getSurfaceContainerHighest(context) : AppColors.getPrimary(context),
-      borderRadius: BorderRadius.circular(Dimensions.radiusM),
-      child: InkWell(
-        onTap: disabled ? null : () => _handleSend(controller?.text ?? ''),
-        borderRadius: BorderRadius.circular(Dimensions.radiusM),
-        child: Container(
-          padding: const EdgeInsets.all(Dimensions.spacingS),
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: disabled ? AppColors.getSurfaceContainerHighest(context) : AppColors.getPrimary(context),
+        shape: BoxShape.circle,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: disabled ? null : () => _handleSend(controller?.text ?? ''),
+          customBorder: const CircleBorder(),
           child: Icon(
-            Icons.send_rounded,
+            Icons.arrow_upward_rounded,
             color: disabled ? AppColors.getOnSurfaceVariant(context) : AppColors.getOnPrimary(context),
-            size: 20,
+            size: 18,
           ),
         ),
       ),

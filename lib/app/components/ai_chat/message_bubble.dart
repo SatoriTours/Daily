@@ -218,46 +218,53 @@ class MessageBubble extends StatelessWidget {
 
   /// 构建消息装饰
   BoxDecoration _buildMessageDecoration(BuildContext context) {
+    final isUser = message.type == ChatMessageType.user;
+    const radius = Radius.circular(Dimensions.radiusL);
+    const smallRadius = Radius.circular(Dimensions.radiusXs);
+
     return BoxDecoration(
       color: _getBackgroundColor(context),
-      borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      borderRadius: BorderRadius.only(
+        topLeft: radius,
+        topRight: radius,
+        bottomLeft: isUser ? radius : smallRadius,
+        bottomRight: isUser ? smallRadius : radius,
+      ),
       border: _getBorder(context),
-      boxShadow: [
-        BoxShadow(
-          color: AppColors.getOnSurface(context).withValues(alpha: 0.03),
-          blurRadius: 3,
-          offset: const Offset(0, 1),
-        ),
-      ],
+      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
     );
   }
 
   /// 构建思考指示器
   Widget _buildThinkingIndicator(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.getOnSurfaceVariant(context)),
-              ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.getSurfaceContainerHighest(context).withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(Dimensions.radiusM),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
             ),
-            Dimensions.horizontalSpacerS,
-            Text(
-              'ai_chat.thinking'.t,
-              style: AppTypography.bodySmall.copyWith(
-                color: AppColors.getOnSurfaceVariant(context),
-                fontStyle: FontStyle.italic,
-              ),
+          ),
+          Dimensions.horizontalSpacerS,
+          Text(
+            'ai_chat.thinking'.t,
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.getOnSurfaceVariant(context),
+              fontStyle: FontStyle.italic,
             ),
-          ],
-        ),
-        Dimensions.verticalSpacerS,
-      ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -352,22 +359,32 @@ class MessageBubble extends StatelessWidget {
     }
 
     return Container(
-      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
-      padding: Dimensions.paddingS,
+      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.85),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.getSurfaceContainer(context),
-        borderRadius: BorderRadius.circular(Dimensions.radiusS),
-        border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.15), width: 0.5),
+        borderRadius: BorderRadius.circular(Dimensions.radiusM),
+        border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: List.generate(message.processingSteps!.length, (index) {
-          final step = message.processingSteps![index];
-          return Padding(
-            padding: EdgeInsets.only(bottom: index < message.processingSteps!.length - 1 ? 6 : 0),
-            child: _buildStepItem(context, step, index + 1),
-          );
-        }),
+        children: [
+          Text(
+            '处理流程',
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.getOnSurfaceVariant(context),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...List.generate(message.processingSteps!.length, (index) {
+            final step = message.processingSteps![index];
+            return Padding(
+              padding: EdgeInsets.only(bottom: index < message.processingSteps!.length - 1 ? 8 : 0),
+              child: _buildStepItem(context, step, index + 1),
+            );
+          }),
+        ],
       ),
     );
   }
@@ -375,38 +392,44 @@ class MessageBubble extends StatelessWidget {
   /// 构建单个步骤项
   Widget _buildStepItem(BuildContext context, ProcessingStep step, int stepNumber) {
     Widget leadingIcon;
+    Color stepColor;
+
     switch (step.status) {
       case StepStatus.pending:
-        leadingIcon = Icon(Icons.radio_button_unchecked, size: 14, color: AppColors.getOnSurfaceVariant(context));
+        stepColor = AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.5);
+        leadingIcon = Icon(Icons.circle_outlined, size: 12, color: stepColor);
         break;
       case StepStatus.processing:
+        stepColor = AppColors.getPrimary(context);
         leadingIcon = SizedBox(
-          width: 14,
-          height: 14,
-          child: CircularProgressIndicator(
-            strokeWidth: 1.5,
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
-          ),
+          width: 12,
+          height: 12,
+          child: CircularProgressIndicator(strokeWidth: 1.5, valueColor: AlwaysStoppedAnimation<Color>(stepColor)),
         );
         break;
       case StepStatus.completed:
-        leadingIcon = Icon(Icons.check_circle, size: Dimensions.iconSizeXs, color: AppColors.getSuccess(context));
+        stepColor = AppColors.getSuccess(context);
+        leadingIcon = Icon(Icons.check_circle, size: 14, color: stepColor);
         break;
       case StepStatus.error:
-        leadingIcon = Icon(Icons.error, size: Dimensions.iconSizeXs, color: AppColors.getError(context));
+        stepColor = AppColors.getError(context);
+        leadingIcon = Icon(Icons.error, size: 14, color: stepColor);
         break;
     }
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 18, height: 18, child: Center(child: leadingIcon)),
-        Dimensions.horizontalSpacerXs,
+        Padding(padding: const EdgeInsets.only(top: 3), child: leadingIcon),
+        const SizedBox(width: 10),
         Expanded(
           child: Text(
-            '$stepNumber. ${step.description}',
+            step.description,
             style: AppTypography.bodySmall.copyWith(
-              color: step.status == StepStatus.error ? AppColors.getError(context) : AppColors.getOnSurface(context),
+              color: step.status == StepStatus.pending
+                  ? AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.7)
+                  : AppColors.getOnSurface(context),
+              height: 1.3,
             ),
           ),
         ),
@@ -549,49 +572,54 @@ class _CollapsibleSearchResultsState extends State<_CollapsibleSearchResults> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 折叠/展开按钮
-          InkWell(
-            onTap: () {
-              setState(() {
-                _isExpanded = !_isExpanded;
-                logger.d('[MessageBubble] 搜索结果${_isExpanded ? "展开" : "折叠"}');
-              });
-            },
-            borderRadius: BorderRadius.circular(Dimensions.radiusS),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.getSurfaceContainer(context),
-                borderRadius: BorderRadius.circular(Dimensions.radiusS),
-                border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.2), width: 0.5),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _isExpanded ? Icons.expand_less : Icons.expand_more,
-                    size: 18,
-                    color: AppColors.getPrimary(context),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _isExpanded ? '收起搜索结果' : '查看搜索结果 (${widget.searchResults.length} 条)',
-                    style: AppTypography.bodySmall.copyWith(
-                      color: AppColors.getPrimary(context),
-                      fontWeight: FontWeight.w500,
+          Material(
+            color: AppColors.getSurfaceContainer(context),
+            borderRadius: BorderRadius.circular(Dimensions.radiusM),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _isExpanded = !_isExpanded;
+                  logger.d('[MessageBubble] 搜索结果${_isExpanded ? "展开" : "折叠"}');
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.1)),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusM),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.search, size: 16, color: AppColors.getPrimary(context)),
+                    const SizedBox(width: 8),
+                    Text(
+                      '搜索结果 (${widget.searchResults.length})',
+                      style: AppTypography.labelMedium.copyWith(
+                        color: AppColors.getOnSurface(context),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    Icon(
+                      _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      size: 18,
+                      color: AppColors.getOnSurfaceVariant(context),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
 
           // 展开的搜索结果列表
           if (_isExpanded) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             ...widget.searchResults.map((result) {
               if (result is SearchResult) {
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.only(bottom: 10),
                   child: SearchResultCard(result: result),
                 );
               }

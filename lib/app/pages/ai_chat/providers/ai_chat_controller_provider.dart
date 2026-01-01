@@ -31,8 +31,11 @@ class AIChatController extends _$AIChatController {
   @override
   AIChatControllerState build() {
     final sessionId = 'chat_${DateTime.now().millisecondsSinceEpoch}';
-    Future.microtask(() => state = state.copyWith(messages: [_createWelcomeMessage()]));
-    return AIChatControllerState(sessionId: sessionId);
+    final welcomeMessage = ChatMessage.assistant(
+      id: 'msg_${sessionId}_${++_messageCounter}',
+      content: 'ai_chat.welcome_message'.t,
+    );
+    return AIChatControllerState(sessionId: sessionId, messages: [welcomeMessage]);
   }
 
   Future<void> sendMessage(String content) async {

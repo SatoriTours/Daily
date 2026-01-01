@@ -44,20 +44,19 @@ class _AIChatViewState extends ConsumerState<AIChatView> {
     return Scaffold(
       backgroundColor: AppColors.getBackground(context),
       appBar: SAppBar(
-        title: Text('ai_chat.title'.t, style: const TextStyle(color: Colors.white)),
-        backgroundColorLight: AppColors.primary,
-        backgroundColorDark: AppColors.backgroundDark,
-        foregroundColor: Colors.white,
+        title: Text('ai_chat.title'.t, style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold)),
+        backgroundColorLight: AppColors.surface,
+        backgroundColorDark: AppColors.surfaceDark,
         elevation: 0,
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
+            icon: Icon(Icons.refresh_rounded, color: AppColors.getOnSurface(context)),
             onPressed: () => ref.read(aIChatControllerProvider.notifier).clearMessages(),
             tooltip: 'ai_chat.new_chat'.t,
           ),
           IconButton(
-            icon: const Icon(Icons.info_outline, color: Colors.white),
+            icon: Icon(Icons.info_outline_rounded, color: AppColors.getOnSurface(context)),
             onPressed: () => _showHelpDialog(context),
             tooltip: 'ai_chat.help'.t,
           ),

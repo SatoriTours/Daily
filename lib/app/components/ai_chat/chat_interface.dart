@@ -305,14 +305,20 @@ class _ChatInterfaceState extends State<ChatInterface> {
       runSpacing: Dimensions.spacingS,
       alignment: WrapAlignment.center,
       children: suggestions.map((suggestion) {
-        return ActionChip(
-          label: Text(suggestion),
-          onPressed: () => _handleSendMessage(suggestion),
-          backgroundColor: AppColors.getSurfaceContainerHighest(context),
-          pressElevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Dimensions.radiusM),
-            side: BorderSide(color: AppColors.getOutline(context).withValues(alpha: 0.3)),
+        return Material(
+          color: AppColors.getSurfaceContainer(context),
+          borderRadius: BorderRadius.circular(20),
+          child: InkWell(
+            onTap: () => _handleSendMessage(suggestion),
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.3)),
+              ),
+              child: Text(suggestion, style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context))),
+            ),
           ),
         );
       }).toList(),
