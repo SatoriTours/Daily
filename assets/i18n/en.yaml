@@ -430,6 +430,7 @@ weekly_summary:
   diaries: diaries
   retry: Retry
   regenerate: Regenerate
+  history: History
   week_label: Week {week}
   diary_detail: Diary Detail
   diary_not_found: Diary not found

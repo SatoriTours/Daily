@@ -430,6 +430,7 @@ weekly_summary:
   diaries: 篇日记
   retry: 重试
   regenerate: 重新生成
+  history: 历史记录
   week_label: 第{week}周
   diary_detail: 日记详情
   diary_not_found: 未找到该日记
