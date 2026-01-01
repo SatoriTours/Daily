@@ -14,11 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AIChatControllerState {
 
-/// 消息列表
- List<ChatMessage> get messages;/// 是否正在处理
- bool get isProcessing;/// 当前处理步骤
- String get currentStep;/// 会话ID
- String get sessionId;
+ List<ChatMessage> get messages; bool get isProcessing; String get currentStep; String get sessionId;
 /// Create a copy of AIChatControllerState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -216,20 +212,15 @@ class _AIChatControllerState implements AIChatControllerState {
   const _AIChatControllerState({final  List<ChatMessage> messages = const [], this.isProcessing = false, this.currentStep = '', this.sessionId = ''}): _messages = messages;
   
 
-/// 消息列表
  final  List<ChatMessage> _messages;
-/// 消息列表
 @override@JsonKey() List<ChatMessage> get messages {
   if (_messages is EqualUnmodifiableListView) return _messages;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_messages);
 }
 
-/// 是否正在处理
 @override@JsonKey() final  bool isProcessing;
-/// 当前处理步骤
 @override@JsonKey() final  String currentStep;
-/// 会话ID
 @override@JsonKey() final  String sessionId;
 
 /// Create a copy of AIChatControllerState

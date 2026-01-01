@@ -9,57 +9,31 @@ import 'mcp_tool_definition.dart';
 import 'mcp_tool_executor.dart';
 import 'mcp_prompts.dart';
 
-/// MCP Agent 处理结果
 class MCPAgentResult {
   final String answer;
   final List<SearchResult> searchResults;
   const MCPAgentResult({required this.answer, required this.searchResults});
 }
 
-/// MCP Agent 服务
-///
-/// 基于 Function Calling 的智能代理服务
 class MCPAgentService {
-  // ========================================================================
-  // 单例模式
-  // ========================================================================
-
   static MCPAgentService? _instance;
   static MCPAgentService get i => _instance ??= MCPAgentService._();
   MCPAgentService._();
 
-  // ========================================================================
-  // 常量配置
-  // ========================================================================
-
   static const int _functionType = 0;
   static const int _maxToolCallRounds = 5;
-
-  // ========================================================================
-  // 依赖服务
-  // ========================================================================
-
   final MCPToolExecutor _toolExecutor = MCPToolExecutor.i;
 
-  // ========================================================================
-  // 公共方法
-  // ========================================================================
-
-  /// 处理用户查询
   Future<MCPAgentResult> processQuery({
     required String query,
     required Function(String step, String status) onStep,
     Function(String toolName, Map<String, dynamic> args)? onToolCall,
   }) async {
-    logger.i('[MCPAgentService] 开始处理查询: $query');
-
     String? currentStepName;
     final collectedResults = <SearchResult>[];
 
     void updateStep(String stepName, String status) {
-      if (currentStepName != null && currentStepName != stepName) {
-        onStep(currentStepName!, 'completed');
-      }
+      if (currentStepName != null && currentStepName != stepName) onStep(currentStepName!, 'completed');
       currentStepName = stepName;
       onStep(stepName, status);
     }
@@ -71,19 +45,13 @@ class MCPAgentService {
       }
 
       updateStep('正在理解您的问题...', 'processing');
-
       final messages = <ChatCompletionMessage>[
         ChatCompletionMessage.system(content: MCPPrompts.buildSystemPrompt()),
         ChatCompletionMessage.user(content: ChatCompletionUserMessageContent.string(query)),
       ];
 
       String? finalAnswer;
-      var currentRound = 0;
-
-      while (currentRound < _maxToolCallRounds) {
-        currentRound++;
-        logger.i('[MCPAgentService] 第 $currentRound 轮对话');
-
+      for (var round = 0; round < _maxToolCallRounds; round++) {
         final response = await _sendChatCompletion(client, messages);
         if (response == null) {
           return MCPAgentResult(
@@ -93,24 +61,16 @@ class MCPAgentService {
         }
 
         final message = response.choices.first.message;
-
         if (message.toolCalls != null && message.toolCalls!.isNotEmpty) {
           updateStep('正在查询数据...', 'processing');
           messages.add(ChatCompletionMessage.assistant(toolCalls: message.toolCalls));
 
           for (final toolCall in message.toolCalls!) {
-            final toolName = toolCall.function.name;
-            final toolArgs = toolCall.function.arguments;
-
-            logger.i('[MCPAgentService] 调用工具: $toolName');
-            onToolCall?.call(toolName, _parseArguments(toolArgs));
-
-            final toolResult = await _toolExecutor.executeTool(toolName, toolArgs);
-            collectedResults.addAll(_extractSearchResults(toolName, toolResult));
-
+            onToolCall?.call(toolCall.function.name, _parseArguments(toolCall.function.arguments));
+            final toolResult = await _toolExecutor.executeTool(toolCall.function.name, toolCall.function.arguments);
+            collectedResults.addAll(_extractSearchResults(toolCall.function.name, toolResult));
             messages.add(ChatCompletionMessage.tool(toolCallId: toolCall.id, content: toolResult));
           }
-
           updateStep('正在生成回答...', 'processing');
         } else {
           finalAnswer = message.content;
@@ -120,20 +80,14 @@ class MCPAgentService {
       }
 
       if (finalAnswer == null) {
-        logger.w('[MCPAgentService] 达到最大轮次，强制获取答案');
         updateStep('正在整理答案...', 'processing');
         final response = await _sendChatCompletion(client, messages);
         finalAnswer = response?.choices.first.message.content;
         _completeStep(currentStepName, onStep);
       }
 
-      // 过滤掉答案中未引用的搜索结果
       final filteredResults = _filterRelevantResults(collectedResults, finalAnswer ?? '');
-      logger.i('[MCPAgentService] 处理完成，收集 ${collectedResults.length} 条结果，过滤后 ${filteredResults.length} 条');
-
-      // 移除答案中的引用标记（不需要显示给用户）
       final cleanAnswer = _removeRefsTag(finalAnswer ?? MCPPrompts.buildErrorResponse('无法生成回答'));
-
       return MCPAgentResult(answer: cleanAnswer, searchResults: filteredResults);
     } catch (e, stackTrace) {
       logger.e('[MCPAgentService] 处理失败', error: e, stackTrace: stackTrace);
@@ -143,144 +97,77 @@ class MCPAgentService {
     }
   }
 
-  /// 过滤出答案中引用的搜索结果
-  ///
-  /// 从 AI 回答中解析引用标记，只保留被引用的结果
-  /// 如果 AI 没有正确返回引用标记，则使用标题匹配作为备用逻辑
   List<SearchResult> _filterRelevantResults(List<SearchResult> results, String answer) {
     if (results.isEmpty || answer.isEmpty) return results;
 
-    // 解析 AI 返回的引用标记: <!-- refs: article_123, diary_456, book_789 -->
     final refsMatch = RegExp(r'<!--\s*refs:\s*([^>]+)\s*-->').firstMatch(answer);
-
-    // 如果没有找到引用标记，返回全部结果（AI 可能没有按格式返回）
-    if (refsMatch == null) {
-      logger.w('[MCPAgentService] 未找到引用标记，使用备用匹配逻辑');
-      return _filterByTitleMatch(results, answer);
-    }
+    if (refsMatch == null) return _filterByTitleMatch(results, answer);
 
     final refsContent = refsMatch.group(1)?.trim() ?? '';
+    if (refsContent.toLowerCase() == 'none') return [];
+    if (refsContent.isEmpty) return _filterByTitleMatch(results, answer);
 
-    // 如果标记为 none，返回空列表
-    if (refsContent.toLowerCase() == 'none') {
-      logger.i('[MCPAgentService] AI 标记无引用内容');
-      return [];
-    }
-
-    // 如果内容为空，使用备用逻辑
-    if (refsContent.isEmpty) {
-      logger.w('[MCPAgentService] 引用标记内容为空，使用备用匹配逻辑');
-      return _filterByTitleMatch(results, answer);
-    }
-
-    // 解析引用的 ID 列表
     final referencedIds = <String, Set<int>>{'article': <int>{}, 'diary': <int>{}, 'book': <int>{}};
-
-    final refs = refsContent.split(',').map((s) => s.trim());
-    for (final ref in refs) {
+    for (final ref in refsContent.split(',').map((s) => s.trim())) {
       final match = RegExp(r'(article|diary|book)_(\d+)').firstMatch(ref);
       if (match != null) {
-        final type = match.group(1)!;
         final id = int.tryParse(match.group(2)!);
-        if (id != null) {
-          referencedIds[type]!.add(id);
-        }
+        if (id != null) referencedIds[match.group(1)!]!.add(id);
       }
     }
 
-    // 如果解析后没有任何 ID，使用备用逻辑
-    final totalIds = referencedIds.values.fold<int>(0, (sum, set) => sum + set.length);
-    if (totalIds == 0) {
-      logger.w('[MCPAgentService] 未能解析出有效 ID，使用备用匹配逻辑');
+    if (referencedIds.values.fold<int>(0, (sum, set) => sum + set.length) == 0) {
       return _filterByTitleMatch(results, answer);
     }
 
-    logger.i(
-      '[MCPAgentService] 解析引用: articles=${referencedIds['article']}, diaries=${referencedIds['diary']}, books=${referencedIds['book']}',
-    );
+    final filtered = results
+        .where(
+          (r) => switch (r.type) {
+            SearchResultType.article => referencedIds['article']!.contains(r.id),
+            SearchResultType.diary => referencedIds['diary']!.contains(r.id),
+            SearchResultType.book => referencedIds['book']!.contains(r.id),
+          },
+        )
+        .toList();
 
-    // 过滤结果
-    final filtered = results.where((result) {
-      switch (result.type) {
-        case SearchResultType.article:
-          return referencedIds['article']!.contains(result.id);
-        case SearchResultType.diary:
-          return referencedIds['diary']!.contains(result.id);
-        case SearchResultType.book:
-          return referencedIds['book']!.contains(result.id);
-      }
-    }).toList();
-
-    // 如果过滤后为空但原本有结果，可能是 AI 标注不完整，使用备用逻辑
-    if (filtered.isEmpty && results.isNotEmpty) {
-      logger.w('[MCPAgentService] 按 ID 过滤后无结果，使用备用匹配逻辑');
-      return _filterByTitleMatch(results, answer);
-    }
-
-    return filtered;
+    return filtered.isEmpty && results.isNotEmpty ? _filterByTitleMatch(results, answer) : filtered;
   }
 
-  /// 备用过滤逻辑：通过标题匹配判断是否被引用
   List<SearchResult> _filterByTitleMatch(List<SearchResult> results, String answer) {
     final answerLower = answer.toLowerCase();
-
     return results.where((result) {
-      // 检查标题的关键部分是否在答案中出现
-      final title = result.title;
-
-      // 提取标题中的关键词（至少2个字符）
-      final keywords = title
+      final keywords = result.title
           .replaceAll(RegExp(r'[^\w\u4e00-\u9fa5]'), ' ')
           .split(RegExp(r'\s+'))
-          .where((w) => w.length >= 2)
-          .toList();
-
-      // 如果标题中的关键词在答案中出现，认为被引用
+          .where((w) => w.length >= 2);
       for (final keyword in keywords) {
-        if (answerLower.contains(keyword.toLowerCase())) {
-          return true;
-        }
+        if (answerLower.contains(keyword.toLowerCase())) return true;
       }
-
-      // 如果是日记，检查日期格式是否匹配
       if (result.type == SearchResultType.diary && result.createdAt != null) {
         final date = result.createdAt!;
-        final datePatterns = [
+        final patterns = [
           '${date.month}月${date.day}日',
           '${date.year}年${date.month}月${date.day}日',
           '${date.month}/${date.day}',
         ];
-        for (final pattern in datePatterns) {
-          if (answer.contains(pattern)) {
-            return true;
-          }
+        for (final pattern in patterns) {
+          if (answer.contains(pattern)) return true;
         }
       }
-
       return false;
     }).toList();
   }
 
-  /// 移除答案中的引用标记
-  ///
-  /// 引用标记只用于内部处理，不需要显示给用户
-  String _removeRefsTag(String answer) {
-    return answer.replaceAll(RegExp(r'\n*<!--\s*refs:[^>]*-->\s*$'), '').trim();
-  }
+  String _removeRefsTag(String answer) => answer.replaceAll(RegExp(r'\n*<!--\s*refs:[^>]*-->\s*$'), '').trim();
 
   void _completeStep(String? currentStepName, Function(String, String) onStep) {
     if (currentStepName != null) onStep(currentStepName, 'completed');
     onStep('完成', 'completed');
   }
 
-  // ========================================================================
-  // 搜索结果提取
-  // ========================================================================
-
   List<SearchResult> _extractSearchResults(String toolName, String toolResult) {
     try {
       final data = jsonDecode(toolResult) as Map<String, dynamic>;
-
       if (toolName.contains('diary') && data['diaries'] != null) {
         return _extractResults(data['diaries'] as List, _diaryToSearchResult);
       }
@@ -291,8 +178,7 @@ class MCPAgentService {
         return _extractResults(data['books'] as List, _bookToSearchResult);
       }
       return [];
-    } catch (e) {
-      logger.w('[MCPAgentService] 提取搜索结果失败: $e');
+    } catch (_) {
       return [];
     }
   }
@@ -302,8 +188,7 @@ class MCPAgentService {
         .map((item) {
           try {
             return converter(item as Map<String, dynamic>);
-          } catch (e) {
-            logger.w('[MCPAgentService] 转换结果失败: $e');
+          } catch (_) {
             return null;
           }
         })
@@ -329,58 +214,36 @@ class MCPAgentService {
     );
   }
 
-  SearchResult _articleToSearchResult(Map<String, dynamic> a) {
-    return SearchResult.fromArticle(
-      id: a['id'] as int,
-      title: a['title'] as String? ?? '未知标题',
-      summary: _truncate(a['summary'] as String?, 100),
-      createdAt: _parseDateTime(a['createdAt']),
-      isFavorite: a['isFavorite'] as bool?,
-    );
-  }
+  SearchResult _articleToSearchResult(Map<String, dynamic> a) => SearchResult.fromArticle(
+    id: a['id'] as int,
+    title: a['title'] as String? ?? '未知标题',
+    summary: _truncate(a['summary'] as String?, 100),
+    createdAt: _parseDateTime(a['createdAt']),
+    isFavorite: a['isFavorite'] as bool?,
+  );
 
-  SearchResult _bookToSearchResult(Map<String, dynamic> b) {
-    return SearchResult.fromBook(
-      id: b['id'] as int,
-      title: b['title'] as String? ?? '未知书名',
-      summary: b['author'] as String?,
-      createdAt: _parseDateTime(b['createdAt']),
-    );
-  }
+  SearchResult _bookToSearchResult(Map<String, dynamic> b) => SearchResult.fromBook(
+    id: b['id'] as int,
+    title: b['title'] as String? ?? '未知书名',
+    summary: b['author'] as String?,
+    createdAt: _parseDateTime(b['createdAt']),
+  );
 
   String _generateDiaryTitle(Map<String, dynamic> diary) {
     final createdAt = _parseDateTime(diary['createdAt']);
-    if (createdAt != null) {
-      return '${createdAt.year}年${createdAt.month}月${createdAt.day}日的日记';
-    }
-    return '日记';
+    return createdAt != null ? '${createdAt.year}年${createdAt.month}月${createdAt.day}日的日记' : '日记';
   }
-
-  // ========================================================================
-  // OpenAI 客户端
-  // ========================================================================
 
   Future<OpenAIClient?> _createClient() async {
     try {
-      final apiAddress = AIConfigService.i.getApiAddressForFunction(_functionType);
-      final apiToken = AIConfigService.i.getApiTokenForFunction(_functionType);
-
-      String apiKey;
-      String baseUrl;
-
-      if (apiAddress.isEmpty || apiToken.isEmpty) {
-        apiKey = SettingRepository.i.getSetting(SettingService.openAITokenKey);
-        baseUrl = SettingRepository.i.getSetting(SettingService.openAIAddressKey);
-      } else {
-        apiKey = apiToken;
-        baseUrl = apiAddress;
-      }
+      var apiKey = AIConfigService.i.getApiTokenForFunction(_functionType);
+      var baseUrl = AIConfigService.i.getApiAddressForFunction(_functionType);
 
       if (apiKey.isEmpty || baseUrl.isEmpty) {
-        logger.w('[MCPAgentService] AI 配置不完整');
-        return null;
+        apiKey = SettingRepository.i.getSetting(SettingService.openAITokenKey);
+        baseUrl = SettingRepository.i.getSetting(SettingService.openAIAddressKey);
       }
-
+      if (apiKey.isEmpty || baseUrl.isEmpty) return null;
       return OpenAIClient(apiKey: apiKey, baseUrl: baseUrl);
     } catch (e) {
       logger.e('[MCPAgentService] 创建客户端失败', error: e);
@@ -393,12 +256,9 @@ class MCPAgentService {
     List<ChatCompletionMessage> messages,
   ) async {
     try {
-      final modelName = AIConfigService.i.getModelNameForFunction(_functionType);
-      logger.i('[MCPAgentService] 发送请求 - 模型: $modelName, 消息数: ${messages.length}');
-
       return await client.createChatCompletion(
         request: CreateChatCompletionRequest(
-          model: ChatCompletionModel.modelId(modelName),
+          model: ChatCompletionModel.modelId(AIConfigService.i.getModelNameForFunction(_functionType)),
           messages: messages,
           tools: _buildTools(),
           toolChoice: const ChatCompletionToolChoiceOption.mode(ChatCompletionToolChoiceMode.auto),
@@ -411,26 +271,22 @@ class MCPAgentService {
     }
   }
 
-  List<ChatCompletionTool> _buildTools() {
-    return MCPToolRegistry.tools.map((tool) {
-      return ChatCompletionTool(
-        type: ChatCompletionToolType.function,
-        function: FunctionObject(
-          name: tool.name,
-          description: tool.description,
-          parameters: {
-            'type': 'object',
-            'properties': {for (final entry in tool.parameters.entries) entry.key: entry.value.toSchema()},
-            'required': tool.required,
-          },
+  List<ChatCompletionTool> _buildTools() => MCPToolRegistry.tools
+      .map(
+        (tool) => ChatCompletionTool(
+          type: ChatCompletionToolType.function,
+          function: FunctionObject(
+            name: tool.name,
+            description: tool.description,
+            parameters: {
+              'type': 'object',
+              'properties': {for (final entry in tool.parameters.entries) entry.key: entry.value.toSchema()},
+              'required': tool.required,
+            },
+          ),
         ),
-      );
-    }).toList();
-  }
-
-  // ========================================================================
-  // 工具方法
-  // ========================================================================
+      )
+      .toList();
 
   Map<String, dynamic> _parseArguments(String arguments) {
     try {
@@ -440,10 +296,9 @@ class MCPAgentService {
     }
   }
 
-  String? _truncate(String? content, int maxLength) {
-    if (content == null || content.isEmpty) return null;
-    return content.length <= maxLength ? content : '${content.substring(0, maxLength)}...';
-  }
+  String? _truncate(String? content, int maxLength) => content == null || content.isEmpty
+      ? null
+      : (content.length <= maxLength ? content : '${content.substring(0, maxLength)}...');
 
   DateTime? _parseDateTime(dynamic value) {
     if (value == null) return null;

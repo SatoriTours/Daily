@@ -1,7 +1,4 @@
 /// AI Chat Controller Provider
-///
-/// AI聊天控制器，管理AI聊天界面的状态和交互。
-
 library;
 
 import 'dart:async';
@@ -16,25 +13,16 @@ import 'package:daily_satori/app/utils/i18n_extension.dart';
 part 'ai_chat_controller_provider.freezed.dart';
 part 'ai_chat_controller_provider.g.dart';
 
-/// AIChatController 状态
 @freezed
 abstract class AIChatControllerState with _$AIChatControllerState {
   const factory AIChatControllerState({
-    /// 消息列表
     @Default([]) List<ChatMessage> messages,
-
-    /// 是否正在处理
     @Default(false) bool isProcessing,
-
-    /// 当前处理步骤
     @Default('') String currentStep,
-
-    /// 会话ID
     @Default('') String sessionId,
   }) = _AIChatControllerState;
 }
 
-/// AIChatController Provider
 @riverpod
 class AIChatController extends _$AIChatController {
   final MCPAgentService _mcpAgentService = MCPAgentService.i;
@@ -43,28 +31,16 @@ class AIChatController extends _$AIChatController {
   @override
   AIChatControllerState build() {
     final sessionId = 'chat_${DateTime.now().millisecondsSinceEpoch}';
-
-    // 延迟初始化欢迎消息，避免在 build 期间触发状态更新
-    Future.microtask(() {
-      state = state.copyWith(messages: [_createWelcomeMessage()]);
-    });
-
-    logger.d('[AIChatController] 初始化控制器，会话ID: $sessionId');
+    Future.microtask(() => state = state.copyWith(messages: [_createWelcomeMessage()]));
     return AIChatControllerState(sessionId: sessionId);
   }
 
-  /// 发送消息
   Future<void> sendMessage(String content) async {
     final trimmedContent = content.trim();
     if (trimmedContent.isEmpty || state.isProcessing) return;
 
-    logger.i('[AIChatController] 发送消息: $trimmedContent');
-
     try {
-      // 添加用户消息
       _addUserMessage(trimmedContent);
-
-      // 创建处理中的消息
       final assistantMessage = _createProcessingMessage();
       state = state.copyWith(
         messages: [...state.messages, assistantMessage],
@@ -72,15 +48,11 @@ class AIChatController extends _$AIChatController {
         currentStep: 'ai_chat.step_start'.t,
       );
 
-      // 处理查询
       final result = await _mcpAgentService.processQuery(
         query: trimmedContent,
-        onStep: (step, status) => _handleStepUpdate(step),
+        onStep: (step, status) => state = state.copyWith(currentStep: step),
       );
-
-      // 更新消息
       _updateMessage(assistantMessage.id, result.answer);
-      logger.i('[AIChatController] 消息处理完成');
     } catch (e, stackTrace) {
       logger.e('[AIChatController] 处理消息失败', error: e, stackTrace: stackTrace);
       _markLastAssistantAsError();
@@ -89,85 +61,50 @@ class AIChatController extends _$AIChatController {
     }
   }
 
-  /// 重试消息
   Future<void> retryMessage(ChatMessage message) async {
-    // 只有用户消息可以重试
     if (message.type != ChatMessageType.user) return;
-
-    // 移除该消息之后的所有消息
     final index = state.messages.indexOf(message);
     if (index == -1) return;
-
-    final newMessages = state.messages.sublist(0, index);
-    state = state.copyWith(messages: newMessages);
-
-    // 重新发送
+    state = state.copyWith(messages: state.messages.sublist(0, index));
     await sendMessage(message.content);
   }
 
-  /// 清空消息
   void clearMessages() {
-    final sessionId = 'chat_${DateTime.now().millisecondsSinceEpoch}';
     state = state.copyWith(
-      sessionId: sessionId,
+      sessionId: 'chat_${DateTime.now().millisecondsSinceEpoch}',
       messages: [_createWelcomeMessage()],
       isProcessing: false,
       currentStep: '',
     );
   }
 
-  /// 创建欢迎消息
-  ChatMessage _createWelcomeMessage() {
-    return ChatMessage.assistant(id: _generateMessageId(), content: 'ai_chat.welcome_message'.t);
-  }
+  ChatMessage _createWelcomeMessage() =>
+      ChatMessage.assistant(id: _generateMessageId(), content: 'ai_chat.welcome_message'.t);
 
-  /// 添加用户消息
   void _addUserMessage(String content) {
     final message = ChatMessage.user(id: _generateMessageId(), content: content);
     state = state.copyWith(messages: [...state.messages, message]);
   }
 
-  /// 创建处理中的消息
-  ChatMessage _createProcessingMessage() {
-    return ChatMessage.assistant(
-      id: _generateMessageId(),
-      content: 'ai_chat.processing'.t,
-      status: MessageStatus.processing,
+  ChatMessage _createProcessingMessage() => ChatMessage.assistant(
+    id: _generateMessageId(),
+    content: 'ai_chat.processing'.t,
+    status: MessageStatus.processing,
+  );
+
+  void _updateMessage(String messageId, String newContent) {
+    state = state.copyWith(
+      messages: state.messages.map((msg) => msg.id == messageId ? msg.copyWith(content: newContent) : msg).toList(),
     );
   }
 
-  /// 更新消息
-  void _updateMessage(String messageId, String newContent) {
-    final updatedMessages = state.messages.map((msg) {
-      if (msg.id == messageId) {
-        return msg.copyWith(content: newContent);
-      }
-      return msg;
-    }).toList();
-
-    state = state.copyWith(messages: updatedMessages);
-  }
-
-  /// 标记最后一条助手消息为错误
   void _markLastAssistantAsError() {
-    final lastAssistantIndex = state.messages.lastIndexWhere((msg) => msg.type == ChatMessageType.assistant);
-
-    if (lastAssistantIndex != -1) {
-      final updatedMessages = List<ChatMessage>.from(state.messages);
-      updatedMessages[lastAssistantIndex] = updatedMessages[lastAssistantIndex].copyWith(
-        content: 'ai_chat.error_message'.t,
-      );
-      state = state.copyWith(messages: updatedMessages);
-    }
+    final index = state.messages.lastIndexWhere((msg) => msg.type == ChatMessageType.assistant);
+    if (index == -1) return;
+    final updated = List<ChatMessage>.from(state.messages);
+    updated[index] = updated[index].copyWith(content: 'ai_chat.error_message'.t);
+    state = state.copyWith(messages: updated);
   }
 
-  /// 处理步骤更新
-  void _handleStepUpdate(String step) {
-    state = state.copyWith(currentStep: step);
-  }
-
-  /// 生成消息ID
-  String _generateMessageId() {
-    return 'msg_${state.sessionId}_${++_messageCounter}';
-  }
+  String _generateMessageId() => 'msg_${state.sessionId}_${++_messageCounter}';
 }
