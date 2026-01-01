@@ -51,7 +51,7 @@ final class ArticlesControllerProvider
 }
 
 String _$articlesControllerHash() =>
-    r'5702e7204d5fa68b243a359e2bb71717f2733777';
+    r'c0c6b73c3a4be9b48be9482a1c3960afa528d008';
 
 /// ArticlesController Provider
 ///
@@ -120,7 +120,7 @@ final class DisplayTitleProvider
   }
 }
 
-String _$displayTitleHash() => r'0659fd43cf36fb8bb48b9e4db1a5464b39c89be1';
+String _$displayTitleHash() => r'f1ee747b7071a8d5c5f6ccaaa37b99980b0da649';
 
 /// 是否存在筛选条件
 
@@ -165,4 +165,4 @@ final class HasFiltersProvider extends $FunctionalProvider<bool, bool, bool>
   }
 }
 
-String _$hasFiltersHash() => r'f41ca78f6cce3a61ae30b3c6a53fc24604c1a165';
+String _$hasFiltersHash() => r'881657c61d8367cd748b2ab0c0e618cf65183e31';

@@ -47,9 +47,6 @@ abstract class ArticlesControllerState with _$ArticlesControllerState {
 
     /// FocusNode
     FocusNode? searchFocusNode,
-
-    /// 全局搜索查询（用于计算标题和过滤器状态）
-    @Default('') String globalSearchQuery,
   }) = _ArticlesControllerState;
 }
 
@@ -72,24 +69,17 @@ class ArticlesController extends _$ArticlesController {
   ArticlesControllerState build() {
     _initialize();
 
-    final articleState = ref.read(articleStateProvider);
     return ArticlesControllerState(
       lastRefreshTime: DateTime.now(),
       scrollController: _createScrollController(),
       searchController: TextEditingController(),
       searchFocusNode: FocusNode(),
-      globalSearchQuery: articleState.globalSearchQuery,
     );
   }
 
   /// 初始化
   void _initialize() {
     ref.listen(articleStateProvider, (prev, next) {
-      // 同步 globalSearchQuery 到 state
-      if (prev?.globalSearchQuery != next.globalSearchQuery) {
-        state = state.copyWith(globalSearchQuery: next.globalSearchQuery);
-      }
-
       final prevEvent = prev?.articleUpdateEvent;
       final nextEvent = next.articleUpdateEvent;
       if (prevEvent != nextEvent) _handleArticleUpdateEvent(nextEvent);
@@ -169,7 +159,6 @@ class ArticlesController extends _$ArticlesController {
 
     final articleState = ref.read(articleStateProvider.notifier);
     articleState.setGlobalSearch(query);
-    state = state.copyWith(globalSearchQuery: query);
     await reloadArticles();
   }
 
@@ -203,7 +192,6 @@ class ArticlesController extends _$ArticlesController {
       tagName: '',
       onlyFavorite: false,
       selectedFilterDate: null,
-      globalSearchQuery: '',
     );
 
     searchController?.clear();
@@ -317,12 +305,14 @@ class _QueryParams {
 /// 计算显示标题
 @riverpod
 String displayTitle(Ref ref) {
-  final state = ref.watch(articlesControllerProvider);
+  final controllerState = ref.watch(articlesControllerProvider);
+  final articleState = ref.watch(articleStateProvider);
+  final globalSearchQuery = articleState.globalSearchQuery;
   return switch (
-    (state.globalSearchQuery.isNotEmpty, state.tagName.isNotEmpty, state.onlyFavorite, state.selectedFilterDate != null)
+    (globalSearchQuery.isNotEmpty, controllerState.tagName.isNotEmpty, controllerState.onlyFavorite, controllerState.selectedFilterDate != null)
   ) {
-    (true, _, _, _) => 'article.search_result'.t.replaceAll('{query}', state.globalSearchQuery),
-    (_, true, _, _) => 'article.filter_by_tag'.t.replaceAll('{tag}', state.tagName),
+    (true, _, _, _) => 'article.search_result'.t.replaceAll('{query}', globalSearchQuery),
+    (_, true, _, _) => 'article.filter_by_tag'.t.replaceAll('{tag}', controllerState.tagName),
     (_, _, true, _) => 'article.favorite_articles'.t,
     (_, _, _, true) => 'article.filter_by_date'.t,
     _ => 'article.all_articles'.t,
@@ -332,9 +322,11 @@ String displayTitle(Ref ref) {
 /// 是否存在筛选条件
 @riverpod
 bool hasFilters(Ref ref) {
-  final state = ref.watch(articlesControllerProvider);
-  return state.globalSearchQuery.isNotEmpty ||
-         state.tagName.isNotEmpty ||
-         state.onlyFavorite ||
-         state.selectedFilterDate != null;
+  final controllerState = ref.watch(articlesControllerProvider);
+  final articleState = ref.watch(articleStateProvider);
+  final globalSearchQuery = articleState.globalSearchQuery;
+  return globalSearchQuery.isNotEmpty ||
+         controllerState.tagName.isNotEmpty ||
+         controllerState.onlyFavorite ||
+         controllerState.selectedFilterDate != null;
 }
