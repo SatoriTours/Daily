@@ -45,6 +45,7 @@ button:
   show_password: 显示密码
   add_tag: 添加标签
   insert: 插入
+  retry: 重试
 
 # UI 界面文本
 ui:
@@ -112,6 +113,7 @@ hint:
   select_first: 请先选择需要转换的文本
   enter_new_tag: 输入新标签...
   enter_server_password: 请输入服务器密码
+  enter_book_name: 输入书名进行搜索...
   title: 请输入标题
 
 # 文章模块
@@ -240,6 +242,9 @@ book:
 # 书籍搜索
 book_search:
   search_failed: 搜索失败
+  add_success: 书籍添加成功
+  add_failed: 添加书籍失败
+  already_exists: 该书籍已存在
 
 # 消息提示
 message:

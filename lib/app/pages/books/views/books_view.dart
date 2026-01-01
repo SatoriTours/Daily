@@ -61,7 +61,10 @@ class BooksView extends ConsumerWidget {
   Widget _buildAddBookButton(BuildContext context, WidgetRef ref) {
     return IconButton(
       icon: const Icon(Icons.add, size: Dimensions.iconSizeM),
-      onPressed: () => ref.read(booksControllerProvider.notifier).showAddBookDialog(context),
+      onPressed: () {
+        // 直接跳转到搜索页面，不使用对话框
+        Navigator.of(context).pushNamed(Routes.bookSearch);
+      },
       tooltip: 'tooltip.add_book'.t,
       padding: Dimensions.paddingS,
       constraints: const BoxConstraints(minWidth: 36, minHeight: 36),

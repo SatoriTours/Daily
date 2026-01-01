@@ -45,6 +45,7 @@ button:
   show_password: Show Password
   add_tag: Add Tag
   insert: Insert
+  retry: Retry
 
 # UI text
 ui:
@@ -112,6 +113,7 @@ hint:
   select_first: Please select the text to convert first
   enter_new_tag: Enter new tag...
   enter_server_password: Enter server password
+  enter_book_name: Enter book name to search...
   title: Please enter title
 
 # Article module
@@ -240,6 +242,9 @@ book:
 # Book Search
 book_search:
   search_failed: Search failed
+  add_success: Book added successfully
+  add_failed: Failed to add book
+  already_exists: Book already exists
 
 # Messages
 message:

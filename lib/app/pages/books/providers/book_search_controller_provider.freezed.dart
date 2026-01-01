@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$BookSearchControllerState {
 
- bool get isLoading; bool get isSearching; List<BookModel> get searchResults; String get errorMessage; String get searchKeyword;
+ bool get isLoading; bool get isSearching; List<BookSearchResult> get searchResults; String get errorMessage; String get searchKeyword; String get initialKeyword;
 /// Create a copy of BookSearchControllerState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $BookSearchControllerStateCopyWith<BookSearchControllerState> get copyWith => _$
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BookSearchControllerState&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.isSearching, isSearching) || other.isSearching == isSearching)&&const DeepCollectionEquality().equals(other.searchResults, searchResults)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.searchKeyword, searchKeyword) || other.searchKeyword == searchKeyword));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BookSearchControllerState&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.isSearching, isSearching) || other.isSearching == isSearching)&&const DeepCollectionEquality().equals(other.searchResults, searchResults)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.searchKeyword, searchKeyword) || other.searchKeyword == searchKeyword)&&(identical(other.initialKeyword, initialKeyword) || other.initialKeyword == initialKeyword));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,isLoading,isSearching,const DeepCollectionEquality().hash(searchResults),errorMessage,searchKeyword);
+int get hashCode => Object.hash(runtimeType,isLoading,isSearching,const DeepCollectionEquality().hash(searchResults),errorMessage,searchKeyword,initialKeyword);
 
 @override
 String toString() {
-  return 'BookSearchControllerState(isLoading: $isLoading, isSearching: $isSearching, searchResults: $searchResults, errorMessage: $errorMessage, searchKeyword: $searchKeyword)';
+  return 'BookSearchControllerState(isLoading: $isLoading, isSearching: $isSearching, searchResults: $searchResults, errorMessage: $errorMessage, searchKeyword: $searchKeyword, initialKeyword: $initialKeyword)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $BookSearchControllerStateCopyWith<$Res>  {
   factory $BookSearchControllerStateCopyWith(BookSearchControllerState value, $Res Function(BookSearchControllerState) _then) = _$BookSearchControllerStateCopyWithImpl;
 @useResult
 $Res call({
- bool isLoading, bool isSearching, List<BookModel> searchResults, String errorMessage, String searchKeyword
+ bool isLoading, bool isSearching, List<BookSearchResult> searchResults, String errorMessage, String searchKeyword, String initialKeyword
 });
 
 
@@ -62,13 +62,14 @@ class _$BookSearchControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of BookSearchControllerState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? isLoading = null,Object? isSearching = null,Object? searchResults = null,Object? errorMessage = null,Object? searchKeyword = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? isLoading = null,Object? isSearching = null,Object? searchResults = null,Object? errorMessage = null,Object? searchKeyword = null,Object? initialKeyword = null,}) {
   return _then(_self.copyWith(
 isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
 as bool,isSearching: null == isSearching ? _self.isSearching : isSearching // ignore: cast_nullable_to_non_nullable
 as bool,searchResults: null == searchResults ? _self.searchResults : searchResults // ignore: cast_nullable_to_non_nullable
-as List<BookModel>,errorMessage: null == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
+as List<BookSearchResult>,errorMessage: null == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
 as String,searchKeyword: null == searchKeyword ? _self.searchKeyword : searchKeyword // ignore: cast_nullable_to_non_nullable
+as String,initialKeyword: null == initialKeyword ? _self.initialKeyword : initialKeyword // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }
@@ -154,10 +155,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool isLoading,  bool isSearching,  List<BookModel> searchResults,  String errorMessage,  String searchKeyword)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool isLoading,  bool isSearching,  List<BookSearchResult> searchResults,  String errorMessage,  String searchKeyword,  String initialKeyword)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _BookSearchControllerState() when $default != null:
-return $default(_that.isLoading,_that.isSearching,_that.searchResults,_that.errorMessage,_that.searchKeyword);case _:
+return $default(_that.isLoading,_that.isSearching,_that.searchResults,_that.errorMessage,_that.searchKeyword,_that.initialKeyword);case _:
   return orElse();
 
 }
@@ -175,10 +176,10 @@ return $default(_that.isLoading,_that.isSearching,_that.searchResults,_that.erro
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool isLoading,  bool isSearching,  List<BookModel> searchResults,  String errorMessage,  String searchKeyword)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool isLoading,  bool isSearching,  List<BookSearchResult> searchResults,  String errorMessage,  String searchKeyword,  String initialKeyword)  $default,) {final _that = this;
 switch (_that) {
 case _BookSearchControllerState():
-return $default(_that.isLoading,_that.isSearching,_that.searchResults,_that.errorMessage,_that.searchKeyword);case _:
+return $default(_that.isLoading,_that.isSearching,_that.searchResults,_that.errorMessage,_that.searchKeyword,_that.initialKeyword);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -195,10 +196,10 @@ return $default(_that.isLoading,_that.isSearching,_that.searchResults,_that.erro
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool isLoading,  bool isSearching,  List<BookModel> searchResults,  String errorMessage,  String searchKeyword)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool isLoading,  bool isSearching,  List<BookSearchResult> searchResults,  String errorMessage,  String searchKeyword,  String initialKeyword)?  $default,) {final _that = this;
 switch (_that) {
 case _BookSearchControllerState() when $default != null:
-return $default(_that.isLoading,_that.isSearching,_that.searchResults,_that.errorMessage,_that.searchKeyword);case _:
+return $default(_that.isLoading,_that.isSearching,_that.searchResults,_that.errorMessage,_that.searchKeyword,_that.initialKeyword);case _:
   return null;
 
 }
@@ -210,13 +211,13 @@ return $default(_that.isLoading,_that.isSearching,_that.searchResults,_that.erro
 
 
 class _BookSearchControllerState implements BookSearchControllerState {
-  const _BookSearchControllerState({this.isLoading = false, this.isSearching = false, final  List<BookModel> searchResults = const [], this.errorMessage = '', this.searchKeyword = ''}): _searchResults = searchResults;
+  const _BookSearchControllerState({this.isLoading = false, this.isSearching = false, final  List<BookSearchResult> searchResults = const [], this.errorMessage = '', this.searchKeyword = '', this.initialKeyword = ''}): _searchResults = searchResults;
   
 
 @override@JsonKey() final  bool isLoading;
 @override@JsonKey() final  bool isSearching;
- final  List<BookModel> _searchResults;
-@override@JsonKey() List<BookModel> get searchResults {
+ final  List<BookSearchResult> _searchResults;
+@override@JsonKey() List<BookSearchResult> get searchResults {
   if (_searchResults is EqualUnmodifiableListView) return _searchResults;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_searchResults);
@@ -224,6 +225,7 @@ class _BookSearchControllerState implements BookSearchControllerState {
 
 @override@JsonKey() final  String errorMessage;
 @override@JsonKey() final  String searchKeyword;
+@override@JsonKey() final  String initialKeyword;
 
 /// Create a copy of BookSearchControllerState
 /// with the given fields replaced by the non-null parameter values.
@@ -235,16 +237,16 @@ _$BookSearchControllerStateCopyWith<_BookSearchControllerState> get copyWith => 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BookSearchControllerState&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.isSearching, isSearching) || other.isSearching == isSearching)&&const DeepCollectionEquality().equals(other._searchResults, _searchResults)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.searchKeyword, searchKeyword) || other.searchKeyword == searchKeyword));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BookSearchControllerState&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.isSearching, isSearching) || other.isSearching == isSearching)&&const DeepCollectionEquality().equals(other._searchResults, _searchResults)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.searchKeyword, searchKeyword) || other.searchKeyword == searchKeyword)&&(identical(other.initialKeyword, initialKeyword) || other.initialKeyword == initialKeyword));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,isLoading,isSearching,const DeepCollectionEquality().hash(_searchResults),errorMessage,searchKeyword);
+int get hashCode => Object.hash(runtimeType,isLoading,isSearching,const DeepCollectionEquality().hash(_searchResults),errorMessage,searchKeyword,initialKeyword);
 
 @override
 String toString() {
-  return 'BookSearchControllerState(isLoading: $isLoading, isSearching: $isSearching, searchResults: $searchResults, errorMessage: $errorMessage, searchKeyword: $searchKeyword)';
+  return 'BookSearchControllerState(isLoading: $isLoading, isSearching: $isSearching, searchResults: $searchResults, errorMessage: $errorMessage, searchKeyword: $searchKeyword, initialKeyword: $initialKeyword)';
 }
 
 
@@ -255,7 +257,7 @@ abstract mixin class _$BookSearchControllerStateCopyWith<$Res> implements $BookS
   factory _$BookSearchControllerStateCopyWith(_BookSearchControllerState value, $Res Function(_BookSearchControllerState) _then) = __$BookSearchControllerStateCopyWithImpl;
 @override @useResult
 $Res call({
- bool isLoading, bool isSearching, List<BookModel> searchResults, String errorMessage, String searchKeyword
+ bool isLoading, bool isSearching, List<BookSearchResult> searchResults, String errorMessage, String searchKeyword, String initialKeyword
 });
 
 
@@ -272,13 +274,14 @@ class __$BookSearchControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of BookSearchControllerState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? isLoading = null,Object? isSearching = null,Object? searchResults = null,Object? errorMessage = null,Object? searchKeyword = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? isLoading = null,Object? isSearching = null,Object? searchResults = null,Object? errorMessage = null,Object? searchKeyword = null,Object? initialKeyword = null,}) {
   return _then(_BookSearchControllerState(
 isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
 as bool,isSearching: null == isSearching ? _self.isSearching : isSearching // ignore: cast_nullable_to_non_nullable
 as bool,searchResults: null == searchResults ? _self._searchResults : searchResults // ignore: cast_nullable_to_non_nullable
-as List<BookModel>,errorMessage: null == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
+as List<BookSearchResult>,errorMessage: null == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
 as String,searchKeyword: null == searchKeyword ? _self.searchKeyword : searchKeyword // ignore: cast_nullable_to_non_nullable
+as String,initialKeyword: null == initialKeyword ? _self.initialKeyword : initialKeyword // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }

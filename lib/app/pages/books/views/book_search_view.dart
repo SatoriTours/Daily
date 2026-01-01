@@ -6,32 +6,58 @@ import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 /// 书籍搜索结果视图
-class BookSearchView extends ConsumerWidget {
+class BookSearchView extends ConsumerStatefulWidget {
   const BookSearchView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(appBar: _buildAppBar(context), body: _buildBody(context, ref));
+  ConsumerState<BookSearchView> createState() => _BookSearchViewState();
+}
+
+class _BookSearchViewState extends ConsumerState<BookSearchView> {
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+
+    // 页面加载后初始化搜索
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final initialKeyword = ref.read(bookSearchControllerProvider.notifier).consumeInitialKeyword();
+      if (initialKeyword.isNotEmpty) {
+        _searchController.text = initialKeyword;
+        ref.read(bookSearchControllerProvider.notifier).searchBooks(initialKeyword);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(appBar: _buildAppBar(context), body: _buildBody(context));
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(title: Text('ui.search'.t, style: AppTypography.appBarTitle), elevation: 0);
   }
 
-  Widget _buildBody(BuildContext context, WidgetRef ref) {
+  Widget _buildBody(BuildContext context) {
     return SafeArea(
       child: Column(
         children: [
-          _buildSearchBar(context, ref),
-          Expanded(child: _buildSearchResults(context, ref)),
+          _buildSearchBar(context),
+          Expanded(child: _buildSearchResults(context)),
         ],
       ),
     );
   }
 
-  Widget _buildSearchBar(BuildContext context, WidgetRef ref) {
-    final searchController = ref.read(bookSearchControllerProvider.notifier).searchController;
-
+  Widget _buildSearchBar(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(
         Dimensions.paddingPage.left,
@@ -40,7 +66,7 @@ class BookSearchView extends ConsumerWidget {
         Dimensions.paddingPage.bottom,
       ),
       child: TextField(
-        controller: searchController,
+        controller: _searchController,
         autofocus: true,
         decoration: InputStyles.getSearchDecoration(context, hintText: 'hint.title'.t).copyWith(
           contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingXs),
@@ -55,19 +81,30 @@ class BookSearchView extends ConsumerWidget {
     );
   }
 
-  Widget _buildSearchResults(BuildContext context, WidgetRef ref) {
+  Widget _buildSearchResults(BuildContext context) {
     final controllerState = ref.watch(bookSearchControllerProvider);
 
+    // 搜索中显示加载状态
+    if (controllerState.isSearching) {
+      return _buildSearchingState(context, controllerState.searchKeyword);
+    }
+
+    // 添加书籍中显示加载状态
     if (controllerState.isLoading) {
       return _buildLoadingState(context);
     }
 
-    final searchController = ref.read(bookSearchControllerProvider.notifier).searchController;
+    // 有错误时显示错误状态
+    if (controllerState.errorMessage.isNotEmpty) {
+      return _buildErrorState(context, controllerState.errorMessage);
+    }
 
-    if (controllerState.searchResults.isEmpty && searchController.text.isNotEmpty) {
+    // 搜索后无结果
+    if (controllerState.searchResults.isEmpty && controllerState.searchKeyword.isNotEmpty) {
       return _buildEmptyState(context);
     }
 
+    // 初始状态
     if (controllerState.searchResults.isEmpty) {
       return _buildInitialState(context);
     }
@@ -76,7 +113,7 @@ class BookSearchView extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildSearchStatistics(context, controllerState.searchResults.length),
-        Expanded(child: _buildResultsList(context, ref, controllerState.searchResults)),
+        Expanded(child: _buildResultsList(context, controllerState.searchResults)),
       ],
     );
   }
@@ -118,9 +155,82 @@ class BookSearchView extends ConsumerWidget {
         children: [
           CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context))),
           Dimensions.verticalSpacerM,
+          Text('正在添加书籍...', style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context))),
+        ],
+      ),
+    );
+  }
+
+  /// 搜索中状态
+  Widget _buildSearchingState(BuildContext context, String keyword) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
+            ),
+          ),
+          Dimensions.verticalSpacerL,
           Text(
-            'ui.processing'.t,
+            '正在搜索「$keyword」...',
+            style: AppTypography.bodyLarge.copyWith(
+              color: AppColors.getOnSurface(context),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Dimensions.verticalSpacerS,
+          Text(
+            '正在从 OpenLibrary 获取书籍信息',
             style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 错误状态
+  Widget _buildErrorState(BuildContext context, String errorMessage) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            size: 64,
+            color: AppColors.getError(context).withValues(alpha: Opacities.high),
+          ),
+          Dimensions.verticalSpacerM,
+          Text(
+            '搜索失败',
+            style: AppTypography.bodyLarge.copyWith(
+              color: AppColors.getOnSurface(context),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Dimensions.verticalSpacerS,
+          Padding(
+            padding: Dimensions.paddingPage,
+            child: Text(
+              errorMessage,
+              textAlign: TextAlign.center,
+              style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+            ),
+          ),
+          Dimensions.verticalSpacerL,
+          FilledButton.icon(
+            onPressed: () {
+              final keyword = ref.read(bookSearchControllerProvider).searchKeyword;
+              if (keyword.isNotEmpty) {
+                ref.read(bookSearchControllerProvider.notifier).searchBooks(keyword);
+              }
+            },
+            icon: const Icon(Icons.refresh),
+            label: Text('button.retry'.t),
           ),
         ],
       ),
@@ -178,7 +288,7 @@ class BookSearchView extends ConsumerWidget {
     );
   }
 
-  Widget _buildResultsList(BuildContext context, WidgetRef ref, List<BookModel> searchResults) {
+  Widget _buildResultsList(BuildContext context, List<BookSearchResult> searchResults) {
     return ListView.builder(
       padding: EdgeInsets.fromLTRB(
         Dimensions.paddingPage.left,
@@ -189,12 +299,12 @@ class BookSearchView extends ConsumerWidget {
       itemCount: searchResults.length,
       itemBuilder: (context, index) {
         final result = searchResults[index];
-        return _buildResultCard(context, ref, result);
+        return _buildResultCard(context, result);
       },
     );
   }
 
-  Widget _buildResultCard(BuildContext context, WidgetRef ref, BookModel result) {
+  Widget _buildResultCard(BuildContext context, BookSearchResult result) {
     return Card(
       margin: const EdgeInsets.only(bottom: Dimensions.spacingM),
       elevation: 0,
@@ -211,11 +321,11 @@ class BookSearchView extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 封面图片
-              if (result.coverImage.isNotEmpty) ...[
+              if (result.coverUrl.isNotEmpty) ...[
                 ClipRRect(
                   borderRadius: BorderRadius.circular(Dimensions.radiusS),
                   child: Image.network(
-                    result.coverImage,
+                    result.coverUrl,
                     width: 80,
                     height: 120,
                     fit: BoxFit.cover,
@@ -311,19 +421,19 @@ class BookSearchView extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                    // 查看详情提示
+                    // 添加书籍提示
                     Dimensions.verticalSpacerS,
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Icon(
-                          Icons.visibility_outlined,
+                          Icons.add_circle_outline,
                           size: Dimensions.iconSizeXs,
                           color: AppColors.getPrimary(context),
                         ),
                         Dimensions.horizontalSpacerXs,
                         Text(
-                          '点击查看详情',
+                          '点击添加书籍',
                           style: AppTypography.labelSmall.copyWith(
                             color: AppColors.getPrimary(context),
                             fontWeight: FontWeight.w500,

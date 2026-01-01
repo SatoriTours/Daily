@@ -195,54 +195,45 @@ class BooksController extends _$BooksController {
     }
   }
 
-  /// 显示添加书籍对话框
-  Future<void> showAddBookDialog(BuildContext context) async {
+  /// 显示添加书籍对话框，返回用户输入的书名
+  /// View 层负责处理导航
+  Future<String?> showAddBookDialog(BuildContext context) async {
     final titleController = TextEditingController();
-    final authorController = TextEditingController();
-    final categoryController = TextEditingController();
+    String? searchKeyword;
 
-    await showDialog(
+    await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text('title.add_book'.t),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleController,
-              decoration: InputDecoration(labelText: 'label.book_title'.t),
-            ),
-            TextField(
-              controller: authorController,
-              decoration: InputDecoration(labelText: 'label.book_author'.t),
-            ),
-            TextField(
-              controller: categoryController,
-              decoration: InputDecoration(labelText: 'label.book_category'.t),
-            ),
-          ],
+        content: TextField(
+          controller: titleController,
+          decoration: InputDecoration(labelText: 'label.book_title'.t, hintText: 'hint.enter_book_name'.t),
+          autofocus: false,
+          onSubmitted: (value) {
+            if (value.trim().isNotEmpty) {
+              searchKeyword = value.trim();
+              Navigator.pop(dialogContext);
+            }
+          },
         ),
+        actionsAlignment: MainAxisAlignment.end,
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('action.cancel'.t)),
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text('button.cancel'.t)),
           TextButton(
-            onPressed: () async {
-              if (titleController.text.isNotEmpty) {
-                final book = BookModel.create(
-                  title: titleController.text,
-                  author: authorController.text,
-                  category: categoryController.text,
-                );
-                BookRepository.i.save(book);
-                // Refresh list
-                await loadAllViewpoints();
-                if (context.mounted) Navigator.pop(context);
+            onPressed: () {
+              if (titleController.text.trim().isNotEmpty) {
+                searchKeyword = titleController.text.trim();
+                Navigator.pop(dialogContext);
               }
             },
-            child: Text('action.confirm'.t),
+            child: Text('button.confirm'.t),
           ),
         ],
       ),
     );
+
+    titleController.dispose();
+    return searchKeyword;
   }
 
   /// 加载所有观点（公开方法）

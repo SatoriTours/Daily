@@ -44,7 +44,7 @@ final class BooksStateProvider
   }
 }
 
-String _$booksStateHash() => r'5dcd2814043fe82cb082765c909adb82d699fef2';
+String _$booksStateHash() => r'e88f6b2eb3d7bfe20f82471a5f7f59a891aecf2e';
 
 /// 读书状态 Provider
 

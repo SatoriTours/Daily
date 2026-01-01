@@ -4,14 +4,12 @@
 
 library;
 
-import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/services/index.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/app/navigation/app_navigation.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
@@ -25,26 +23,36 @@ abstract class BookSearchControllerState with _$BookSearchControllerState {
   const factory BookSearchControllerState({
     @Default(false) bool isLoading,
     @Default(false) bool isSearching,
-    @Default([]) List<BookModel> searchResults,
+    @Default([]) List<BookSearchResult> searchResults,
     @Default('') String errorMessage,
     @Default('') String searchKeyword,
+    @Default('') String initialKeyword,
   }) = _BookSearchControllerState;
 }
 
 /// BookSearchController Provider
 @riverpod
 class BookSearchController extends _$BookSearchController {
-  final TextEditingController searchController = TextEditingController();
-
   @override
   BookSearchControllerState build() {
-    ref.onDispose(() {
-      searchController.dispose();
-    });
     return const BookSearchControllerState();
   }
 
-  /// 搜索书籍
+  /// 设置初始搜索关键词（在导航前调用）
+  void setInitialKeyword(String keyword) {
+    state = state.copyWith(initialKeyword: keyword, searchKeyword: keyword);
+  }
+
+  /// 清除初始关键词（页面加载后调用）
+  String consumeInitialKeyword() {
+    final keyword = state.initialKeyword;
+    if (keyword.isNotEmpty) {
+      state = state.copyWith(initialKeyword: '');
+    }
+    return keyword;
+  }
+
+  /// 搜索书籍（在线搜索）
   Future<void> searchBooks(String keyword) async {
     if (keyword.trim().isEmpty) {
       state = state.copyWith(searchResults: [], searchKeyword: '');
@@ -53,10 +61,9 @@ class BookSearchController extends _$BookSearchController {
 
     state = state.copyWith(isSearching: true, errorMessage: '', searchKeyword: keyword);
     try {
-      // 使用 BookRepository 的 findByTitle 方法
-      final results = BookRepository.i.findByTitle(keyword);
-      final models = results.map((e) => BookRepository.i.toModel(e)).toList();
-      state = state.copyWith(isSearching: false, searchResults: models);
+      // 使用 BookService 进行在线搜索
+      final results = await BookService.i.searchBooks(keyword);
+      state = state.copyWith(isSearching: false, searchResults: results);
     } catch (e) {
       logger.e('[BookSearchController] 搜索失败', error: e);
       state = state.copyWith(isSearching: false, errorMessage: e.toString());
@@ -69,9 +76,28 @@ class BookSearchController extends _$BookSearchController {
     state = state.copyWith(searchResults: [], searchKeyword: '', errorMessage: '');
   }
 
-  /// 选择书籍并跳转到详情页
-  void selectBook(BookModel book) {
-    ref.read(booksStateProvider.notifier).selectBook(book);
-    AppNavigation.toNamed(Routes.books);
+  /// 选择书籍并添加到本地，然后跳转到详情页
+  Future<void> selectBook(BookSearchResult searchResult) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      // 使用 BookService 添加书籍
+      final book = await BookService.i.addBookFromSearch(searchResult);
+      if (book != null) {
+        // 刷新书籍列表
+        await ref.read(booksStateProvider.notifier).loadAllViewpoints();
+        // 选择这本书
+        ref.read(booksStateProvider.notifier).selectBook(book);
+        UIUtils.showSuccess('book_search.add_success'.t);
+      } else {
+        UIUtils.showSuccess('book_search.already_exists'.t);
+      }
+      // 跳转到书籍页面
+      AppNavigation.toNamed(Routes.books);
+    } catch (e) {
+      logger.e('[BookSearchController] 添加书籍失败', error: e);
+      UIUtils.showError('book_search.add_failed'.t);
+    } finally {
+      state = state.copyWith(isLoading: false);
+    }
   }
 }
