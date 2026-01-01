@@ -2,12 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:daily_satori/app/styles/pages/diary_styles.dart';
+import 'package:daily_satori/app/styles/base/colors.dart';
+import 'package:daily_satori/app/styles/base/dimensions.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
-/// 日记标签选择器 - 简洁的底部弹出菜单样式
+/// 日记标签选择器 - 优雅的底部弹出菜单
 class DiaryTagSelectorDialog extends ConsumerStatefulWidget {
-  /// 选择标签后的回调，返回选中的单个标签
   final Function(String) onTagSelected;
 
   const DiaryTagSelectorDialog({super.key, required this.onTagSelected});
@@ -19,11 +19,12 @@ class DiaryTagSelectorDialog extends ConsumerStatefulWidget {
 class _DiaryTagSelectorDialogState extends ConsumerState<DiaryTagSelectorDialog> {
   final TextEditingController _newTagController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  bool _hasInput = false;
 
   @override
   void initState() {
     super.initState();
-    // 延迟请求焦点，确保 widget 已经构建完成
+    _newTagController.addListener(_onInputChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
@@ -31,22 +32,29 @@ class _DiaryTagSelectorDialogState extends ConsumerState<DiaryTagSelectorDialog>
 
   @override
   void dispose() {
+    _newTagController.removeListener(_onInputChanged);
     _newTagController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  /// 选择已有标签
+  void _onInputChanged() {
+    final hasInput = _newTagController.text.trim().isNotEmpty;
+    if (_hasInput != hasInput) {
+      setState(() {
+        _hasInput = hasInput;
+      });
+    }
+  }
+
   void _selectTag(String tag) {
     widget.onTagSelected(tag);
     Navigator.pop(context);
   }
 
-  /// 添加新标签
   void _addNewTag() {
     final String newTag = _newTagController.text.trim();
     if (newTag.isNotEmpty) {
-      // 移除开头的 # 符号（如果用户输入了的话）
       final cleanTag = newTag.startsWith('#') ? newTag.substring(1) : newTag;
       if (cleanTag.isNotEmpty) {
         widget.onTagSelected(cleanTag);
@@ -58,90 +66,143 @@ class _DiaryTagSelectorDialogState extends ConsumerState<DiaryTagSelectorDialog>
   @override
   Widget build(BuildContext context) {
     final existingTags = ref.watch(diaryControllerProvider).tags;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 16, left: 16, right: 16, top: 16),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + Dimensions.spacingM,
+        left: Dimensions.spacingM,
+        right: Dimensions.spacingM,
+        top: Dimensions.spacingS,
+      ),
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        color: AppColors.getSurface(context),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 标题
-          Row(
-            children: [
-              Icon(FeatherIcons.tag, size: 18, color: DiaryStyles.getAccentColor(context)),
-              const SizedBox(width: 8),
-              Text(
-                'button.add_tag'.t,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: DiaryStyles.getPrimaryTextColor(context),
-                ),
+          // 顶部拖动指示器
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: Dimensions.spacingM),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[700] : Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // 新标签输入框
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _newTagController,
-                  focusNode: _focusNode,
-                  decoration: InputDecoration(
-                    hintText: 'hint.enter_new_tag'.t,
-                    prefixText: '# ',
-                    prefixStyle: TextStyle(color: DiaryStyles.getAccentColor(context), fontWeight: FontWeight.w500),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    isDense: true,
-                  ),
-                  style: TextStyle(fontSize: 14, color: DiaryStyles.getPrimaryTextColor(context)),
-                  onSubmitted: (_) => _addNewTag(),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: Icon(FeatherIcons.plus, color: DiaryStyles.getAccentColor(context)),
-                onPressed: _addNewTag,
-                tooltip: 'button.add'.t,
-              ),
-            ],
+            ),
           ),
 
-          // 已有标签列表
+          // 输入区域
+          _buildInputField(context),
+
+          // 已有标签
           if (existingTags.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(
-              'ui.existing_tags'.t,
-              style: TextStyle(fontSize: 12, color: DiaryStyles.getSecondaryTextColor(context)),
-            ),
-            const SizedBox(height: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 150),
-              child: SingleChildScrollView(
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: existingTags.map((tag) {
-                    return ActionChip(
-                      label: Text('#$tag'),
-                      onPressed: () => _selectTag(tag),
-                      backgroundColor: DiaryStyles.getCardBackgroundColor(context),
-                      labelStyle: TextStyle(fontSize: 13, color: DiaryStyles.getPrimaryTextColor(context)),
-                      side: BorderSide(color: DiaryStyles.getDividerColor(context), width: 1),
-                    );
-                  }).toList(),
+            const SizedBox(height: Dimensions.spacingL),
+            _buildTagsSection(context, existingTags),
+          ],
+
+          // 底部安全区域
+          SizedBox(height: MediaQuery.of(context).padding.bottom > 0 ? 0 : Dimensions.spacingS),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputField(BuildContext context) {
+    final primaryColor = AppColors.getPrimary(context);
+
+    return TextField(
+      controller: _newTagController,
+      focusNode: _focusNode,
+      style: TextStyle(fontSize: 16, color: AppColors.getOnSurface(context)),
+      decoration: InputDecoration(
+        hintText: 'hint.enter_new_tag'.t,
+        hintStyle: TextStyle(color: AppColors.getOnSurfaceVariant(context), fontSize: 15),
+        filled: true,
+        fillColor: AppColors.getSurfaceContainer(context),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        // 前缀图标 - #
+        prefixIcon: Container(
+          width: 40,
+          alignment: Alignment.center,
+          child: Text(
+            '#',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor),
+          ),
+        ),
+        // 后缀按钮 - 添加
+        suffixIcon: _hasInput
+            ? Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _addNewTag,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    margin: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: primaryColor.withValues(alpha: 0.1), shape: BoxShape.circle),
+                    child: Icon(FeatherIcons.arrowUp, size: 20, color: primaryColor),
+                  ),
+                ),
+              )
+            : null,
+      ),
+      onSubmitted: (_) => _addNewTag(),
+    );
+  }
+
+  Widget _buildTagsSection(BuildContext context, List<String> tags) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 200),
+      child: SingleChildScrollView(
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.start,
+          children: tags.map((tag) => _buildTagChip(context, tag)).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTagChip(BuildContext context, String tag) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _selectTag(tag),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.getSurfaceContainer(context),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05), width: 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '#',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.getPrimary(context).withValues(alpha: 0.7),
                 ),
               ),
-            ),
-          ],
-        ],
+              const SizedBox(width: 4),
+              Text(
+                tag,
+                style: TextStyle(fontSize: 14, color: AppColors.getOnSurface(context), fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
