@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:daily_satori/app/pages/diary/utils/diary_utils.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/diary_tag_selector_dialog.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/markdown_toolbar.dart';
-import 'package:daily_satori/app/providers/diary_controller_provider.dart';
+import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:feather_icons/feather_icons.dart';

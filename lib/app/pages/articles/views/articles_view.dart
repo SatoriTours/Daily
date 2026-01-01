@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:daily_satori/app/providers/providers.dart';
+import 'package:daily_satori/app/pages/articles/providers/articles_controller_provider.dart';
 import 'package:daily_satori/app/components/empty_states/articles_empty_view.dart';
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';

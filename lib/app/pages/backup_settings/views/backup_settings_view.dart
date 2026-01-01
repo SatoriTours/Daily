@@ -1,7 +1,7 @@
 import 'package:daily_satori/app/navigation/app_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:daily_satori/app/providers/providers.dart';
+import 'package:daily_satori/app/pages/backup_settings/providers/backup_settings_controller_provider.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
 import 'package:daily_satori/app/styles/index.dart';

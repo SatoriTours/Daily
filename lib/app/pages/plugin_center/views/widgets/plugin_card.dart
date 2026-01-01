@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/providers/providers.dart';
+import 'package:daily_satori/app/pages/plugin_center/providers/plugin_center_controller_provider.dart';
 import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';

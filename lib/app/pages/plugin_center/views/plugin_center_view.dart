@@ -5,7 +5,7 @@ import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:daily_satori/app/providers/providers.dart';
+import 'package:daily_satori/app/pages/plugin_center/providers/plugin_center_controller_provider.dart';
 
 /// 插件中心视图
 class PluginCenterView extends ConsumerWidget {
@@ -14,10 +14,10 @@ class PluginCenterView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(pluginCenterControllerProvider);
-    // Note: PluginService.i.getAllPlugins() might not be reactive. 
+    // Note: PluginService.i.getAllPlugins() might not be reactive.
     // Ideally the controller should expose the list of plugins.
     // For now, we assume the list is static or we might need to reload it.
-    // But since we are just fixing compilation errors, let's stick to what we have 
+    // But since we are just fixing compilation errors, let's stick to what we have
     // but make sure it compiles.
     final plugins = PluginService.i.getAllPlugins();
     final hasPlugins = plugins.isNotEmpty;
@@ -138,11 +138,11 @@ class PluginCenterView extends ConsumerWidget {
                 // 刷新按钮
                 ElevatedButton.icon(
                   onPressed: () {
-                     // Trigger rebuild
-                     // ref.refresh(pluginCenterControllerProvider); 
-                     // But controller doesn't hold plugins list.
-                     // Just force rebuild?
-                     (context as Element).markNeedsBuild();
+                    // Trigger rebuild
+                    // ref.refresh(pluginCenterControllerProvider);
+                    // But controller doesn't hold plugins list.
+                    // Just force rebuild?
+                    (context as Element).markNeedsBuild();
                   },
                   icon: const Icon(Icons.refresh_rounded, size: Dimensions.iconSizeS),
                   label: const Text('刷新'),

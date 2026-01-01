@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' show VoidCallback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:daily_satori/app/providers/providers.dart';
+import 'package:daily_satori/app/pages/left_bar/providers/left_bar_controller_provider.dart';
+import 'package:daily_satori/app/pages/articles/providers/articles_controller_provider.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/styles/index.dart';
 

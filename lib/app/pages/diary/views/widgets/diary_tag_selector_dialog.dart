@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:daily_satori/app/providers/diary_controller_provider.dart';
+import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/pages/diary_styles.dart';

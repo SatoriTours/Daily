@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:daily_satori/app/providers/plugin_center_controller_provider.dart';
+import 'package:daily_satori/app/pages/plugin_center/providers/plugin_center_controller_provider.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
 /// 服务器URL设置对话框

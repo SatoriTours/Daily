@@ -5,7 +5,7 @@ import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:daily_satori/app/providers/providers.dart';
+import 'package:daily_satori/app/pages/settings/providers/settings_controller_provider.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
@@ -60,7 +60,11 @@ class SettingsView extends ConsumerWidget {
           child: ListView(
             physics: const BouncingScrollPhysics(),
             padding: Dimensions.paddingM,
-            children: [_buildFunctionSection(context, ref), _buildSystemSection(context, ref), Dimensions.verticalSpacerL],
+            children: [
+              _buildFunctionSection(context, ref),
+              _buildSystemSection(context, ref),
+              Dimensions.verticalSpacerL,
+            ],
           ),
         ),
         _buildVersionInfo(context, ref),
@@ -614,7 +618,9 @@ class SettingsView extends ConsumerWidget {
 
   /// 显示密码设置对话框
   void _showPasswordSettingDialog(BuildContext context, WidgetRef ref) {
-    final passwordController = TextEditingController(text: ref.read(settingsControllerProvider.notifier).getWebServerPassword());
+    final passwordController = TextEditingController(
+      text: ref.read(settingsControllerProvider.notifier).getWebServerPassword(),
+    );
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
@@ -653,7 +659,11 @@ class SettingsView extends ConsumerWidget {
   }
 
   /// 构建密码对话框操作按钮
-  List<Widget> _buildPasswordDialogActions(BuildContext context, WidgetRef ref, TextEditingController passwordController) {
+  List<Widget> _buildPasswordDialogActions(
+    BuildContext context,
+    WidgetRef ref,
+    TextEditingController passwordController,
+  ) {
     return [
       SizedBox(
         width: double.infinity,
@@ -840,11 +850,7 @@ class _PasswordDialogContent extends StatefulWidget {
   final ColorScheme colorScheme;
   final TextTheme textTheme;
 
-  const _PasswordDialogContent({
-    required this.passwordController,
-    required this.colorScheme,
-    required this.textTheme,
-  });
+  const _PasswordDialogContent({required this.passwordController, required this.colorScheme, required this.textTheme});
 
   @override
   State<_PasswordDialogContent> createState() => _PasswordDialogContentState();
@@ -880,7 +886,10 @@ class _PasswordDialogContentState extends State<_PasswordDialogContent> {
           Expanded(
             child: Text(
               'setting.password_tip'.t,
-              style: widget.textTheme.bodySmall?.copyWith(color: widget.colorScheme.onSurface.withValues(alpha: 0.7), height: 1.3),
+              style: widget.textTheme.bodySmall?.copyWith(
+                color: widget.colorScheme.onSurface.withValues(alpha: 0.7),
+                height: 1.3,
+              ),
             ),
           ),
         ],

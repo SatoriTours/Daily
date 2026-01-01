@@ -4,7 +4,7 @@ import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 import 'package:daily_satori/app/components/common/common_calendar.dart';
-import 'package:daily_satori/app/providers/articles_controller_provider.dart';
+import 'package:daily_satori/app/pages/articles/providers/articles_controller_provider.dart';
 
 /// 文章日历对话框
 ///

@@ -10,7 +10,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/pages/ai_config/models/ai_config_types.dart';
-import 'package:daily_satori/app/providers/providers.dart';
+import 'package:daily_satori/app/pages/ai_config/providers/ai_config_controller_provider.dart';
 import 'package:daily_satori/app/services/index.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';

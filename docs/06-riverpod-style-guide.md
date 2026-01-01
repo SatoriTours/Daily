@@ -21,18 +21,31 @@
 ### 文件结构
 
 ```
-lib/app/providers/
-├── providers.dart              # 导出所有 providers (barrel file)
-├── article_state_provider.dart  # 文章状态服务
-├── diary_state_provider.dart    # 日记状态服务
-├── books_state_provider.dart    # 书籍状态服务
-├── app_state_provider.dart      # 全局应用状态
-└── pages/                       # 页面级 providers
-    ├── articles/
-    │   ├── articles_controller_provider.dart
-    │   └── article_detail_controller_provider.dart
-    └── diary/
-        └── diary_controller_provider.dart
+lib/app/
+├── providers/                    # 全局状态 Providers
+│   ├── providers.dart            # 导出全局 providers
+│   ├── app_state_provider.dart   # 全局应用状态
+│   ├── article_state_provider.dart
+│   ├── diary_state_provider.dart
+│   └── books_state_provider.dart
+├── pages/                        # 页面模块
+│   ├── articles/
+│   │   ├── views/               # 页面 UI
+│   │   └── providers/           # 页面级 Controller
+│   │       └── articles_controller_provider.dart
+│   ├── article_detail/
+│   │   ├── views/
+│   │   └── providers/
+│   │       └── article_detail_controller_provider.dart
+│   ├── books/
+│   │   ├── views/
+│   │   └── providers/
+│   │       ├── books_controller_provider.dart
+│   │       └── book_search_controller_provider.dart
+│   └── diary/
+│       ├── views/
+│       └── providers/
+│           └── diary_controller_provider.dart
 ```
 
 ### 命名规范

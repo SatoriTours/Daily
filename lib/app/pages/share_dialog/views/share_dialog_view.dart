@@ -4,7 +4,7 @@ import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:daily_satori/app/providers/providers.dart';
+import 'package:daily_satori/app/pages/share_dialog/providers/share_dialog_controller_provider.dart';
 
 import 'package:flutter/services.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';

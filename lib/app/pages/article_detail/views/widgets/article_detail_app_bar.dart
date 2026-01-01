@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/providers/article_detail_controller_provider.dart';
+import 'package:daily_satori/app/pages/article_detail/providers/article_detail_controller_provider.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
 class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget {

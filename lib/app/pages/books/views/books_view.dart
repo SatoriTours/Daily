@@ -1,6 +1,7 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:daily_satori/app/providers/providers.dart';
+import 'package:daily_satori/app/pages/books/providers/books_controller_provider.dart';
+import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
 import 'package:daily_satori/app/pages/books/views/widgets/widgets.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';

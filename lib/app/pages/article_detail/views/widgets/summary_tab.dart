@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/pages/article_detail/views/widgets/article_image_view.dart';
 import 'package:daily_satori/app/pages/article_detail/views/widgets/article_tags.dart';
-import 'package:daily_satori/app/providers/article_detail_controller_provider.dart';
+import 'package:daily_satori/app/pages/article_detail/providers/article_detail_controller_provider.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
 /// 文章摘要标签页
