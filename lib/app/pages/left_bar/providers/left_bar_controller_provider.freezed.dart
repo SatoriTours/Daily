@@ -15,8 +15,7 @@ T _$identity<T>(T value) => value;
 mixin _$LeftBarControllerState {
 
 /// 标签列表是否展开
- bool get isTagsExpanded;/// 所有标签列表
- List<TagModel> get tags;
+ bool get isTagsExpanded;
 /// Create a copy of LeftBarControllerState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -27,16 +26,16 @@ $LeftBarControllerStateCopyWith<LeftBarControllerState> get copyWith => _$LeftBa
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LeftBarControllerState&&(identical(other.isTagsExpanded, isTagsExpanded) || other.isTagsExpanded == isTagsExpanded)&&const DeepCollectionEquality().equals(other.tags, tags));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LeftBarControllerState&&(identical(other.isTagsExpanded, isTagsExpanded) || other.isTagsExpanded == isTagsExpanded));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,isTagsExpanded,const DeepCollectionEquality().hash(tags));
+int get hashCode => Object.hash(runtimeType,isTagsExpanded);
 
 @override
 String toString() {
-  return 'LeftBarControllerState(isTagsExpanded: $isTagsExpanded, tags: $tags)';
+  return 'LeftBarControllerState(isTagsExpanded: $isTagsExpanded)';
 }
 
 
@@ -47,7 +46,7 @@ abstract mixin class $LeftBarControllerStateCopyWith<$Res>  {
   factory $LeftBarControllerStateCopyWith(LeftBarControllerState value, $Res Function(LeftBarControllerState) _then) = _$LeftBarControllerStateCopyWithImpl;
 @useResult
 $Res call({
- bool isTagsExpanded, List<TagModel> tags
+ bool isTagsExpanded
 });
 
 
@@ -64,11 +63,10 @@ class _$LeftBarControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of LeftBarControllerState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? isTagsExpanded = null,Object? tags = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? isTagsExpanded = null,}) {
   return _then(_self.copyWith(
 isTagsExpanded: null == isTagsExpanded ? _self.isTagsExpanded : isTagsExpanded // ignore: cast_nullable_to_non_nullable
-as bool,tags: null == tags ? _self.tags : tags // ignore: cast_nullable_to_non_nullable
-as List<TagModel>,
+as bool,
   ));
 }
 
@@ -153,10 +151,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool isTagsExpanded,  List<TagModel> tags)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool isTagsExpanded)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _LeftBarControllerState() when $default != null:
-return $default(_that.isTagsExpanded,_that.tags);case _:
+return $default(_that.isTagsExpanded);case _:
   return orElse();
 
 }
@@ -174,10 +172,10 @@ return $default(_that.isTagsExpanded,_that.tags);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool isTagsExpanded,  List<TagModel> tags)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool isTagsExpanded)  $default,) {final _that = this;
 switch (_that) {
 case _LeftBarControllerState():
-return $default(_that.isTagsExpanded,_that.tags);case _:
+return $default(_that.isTagsExpanded);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -194,10 +192,10 @@ return $default(_that.isTagsExpanded,_that.tags);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool isTagsExpanded,  List<TagModel> tags)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool isTagsExpanded)?  $default,) {final _that = this;
 switch (_that) {
 case _LeftBarControllerState() when $default != null:
-return $default(_that.isTagsExpanded,_that.tags);case _:
+return $default(_that.isTagsExpanded);case _:
   return null;
 
 }
@@ -209,20 +207,11 @@ return $default(_that.isTagsExpanded,_that.tags);case _:
 
 
 class _LeftBarControllerState implements LeftBarControllerState {
-  const _LeftBarControllerState({this.isTagsExpanded = true, required final  List<TagModel> tags}): _tags = tags;
+  const _LeftBarControllerState({this.isTagsExpanded = true});
   
 
 /// 标签列表是否展开
 @override@JsonKey() final  bool isTagsExpanded;
-/// 所有标签列表
- final  List<TagModel> _tags;
-/// 所有标签列表
-@override List<TagModel> get tags {
-  if (_tags is EqualUnmodifiableListView) return _tags;
-  // ignore: implicit_dynamic_type
-  return EqualUnmodifiableListView(_tags);
-}
-
 
 /// Create a copy of LeftBarControllerState
 /// with the given fields replaced by the non-null parameter values.
@@ -234,16 +223,16 @@ _$LeftBarControllerStateCopyWith<_LeftBarControllerState> get copyWith => __$Lef
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LeftBarControllerState&&(identical(other.isTagsExpanded, isTagsExpanded) || other.isTagsExpanded == isTagsExpanded)&&const DeepCollectionEquality().equals(other._tags, _tags));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LeftBarControllerState&&(identical(other.isTagsExpanded, isTagsExpanded) || other.isTagsExpanded == isTagsExpanded));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,isTagsExpanded,const DeepCollectionEquality().hash(_tags));
+int get hashCode => Object.hash(runtimeType,isTagsExpanded);
 
 @override
 String toString() {
-  return 'LeftBarControllerState(isTagsExpanded: $isTagsExpanded, tags: $tags)';
+  return 'LeftBarControllerState(isTagsExpanded: $isTagsExpanded)';
 }
 
 
@@ -254,7 +243,7 @@ abstract mixin class _$LeftBarControllerStateCopyWith<$Res> implements $LeftBarC
   factory _$LeftBarControllerStateCopyWith(_LeftBarControllerState value, $Res Function(_LeftBarControllerState) _then) = __$LeftBarControllerStateCopyWithImpl;
 @override @useResult
 $Res call({
- bool isTagsExpanded, List<TagModel> tags
+ bool isTagsExpanded
 });
 
 
@@ -271,11 +260,10 @@ class __$LeftBarControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of LeftBarControllerState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? isTagsExpanded = null,Object? tags = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? isTagsExpanded = null,}) {
   return _then(_LeftBarControllerState(
 isTagsExpanded: null == isTagsExpanded ? _self.isTagsExpanded : isTagsExpanded // ignore: cast_nullable_to_non_nullable
-as bool,tags: null == tags ? _self._tags : tags // ignore: cast_nullable_to_non_nullable
-as List<TagModel>,
+as bool,
   ));
 }
 

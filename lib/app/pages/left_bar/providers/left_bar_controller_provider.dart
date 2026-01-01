@@ -1,6 +1,6 @@
 /// Left Bar Controller Provider
 ///
-/// 侧边栏控制器，管理标签列表和展开状态。
+/// 侧边栏控制器，管理标签列表展开状态。
 
 library;
 
@@ -18,8 +18,6 @@ abstract class LeftBarControllerState with _$LeftBarControllerState {
   const factory LeftBarControllerState({
     /// 标签列表是否展开
     @Default(true) bool isTagsExpanded,
-    /// 所有标签列表
-    required List<TagModel> tags,
   }) = _LeftBarControllerState;
 }
 
@@ -28,17 +26,19 @@ abstract class LeftBarControllerState with _$LeftBarControllerState {
 class LeftBarController extends _$LeftBarController {
   @override
   LeftBarControllerState build() {
-    final tags = TagRepository.i.allModels();
-    return LeftBarControllerState(tags: tags);
-  }
-
-  /// 获取所有标签
-  List<TagModel> getTags() {
-    return TagRepository.i.allModels();
+    return const LeftBarControllerState();
   }
 
   /// 切换标签展开状态
   void toggleTagsExpanded() {
     state = state.copyWith(isTagsExpanded: !state.isTagsExpanded);
   }
+}
+
+/// 侧边栏标签列表 Provider
+///
+/// Derived provider，从 TagRepository 获取所有标签
+@riverpod
+List<TagModel> leftBarTags(Ref ref) {
+  return TagRepository.i.allModels();
 }

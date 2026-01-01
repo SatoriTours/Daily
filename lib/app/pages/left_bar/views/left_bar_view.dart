@@ -133,18 +133,18 @@ class LeftBarView extends ConsumerWidget {
 
   Widget _buildTagsList(BuildContext context, WidgetRef ref) {
     final colorScheme = AppTheme.getColorScheme(context);
-    final state = ref.watch(leftBarControllerProvider);
+    final tags = ref.watch(leftBarTagsProvider);
 
-    if (state.tags.isEmpty) {
+    if (tags.isEmpty) {
       return Center(
         child: Text('暂无标签', style: TextStyle(color: colorScheme.onSurfaceVariant)),
       );
     }
 
     return ListView.builder(
-      itemCount: state.tags.length,
+      itemCount: tags.length,
       padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
-      itemBuilder: (context, index) => _buildTagItem(context, ref, state.tags[index]),
+      itemBuilder: (context, index) => _buildTagItem(context, ref, tags[index]),
     );
   }
 

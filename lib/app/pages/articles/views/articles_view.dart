@@ -116,9 +116,7 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
     ArticlesController controller,
     WidgetRef ref,
   ) {
-    // 加载最新标签数据
-    ref.read(articleStateProvider.notifier).loadAllTags();
-    final tags = ref.read(articleStateProvider).allTags;
+    final tags = ref.read(articleAllTagsProvider);
 
     showModalBottomSheet(
       context: context,
@@ -143,9 +141,7 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
     if (hasFilters) {
       controller.clearAllFilters();
     }
-    // 加载最新日期统计数据
-    ref.read(articleStateProvider.notifier).refreshArticleDailyCounts();
-    final articleCountMap = ref.read(articleStateProvider).articleDailyCounts;
+    final articleCountMap = ref.read(articleDailyCountsProvider);
 
     showModalBottomSheet(
       context: context,

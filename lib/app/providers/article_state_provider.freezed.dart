@@ -422,8 +422,7 @@ as int,
 /// @nodoc
 mixin _$ArticleStateModel {
 
- List<ArticleModel> get articles; bool get isLoading; int get activeArticleId; ArticleModel? get activeArticle; ArticleUpdateEvent get articleUpdateEvent; String get globalSearchQuery; bool get isGlobalSearchActive;// 缓存数据：标签列表和文章日期统计
- List<TagModel> get allTags; Map<DateTime, int> get articleDailyCounts;
+ List<ArticleModel> get articles; bool get isLoading; int get activeArticleId; ArticleModel? get activeArticle; ArticleUpdateEvent get articleUpdateEvent; String get globalSearchQuery; bool get isGlobalSearchActive;
 /// Create a copy of ArticleStateModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -434,16 +433,16 @@ $ArticleStateModelCopyWith<ArticleStateModel> get copyWith => _$ArticleStateMode
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ArticleStateModel&&const DeepCollectionEquality().equals(other.articles, articles)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.activeArticleId, activeArticleId) || other.activeArticleId == activeArticleId)&&(identical(other.activeArticle, activeArticle) || other.activeArticle == activeArticle)&&(identical(other.articleUpdateEvent, articleUpdateEvent) || other.articleUpdateEvent == articleUpdateEvent)&&(identical(other.globalSearchQuery, globalSearchQuery) || other.globalSearchQuery == globalSearchQuery)&&(identical(other.isGlobalSearchActive, isGlobalSearchActive) || other.isGlobalSearchActive == isGlobalSearchActive)&&const DeepCollectionEquality().equals(other.allTags, allTags)&&const DeepCollectionEquality().equals(other.articleDailyCounts, articleDailyCounts));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ArticleStateModel&&const DeepCollectionEquality().equals(other.articles, articles)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.activeArticleId, activeArticleId) || other.activeArticleId == activeArticleId)&&(identical(other.activeArticle, activeArticle) || other.activeArticle == activeArticle)&&(identical(other.articleUpdateEvent, articleUpdateEvent) || other.articleUpdateEvent == articleUpdateEvent)&&(identical(other.globalSearchQuery, globalSearchQuery) || other.globalSearchQuery == globalSearchQuery)&&(identical(other.isGlobalSearchActive, isGlobalSearchActive) || other.isGlobalSearchActive == isGlobalSearchActive));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(articles),isLoading,activeArticleId,activeArticle,articleUpdateEvent,globalSearchQuery,isGlobalSearchActive,const DeepCollectionEquality().hash(allTags),const DeepCollectionEquality().hash(articleDailyCounts));
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(articles),isLoading,activeArticleId,activeArticle,articleUpdateEvent,globalSearchQuery,isGlobalSearchActive);
 
 @override
 String toString() {
-  return 'ArticleStateModel(articles: $articles, isLoading: $isLoading, activeArticleId: $activeArticleId, activeArticle: $activeArticle, articleUpdateEvent: $articleUpdateEvent, globalSearchQuery: $globalSearchQuery, isGlobalSearchActive: $isGlobalSearchActive, allTags: $allTags, articleDailyCounts: $articleDailyCounts)';
+  return 'ArticleStateModel(articles: $articles, isLoading: $isLoading, activeArticleId: $activeArticleId, activeArticle: $activeArticle, articleUpdateEvent: $articleUpdateEvent, globalSearchQuery: $globalSearchQuery, isGlobalSearchActive: $isGlobalSearchActive)';
 }
 
 
@@ -454,7 +453,7 @@ abstract mixin class $ArticleStateModelCopyWith<$Res>  {
   factory $ArticleStateModelCopyWith(ArticleStateModel value, $Res Function(ArticleStateModel) _then) = _$ArticleStateModelCopyWithImpl;
 @useResult
 $Res call({
- List<ArticleModel> articles, bool isLoading, int activeArticleId, ArticleModel? activeArticle, ArticleUpdateEvent articleUpdateEvent, String globalSearchQuery, bool isGlobalSearchActive, List<TagModel> allTags, Map<DateTime, int> articleDailyCounts
+ List<ArticleModel> articles, bool isLoading, int activeArticleId, ArticleModel? activeArticle, ArticleUpdateEvent articleUpdateEvent, String globalSearchQuery, bool isGlobalSearchActive
 });
 
 
@@ -471,7 +470,7 @@ class _$ArticleStateModelCopyWithImpl<$Res>
 
 /// Create a copy of ArticleStateModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? articles = null,Object? isLoading = null,Object? activeArticleId = null,Object? activeArticle = freezed,Object? articleUpdateEvent = null,Object? globalSearchQuery = null,Object? isGlobalSearchActive = null,Object? allTags = null,Object? articleDailyCounts = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? articles = null,Object? isLoading = null,Object? activeArticleId = null,Object? activeArticle = freezed,Object? articleUpdateEvent = null,Object? globalSearchQuery = null,Object? isGlobalSearchActive = null,}) {
   return _then(_self.copyWith(
 articles: null == articles ? _self.articles : articles // ignore: cast_nullable_to_non_nullable
 as List<ArticleModel>,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
@@ -480,9 +479,7 @@ as int,activeArticle: freezed == activeArticle ? _self.activeArticle : activeArt
 as ArticleModel?,articleUpdateEvent: null == articleUpdateEvent ? _self.articleUpdateEvent : articleUpdateEvent // ignore: cast_nullable_to_non_nullable
 as ArticleUpdateEvent,globalSearchQuery: null == globalSearchQuery ? _self.globalSearchQuery : globalSearchQuery // ignore: cast_nullable_to_non_nullable
 as String,isGlobalSearchActive: null == isGlobalSearchActive ? _self.isGlobalSearchActive : isGlobalSearchActive // ignore: cast_nullable_to_non_nullable
-as bool,allTags: null == allTags ? _self.allTags : allTags // ignore: cast_nullable_to_non_nullable
-as List<TagModel>,articleDailyCounts: null == articleDailyCounts ? _self.articleDailyCounts : articleDailyCounts // ignore: cast_nullable_to_non_nullable
-as Map<DateTime, int>,
+as bool,
   ));
 }
 /// Create a copy of ArticleStateModel
@@ -576,10 +573,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<ArticleModel> articles,  bool isLoading,  int activeArticleId,  ArticleModel? activeArticle,  ArticleUpdateEvent articleUpdateEvent,  String globalSearchQuery,  bool isGlobalSearchActive,  List<TagModel> allTags,  Map<DateTime, int> articleDailyCounts)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<ArticleModel> articles,  bool isLoading,  int activeArticleId,  ArticleModel? activeArticle,  ArticleUpdateEvent articleUpdateEvent,  String globalSearchQuery,  bool isGlobalSearchActive)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ArticleStateModel() when $default != null:
-return $default(_that.articles,_that.isLoading,_that.activeArticleId,_that.activeArticle,_that.articleUpdateEvent,_that.globalSearchQuery,_that.isGlobalSearchActive,_that.allTags,_that.articleDailyCounts);case _:
+return $default(_that.articles,_that.isLoading,_that.activeArticleId,_that.activeArticle,_that.articleUpdateEvent,_that.globalSearchQuery,_that.isGlobalSearchActive);case _:
   return orElse();
 
 }
@@ -597,10 +594,10 @@ return $default(_that.articles,_that.isLoading,_that.activeArticleId,_that.activ
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<ArticleModel> articles,  bool isLoading,  int activeArticleId,  ArticleModel? activeArticle,  ArticleUpdateEvent articleUpdateEvent,  String globalSearchQuery,  bool isGlobalSearchActive,  List<TagModel> allTags,  Map<DateTime, int> articleDailyCounts)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<ArticleModel> articles,  bool isLoading,  int activeArticleId,  ArticleModel? activeArticle,  ArticleUpdateEvent articleUpdateEvent,  String globalSearchQuery,  bool isGlobalSearchActive)  $default,) {final _that = this;
 switch (_that) {
 case _ArticleStateModel():
-return $default(_that.articles,_that.isLoading,_that.activeArticleId,_that.activeArticle,_that.articleUpdateEvent,_that.globalSearchQuery,_that.isGlobalSearchActive,_that.allTags,_that.articleDailyCounts);case _:
+return $default(_that.articles,_that.isLoading,_that.activeArticleId,_that.activeArticle,_that.articleUpdateEvent,_that.globalSearchQuery,_that.isGlobalSearchActive);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -617,10 +614,10 @@ return $default(_that.articles,_that.isLoading,_that.activeArticleId,_that.activ
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<ArticleModel> articles,  bool isLoading,  int activeArticleId,  ArticleModel? activeArticle,  ArticleUpdateEvent articleUpdateEvent,  String globalSearchQuery,  bool isGlobalSearchActive,  List<TagModel> allTags,  Map<DateTime, int> articleDailyCounts)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<ArticleModel> articles,  bool isLoading,  int activeArticleId,  ArticleModel? activeArticle,  ArticleUpdateEvent articleUpdateEvent,  String globalSearchQuery,  bool isGlobalSearchActive)?  $default,) {final _that = this;
 switch (_that) {
 case _ArticleStateModel() when $default != null:
-return $default(_that.articles,_that.isLoading,_that.activeArticleId,_that.activeArticle,_that.articleUpdateEvent,_that.globalSearchQuery,_that.isGlobalSearchActive,_that.allTags,_that.articleDailyCounts);case _:
+return $default(_that.articles,_that.isLoading,_that.activeArticleId,_that.activeArticle,_that.articleUpdateEvent,_that.globalSearchQuery,_that.isGlobalSearchActive);case _:
   return null;
 
 }
@@ -632,7 +629,7 @@ return $default(_that.articles,_that.isLoading,_that.activeArticleId,_that.activ
 
 
 class _ArticleStateModel extends ArticleStateModel {
-  const _ArticleStateModel({final  List<ArticleModel> articles = const [], this.isLoading = false, this.activeArticleId = -1, this.activeArticle, this.articleUpdateEvent = const ArticleUpdateEvent.none(), this.globalSearchQuery = '', this.isGlobalSearchActive = false, final  List<TagModel> allTags = const [], final  Map<DateTime, int> articleDailyCounts = const {}}): _articles = articles,_allTags = allTags,_articleDailyCounts = articleDailyCounts,super._();
+  const _ArticleStateModel({final  List<ArticleModel> articles = const [], this.isLoading = false, this.activeArticleId = -1, this.activeArticle, this.articleUpdateEvent = const ArticleUpdateEvent.none(), this.globalSearchQuery = '', this.isGlobalSearchActive = false}): _articles = articles,super._();
   
 
  final  List<ArticleModel> _articles;
@@ -648,22 +645,6 @@ class _ArticleStateModel extends ArticleStateModel {
 @override@JsonKey() final  ArticleUpdateEvent articleUpdateEvent;
 @override@JsonKey() final  String globalSearchQuery;
 @override@JsonKey() final  bool isGlobalSearchActive;
-// 缓存数据：标签列表和文章日期统计
- final  List<TagModel> _allTags;
-// 缓存数据：标签列表和文章日期统计
-@override@JsonKey() List<TagModel> get allTags {
-  if (_allTags is EqualUnmodifiableListView) return _allTags;
-  // ignore: implicit_dynamic_type
-  return EqualUnmodifiableListView(_allTags);
-}
-
- final  Map<DateTime, int> _articleDailyCounts;
-@override@JsonKey() Map<DateTime, int> get articleDailyCounts {
-  if (_articleDailyCounts is EqualUnmodifiableMapView) return _articleDailyCounts;
-  // ignore: implicit_dynamic_type
-  return EqualUnmodifiableMapView(_articleDailyCounts);
-}
-
 
 /// Create a copy of ArticleStateModel
 /// with the given fields replaced by the non-null parameter values.
@@ -675,16 +656,16 @@ _$ArticleStateModelCopyWith<_ArticleStateModel> get copyWith => __$ArticleStateM
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ArticleStateModel&&const DeepCollectionEquality().equals(other._articles, _articles)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.activeArticleId, activeArticleId) || other.activeArticleId == activeArticleId)&&(identical(other.activeArticle, activeArticle) || other.activeArticle == activeArticle)&&(identical(other.articleUpdateEvent, articleUpdateEvent) || other.articleUpdateEvent == articleUpdateEvent)&&(identical(other.globalSearchQuery, globalSearchQuery) || other.globalSearchQuery == globalSearchQuery)&&(identical(other.isGlobalSearchActive, isGlobalSearchActive) || other.isGlobalSearchActive == isGlobalSearchActive)&&const DeepCollectionEquality().equals(other._allTags, _allTags)&&const DeepCollectionEquality().equals(other._articleDailyCounts, _articleDailyCounts));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ArticleStateModel&&const DeepCollectionEquality().equals(other._articles, _articles)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.activeArticleId, activeArticleId) || other.activeArticleId == activeArticleId)&&(identical(other.activeArticle, activeArticle) || other.activeArticle == activeArticle)&&(identical(other.articleUpdateEvent, articleUpdateEvent) || other.articleUpdateEvent == articleUpdateEvent)&&(identical(other.globalSearchQuery, globalSearchQuery) || other.globalSearchQuery == globalSearchQuery)&&(identical(other.isGlobalSearchActive, isGlobalSearchActive) || other.isGlobalSearchActive == isGlobalSearchActive));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_articles),isLoading,activeArticleId,activeArticle,articleUpdateEvent,globalSearchQuery,isGlobalSearchActive,const DeepCollectionEquality().hash(_allTags),const DeepCollectionEquality().hash(_articleDailyCounts));
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_articles),isLoading,activeArticleId,activeArticle,articleUpdateEvent,globalSearchQuery,isGlobalSearchActive);
 
 @override
 String toString() {
-  return 'ArticleStateModel(articles: $articles, isLoading: $isLoading, activeArticleId: $activeArticleId, activeArticle: $activeArticle, articleUpdateEvent: $articleUpdateEvent, globalSearchQuery: $globalSearchQuery, isGlobalSearchActive: $isGlobalSearchActive, allTags: $allTags, articleDailyCounts: $articleDailyCounts)';
+  return 'ArticleStateModel(articles: $articles, isLoading: $isLoading, activeArticleId: $activeArticleId, activeArticle: $activeArticle, articleUpdateEvent: $articleUpdateEvent, globalSearchQuery: $globalSearchQuery, isGlobalSearchActive: $isGlobalSearchActive)';
 }
 
 
@@ -695,7 +676,7 @@ abstract mixin class _$ArticleStateModelCopyWith<$Res> implements $ArticleStateM
   factory _$ArticleStateModelCopyWith(_ArticleStateModel value, $Res Function(_ArticleStateModel) _then) = __$ArticleStateModelCopyWithImpl;
 @override @useResult
 $Res call({
- List<ArticleModel> articles, bool isLoading, int activeArticleId, ArticleModel? activeArticle, ArticleUpdateEvent articleUpdateEvent, String globalSearchQuery, bool isGlobalSearchActive, List<TagModel> allTags, Map<DateTime, int> articleDailyCounts
+ List<ArticleModel> articles, bool isLoading, int activeArticleId, ArticleModel? activeArticle, ArticleUpdateEvent articleUpdateEvent, String globalSearchQuery, bool isGlobalSearchActive
 });
 
 
@@ -712,7 +693,7 @@ class __$ArticleStateModelCopyWithImpl<$Res>
 
 /// Create a copy of ArticleStateModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? articles = null,Object? isLoading = null,Object? activeArticleId = null,Object? activeArticle = freezed,Object? articleUpdateEvent = null,Object? globalSearchQuery = null,Object? isGlobalSearchActive = null,Object? allTags = null,Object? articleDailyCounts = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? articles = null,Object? isLoading = null,Object? activeArticleId = null,Object? activeArticle = freezed,Object? articleUpdateEvent = null,Object? globalSearchQuery = null,Object? isGlobalSearchActive = null,}) {
   return _then(_ArticleStateModel(
 articles: null == articles ? _self._articles : articles // ignore: cast_nullable_to_non_nullable
 as List<ArticleModel>,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
@@ -721,9 +702,7 @@ as int,activeArticle: freezed == activeArticle ? _self.activeArticle : activeArt
 as ArticleModel?,articleUpdateEvent: null == articleUpdateEvent ? _self.articleUpdateEvent : articleUpdateEvent // ignore: cast_nullable_to_non_nullable
 as ArticleUpdateEvent,globalSearchQuery: null == globalSearchQuery ? _self.globalSearchQuery : globalSearchQuery // ignore: cast_nullable_to_non_nullable
 as String,isGlobalSearchActive: null == isGlobalSearchActive ? _self.isGlobalSearchActive : isGlobalSearchActive // ignore: cast_nullable_to_non_nullable
-as bool,allTags: null == allTags ? _self._allTags : allTags // ignore: cast_nullable_to_non_nullable
-as List<TagModel>,articleDailyCounts: null == articleDailyCounts ? _self._articleDailyCounts : articleDailyCounts // ignore: cast_nullable_to_non_nullable
-as Map<DateTime, int>,
+as bool,
   ));
 }
 
