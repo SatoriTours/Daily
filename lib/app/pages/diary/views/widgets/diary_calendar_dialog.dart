@@ -38,7 +38,7 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final diaries = ref.watch(diaryStateProvider).diaries;
+    final diaries = ref.watch(diaryStateProvider.select((s) => s.diaries));
     _diaryCountMap = _getDailyDiaryCounts(diaries);
 
     return Container(

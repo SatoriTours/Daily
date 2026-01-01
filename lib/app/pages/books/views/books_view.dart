@@ -208,8 +208,8 @@ class _BooksAppBar extends ConsumerWidget implements PreferredSizeWidget {
 class _BooksFilterDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final booksState = ref.watch(booksStateProvider);
-    final books = booksState.allBooks;
+    final books = ref.watch(booksStateProvider.select((s) => s.allBooks));
+    final filterBookID = ref.watch(booksStateProvider.select((s) => s.filterBookID));
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -237,10 +237,10 @@ class _BooksFilterDialog extends ConsumerWidget {
             itemCount: books.length + 1,
             itemBuilder: (_, index) {
               if (index == 0) {
-                return _buildItem(context, ref, null, booksState.filterBookID == -1);
+                return _buildItem(context, ref, null, filterBookID == -1);
               }
               final book = books[index - 1];
-              return _buildItem(context, ref, book, booksState.filterBookID == book.id);
+              return _buildItem(context, ref, book, filterBookID == book.id);
             },
           ),
         ),
@@ -314,8 +314,8 @@ class _BooksBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final booksState = ref.watch(booksStateProvider);
-    if (booksState.viewpoints.isEmpty) {
+    final viewpoints = ref.watch(booksStateProvider.select((s) => s.viewpoints));
+    if (viewpoints.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -327,18 +327,18 @@ class _BooksBody extends ConsumerWidget {
         ),
       );
     }
-    return _buildViewpointList(ref, booksState);
+    return _buildViewpointList(ref, viewpoints);
   }
 
-  Widget _buildViewpointList(WidgetRef ref, BooksStateModel booksState) {
+  Widget _buildViewpointList(WidgetRef ref, List<BookViewpointModel> viewpoints) {
     final controllerState = ref.watch(booksControllerProvider);
     final booksNotifier = ref.read(booksStateProvider.notifier);
     return PageView.builder(
       controller: controllerState.pageController,
       onPageChanged: (index) => ref.read(booksControllerProvider.notifier).goToViewpointIndex(index),
-      itemCount: booksState.viewpoints.length,
+      itemCount: viewpoints.length,
       itemBuilder: (context, index) {
-        final viewpoint = booksState.viewpoints[index];
+        final viewpoint = viewpoints[index];
         return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
             Dimensions.spacingM,

@@ -168,7 +168,8 @@ class _ArticlesBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(articlesControllerProvider);
     final controller = ref.read(articlesControllerProvider.notifier);
-    final articleState = ref.watch(articleStateProvider);
+    final articles = ref.watch(articleStateProvider.select((s) => s.articles));
+    final isLoading = ref.watch(articleStateProvider.select((s) => s.isLoading));
     final isSearchVisible = ref.watch(appGlobalStateProvider.select((s) => s.isSearchBarVisible));
     final hasFilters = ref.watch(hasFiltersProvider);
     final displayTitle = ref.watch(displayTitleProvider);
@@ -177,7 +178,7 @@ class _ArticlesBody extends ConsumerWidget {
       children: [
         if (isSearchVisible) _buildSearchBar(state, controller),
         if (hasFilters) FilterIndicator(title: displayTitle, onClear: controller.clearAllFilters),
-        Expanded(child: _buildArticlesList(articleState.articles, articleState.isLoading, state, controller)),
+        Expanded(child: _buildArticlesList(articles, isLoading, state, controller)),
       ],
     );
   }
