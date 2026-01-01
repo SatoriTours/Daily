@@ -65,18 +65,21 @@ abstract class ArticlesControllerState with _$ArticlesControllerState {
 /// 添加基于其他provider的getter和计算方法
 extension ArticlesControllerStateX on ArticlesControllerState {
   /// 获取文章列表 (需要通过ref访问)
+  /// 使用 ref.watch() 确保 UI 能响应状态变化
   List<ArticleModel> getArticles(WidgetRef ref) {
-    return ref.read(articleStateProvider).articles;
+    return ref.watch(articleStateProvider).articles;
   }
 
   /// 是否正在加载文章 (需要通过ref访问)
+  /// 使用 ref.watch() 确保 UI 能响应状态变化
   bool isLoadingArticles(WidgetRef ref) {
-    return ref.read(articleStateProvider).isLoading;
+    return ref.watch(articleStateProvider).isLoading;
   }
 
   /// 获取标题 (需要通过ref访问)
+  /// 使用 ref.watch() 确保 UI 能响应搜索状态变化
   String getTitle(WidgetRef ref) {
-    final articleState = ref.read(articleStateProvider);
+    final articleState = ref.watch(articleStateProvider);
     final searchQuery = articleState.globalSearchQuery;
 
     return switch ((searchQuery.isNotEmpty, tagName.isNotEmpty, onlyFavorite, selectedFilterDate != null)) {
@@ -94,8 +97,9 @@ extension ArticlesControllerStateX on ArticlesControllerState {
   }
 
   /// 是否存在任一过滤条件 (需要通过ref访问)
+  /// 使用 ref.watch() 确保 UI 能响应搜索状态变化
   bool hasActiveFilters(WidgetRef ref) {
-    final articleState = ref.read(articleStateProvider);
+    final articleState = ref.watch(articleStateProvider);
     return articleState.globalSearchQuery.isNotEmpty ||
         tagName.isNotEmpty ||
         onlyFavorite ||

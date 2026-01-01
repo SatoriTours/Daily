@@ -170,7 +170,7 @@ class DialogUtils {
     showDialog(
       context: ctx,
       barrierDismissible: false,
-      barrierColor: barrierColor ?? const Color(0x80000000),
+      barrierColor: barrierColor ?? Colors.black.withValues(alpha: 0.5),
       builder: (context) => PopScope(
         canPop: false,
         child: Center(

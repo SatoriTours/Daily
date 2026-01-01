@@ -34,15 +34,15 @@ class SettingsView extends ConsumerWidget {
   /// 构建顶部导航栏
   PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref) {
     return SAppBar(
-      title: Text('title.settings'.t, style: const TextStyle(color: Colors.white)),
+      title: Text('title.settings'.t, style: TextStyle(color: AppColors.getOnPrimary(context))),
       centerTitle: true,
       elevation: 0,
       backgroundColorLight: AppColors.primary,
       backgroundColorDark: AppColors.backgroundDark,
-      foregroundColor: Colors.white,
+      foregroundColor: AppColors.getOnPrimary(context),
       actions: [
         IconButton(
-          icon: const Icon(Icons.info_outline, color: Colors.white),
+          icon: Icon(Icons.info_outline, color: AppColors.getOnPrimary(context)),
           tooltip: 'dialog.about'.t,
           onPressed: () => _showAboutDialog(context, ref),
         ),
@@ -88,7 +88,7 @@ class SettingsView extends ConsumerWidget {
           title: 'title.ai_config'.t,
           subtitle: 'setting.ai_config_subtitle'.t,
           icon: Icons.smart_toy_rounded,
-          color: Colors.blue,
+          color: AppColors.getPrimary(context),
           onTap: () => AppNavigation.toNamed('/ai-config'),
         ),
         _buildSettingItem(
@@ -96,7 +96,7 @@ class SettingsView extends ConsumerWidget {
           title: 'title.plugin_center'.t,
           subtitle: 'setting.plugin_center_subtitle'.t,
           icon: Icons.extension_rounded,
-          color: Colors.deepPurple,
+          color: AppColors.getSecondary(context),
           onTap: () => AppNavigation.toNamed(Routes.pluginCenter),
         ),
       ],
@@ -118,7 +118,7 @@ class SettingsView extends ConsumerWidget {
           title: 'title.backup_restore'.t,
           subtitle: 'setting.backup_restore_subtitle'.t,
           icon: Icons.backup_rounded,
-          color: Colors.green,
+          color: AppColors.getSuccess(context),
           onTap: () => AppNavigation.toNamed(Routes.backupSettings),
         ),
         _buildDownloadImagesItem(context, ref),
@@ -127,7 +127,7 @@ class SettingsView extends ConsumerWidget {
           title: 'setting.web_server'.t,
           subtitle: 'setting.web_server_subtitle'.t,
           icon: Icons.language_rounded,
-          color: Colors.teal,
+          color: AppColors.getSuccess(context),
           onTap: () => _showWebServerDialog(context, ref),
         ),
         _buildSettingItem(
@@ -135,7 +135,7 @@ class SettingsView extends ConsumerWidget {
           title: 'dialog.check_update'.t,
           subtitle: 'setting.check_update_subtitle'.t,
           icon: Icons.system_update_rounded,
-          color: Colors.indigo,
+          color: AppColors.getPrimary(context).withValues(alpha: 0.7),
           onTap: () => AppUpgradeService.i.checkAndDownload(),
         ),
       ],
@@ -156,7 +156,7 @@ class SettingsView extends ConsumerWidget {
           ? 'setting.download_images_progress'.t.replaceAll('{current}', '$progress').replaceAll('{total}', '$total')
           : 'setting.download_images_subtitle'.t,
       icon: Icons.image_rounded,
-      color: Colors.orange,
+      color: AppColors.getWarning(context),
       isLoading: isDownloading,
       onTap: isDownloading ? null : () => ref.read(settingsControllerProvider.notifier).downloadMissingArticleImages(),
     );
@@ -479,7 +479,7 @@ class SettingsView extends ConsumerWidget {
         style: textTheme.bodyMedium?.copyWith(color: primaryColor, fontWeight: FontWeight.w600),
       ),
       icon: Icons.language_rounded,
-      iconColor: Colors.blue,
+      iconColor: AppColors.getPrimary(context),
       action: IconButton(
         icon: Icon(Icons.copy_rounded, size: 20, color: primaryColor),
         onPressed: () {
@@ -503,7 +503,7 @@ class SettingsView extends ConsumerWidget {
         style: textTheme.bodyMedium?.copyWith(color: primaryColor, fontWeight: FontWeight.w600),
       ),
       icon: Icons.wifi_rounded,
-      iconColor: Colors.deepPurple,
+      iconColor: AppColors.getSecondary(context),
       action: IconButton(
         icon: Icon(Icons.copy_rounded, size: 20, color: primaryColor),
         onPressed: () {
@@ -522,7 +522,7 @@ class SettingsView extends ConsumerWidget {
       title: 'setting.connection_status'.t,
       content: _buildConnectionStatusIndicator(context, ref, textTheme),
       icon: Icons.network_check_rounded,
-      iconColor: Colors.green,
+      iconColor: AppColors.getSuccess(context),
     );
   }
 
@@ -530,7 +530,7 @@ class SettingsView extends ConsumerWidget {
   Widget _buildConnectionStatusIndicator(BuildContext context, WidgetRef ref, TextTheme textTheme) {
     final state = ref.watch(settingsControllerProvider);
     final isConnected = state.isWebSocketConnected;
-    final statusColor = isConnected ? Colors.green : Colors.red;
+    final statusColor = isConnected ? AppColors.getSuccess(context) : AppColors.getError(context);
     final statusText = isConnected ? 'status.connected'.t : 'status.disconnected'.t;
 
     return Row(
@@ -571,7 +571,7 @@ class SettingsView extends ConsumerWidget {
           title: 'setting.server_password'.t,
           subtitle: 'setting.server_password_subtitle'.t,
           icon: Icons.password_rounded,
-          color: Colors.orange,
+          color: AppColors.getWarning(context),
           onTap: () => _showPasswordSettingDialog(context, ref),
         ),
         Dimensions.verticalSpacerS,
@@ -581,7 +581,7 @@ class SettingsView extends ConsumerWidget {
           title: 'setting.restart_service'.t,
           subtitle: 'setting.restart_service_subtitle'.t,
           icon: Icons.refresh_rounded,
-          color: Colors.green,
+          color: AppColors.getSuccess(context),
           onTap: () => ref.read(settingsControllerProvider.notifier).restartWebService(),
         ),
       ],
@@ -626,29 +626,29 @@ class SettingsView extends ConsumerWidget {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
         contentPadding: const EdgeInsets.fromLTRB(Dimensions.spacingL, Dimensions.spacingM + 4, Dimensions.spacingL, 0),
         actionsPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM),
         actionsAlignment: MainAxisAlignment.end,
-        title: _buildPasswordDialogTitle(textTheme),
+        title: _buildPasswordDialogTitle(dialogContext, textTheme),
         content: _PasswordDialogContent(
           passwordController: passwordController,
           colorScheme: colorScheme,
           textTheme: textTheme,
         ),
-        actions: _buildPasswordDialogActions(context, ref, passwordController),
+        actions: _buildPasswordDialogActions(dialogContext, ref, passwordController),
       ),
     );
   }
 
   /// 构建密码对话框标题
-  Widget _buildPasswordDialogTitle(TextTheme textTheme) {
+  Widget _buildPasswordDialogTitle(BuildContext context, TextTheme textTheme) {
     return Row(
       children: [
-        const FeatureIcon(
+        FeatureIcon(
           icon: Icons.password_rounded,
-          iconColor: Colors.orange,
+          iconColor: AppColors.getWarning(context),
           containerSize: Dimensions.iconSizeXl + Dimensions.spacingXs,
           iconSize: Dimensions.iconSizeM,
         ),

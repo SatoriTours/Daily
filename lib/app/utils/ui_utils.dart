@@ -12,7 +12,7 @@ class UIUtils {
   static void showSuccess(
     String content, {
     String title = 'message.success_title',
-    bool isTop = false,
+    bool isTop = true,
     BuildContext? context,
   }) {
     showSnackBar(title, content, isError: false, isTop: isTop, context: context);
@@ -22,7 +22,7 @@ class UIUtils {
   static void showError(
     String content, {
     String title = 'message.error_title',
-    bool isTop = false,
+    bool isTop = true,
     BuildContext? context,
   }) {
     showSnackBar(title, content, isError: true, isTop: isTop, context: context);
@@ -33,7 +33,7 @@ class UIUtils {
     String title,
     String message, {
     bool isError = false,
-    bool isTop = false,
+    bool isTop = true,
     Duration? duration,
     BuildContext? context,
   }) {
@@ -42,11 +42,27 @@ class UIUtils {
 
     final bg = SnackbarStyles.getBackgroundColor(ctx, isError: isError);
     final textColor = SnackbarStyles.getTextColor(ctx);
+    final mediaQuery = MediaQuery.of(ctx);
 
-    EdgeInsets margin = SnackbarStyles.getMargin();
+    EdgeInsets margin;
     if (isTop) {
-      final size = MediaQuery.of(ctx).size;
-      margin = margin.copyWith(bottom: size.height - 160);
+      // 顶部显示：考虑状态栏安全区域，在状态栏下方显示
+      final topPadding = mediaQuery.padding.top;
+      final bottomPadding = mediaQuery.padding.bottom;
+      const snackBarHeight = 80.0; // 预估 SnackBar 高度
+      const bottomNavHeight = 80.0; // 预估底部导航栏高度
+      final topOffset = topPadding + 16; // 状态栏高度 + 16px 间距
+
+      // 计算可用高度，考虑底部导航栏和安全区域
+      final availableHeight =
+          mediaQuery.size.height - topOffset - snackBarHeight - bottomNavHeight - bottomPadding - 16;
+
+      margin = EdgeInsets.only(left: 16, right: 16, top: topOffset, bottom: availableHeight > 0 ? availableHeight : 16);
+    } else {
+      // 底部显示：考虑底部导航栏和安全区域
+      final bottomPadding = mediaQuery.padding.bottom;
+      const bottomNavHeight = 80.0; // 预估底部导航栏高度
+      margin = EdgeInsets.only(left: 16, right: 16, top: 16, bottom: bottomNavHeight + bottomPadding + 16);
     }
 
     ScaffoldMessenger.of(ctx).showSnackBar(

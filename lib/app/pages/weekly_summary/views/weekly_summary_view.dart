@@ -33,32 +33,32 @@ class WeeklySummaryView extends ConsumerWidget {
 
   PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref, WeeklySummaryControllerState state) {
     return SAppBar(
-      title: Text('weekly_summary.title'.t, style: const TextStyle(color: Colors.white)),
+      title: Text('weekly_summary.title'.t, style: TextStyle(color: AppColors.getOnPrimary(context))),
       centerTitle: true,
       elevation: 0,
       backgroundColorLight: AppColors.primary,
       backgroundColorDark: AppColors.backgroundDark,
-      foregroundColor: Colors.white,
+      foregroundColor: AppColors.getOnPrimary(context),
       leading: IconButton(
-        icon: const Icon(Icons.settings, color: Colors.white),
+        icon: Icon(Icons.settings, color: AppColors.getOnPrimary(context)),
         tooltip: 'title.settings'.t,
         onPressed: () => AppNavigation.toNamed(Routes.settings),
       ),
       actions: [
         state.isGenerating
-            ? const Padding(
-                padding: EdgeInsets.all(12),
+            ? Padding(
+                padding: Dimensions.paddingCard,
                 child: SizedBox(
                   width: 24,
                   height: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.getOnPrimary(context)),
                   ),
                 ),
               )
             : IconButton(
-                icon: const Icon(Icons.refresh, color: Colors.white),
+                icon: Icon(Icons.refresh, color: AppColors.getOnPrimary(context)),
                 tooltip: 'weekly_summary.regenerate'.t,
                 onPressed: () => ref.read(weeklySummaryControllerProvider.notifier).regenerateCurrentSummary(),
               ),
@@ -223,14 +223,14 @@ class WeeklySummaryView extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    return SingleChildScrollView(padding: const EdgeInsets.all(12), child: _buildContentCard(context, ref, summary));
+    return SingleChildScrollView(padding: Dimensions.paddingCard, child: _buildContentCard(context, ref, summary));
   }
 
   /// 构建内容卡片
   Widget _buildContentCard(BuildContext context, WidgetRef ref, WeeklySummaryModel summary) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: Dimensions.paddingCard,
       decoration: CardStyles.getStandardDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,14 +247,14 @@ class WeeklySummaryView extends ConsumerWidget {
                 ),
               ),
               // 紧凑统计
-              const Icon(Icons.article_outlined, color: Colors.blue, size: 14),
+              Icon(Icons.article_outlined, color: AppColors.getPrimary(context), size: 14),
               const SizedBox(width: 2),
               Text(
                 '${summary.articleCount}',
                 style: AppTypography.labelSmall.copyWith(color: AppColors.getOnSurfaceVariant(context)),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.book_outlined, color: Colors.green, size: 14),
+              Icon(Icons.book_outlined, color: AppColors.getSuccess(context), size: 14),
               const SizedBox(width: 2),
               Text(
                 '${summary.diaryCount}',
@@ -262,7 +262,7 @@ class WeeklySummaryView extends ConsumerWidget {
               ),
               if (summary.isFailed) ...[
                 const SizedBox(width: 8),
-                const Icon(Icons.error_outline, color: Colors.red, size: 16),
+                Icon(Icons.error_outline, color: AppColors.getError(context), size: 16),
               ],
             ],
           ),

@@ -16,13 +16,13 @@ class BackupSettingsView extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
-      appBar: const SAppBar(
-        title: Text('备份与恢复', style: TextStyle(color: Colors.white)),
+      appBar: SAppBar(
+        title: Text('备份与恢复', style: TextStyle(color: AppColors.getOnPrimary(context))),
         centerTitle: true,
         elevation: 0,
         backgroundColorLight: AppColors.primary,
         backgroundColorDark: AppColors.backgroundDark,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.getOnPrimary(context),
       ),
       body: _buildBody(context, ref, state),
     );
@@ -114,7 +114,7 @@ class BackupSettingsView extends ConsumerWidget {
             title: '恢复备份',
             subtitle: '从备份文件中恢复数据',
             icon: Icons.restore_rounded,
-            color: Colors.deepPurple,
+            color: AppColors.getSecondary(context),
             onTap: () => AppNavigation.toNamed(Routes.backupRestore),
           ),
           Dimensions.verticalSpacerL,
@@ -127,7 +127,7 @@ class BackupSettingsView extends ConsumerWidget {
 
   Widget _buildDirectoryCard(BuildContext context, WidgetRef ref, BackupSettingsControllerState state) {
     final textTheme = AppTheme.getTextTheme(context);
-    const cardColor = Colors.teal;
+    final cardColor = AppColors.getSuccess(context);
 
     return Container(
       width: double.infinity,
@@ -146,7 +146,7 @@ class BackupSettingsView extends ConsumerWidget {
               color: cardColor.withValues(alpha: Opacities.mediumLow),
               borderRadius: BorderRadius.circular(Dimensions.radiusS),
             ),
-            child: const Icon(Icons.folder_rounded, size: Dimensions.iconSizeXl - 6, color: cardColor),
+            child: Icon(Icons.folder_rounded, size: Dimensions.iconSizeXl - 6, color: cardColor),
           ),
           Dimensions.horizontalSpacerM,
           Expanded(
@@ -177,7 +177,7 @@ class BackupSettingsView extends ConsumerWidget {
                 color: cardColor.withValues(alpha: Opacities.mediumLow),
                 borderRadius: BorderRadius.circular(Dimensions.radiusS),
               ),
-              child: const Icon(Icons.edit_outlined, size: Dimensions.iconSizeM, color: cardColor),
+              child: Icon(Icons.edit_outlined, size: Dimensions.iconSizeM, color: cardColor),
             ),
           ),
         ],
