@@ -12,7 +12,6 @@ import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/services/index.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/app/navigation/app_navigation.dart';
-import 'package:daily_satori/app/routes/app_routes.dart';
 
 part 'book_search_controller_provider.freezed.dart';
 part 'book_search_controller_provider.g.dart';
@@ -76,7 +75,7 @@ class BookSearchController extends _$BookSearchController {
     state = state.copyWith(searchResults: [], searchKeyword: '', errorMessage: '');
   }
 
-  /// 选择书籍并添加到本地，然后跳转到详情页
+  /// 选择书籍并添加到本地，然后返回读书页
   Future<void> selectBook(BookSearchResult searchResult) async {
     state = state.copyWith(isLoading: true);
     try {
@@ -91,8 +90,8 @@ class BookSearchController extends _$BookSearchController {
       } else {
         UIUtils.showSuccess('book_search.already_exists'.t);
       }
-      // 跳转到书籍页面
-      AppNavigation.toNamed(Routes.books);
+      // 返回上一页（读书 tab）
+      AppNavigation.back();
     } catch (e) {
       logger.e('[BookSearchController] 添加书籍失败', error: e);
       UIUtils.showError('book_search.add_failed'.t);
