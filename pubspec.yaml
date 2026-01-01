@@ -102,6 +102,9 @@ dependencies:
   # 模板表达式
   jinja: ^0.6.5
 
+  # Google APIs
+  googleapis: ^15.0.0
+
   # shelf 框架(http server服务)
   shelf: ^1.4.2
   shelf_router: ^1.1.4

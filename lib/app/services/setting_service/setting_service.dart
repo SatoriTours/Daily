@@ -30,6 +30,7 @@ class SettingService implements AppService {
   static String webServerPasswordKey = 'web_server_password';
   static String deviceIdKey = 'device_id';
   static String webSocketUrlKey = 'web_socket_url';
+  static String googleCloudApiKeyKey = 'google_cloud_api_key';
 
   // MARK: - 默认设置值
   static Map<String, String> defaultSettings = {

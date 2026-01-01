@@ -11,7 +11,7 @@ import 'package:daily_satori/objectbox.g.dart';
 import 'package:daily_satori/app/services/ai_service/ai_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/plugin_service.dart';
-import 'package:daily_satori/app/services/book_search_engine/open_library_search_engine.dart';
+import 'package:daily_satori/app/services/book_search_engine/isbndb_search_engine.dart';
 import 'package:jinja/jinja.dart';
 
 /// 书籍存储库
@@ -184,8 +184,8 @@ class BookRepository extends BaseRepository<Book, BookModel> {
     try {
       logger.i('开始搜索书籍: $searchTerm');
 
-      // 使用 OpenLibrary 搜索引擎
-      final searchResults = await OpenLibrarySearchEngine.i.searchBooks(searchTerm);
+      // 使用 ISBNdb 搜索引擎 (带 Google Books 回退)
+      final searchResults = await IsbndbSearchEngine.i.searchBooks(searchTerm);
       return searchResults;
     } catch (e, stackTrace) {
       logger.e('搜索书籍失败: $searchTerm', error: e, stackTrace: stackTrace);

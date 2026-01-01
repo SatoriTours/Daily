@@ -161,6 +161,11 @@ dialog:
   web_server_desc: Configure remote access and proxy settings
   check_update: Check Update
   check_update_desc: Get the latest version
+  google_books_api_key: Google Cloud API Key
+  google_books_api_key_desc: Configure Google Cloud API Key
+  enter_api_key: Please enter API Key
+  save: Save
+  cancel: Cancel
   server_info: Server Information
   backup_success: Backup file restored successfully
   delete_book: Delete Book
@@ -190,6 +195,8 @@ setting:
   plugin_center_subtitle: Manage extension plugins and subscriptions
   backup_restore_subtitle: Protect your data security
   check_update_subtitle: Get the latest version
+  google_books_api_key: Google Cloud API Key
+  google_books_api_key_subtitle: Configure Google Cloud API Key
   version: Version
   server_info: Server Information
   server_management: Server Management

@@ -37,8 +37,11 @@ class _BookSearchViewState extends ConsumerState<BookSearchView> {
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(bookSearchControllerProvider);
+    final title = state.searchResults.isNotEmpty ? '搜索 (${state.searchResults.length})' : 'ui.search'.t;
+
     return Scaffold(
-      appBar: AppBar(title: Text('ui.search'.t, style: AppTypography.appBarTitle), elevation: 0),
+      appBar: AppBar(title: Text(title, style: AppTypography.appBarTitle), elevation: 0),
       body: SafeArea(
         child: Column(
           children: [
@@ -90,13 +93,7 @@ class _SearchResults extends ConsumerWidget {
     if (state.searchResults.isEmpty && state.searchKeyword.isNotEmpty) return _buildEmptyState(context);
     if (state.searchResults.isEmpty) return _buildInitialState(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildStatistics(context, state.searchResults.length),
-        Expanded(child: _buildResultsList(context, ref, state.searchResults)),
-      ],
-    );
+    return _buildResultsList(context, ref, state.searchResults);
   }
 
   Widget _buildSearchingState(BuildContext context, String keyword) {
@@ -121,10 +118,7 @@ class _SearchResults extends ConsumerWidget {
             ),
           ),
           Dimensions.verticalSpacerS,
-          Text(
-            '正在从 OpenLibrary 获取书籍信息',
-            style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
-          ),
+          Text('正在获取书籍信息', style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context))),
         ],
       ),
     );
@@ -235,35 +229,6 @@ class _SearchResults extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatistics(BuildContext context, int count) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: Dimensions.paddingPage.horizontal, vertical: Dimensions.spacingS),
-      decoration: BoxDecoration(
-        color: AppColors.getSurface(context),
-        border: Border(
-          bottom: BorderSide(color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.low), width: 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.library_books_outlined,
-            size: Dimensions.iconSizeXs,
-            color: AppColors.getOnSurfaceVariant(context),
-          ),
-          Dimensions.horizontalSpacerS,
-          Text(
-            '找到 $count 本相关书籍',
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.getOnSurfaceVariant(context),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildResultsList(BuildContext context, WidgetRef ref, List<BookSearchResult> results) {
     return ListView.builder(
       padding: EdgeInsets.fromLTRB(
@@ -297,12 +262,14 @@ class _BookResultCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
         child: Padding(
           padding: Dimensions.paddingCard,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (result.coverUrl.isNotEmpty) ...[_buildCover(context), Dimensions.horizontalSpacerS],
-              Expanded(child: _buildInfo(context)),
-            ],
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (result.coverUrl.isNotEmpty) ...[_buildCover(context), Dimensions.horizontalSpacerS],
+                Expanded(child: _buildInfo(context)),
+              ],
+            ),
           ),
         ),
       ),
@@ -337,87 +304,71 @@ class _BookResultCard extends ConsumerWidget {
   Widget _buildInfo(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // 标题行
-        Row(
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text(
-                result.title,
-                style: AppTypography.titleMedium.copyWith(
-                  color: AppColors.getOnSurface(context),
-                  fontWeight: FontWeight.w600,
-                  height: 1.3,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            // 标题行
+            Text(
+              result.title,
+              style: AppTypography.titleMedium.copyWith(
+                color: AppColors.getOnSurface(context),
+                fontWeight: FontWeight.w600,
+                height: 1.3,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            if (result.category.isNotEmpty) ...[
-              Dimensions.horizontalSpacerS,
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Dimensions.spacingS + 2,
-                  vertical: Dimensions.spacingXs,
+            // 作者
+            Dimensions.verticalSpacerS,
+            Row(
+              children: [
+                Icon(
+                  Icons.person_outline,
+                  size: Dimensions.iconSizeXs - 2,
+                  color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.highOpaque),
                 ),
-                decoration: BoxDecoration(
-                  color: AppColors.getPrimary(context).withValues(alpha: Opacities.low),
-                  borderRadius: BorderRadius.circular(Dimensions.radiusS),
+                const SizedBox(width: Dimensions.spacingXs + 2),
+                Expanded(
+                  child: Text(
+                    result.author,
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                child: Text(
-                  result.category,
-                  style: AppTypography.labelSmall.copyWith(color: AppColors.getPrimary(context)),
-                ),
+              ],
+            ),
+            // 简介
+            if (result.introduction.isNotEmpty) ...[
+              Dimensions.verticalSpacerS,
+              Text(
+                result.introduction,
+                style: AppTypography.bodySmall.copyWith(color: AppColors.getOnSurfaceVariant(context), height: 1.5),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ],
         ),
-        // 作者
-        Dimensions.verticalSpacerS,
-        Row(
-          children: [
-            Icon(
-              Icons.person_outline,
-              size: Dimensions.iconSizeXs - 2,
-              color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.highOpaque),
-            ),
-            const SizedBox(width: Dimensions.spacingXs + 2),
-            Expanded(
-              child: Text(
-                result.author,
-                style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        // 简介
-        if (result.introduction.isNotEmpty) ...[
-          Dimensions.verticalSpacerS,
-          Text(
-            result.introduction,
-            style: AppTypography.bodySmall.copyWith(color: AppColors.getOnSurfaceVariant(context), height: 1.5),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
         // 添加提示
-        Dimensions.verticalSpacerS,
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Icon(Icons.add_circle_outline, size: Dimensions.iconSizeXs, color: AppColors.getPrimary(context)),
-            Dimensions.horizontalSpacerXs,
-            Text(
-              '点击添加书籍',
-              style: AppTypography.labelSmall.copyWith(
-                color: AppColors.getPrimary(context),
-                fontWeight: FontWeight.w500,
+        Padding(
+          padding: const EdgeInsets.only(top: Dimensions.spacingS),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Icon(Icons.add_circle_outline, size: Dimensions.iconSizeXs, color: AppColors.getPrimary(context)),
+              Dimensions.horizontalSpacerXs,
+              Text(
+                '点击添加书籍',
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.getPrimary(context),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );

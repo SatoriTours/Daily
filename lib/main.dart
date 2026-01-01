@@ -15,8 +15,6 @@ Future<void> main() async {
 /// 运行 Daily Satori 应用程序
 void runDailySatoriApp() {
   runApp(
-    // Phase 2: 使用 Riverpod + Flutter Navigator
-    // GetX 仅用于 Controllers，导航已移除
     ProviderScope(
       child: MaterialApp(
         title: 'Daily Satori',

@@ -83,6 +83,8 @@ class BookSearchController extends _$BookSearchController {
       final book = await BookRepository.i.addBookFromSearch(searchResult);
       if (book != null) {
         // 刷新书籍列表
+        ref.read(booksStateProvider.notifier).loadAllBooks();
+        // 刷新观点列表
         await ref.read(booksStateProvider.notifier).loadAllViewpoints();
         // 选择这本书
         ref.read(booksStateProvider.notifier).selectBook(book);

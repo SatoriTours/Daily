@@ -3,12 +3,15 @@ import 'package:daily_satori/app/components/common/feature_icon.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
+import 'package:daily_satori/app/utils/dialog_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/settings/providers/settings_controller_provider.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
+import 'package:daily_satori/app/data/setting/setting_repository.dart';
+import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 
 /// 设置页面视图
 ///
@@ -99,6 +102,14 @@ class SettingsView extends ConsumerWidget {
           icon: Icons.extension_rounded,
           color: AppColors.getSecondary(context),
           onTap: () => AppNavigation.toNamed(Routes.pluginCenter),
+        ),
+        _buildSettingItem(
+          context: context,
+          title: 'setting.google_books_api_key'.t,
+          subtitle: 'setting.google_books_api_key_subtitle'.t,
+          icon: Icons.menu_book_rounded,
+          color: AppColors.getInfo(context),
+          onTap: () => _showGoogleBooksApiKeyDialog(context, ref),
         ),
       ],
     );
@@ -392,10 +403,12 @@ class SettingsView extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // 服务器信息
-                      Builder(builder: (context) {
-                        final state = ref.watch(settingsControllerProvider);
-                        return _buildServerInfoSection(context, ref, primaryColor, textTheme, state);
-                      }),
+                      Builder(
+                        builder: (context) {
+                          final state = ref.watch(settingsControllerProvider);
+                          return _buildServerInfoSection(context, ref, primaryColor, textTheme, state);
+                        },
+                      ),
                       Dimensions.verticalSpacerL,
                       // 服务器管理
                       _buildServerManagementSection(context, ref),
@@ -451,7 +464,13 @@ class SettingsView extends ConsumerWidget {
   }
 
   /// 构建服务器信息分区
-  Widget _buildServerInfoSection(BuildContext context, WidgetRef ref, Color primaryColor, TextTheme textTheme, SettingsControllerState state) {
+  Widget _buildServerInfoSection(
+    BuildContext context,
+    WidgetRef ref,
+    Color primaryColor,
+    TextTheme textTheme,
+    SettingsControllerState state,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -470,7 +489,13 @@ class SettingsView extends ConsumerWidget {
   }
 
   /// 构建HTTP服务器地址卡片
-  Widget _buildHttpAddressCard(BuildContext context, WidgetRef ref, Color primaryColor, TextTheme textTheme, SettingsControllerState state) {
+  Widget _buildHttpAddressCard(
+    BuildContext context,
+    WidgetRef ref,
+    Color primaryColor,
+    TextTheme textTheme,
+    SettingsControllerState state,
+  ) {
     return _buildInfoCard(
       context: context,
       title: 'setting.http_server_address'.t,
@@ -492,7 +517,13 @@ class SettingsView extends ConsumerWidget {
   }
 
   /// 构建WebSocket地址卡片
-  Widget _buildWebSocketAddressCard(BuildContext context, WidgetRef ref, Color primaryColor, TextTheme textTheme, SettingsControllerState state) {
+  Widget _buildWebSocketAddressCard(
+    BuildContext context,
+    WidgetRef ref,
+    Color primaryColor,
+    TextTheme textTheme,
+    SettingsControllerState state,
+  ) {
     return _buildInfoCard(
       context: context,
       title: 'setting.websocket_access'.t,
@@ -514,7 +545,12 @@ class SettingsView extends ConsumerWidget {
   }
 
   /// 构建连接状态卡片
-  Widget _buildConnectionStatusCard(BuildContext context, WidgetRef ref, TextTheme textTheme, SettingsControllerState state) {
+  Widget _buildConnectionStatusCard(
+    BuildContext context,
+    WidgetRef ref,
+    TextTheme textTheme,
+    SettingsControllerState state,
+  ) {
     return _buildInfoCard(
       context: context,
       title: 'setting.connection_status'.t,
@@ -525,7 +561,12 @@ class SettingsView extends ConsumerWidget {
   }
 
   /// 构建连接状态指示器
-  Widget _buildConnectionStatusIndicator(BuildContext context, WidgetRef ref, TextTheme textTheme, SettingsControllerState state) {
+  Widget _buildConnectionStatusIndicator(
+    BuildContext context,
+    WidgetRef ref,
+    TextTheme textTheme,
+    SettingsControllerState state,
+  ) {
     final isConnected = state.isWebSocketConnected;
     final statusColor = isConnected ? AppColors.getSuccess(context) : AppColors.getError(context);
     final statusText = isConnected ? 'status.connected'.t : 'status.disconnected'.t;
@@ -835,6 +876,22 @@ class SettingsView extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+
+  /// 显示 Google Books API Key 配置对话框
+  void _showGoogleBooksApiKeyDialog(BuildContext context, WidgetRef ref) {
+    DialogUtils.showInputDialog(
+      context: context,
+      title: 'dialog.google_books_api_key'.t,
+      initialValue: SettingRepository.i.getSetting(SettingService.googleCloudApiKeyKey),
+      confirmText: 'dialog.save'.t,
+      cancelText: 'dialog.cancel'.t,
+      onConfirm: (value) {
+        final apiKey = value.trim();
+        SettingRepository.i.saveSetting(SettingService.googleCloudApiKeyKey, apiKey);
+        UIUtils.showSuccess('保存成功');
+      },
     );
   }
 }

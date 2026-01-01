@@ -161,6 +161,11 @@ dialog:
   web_server_desc: 配置远程访问与代理设置
   check_update: 检查更新
   check_update_desc: 获取最新版本
+  google_books_api_key: Google Cloud API Key
+  google_books_api_key_desc: 配置 Google Cloud API Key
+  enter_api_key: 请输入 API Key
+  save: 保存
+  cancel: 取消
   server_info: 服务器信息
   backup_success: 备份文件已成功还原
   delete_book: 删除书籍
@@ -190,6 +195,8 @@ setting:
   plugin_center_subtitle: 管理扩展插件与订阅源
   backup_restore_subtitle: 保护您的数据安全
   check_update_subtitle: 获取最新版本
+  google_books_api_key: Google Cloud API Key
+  google_books_api_key_subtitle: 配置 Google Cloud API Key
   version: 版本
   server_info: 服务器信息
   server_management: 服务器管理
