@@ -44,7 +44,10 @@ class ArticlesList extends StatelessWidget {
     return ListView.builder(
       controller: scrollController,
       itemCount: itemCount,
-      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM - 4, vertical: Dimensions.spacingM - 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.spacingM - 4,
+        vertical: Dimensions.spacingM - 4,
+      ),
       itemBuilder: (context, index) {
         if (index == articles.length) {
           return _buildLoadingIndicator(context);
@@ -52,7 +55,9 @@ class ArticlesList extends StatelessWidget {
 
         final article = articles[index];
         return Padding(
-          padding: EdgeInsets.only(bottom: index < articles.length - 1 ? Dimensions.spacingS : 0),
+          padding: EdgeInsets.only(
+            bottom: index < articles.length - 1 ? Dimensions.spacingS : 0,
+          ),
           child: ArticleCard(
             key: ValueKey(article.id),
             articleModel: article,
@@ -89,7 +94,12 @@ class ArticlesList extends StatelessWidget {
             ),
           ),
           Dimensions.verticalSpacerS,
-          Text('article.loading_more'.t, style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+          Text(
+            'article.loading_more'.t,
+            style: textTheme.labelMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );

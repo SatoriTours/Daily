@@ -51,7 +51,7 @@ final class ArticlesControllerProvider
 }
 
 String _$articlesControllerHash() =>
-    r'f6de4cbc611a25de218a0266ecc5abda84a02a06';
+    r'2ec45cd76313e56a725162cd8d7fd1c22f4792df';
 
 /// ArticlesController Provider
 ///

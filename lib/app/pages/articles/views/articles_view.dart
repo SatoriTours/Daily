@@ -1,5 +1,4 @@
 import 'package:daily_satori/app/navigation/app_navigation.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:feather_icons/feather_icons.dart';
@@ -20,232 +19,191 @@ import 'package:daily_satori/app/components/indicators/s_filter_indicator.dart';
 import 'package:daily_satori/app/components/menus/s_popup_menu_item.dart';
 
 /// 文章列表页面
-/// 负责展示文章列表、搜索、过滤等功能
 class ArticlesView extends ConsumerWidget {
   const ArticlesView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    logger.i('构建文章列表页面');
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: _ArticlesAppBar(ref: ref),
-      body: _ArticlesBody(ref: ref),
+      appBar: const _ArticlesAppBar(),
+      body: const _ArticlesBody(),
     );
   }
 }
 
 // ============================================================================
-// AppBar 组件 - 独立封装，减少主视图复杂度
+// AppBar 组件
 // ============================================================================
 
-class _ArticlesAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final WidgetRef ref;
-
-  const _ArticlesAppBar({required this.ref});
+class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
+  const _ArticlesAppBar();
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(articlesControllerProvider);
+    final controller = ref.read(articlesControllerProvider.notifier);
+
     return SAppBar(
       backgroundColorDark: AppColors.backgroundDark,
       backgroundColorLight: AppColors.primary,
       elevation: 0.5,
-      leading: _buildCalendarButton(context, ref),
-      title: _buildTitle(ref),
+      leading: IconButton(
+        icon: const Icon(FeatherIcons.calendar, color: Colors.white, size: 20),
+        onPressed: () => _showCalendarDialog(context, ref, state, controller),
+      ),
+      title: GestureDetector(
+        onDoubleTap: () => _scrollToTop(state),
+        child: Text(controller.getTitle(), style: AppTypography.titleLarge),
+      ),
       centerTitle: true,
-      actions: _buildActions(context, ref),
+      actions: [
+        IconButton(
+          icon: const Icon(FeatherIcons.search, color: Colors.white, size: 20),
+          onPressed: () {
+            state.searchController?.clear();
+            controller.toggleSearchState();
+          },
+        ),
+        _buildMoreMenu(context, state, controller),
+      ],
       foregroundColor: Colors.white,
     );
   }
 
-  Widget _buildCalendarButton(BuildContext context, WidgetRef ref) {
-    return IconButton(
-      icon: const Icon(FeatherIcons.calendar, color: Colors.white, size: 20),
-      onPressed: () => _showCalendarDialog(context, ref),
-    );
-  }
-
-  Widget _buildTitle(WidgetRef ref) {
-    final state = ref.watch(articlesControllerProvider);
-    return GestureDetector(
-      onDoubleTap: () => _scrollToTop(ref),
-      child: Text(state.getTitle(ref), style: AppTypography.titleLarge),
-    );
-  }
-
-  List<Widget> _buildActions(BuildContext context, WidgetRef ref) {
-    return [
-      IconButton(
-        icon: const Icon(FeatherIcons.search, color: Colors.white, size: 20),
-        onPressed: () => _activateSearch(ref),
-      ),
-      _buildMoreMenu(context, ref),
-    ];
-  }
-
-  Widget _buildMoreMenu(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(articlesControllerProvider);
+  Widget _buildMoreMenu(BuildContext context, ArticlesControllerState state, ArticlesController controller) {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_horiz, color: Colors.white, size: 20),
-      onSelected: (value) => _handleMenuSelection(value, context, ref),
-      itemBuilder: (context) {
-        final isFavorite = state.onlyFavorite;
-        return [
-          SPopupMenuItem<String>(value: 'tags', icon: FeatherIcons.tag, text: 'article.filter_tags'.t),
-          SPopupMenuItem<String>(
-            value: 'favorite',
-            icon: isFavorite ? Icons.favorite : Icons.favorite_border,
-            text: isFavorite ? 'article.show_all'.t : 'article.show_favorite_only'.t,
-            iconColor: isFavorite ? Colors.red : null,
-          ),
-        ];
+      onSelected: (value) {
+        switch (value) {
+          case 'tags':
+            _showTagsDialog(context, state, controller);
+          case 'favorite':
+            controller.toggleFavorite(!state.onlyFavorite);
+        }
       },
+      itemBuilder: (_) => [
+        SPopupMenuItem<String>(value: 'tags', icon: FeatherIcons.tag, text: 'article.filter_tags'.t),
+        SPopupMenuItem<String>(
+          value: 'favorite',
+          icon: state.onlyFavorite ? Icons.favorite : Icons.favorite_border,
+          text: state.onlyFavorite ? 'article.show_all'.t : 'article.show_favorite_only'.t,
+          iconColor: state.onlyFavorite ? Colors.red : null,
+        ),
+      ],
     );
   }
 
-  void _handleMenuSelection(String value, BuildContext context, WidgetRef ref) {
-    switch (value) {
-      case 'tags':
-        _showTagsDialog(context, ref);
-      case 'favorite':
-        final state = ref.read(articlesControllerProvider);
-        ref.read(articlesControllerProvider.notifier).toggleFavorite(!state.onlyFavorite);
+  void _scrollToTop(ArticlesControllerState state) {
+    final sc = state.scrollController;
+    if (sc != null && sc.hasClients) {
+      sc.animateTo(0, duration: Animations.durationNormal, curve: Curves.easeInOut);
     }
   }
 
-  void _scrollToTop(WidgetRef ref) {
-    final state = ref.read(articlesControllerProvider);
-    if (state.scrollController != null && state.scrollController!.hasClients) {
-      state.scrollController!.animateTo(0, duration: Animations.durationNormal, curve: Curves.easeInOut);
-    }
-  }
-
-  void _activateSearch(WidgetRef ref) {
-    final state = ref.read(articlesControllerProvider);
-    state.searchController?.clear();
-    ref.read(articlesControllerProvider.notifier).toggleSearchState();
-  }
-
-  void _showTagsDialog(BuildContext context, WidgetRef ref) {
-    final state = ref.read(articlesControllerProvider);
-    final tags = TagRepository.i.allModels();
-
+  void _showTagsDialog(BuildContext context, ArticlesControllerState state, ArticlesController controller) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
-      builder: (context) => ArticlesTagsDialog(
-        tags: tags,
+      builder: (_) => ArticlesTagsDialog(
+        tags: TagRepository.i.allModels(),
         selectedTagId: state.tagId,
-        onTagSelected: (id, name) => ref.read(articlesControllerProvider.notifier).filterByTag(id, name),
-        onClearFilters: () => ref.read(articlesControllerProvider.notifier).clearAllFilters(),
+        onTagSelected: controller.filterByTag,
+        onClearFilters: controller.clearAllFilters,
       ),
     );
   }
 
-  void _showCalendarDialog(BuildContext context, WidgetRef ref) {
-    final state = ref.read(articlesControllerProvider);
-    if (state.hasActiveFilters(ref)) {
-      ref.read(articlesControllerProvider.notifier).clearAllFilters();
+  void _showCalendarDialog(
+    BuildContext context,
+    WidgetRef ref,
+    ArticlesControllerState state,
+    ArticlesController controller,
+  ) {
+    if (controller.hasActiveFilters()) {
+      controller.clearAllFilters();
     }
-
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
       isScrollControlled: true,
-      builder: (context) => ArticleCalendarDialog(
-        articleCountMap: state.getDailyArticleCounts(),
-        onDateSelected: (date) => ref.read(articlesControllerProvider.notifier).filterByDate(date),
-        onShowAllArticles: () => ref.read(articlesControllerProvider.notifier).clearAllFilters(),
+      builder: (_) => ArticleCalendarDialog(
+        articleCountMap: controller.getDailyArticleCounts(),
+        onDateSelected: controller.filterByDate,
+        onShowAllArticles: controller.clearAllFilters,
       ),
     );
   }
 }
 
 // ============================================================================
-// Body 组件 - 包含搜索栏、过滤器和文章列表
+// Body 组件
 // ============================================================================
 
-class _ArticlesBody extends StatelessWidget {
-  final WidgetRef ref;
-
-  const _ArticlesBody({required this.ref});
+class _ArticlesBody extends ConsumerWidget {
+  const _ArticlesBody();
 
   @override
-  Widget build(BuildContext context) {
-    final articlesState = ref.watch(articlesControllerProvider);
-    final appState = ref.watch(appGlobalStateProvider);
-    final isSearchBarVisible = appState.isSearchBarVisible;
-    final hasActiveFilters = articlesState.hasActiveFilters(ref);
-    final isLoading = articlesState.isLoadingArticles(ref);
-    final filterTitle = hasActiveFilters ? articlesState.getTitle(ref) : '';
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(articlesControllerProvider);
+    final controller = ref.read(articlesControllerProvider.notifier);
+    final isSearchVisible = ref.watch(appGlobalStateProvider.select((s) => s.isSearchBarVisible));
+    final articles = ref.watch(articleStateProvider.select((s) => s.articles));
+    final isLoading = ref.watch(articleStateProvider.select((s) => s.isLoading));
+    final hasFilters = controller.hasActiveFilters();
 
     return Column(
       children: [
-        if (isSearchBarVisible) _buildSearchBar(ref),
-        if (hasActiveFilters)
-          FilterIndicator(
-            title: filterTitle,
-            onClear: () => ref.read(articlesControllerProvider.notifier).clearAllFilters(),
-          ),
-        Expanded(child: _buildArticlesList(ref, isLoading)),
+        if (isSearchVisible) _buildSearchBar(state, controller),
+        if (hasFilters) FilterIndicator(title: controller.getTitle(), onClear: controller.clearAllFilters),
+        Expanded(child: _buildArticlesList(articles, isLoading, state, controller)),
       ],
     );
   }
 
-  Widget _buildSearchBar(WidgetRef ref) {
-    final state = ref.read(articlesControllerProvider);
+  Widget _buildSearchBar(ArticlesControllerState state, ArticlesController controller) {
     return GenericSearchBar(
       controller: state.searchController!,
       focusNode: state.searchFocusNode!,
       hintText: 'hint.search_articles'.t,
-      onSearch: (text) => ref.read(articlesControllerProvider.notifier).searchArticles(state.searchController!),
+      onSearch: (_) => controller.searchArticles(state.searchController!),
       onClear: () {
         state.searchController!.clear();
-        ref.read(articlesControllerProvider.notifier).clearAllFilters(state.searchController);
+        controller.clearAllFilters(state.searchController);
       },
       isSearchVisible: true,
-      onToggleSearch: () => ref.read(articlesControllerProvider.notifier).toggleSearchState(),
+      onToggleSearch: controller.toggleSearchState,
       showFilterButton: false,
     );
   }
 
-  Widget _buildArticlesList(WidgetRef ref, bool isLoading) {
-    final state = ref.watch(articlesControllerProvider);
-    final articles = state.getArticles(ref);
-    if (articles.isEmpty) {
+  Widget _buildArticlesList(
+    List<ArticleModel> articles,
+    bool isLoading,
+    ArticlesControllerState state,
+    ArticlesController controller,
+  ) {
+    if (articles.isEmpty && !isLoading) {
       return const ArticlesEmptyView();
     }
-
     return ArticlesList(
-      articles: articles.toList(),
+      articles: articles,
       isLoading: isLoading,
       scrollController: state.scrollController!,
-      onRefresh: () => ref.read(articlesControllerProvider.notifier).reloadArticles(),
-      onArticleTap: (article) => _handleArticleTap(article),
-      onFavoriteToggle: (article) => _handleFavoriteToggle(article, ref),
-      onShare: (article) => _handleShare(article),
-    );
-  }
-
-  void _handleArticleTap(ArticleModel article) {
-    AppNavigation.toNamed(Routes.articleDetail, arguments: article);
-  }
-
-  Future<void> _handleFavoriteToggle(ArticleModel article, WidgetRef ref) async {
-    ArticleRepository.i.toggleFavorite(article.id);
-    ref.read(articlesControllerProvider.notifier).updateArticle(article.id);
-  }
-
-  Future<void> _handleShare(ArticleModel article) async {
-    await SharePlus.instance.share(
-      ShareParams(text: article.url ?? '', subject: article.aiTitle ?? article.title ?? ''),
+      onRefresh: controller.reloadArticles,
+      onArticleTap: (article) => AppNavigation.toNamed(Routes.articleDetail, arguments: article),
+      onFavoriteToggle: (article) {
+        ArticleRepository.i.toggleFavorite(article.id);
+        controller.updateArticle(article.id);
+      },
+      onShare: (article) => SharePlus.instance.share(
+        ShareParams(text: article.url ?? '', subject: article.aiTitle ?? article.title ?? ''),
+      ),
     );
   }
 }
-
-// 本地的 _FilterIndicator 已抽取为通用组件 SFilterIndicator
