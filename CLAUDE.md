@@ -38,3 +38,18 @@ lib/app/
 - ❌ GetX 模式 (`.obs`, `Obx`, `Get.find`)
 - ❌ 硬编码颜色/间距/字体
 - ❌ 日志输出敏感信息
+
+## ✅ 代码校验（每次修改后必须执行）
+
+```bash
+# 1. 静态分析 - 检查语法错误和代码问题
+flutter analyze
+
+# 2. 代码生成 - 如果修改了 Provider 或 freezed 模型
+flutter pub run build_runner build --delete-conflicting-outputs
+
+# 3. 格式化 - 统一代码风格
+dart format .
+```
+
+**必须确保 `flutter analyze` 输出 `No issues found!` 后才能提交代码。**
