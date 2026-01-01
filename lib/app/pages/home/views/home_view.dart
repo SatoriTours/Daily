@@ -22,6 +22,11 @@ class HomeView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     _logBuild();
+
+    // 确保 articleStateProvider 在应用启动时就被初始化
+    // 这样它就能监听服务层的文章更新事件
+    ref.watch(articleStateProvider);
+
     final state = ref.watch(homeControllerProvider);
     _logPageSwitch(state.currentIndex);
 

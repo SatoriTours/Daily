@@ -4,6 +4,7 @@ import 'package:daily_satori/app/components/webview/headless_webview.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/services/ai_service/ai_article_processor.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/web_content/web_content_notifier.dart';
 
 /// 网页解析服务 - 负责网页内容获取、AI处理和持久化
 class WebpageParserService {
@@ -248,15 +249,16 @@ class WebpageParserService {
 
   /// 通知UI更新
   ///
-  /// Riverpod架构下，providers会自动响应Repository数据变化
-  /// 无需手动查找和更新控制器
+  /// 通过 WebContentNotifier 发送文章更新事件，触发 Riverpod providers 刷新
   void _notifyUI(int articleId) {
     if (articleId <= 0) return;
 
     final article = ArticleRepository.i.findModel(articleId);
     if (article == null) return;
 
-    // Riverpod providers watching the repository will automatically rebuild
     logger.d("[UI通知] 文章已更新 - ID=$articleId, 状态=${article.status}");
+
+    // 通过 WebContentNotifier 发送更新事件
+    WebContentNotifier.i.notifyArticleUpdated(articleId);
   }
 }

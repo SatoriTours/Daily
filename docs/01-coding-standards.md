@@ -43,153 +43,43 @@ lib/app/
 
 ## 🎯 Riverpod 架构约束
 
-### 1. Provider 规范
+> **详细实现指南与最佳实践请务必阅读：[Riverpod 最佳实践指南](./06-riverpod-style-guide.md)**
 
-```dart
-// ✅ 使用 @riverpod 注解 + 代码生成
-@riverpod
-class MyController extends _$MyController {
-  @override
-  MyControllerState build() {
-    return MyControllerState(
-      count: 0,
-      isLoading: false,
-    );
-  }
+### 1. 核心原则
 
-  // ✅ 状态修改通过方法
-  void increment() {
-    state = state.copyWith(count: state.count + 1);
-  }
+- ✅ **必须**使用 `@riverpod` 注解 + 代码生成 (Riverpod 3.0)。
+- ✅ **必须**配合 `freezed` 定义不可变状态模型。
+- ✅ **必须**使用 `ConsumerWidget` 和 `ref.watch` 构建响应式 UI。
+- ❌ **严禁**使用 GetX 相关模式 (`.obs`, `Obx`, `Get.find`)。
 
-  // ✅ 异步操作使用 AsyncValue.guard
-  Future<void> loadData() async {
-    state = state.copyWith(isLoading: true);
-    final result = await AsyncValue.guard(() => repository.getData());
-    result.when(
-      data: (data) => state = state.copyWith(count: data, isLoading: false),
-      error: (e, s) => state = state.copyWith(isLoading: false),
-    );
-  }
-}
+### 2. 数据管理架构
 
-// ✅ 使用 freezed 定义不可变状态
-@freezed
-class MyControllerState with _$MyControllerState {
-  const factory MyControllerState({
-    @Default(0) int count,
-    @Default(false) bool isLoading,
-  }) = _MyControllerState;
-}
+| 层级 | 职责 | 实现方式 |
+|------|------|----------|
+| **Repository** | 数据持久化与查询 | ObjectBox 静态方法 / 单例 |
+| **StateProvider** | 全局/模块级状态 | `AsyncNotifier` (处理业务逻辑) |
+| **ControllerProvider** | 页面级 UI 状态 | `Notifier` / `AutoDisposeNotifier` |
+| **View** | 界面展示 | `ConsumerWidget` (只负责渲染) |
 
-// ❌ 禁止手动管理状态类
-// ❌ 禁止使用可变状态
-```
+### 3. 关键开发规则
 
-### 2. 状态管理
+- **状态读取**:
+  - `build()` 方法中**必须**使用 `ref.watch()`。
+  - 事件回调/方法中**必须**使用 `ref.read()`。
+- **依赖管理**:
+  - Provider 之间通过 `ref.watch/read` 通信。
+  - 严禁循环依赖。
+- **异步处理**:
+  - 必须使用 `AsyncValue.guard()` 包装异步操作。
+  - UI 层必须处理 `loading` / `error` 状态。
 
-- ✅ **必须**使用 providers 管理全局状态（articleStateProvider, diaryStateProvider）
-- ✅ **必须**使用 `ref.watch()` 进行响应式读取，`ref.read()` 进行一次性读取
-- ✅ **必须**使用 freezed 定义不可变状态模型
-- ❌ **禁止** 直接使用 `.obs`、`Obx()` 等 GetX 模式
-- ❌ **禁止**跨 provider 直接调用，使用 `ref.watch()` / `ref.read()`
+### 4. Widget 组件规范
 
-### 3. 数据管理架构
+- **StatelessWidget**: 用于纯展示、不依赖 Provider 状态的组件。
+- **ConsumerWidget**: 用于需要监听状态的页面或组件。
+- **ConsumerStatefulWidget**: 用于既需要 Provider 状态又需要本地状态（如 TabController）的组件。
 
-| 层级 | 职责 |
-|------|------|
-| **Repository** | ObjectBox 查询、数据持久化 |
-| **StateProvider** | AsyncNotifier，管理数据状态 |
-| **ControllerProvider** | UI状态、用户输入逻辑 |
-| **View** | ConsumerWidget，ref.watch 响应式绑定 |
-
-### 4. Provider 依赖
-
-```dart
-// ✅ Provider 之间通过 ref 访问
-@riverpod
-class ArticlesController extends _$ArticlesController {
-  @override
-  ArticlesControllerState build() {
-    // 监听状态服务
-    final articlesAsync = ref.watch(articleStateProvider);
-    return ArticlesControllerState();
-  }
-
-  // 读取其他 provider
-  Future<void> refresh() async {
-    ref.read(articleStateProvider.notifier).loadArticles();
-  }
-}
-
-// ❌ 禁止循环依赖
-// ❌ 禁止在 build 方法外访问 ref
-```
-
-### 5. Widget 组件规范
-
-```dart
-// ✅ 推荐：纯展示组件使用 StatelessWidget
-class MyCard extends StatelessWidget {
-  final String title;
-  final VoidCallback? onTap;
-
-  const MyCard({required this.title, this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(title),
-        onTap: onTap,
-      ),
-    );
-  }
-}
-
-// ✅ 父组件使用 ConsumerWidget
-class MyView extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(myControllerProvider);
-
-    return MyCard(
-      title: 'Count: ${state.count}',
-      onTap: () => ref.read(myControllerProvider.notifier).increment(),
-    );
-  }
-}
-
-// ❌ 禁止使用 GetView
-// ❌ 禁止使用 Obx
-```
-
-### 6. Provider 读取模式
-
-```dart
-// ✅ ref.watch() - 响应式读取（Widget 中使用）
-class MyView extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(myControllerProvider);
-    return Text('${state.count}');
-  }
-}
-
-// ✅ ref.read() - 一次性读取（回调、事件中使用）
-void onButtonPressed(WidgetRef ref) {
-  ref.read(myControllerProvider.notifier).increment();
-}
-
-// ✅ ref.listen() - 副作用监听
-ref.listen(myControllerProvider, (previous, next) {
-  if (next.hasError) {
-    showError('操作失败');
-  }
-});
-
-// ❌ 禁止在 build 方法外使用 ref.watch()
-```
+> 具体代码示例和模式请参考 [Riverpod 最佳实践指南](./06-riverpod-style-guide.md)。
 
 ### 7. 路由与导航
 
@@ -423,12 +313,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 // 2. 第三方库
-import 'package:get/get.dart';
-import 'package:objectbox/objectbox.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:go_router/go_router.dart';
 
 // 3. 项目内导入(优先聚合导出)
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/providers/providers.dart';
 ```
 
 ## 🎯 代码质量约束（强制）
@@ -537,7 +430,20 @@ logger.e('[ClassName] 错误: 错误详情', error: e, stackTrace: st);
 #### 日志示例
 
 ```dart
-class ChatController extends BaseGetXController {
+@riverpod
+class ChatController extends _$ChatController {
+  @override
+  ChatControllerState build() {
+    logger.d('[ChatController] 初始化');
+
+    // 在 dispose 时清理资源
+    ref.onDispose(() {
+      logger.d('[ChatController] 释放资源');
+    });
+
+    return const ChatControllerState();
+  }
+
   void sendMessage(String content) {
     logger.i('[ChatController] 发送消息: ${content.substring(0, min(50, content.length))}...');
 
@@ -547,18 +453,6 @@ class ChatController extends BaseGetXController {
     }
 
     // 业务逻辑...
-  }
-
-  @override
-  void onInit() {
-    super.onInit();
-    logger.d('[ChatController] 初始化');
-  }
-
-  @override
-  void dispose() {
-    logger.d('[ChatController] 释放资源');
-    super.dispose();
   }
 }
 ```
@@ -653,20 +547,38 @@ static const _emptyBox = SizedBox.shrink();
 ### 状态管理最佳实践
 
 ```dart
-// ✅ StatelessWidget 用于纯展示
+// ✅ StatelessWidget 用于纯展示组件
 class UserCard extends StatelessWidget {
   final User user;
   const UserCard({required this.user});
 }
 
-// ✅ StatefulWidget 仅用于组件内部状态
-class ExpandableCard extends StatefulWidget {
-  // 只管理展开/折叠状态
+// ✅ ConsumerWidget 用于需要访问 Provider 的页面
+class ArticleListView extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(articlesControllerProvider);
+    return ListView.builder(
+      itemCount: state.articles.length,
+      itemBuilder: (context, index) => ArticleCard(article: state.articles[index]),
+    );
+  }
 }
 
-// ✅ GetX 用于页面级状态
-class ArticleListView extends GetView<ArticleController> {
-  // 使用 controller 管理页面状态
+// ✅ ConsumerStatefulWidget 用于需要本地状态 + Provider 的组件
+class ExpandableArticleCard extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<ExpandableArticleCard> createState() => _ExpandableArticleCardState();
+}
+
+class _ExpandableArticleCardState extends ConsumerState<ExpandableArticleCard> {
+  bool _isExpanded = false;  // 本地 UI 状态
+
+  @override
+  Widget build(BuildContext context) {
+    final article = ref.watch(articleProvider);  // Provider 状态
+    // ...
+  }
 }
 ```
 
@@ -765,23 +677,24 @@ flutter analyze
 
 ## 🔍 检查清单
 
-### 架构约束
+### Riverpod 架构约束
 
-- [ ] 继承 `BaseGetXController`
-- [ ] 使用状态服务（不直接查找控制器）
-- [ ] 使用事件总线模式
-- [ ] 直接使用 GetX 路由（Get.toNamed/back/offAllNamed）
+- [ ] Provider 使用 `@riverpod` 注解
+- [ ] 状态类使用 `@freezed` 注解
+- [ ] Widget 使用 `ref.watch()` 响应式读取
+- [ ] 事件回调使用 `ref.read()` 一次性读取
+- [ ] 副作用使用 `ref.listen()` 监听
+- [ ] 使用 `go_router` 导航 (`context.go/push`)
 - [ ] 导航操作添加了日志记录
 - [ ] 服务在 `ServiceRegistry` 注册
-- [ ] 使用 `Binding` + `List<Bind>` 依赖注入
 
-### GetX 实践
+### Provider 实践
 
-- [ ] 变量使用 `.obs`
-- [ ] UI使用 `Obx()` 更新
-- [ ] 依赖注入用 `Bind.lazyPut()`
-- [ ] 避免控制器相互查找
-- [ ] 明确定义事件类型
+- [ ] 避免 Provider 循环依赖
+- [ ] 使用 `ref.onDispose()` 清理资源
+- [ ] 异步操作使用 `AsyncValue.guard()`
+- [ ] 状态不可变，使用 `copyWith()` 更新
+- [ ] Provider 间通过 `ref.watch/read` 通信
 
 ### 代码质量
 

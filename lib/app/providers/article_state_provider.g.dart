@@ -9,21 +9,27 @@ part of 'article_state_provider.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// 文章状态 Provider
+///
+/// 使用 keepAlive: true 保持 provider 存活，确保能接收服务层的更新通知
 
 @ProviderFor(ArticleState)
 final articleStateProvider = ArticleStateProvider._();
 
 /// 文章状态 Provider
+///
+/// 使用 keepAlive: true 保持 provider 存活，确保能接收服务层的更新通知
 final class ArticleStateProvider
     extends $NotifierProvider<ArticleState, ArticleStateModel> {
   /// 文章状态 Provider
+  ///
+  /// 使用 keepAlive: true 保持 provider 存活，确保能接收服务层的更新通知
   ArticleStateProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
         name: r'articleStateProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -44,9 +50,11 @@ final class ArticleStateProvider
   }
 }
 
-String _$articleStateHash() => r'2ac0a849f6faa57d29106ae7838faef61b1355b8';
+String _$articleStateHash() => r'dbb16fda95f87169296126aead122b7d428d7447';
 
 /// 文章状态 Provider
+///
+/// 使用 keepAlive: true 保持 provider 存活，确保能接收服务层的更新通知
 
 abstract class _$ArticleState extends $Notifier<ArticleStateModel> {
   ArticleStateModel build();

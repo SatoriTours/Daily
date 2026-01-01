@@ -79,17 +79,9 @@ extension ArticlesControllerStateX on ArticlesControllerState {
     final articleState = ref.read(articleStateProvider);
     final searchQuery = articleState.globalSearchQuery;
 
-    return switch ((
-      searchQuery.isNotEmpty,
-      tagName.isNotEmpty,
-      onlyFavorite,
-      selectedFilterDate != null,
-    )) {
-      (true, _, _, _) => 'article.search_result'
-          .t
-          .replaceAll('{query}', searchQuery),
-      (_, true, _, _) =>
-        'article.filter_by_tag'.t.replaceAll('{tag}', tagName),
+    return switch ((searchQuery.isNotEmpty, tagName.isNotEmpty, onlyFavorite, selectedFilterDate != null)) {
+      (true, _, _, _) => 'article.search_result'.t.replaceAll('{query}', searchQuery),
+      (_, true, _, _) => 'article.filter_by_tag'.t.replaceAll('{tag}', tagName),
       (_, _, true, _) => 'article.favorite_articles'.t,
       (_, _, _, true) => 'article.filter_by_date'.t,
       _ => 'article.all_articles'.t,
@@ -149,14 +141,20 @@ class ArticlesController extends _$ArticlesController {
 
   /// 初始化
   void _initialize() {
-    // 监听文章更新事件
-    ref.listen(articleStateProvider, (previous, next) {
-      _handleArticleUpdateEvent(next.articleUpdateEvent);
+    // 只监听文章更新事件字段的变化，避免因其他状态变化导致重复处理
+    ref.listen(articleStateProvider.select((state) => state.articleUpdateEvent), (previous, next) {
+      // 只在事件实际变化时处理
+      if (previous != next) {
+        _handleArticleUpdateEvent(next);
+      }
     });
 
-    // 加载初始数据
-    reloadArticles();
-    AppUpgradeService.i.checkAndDownloadInBackground();
+    // 延迟执行，避免在 build 期间访问 state
+    Future.microtask(() {
+      // 加载初始数据
+      reloadArticles();
+      AppUpgradeService.i.checkAndDownloadInBackground();
+    });
   }
 
   // ========================================================================
@@ -273,34 +271,20 @@ class ArticlesController extends _$ArticlesController {
 
   /// 按标签过滤
   void filterByTag(int id, String name) {
-    state = state.copyWith(
-      tagId: id,
-      tagName: name,
-      selectedFilterDate: null,
-    );
+    state = state.copyWith(tagId: id, tagName: name, selectedFilterDate: null);
     reloadArticles();
   }
 
   /// 按日期过滤
   void filterByDate(DateTime date) {
     final selectedDay = DateTime(date.year, date.month, date.day);
-    state = state.copyWith(
-      selectedFilterDate: selectedDay,
-      tagId: -1,
-      tagName: '',
-      onlyFavorite: false,
-    );
+    state = state.copyWith(selectedFilterDate: selectedDay, tagId: -1, tagName: '', onlyFavorite: false);
     reloadArticles();
   }
 
   /// 清除所有过滤条件
   void clearAllFilters([TextEditingController? searchController]) {
-    state = state.copyWith(
-      tagId: -1,
-      tagName: '',
-      onlyFavorite: false,
-      selectedFilterDate: null,
-    );
+    state = state.copyWith(tagId: -1, tagName: '', onlyFavorite: false, selectedFilterDate: null);
 
     searchController?.clear();
 
@@ -326,11 +310,8 @@ class ArticlesController extends _$ArticlesController {
       state.onlyFavorite,
       state.selectedFilterDate != null,
     )) {
-      (true, _, _, _) => 'article.search_result'
-          .t
-          .replaceAll('{query}', searchQuery),
-      (_, true, _, _) =>
-        'article.filter_by_tag'.t.replaceAll('{tag}', state.tagName),
+      (true, _, _, _) => 'article.search_result'.t.replaceAll('{query}', searchQuery),
+      (_, true, _, _) => 'article.filter_by_tag'.t.replaceAll('{tag}', state.tagName),
       (_, _, true, _) => 'article.favorite_articles'.t,
       (_, _, _, true) => 'article.filter_by_date'.t,
       _ => 'article.all_articles'.t,
@@ -358,17 +339,13 @@ class ArticlesController extends _$ArticlesController {
   /// 日历上一月
   void calendarPreviousMonth() {
     final current = state.calendarDisplayedMonth ?? DateTime.now();
-    state = state.copyWith(
-      calendarDisplayedMonth: DateTime(current.year, current.month - 1, 1),
-    );
+    state = state.copyWith(calendarDisplayedMonth: DateTime(current.year, current.month - 1, 1));
   }
 
   /// 日历下一月
   void calendarNextMonth() {
     final current = state.calendarDisplayedMonth ?? DateTime.now();
-    state = state.copyWith(
-      calendarDisplayedMonth: DateTime(current.year, current.month + 1, 1),
-    );
+    state = state.copyWith(calendarDisplayedMonth: DateTime(current.year, current.month + 1, 1));
   }
 
   /// 选择日历日期
@@ -379,9 +356,7 @@ class ArticlesController extends _$ArticlesController {
   /// 判断是否是今天
   bool isToday(DateTime date) {
     final now = DateTime.now();
-    return date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
+    return date.year == now.year && date.month == now.month && date.day == now.day;
   }
 
   /// 判断两个日期是否是同一天
@@ -399,9 +374,7 @@ class ArticlesController extends _$ArticlesController {
 
     final isAtTop = scrollController.position.pixels <= 30;
     final lastRefresh = state.lastRefreshTime ?? DateTime.now();
-    final isDataStale = DateTime.now()
-            .difference(lastRefresh)
-            .inMinutes >= _staleDataThresholdMinutes;
+    final isDataStale = DateTime.now().difference(lastRefresh).inMinutes >= _staleDataThresholdMinutes;
 
     if (isAtTop || isDataStale) {
       await reloadArticles();
@@ -414,30 +387,35 @@ class ArticlesController extends _$ArticlesController {
 
   /// 处理文章更新事件
   void _handleArticleUpdateEvent(ArticleUpdateEvent event) {
+    // 忽略空事件
+    if (event is ArticleUpdateEventNone) return;
+
     logger.d("[Articles] 检测到文章事件: $event");
 
     switch (event) {
       case ArticleUpdateEventCreated(:final article):
-          mergeArticle(article);
+        mergeArticle(article);
         break;
       case ArticleUpdateEventUpdated(:final article):
-          updateArticle(article.id);
+        updateArticle(article.id);
         break;
       case ArticleUpdateEventDeleted(:final articleId):
-          removeArticle(articleId);
+        removeArticle(articleId);
         break;
       case ArticleUpdateEventNone():
         // 不需要处理
         break;
     }
+
+    // 重置事件，防止重复处理
+    ref.read(articleStateProvider.notifier).clearArticleUpdateEvent();
   }
 
   /// 加载更多文章（向后滚动）
   Future<void> loadMoreArticles() => _loadAdjacentArticles(loadAfter: true);
 
   /// 加载之前的文章（向前滚动）
-  Future<void> loadPreviousArticles() =>
-      _loadAdjacentArticles(loadAfter: false);
+  Future<void> loadPreviousArticles() => _loadAdjacentArticles(loadAfter: false);
 
   /// 通用相邻分页加载逻辑
   Future<void> _loadAdjacentArticles({required bool loadAfter}) async {
@@ -447,9 +425,7 @@ class ArticlesController extends _$ArticlesController {
     final anchorId = loadAfter ? articles.last.id : articles.first.id;
     const pageSize = PaginationConfig.defaultPageSize;
 
-    logger.i(loadAfter
-        ? '加载ID:$anchorId之后的$pageSize篇文章'
-        : '加载ID:$anchorId之前的$pageSize篇文章');
+    logger.i(loadAfter ? '加载ID:$anchorId之后的$pageSize篇文章' : '加载ID:$anchorId之前的$pageSize篇文章');
 
     final query = _buildQueryParams();
     final articleState = ref.read(articleStateProvider.notifier);
@@ -469,24 +445,19 @@ class ArticlesController extends _$ArticlesController {
   /// 构建查询参数
   _QueryParams _buildQueryParams() {
     final articleState = ref.read(articleStateProvider);
-    final keyword = articleState.globalSearchQuery.isNotEmpty
-        ? articleState.globalSearchQuery.trim()
-        : null;
+    final keyword = articleState.globalSearchQuery.isNotEmpty ? articleState.globalSearchQuery.trim() : null;
 
     return _QueryParams(
       keyword: keyword,
       favorite: state.onlyFavorite ? true : null,
       tagIds: state.tagId > 0 ? [state.tagId] : null,
       startDate: state.selectedFilterDate,
-      endDate: state.selectedFilterDate != null
-          ? _endOfDay(state.selectedFilterDate!)
-          : null,
+      endDate: state.selectedFilterDate != null ? _endOfDay(state.selectedFilterDate!) : null,
     );
   }
 
   /// 获取指定日期的结束时间
-  DateTime _endOfDay(DateTime date) =>
-      DateTime(date.year, date.month, date.day, 23, 59, 59);
+  DateTime _endOfDay(DateTime date) => DateTime(date.year, date.month, date.day, 23, 59, 59);
 }
 
 /// 查询参数封装类
@@ -497,11 +468,5 @@ class _QueryParams {
   final DateTime? startDate;
   final DateTime? endDate;
 
-  _QueryParams({
-    this.keyword,
-    this.favorite,
-    this.tagIds,
-    this.startDate,
-    this.endDate,
-  });
+  _QueryParams({this.keyword, this.favorite, this.tagIds, this.startDate, this.endDate});
 }

@@ -75,6 +75,7 @@ nav:
 
 # 页面标题
 title:
+  add_book: 添加书籍
   settings: 设置
   books: 读书悟道
   books_wisdom: 读书悟道
@@ -100,6 +101,9 @@ tooltip:
 # 标签
 label:
   password: 密码
+  book_author: 作者
+  book_category: 分类
+  book_title: 书名
 
 # 输入框提示
 hint:
@@ -196,6 +200,20 @@ setting:
   download_images_subtitle: 下载缺失的文章封面图片
   download_images_progress: 正在下载 {current}/{total}
 
+# 备份还原
+backup_restore:
+  delete_failed: 删除失败
+  delete_success: 删除成功
+  no_backup_path: 未设置备份路径
+  path_not_exist: 备份路径不存在
+
+# 备份设置
+backup_settings:
+  backup_failed: 备份失败
+  backup_success: 备份成功
+  path_saved: 路径已保存
+  select_failed: 选择路径失败
+
 # 应用描述
 app:
   description: 您的个性化阅读助手，支持文章收藏、AI内容分析和日记管理。
@@ -219,8 +237,13 @@ book:
   refresh_success: 《{title}》已刷新
   refresh_failed: 刷新失败，请稍后重试
 
+# 书籍搜索
+book_search:
+  search_failed: 搜索失败
+
 # 消息提示
 message:
+  copy_success: 复制成功
   success_title: 成功
   error_title: 错误
   network_error: 网络错误
@@ -329,6 +352,7 @@ ai_chat:
   send: 发送
   input_hint: 输入您的问题...
   new_chat: 新对话
+  welcome_message: 您好！我是您的智能助手，可以帮您搜索和总结应用内的内容。
 
   # 空状态
   empty_title: 开始与AI助手对话
@@ -375,6 +399,16 @@ ai_chat:
 
   help_tips_title: 使用技巧
   help_tips_content: • 使用具体的关键词搜索\n• 可以指定时间范围\n• 支持多轮对话细化需求\n• 可以询问相关建议
+
+# AI配置
+ai_config:
+  api_address_required: 请输入API地址
+  api_token_required: 请输入API Token
+  create_title: 创建配置
+  edit_title: 编辑配置
+  name_required: 请输入配置名称
+  save_failed: 保存失败
+  save_success: 保存成功
 
 # 周报总结
 weekly_summary:

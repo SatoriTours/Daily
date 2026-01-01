@@ -44,7 +44,7 @@ final class AIChatControllerProvider
   }
 }
 
-String _$aIChatControllerHash() => r'7f0a4a3d3375a42c5933cda284e66f8b406e43df';
+String _$aIChatControllerHash() => r'1c9d81f14f9c40298535c5507b3723dd9316b55c';
 
 /// AIChatController Provider
 

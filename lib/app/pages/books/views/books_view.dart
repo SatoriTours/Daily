@@ -53,14 +53,14 @@ class BooksView extends ConsumerWidget {
 
   /// 构建应用栏右侧按钮
   List<Widget> _buildAppBarActions(BuildContext context, WidgetRef ref) {
-    return [_buildAddBookButton(ref), _buildMoreMenu(context, ref)];
+    return [_buildAddBookButton(context, ref), _buildMoreMenu(context, ref)];
   }
 
   /// 构建添加书籍按钮
-  Widget _buildAddBookButton(WidgetRef ref) {
+  Widget _buildAddBookButton(BuildContext context, WidgetRef ref) {
     return IconButton(
       icon: const Icon(Icons.add, size: Dimensions.iconSizeM),
-      onPressed: () => ref.read(booksControllerProvider.notifier).showAddBookDialog(),
+      onPressed: () => ref.read(booksControllerProvider.notifier).showAddBookDialog(context),
       tooltip: 'tooltip.add_book'.t,
       padding: Dimensions.paddingS,
       constraints: const BoxConstraints(minWidth: 36, minHeight: 36),

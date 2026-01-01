@@ -75,6 +75,7 @@ nav:
 
 # Page titles
 title:
+  add_book: Add Book
   settings: Settings
   books: Reading & Insights
   books_wisdom: Reading & Insights
@@ -100,6 +101,9 @@ tooltip:
 # Labels
 label:
   password: Password
+  book_author: Author
+  book_category: Category
+  book_title: Title
 
 # Input field hints
 hint:
@@ -178,7 +182,7 @@ setting:
   websocket_remote: WebSocket Remote Access
   connection_status: Connection Status
   server_password: Server Password
-  last_update: Last updated:
+  last_update: "Last updated:"
   updating: Updating
   ai_config_subtitle: Configure AI models for multiple scenarios
   plugin_center_subtitle: Manage extension plugins and subscriptions
@@ -196,14 +200,28 @@ setting:
   download_images_subtitle: Download missing article cover images
   download_images_progress: Downloading {current}/{total}
 
+# Backup & Restore
+backup_restore:
+  delete_failed: Delete failed
+  delete_success: Delete successful
+  no_backup_path: Backup path not set
+  path_not_exist: Backup path does not exist
+
+# Backup Settings
+backup_settings:
+  backup_failed: Backup failed
+  backup_success: Backup successful
+  path_saved: Path saved
+  select_failed: Failed to select path
+
 # App description
 app:
   description: Your personalized reading assistant with article collection, AI content analysis, and diary management.
 
 # Book related
 book:
-  author: Author:
-  category: Category:
+  author: "Author:"
+  category: "Category:"
   summary: Summary
   view_all_viewpoints: View All Viewpoints
   record_thought: Record Thought
@@ -216,11 +234,16 @@ book:
   delete_confirm: Are you sure you want to delete "{title}"?\nThis action cannot be undone, and all viewpoints related to this book will also be deleted.
   refresh_confirm: Will re-fetch the viewpoint content of "{title}", this may take some time. Continue?
   refreshing: Refreshing "{title}"...
-  refresh_success: "{title}" has been refreshed
+  refresh_success: "{title} has been refreshed"
   refresh_failed: Refresh failed, please try again later
+
+# Book Search
+book_search:
+  search_failed: Search failed
 
 # Messages
 message:
+  copy_success: Copied successfully
   success_title: Success
   error_title: Error
   network_error: Network error
@@ -282,8 +305,8 @@ component:
   filter_favorite: Show Favorites Only
   filter_select_date: Select Date
   filter_clear_all: Clear All
-  filter_prefix: Filtered:
-  filtered_indicator_prefix: Filtered:
+  filter_prefix: "Filtered:"
+  filtered_indicator_prefix: "Filtered:"
   filtered_indicator_clear: Clear
 
   # Empty states
@@ -329,6 +352,7 @@ ai_chat:
   send: Send
   input_hint: Type your question...
   new_chat: New Chat
+  welcome_message: Hello! I am your AI assistant, I can help you search and summarize content in the app.
 
   # Empty State
   empty_title: Start Chat with AI Assistant
@@ -343,12 +367,12 @@ ai_chat:
   # Processing Steps
   step_start: Analyzing your question...
   step_analyzing_query: Analyzing query intent...
-  step_intent_identified: Intent identified:
+  step_intent_identified: "Intent identified:"
   step_planning_tools: Creating search plan...
-  step_tool_planned: Planned to execute:
+  step_tool_planned: "Planned to execute:"
   step_searching: Searching relevant content...
-  step_executing_tool: Executing:
-  step_tool_completed: Execution completed:
+  step_executing_tool: "Executing:"
+  step_tool_completed: "Execution completed:"
   step_summarizing: Summarizing search results...
   step_error_occurred: An error occurred during processing
 
@@ -375,6 +399,16 @@ ai_chat:
 
   help_tips_title: Usage Tips
   help_tips_content: • Use specific keywords for searching\n• You can specify time ranges\n• Support multi-turn conversations\n• Can ask for related suggestions
+
+# AI Configuration
+ai_config:
+  api_address_required: Please enter API address
+  api_token_required: Please enter API Token
+  create_title: Create Configuration
+  edit_title: Edit Configuration
+  name_required: Please enter configuration name
+  save_failed: Save failed
+  save_success: Save successful
 
 # Weekly Summary
 weekly_summary:

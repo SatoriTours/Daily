@@ -3,7 +3,6 @@ import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
-import 'package:get/get.dart';
 import 'dart:io';
 import 'package:daily_satori/app/services/file_service.dart';
 
@@ -72,23 +71,23 @@ class DiaryImageGallery extends StatelessWidget {
 
   /// 显示全屏图片画廊
   void _showFullScreenGallery(BuildContext context, List<String> images, int initialIndex) {
-    Get.dialog(
-      Dialog(
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: EdgeInsets.zero,
         child: GestureDetector(
-          onTap: () => Navigator.of(context).pop(), // 点击背景关闭
+          onTap: () => Navigator.of(dialogContext).pop(),
           child: Scaffold(
             backgroundColor: Colors.black,
             appBar: AppBar(
               backgroundColor: Colors.black.withAlpha(179),
               elevation: 0,
               automaticallyImplyLeading: false,
-              // 使用Navigator.of(context).pop()直接关闭当前对话框
               actions: [
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.of(dialogContext).pop(),
                 ),
               ],
             ),
@@ -96,7 +95,7 @@ class DiaryImageGallery extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               pageController: PageController(initialPage: initialIndex),
               itemCount: images.length,
-              builder: (BuildContext context, int index) {
+              builder: (BuildContext ctx, int index) {
                 final imagePath = images[index];
                 final resolved = FileService.i.resolveLocalMediaPath(imagePath);
                 final file = File(resolved);

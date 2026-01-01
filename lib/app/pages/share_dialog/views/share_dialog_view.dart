@@ -11,11 +11,26 @@ import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 /// 分享页面视图
 /// 用于保存链接或添加/更新文章备注信息
-class ShareDialogView extends ConsumerWidget {
+class ShareDialogView extends ConsumerStatefulWidget {
   const ShareDialogView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ShareDialogView> createState() => _ShareDialogViewState();
+}
+
+class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    if (args != null) {
+      // 使用 Future.microtask 避免在构建过程中修改状态
+      Future.microtask(() => ref.read(shareDialogControllerProvider.notifier).initialize(args));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final controllerState = ref.watch(shareDialogControllerProvider);
     final isUpdate = controllerState.isUpdate;
 

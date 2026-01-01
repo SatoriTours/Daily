@@ -17,7 +17,9 @@ mixin _$BooksControllerState {
 
 /// 最后刷新时间
  DateTime? get lastRefreshTime;/// PageController (不在freezed中管理)
+// ignore: invalid_annotation_target
 @JsonKey(includeToJson: false, includeFromJson: false) PageController? get pageController;/// TextEditingController for content (不在freezed中管理)
+// ignore: invalid_annotation_target
 @JsonKey(includeToJson: false, includeFromJson: false) TextEditingController? get contentController;
 /// Create a copy of BooksControllerState
 /// with the given fields replaced by the non-null parameter values.
@@ -220,8 +222,10 @@ class _BooksControllerState extends BooksControllerState {
 /// 最后刷新时间
 @override final  DateTime? lastRefreshTime;
 /// PageController (不在freezed中管理)
+// ignore: invalid_annotation_target
 @override@JsonKey(includeToJson: false, includeFromJson: false) final  PageController? pageController;
 /// TextEditingController for content (不在freezed中管理)
+// ignore: invalid_annotation_target
 @override@JsonKey(includeToJson: false, includeFromJson: false) final  TextEditingController? contentController;
 
 /// Create a copy of BooksControllerState

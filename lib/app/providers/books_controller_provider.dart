@@ -12,6 +12,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/services/index.dart';
+import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 part 'books_controller_provider.freezed.dart';
 part 'books_controller_provider.g.dart';
@@ -74,7 +75,7 @@ class BooksController extends _$BooksController {
 
   @override
   BooksControllerState build() {
-    _loadAllViewpoints();
+    Future.microtask(() => _loadAllViewpoints());
 
     // 创建UI控制器
     final pageController = PageController();
@@ -189,9 +190,53 @@ class BooksController extends _$BooksController {
   }
 
   /// 显示添加书籍对话框
-  void showAddBookDialog() {
-    // TODO: 实现添加书籍对话框
-    logger.i('显示添加书籍对话框');
+  Future<void> showAddBookDialog(BuildContext context) async {
+    final titleController = TextEditingController();
+    final authorController = TextEditingController();
+    final categoryController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('title.add_book'.t),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: InputDecoration(labelText: 'label.book_title'.t),
+            ),
+            TextField(
+              controller: authorController,
+              decoration: InputDecoration(labelText: 'label.book_author'.t),
+            ),
+            TextField(
+              controller: categoryController,
+              decoration: InputDecoration(labelText: 'label.book_category'.t),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('action.cancel'.t)),
+          TextButton(
+            onPressed: () async {
+              if (titleController.text.isNotEmpty) {
+                final book = BookModel.create(
+                  title: titleController.text,
+                  author: authorController.text,
+                  category: categoryController.text,
+                );
+                BookRepository.i.save(book);
+                // Refresh list
+                await loadAllViewpoints();
+                if (context.mounted) Navigator.pop(context);
+              }
+            },
+            child: Text('action.confirm'.t),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 加载所有观点（公开方法）

@@ -12,9 +12,9 @@
 |------|------|----------|
 | [编码规范](./docs/01-coding-standards.md) | 统一编码标准、架构约束、最佳实践 | **每次编写代码前** |
 | [Riverpod 指南](./docs/06-riverpod-style-guide.md) | Riverpod + freezed 最佳实践 | 状态管理开发时 |
-| [应用功能](./docs/APP_FEATURES.md) | 完整的功能模块说明和约束 | **修改具体页面功能时** |
-| [样式指南](./docs/STYLE_GUIDE.md) | 样式系统快速参考 | 编写 UI 代码时 |
-| [国际化指南](./docs/I18N_GUIDE.md) | 多语言开发指南 | 添加文本时 |
+| [应用功能](./docs/03-app-features.md) | 完整的功能模块说明和约束 | **修改具体页面功能时** |
+| [样式指南](./docs/04-style-guide.md) | 样式系统快速参考 | 编写 UI 代码时 |
+| [国际化指南](./docs/05-i18n-guide.md) | 多语言开发指南 | 添加文本时 |
 | [迁移文档](./docs/RIVERPOD_MIGRATION.md) | GetX → Riverpod 迁移进度 | 了解迁移状态时 |
 
 ---
@@ -73,7 +73,7 @@ lib/app/
 
 ### 修改页面功能时
 
-1. **先阅读** `docs/APP_FEATURES.md` 中对应模块的说明
+1. **先阅读** `docs/03-app-features.md` 中对应模块的说明
 2. 理解数据模型和约束条件
 3. 编写代码
 4. 执行 `flutter analyze` 确保无问题
@@ -81,14 +81,14 @@ lib/app/
 ### 编写 UI 代码时
 
 1. 导入样式系统 `import 'package:daily_satori/app/styles/index.dart';`
-2. 查阅 `docs/STYLE_GUIDE.md` 获取样式参考
+2. 查阅 `docs/04-style-guide.md` 获取样式参考
 3. 遵循组件拆分原则（每个函数 ≤ 50 行）
 
 ### 添加新功能时
 
 1. 阅读 `docs/01-coding-standards.md` 了解架构约束
 2. 阅读 `docs/06-riverpod-style-guide.md` 了解 Riverpod 最佳实践
-3. 更新 `docs/APP_FEATURES.md` 记录新功能
+3. 更新 `docs/03-app-features.md` 记录新功能
 4. 创建对应的 provider（使用 `@riverpod` 注解）
 
 ---
@@ -151,9 +151,9 @@ flutter analyze
 - [编码规范](./docs/01-coding-standards.md) - Riverpod 架构标准
 - [Riverpod 指南](./docs/06-riverpod-style-guide.md) - 最佳实践
 - [迁移文档](./docs/RIVERPOD_MIGRATION.md) - GetX → Riverpod 迁移进度
-- [应用功能](./docs/APP_FEATURES.md) - 功能说明
-- [样式指南](./docs/STYLE_GUIDE.md) - 样式参考
-- [国际化](./docs/I18N_GUIDE.md) - 多语言
+- [应用功能](./docs/03-app-features.md) - 功能说明
+- [样式指南](./docs/04-style-guide.md) - 样式参考
+- [国际化](./docs/05-i18n-guide.md) - 多语言
 
 ---
 

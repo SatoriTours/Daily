@@ -151,10 +151,10 @@ class AppHttpServer {
 
   /// 创建文章API处理方法
   Future<shelf.Response> _createArticle(Map<String, String> params) async {
-    // TODO: 实现路由检查（已移除GetX）
-    // if (Navigator.canPop(context)) {
-    //   return _response(1, '请先把上个页面保存完成');
-    // }
+    // 路由检查：如果当前不在根页面（例如打开了详情页或对话框），则阻止操作
+    if (AppNavigation.navigatorKey.currentState?.canPop() ?? false) {
+      return _response(1, '请先把上个页面保存完成');
+    }
 
     AppNavigation.toNamed(Routes.shareDialog, arguments: {'articleID': 0, 'shareURL': params['url'], 'update': false});
 

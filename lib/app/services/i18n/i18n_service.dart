@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get/get.dart';
 import 'package:yaml/yaml.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/data/setting/setting_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/navigation/app_navigation.dart';
 
 /// 支持的语言枚举
 enum SupportedLanguage {
@@ -84,23 +84,27 @@ class I18nService implements AppService {
   /// 根据系统语言自动选择
   Future<void> useSystemLanguage() async {
     try {
-      final locale = WidgetsBinding.instance.platformDispatcher.locale;
-      switch (locale.languageCode) {
-        case 'zh':
-          await changeLanguageAndRestart(SupportedLanguage.zh, Get.context!);
-          break;
-        case 'en':
-          await changeLanguageAndRestart(SupportedLanguage.en, Get.context!);
-          break;
-        default:
-          // 默认使用中文
-          await changeLanguageAndRestart(SupportedLanguage.zh, Get.context!);
-          break;
+      final context = AppNavigation.navigatorKey.currentContext;
+      if (context == null) {
+        logger.w('useSystemLanguage: No valid context available');
+        return;
       }
+
+      final locale = WidgetsBinding.instance.platformDispatcher.locale;
+      final targetLanguage = switch (locale.languageCode) {
+        'zh' => SupportedLanguage.zh,
+        'en' => SupportedLanguage.en,
+        _ => SupportedLanguage.zh, // 默认使用中文
+      };
+
+      await changeLanguageAndRestart(targetLanguage, context);
     } catch (e, stackTrace) {
       logger.e('Failed to use system language', error: e, stackTrace: stackTrace);
-      // 出错时使用中文作为默认
-      await changeLanguageAndRestart(SupportedLanguage.zh, Get.context!);
+      // 出错时尝试使用中文作为默认，获取新的 context 以避免跨 async gap 问题
+      final newContext = AppNavigation.navigatorKey.currentContext;
+      if (newContext != null && newContext.mounted) {
+        await changeLanguageAndRestart(SupportedLanguage.zh, newContext);
+      }
     }
   }
 

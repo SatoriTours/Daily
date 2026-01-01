@@ -6,9 +6,11 @@
 
 library;
 
+import 'dart:io';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/services/index.dart';
@@ -32,11 +34,12 @@ abstract class BackupSettingsControllerState with _$BackupSettingsControllerStat
 class BackupSettingsController extends _$BackupSettingsController {
   @override
   BackupSettingsControllerState build() {
-    loadSettings();
-    return const BackupSettingsControllerState();
+    // 直接从仓储读取初始值，避免异步调用中访问未初始化的 state
+    final path = SettingRepository.i.getSetting(SettingService.backupDirKey);
+    return BackupSettingsControllerState(backupDirectory: path);
   }
 
-  /// 加载备份设置
+  /// 重新加载备份设置
   Future<void> loadSettings() async {
     state = state.copyWith(isLoading: true, errorMessage: '');
     try {
@@ -51,6 +54,15 @@ class BackupSettingsController extends _$BackupSettingsController {
   /// 选择备份目录
   Future<void> selectBackupDirectory() async {
     try {
+      // Android 平台需要检查存储权限
+      if (Platform.isAndroid) {
+        final permission = await Permission.manageExternalStorage.request();
+        if (!permission.isGranted) {
+          UIUtils.showError('请授予应用管理外部存储的权限', isTop: true);
+          return;
+        }
+      }
+
       String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
         dialogTitle: '选择备份文件夹',
         initialDirectory: state.backupDirectory,
@@ -59,7 +71,7 @@ class BackupSettingsController extends _$BackupSettingsController {
       if (selectedDirectory != null) {
         SettingRepository.i.saveSetting(SettingService.backupDirKey, selectedDirectory);
         state = state.copyWith(backupDirectory: selectedDirectory);
-        UIUtils.showSuccess('backup_settings.path_saved'.t);
+        UIUtils.showSuccess('backup_settings.path_saved'.t, isTop: true);
       }
     } catch (e) {
       logger.e('[BackupSettingsController] 选择目录失败', error: e);

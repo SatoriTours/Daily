@@ -71,7 +71,7 @@ class SettingsController extends _$SettingsController {
   @override
   SettingsControllerState build() {
     // 初始化时加载数据
-    _initialize();
+    Future.microtask(() => _initialize());
     return const SettingsControllerState();
   }
 
@@ -83,10 +83,14 @@ class SettingsController extends _$SettingsController {
     _updateWebSocketStatus();
 
     // 监听WebSocket连接状态变化
-    final subscription = WebService.i.webSocketTunnel.isConnected.listen((next) {
-      state = state.copyWith(isWebSocketConnected: next);
+    void onConnectionChanged() {
+      state = state.copyWith(isWebSocketConnected: WebService.i.webSocketTunnel.isConnected.value);
+    }
+
+    WebService.i.webSocketTunnel.isConnected.addListener(onConnectionChanged);
+    ref.onDispose(() {
+      WebService.i.webSocketTunnel.isConnected.removeListener(onConnectionChanged);
     });
-    ref.onDispose(() => subscription.cancel());
   }
 
   // ========================================================================

@@ -43,10 +43,14 @@ class AIChatController extends _$AIChatController {
   @override
   AIChatControllerState build() {
     final sessionId = 'chat_${DateTime.now().millisecondsSinceEpoch}';
-    final initialState = AIChatControllerState(sessionId: sessionId, messages: [_createWelcomeMessage()]);
+
+    // 延迟初始化欢迎消息，避免在 build 期间触发状态更新
+    Future.microtask(() {
+      state = state.copyWith(messages: [_createWelcomeMessage()]);
+    });
 
     logger.d('[AIChatController] 初始化控制器，会话ID: $sessionId');
-    return initialState;
+    return AIChatControllerState(sessionId: sessionId);
   }
 
   /// 发送消息
@@ -67,7 +71,6 @@ class AIChatController extends _$AIChatController {
         isProcessing: true,
         currentStep: 'ai_chat.step_start'.t,
       );
-      _scrollToBottom();
 
       // 处理查询
       final result = await _mcpAgentService.processQuery(
@@ -83,7 +86,6 @@ class AIChatController extends _$AIChatController {
       _markLastAssistantAsError();
     } finally {
       state = state.copyWith(isProcessing: false, currentStep: '');
-      _scrollToBottom();
     }
   }
 
@@ -162,11 +164,6 @@ class AIChatController extends _$AIChatController {
   /// 处理步骤更新
   void _handleStepUpdate(String step) {
     state = state.copyWith(currentStep: step);
-  }
-
-  /// 滚动到底部
-  void _scrollToBottom() {
-    // TODO: 实现滚动到底部逻辑
   }
 
   /// 生成消息ID

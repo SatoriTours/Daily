@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AppStateModel {
 
- int get currentNavIndex; bool get isAppInBackground; DateTime get lastActiveTime; bool get isGlobalLoading; String get globalErrorMessage; String get globalSuccessMessage; bool get isSearchBarVisible; String get currentPage;
+ int get currentNavIndex; bool get isAppInBackground; DateTime get lastActiveTime; bool get isGlobalLoading; String get globalErrorMessage; String get globalSuccessMessage; String get globalInfoMessage; bool get isSearchBarVisible; String get currentPage;
 /// Create a copy of AppStateModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $AppStateModelCopyWith<AppStateModel> get copyWith => _$AppStateModelCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppStateModel&&(identical(other.currentNavIndex, currentNavIndex) || other.currentNavIndex == currentNavIndex)&&(identical(other.isAppInBackground, isAppInBackground) || other.isAppInBackground == isAppInBackground)&&(identical(other.lastActiveTime, lastActiveTime) || other.lastActiveTime == lastActiveTime)&&(identical(other.isGlobalLoading, isGlobalLoading) || other.isGlobalLoading == isGlobalLoading)&&(identical(other.globalErrorMessage, globalErrorMessage) || other.globalErrorMessage == globalErrorMessage)&&(identical(other.globalSuccessMessage, globalSuccessMessage) || other.globalSuccessMessage == globalSuccessMessage)&&(identical(other.isSearchBarVisible, isSearchBarVisible) || other.isSearchBarVisible == isSearchBarVisible)&&(identical(other.currentPage, currentPage) || other.currentPage == currentPage));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppStateModel&&(identical(other.currentNavIndex, currentNavIndex) || other.currentNavIndex == currentNavIndex)&&(identical(other.isAppInBackground, isAppInBackground) || other.isAppInBackground == isAppInBackground)&&(identical(other.lastActiveTime, lastActiveTime) || other.lastActiveTime == lastActiveTime)&&(identical(other.isGlobalLoading, isGlobalLoading) || other.isGlobalLoading == isGlobalLoading)&&(identical(other.globalErrorMessage, globalErrorMessage) || other.globalErrorMessage == globalErrorMessage)&&(identical(other.globalSuccessMessage, globalSuccessMessage) || other.globalSuccessMessage == globalSuccessMessage)&&(identical(other.globalInfoMessage, globalInfoMessage) || other.globalInfoMessage == globalInfoMessage)&&(identical(other.isSearchBarVisible, isSearchBarVisible) || other.isSearchBarVisible == isSearchBarVisible)&&(identical(other.currentPage, currentPage) || other.currentPage == currentPage));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,currentNavIndex,isAppInBackground,lastActiveTime,isGlobalLoading,globalErrorMessage,globalSuccessMessage,isSearchBarVisible,currentPage);
+int get hashCode => Object.hash(runtimeType,currentNavIndex,isAppInBackground,lastActiveTime,isGlobalLoading,globalErrorMessage,globalSuccessMessage,globalInfoMessage,isSearchBarVisible,currentPage);
 
 @override
 String toString() {
-  return 'AppStateModel(currentNavIndex: $currentNavIndex, isAppInBackground: $isAppInBackground, lastActiveTime: $lastActiveTime, isGlobalLoading: $isGlobalLoading, globalErrorMessage: $globalErrorMessage, globalSuccessMessage: $globalSuccessMessage, isSearchBarVisible: $isSearchBarVisible, currentPage: $currentPage)';
+  return 'AppStateModel(currentNavIndex: $currentNavIndex, isAppInBackground: $isAppInBackground, lastActiveTime: $lastActiveTime, isGlobalLoading: $isGlobalLoading, globalErrorMessage: $globalErrorMessage, globalSuccessMessage: $globalSuccessMessage, globalInfoMessage: $globalInfoMessage, isSearchBarVisible: $isSearchBarVisible, currentPage: $currentPage)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $AppStateModelCopyWith<$Res>  {
   factory $AppStateModelCopyWith(AppStateModel value, $Res Function(AppStateModel) _then) = _$AppStateModelCopyWithImpl;
 @useResult
 $Res call({
- int currentNavIndex, bool isAppInBackground, DateTime lastActiveTime, bool isGlobalLoading, String globalErrorMessage, String globalSuccessMessage, bool isSearchBarVisible, String currentPage
+ int currentNavIndex, bool isAppInBackground, DateTime lastActiveTime, bool isGlobalLoading, String globalErrorMessage, String globalSuccessMessage, String globalInfoMessage, bool isSearchBarVisible, String currentPage
 });
 
 
@@ -62,7 +62,7 @@ class _$AppStateModelCopyWithImpl<$Res>
 
 /// Create a copy of AppStateModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? currentNavIndex = null,Object? isAppInBackground = null,Object? lastActiveTime = null,Object? isGlobalLoading = null,Object? globalErrorMessage = null,Object? globalSuccessMessage = null,Object? isSearchBarVisible = null,Object? currentPage = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? currentNavIndex = null,Object? isAppInBackground = null,Object? lastActiveTime = null,Object? isGlobalLoading = null,Object? globalErrorMessage = null,Object? globalSuccessMessage = null,Object? globalInfoMessage = null,Object? isSearchBarVisible = null,Object? currentPage = null,}) {
   return _then(_self.copyWith(
 currentNavIndex: null == currentNavIndex ? _self.currentNavIndex : currentNavIndex // ignore: cast_nullable_to_non_nullable
 as int,isAppInBackground: null == isAppInBackground ? _self.isAppInBackground : isAppInBackground // ignore: cast_nullable_to_non_nullable
@@ -70,6 +70,7 @@ as bool,lastActiveTime: null == lastActiveTime ? _self.lastActiveTime : lastActi
 as DateTime,isGlobalLoading: null == isGlobalLoading ? _self.isGlobalLoading : isGlobalLoading // ignore: cast_nullable_to_non_nullable
 as bool,globalErrorMessage: null == globalErrorMessage ? _self.globalErrorMessage : globalErrorMessage // ignore: cast_nullable_to_non_nullable
 as String,globalSuccessMessage: null == globalSuccessMessage ? _self.globalSuccessMessage : globalSuccessMessage // ignore: cast_nullable_to_non_nullable
+as String,globalInfoMessage: null == globalInfoMessage ? _self.globalInfoMessage : globalInfoMessage // ignore: cast_nullable_to_non_nullable
 as String,isSearchBarVisible: null == isSearchBarVisible ? _self.isSearchBarVisible : isSearchBarVisible // ignore: cast_nullable_to_non_nullable
 as bool,currentPage: null == currentPage ? _self.currentPage : currentPage // ignore: cast_nullable_to_non_nullable
 as String,
@@ -157,10 +158,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int currentNavIndex,  bool isAppInBackground,  DateTime lastActiveTime,  bool isGlobalLoading,  String globalErrorMessage,  String globalSuccessMessage,  bool isSearchBarVisible,  String currentPage)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int currentNavIndex,  bool isAppInBackground,  DateTime lastActiveTime,  bool isGlobalLoading,  String globalErrorMessage,  String globalSuccessMessage,  String globalInfoMessage,  bool isSearchBarVisible,  String currentPage)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppStateModel() when $default != null:
-return $default(_that.currentNavIndex,_that.isAppInBackground,_that.lastActiveTime,_that.isGlobalLoading,_that.globalErrorMessage,_that.globalSuccessMessage,_that.isSearchBarVisible,_that.currentPage);case _:
+return $default(_that.currentNavIndex,_that.isAppInBackground,_that.lastActiveTime,_that.isGlobalLoading,_that.globalErrorMessage,_that.globalSuccessMessage,_that.globalInfoMessage,_that.isSearchBarVisible,_that.currentPage);case _:
   return orElse();
 
 }
@@ -178,10 +179,10 @@ return $default(_that.currentNavIndex,_that.isAppInBackground,_that.lastActiveTi
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int currentNavIndex,  bool isAppInBackground,  DateTime lastActiveTime,  bool isGlobalLoading,  String globalErrorMessage,  String globalSuccessMessage,  bool isSearchBarVisible,  String currentPage)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int currentNavIndex,  bool isAppInBackground,  DateTime lastActiveTime,  bool isGlobalLoading,  String globalErrorMessage,  String globalSuccessMessage,  String globalInfoMessage,  bool isSearchBarVisible,  String currentPage)  $default,) {final _that = this;
 switch (_that) {
 case _AppStateModel():
-return $default(_that.currentNavIndex,_that.isAppInBackground,_that.lastActiveTime,_that.isGlobalLoading,_that.globalErrorMessage,_that.globalSuccessMessage,_that.isSearchBarVisible,_that.currentPage);case _:
+return $default(_that.currentNavIndex,_that.isAppInBackground,_that.lastActiveTime,_that.isGlobalLoading,_that.globalErrorMessage,_that.globalSuccessMessage,_that.globalInfoMessage,_that.isSearchBarVisible,_that.currentPage);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -198,10 +199,10 @@ return $default(_that.currentNavIndex,_that.isAppInBackground,_that.lastActiveTi
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int currentNavIndex,  bool isAppInBackground,  DateTime lastActiveTime,  bool isGlobalLoading,  String globalErrorMessage,  String globalSuccessMessage,  bool isSearchBarVisible,  String currentPage)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int currentNavIndex,  bool isAppInBackground,  DateTime lastActiveTime,  bool isGlobalLoading,  String globalErrorMessage,  String globalSuccessMessage,  String globalInfoMessage,  bool isSearchBarVisible,  String currentPage)?  $default,) {final _that = this;
 switch (_that) {
 case _AppStateModel() when $default != null:
-return $default(_that.currentNavIndex,_that.isAppInBackground,_that.lastActiveTime,_that.isGlobalLoading,_that.globalErrorMessage,_that.globalSuccessMessage,_that.isSearchBarVisible,_that.currentPage);case _:
+return $default(_that.currentNavIndex,_that.isAppInBackground,_that.lastActiveTime,_that.isGlobalLoading,_that.globalErrorMessage,_that.globalSuccessMessage,_that.globalInfoMessage,_that.isSearchBarVisible,_that.currentPage);case _:
   return null;
 
 }
@@ -213,7 +214,7 @@ return $default(_that.currentNavIndex,_that.isAppInBackground,_that.lastActiveTi
 
 
 class _AppStateModel extends AppStateModel {
-  const _AppStateModel({this.currentNavIndex = 0, this.isAppInBackground = false, required this.lastActiveTime, this.isGlobalLoading = false, this.globalErrorMessage = '', this.globalSuccessMessage = '', this.isSearchBarVisible = false, this.currentPage = ''}): super._();
+  const _AppStateModel({this.currentNavIndex = 0, this.isAppInBackground = false, required this.lastActiveTime, this.isGlobalLoading = false, this.globalErrorMessage = '', this.globalSuccessMessage = '', this.globalInfoMessage = '', this.isSearchBarVisible = false, this.currentPage = ''}): super._();
   
 
 @override@JsonKey() final  int currentNavIndex;
@@ -222,6 +223,7 @@ class _AppStateModel extends AppStateModel {
 @override@JsonKey() final  bool isGlobalLoading;
 @override@JsonKey() final  String globalErrorMessage;
 @override@JsonKey() final  String globalSuccessMessage;
+@override@JsonKey() final  String globalInfoMessage;
 @override@JsonKey() final  bool isSearchBarVisible;
 @override@JsonKey() final  String currentPage;
 
@@ -235,16 +237,16 @@ _$AppStateModelCopyWith<_AppStateModel> get copyWith => __$AppStateModelCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppStateModel&&(identical(other.currentNavIndex, currentNavIndex) || other.currentNavIndex == currentNavIndex)&&(identical(other.isAppInBackground, isAppInBackground) || other.isAppInBackground == isAppInBackground)&&(identical(other.lastActiveTime, lastActiveTime) || other.lastActiveTime == lastActiveTime)&&(identical(other.isGlobalLoading, isGlobalLoading) || other.isGlobalLoading == isGlobalLoading)&&(identical(other.globalErrorMessage, globalErrorMessage) || other.globalErrorMessage == globalErrorMessage)&&(identical(other.globalSuccessMessage, globalSuccessMessage) || other.globalSuccessMessage == globalSuccessMessage)&&(identical(other.isSearchBarVisible, isSearchBarVisible) || other.isSearchBarVisible == isSearchBarVisible)&&(identical(other.currentPage, currentPage) || other.currentPage == currentPage));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppStateModel&&(identical(other.currentNavIndex, currentNavIndex) || other.currentNavIndex == currentNavIndex)&&(identical(other.isAppInBackground, isAppInBackground) || other.isAppInBackground == isAppInBackground)&&(identical(other.lastActiveTime, lastActiveTime) || other.lastActiveTime == lastActiveTime)&&(identical(other.isGlobalLoading, isGlobalLoading) || other.isGlobalLoading == isGlobalLoading)&&(identical(other.globalErrorMessage, globalErrorMessage) || other.globalErrorMessage == globalErrorMessage)&&(identical(other.globalSuccessMessage, globalSuccessMessage) || other.globalSuccessMessage == globalSuccessMessage)&&(identical(other.globalInfoMessage, globalInfoMessage) || other.globalInfoMessage == globalInfoMessage)&&(identical(other.isSearchBarVisible, isSearchBarVisible) || other.isSearchBarVisible == isSearchBarVisible)&&(identical(other.currentPage, currentPage) || other.currentPage == currentPage));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,currentNavIndex,isAppInBackground,lastActiveTime,isGlobalLoading,globalErrorMessage,globalSuccessMessage,isSearchBarVisible,currentPage);
+int get hashCode => Object.hash(runtimeType,currentNavIndex,isAppInBackground,lastActiveTime,isGlobalLoading,globalErrorMessage,globalSuccessMessage,globalInfoMessage,isSearchBarVisible,currentPage);
 
 @override
 String toString() {
-  return 'AppStateModel(currentNavIndex: $currentNavIndex, isAppInBackground: $isAppInBackground, lastActiveTime: $lastActiveTime, isGlobalLoading: $isGlobalLoading, globalErrorMessage: $globalErrorMessage, globalSuccessMessage: $globalSuccessMessage, isSearchBarVisible: $isSearchBarVisible, currentPage: $currentPage)';
+  return 'AppStateModel(currentNavIndex: $currentNavIndex, isAppInBackground: $isAppInBackground, lastActiveTime: $lastActiveTime, isGlobalLoading: $isGlobalLoading, globalErrorMessage: $globalErrorMessage, globalSuccessMessage: $globalSuccessMessage, globalInfoMessage: $globalInfoMessage, isSearchBarVisible: $isSearchBarVisible, currentPage: $currentPage)';
 }
 
 
@@ -255,7 +257,7 @@ abstract mixin class _$AppStateModelCopyWith<$Res> implements $AppStateModelCopy
   factory _$AppStateModelCopyWith(_AppStateModel value, $Res Function(_AppStateModel) _then) = __$AppStateModelCopyWithImpl;
 @override @useResult
 $Res call({
- int currentNavIndex, bool isAppInBackground, DateTime lastActiveTime, bool isGlobalLoading, String globalErrorMessage, String globalSuccessMessage, bool isSearchBarVisible, String currentPage
+ int currentNavIndex, bool isAppInBackground, DateTime lastActiveTime, bool isGlobalLoading, String globalErrorMessage, String globalSuccessMessage, String globalInfoMessage, bool isSearchBarVisible, String currentPage
 });
 
 
@@ -272,7 +274,7 @@ class __$AppStateModelCopyWithImpl<$Res>
 
 /// Create a copy of AppStateModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? currentNavIndex = null,Object? isAppInBackground = null,Object? lastActiveTime = null,Object? isGlobalLoading = null,Object? globalErrorMessage = null,Object? globalSuccessMessage = null,Object? isSearchBarVisible = null,Object? currentPage = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? currentNavIndex = null,Object? isAppInBackground = null,Object? lastActiveTime = null,Object? isGlobalLoading = null,Object? globalErrorMessage = null,Object? globalSuccessMessage = null,Object? globalInfoMessage = null,Object? isSearchBarVisible = null,Object? currentPage = null,}) {
   return _then(_AppStateModel(
 currentNavIndex: null == currentNavIndex ? _self.currentNavIndex : currentNavIndex // ignore: cast_nullable_to_non_nullable
 as int,isAppInBackground: null == isAppInBackground ? _self.isAppInBackground : isAppInBackground // ignore: cast_nullable_to_non_nullable
@@ -280,6 +282,7 @@ as bool,lastActiveTime: null == lastActiveTime ? _self.lastActiveTime : lastActi
 as DateTime,isGlobalLoading: null == isGlobalLoading ? _self.isGlobalLoading : isGlobalLoading // ignore: cast_nullable_to_non_nullable
 as bool,globalErrorMessage: null == globalErrorMessage ? _self.globalErrorMessage : globalErrorMessage // ignore: cast_nullable_to_non_nullable
 as String,globalSuccessMessage: null == globalSuccessMessage ? _self.globalSuccessMessage : globalSuccessMessage // ignore: cast_nullable_to_non_nullable
+as String,globalInfoMessage: null == globalInfoMessage ? _self.globalInfoMessage : globalInfoMessage // ignore: cast_nullable_to_non_nullable
 as String,isSearchBarVisible: null == isSearchBarVisible ? _self.isSearchBarVisible : isSearchBarVisible // ignore: cast_nullable_to_non_nullable
 as bool,currentPage: null == currentPage ? _self.currentPage : currentPage // ignore: cast_nullable_to_non_nullable
 as String,

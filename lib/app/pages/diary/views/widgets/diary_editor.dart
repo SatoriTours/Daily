@@ -258,11 +258,13 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
                         scrollDirection: Axis.horizontal,
                         children: [
                           ..._existingImages.asMap().entries.map((entry) {
+                            // 解析相对路径为绝对路径
+                            final resolvedPath = FileService.i.resolveLocalMediaPath(entry.value);
                             return Padding(
                               padding: const EdgeInsets.only(right: 8.0),
                               child: Stack(
                                 children: [
-                                  Image.file(File(entry.value), width: 100, height: 100, fit: BoxFit.cover),
+                                  Image.file(File(resolvedPath), width: 100, height: 100, fit: BoxFit.cover),
                                   Positioned(
                                     top: 0,
                                     right: 0,

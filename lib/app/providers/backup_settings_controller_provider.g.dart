@@ -51,7 +51,7 @@ final class BackupSettingsControllerProvider
 }
 
 String _$backupSettingsControllerHash() =>
-    r'b50b138368605d4bbbeafa503185e23c067930e7';
+    r'4331cdf95ec3957c06369c17df834083f2208151';
 
 /// BackupSettingsController Provider
 

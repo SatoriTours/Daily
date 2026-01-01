@@ -67,8 +67,13 @@ class ArticleDetailController extends _$ArticleDetailController {
 
   /// 初始化文章更新监听器
   void _initArticleUpdateListener(int articleId) {
+    // 监听文章更新事件
     ref.listen(articleStateProvider, (previous, next) {
       final event = next.articleUpdateEvent;
+      final prevEvent = previous?.articleUpdateEvent;
+
+      // 只在事件实际变化时处理
+      if (prevEvent == event) return;
 
       // 检查事件是否影响当前文章
       if (!_affectsArticle(event, articleId)) return;

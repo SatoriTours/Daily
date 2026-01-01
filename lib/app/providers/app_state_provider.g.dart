@@ -44,7 +44,7 @@ final class AppGlobalStateProvider
   }
 }
 
-String _$appGlobalStateHash() => r'991db30db8d30a9eddb547237199905ac08d252d';
+String _$appGlobalStateHash() => r'20607c4a5bb18acefda2ad706e904df067906afb';
 
 /// 全局应用状态 Provider
 

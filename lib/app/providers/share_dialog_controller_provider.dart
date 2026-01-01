@@ -13,6 +13,9 @@ import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/services/index.dart';
 import 'package:daily_satori/app/components/dialogs/processing_dialog.dart';
+import 'package:daily_satori/app/utils/dialog_utils.dart';
+import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_routes.dart';
 
 part 'share_dialog_controller_provider.freezed.dart';
 part 'share_dialog_controller_provider.g.dart';
@@ -61,15 +64,11 @@ class ShareDialogController extends _$ShareDialogController {
 
   @override
   ShareDialogControllerState build() {
-    _initDefaultValues();
     return const ShareDialogControllerState();
   }
 
-  /// 初始化默认值
-  void _initDefaultValues() {
-    // TODO: 从路由参数获取初始值
-    final args = <String, dynamic>{};
-
+  /// 初始化
+  void initialize(Map<String, dynamic> args) {
     // 初始化文章ID
     if (args.containsKey('articleID') && args['articleID'] != null) {
       state = state.copyWith(articleID: args['articleID'], isUpdate: true);
@@ -170,7 +169,17 @@ class ShareDialogController extends _$ShareDialogController {
       if (msg.contains('网页已存在')) {
         final exist = ArticleRepository.i.findByUrl(state.shareURL);
         if (exist != null) {
-          // TODO: 显示确认对话框
+          if (context.mounted) {
+            await DialogUtils.showConfirm(
+              title: '提示',
+              message: '该网页已存在，是否更新？',
+              confirmText: '更新',
+              onConfirm: () async {
+                state = state.copyWith(isUpdate: true, articleID: exist.id);
+                await onSaveButtonPressed(context);
+              },
+            );
+          }
           return;
         }
       }
@@ -208,10 +217,13 @@ class ShareDialogController extends _$ShareDialogController {
   /// 返回上一步
   void _backToPreviousStep(BuildContext context) {
     if (state.isUpdate) {
-      // 更新模式：返回文章详情页
-      _navigateToDetail();
-    } else {
+      // 更新模式：先关闭当前页面，再返回详情页
+      // 使用 popUntil 返回到详情页，而不是 push 新页面
       Navigator.of(context).pop();
+    } else {
+      // 新增模式：关闭分享对话框，导航到详情页
+      Navigator.of(context).pop();
+      _navigateToDetail();
     }
   }
 
@@ -219,7 +231,7 @@ class ShareDialogController extends _$ShareDialogController {
   void _navigateToDetail() {
     if (state.articleID <= 0) return;
 
-    // TODO: 导航到详情页
+    AppNavigation.toNamed(Routes.articleDetail, arguments: state.articleID);
   }
 
   // 私有方法

@@ -13,37 +13,51 @@ import 'widgets/tab_bar_widget.dart';
 /// 包含两个主要标签页：
 /// 1. 摘要页面：显示文章的基本信息和AI生成的摘要
 /// 2. 原文页面：显示文章的完整内容
-class ArticleDetailView extends ConsumerWidget {
+class ArticleDetailView extends ConsumerStatefulWidget {
   const ArticleDetailView({super.key});
+
+  @override
+  ConsumerState<ArticleDetailView> createState() => _ArticleDetailViewState();
+}
+
+class _ArticleDetailViewState extends ConsumerState<ArticleDetailView> {
+  bool _isLoaded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isLoaded) {
+      _isLoaded = true;
+      // 从路由参数获取文章信息并加载
+      final arguments = ModalRoute.of(context)?.settings.arguments;
+      if (arguments != null) {
+        // 延迟执行以避免在 widget 构建阶段修改 Provider 状态
+        Future(() {
+          ref.read(articleDetailControllerProvider.notifier).loadArticle(arguments);
+        });
+      }
+    }
+  }
 
   // 根构建：提供 Tab 数量与 Scaffold
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final controllerState = ref.watch(articleDetailControllerProvider);
     final article = controllerState.articleModel;
 
-    return DefaultTabController(
-      length: 2,
-      child: _buildScaffold(context, ref, article),
-    );
+    return DefaultTabController(length: 2, child: _buildScaffold(context, article));
   }
 
   // 页面骨架：AppBar + Body
-  Widget _buildScaffold(BuildContext context, WidgetRef ref, ArticleModel? article) {
+  Widget _buildScaffold(BuildContext context, ArticleModel? article) {
     return Scaffold(
       appBar: ArticleDetailAppBar(article: article),
-      body: Column(
-        children: [
-          _buildProcessingBanner(context, ref, article),
-          _buildTabs(ref, article),
-          const ArticleTabBar(),
-        ],
-      ),
+      body: Column(children: [_buildProcessingBanner(context, article), _buildTabs(article), const ArticleTabBar()]),
     );
   }
 
   // 内容区域：监听文章变化刷新标签页
-  Widget _buildTabs(WidgetRef ref, ArticleModel? article) {
+  Widget _buildTabs(ArticleModel? article) {
     return Expanded(
       child: TabBarView(
         physics: const NeverScrollableScrollPhysics(),
@@ -56,7 +70,7 @@ class ArticleDetailView extends ConsumerWidget {
   }
 
   // 处理中横幅：仅在 AI 处理中显示
-  Widget _buildProcessingBanner(BuildContext context, WidgetRef ref, ArticleModel? article) {
+  Widget _buildProcessingBanner(BuildContext context, ArticleModel? article) {
     final controllerState = ref.watch(articleDetailControllerProvider);
     final st = article?.status ?? controllerState.articleModel?.status ?? ArticleStatus.pending;
     final busy = st == ArticleStatus.pending || st == ArticleStatus.webContentFetched;

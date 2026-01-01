@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/app/config/app_config.dart';
 import 'dart:isolate';
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_archive/flutter_archive.dart';
-import 'package:get/get.dart';
 import 'package:path/path.dart' as path;
 import 'package:archive/archive.dart' as archive;
 import 'package:path_provider/path_provider.dart';
@@ -37,9 +37,9 @@ class BackupService {
   static final BackupService _instance = BackupService._();
   static BackupService get i => _instance;
 
-  // 备份进度监控
-  final isBackingUp = false.obs;
-  final backupProgress = 0.0.obs;
+  // 备份进度监控 (使用 ValueNotifier 替代 .obs)
+  final ValueNotifier<bool> isBackingUp = ValueNotifier(false);
+  final ValueNotifier<double> backupProgress = ValueNotifier(0.0);
 
   // 备份项配置
   late final List<BackupItem> _backupItems;

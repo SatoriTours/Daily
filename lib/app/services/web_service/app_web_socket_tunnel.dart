@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:dio/dio.dart';
 
-import 'package:get/get.dart' as getx;
 import 'package:daily_satori/app/utils/app_info_utils.dart';
 
 /// WebSocket隧道类
@@ -32,8 +32,8 @@ class AppWebSocketTunnel {
   final int _maxDelay = 100;
   bool _isConnecting = false;
 
-  /// 连接状态 - Observable
-  getx.RxBool isConnected = false.obs;
+  /// 连接状态 - 使用 ValueNotifier 替代 GetX .obs
+  final ValueNotifier<bool> isConnected = ValueNotifier(false);
 
   /// 开始连接WebSocket服务器
   Future<void> startConnect() async {

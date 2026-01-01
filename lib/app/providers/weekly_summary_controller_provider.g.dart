@@ -49,7 +49,7 @@ final class WeeklySummaryControllerProvider
 }
 
 String _$weeklySummaryControllerHash() =>
-    r'0fa9826a779e9bcba38b4976a773984ec1cf1d1a';
+    r'8ec665b2bca9809344fe572c05d2d5557a91ac5c';
 
 /// WeeklySummaryController Provider
 

@@ -4,12 +4,16 @@
 
 library;
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/providers/providers.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 
 part 'diary_controller_provider.freezed.dart';
 part 'diary_controller_provider.g.dart';
@@ -72,6 +76,8 @@ extension DiaryControllerStateX on DiaryControllerState {
 /// DiaryController Provider
 @riverpod
 class DiaryController extends _$DiaryController {
+  String? _imageDirectoryPath;
+
   @override
   DiaryControllerState build() {
     _initialize();
@@ -99,9 +105,12 @@ class DiaryController extends _$DiaryController {
       // 处理状态变化
     });
 
-    _loadDiaries();
-    _extractTags();
-    _createImageDirectory();
+    // 延迟执行，避免在 build 期间访问 state
+    Future.microtask(() {
+      _loadDiaries();
+      _extractTags();
+      _createImageDirectory();
+    });
   }
 
   /// 获取日记列表
@@ -150,8 +159,65 @@ class DiaryController extends _$DiaryController {
   }
 
   /// 创建图片目录
-  void _createImageDirectory() {
-    // TODO: 实现图片目录创建
+  Future<void> _createImageDirectory() async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final imageDir = Directory(p.join(appDir.path, 'diary_images'));
+      if (!await imageDir.exists()) {
+        await imageDir.create(recursive: true);
+      }
+      _imageDirectoryPath = imageDir.path;
+    } catch (e) {
+      logger.e('创建日记图片目录失败', error: e);
+    }
+  }
+
+  /// 复制图片到本地目录
+  Future<String?> _copyImagesToLocal(String? images) async {
+    if (images == null || images.isEmpty) return images;
+
+    // 确保目录已创建
+    if (_imageDirectoryPath == null) {
+      await _createImageDirectory();
+    }
+
+    if (_imageDirectoryPath == null) return images;
+
+    final imagePaths = images.split(',');
+    final newPaths = <String>[];
+
+    for (final path in imagePaths) {
+      if (path.isEmpty) continue;
+
+      // 如果已经是本地目录下的图片，则跳过
+      if (path.startsWith(_imageDirectoryPath!)) {
+        newPaths.add(path);
+        continue;
+      }
+
+      try {
+        final file = File(path);
+        if (await file.exists()) {
+          final fileName = p.basename(path);
+          // 生成唯一文件名，防止冲突
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          final extension = p.extension(fileName);
+          final newFileName = '${timestamp}_${newPaths.length}$extension';
+          final newPath = p.join(_imageDirectoryPath!, newFileName);
+
+          await file.copy(newPath);
+          newPaths.add(newPath);
+        } else {
+          // 如果源文件不存在，保留原路径（可能是网络图片或其他情况）
+          newPaths.add(path);
+        }
+      } catch (e) {
+        logger.e('复制图片失败: $path', error: e);
+        newPaths.add(path);
+      }
+    }
+
+    return newPaths.join(',');
   }
 
   /// 搜索日记
@@ -185,7 +251,13 @@ class DiaryController extends _$DiaryController {
 
   /// 创建日记
   Future<void> createDiary(String content, {String? tags, String? images, DateTime? date}) async {
-    final diary = DiaryModel.create(content: content, tags: tags, images: images, createdAt: date ?? DateTime.now());
+    final localImages = await _copyImagesToLocal(images);
+    final diary = DiaryModel.create(
+      content: content,
+      tags: tags,
+      images: localImages,
+      createdAt: date ?? DateTime.now(),
+    );
     DiaryRepository.i.save(diary);
     ref.read(diaryStateProvider.notifier).addDiaryToList(diary);
     _extractTags();
@@ -193,11 +265,12 @@ class DiaryController extends _$DiaryController {
 
   /// 更新日记
   Future<void> updateDiary(int id, String content, {String? tags, String? images}) async {
+    final localImages = await _copyImagesToLocal(images);
     final oldDiary = DiaryRepository.i.find(id);
     if (oldDiary != null) {
       oldDiary.content = content;
       oldDiary.tags = tags;
-      oldDiary.images = images;
+      oldDiary.images = localImages;
       oldDiary.updatedAt = DateTime.now();
       DiaryRepository.i.save(oldDiary);
       ref.read(diaryStateProvider.notifier).updateDiaryInList(id);

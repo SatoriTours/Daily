@@ -6,6 +6,8 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:daily_satori/app/providers/app_state_provider.dart';
+
 /// Riverpod Controller 基础 Mixin
 ///
 /// 提供通用功能：
@@ -83,40 +85,35 @@ mixin BaseRiverpodController {
   ///
   /// 子类可以重写此方法来自定义加载提示。
   void _showLoading(String message) {
-    // TODO: 在 Phase 2 中实现，使用 appStateProvider
-    // ref.read(appStateProvider.notifier).showGlobalLoading(message);
+    ref.read(appGlobalStateProvider.notifier).showGlobalLoading(message);
   }
 
   /// 隐藏加载状态
   ///
   /// 子类可以重写此方法来自定义加载提示。
   void _hideLoading() {
-    // TODO: 在 Phase 2 中实现，使用 appStateProvider
-    // ref.read(appStateProvider.notifier).hideGlobalLoading();
+    ref.read(appGlobalStateProvider.notifier).hideGlobalLoading();
   }
 
   /// 显示错误消息
   ///
   /// 子类可以重写此方法来自定义错误提示。
   void _showError(String message) {
-    // TODO: 在 Phase 2 中实现，使用 appStateProvider
-    // ref.read(appStateProvider.notifier).showGlobalError(message);
+    ref.read(appGlobalStateProvider.notifier).showGlobalError(message);
   }
 
   /// 显示成功消息
   ///
   /// 子类可以重写此方法来自定义成功提示。
   void showSuccess(String message) {
-    // TODO: 在 Phase 2 中实现，使用 appStateProvider
-    // ref.read(appStateProvider.notifier).showGlobalSuccess(message);
+    ref.read(appGlobalStateProvider.notifier).showGlobalSuccess(message);
   }
 
   /// 显示信息消息
   ///
   /// 子类可以重写此方法来自定义信息提示。
   void showInfo(String message) {
-    // TODO: 在 Phase 2 中实现，使用 appStateProvider
-    // ref.read(appStateProvider.notifier).showGlobalInfo(message);
+    ref.read(appGlobalStateProvider.notifier).showGlobalInfo(message);
   }
 }
 
@@ -162,8 +159,6 @@ class RiverpodRetry {
     }
 
     // 所有尝试都失败，抛出最后一个错误
-    throw lastError is Exception
-        ? lastError
-        : Exception('Operation failed after $maxAttempts attempts: $lastError');
+    throw lastError is Exception ? lastError : Exception('Operation failed after $maxAttempts attempts: $lastError');
   }
 }

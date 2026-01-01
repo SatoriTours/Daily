@@ -19,7 +19,9 @@ class WebContentService {
   final _aiProcessor = AiProcessor();
   final _imageProcessor = ImageProcessor();
   final _articleManager = ArticleManager();
-  final _notifier = WebContentNotifier();
+
+  /// 获取通知器（使用单例）
+  WebContentNotifier get _notifier => WebContentNotifier.i;
 
   // ====================== 公共API ======================
 

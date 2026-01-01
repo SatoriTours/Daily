@@ -3,12 +3,15 @@
 /// Riverpod 版本的 ArticleStateService，管理文章列表、活跃文章和更新事件。
 library;
 
+import 'dart:async';
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/web_content/web_content_notifier.dart';
 
 part 'article_state_provider.freezed.dart';
 part 'article_state_provider.g.dart';
@@ -39,12 +42,44 @@ abstract class ArticleStateModel with _$ArticleStateModel {
 }
 
 /// 文章状态 Provider
-@riverpod
+///
+/// 使用 keepAlive: true 保持 provider 存活，确保能接收服务层的更新通知
+@Riverpod(keepAlive: true)
 class ArticleState extends _$ArticleState {
+  StreamSubscription<int>? _articleUpdateSubscription;
+
   @override
   ArticleStateModel build() {
     logger.i('ArticleState Provider 初始化完成');
+
+    // 监听 WebContentNotifier 的文章更新事件流
+    _articleUpdateSubscription = WebContentNotifier.i.onArticleUpdated.listen(_onArticleUpdatedFromService);
+
+    // 在 provider 销毁时取消订阅
+    ref.onDispose(() {
+      _articleUpdateSubscription?.cancel();
+      logger.d('ArticleState Provider 销毁，取消订阅');
+    });
+
     return const ArticleStateModel();
+  }
+
+  /// 处理来自服务层的文章更新通知
+  void _onArticleUpdatedFromService(int articleId) {
+    logger.i('[ArticleState] 收到服务层文章更新通知: #$articleId');
+
+    // 从数据库获取最新文章数据
+    final article = ArticleRepository.i.findModel(articleId);
+    if (article == null) {
+      logger.w('[ArticleState] 找不到文章: #$articleId');
+      return;
+    }
+
+    // 更新列表中的文章
+    updateArticleInList(articleId);
+
+    // 发布更新事件，通知详情页刷新
+    notifyArticleUpdated(article);
   }
 
   /// 设置活跃文章
@@ -92,6 +127,11 @@ class ArticleState extends _$ArticleState {
 
     // 发布文章创建事件
     state = state.copyWith(articleUpdateEvent: ArticleUpdateEvent.created(article));
+  }
+
+  /// 清除文章更新事件（防止重复处理）
+  void clearArticleUpdateEvent() {
+    state = state.copyWith(articleUpdateEvent: const ArticleUpdateEvent.none());
   }
 
   /// 设置全局搜索

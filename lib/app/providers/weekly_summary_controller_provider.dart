@@ -42,7 +42,7 @@ abstract class WeeklySummaryControllerState with _$WeeklySummaryControllerState 
 class WeeklySummaryController extends _$WeeklySummaryController {
   @override
   WeeklySummaryControllerState build() {
-    _initializeAndCheckSummary();
+    Future.microtask(() => _initializeAndCheckSummary());
     return const WeeklySummaryControllerState();
   }
 

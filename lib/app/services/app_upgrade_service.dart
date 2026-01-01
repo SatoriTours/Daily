@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:dio/dio.dart' show DioException, Options;
-import 'package:get/get.dart';
 import 'package:open_file/open_file.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -93,7 +92,7 @@ class AppUpgradeService {
       message: '当前版本 [$_currentVersion], 最新版本 [$_latestVersion]\n请确认是否下载更新',
       onConfirm: () async {
         // 仅生产环境的 Android 需要安装未知来源权限
-        if (AppInfoUtils.isProduction && GetPlatform.isAndroid) {
+        if (AppInfoUtils.isProduction && Platform.isAndroid) {
           if (!await _requestInstallPermission()) {
             UIUtils.showError('需要安装权限才能继续');
             return;

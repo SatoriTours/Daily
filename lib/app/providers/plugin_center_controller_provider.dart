@@ -28,7 +28,7 @@ abstract class PluginCenterControllerState with _$PluginCenterControllerState {
 class PluginCenterController extends _$PluginCenterController {
   @override
   PluginCenterControllerState build() {
-    _loadPluginData();
+    Future.microtask(() => _loadPluginData());
     return const PluginCenterControllerState();
   }
 
@@ -57,7 +57,7 @@ class PluginCenterController extends _$PluginCenterController {
       state = state.copyWith(updatingPluginId: '');
     }
   }
-  
+
   Future<void> updateAllPlugins() async {
     state = state.copyWith(isLoading: true);
     try {

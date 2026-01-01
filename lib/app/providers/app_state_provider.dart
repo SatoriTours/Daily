@@ -23,6 +23,7 @@ abstract class AppStateModel with _$AppStateModel {
     @Default(false) bool isGlobalLoading,
     @Default('') String globalErrorMessage,
     @Default('') String globalSuccessMessage,
+    @Default('') String globalInfoMessage,
     @Default(false) bool isSearchBarVisible,
     @Default('') String currentPage,
   }) = _AppStateModel;
@@ -34,9 +35,7 @@ class AppGlobalState extends _$AppGlobalState {
   @override
   AppStateModel build() {
     logger.i('AppGlobalState Provider 初始化完成');
-    return AppStateModel(
-      lastActiveTime: DateTime.now(),
-    );
+    return AppStateModel(lastActiveTime: DateTime.now());
   }
 
   /// 设置当前导航索引
@@ -104,12 +103,22 @@ class AppGlobalState extends _$AppGlobalState {
     });
   }
 
+  /// 显示全局信息消息
+  void showGlobalInfo(String message) {
+    state = state.copyWith(globalInfoMessage: message);
+    logger.i('全局信息: $message');
+
+    // 3秒后自动清除信息消息
+    Future.delayed(const Duration(seconds: 3), () {
+      if (state.globalInfoMessage == message) {
+        state = state.copyWith(globalInfoMessage: '');
+      }
+    });
+  }
+
   /// 清除所有全局消息
   void clearGlobalMessages() {
-    state = state.copyWith(
-      globalErrorMessage: '',
-      globalSuccessMessage: '',
-    );
+    state = state.copyWith(globalErrorMessage: '', globalSuccessMessage: '');
   }
 
   /// 设置搜索栏可见性

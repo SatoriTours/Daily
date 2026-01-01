@@ -1,9 +1,11 @@
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:daily_satori/app/navigation/app_navigation.dart';
 
 /// 对话框工具类
+///
+/// 使用 Flutter 原生对话框 API，不依赖 GetX
 class DialogUtils {
   // 私有构造函数，防止实例化
   DialogUtils._();
@@ -11,21 +13,37 @@ class DialogUtils {
   // 加载对话框状态
   static bool _isLoadingShown = false;
 
+  // 进度对话框状态
+  static bool _isProgressShown = false;
+  static final ValueNotifier<double> _progressValue = ValueNotifier(0.0);
+  static final ValueNotifier<String> _progressText = ValueNotifier('');
+
+  /// 获取当前 BuildContext
+  static BuildContext? get _context => AppNavigation.navigatorKey.currentContext;
+
   /// 显示提示对话框
   static Future<void> showAlert({
     required String title,
     required String message,
     String buttonText = '确定',
     VoidCallback? onConfirm,
+    BuildContext? context,
   }) async {
-    await Get.dialog(
-      _CustomDialog(
+    final ctx = context ?? _context;
+    if (ctx == null) {
+      logger.w('[DialogUtils] 无法显示对话框：context 为空');
+      return;
+    }
+
+    await showDialog(
+      context: ctx,
+      builder: (context) => _CustomDialog(
         title: title,
         content: message,
         actions: [
           TextButton(
             onPressed: () {
-              _closeDialog();
+              Navigator.of(context).pop();
               if (onConfirm != null) onConfirm();
             },
             child: Text(buttonText),
@@ -43,16 +61,24 @@ class DialogUtils {
     String cancelText = '取消',
     VoidCallback? onConfirm,
     VoidCallback? onCancel,
+    BuildContext? context,
   }) async {
-    await Get.dialog<bool>(
-      _CustomDialog(
+    final ctx = context ?? _context;
+    if (ctx == null) {
+      logger.w('[DialogUtils] 无法显示对话框：context 为空');
+      return;
+    }
+
+    await showDialog<bool>(
+      context: ctx,
+      builder: (context) => _CustomDialog(
         title: title,
         content: message,
         actions: [
           Expanded(
             child: TextButton(
               onPressed: () {
-                _closeDialog();
+                Navigator.of(context).pop(false);
                 if (onCancel != null) onCancel();
               },
               child: Text(cancelText),
@@ -62,7 +88,7 @@ class DialogUtils {
           Expanded(
             child: TextButton(
               onPressed: () {
-                _closeDialog();
+                Navigator.of(context).pop(true);
                 if (onConfirm != null) onConfirm();
               },
               child: Text(confirmText),
@@ -83,10 +109,18 @@ class DialogUtils {
     TextInputType keyboardType = TextInputType.text,
     required void Function(String value) onConfirm,
     VoidCallback? onCancel,
+    BuildContext? context,
   }) async {
+    final ctx = context ?? _context;
+    if (ctx == null) {
+      logger.w('[DialogUtils] 无法显示对话框：context 为空');
+      return;
+    }
+
     final TextEditingController controller = TextEditingController(text: initialValue);
-    await Get.dialog<String>(
-      _CustomDialog(
+    await showDialog<String>(
+      context: ctx,
+      builder: (context) => _CustomDialog(
         title: title,
         content: '',
         contentWidget: TextField(
@@ -98,7 +132,7 @@ class DialogUtils {
           Expanded(
             child: TextButton(
               onPressed: () {
-                _closeDialog();
+                Navigator.of(context).pop();
                 if (onCancel != null) onCancel();
               },
               child: Text(cancelText),
@@ -108,7 +142,7 @@ class DialogUtils {
           Expanded(
             child: TextButton(
               onPressed: () {
-                _closeDialog();
+                Navigator.of(context).pop(controller.text);
                 onConfirm(controller.text);
               },
               child: Text(confirmText),
@@ -120,15 +154,25 @@ class DialogUtils {
   }
 
   /// 显示全屏加载提示
-  static void showLoading({String tips = '', Color? barrierColor}) {
-    logger.i("显示加载提示: $tips $_isLoadingShown");
-    if (_isLoadingShown) return; // 如果已经显示了loading，直接返回
-    logger.i("显示加载提示1: $tips");
+  static void showLoading({String tips = '', Color? barrierColor, BuildContext? context}) {
+    logger.i("[DialogUtils] 显示加载提示: $tips $_isLoadingShown");
+    if (_isLoadingShown) return;
 
-    final context = Get.context;
-    final textTheme = context != null ? Theme.of(context).textTheme.bodyMedium : null;
-    Get.dialog(
-      PopScope(
+    final ctx = context ?? _context;
+    if (ctx == null) {
+      logger.w('[DialogUtils] 无法显示加载提示：context 为空');
+      return;
+    }
+
+    logger.i("[DialogUtils] 显示加载提示1: $tips");
+
+    final textTheme = Theme.of(ctx).textTheme.bodyMedium;
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      barrierColor: barrierColor ?? const Color(0x80000000),
+      builder: (context) => PopScope(
+        canPop: false,
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -139,43 +183,51 @@ class DialogUtils {
           ),
         ),
       ),
-      barrierDismissible: false,
-      barrierColor: barrierColor ?? const Color(0x80000000),
     );
     _isLoadingShown = true;
   }
 
   /// 隐藏加载提示
-  static void hideLoading() {
+  static void hideLoading({BuildContext? context}) {
     if (_isLoadingShown) {
       _isLoadingShown = false;
-      _closeDialog();
+      _closeDialog(context: context);
     }
   }
-
-  // 下载进度对话框状态
-  static bool _isProgressShown = false;
-  static final _progressValue = 0.0.obs;
-  static final _progressText = ''.obs;
 
   /// 显示下载进度对话框
   ///
   /// [title] 对话框标题
   /// [initialText] 初始提示文本
-  static void showDownloadProgress({String title = '正在下载', String initialText = '准备下载...'}) {
+  static void showDownloadProgress({
+    String title = '正在下载',
+    String initialText = '准备下载...',
+    BuildContext? context,
+  }) {
     logger.i("[DialogUtils] 显示下载进度对话框");
     if (_isProgressShown) return;
+
+    final ctx = context ?? _context;
+    if (ctx == null) {
+      logger.w('[DialogUtils] 无法显示进度对话框：context 为空');
+      return;
+    }
 
     _progressValue.value = 0.0;
     _progressText.value = initialText;
 
-    Get.dialog(
-      PopScope(
-        canPop: false,
-        child: _DownloadProgressDialog(title: title, progressValue: _progressValue, progressText: _progressText),
-      ),
+    showDialog(
+      context: ctx,
       barrierDismissible: false,
       barrierColor: const Color(0x80000000),
+      builder: (context) => PopScope(
+        canPop: false,
+        child: _DownloadProgressDialog(
+          title: title,
+          progressValue: _progressValue,
+          progressText: _progressText,
+        ),
+      ),
     );
     _isProgressShown = true;
   }
@@ -201,18 +253,21 @@ class DialogUtils {
   }
 
   /// 隐藏下载进度对话框
-  static void hideDownloadProgress() {
+  static void hideDownloadProgress({BuildContext? context}) {
     if (_isProgressShown) {
       logger.i("[DialogUtils] 隐藏下载进度对话框");
       _isProgressShown = false;
       _progressValue.value = 0.0;
       _progressText.value = '';
-      _closeDialog();
+      _closeDialog(context: context);
     }
   }
 
-  static void _closeDialog() {
-    Get.closeDialog();
+  static void _closeDialog({BuildContext? context}) {
+    final ctx = context ?? _context;
+    if (ctx != null && Navigator.of(ctx).canPop()) {
+      Navigator.of(ctx).pop();
+    }
   }
 }
 
@@ -279,10 +334,14 @@ class _CustomDialog extends StatelessWidget {
 /// 下载进度对话框组件
 class _DownloadProgressDialog extends StatelessWidget {
   final String title;
-  final Rx<double> progressValue;
-  final RxString progressText;
+  final ValueNotifier<double> progressValue;
+  final ValueNotifier<String> progressText;
 
-  const _DownloadProgressDialog({required this.title, required this.progressValue, required this.progressText});
+  const _DownloadProgressDialog({
+    required this.title,
+    required this.progressValue,
+    required this.progressText,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -308,9 +367,10 @@ class _DownloadProgressDialog extends StatelessWidget {
             ),
             const SizedBox(height: Dimensions.spacingL),
             // 进度条
-            Obx(
-              () => LinearProgressIndicator(
-                value: progressValue.value > 0 ? progressValue.value : null,
+            ValueListenableBuilder<double>(
+              valueListenable: progressValue,
+              builder: (context, value, child) => LinearProgressIndicator(
+                value: value > 0 ? value : null,
                 backgroundColor: theme.colorScheme.surfaceContainerHighest,
                 valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
                 minHeight: 6,
@@ -319,9 +379,10 @@ class _DownloadProgressDialog extends StatelessWidget {
             ),
             const SizedBox(height: Dimensions.spacingM),
             // 进度文本
-            Obx(
-              () => Text(
-                progressText.value,
+            ValueListenableBuilder<String>(
+              valueListenable: progressText,
+              builder: (context, text, child) => Text(
+                text,
                 style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
             ),

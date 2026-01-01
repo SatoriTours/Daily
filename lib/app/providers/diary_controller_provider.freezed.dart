@@ -22,9 +22,13 @@ mixin _$DiaryControllerState {
  DateTime? get selectedFilterDate;/// 当前标签
  String get currentTag;/// 日记标签列表
  List<String> get tags;/// ScrollController (不在freezed中管理)
+// ignore: invalid_annotation_target
 @JsonKey(includeToJson: false, includeFromJson: false) ScrollController? get scrollController;/// 搜索控制器 (不在freezed中管理)
+// ignore: invalid_annotation_target
 @JsonKey(includeToJson: false, includeFromJson: false) TextEditingController? get searchController;/// 搜索焦点节点 (不在freezed中管理)
+// ignore: invalid_annotation_target
 @JsonKey(includeToJson: false, includeFromJson: false) FocusNode? get searchFocusNode;/// 内容控制器 (不在freezed中管理)
+// ignore: invalid_annotation_target
 @JsonKey(includeToJson: false, includeFromJson: false) TextEditingController? get contentController;/// 是否正在加载日记
  bool get isLoadingDiaries;
 /// Create a copy of DiaryControllerState
@@ -253,12 +257,16 @@ class _DiaryControllerState extends DiaryControllerState {
 }
 
 /// ScrollController (不在freezed中管理)
+// ignore: invalid_annotation_target
 @override@JsonKey(includeToJson: false, includeFromJson: false) final  ScrollController? scrollController;
 /// 搜索控制器 (不在freezed中管理)
+// ignore: invalid_annotation_target
 @override@JsonKey(includeToJson: false, includeFromJson: false) final  TextEditingController? searchController;
 /// 搜索焦点节点 (不在freezed中管理)
+// ignore: invalid_annotation_target
 @override@JsonKey(includeToJson: false, includeFromJson: false) final  FocusNode? searchFocusNode;
 /// 内容控制器 (不在freezed中管理)
+// ignore: invalid_annotation_target
 @override@JsonKey(includeToJson: false, includeFromJson: false) final  TextEditingController? contentController;
 /// 是否正在加载日记
 @override@JsonKey() final  bool isLoadingDiaries;

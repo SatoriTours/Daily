@@ -570,15 +570,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  get:
-    dependency: "direct main"
-    description:
-      path: "."
-      ref: master
-      resolved-ref: e2ad2704f3de6f8668cb89fa1d8c2fec04d170ab
-      url: "https://github.com/jonataslaw/getx.git"
-    source: git
-    version: "5.0.0-release-candidate-9.3.2"
   get_time_ago:
     dependency: "direct main"
     description:

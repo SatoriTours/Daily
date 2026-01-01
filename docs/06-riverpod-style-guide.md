@@ -305,6 +305,57 @@ class ThemeMode extends _$ThemeMode {
 
 ---
 
+## Widget 实现指南
+
+### Widget 类型选择
+
+| Widget 类型 | 适用场景 | 示例 |
+|------------|----------|------|
+| **StatelessWidget** | 纯展示组件，不依赖 Provider 状态 | `MyCard`, `MyButton` |
+| **ConsumerWidget** | 需要监听 Provider 状态的页面或组件 | `ArticleList`, `UserProfile` |
+| **ConsumerStatefulWidget** | 需要 Provider 状态 + 本地状态 (TabController, ScrollController) | `MainPage`, `VideoPlayer` |
+
+### 代码示例
+
+#### 1. ConsumerWidget (推荐)
+
+```dart
+class ArticleList extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final articles = ref.watch(articlesProvider);
+    // ...
+  }
+}
+```
+
+#### 2. ConsumerStatefulWidget (需要生命周期)
+
+```dart
+class SearchPage extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<SearchPage> createState() => _SearchPageState();
+}
+
+class _SearchPageState extends ConsumerState<SearchPage> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final results = ref.watch(searchResultsProvider);
+    // ...
+  }
+}
+```
+
+---
+
 ## 性能优化模式
 
 ### select() 精确订阅

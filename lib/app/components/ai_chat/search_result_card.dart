@@ -1,7 +1,6 @@
 import 'package:daily_satori/app/navigation/app_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:get/get.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
@@ -109,13 +108,20 @@ class SearchResultCard extends StatelessWidget {
     final diary = DiaryRepository.i.find(result.id);
     if (diary == null) {
       logger.w('[SearchResultCard] 找不到日记, ID: ${result.id}');
-      Get.snackbar('提示', '找不到该日记');
+      final context = AppNavigation.navigatorKey.currentContext;
+      if (context != null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('找不到该日记')));
+      }
       return;
     }
 
     logger.d('[SearchResultCard] 找到日记, 标题: ${result.title}, 内容长度: ${diary.content.length}');
-    Get.dialog(
-      _ContentDialog(
+    final context = AppNavigation.navigatorKey.currentContext;
+    if (context == null) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => _ContentDialog(
         title: result.title,
         content: diary.content.isNotEmpty ? diary.content : '（暂无内容）',
         createdAt: diary.createdAt,
@@ -129,12 +135,19 @@ class SearchResultCard extends StatelessWidget {
   void _showBookDialog() {
     final book = BookRepository.i.find(result.id);
     if (book == null) {
-      Get.snackbar('提示', '找不到该书籍');
+      final context = AppNavigation.navigatorKey.currentContext;
+      if (context != null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('找不到该书籍')));
+      }
       return;
     }
 
-    Get.dialog(
-      _ContentDialog(
+    final context = AppNavigation.navigatorKey.currentContext;
+    if (context == null) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => _ContentDialog(
         title: book.title,
         content: '**作者**: ${book.author}\n\n${book.introduction}',
         createdAt: book.createdAt,
