@@ -433,3 +433,5 @@ weekly_summary:
   week_label: Week {week}
   diary_detail: Diary Detail
   diary_not_found: Diary not found
+  viewpoint_detail: Reading Note
+  viewpoint_not_found: Reading note not found

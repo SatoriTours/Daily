@@ -433,3 +433,5 @@ weekly_summary:
   week_label: 第{week}周
   diary_detail: 日记详情
   diary_not_found: 未找到该日记
+  viewpoint_detail: 读书笔记
+  viewpoint_not_found: 未找到该读书笔记

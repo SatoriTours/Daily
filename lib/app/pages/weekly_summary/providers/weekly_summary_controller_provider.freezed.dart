@@ -14,12 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$WeeklySummaryControllerState {
 
-/// 周报列表
- List<WeeklySummaryModel> get summaries;/// 当前选中的周报
- WeeklySummaryModel? get currentSummary;/// 是否正在生成周报
- bool get isGenerating;/// 生成进度提示
- String get generatingMessage;/// 是否正在加载
- bool get isLoading;
+ List<WeeklySummaryModel> get summaries; WeeklySummaryModel? get currentSummary; bool get isGenerating; String get generatingMessage; bool get isLoading;
 /// Create a copy of WeeklySummaryControllerState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -218,22 +213,16 @@ class _WeeklySummaryControllerState implements WeeklySummaryControllerState {
   const _WeeklySummaryControllerState({final  List<WeeklySummaryModel> summaries = const [], this.currentSummary, this.isGenerating = false, this.generatingMessage = '', this.isLoading = false}): _summaries = summaries;
   
 
-/// 周报列表
  final  List<WeeklySummaryModel> _summaries;
-/// 周报列表
 @override@JsonKey() List<WeeklySummaryModel> get summaries {
   if (_summaries is EqualUnmodifiableListView) return _summaries;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_summaries);
 }
 
-/// 当前选中的周报
 @override final  WeeklySummaryModel? currentSummary;
-/// 是否正在生成周报
 @override@JsonKey() final  bool isGenerating;
-/// 生成进度提示
 @override@JsonKey() final  String generatingMessage;
-/// 是否正在加载
 @override@JsonKey() final  bool isLoading;
 
 /// Create a copy of WeeklySummaryControllerState
