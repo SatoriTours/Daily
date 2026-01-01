@@ -49,7 +49,7 @@ final class BackupRestoreControllerProvider
 }
 
 String _$backupRestoreControllerHash() =>
-    r'5cd013ed878c4c6c33d6d067fc295bcf985882e3';
+    r'11eed0046e680abe521ea6e99b8bab52fd14b26d';
 
 /// BackupRestoreController Provider
 

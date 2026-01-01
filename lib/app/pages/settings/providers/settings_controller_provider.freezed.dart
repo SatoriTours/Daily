@@ -14,17 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$SettingsControllerState {
 
-/// Web服务地址
- String get webServiceAddress;/// Web访问URL
- String get webAccessUrl;/// 是否正在加载页面
- bool get isPageLoading;/// 应用版本号
- String get appVersion;/// WebSocket连接状态
- bool get isWebSocketConnected;/// 是否正在下载图片
- bool get isDownloadingImages;/// 下载进度：当前已处理的文章数量
- int get downloadProgress;/// 下载进度：总文章数量
- int get downloadTotal;/// 下载成功的数量
- int get downloadSuccessCount;/// 下载失败的数量
- int get downloadFailCount;
+ String get webServiceAddress; String get webAccessUrl; bool get isPageLoading; String get appVersion; bool get isWebSocketConnected; bool get isDownloadingImages; int get downloadProgress; int get downloadTotal; int get downloadSuccessCount; int get downloadFailCount;
 /// Create a copy of SettingsControllerState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -228,25 +218,15 @@ class _SettingsControllerState implements SettingsControllerState {
   const _SettingsControllerState({this.webServiceAddress = '', this.webAccessUrl = '', this.isPageLoading = true, this.appVersion = '', this.isWebSocketConnected = false, this.isDownloadingImages = false, this.downloadProgress = 0, this.downloadTotal = 0, this.downloadSuccessCount = 0, this.downloadFailCount = 0});
   
 
-/// Web服务地址
 @override@JsonKey() final  String webServiceAddress;
-/// Web访问URL
 @override@JsonKey() final  String webAccessUrl;
-/// 是否正在加载页面
 @override@JsonKey() final  bool isPageLoading;
-/// 应用版本号
 @override@JsonKey() final  String appVersion;
-/// WebSocket连接状态
 @override@JsonKey() final  bool isWebSocketConnected;
-/// 是否正在下载图片
 @override@JsonKey() final  bool isDownloadingImages;
-/// 下载进度：当前已处理的文章数量
 @override@JsonKey() final  int downloadProgress;
-/// 下载进度：总文章数量
 @override@JsonKey() final  int downloadTotal;
-/// 下载成功的数量
 @override@JsonKey() final  int downloadSuccessCount;
-/// 下载失败的数量
 @override@JsonKey() final  int downloadFailCount;
 
 /// Create a copy of SettingsControllerState

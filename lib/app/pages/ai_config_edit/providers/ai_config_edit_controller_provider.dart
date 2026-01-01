@@ -42,17 +42,12 @@ abstract class AIConfigEditControllerState with _$AIConfigEditControllerState {
 @riverpod
 class AIConfigEditController extends _$AIConfigEditController {
   @override
-  AIConfigEditControllerState build() {
-    return const AIConfigEditControllerState();
-  }
+  AIConfigEditControllerState build() => const AIConfigEditControllerState();
 
-  /// 加载配置
   void loadConfig(AIConfig? config) {
     if (config == null) {
-      // 新建配置，使用默认值
       state = const AIConfigEditControllerState();
     } else {
-      // 编辑现有配置
       state = state.copyWith(
         config: config,
         name: config.name,
@@ -66,44 +61,24 @@ class AIConfigEditController extends _$AIConfigEditController {
     }
   }
 
-  /// 更新名称
-  void updateName(String name) {
-    state = state.copyWith(name: name);
-  }
+  void updateName(String name) => state = state.copyWith(name: name);
+  void updateApiAddress(String address) => state = state.copyWith(apiAddress: address);
+  void updateApiToken(String token) => state = state.copyWith(apiToken: token);
+  void updateModelName(String modelName) => state = state.copyWith(modelName: modelName);
+  void updateFunctionType(int type) => state = state.copyWith(functionType: type);
 
-  /// 更新 API 地址
-  void updateApiAddress(String address) {
-    state = state.copyWith(apiAddress: address);
-  }
-
-  /// 更新 API Token
-  void updateApiToken(String token) {
-    state = state.copyWith(apiToken: token);
-  }
-
-  /// 更新模型名称
-  void updateModelName(String modelName) {
-    state = state.copyWith(modelName: modelName);
-  }
-
-  /// 更新功能类型
-  void updateFunctionType(int type) {
-    state = state.copyWith(functionType: type);
-  }
-
-  /// 设置是否继承通用配置
   void setInheritFromGeneral(bool inherit) {
-    state = state.copyWith(inheritFromGeneral: inherit);
+    if (inherit) {
+      // 切换到继承模式时，清空独立配置字段
+      state = state.copyWith(inheritFromGeneral: true, apiAddress: '', apiToken: '', modelName: '');
+    } else {
+      state = state.copyWith(inheritFromGeneral: false);
+    }
   }
 
-  /// 重置配置
-  void resetConfig() {
-    loadConfig(state.config);
-  }
+  void resetConfig() => loadConfig(state.config);
 
-  /// 保存配置
   Future<bool> saveConfig() async {
-    // 验证必填字段
     if (state.name.trim().isEmpty) {
       UIUtils.showError('ai_config.name_required'.t);
       return false;
@@ -134,14 +109,9 @@ class AIConfigEditController extends _$AIConfigEditController {
       );
 
       AIConfigRepository.i.save(configModel);
-
       state = state.copyWith(isSaving: false);
-
-      // 刷新配置列表
       ref.invalidate(aIConfigControllerProvider);
-
       AppNavigation.back();
-
       return true;
     } catch (e) {
       logger.e('[AIConfigEditController] 保存配置失败', error: e);
@@ -151,23 +121,16 @@ class AIConfigEditController extends _$AIConfigEditController {
     }
   }
 
-  // ========================================================================
   // Getters
-  // ========================================================================
-
   String get pageTitle => state.config == null ? 'ai_config.create_title'.t : 'ai_config.edit_title'.t;
-
   bool get isSystemConfig => state.functionType == AIConfigTypes.general;
-
   bool get isSpecialConfig => state.functionType != AIConfigTypes.general;
-
   bool get isCustomApiAddress => state.apiAddress.isNotEmpty;
 
   bool get isFormValid {
     if (state.name.trim().isEmpty) return false;
     if (!state.inheritFromGeneral) {
-      if (state.apiAddress.trim().isEmpty) return false;
-      if (state.apiToken.trim().isEmpty) return false;
+      if (state.apiAddress.trim().isEmpty || state.apiToken.trim().isEmpty) return false;
     }
     return true;
   }
@@ -180,32 +143,20 @@ class AIConfigEditController extends _$AIConfigEditController {
     'claude-3-sonnet',
     'gemini-pro',
   ];
-
-  /// API 供应商名称列表
   List<String> get apiProviderNames => ['OpenAI', 'Anthropic', 'Google AI', '自定义'];
-
-  /// API 供应商 URL 列表
   List<String> get apiPresets => [
     'https://api.openai.com/v1',
     'https://api.anthropic.com/v1',
     'https://generativelanguage.googleapis.com/v1beta',
-    '', // 自定义 URL
+    '',
   ];
 
-  /// 根据 URL 获取供应商名称
   String getProviderNameByUrl(String url) {
     if (url.isEmpty) return '选择供应商';
     final index = apiPresets.indexOf(url);
-    if (index >= 0 && index < apiProviderNames.length) {
-      return apiProviderNames[index];
-    }
-    // 如果是自定义 URL，显示 "自定义"
-    return '自定义';
+    return (index >= 0 && index < apiProviderNames.length) ? apiProviderNames[index] : '自定义';
   }
 
-  /// 检查是否为自定义 API 地址
-  bool get isCustomApiUrl {
-    if (state.apiAddress.isEmpty) return false;
-    return !apiPresets.sublist(0, apiPresets.length - 1).contains(state.apiAddress);
-  }
+  bool get isCustomApiUrl =>
+      state.apiAddress.isNotEmpty && !apiPresets.sublist(0, apiPresets.length - 1).contains(state.apiAddress);
 }

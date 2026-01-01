@@ -46,7 +46,7 @@ final class PluginCenterControllerProvider
 }
 
 String _$pluginCenterControllerHash() =>
-    r'abca7b35f0825a20f582276f8392f305206277fe';
+    r'c81b500a73136d0346b143568c05abae15c8091c';
 
 /// PluginCenterController Provider
 

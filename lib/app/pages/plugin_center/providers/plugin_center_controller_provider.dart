@@ -28,13 +28,8 @@ abstract class PluginCenterControllerState with _$PluginCenterControllerState {
 class PluginCenterController extends _$PluginCenterController {
   @override
   PluginCenterControllerState build() {
-    Future.microtask(() => _loadPluginData());
-    return const PluginCenterControllerState();
-  }
-
-  void _loadPluginData() {
     final url = PluginService.i.getPluginServerUrl();
-    state = state.copyWith(pluginServerUrl: url);
+    return PluginCenterControllerState(pluginServerUrl: url);
   }
 
   Future<void> updateServerUrl(String url) async {
@@ -46,11 +41,7 @@ class PluginCenterController extends _$PluginCenterController {
     state = state.copyWith(updatingPluginId: plugin.fileName);
     try {
       final success = await PluginService.i.forceUpdatePlugin(plugin.fileName);
-      if (success) {
-        UIUtils.showSuccess('插件更新成功');
-      } else {
-        UIUtils.showError('插件更新失败');
-      }
+      UIUtils.showSuccess(success ? '插件更新成功' : '插件更新失败');
     } catch (e) {
       UIUtils.showError('插件更新失败: $e');
     } finally {
@@ -61,8 +52,7 @@ class PluginCenterController extends _$PluginCenterController {
   Future<void> updateAllPlugins() async {
     state = state.copyWith(isLoading: true);
     try {
-      final plugins = PluginService.i.getAllPlugins();
-      for (final plugin in plugins) {
+      for (final plugin in PluginService.i.getAllPlugins()) {
         await PluginService.i.forceUpdatePlugin(plugin.fileName);
       }
       UIUtils.showSuccess('所有插件更新完成');
