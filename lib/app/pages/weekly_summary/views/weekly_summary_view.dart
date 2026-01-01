@@ -9,6 +9,7 @@ import 'package:daily_satori/app/routes/app_routes.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/pages/diary/views/widgets/diary_image_gallery.dart';
 
 /// 周报页面视图
 class WeeklySummaryView extends ConsumerWidget {
@@ -499,6 +500,10 @@ class _DiaryDetailSheet extends StatelessWidget {
               ),
             ),
           ),
+          if (diary.images != null && diary.images!.isNotEmpty) ...[
+            Dimensions.verticalSpacerL,
+            DiaryImageGallery(imagesString: diary.images!),
+          ],
           if (tagList.isNotEmpty) ...[
             Dimensions.verticalSpacerL,
             Wrap(spacing: 8, runSpacing: 8, children: tagList.map((tag) => _buildTag(context, tag)).toList()),
