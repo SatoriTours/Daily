@@ -225,7 +225,7 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
   Widget _buildAllDiariesButton(BuildContext context) {
     return InkWell(
       onTap: () {
-        ref.read(diaryControllerProvider.notifier).clearAllFilters();
+        ref.read(diaryControllerProvider.notifier).clearFilters();
         Navigator.pop(context);
       },
       child: Container(

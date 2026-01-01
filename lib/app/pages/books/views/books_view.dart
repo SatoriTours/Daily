@@ -180,7 +180,10 @@ class BooksView extends ConsumerWidget {
               children: [
                 Icon(Icons.clear, size: Dimensions.iconSizeXs, color: AppColors.getPrimary(context)),
                 Dimensions.horizontalSpacerS,
-                Text('查看所有观点', style: AppTypography.bodyMedium.copyWith(color: AppColors.getPrimary(context))),
+                Text(
+                  'book.view_all_viewpoints'.t,
+                  style: AppTypography.bodyMedium.copyWith(color: AppColors.getPrimary(context)),
+                ),
               ],
             ),
           ),

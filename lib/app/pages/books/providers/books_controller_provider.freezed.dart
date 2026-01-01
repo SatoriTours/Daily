@@ -11,24 +11,19 @@ part of 'books_controller_provider.dart';
 
 // dart format off
 T _$identity<T>(T value) => value;
-
 /// @nodoc
 mixin _$BooksControllerState {
 
 /// 最后刷新时间
  DateTime? get lastRefreshTime;/// PageController (不在freezed中管理)
-// ignore: invalid_annotation_target
-@JsonKey(includeToJson: false, includeFromJson: false) PageController? get pageController;/// TextEditingController for content (不在freezed中管理)
-// ignore: invalid_annotation_target
-@JsonKey(includeToJson: false, includeFromJson: false) TextEditingController? get contentController;
+ PageController? get pageController;/// TextEditingController for content (不在freezed中管理)
+ TextEditingController? get contentController;
 /// Create a copy of BooksControllerState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
 $BooksControllerStateCopyWith<BooksControllerState> get copyWith => _$BooksControllerStateCopyWithImpl<BooksControllerState>(this as BooksControllerState, _$identity);
 
-  /// Serializes this BooksControllerState to a JSON map.
-  Map<String, dynamic> toJson();
 
 
 @override
@@ -36,7 +31,7 @@ bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is BooksControllerState&&(identical(other.lastRefreshTime, lastRefreshTime) || other.lastRefreshTime == lastRefreshTime)&&(identical(other.pageController, pageController) || other.pageController == pageController)&&(identical(other.contentController, contentController) || other.contentController == contentController));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
 int get hashCode => Object.hash(runtimeType,lastRefreshTime,pageController,contentController);
 
@@ -53,7 +48,7 @@ abstract mixin class $BooksControllerStateCopyWith<$Res>  {
   factory $BooksControllerStateCopyWith(BooksControllerState value, $Res Function(BooksControllerState) _then) = _$BooksControllerStateCopyWithImpl;
 @useResult
 $Res call({
- DateTime? lastRefreshTime,@JsonKey(includeToJson: false, includeFromJson: false) PageController? pageController,@JsonKey(includeToJson: false, includeFromJson: false) TextEditingController? contentController
+ DateTime? lastRefreshTime, PageController? pageController, TextEditingController? contentController
 });
 
 
@@ -160,7 +155,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( DateTime? lastRefreshTime, @JsonKey(includeToJson: false, includeFromJson: false)  PageController? pageController, @JsonKey(includeToJson: false, includeFromJson: false)  TextEditingController? contentController)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( DateTime? lastRefreshTime,  PageController? pageController,  TextEditingController? contentController)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _BooksControllerState() when $default != null:
 return $default(_that.lastRefreshTime,_that.pageController,_that.contentController);case _:
@@ -181,7 +176,7 @@ return $default(_that.lastRefreshTime,_that.pageController,_that.contentControll
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( DateTime? lastRefreshTime, @JsonKey(includeToJson: false, includeFromJson: false)  PageController? pageController, @JsonKey(includeToJson: false, includeFromJson: false)  TextEditingController? contentController)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( DateTime? lastRefreshTime,  PageController? pageController,  TextEditingController? contentController)  $default,) {final _that = this;
 switch (_that) {
 case _BooksControllerState():
 return $default(_that.lastRefreshTime,_that.pageController,_that.contentController);case _:
@@ -201,7 +196,7 @@ return $default(_that.lastRefreshTime,_that.pageController,_that.contentControll
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( DateTime? lastRefreshTime, @JsonKey(includeToJson: false, includeFromJson: false)  PageController? pageController, @JsonKey(includeToJson: false, includeFromJson: false)  TextEditingController? contentController)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( DateTime? lastRefreshTime,  PageController? pageController,  TextEditingController? contentController)?  $default,) {final _that = this;
 switch (_that) {
 case _BooksControllerState() when $default != null:
 return $default(_that.lastRefreshTime,_that.pageController,_that.contentController);case _:
@@ -213,20 +208,18 @@ return $default(_that.lastRefreshTime,_that.pageController,_that.contentControll
 }
 
 /// @nodoc
-@JsonSerializable()
 
-class _BooksControllerState extends BooksControllerState {
-  const _BooksControllerState({this.lastRefreshTime, @JsonKey(includeToJson: false, includeFromJson: false) this.pageController, @JsonKey(includeToJson: false, includeFromJson: false) this.contentController}): super._();
-  factory _BooksControllerState.fromJson(Map<String, dynamic> json) => _$BooksControllerStateFromJson(json);
+
+class _BooksControllerState implements BooksControllerState {
+  const _BooksControllerState({this.lastRefreshTime, this.pageController, this.contentController});
+  
 
 /// 最后刷新时间
 @override final  DateTime? lastRefreshTime;
 /// PageController (不在freezed中管理)
-// ignore: invalid_annotation_target
-@override@JsonKey(includeToJson: false, includeFromJson: false) final  PageController? pageController;
+@override final  PageController? pageController;
 /// TextEditingController for content (不在freezed中管理)
-// ignore: invalid_annotation_target
-@override@JsonKey(includeToJson: false, includeFromJson: false) final  TextEditingController? contentController;
+@override final  TextEditingController? contentController;
 
 /// Create a copy of BooksControllerState
 /// with the given fields replaced by the non-null parameter values.
@@ -234,17 +227,14 @@ class _BooksControllerState extends BooksControllerState {
 @pragma('vm:prefer-inline')
 _$BooksControllerStateCopyWith<_BooksControllerState> get copyWith => __$BooksControllerStateCopyWithImpl<_BooksControllerState>(this, _$identity);
 
-@override
-Map<String, dynamic> toJson() {
-  return _$BooksControllerStateToJson(this, );
-}
+
 
 @override
 bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is _BooksControllerState&&(identical(other.lastRefreshTime, lastRefreshTime) || other.lastRefreshTime == lastRefreshTime)&&(identical(other.pageController, pageController) || other.pageController == pageController)&&(identical(other.contentController, contentController) || other.contentController == contentController));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
 int get hashCode => Object.hash(runtimeType,lastRefreshTime,pageController,contentController);
 
@@ -261,7 +251,7 @@ abstract mixin class _$BooksControllerStateCopyWith<$Res> implements $BooksContr
   factory _$BooksControllerStateCopyWith(_BooksControllerState value, $Res Function(_BooksControllerState) _then) = __$BooksControllerStateCopyWithImpl;
 @override @useResult
 $Res call({
- DateTime? lastRefreshTime,@JsonKey(includeToJson: false, includeFromJson: false) PageController? pageController,@JsonKey(includeToJson: false, includeFromJson: false) TextEditingController? contentController
+ DateTime? lastRefreshTime, PageController? pageController, TextEditingController? contentController
 });
 
 

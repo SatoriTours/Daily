@@ -11,16 +11,11 @@ part of 'home_controller_provider.dart';
 
 // dart format off
 T _$identity<T>(T value) => value;
-
 /// @nodoc
 mixin _$HomeControllerState implements DiagnosticableTreeMixin {
 
 /// 当前选中的页面索引
-/// 0: 文章页面
-/// 1: 日记页面
-/// 2: 读书页面
-/// 3: AI助手页面
-/// 4: 设置页面
+/// 0: 文章  1: 日记  2: 读书  3: AI助手  4: 设置
  int get currentIndex;
 /// Create a copy of HomeControllerState
 /// with the given fields replaced by the non-null parameter values.
@@ -28,8 +23,6 @@ mixin _$HomeControllerState implements DiagnosticableTreeMixin {
 @pragma('vm:prefer-inline')
 $HomeControllerStateCopyWith<HomeControllerState> get copyWith => _$HomeControllerStateCopyWithImpl<HomeControllerState>(this as HomeControllerState, _$identity);
 
-  /// Serializes this HomeControllerState to a JSON map.
-  Map<String, dynamic> toJson();
 
 @override
 void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -43,7 +36,7 @@ bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is HomeControllerState&&(identical(other.currentIndex, currentIndex) || other.currentIndex == currentIndex));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
 int get hashCode => Object.hash(runtimeType,currentIndex);
 
@@ -218,18 +211,14 @@ return $default(_that.currentIndex);case _:
 }
 
 /// @nodoc
-@JsonSerializable()
+
 
 class _HomeControllerState with DiagnosticableTreeMixin implements HomeControllerState {
   const _HomeControllerState({this.currentIndex = 0});
-  factory _HomeControllerState.fromJson(Map<String, dynamic> json) => _$HomeControllerStateFromJson(json);
+  
 
 /// 当前选中的页面索引
-/// 0: 文章页面
-/// 1: 日记页面
-/// 2: 读书页面
-/// 3: AI助手页面
-/// 4: 设置页面
+/// 0: 文章  1: 日记  2: 读书  3: AI助手  4: 设置
 @override@JsonKey() final  int currentIndex;
 
 /// Create a copy of HomeControllerState
@@ -238,10 +227,7 @@ class _HomeControllerState with DiagnosticableTreeMixin implements HomeControlle
 @pragma('vm:prefer-inline')
 _$HomeControllerStateCopyWith<_HomeControllerState> get copyWith => __$HomeControllerStateCopyWithImpl<_HomeControllerState>(this, _$identity);
 
-@override
-Map<String, dynamic> toJson() {
-  return _$HomeControllerStateToJson(this, );
-}
+
 @override
 void debugFillProperties(DiagnosticPropertiesBuilder properties) {
   properties
@@ -254,7 +240,7 @@ bool operator ==(Object other) {
   return identical(this, other) || (other.runtimeType == runtimeType&&other is _HomeControllerState&&(identical(other.currentIndex, currentIndex) || other.currentIndex == currentIndex));
 }
 
-@JsonKey(includeFromJson: false, includeToJson: false)
+
 @override
 int get hashCode => Object.hash(runtimeType,currentIndex);
 

@@ -3,6 +3,7 @@ import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/pages/books/views/widgets/viewpoint_card.dart';
 import 'package:daily_satori/app/pages/books/providers/books_controller_provider.dart';
 import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
+import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/diary_editor.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
@@ -142,7 +143,8 @@ class _ViewpointContentState extends ConsumerState<ViewpointContent> {
   }
 
   void _openJournalForCurrentViewpoint() {
-    final idx = ref.read(booksControllerProvider).currentViewpointIndex;
+    final booksState = ref.read(booksStateProvider);
+    final idx = booksState.currentViewpointIndex;
     if (idx < 0 || idx >= widget.viewpoints.length) return;
     final vp = widget.viewpoints[idx];
     final diaryState = ref.read(diaryControllerProvider);

@@ -235,12 +235,6 @@ class DiaryController extends _$DiaryController {
     return newPaths.join(',');
   }
 
-  /// 搜索日记
-  void searchDiaries(String query) {
-    state = state.copyWith(searchQuery: query);
-    _loadDiaries();
-  }
-
   /// 切换搜索框可见性
   void toggleSearchVisibility() {
     state = state.copyWith(isSearchVisible: !state.isSearchVisible);
@@ -255,12 +249,6 @@ class DiaryController extends _$DiaryController {
   /// 按标签过滤
   void filterByTag(String tag) {
     state = state.copyWith(currentTag: tag);
-    _loadDiaries();
-  }
-
-  /// 清除所有过滤条件
-  void clearAllFilters() {
-    state = state.copyWith(searchQuery: '', selectedFilterDate: null, currentTag: '');
     _loadDiaries();
   }
 

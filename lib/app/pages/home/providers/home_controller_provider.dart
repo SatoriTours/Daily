@@ -21,17 +21,9 @@ abstract class HomeControllerState with _$HomeControllerState {
   /// 构造函数
   const factory HomeControllerState({
     /// 当前选中的页面索引
-    /// 0: 文章页面
-    /// 1: 日记页面
-    /// 2: 读书页面
-    /// 3: AI助手页面
-    /// 4: 设置页面
+    /// 0: 文章  1: 日记  2: 读书  3: AI助手  4: 设置
     @Default(0) int currentIndex,
   }) = _HomeControllerState;
-
-  /// 从 JSON 创建
-  factory HomeControllerState.fromJson(Map<String, dynamic> json) =>
-      _$HomeControllerStateFromJson(json);
 }
 
 /// HomeController Provider

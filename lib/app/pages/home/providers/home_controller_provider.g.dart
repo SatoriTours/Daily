@@ -3,19 +3,6 @@
 part of 'home_controller_provider.dart';
 
 // **************************************************************************
-// JsonSerializableGenerator
-// **************************************************************************
-
-_HomeControllerState _$HomeControllerStateFromJson(Map<String, dynamic> json) =>
-    _HomeControllerState(
-      currentIndex: (json['currentIndex'] as num?)?.toInt() ?? 0,
-    );
-
-Map<String, dynamic> _$HomeControllerStateToJson(
-  _HomeControllerState instance,
-) => <String, dynamic>{'currentIndex': instance.currentIndex};
-
-// **************************************************************************
 // RiverpodGenerator
 // **************************************************************************
 

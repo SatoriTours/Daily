@@ -3,24 +3,6 @@
 part of 'books_controller_provider.dart';
 
 // **************************************************************************
-// JsonSerializableGenerator
-// **************************************************************************
-
-_BooksControllerState _$BooksControllerStateFromJson(
-  Map<String, dynamic> json,
-) => _BooksControllerState(
-  lastRefreshTime: json['lastRefreshTime'] == null
-      ? null
-      : DateTime.parse(json['lastRefreshTime'] as String),
-);
-
-Map<String, dynamic> _$BooksControllerStateToJson(
-  _BooksControllerState instance,
-) => <String, dynamic>{
-  'lastRefreshTime': instance.lastRefreshTime?.toIso8601String(),
-};
-
-// **************************************************************************
 // RiverpodGenerator
 // **************************************************************************
 
