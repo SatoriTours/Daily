@@ -60,9 +60,6 @@ class DiaryController extends _$DiaryController {
     });
   }
 
-  List<DiaryModel> getDiaries() => ref.read(diaryStateProvider).diaries;
-  bool isLoading() => ref.read(diaryStateProvider).isLoading;
-
   Future<void> _loadDiaries() async {
     await ref
         .read(diaryStateProvider.notifier)
@@ -74,7 +71,7 @@ class DiaryController extends _$DiaryController {
   }
 
   void _extractTags() {
-    final diaries = getDiaries();
+    final diaries = ref.read(diaryStateProvider).diaries;
     final allTags = <String>{};
     for (final diary in diaries) {
       if (diary.tags != null && diary.tags!.isNotEmpty) {

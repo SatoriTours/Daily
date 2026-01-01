@@ -51,7 +51,7 @@ final class ArticlesControllerProvider
 }
 
 String _$articlesControllerHash() =>
-    r'4be1b4841a5a6e4b65e46c592eeecdaa38012502';
+    r'2985e9c5cd1281de9aba55a8ed325e33a7bf462c';
 
 /// ArticlesController Provider
 ///
@@ -75,3 +75,96 @@ abstract class _$ArticlesController extends $Notifier<ArticlesControllerState> {
     element.handleCreate(ref, build);
   }
 }
+
+/// 页面标题 Provider
+
+@ProviderFor(articlesTitle)
+final articlesTitleProvider = ArticlesTitleProvider._();
+
+/// 页面标题 Provider
+
+final class ArticlesTitleProvider
+    extends $FunctionalProvider<String, String, String>
+    with $Provider<String> {
+  /// 页面标题 Provider
+  ArticlesTitleProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'articlesTitleProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$articlesTitleHash();
+
+  @$internal
+  @override
+  $ProviderElement<String> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  String create(Ref ref) {
+    return articlesTitle(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(String value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<String>(value),
+    );
+  }
+}
+
+String _$articlesTitleHash() => r'5ea3551852fd2c25f09be9cba6b80e0f0956f01a';
+
+/// 是否存在筛选条件 Provider
+
+@ProviderFor(articlesHasFilters)
+final articlesHasFiltersProvider = ArticlesHasFiltersProvider._();
+
+/// 是否存在筛选条件 Provider
+
+final class ArticlesHasFiltersProvider
+    extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  /// 是否存在筛选条件 Provider
+  ArticlesHasFiltersProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'articlesHasFiltersProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$articlesHasFiltersHash();
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    return articlesHasFilters(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$articlesHasFiltersHash() =>
+    r'0efaef1157cee79d3d2290512098be401358c39e';

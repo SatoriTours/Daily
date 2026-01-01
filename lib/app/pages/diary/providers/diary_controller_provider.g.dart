@@ -44,7 +44,7 @@ final class DiaryControllerProvider
   }
 }
 
-String _$diaryControllerHash() => r'6b1e1a06339c8b53a91ca7b64a865ff3eecfe801';
+String _$diaryControllerHash() => r'232eec031199ea985da84e34308fd89d5118fc5d';
 
 /// DiaryController Provider
 

@@ -10,6 +10,8 @@
 - [状态建模最佳实践](#状态建模最佳实践)
 - [freezed 使用规范](#freezed-使用规范)
 - [Provider 类型选择](#provider-类型选择)
+- [派生 Provider (Derived State)](#派生-provider-derived-state-重要) ⭐
+- [Widget 实现指南](#widget-实现指南)
 - [性能优化模式](#性能优化模式)
 - [测试最佳实践](#测试最佳实践)
 - [常见模式与反模式](#常见模式与反模式)
@@ -313,6 +315,133 @@ class ThemeMode extends _$ThemeMode {
 
   void setLight() => state = ThemeModeData.light();
   void setDark() => state = ThemeModeData.dark();
+}
+```
+
+---
+
+## 派生 Provider (Derived State) ⭐重要
+
+### 核心原则
+
+**派生 Provider** 是由其他 Provider 的状态计算得来的只读状态。这是 Riverpod 中最重要的模式之一。
+
+### ❌ 反模式：在 Controller 中定义 getter 方法
+
+```dart
+// ❌ 错误：在 Controller 中定义获取状态的方法
+@riverpod
+class ArticlesController extends _$ArticlesController {
+  // 问题1: UI 调用此方法不会触发响应式更新
+  // 问题2: 每次 build() 都会重新执行逻辑
+  // 问题3: 跨 Provider 依赖无法正确追踪
+  String getTitle() {
+    final state = ref.read(articleStateProvider);
+    if (state.searchQuery.isNotEmpty) return '搜索: ${state.searchQuery}';
+    return '全部文章';
+  }
+
+  List<ArticleModel> getArticles() => ref.read(articleStateProvider).articles;
+  bool isLoading() => ref.read(articleStateProvider).isLoading;
+}
+
+// UI 中调用
+Text(controller.getTitle()) // ❌ 数据变化时不会自动刷新！
+```
+
+### ✅ 正确模式：使用派生 Provider
+
+```dart
+// ✅ 正确：将计算逻辑提取为独立的派生 Provider
+@riverpod
+String articlesTitle(Ref ref) {
+  // 自动监听依赖，任何依赖变化都会触发重新计算
+  final state = ref.watch(articlesControllerProvider);
+  final articleState = ref.watch(articleStateProvider);
+  final searchQuery = articleState.globalSearchQuery;
+
+  return switch ((
+    searchQuery.isNotEmpty,
+    state.tagName.isNotEmpty,
+    state.onlyFavorite,
+  )) {
+    (true, _, _) => '搜索: $searchQuery',
+    (_, true, _) => '标签: ${state.tagName}',
+    (_, _, true) => '我的收藏',
+    _ => '全部文章',
+  };
+}
+
+@riverpod
+bool articlesHasFilters(Ref ref) {
+  final state = ref.watch(articlesControllerProvider);
+  final articleState = ref.watch(articleStateProvider);
+
+  return articleState.globalSearchQuery.isNotEmpty ||
+      state.tagName.isNotEmpty ||
+      state.onlyFavorite;
+}
+
+// UI 中使用
+final title = ref.watch(articlesTitleProvider);     // ✅ 自动响应式更新
+final hasFilters = ref.watch(articlesHasFiltersProvider); // ✅ 自动响应式更新
+```
+
+### 派生 Provider 的优势
+
+| 特性 | getter 方法 | 派生 Provider |
+|------|-------------|---------------|
+| **响应式** | ❌ 手动刷新 | ✅ 自动刷新 |
+| **缓存** | ❌ 每次重新计算 | ✅ 依赖不变则复用 |
+| **依赖追踪** | ❌ 无法追踪 | ✅ 自动追踪 |
+| **测试** | ❌ 需要 mock controller | ✅ 独立测试 |
+
+### 何时使用派生 Provider
+
+1. **计算展示数据**：标题、副标题、格式化文本
+2. **组合多个状态**：筛选条件判断、权限检查
+3. **数据转换**：列表过滤、排序、分组
+4. **跨 Provider 聚合**：从多个 Provider 聚合数据
+
+### Controller 应该只包含
+
+- ✅ **动作方法**：`toggleFavorite()`, `search()`, `delete()`
+- ✅ **状态修改**：`state = state.copyWith(...)`
+- ✅ **副作用**：调用 Repository、Service
+- ❌ ~~获取状态的 getter 方法~~
+
+### 实际项目示例
+
+```dart
+// articles_controller_provider.dart
+
+/// Controller 只负责动作
+@riverpod
+class ArticlesController extends _$ArticlesController {
+  @override
+  ArticlesControllerState build() => ArticlesControllerState();
+
+  void toggleFavorite(bool value) {
+    state = state.copyWith(onlyFavorite: value);
+    reloadArticles();
+  }
+
+  Future<void> reloadArticles() async {
+    await ref.read(articleStateProvider.notifier).reloadArticles(...);
+  }
+}
+
+/// 派生 Provider 负责计算展示数据
+@riverpod
+String articlesTitle(Ref ref) {
+  final state = ref.watch(articlesControllerProvider);
+  // ... 计算逻辑
+}
+
+@riverpod
+bool articlesHasFilters(Ref ref) {
+  final state = ref.watch(articlesControllerProvider);
+  // ... 计算逻辑
 }
 ```
 

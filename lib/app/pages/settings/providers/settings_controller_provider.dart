@@ -114,8 +114,6 @@ class SettingsController extends _$SettingsController {
     ArticleRepository.i.updateEmptyStatusToPending();
   }
 
-  String getWebServerPassword() => SettingRepository.i.getSetting(SettingService.webServerPasswordKey);
-
   Future<void> saveWebServerPassword(String password) async {
     try {
       SettingRepository.i.saveSetting(SettingService.webServerPasswordKey, password);
@@ -228,4 +226,16 @@ class SettingsController extends _$SettingsController {
     logger.i('[SettingsController] $message');
     UIUtils.showSuccess(message);
   }
+}
+
+// ============================================================================
+// 派生 Providers (Derived State)
+// ============================================================================
+
+/// Web 服务密码 Provider
+@riverpod
+String webServerPassword(Ref ref) {
+  // 监听 settings controller 以便在密码更新时重新计算
+  ref.watch(settingsControllerProvider);
+  return SettingRepository.i.getSetting(SettingService.webServerPasswordKey);
 }

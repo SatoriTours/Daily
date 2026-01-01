@@ -618,9 +618,7 @@ class SettingsView extends ConsumerWidget {
 
   /// 显示密码设置对话框
   void _showPasswordSettingDialog(BuildContext context, WidgetRef ref) {
-    final passwordController = TextEditingController(
-      text: ref.read(settingsControllerProvider.notifier).getWebServerPassword(),
-    );
+    final passwordController = TextEditingController(text: ref.read(webServerPasswordProvider));
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 

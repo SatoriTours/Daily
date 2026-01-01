@@ -46,6 +46,7 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(articlesControllerProvider);
     final controller = ref.read(articlesControllerProvider.notifier);
+    final title = ref.watch(articlesTitleProvider);
 
     return SAppBar(
       backgroundColorDark: AppColors.backgroundDark,
@@ -57,7 +58,7 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
       ),
       title: GestureDetector(
         onDoubleTap: () => _scrollToTop(state),
-        child: Text(controller.getTitle(), style: AppTypography.titleLarge),
+        child: Text(title, style: AppTypography.titleLarge),
       ),
       centerTitle: true,
       actions: [
@@ -124,7 +125,8 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
     ArticlesControllerState state,
     ArticlesController controller,
   ) {
-    if (controller.hasActiveFilters()) {
+    final hasFilters = ref.read(articlesHasFiltersProvider);
+    if (hasFilters) {
       controller.clearAllFilters();
     }
     showModalBottomSheet(
@@ -155,12 +157,13 @@ class _ArticlesBody extends ConsumerWidget {
     final isSearchVisible = ref.watch(appGlobalStateProvider.select((s) => s.isSearchBarVisible));
     final articles = ref.watch(articleStateProvider.select((s) => s.articles));
     final isLoading = ref.watch(articleStateProvider.select((s) => s.isLoading));
-    final hasFilters = controller.hasActiveFilters();
+    final hasFilters = ref.watch(articlesHasFiltersProvider);
+    final title = ref.watch(articlesTitleProvider);
 
     return Column(
       children: [
         if (isSearchVisible) _buildSearchBar(state, controller),
-        if (hasFilters) FilterIndicator(title: controller.getTitle(), onClear: controller.clearAllFilters),
+        if (hasFilters) FilterIndicator(title: title, onClear: controller.clearAllFilters),
         Expanded(child: _buildArticlesList(articles, isLoading, state, controller)),
       ],
     );

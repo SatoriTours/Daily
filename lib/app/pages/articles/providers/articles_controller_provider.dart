@@ -140,21 +140,6 @@ class ArticlesController extends _$ArticlesController {
     ref.read(articleStateProvider.notifier).mergeArticle(model);
   }
 
-  /// 获取某篇文章的共享引用（详情/编辑页应持有此引用而非自行查询）
-  ArticleModel? getRef(int id) {
-    return ref.read(articleStateProvider.notifier).getArticleRef(id);
-  }
-
-  /// 获取文章列表
-  List<ArticleModel> getArticles() {
-    return ref.read(articleStateProvider).articles;
-  }
-
-  /// 是否正在加载
-  bool isLoading() {
-    return ref.read(articleStateProvider).isLoading;
-  }
-
   // ========================================================================
   // 公开 API - 搜索功能
   // ========================================================================
@@ -216,36 +201,6 @@ class ArticlesController extends _$ArticlesController {
   // 公开 API - UI 辅助方法
   // ========================================================================
 
-  /// 获取页面标题（根据当前过滤状态）
-  String getTitle([TextEditingController? searchController]) {
-    final articleState = ref.read(articleStateProvider);
-    final searchQuery = articleState.globalSearchQuery.isNotEmpty
-        ? articleState.globalSearchQuery
-        : (searchController?.text.trim() ?? '');
-
-    return switch ((
-      articleState.globalSearchQuery.isNotEmpty,
-      state.tagName.isNotEmpty,
-      state.onlyFavorite,
-      state.selectedFilterDate != null,
-    )) {
-      (true, _, _, _) => 'article.search_result'.t.replaceAll('{query}', searchQuery),
-      (_, true, _, _) => 'article.filter_by_tag'.t.replaceAll('{tag}', state.tagName),
-      (_, _, true, _) => 'article.favorite_articles'.t,
-      (_, _, _, true) => 'article.filter_by_date'.t,
-      _ => 'article.all_articles'.t,
-    };
-  }
-
-  /// 是否存在任一过滤条件
-  bool hasActiveFilters() {
-    final articleState = ref.read(articleStateProvider);
-    return articleState.globalSearchQuery.isNotEmpty ||
-        state.tagName.isNotEmpty ||
-        state.onlyFavorite ||
-        state.selectedFilterDate != null;
-  }
-
   /// 获取每天文章数量统计（用于日历视图）
   Map<DateTime, int> getDailyArticleCounts() => ArticleRepository.i.getArticleDailyCounts();
 
@@ -291,7 +246,7 @@ class ArticlesController extends _$ArticlesController {
   Future<void> loadPreviousArticles() => _loadAdjacentArticles(loadAfter: false);
 
   Future<void> _loadAdjacentArticles({required bool loadAfter}) async {
-    final articles = getArticles();
+    final articles = ref.read(articleStateProvider).articles;
     if (articles.isEmpty) return;
 
     final anchorId = loadAfter ? articles.last.id : articles.first.id;
@@ -340,4 +295,41 @@ class _QueryParams {
   final DateTime? endDate;
 
   _QueryParams({this.keyword, this.favorite, this.tagIds, this.startDate, this.endDate});
+}
+
+// ============================================================================
+// 派生 Providers (Derived State)
+// ============================================================================
+
+/// 页面标题 Provider
+@riverpod
+String articlesTitle(Ref ref) {
+  final state = ref.watch(articlesControllerProvider);
+  final articleState = ref.watch(articleStateProvider);
+  final searchQuery = articleState.globalSearchQuery;
+
+  return switch ((
+    searchQuery.isNotEmpty,
+    state.tagName.isNotEmpty,
+    state.onlyFavorite,
+    state.selectedFilterDate != null,
+  )) {
+    (true, _, _, _) => 'article.search_result'.t.replaceAll('{query}', searchQuery),
+    (_, true, _, _) => 'article.filter_by_tag'.t.replaceAll('{tag}', state.tagName),
+    (_, _, true, _) => 'article.favorite_articles'.t,
+    (_, _, _, true) => 'article.filter_by_date'.t,
+    _ => 'article.all_articles'.t,
+  };
+}
+
+/// 是否存在筛选条件 Provider
+@riverpod
+bool articlesHasFilters(Ref ref) {
+  final state = ref.watch(articlesControllerProvider);
+  final articleState = ref.watch(articleStateProvider);
+
+  return articleState.globalSearchQuery.isNotEmpty ||
+      state.tagName.isNotEmpty ||
+      state.onlyFavorite ||
+      state.selectedFilterDate != null;
 }
