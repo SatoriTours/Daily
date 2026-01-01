@@ -294,7 +294,7 @@ class DiaryUtils {
       ref.read(homeControllerProvider.notifier).changePage(2);
 
       // 交给读书控制器处理查找与跳转
-      await ref.read(booksControllerProvider.notifier).openViewpointById(viewpointId);
+      ref.read(booksControllerProvider.notifier).openViewpointById(viewpointId);
     } catch (e) {
       logger.e('打开读书观点失败: $e');
     }

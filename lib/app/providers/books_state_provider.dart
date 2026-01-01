@@ -188,9 +188,16 @@ class BooksState extends _$BooksState {
     logger.i('选择书籍: ${book.title} (ID: ${book.id})');
   }
 
-  /// 删除书籍
+  /// 删除书籍及其所有观点
   Future<void> deleteBook(int bookId) async {
     try {
+      // 先删除该书籍的所有观点
+      final viewpoints = BookViewpointRepository.i.findByBookIds([bookId]);
+      if (viewpoints.isNotEmpty) {
+        BookViewpointRepository.i.removeMany(viewpoints.map((e) => e.id).toList());
+        logger.i('删除书籍观点: ${viewpoints.length} 条');
+      }
+      // 再删除书籍本身
       BookRepository.i.remove(bookId);
       logger.i('删除书籍: ID=$bookId');
       // 刷新观点列表

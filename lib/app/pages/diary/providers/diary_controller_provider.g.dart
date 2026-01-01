@@ -3,40 +3,6 @@
 part of 'diary_controller_provider.dart';
 
 // **************************************************************************
-// JsonSerializableGenerator
-// **************************************************************************
-
-_DiaryControllerState _$DiaryControllerStateFromJson(
-  Map<String, dynamic> json,
-) => _DiaryControllerState(
-  selectedDate: json['selectedDate'] == null
-      ? null
-      : DateTime.parse(json['selectedDate'] as String),
-  searchQuery: json['searchQuery'] as String? ?? '',
-  isSearchVisible: json['isSearchVisible'] as bool? ?? false,
-  selectedFilterDate: json['selectedFilterDate'] == null
-      ? null
-      : DateTime.parse(json['selectedFilterDate'] as String),
-  currentTag: json['currentTag'] as String? ?? '',
-  tags:
-      (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
-      const [],
-  isLoadingDiaries: json['isLoadingDiaries'] as bool? ?? false,
-);
-
-Map<String, dynamic> _$DiaryControllerStateToJson(
-  _DiaryControllerState instance,
-) => <String, dynamic>{
-  'selectedDate': instance.selectedDate?.toIso8601String(),
-  'searchQuery': instance.searchQuery,
-  'isSearchVisible': instance.isSearchVisible,
-  'selectedFilterDate': instance.selectedFilterDate?.toIso8601String(),
-  'currentTag': instance.currentTag,
-  'tags': instance.tags,
-  'isLoadingDiaries': instance.isLoadingDiaries,
-};
-
-// **************************************************************************
 // RiverpodGenerator
 // **************************************************************************
 
@@ -78,7 +44,7 @@ final class DiaryControllerProvider
   }
 }
 
-String _$diaryControllerHash() => r'4d612903cde4b229c11292794919e0ed5f1c9424';
+String _$diaryControllerHash() => r'6b1e1a06339c8b53a91ca7b64a865ff3eecfe801';
 
 /// DiaryController Provider
 

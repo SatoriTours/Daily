@@ -20,13 +20,11 @@ class _BookSearchViewState extends ConsumerState<BookSearchView> {
   void initState() {
     super.initState();
     _searchController = TextEditingController();
-
-    // 页面加载后初始化搜索
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final initialKeyword = ref.read(bookSearchControllerProvider.notifier).consumeInitialKeyword();
-      if (initialKeyword.isNotEmpty) {
-        _searchController.text = initialKeyword;
-        ref.read(bookSearchControllerProvider.notifier).searchBooks(initialKeyword);
+      final keyword = ref.read(bookSearchControllerProvider.notifier).consumeInitialKeyword();
+      if (keyword.isNotEmpty) {
+        _searchController.text = keyword;
+        ref.read(bookSearchControllerProvider.notifier).searchBooks(keyword);
       }
     });
   }
@@ -39,20 +37,15 @@ class _BookSearchViewState extends ConsumerState<BookSearchView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(appBar: _buildAppBar(context), body: _buildBody(context));
-  }
-
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(title: Text('ui.search'.t, style: AppTypography.appBarTitle), elevation: 0);
-  }
-
-  Widget _buildBody(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        children: [
-          _buildSearchBar(context),
-          Expanded(child: _buildSearchResults(context)),
-        ],
+    return Scaffold(
+      appBar: AppBar(title: Text('ui.search'.t, style: AppTypography.appBarTitle), elevation: 0),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildSearchBar(context),
+            Expanded(child: _SearchResults(searchController: _searchController)),
+          ],
+        ),
       ),
     );
   }
@@ -80,88 +73,32 @@ class _BookSearchViewState extends ConsumerState<BookSearchView> {
       ),
     );
   }
+}
 
-  Widget _buildSearchResults(BuildContext context) {
-    final controllerState = ref.watch(bookSearchControllerProvider);
+/// 搜索结果区域
+class _SearchResults extends ConsumerWidget {
+  final TextEditingController searchController;
+  const _SearchResults({required this.searchController});
 
-    // 搜索中显示加载状态
-    if (controllerState.isSearching) {
-      return _buildSearchingState(context, controllerState.searchKeyword);
-    }
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(bookSearchControllerProvider);
 
-    // 添加书籍中显示加载状态
-    if (controllerState.isLoading) {
-      return _buildLoadingState(context);
-    }
-
-    // 有错误时显示错误状态
-    if (controllerState.errorMessage.isNotEmpty) {
-      return _buildErrorState(context, controllerState.errorMessage);
-    }
-
-    // 搜索后无结果
-    if (controllerState.searchResults.isEmpty && controllerState.searchKeyword.isNotEmpty) {
-      return _buildEmptyState(context);
-    }
-
-    // 初始状态
-    if (controllerState.searchResults.isEmpty) {
-      return _buildInitialState(context);
-    }
+    if (state.isSearching) return _buildSearchingState(context, state.searchKeyword);
+    if (state.isLoading) return _buildLoadingState(context);
+    if (state.errorMessage.isNotEmpty) return _buildErrorState(context, ref, state.errorMessage);
+    if (state.searchResults.isEmpty && state.searchKeyword.isNotEmpty) return _buildEmptyState(context);
+    if (state.searchResults.isEmpty) return _buildInitialState(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSearchStatistics(context, controllerState.searchResults.length),
-        Expanded(child: _buildResultsList(context, controllerState.searchResults)),
+        _buildStatistics(context, state.searchResults.length),
+        Expanded(child: _buildResultsList(context, ref, state.searchResults)),
       ],
     );
   }
 
-  /// 构建搜索统计信息
-  Widget _buildSearchStatistics(BuildContext context, int resultCount) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: Dimensions.paddingPage.horizontal, vertical: Dimensions.spacingS),
-      decoration: BoxDecoration(
-        color: AppColors.getSurface(context),
-        border: Border(
-          bottom: BorderSide(color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.low), width: 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.library_books_outlined,
-            size: Dimensions.iconSizeXs,
-            color: AppColors.getOnSurfaceVariant(context),
-          ),
-          Dimensions.horizontalSpacerS,
-          Text(
-            '找到  本相关书籍',
-            style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.getOnSurfaceVariant(context),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoadingState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context))),
-          Dimensions.verticalSpacerM,
-          Text('正在添加书籍...', style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context))),
-        ],
-      ),
-    );
-  }
-
-  /// 搜索中状态
   Widget _buildSearchingState(BuildContext context, String keyword) {
     return Center(
       child: Column(
@@ -172,7 +109,7 @@ class _BookSearchViewState extends ConsumerState<BookSearchView> {
             height: 48,
             child: CircularProgressIndicator(
               strokeWidth: 3,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
+              valueColor: AlwaysStoppedAnimation(AppColors.getPrimary(context)),
             ),
           ),
           Dimensions.verticalSpacerL,
@@ -193,8 +130,20 @@ class _BookSearchViewState extends ConsumerState<BookSearchView> {
     );
   }
 
-  /// 错误状态
-  Widget _buildErrorState(BuildContext context, String errorMessage) {
+  Widget _buildLoadingState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(AppColors.getPrimary(context))),
+          Dimensions.verticalSpacerM,
+          Text('正在添加书籍...', style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context, WidgetRef ref, String errorMessage) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -225,9 +174,7 @@ class _BookSearchViewState extends ConsumerState<BookSearchView> {
           FilledButton.icon(
             onPressed: () {
               final keyword = ref.read(bookSearchControllerProvider).searchKeyword;
-              if (keyword.isNotEmpty) {
-                ref.read(bookSearchControllerProvider.notifier).searchBooks(keyword);
-              }
+              if (keyword.isNotEmpty) ref.read(bookSearchControllerProvider.notifier).searchBooks(keyword);
             },
             icon: const Icon(Icons.refresh),
             label: Text('button.retry'.t),
@@ -288,7 +235,36 @@ class _BookSearchViewState extends ConsumerState<BookSearchView> {
     );
   }
 
-  Widget _buildResultsList(BuildContext context, List<BookSearchResult> searchResults) {
+  Widget _buildStatistics(BuildContext context, int count) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: Dimensions.paddingPage.horizontal, vertical: Dimensions.spacingS),
+      decoration: BoxDecoration(
+        color: AppColors.getSurface(context),
+        border: Border(
+          bottom: BorderSide(color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.low), width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.library_books_outlined,
+            size: Dimensions.iconSizeXs,
+            color: AppColors.getOnSurfaceVariant(context),
+          ),
+          Dimensions.horizontalSpacerS,
+          Text(
+            '找到 $count 本相关书籍',
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.getOnSurfaceVariant(context),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResultsList(BuildContext context, WidgetRef ref, List<BookSearchResult> results) {
     return ListView.builder(
       padding: EdgeInsets.fromLTRB(
         Dimensions.paddingPage.left,
@@ -296,15 +272,19 @@ class _BookSearchViewState extends ConsumerState<BookSearchView> {
         Dimensions.paddingPage.right,
         Dimensions.paddingPage.bottom,
       ),
-      itemCount: searchResults.length,
-      itemBuilder: (context, index) {
-        final result = searchResults[index];
-        return _buildResultCard(context, result);
-      },
+      itemCount: results.length,
+      itemBuilder: (_, index) => _BookResultCard(result: results[index]),
     );
   }
+}
 
-  Widget _buildResultCard(BuildContext context, BookSearchResult result) {
+/// 书籍搜索结果卡片
+class _BookResultCard extends ConsumerWidget {
+  final BookSearchResult result;
+  const _BookResultCard({required this.result});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       margin: const EdgeInsets.only(bottom: Dimensions.spacingM),
       elevation: 0,
@@ -320,134 +300,126 @@ class _BookSearchViewState extends ConsumerState<BookSearchView> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 封面图片
-              if (result.coverUrl.isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(Dimensions.radiusS),
-                  child: Image.network(
-                    result.coverUrl,
-                    width: 80,
-                    height: 120,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: 80,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.low),
-                          borderRadius: BorderRadius.circular(Dimensions.radiusS),
-                        ),
-                        child: Icon(
-                          Icons.book,
-                          size: 40,
-                          color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.high),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Dimensions.horizontalSpacerS,
-              ],
-              // 书籍信息
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 标题和分类行
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            result.title,
-                            style: AppTypography.titleMedium.copyWith(
-                              color: AppColors.getOnSurface(context),
-                              fontWeight: FontWeight.w600,
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (result.category.isNotEmpty) ...[
-                          Dimensions.horizontalSpacerS,
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: Dimensions.spacingS + 2,
-                              vertical: Dimensions.spacingXs,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.getPrimary(context).withValues(alpha: Opacities.low),
-                              borderRadius: BorderRadius.circular(Dimensions.radiusS),
-                            ),
-                            child: Text(
-                              result.category,
-                              style: AppTypography.labelSmall.copyWith(color: AppColors.getPrimary(context)),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    // 作者信息
-                    Dimensions.verticalSpacerS,
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.person_outline,
-                          size: Dimensions.iconSizeXs - 2,
-                          color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.highOpaque),
-                        ),
-                        const SizedBox(width: Dimensions.spacingXs + 2),
-                        Expanded(
-                          child: Text(
-                            result.author,
-                            style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    // 简介
-                    if (result.introduction.isNotEmpty) ...[
-                      Dimensions.verticalSpacerS,
-                      Text(
-                        result.introduction,
-                        style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.getOnSurfaceVariant(context),
-                          height: 1.5,
-                        ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    // 添加书籍提示
-                    Dimensions.verticalSpacerS,
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Icon(
-                          Icons.add_circle_outline,
-                          size: Dimensions.iconSizeXs,
-                          color: AppColors.getPrimary(context),
-                        ),
-                        Dimensions.horizontalSpacerXs,
-                        Text(
-                          '点击添加书籍',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.getPrimary(context),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              if (result.coverUrl.isNotEmpty) ...[_buildCover(context), Dimensions.horizontalSpacerS],
+              Expanded(child: _buildInfo(context)),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCover(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      child: Image.network(
+        result.coverUrl,
+        width: 80,
+        height: 120,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: 80,
+          height: 120,
+          decoration: BoxDecoration(
+            color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.low),
+            borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          ),
+          child: Icon(
+            Icons.book,
+            size: 40,
+            color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.high),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfo(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 标题行
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                result.title,
+                style: AppTypography.titleMedium.copyWith(
+                  color: AppColors.getOnSurface(context),
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (result.category.isNotEmpty) ...[
+              Dimensions.horizontalSpacerS,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.spacingS + 2,
+                  vertical: Dimensions.spacingXs,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.getPrimary(context).withValues(alpha: Opacities.low),
+                  borderRadius: BorderRadius.circular(Dimensions.radiusS),
+                ),
+                child: Text(
+                  result.category,
+                  style: AppTypography.labelSmall.copyWith(color: AppColors.getPrimary(context)),
+                ),
+              ),
+            ],
+          ],
+        ),
+        // 作者
+        Dimensions.verticalSpacerS,
+        Row(
+          children: [
+            Icon(
+              Icons.person_outline,
+              size: Dimensions.iconSizeXs - 2,
+              color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.highOpaque),
+            ),
+            const SizedBox(width: Dimensions.spacingXs + 2),
+            Expanded(
+              child: Text(
+                result.author,
+                style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        // 简介
+        if (result.introduction.isNotEmpty) ...[
+          Dimensions.verticalSpacerS,
+          Text(
+            result.introduction,
+            style: AppTypography.bodySmall.copyWith(color: AppColors.getOnSurfaceVariant(context), height: 1.5),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+        // 添加提示
+        Dimensions.verticalSpacerS,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Icon(Icons.add_circle_outline, size: Dimensions.iconSizeXs, color: AppColors.getPrimary(context)),
+            Dimensions.horizontalSpacerXs,
+            Text(
+              '点击添加书籍',
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.getPrimary(context),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

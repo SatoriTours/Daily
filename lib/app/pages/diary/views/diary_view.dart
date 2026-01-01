@@ -6,7 +6,6 @@ import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -20,193 +19,92 @@ import 'widgets/diary_tags_dialog.dart';
 /// 日记页面
 class DiaryView extends ConsumerWidget {
   const DiaryView({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(diaryControllerProvider);
-    final shouldShowSearchBar = state.isSearchVisible || state.searchQuery.isNotEmpty;
+    final controller = ref.read(diaryControllerProvider.notifier);
+    final showSearchBar = state.isSearchVisible || state.searchQuery.isNotEmpty;
 
     return Scaffold(
       backgroundColor: DiaryStyles.getBackgroundColor(context),
-      appBar: _buildAppBar(context, ref),
+      appBar: _buildAppBar(context, state, controller),
       body: Stack(
         children: [
-          _buildMainContent(context, ref),
-          // 搜索栏（仅在需要时显示）
-          _buildSearchBar(shouldShowSearchBar, ref),
-          _buildFloatingButton(context, ref),
+          _DiaryContent(state: state, controller: controller),
+          _buildSearchBar(showSearchBar, state, controller),
+          _buildFab(context),
         ],
       ),
     );
   }
 
-  /// 构建主要内容区域
-  Widget _buildMainContent(BuildContext context, WidgetRef ref) {
-    logger.d('构建日记主内容区域');
-    final state = ref.watch(diaryControllerProvider);
-    final diaries = ref.watch(diaryStateProvider).diaries;
-
-    // 显示搜索结果状态
-    if (state.searchQuery.isNotEmpty) {
-      return _buildFilterView(context, ref, '搜索结果: "${state.searchQuery}"', diaries);
-    }
-
-    // 显示标签过滤状态
-    if (state.currentTag.isNotEmpty) {
-      return _buildFilterView(context, ref, '标签: "#${state.currentTag}"', diaries);
-    }
-
-    // 显示日期过滤状态
-    if (state.selectedFilterDate != null) {
-      final dateFormat = DateFormat('yyyy年MM月dd日');
-      final dateText = dateFormat.format(state.selectedFilterDate!);
-      return _buildFilterView(context, ref, '日期: $dateText', diaries);
-    }
-
-    // 显示正常状态
-    return DiaryList(
-      diaries: diaries,
-      isLoading: state.isLoadingDiaries,
-      scrollController: state.scrollController,
-      onEdit: (diary) => _showEditDialog(context, ref, diary),
-      onDelete: (id) {
-        ref.read(diaryControllerProvider.notifier).deleteDiary(id);
-      },
-    );
-  }
-
-  /// 构建过滤视图（搜索结果、标签过滤、日期过滤等）
-  Widget _buildFilterView(BuildContext context, WidgetRef ref, String filterText, List<DiaryModel> diaries) {
-    logger.d('构建过滤视图: $filterText');
-    final state = ref.watch(diaryControllerProvider);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildFilterHeader(context, filterText, ref),
-        Expanded(
-          child: DiaryList(
-            diaries: diaries,
-            isLoading: state.isLoadingDiaries,
-            scrollController: state.scrollController,
-            onEdit: (diary) => _showEditDialog(context, ref, diary),
-            onDelete: (id) {
-              ref.read(diaryControllerProvider.notifier).deleteDiary(id);
-            },
-          ),
+  PreferredSizeWidget _buildAppBar(BuildContext context, DiaryControllerState state, DiaryController controller) {
+    return SAppBar(
+      backgroundColorDark: AppColors.backgroundDark,
+      backgroundColorLight: DiaryStyles.getAccentColor(context),
+      elevation: 1,
+      leading: IconButton(
+        icon: const Icon(FeatherIcons.calendar, color: Colors.white, size: Dimensions.iconSizeM),
+        onPressed: () => _showCalendarDialog(context, state, controller),
+        tooltip: '日历',
+      ),
+      title: Text('我的日记', style: AppTypography.titleLarge),
+      onTitleDoubleTap: () => _scrollToTop(state),
+      actions: [
+        IconButton(
+          icon: const Icon(FeatherIcons.search, color: Colors.white, size: Dimensions.iconSizeM),
+          onPressed: () {
+            state.searchController?.clear();
+            if (state.searchQuery.isNotEmpty) controller.clearFilters();
+            controller.enableSearch(true);
+          },
+          tooltip: '搜索',
+        ),
+        IconButton(
+          icon: const Icon(FeatherIcons.tag, color: Colors.white, size: Dimensions.iconSizeM),
+          onPressed: () => _showTagsDialog(context, state, controller),
+          tooltip: '标签',
         ),
       ],
+      foregroundColor: Colors.white,
     );
   }
 
-  /// 构建过滤器头部
-  Widget _buildFilterHeader(BuildContext context, String filterText, WidgetRef ref) {
-    return FilterIndicator(
-      title: filterText,
-      onClear: () => ref.read(diaryControllerProvider.notifier).clearFilters(),
-      // 调整与现有布局相近的外边距
-      margin: const EdgeInsets.fromLTRB(
-        Dimensions.spacingM,
-        Dimensions.spacingS + 4,
-        Dimensions.spacingM,
-        Dimensions.spacingS,
-      ),
-    );
-  }
-
-  /// 构建搜索栏
-  Widget _buildSearchBar(bool shouldShowSearchBar, WidgetRef ref) {
-    final state = ref.watch(diaryControllerProvider);
+  Widget _buildSearchBar(bool show, DiaryControllerState state, DiaryController controller) {
     return AnimatedPositioned(
       duration: Animations.durationNormal,
       curve: Curves.easeInOut,
-      top: shouldShowSearchBar ? 0 : -60,
+      top: show ? 0 : -60,
       left: 0,
       right: 0,
       height: 60,
       child: DiarySearchBar(
         searchController: state.searchController ?? TextEditingController(),
         searchFocusNode: state.searchFocusNode ?? FocusNode(),
-        onClose: () => ref.read(diaryControllerProvider.notifier).enableSearch(false),
-        onSearch: (query) => ref.read(diaryControllerProvider.notifier).search(query),
-        onClearFilters: () => ref.read(diaryControllerProvider.notifier).clearFilters(),
+        onClose: () => controller.enableSearch(false),
+        onSearch: controller.search,
+        onClearFilters: controller.clearFilters,
       ),
     );
   }
 
-  /// 构建悬浮按钮
-  Widget _buildFloatingButton(BuildContext context, WidgetRef ref) {
+  Widget _buildFab(BuildContext context) {
     return Positioned(
       right: Dimensions.spacingL,
       bottom: Dimensions.spacingL,
-      child: SafeArea(bottom: true, right: true, child: DiaryFab(onPressed: () => _showEditorDialog(context, ref))),
+      child: SafeArea(bottom: true, right: true, child: DiaryFab(onPressed: () => _showEditorDialog(context))),
     );
   }
 
-  /// 构建AppBar
-  PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref) {
-    return SAppBar(
-      backgroundColorDark: AppColors.backgroundDark,
-      backgroundColorLight: DiaryStyles.getAccentColor(context),
-      elevation: 1,
-      leading: _buildAppBarButton(
-        context,
-        FeatherIcons.calendar,
-        Colors.white,
-        () => _showCalendarDialog(context, ref),
-      ),
-      title: Text('我的日记', style: AppTypography.titleLarge),
-      onTitleDoubleTap: () => _scrollToTop(ref),
-      actions: [
-        _buildAppBarButton(context, FeatherIcons.search, Colors.white, () => _activateSearch(context, ref)),
-        _buildAppBarButton(context, FeatherIcons.tag, Colors.white, () => _showTagsDialog(context, ref)),
-      ],
-      foregroundColor: Colors.white,
-    );
-  }
-
-  /// 构建AppBar按钮
-  Widget _buildAppBarButton(BuildContext context, IconData icon, Color color, VoidCallback onPressed) {
-    return IconButton(
-      icon: Icon(icon, color: color, size: Dimensions.iconSizeM),
-      splashRadius: Dimensions.spacingL,
-      onPressed: onPressed,
-      padding: const EdgeInsets.all(Dimensions.spacingS + 4),
-      tooltip: icon == FeatherIcons.calendar
-          ? '日历'
-          : icon == FeatherIcons.search
-          ? '搜索'
-          : '标签',
-    );
-  }
-
-  /// 滚动到顶部
-  void _scrollToTop(WidgetRef ref) {
-    logger.d('双击标题，滚动到顶部');
-    final state = ref.read(diaryControllerProvider);
-    final scrollController = state.scrollController;
-    if (scrollController != null && scrollController.hasClients) {
-      scrollController.animateTo(0, duration: Animations.durationNormal, curve: Curves.easeInOut);
+  void _scrollToTop(DiaryControllerState state) {
+    final sc = state.scrollController;
+    if (sc != null && sc.hasClients) {
+      sc.animateTo(0, duration: Animations.durationNormal, curve: Curves.easeInOut);
     }
   }
 
-  /// 激活搜索
-  void _activateSearch(BuildContext context, WidgetRef ref) {
-    logger.d('激活搜索功能');
-    final state = ref.read(diaryControllerProvider);
-    // 清除当前搜索内容
-    state.searchController?.clear();
-    // 如果之前有搜索结果，需要清除
-    if (state.searchQuery.isNotEmpty) {
-      ref.read(diaryControllerProvider.notifier).clearFilters();
-    }
-    // 激活搜索栏
-    ref.read(diaryControllerProvider.notifier).enableSearch(true);
-  }
-
-  /// 显示编辑对话框 - 支持Markdown和图片
-  void _showEditDialog(BuildContext context, WidgetRef ref, DiaryModel diary) {
-    logger.d('显示编辑对话框: ${diary.id}');
-    // 隐藏当前可能的键盘
+  void _showEditorDialog(BuildContext context, [DiaryModel? diary]) {
     FocusManager.instance.primaryFocus?.unfocus();
     showModalBottomSheet(
       context: context,
@@ -215,17 +113,11 @@ class DiaryView extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
-      builder: (context) => DiaryEditor(diary: diary),
-    ).then((_) {
-      // 确保对话框关闭后键盘也被隐藏
-      FocusManager.instance.primaryFocus?.unfocus();
-    });
+      builder: (_) => diary != null ? DiaryEditor(diary: diary) : const DiaryEditor(),
+    ).then((_) => FocusManager.instance.primaryFocus?.unfocus());
   }
 
-  /// 显示标签选择对话框 - 支持主题
-  void _showTagsDialog(BuildContext context, WidgetRef ref) {
-    logger.d('显示标签对话框');
-    // 隐藏当前可能的键盘
+  void _showTagsDialog(BuildContext context, DiaryControllerState state, DiaryController controller) {
     FocusManager.instance.primaryFocus?.unfocus();
     showModalBottomSheet(
       context: context,
@@ -233,42 +125,24 @@ class DiaryView extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
-      builder: (context) => const DiaryTagsDialog(),
-    ).then((_) {
-      // 确保对话框关闭后键盘也被隐藏
-      FocusManager.instance.primaryFocus?.unfocus();
-    });
-  }
-
-  /// 显示编辑器对话框（创建新日记）
-  void _showEditorDialog(BuildContext context, WidgetRef ref) {
-    logger.d('显示编辑器对话框');
-    // 隐藏当前可能的键盘
-    FocusManager.instance.primaryFocus?.unfocus();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: DiaryStyles.getBottomSheetColor(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+      builder: (_) => DiaryTagsDialog(
+        tags: state.tags,
+        onTagSelected: (tag) {
+          controller.filterByTag(tag);
+          Navigator.pop(context);
+        },
+        onClearFilters: () {
+          controller.clearFilters();
+          Navigator.pop(context);
+        },
       ),
-      builder: (context) => const DiaryEditor(),
-    ).then((_) {
-      // 确保对话框关闭后键盘也被隐藏
-      FocusManager.instance.primaryFocus?.unfocus();
-    });
+    ).then((_) => FocusManager.instance.primaryFocus?.unfocus());
   }
 
-  /// 显示日历选择对话框
-  void _showCalendarDialog(BuildContext context, WidgetRef ref) {
-    logger.d('显示日历对话框');
-    final state = ref.read(diaryControllerProvider);
-    // 隐藏当前可能的键盘
+  void _showCalendarDialog(BuildContext context, DiaryControllerState state, DiaryController controller) {
     FocusManager.instance.primaryFocus?.unfocus();
-    // 如果已经有筛选，先清除
     if (state.searchQuery.isNotEmpty || state.currentTag.isNotEmpty || state.selectedFilterDate != null) {
-      ref.read(diaryControllerProvider.notifier).clearFilters();
+      controller.clearFilters();
     }
     showModalBottomSheet(
       context: context,
@@ -277,10 +151,73 @@ class DiaryView extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
       isScrollControlled: true,
-      builder: (context) => const DiaryCalendarDialog(),
-    ).then((_) {
-      // 确保对话框关闭后键盘也被隐藏
-      FocusManager.instance.primaryFocus?.unfocus();
-    });
+      builder: (_) => const DiaryCalendarDialog(),
+    ).then((_) => FocusManager.instance.primaryFocus?.unfocus());
+  }
+}
+
+/// 日记内容区域
+class _DiaryContent extends ConsumerWidget {
+  final DiaryControllerState state;
+  final DiaryController controller;
+
+  const _DiaryContent({required this.state, required this.controller});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final diaries = ref.watch(diaryStateProvider.select((s) => s.diaries));
+    final filterText = _getFilterText();
+
+    if (filterText != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FilterIndicator(
+            title: filterText,
+            onClear: controller.clearFilters,
+            margin: const EdgeInsets.fromLTRB(
+              Dimensions.spacingM,
+              Dimensions.spacingS + 4,
+              Dimensions.spacingM,
+              Dimensions.spacingS,
+            ),
+          ),
+          Expanded(child: _buildList(context, diaries)),
+        ],
+      );
+    }
+    return _buildList(context, diaries);
+  }
+
+  String? _getFilterText() {
+    if (state.searchQuery.isNotEmpty) return '搜索结果: "${state.searchQuery}"';
+    if (state.currentTag.isNotEmpty) return '标签: "#${state.currentTag}"';
+    if (state.selectedFilterDate != null) {
+      return '日期: ${DateFormat('yyyy年MM月dd日').format(state.selectedFilterDate!)}';
+    }
+    return null;
+  }
+
+  Widget _buildList(BuildContext context, List<DiaryModel> diaries) {
+    return DiaryList(
+      diaries: diaries,
+      isLoading: state.isLoadingDiaries,
+      scrollController: state.scrollController,
+      onEdit: (diary) => _showEditDialog(context, diary),
+      onDelete: controller.deleteDiary,
+    );
+  }
+
+  void _showEditDialog(BuildContext context, DiaryModel diary) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: DiaryStyles.getBottomSheetColor(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+      ),
+      builder: (_) => DiaryEditor(diary: diary),
+    ).then((_) => FocusManager.instance.primaryFocus?.unfocus());
   }
 }

@@ -404,8 +404,14 @@ class BookService {
     return response;
   }
 
-  /// 删除书籍
+  /// 删除书籍及其所有观点
   Future<void> deleteBook(int bookId) async {
+    // 先删除该书籍的所有观点
+    final viewpoints = BookViewpointRepository.i.findByBookIds([bookId]);
+    if (viewpoints.isNotEmpty) {
+      BookViewpointRepository.i.removeMany(viewpoints.map((e) => e.id).toList());
+    }
+    // 再删除书籍本身
     BookRepository.i.remove(bookId);
   }
 
