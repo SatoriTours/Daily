@@ -206,12 +206,26 @@ class BooksState extends _$BooksState {
     try {
       final book = BookRepository.i.findModel(bookId);
       if (book != null) {
-        // 更新状态
-        logger.i('刷新书籍: ${book.title} (ID: $bookId)');
+        logger.i('开始刷新书籍: ${book.title} (ID: $bookId)');
+        state = state.copyWith(isProcessing: true);
+
+        // 调用 BookService 的刷新方法（包含AI调用、获取观点等完整逻辑）
+        final success = await BookService.i.refreshBook(bookId);
+
+        if (success) {
+          logger.i('书籍刷新成功: ${book.title}');
+          // 刷新观点列表
+          await loadAllViewpoints();
+        } else {
+          logger.w('书籍刷新失败: ${book.title}');
+          throw Exception('刷新书籍失败');
+        }
       }
     } catch (e) {
       logger.e('刷新书籍失败: ID=$bookId', error: e);
       rethrow;
+    } finally {
+      state = state.copyWith(isProcessing: false);
     }
   }
 }
