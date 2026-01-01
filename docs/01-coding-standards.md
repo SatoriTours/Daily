@@ -39,6 +39,10 @@
 - ❌ GetX 模式 (`.obs`, `Obx`, `Get.find`)
 - ❌ Provider 循环依赖
 - ❌ 在 `build()` 中使用 `ref.read()`
+- ❌ View 中直接调用 Repository/Service（应通过 State Provider）
+- ❌ Controller 中定义 getter 方法（应使用 State getter 或派生 Provider）
+- ❌ freezed 模型中调用 Service/Repository（应将数据作为字段存储）
+- ❌ 使用 `dynamic` 类型（应使用明确类型）
 
 ## 🎨 样式系统
 
@@ -118,3 +122,6 @@ showSuccess('操作成功');
 - [ ] 无硬编码颜色/间距/字体
 - [ ] 函数 ≤ 50 行，缩进 ≤ 3 层
 - [ ] `flutter analyze` 无问题
+- [ ] View 中不直接调用 Repository/Service
+- [ ] freezed 模型中的 getter 只做纯计算
+- [ ] 无 `dynamic` 类型，使用明确类型

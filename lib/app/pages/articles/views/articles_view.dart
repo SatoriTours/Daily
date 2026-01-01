@@ -46,7 +46,7 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(articlesControllerProvider);
     final controller = ref.read(articlesControllerProvider.notifier);
-    final title = ref.watch(articlesTitleProvider);
+    final displayTitle = ref.watch(displayTitleProvider);
 
     return SAppBar(
       backgroundColorDark: AppColors.backgroundDark,
@@ -58,7 +58,7 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
       ),
       title: GestureDetector(
         onDoubleTap: () => _scrollToTop(state),
-        child: Text(title, style: AppTypography.titleLarge),
+        child: Text(displayTitle, style: AppTypography.titleLarge),
       ),
       centerTitle: true,
       actions: [
@@ -69,19 +69,24 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
             controller.toggleSearchState();
           },
         ),
-        _buildMoreMenu(context, state, controller),
+        _buildMoreMenu(context, ref, state, controller),
       ],
       foregroundColor: Colors.white,
     );
   }
 
-  Widget _buildMoreMenu(BuildContext context, ArticlesControllerState state, ArticlesController controller) {
+  Widget _buildMoreMenu(
+    BuildContext context,
+    WidgetRef ref,
+    ArticlesControllerState state,
+    ArticlesController controller,
+  ) {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_horiz, color: Colors.white, size: 20),
       onSelected: (value) {
         switch (value) {
           case 'tags':
-            _showTagsDialog(context, state, controller);
+            _showTagsDialog(context, state, controller, ref);
           case 'favorite':
             controller.toggleFavorite(!state.onlyFavorite);
         }
@@ -105,13 +110,22 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
     }
   }
 
-  void _showTagsDialog(BuildContext context, ArticlesControllerState state, ArticlesController controller) {
+  void _showTagsDialog(
+    BuildContext context,
+    ArticlesControllerState state,
+    ArticlesController controller,
+    WidgetRef ref,
+  ) {
+    // 加载最新标签数据
+    ref.read(articleStateProvider.notifier).loadAllTags();
+    final tags = ref.read(articleStateProvider).allTags;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
       builder: (_) => ArticlesTagsDialog(
-        tags: TagRepository.i.allModels(),
+        tags: tags,
         selectedTagId: state.tagId,
         onTagSelected: controller.filterByTag,
         onClearFilters: controller.clearAllFilters,
@@ -125,17 +139,21 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
     ArticlesControllerState state,
     ArticlesController controller,
   ) {
-    final hasFilters = ref.read(articlesHasFiltersProvider);
+    final hasFilters = ref.read(hasFiltersProvider);
     if (hasFilters) {
       controller.clearAllFilters();
     }
+    // 加载最新日期统计数据
+    ref.read(articleStateProvider.notifier).refreshArticleDailyCounts();
+    final articleCountMap = ref.read(articleStateProvider).articleDailyCounts;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
       isScrollControlled: true,
       builder: (_) => ArticleCalendarDialog(
-        articleCountMap: controller.getDailyArticleCounts(),
+        articleCountMap: articleCountMap,
         onDateSelected: controller.filterByDate,
         onShowAllArticles: controller.clearAllFilters,
       ),
@@ -154,17 +172,16 @@ class _ArticlesBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(articlesControllerProvider);
     final controller = ref.read(articlesControllerProvider.notifier);
+    final articleState = ref.watch(articleStateProvider);
     final isSearchVisible = ref.watch(appGlobalStateProvider.select((s) => s.isSearchBarVisible));
-    final articles = ref.watch(articleStateProvider.select((s) => s.articles));
-    final isLoading = ref.watch(articleStateProvider.select((s) => s.isLoading));
-    final hasFilters = ref.watch(articlesHasFiltersProvider);
-    final title = ref.watch(articlesTitleProvider);
+    final hasFilters = ref.watch(hasFiltersProvider);
+    final displayTitle = ref.watch(displayTitleProvider);
 
     return Column(
       children: [
         if (isSearchVisible) _buildSearchBar(state, controller),
-        if (hasFilters) FilterIndicator(title: title, onClear: controller.clearAllFilters),
-        Expanded(child: _buildArticlesList(articles, isLoading, state, controller)),
+        if (hasFilters) FilterIndicator(title: displayTitle, onClear: controller.clearAllFilters),
+        Expanded(child: _buildArticlesList(articleState.articles, articleState.isLoading, state, controller)),
       ],
     );
   }

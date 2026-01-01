@@ -36,13 +36,14 @@ class BooksView extends ConsumerWidget {
 
   void _openJournalForCurrent(BuildContext context, WidgetRef ref) {
     final booksState = ref.read(booksStateProvider);
+    final booksNotifier = ref.read(booksStateProvider.notifier);
     String preset = '';
     int cursorPosition = 0;
 
     if (booksState.viewpoints.isNotEmpty) {
       final idx = booksState.currentViewpointIndex.clamp(0, booksState.viewpoints.length - 1);
       final vp = booksState.viewpoints[idx];
-      final book = BookRepository.i.find(vp.bookId);
+      final book = booksNotifier.findBookById(vp.bookId);
       final cleanTitle = vp.title.trim().replaceAll(RegExp(r'[。.！!？?，,；;：:]+$'), '');
       final bookTitle = (book?.title ?? '未知书籍').trim();
       final author = (book?.author ?? '').trim();
@@ -191,8 +192,10 @@ class _BooksAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
   BookModel? _getCurrentBook(WidgetRef ref) {
     final booksState = ref.read(booksStateProvider);
-    if (booksState.currentViewpoint != null) {
-      return BookRepository.i.find(booksState.currentViewpoint!.bookId);
+    final booksNotifier = ref.read(booksStateProvider.notifier);
+    final currentViewpoint = booksNotifier.getCurrentViewpoint();
+    if (currentViewpoint != null) {
+      return booksNotifier.findBookById(currentViewpoint.bookId);
     }
     if (booksState.filterBookID != -1) {
       return booksState.allBooks.where((b) => b.id == booksState.filterBookID).firstOrNull;
@@ -327,8 +330,9 @@ class _BooksBody extends ConsumerWidget {
     return _buildViewpointList(ref, booksState);
   }
 
-  Widget _buildViewpointList(WidgetRef ref, dynamic booksState) {
+  Widget _buildViewpointList(WidgetRef ref, BooksStateModel booksState) {
     final controllerState = ref.watch(booksControllerProvider);
+    final booksNotifier = ref.read(booksStateProvider.notifier);
     return PageView.builder(
       controller: controllerState.pageController,
       onPageChanged: (index) => ref.read(booksControllerProvider.notifier).goToViewpointIndex(index),
@@ -342,7 +346,7 @@ class _BooksBody extends ConsumerWidget {
             Dimensions.spacingM,
             Dimensions.spacingM,
           ),
-          child: ViewpointCard(viewpoint: viewpoint, book: BookRepository.i.find(viewpoint.bookId)),
+          child: ViewpointCard(viewpoint: viewpoint, book: booksNotifier.findBookById(viewpoint.bookId)),
         );
       },
     );

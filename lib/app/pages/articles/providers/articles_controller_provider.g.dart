@@ -51,7 +51,7 @@ final class ArticlesControllerProvider
 }
 
 String _$articlesControllerHash() =>
-    r'2985e9c5cd1281de9aba55a8ed325e33a7bf462c';
+    r'5702e7204d5fa68b243a359e2bb71717f2733777';
 
 /// ArticlesController Provider
 ///
@@ -76,30 +76,30 @@ abstract class _$ArticlesController extends $Notifier<ArticlesControllerState> {
   }
 }
 
-/// 页面标题 Provider
+/// 计算显示标题
 
-@ProviderFor(articlesTitle)
-final articlesTitleProvider = ArticlesTitleProvider._();
+@ProviderFor(displayTitle)
+final displayTitleProvider = DisplayTitleProvider._();
 
-/// 页面标题 Provider
+/// 计算显示标题
 
-final class ArticlesTitleProvider
+final class DisplayTitleProvider
     extends $FunctionalProvider<String, String, String>
     with $Provider<String> {
-  /// 页面标题 Provider
-  ArticlesTitleProvider._()
+  /// 计算显示标题
+  DisplayTitleProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'articlesTitleProvider',
+        name: r'displayTitleProvider',
         isAutoDispose: true,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$articlesTitleHash();
+  String debugGetCreateSourceHash() => _$displayTitleHash();
 
   @$internal
   @override
@@ -108,7 +108,7 @@ final class ArticlesTitleProvider
 
   @override
   String create(Ref ref) {
-    return articlesTitle(ref);
+    return displayTitle(ref);
   }
 
   /// {@macro riverpod.override_with_value}
@@ -120,32 +120,31 @@ final class ArticlesTitleProvider
   }
 }
 
-String _$articlesTitleHash() => r'5ea3551852fd2c25f09be9cba6b80e0f0956f01a';
+String _$displayTitleHash() => r'0659fd43cf36fb8bb48b9e4db1a5464b39c89be1';
 
-/// 是否存在筛选条件 Provider
+/// 是否存在筛选条件
 
-@ProviderFor(articlesHasFilters)
-final articlesHasFiltersProvider = ArticlesHasFiltersProvider._();
+@ProviderFor(hasFilters)
+final hasFiltersProvider = HasFiltersProvider._();
 
-/// 是否存在筛选条件 Provider
+/// 是否存在筛选条件
 
-final class ArticlesHasFiltersProvider
-    extends $FunctionalProvider<bool, bool, bool>
+final class HasFiltersProvider extends $FunctionalProvider<bool, bool, bool>
     with $Provider<bool> {
-  /// 是否存在筛选条件 Provider
-  ArticlesHasFiltersProvider._()
+  /// 是否存在筛选条件
+  HasFiltersProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'articlesHasFiltersProvider',
+        name: r'hasFiltersProvider',
         isAutoDispose: true,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$articlesHasFiltersHash();
+  String debugGetCreateSourceHash() => _$hasFiltersHash();
 
   @$internal
   @override
@@ -154,7 +153,7 @@ final class ArticlesHasFiltersProvider
 
   @override
   bool create(Ref ref) {
-    return articlesHasFilters(ref);
+    return hasFilters(ref);
   }
 
   /// {@macro riverpod.override_with_value}
@@ -166,5 +165,4 @@ final class ArticlesHasFiltersProvider
   }
 }
 
-String _$articlesHasFiltersHash() =>
-    r'0efaef1157cee79d3d2290512098be401358c39e';
+String _$hasFiltersHash() => r'f41ca78f6cce3a61ae30b3c6a53fc24604c1a165';

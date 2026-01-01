@@ -4,6 +4,10 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  # 启用 custom_lint 插件（用于 riverpod_lint）
+  plugins:
+    - custom_lint
+
   # 排除不需要分析的文件
   exclude:
     - "**/*.g.dart"

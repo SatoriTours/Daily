@@ -38,6 +38,9 @@ abstract class ArticleStateModel with _$ArticleStateModel {
     @Default(ArticleUpdateEvent.none()) ArticleUpdateEvent articleUpdateEvent,
     @Default('') String globalSearchQuery,
     @Default(false) bool isGlobalSearchActive,
+    // 缓存数据：标签列表和文章日期统计
+    @Default([]) List<TagModel> allTags,
+    @Default({}) Map<DateTime, int> articleDailyCounts,
   }) = _ArticleStateModel;
 }
 
@@ -249,6 +252,20 @@ class ArticleState extends _$ArticleState {
     }
 
     state = state.copyWith(articles: articles);
+  }
+
+  /// 加载所有标签
+  void loadAllTags() {
+    final tags = TagRepository.i.allModels();
+    state = state.copyWith(allTags: tags);
+    logger.d('加载所有标签: ${tags.length} 个');
+  }
+
+  /// 刷新文章日期统计
+  void refreshArticleDailyCounts() {
+    final counts = ArticleRepository.i.getArticleDailyCounts();
+    state = state.copyWith(articleDailyCounts: counts);
+    logger.d('刷新文章日期统计: ${counts.length} 天');
   }
 
   /// 获取某篇文章的共享引用

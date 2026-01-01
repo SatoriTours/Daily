@@ -54,6 +54,7 @@ class SettingsView extends ConsumerWidget {
 
   /// 构建设置列表主体
   Widget _buildSettingsList(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(settingsControllerProvider);
     return Column(
       children: [
         Expanded(
@@ -62,12 +63,12 @@ class SettingsView extends ConsumerWidget {
             padding: Dimensions.paddingM,
             children: [
               _buildFunctionSection(context, ref),
-              _buildSystemSection(context, ref),
+              _buildSystemSection(context, ref, state),
               Dimensions.verticalSpacerL,
             ],
           ),
         ),
-        _buildVersionInfo(context, ref),
+        _buildVersionInfo(context, state),
         Dimensions.verticalSpacerM,
       ],
     );
@@ -107,7 +108,7 @@ class SettingsView extends ConsumerWidget {
 
   /// 构建系统设置分区
   /// 包含备份恢复、Web服务器、版本更新等系统功能
-  Widget _buildSystemSection(BuildContext context, WidgetRef ref) {
+  Widget _buildSystemSection(BuildContext context, WidgetRef ref, SettingsControllerState state) {
     return _buildSettingsSection(
       context: context,
       title: 'dialog.system'.t,
@@ -121,7 +122,7 @@ class SettingsView extends ConsumerWidget {
           color: AppColors.getSuccess(context),
           onTap: () => AppNavigation.toNamed(Routes.backupSettings),
         ),
-        _buildDownloadImagesItem(context, ref),
+        _buildDownloadImagesItem(context, ref, state),
         _buildSettingItem(
           context: context,
           title: 'setting.web_server'.t,
@@ -143,8 +144,7 @@ class SettingsView extends ConsumerWidget {
   }
 
   /// 构建下载文章图片设置项
-  Widget _buildDownloadImagesItem(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(settingsControllerProvider);
+  Widget _buildDownloadImagesItem(BuildContext context, WidgetRef ref, SettingsControllerState state) {
     final isDownloading = state.isDownloadingImages;
     final progress = state.downloadProgress;
     final total = state.downloadTotal;
@@ -313,8 +313,7 @@ class SettingsView extends ConsumerWidget {
   }
 
   /// 构建版本信息
-  Widget _buildVersionInfo(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(settingsControllerProvider);
+  Widget _buildVersionInfo(BuildContext context, SettingsControllerState state) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
@@ -339,7 +338,7 @@ class SettingsView extends ConsumerWidget {
 
   /// 显示关于应用对话框
   void _showAboutDialog(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(settingsControllerProvider);
+    final state = ref.read(settingsControllerProvider);
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
@@ -393,7 +392,10 @@ class SettingsView extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // 服务器信息
-                      _buildServerInfoSection(context, ref, primaryColor, textTheme),
+                      Builder(builder: (context) {
+                        final state = ref.watch(settingsControllerProvider);
+                        return _buildServerInfoSection(context, ref, primaryColor, textTheme, state);
+                      }),
                       Dimensions.verticalSpacerL,
                       // 服务器管理
                       _buildServerManagementSection(context, ref),
@@ -449,28 +451,26 @@ class SettingsView extends ConsumerWidget {
   }
 
   /// 构建服务器信息分区
-  Widget _buildServerInfoSection(BuildContext context, WidgetRef ref, Color primaryColor, TextTheme textTheme) {
+  Widget _buildServerInfoSection(BuildContext context, WidgetRef ref, Color primaryColor, TextTheme textTheme, SettingsControllerState state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionTitle(context, 'setting.server_info'.t, Icons.info_outline_rounded),
         Dimensions.verticalSpacerM,
         // HTTP服务器地址
-        _buildHttpAddressCard(context, ref, primaryColor, textTheme),
+        _buildHttpAddressCard(context, ref, primaryColor, textTheme, state),
         Dimensions.verticalSpacerM,
         // WebSocket地址
-        _buildWebSocketAddressCard(context, ref, primaryColor, textTheme),
+        _buildWebSocketAddressCard(context, ref, primaryColor, textTheme, state),
         Dimensions.verticalSpacerM,
         // 连接状态
-        _buildConnectionStatusCard(context, ref, textTheme),
+        _buildConnectionStatusCard(context, ref, textTheme, state),
       ],
     );
   }
 
   /// 构建HTTP服务器地址卡片
-  Widget _buildHttpAddressCard(BuildContext context, WidgetRef ref, Color primaryColor, TextTheme textTheme) {
-    final state = ref.watch(settingsControllerProvider);
-
+  Widget _buildHttpAddressCard(BuildContext context, WidgetRef ref, Color primaryColor, TextTheme textTheme, SettingsControllerState state) {
     return _buildInfoCard(
       context: context,
       title: 'setting.http_server_address'.t,
@@ -492,9 +492,7 @@ class SettingsView extends ConsumerWidget {
   }
 
   /// 构建WebSocket地址卡片
-  Widget _buildWebSocketAddressCard(BuildContext context, WidgetRef ref, Color primaryColor, TextTheme textTheme) {
-    final state = ref.watch(settingsControllerProvider);
-
+  Widget _buildWebSocketAddressCard(BuildContext context, WidgetRef ref, Color primaryColor, TextTheme textTheme, SettingsControllerState state) {
     return _buildInfoCard(
       context: context,
       title: 'setting.websocket_access'.t,
@@ -516,19 +514,18 @@ class SettingsView extends ConsumerWidget {
   }
 
   /// 构建连接状态卡片
-  Widget _buildConnectionStatusCard(BuildContext context, WidgetRef ref, TextTheme textTheme) {
+  Widget _buildConnectionStatusCard(BuildContext context, WidgetRef ref, TextTheme textTheme, SettingsControllerState state) {
     return _buildInfoCard(
       context: context,
       title: 'setting.connection_status'.t,
-      content: _buildConnectionStatusIndicator(context, ref, textTheme),
+      content: _buildConnectionStatusIndicator(context, ref, textTheme, state),
       icon: Icons.network_check_rounded,
       iconColor: AppColors.getSuccess(context),
     );
   }
 
   /// 构建连接状态指示器
-  Widget _buildConnectionStatusIndicator(BuildContext context, WidgetRef ref, TextTheme textTheme) {
-    final state = ref.watch(settingsControllerProvider);
+  Widget _buildConnectionStatusIndicator(BuildContext context, WidgetRef ref, TextTheme textTheme, SettingsControllerState state) {
     final isConnected = state.isWebSocketConnected;
     final statusColor = isConnected ? AppColors.getSuccess(context) : AppColors.getError(context);
     final statusText = isConnected ? 'status.connected'.t : 'status.disconnected'.t;

@@ -22,7 +22,8 @@ mixin _$ArticlesControllerState {
  DateTime? get lastRefreshTime;/// ScrollController
  ScrollController? get scrollController;/// TextEditingController
  TextEditingController? get searchController;/// FocusNode
- FocusNode? get searchFocusNode;
+ FocusNode? get searchFocusNode;/// 全局搜索查询（用于计算标题和过滤器状态）
+ String get globalSearchQuery;
 /// Create a copy of ArticlesControllerState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -33,16 +34,16 @@ $ArticlesControllerStateCopyWith<ArticlesControllerState> get copyWith => _$Arti
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ArticlesControllerState&&(identical(other.onlyFavorite, onlyFavorite) || other.onlyFavorite == onlyFavorite)&&(identical(other.tagId, tagId) || other.tagId == tagId)&&(identical(other.tagName, tagName) || other.tagName == tagName)&&(identical(other.selectedFilterDate, selectedFilterDate) || other.selectedFilterDate == selectedFilterDate)&&(identical(other.lastRefreshTime, lastRefreshTime) || other.lastRefreshTime == lastRefreshTime)&&(identical(other.scrollController, scrollController) || other.scrollController == scrollController)&&(identical(other.searchController, searchController) || other.searchController == searchController)&&(identical(other.searchFocusNode, searchFocusNode) || other.searchFocusNode == searchFocusNode));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ArticlesControllerState&&(identical(other.onlyFavorite, onlyFavorite) || other.onlyFavorite == onlyFavorite)&&(identical(other.tagId, tagId) || other.tagId == tagId)&&(identical(other.tagName, tagName) || other.tagName == tagName)&&(identical(other.selectedFilterDate, selectedFilterDate) || other.selectedFilterDate == selectedFilterDate)&&(identical(other.lastRefreshTime, lastRefreshTime) || other.lastRefreshTime == lastRefreshTime)&&(identical(other.scrollController, scrollController) || other.scrollController == scrollController)&&(identical(other.searchController, searchController) || other.searchController == searchController)&&(identical(other.searchFocusNode, searchFocusNode) || other.searchFocusNode == searchFocusNode)&&(identical(other.globalSearchQuery, globalSearchQuery) || other.globalSearchQuery == globalSearchQuery));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,onlyFavorite,tagId,tagName,selectedFilterDate,lastRefreshTime,scrollController,searchController,searchFocusNode);
+int get hashCode => Object.hash(runtimeType,onlyFavorite,tagId,tagName,selectedFilterDate,lastRefreshTime,scrollController,searchController,searchFocusNode,globalSearchQuery);
 
 @override
 String toString() {
-  return 'ArticlesControllerState(onlyFavorite: $onlyFavorite, tagId: $tagId, tagName: $tagName, selectedFilterDate: $selectedFilterDate, lastRefreshTime: $lastRefreshTime, scrollController: $scrollController, searchController: $searchController, searchFocusNode: $searchFocusNode)';
+  return 'ArticlesControllerState(onlyFavorite: $onlyFavorite, tagId: $tagId, tagName: $tagName, selectedFilterDate: $selectedFilterDate, lastRefreshTime: $lastRefreshTime, scrollController: $scrollController, searchController: $searchController, searchFocusNode: $searchFocusNode, globalSearchQuery: $globalSearchQuery)';
 }
 
 
@@ -53,7 +54,7 @@ abstract mixin class $ArticlesControllerStateCopyWith<$Res>  {
   factory $ArticlesControllerStateCopyWith(ArticlesControllerState value, $Res Function(ArticlesControllerState) _then) = _$ArticlesControllerStateCopyWithImpl;
 @useResult
 $Res call({
- bool onlyFavorite, int tagId, String tagName, DateTime? selectedFilterDate, DateTime? lastRefreshTime, ScrollController? scrollController, TextEditingController? searchController, FocusNode? searchFocusNode
+ bool onlyFavorite, int tagId, String tagName, DateTime? selectedFilterDate, DateTime? lastRefreshTime, ScrollController? scrollController, TextEditingController? searchController, FocusNode? searchFocusNode, String globalSearchQuery
 });
 
 
@@ -70,7 +71,7 @@ class _$ArticlesControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of ArticlesControllerState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? onlyFavorite = null,Object? tagId = null,Object? tagName = null,Object? selectedFilterDate = freezed,Object? lastRefreshTime = freezed,Object? scrollController = freezed,Object? searchController = freezed,Object? searchFocusNode = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? onlyFavorite = null,Object? tagId = null,Object? tagName = null,Object? selectedFilterDate = freezed,Object? lastRefreshTime = freezed,Object? scrollController = freezed,Object? searchController = freezed,Object? searchFocusNode = freezed,Object? globalSearchQuery = null,}) {
   return _then(_self.copyWith(
 onlyFavorite: null == onlyFavorite ? _self.onlyFavorite : onlyFavorite // ignore: cast_nullable_to_non_nullable
 as bool,tagId: null == tagId ? _self.tagId : tagId // ignore: cast_nullable_to_non_nullable
@@ -80,7 +81,8 @@ as DateTime?,lastRefreshTime: freezed == lastRefreshTime ? _self.lastRefreshTime
 as DateTime?,scrollController: freezed == scrollController ? _self.scrollController : scrollController // ignore: cast_nullable_to_non_nullable
 as ScrollController?,searchController: freezed == searchController ? _self.searchController : searchController // ignore: cast_nullable_to_non_nullable
 as TextEditingController?,searchFocusNode: freezed == searchFocusNode ? _self.searchFocusNode : searchFocusNode // ignore: cast_nullable_to_non_nullable
-as FocusNode?,
+as FocusNode?,globalSearchQuery: null == globalSearchQuery ? _self.globalSearchQuery : globalSearchQuery // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 
@@ -165,10 +167,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool onlyFavorite,  int tagId,  String tagName,  DateTime? selectedFilterDate,  DateTime? lastRefreshTime,  ScrollController? scrollController,  TextEditingController? searchController,  FocusNode? searchFocusNode)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool onlyFavorite,  int tagId,  String tagName,  DateTime? selectedFilterDate,  DateTime? lastRefreshTime,  ScrollController? scrollController,  TextEditingController? searchController,  FocusNode? searchFocusNode,  String globalSearchQuery)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ArticlesControllerState() when $default != null:
-return $default(_that.onlyFavorite,_that.tagId,_that.tagName,_that.selectedFilterDate,_that.lastRefreshTime,_that.scrollController,_that.searchController,_that.searchFocusNode);case _:
+return $default(_that.onlyFavorite,_that.tagId,_that.tagName,_that.selectedFilterDate,_that.lastRefreshTime,_that.scrollController,_that.searchController,_that.searchFocusNode,_that.globalSearchQuery);case _:
   return orElse();
 
 }
@@ -186,10 +188,10 @@ return $default(_that.onlyFavorite,_that.tagId,_that.tagName,_that.selectedFilte
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool onlyFavorite,  int tagId,  String tagName,  DateTime? selectedFilterDate,  DateTime? lastRefreshTime,  ScrollController? scrollController,  TextEditingController? searchController,  FocusNode? searchFocusNode)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool onlyFavorite,  int tagId,  String tagName,  DateTime? selectedFilterDate,  DateTime? lastRefreshTime,  ScrollController? scrollController,  TextEditingController? searchController,  FocusNode? searchFocusNode,  String globalSearchQuery)  $default,) {final _that = this;
 switch (_that) {
 case _ArticlesControllerState():
-return $default(_that.onlyFavorite,_that.tagId,_that.tagName,_that.selectedFilterDate,_that.lastRefreshTime,_that.scrollController,_that.searchController,_that.searchFocusNode);case _:
+return $default(_that.onlyFavorite,_that.tagId,_that.tagName,_that.selectedFilterDate,_that.lastRefreshTime,_that.scrollController,_that.searchController,_that.searchFocusNode,_that.globalSearchQuery);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -206,10 +208,10 @@ return $default(_that.onlyFavorite,_that.tagId,_that.tagName,_that.selectedFilte
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool onlyFavorite,  int tagId,  String tagName,  DateTime? selectedFilterDate,  DateTime? lastRefreshTime,  ScrollController? scrollController,  TextEditingController? searchController,  FocusNode? searchFocusNode)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool onlyFavorite,  int tagId,  String tagName,  DateTime? selectedFilterDate,  DateTime? lastRefreshTime,  ScrollController? scrollController,  TextEditingController? searchController,  FocusNode? searchFocusNode,  String globalSearchQuery)?  $default,) {final _that = this;
 switch (_that) {
 case _ArticlesControllerState() when $default != null:
-return $default(_that.onlyFavorite,_that.tagId,_that.tagName,_that.selectedFilterDate,_that.lastRefreshTime,_that.scrollController,_that.searchController,_that.searchFocusNode);case _:
+return $default(_that.onlyFavorite,_that.tagId,_that.tagName,_that.selectedFilterDate,_that.lastRefreshTime,_that.scrollController,_that.searchController,_that.searchFocusNode,_that.globalSearchQuery);case _:
   return null;
 
 }
@@ -221,7 +223,7 @@ return $default(_that.onlyFavorite,_that.tagId,_that.tagName,_that.selectedFilte
 
 
 class _ArticlesControllerState extends ArticlesControllerState {
-  const _ArticlesControllerState({this.onlyFavorite = false, this.tagId = -1, this.tagName = '', this.selectedFilterDate, this.lastRefreshTime, this.scrollController, this.searchController, this.searchFocusNode}): super._();
+  const _ArticlesControllerState({this.onlyFavorite = false, this.tagId = -1, this.tagName = '', this.selectedFilterDate, this.lastRefreshTime, this.scrollController, this.searchController, this.searchFocusNode, this.globalSearchQuery = ''}): super._();
   
 
 /// 是否只显示收藏文章
@@ -240,6 +242,8 @@ class _ArticlesControllerState extends ArticlesControllerState {
 @override final  TextEditingController? searchController;
 /// FocusNode
 @override final  FocusNode? searchFocusNode;
+/// 全局搜索查询（用于计算标题和过滤器状态）
+@override@JsonKey() final  String globalSearchQuery;
 
 /// Create a copy of ArticlesControllerState
 /// with the given fields replaced by the non-null parameter values.
@@ -251,16 +255,16 @@ _$ArticlesControllerStateCopyWith<_ArticlesControllerState> get copyWith => __$A
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ArticlesControllerState&&(identical(other.onlyFavorite, onlyFavorite) || other.onlyFavorite == onlyFavorite)&&(identical(other.tagId, tagId) || other.tagId == tagId)&&(identical(other.tagName, tagName) || other.tagName == tagName)&&(identical(other.selectedFilterDate, selectedFilterDate) || other.selectedFilterDate == selectedFilterDate)&&(identical(other.lastRefreshTime, lastRefreshTime) || other.lastRefreshTime == lastRefreshTime)&&(identical(other.scrollController, scrollController) || other.scrollController == scrollController)&&(identical(other.searchController, searchController) || other.searchController == searchController)&&(identical(other.searchFocusNode, searchFocusNode) || other.searchFocusNode == searchFocusNode));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ArticlesControllerState&&(identical(other.onlyFavorite, onlyFavorite) || other.onlyFavorite == onlyFavorite)&&(identical(other.tagId, tagId) || other.tagId == tagId)&&(identical(other.tagName, tagName) || other.tagName == tagName)&&(identical(other.selectedFilterDate, selectedFilterDate) || other.selectedFilterDate == selectedFilterDate)&&(identical(other.lastRefreshTime, lastRefreshTime) || other.lastRefreshTime == lastRefreshTime)&&(identical(other.scrollController, scrollController) || other.scrollController == scrollController)&&(identical(other.searchController, searchController) || other.searchController == searchController)&&(identical(other.searchFocusNode, searchFocusNode) || other.searchFocusNode == searchFocusNode)&&(identical(other.globalSearchQuery, globalSearchQuery) || other.globalSearchQuery == globalSearchQuery));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,onlyFavorite,tagId,tagName,selectedFilterDate,lastRefreshTime,scrollController,searchController,searchFocusNode);
+int get hashCode => Object.hash(runtimeType,onlyFavorite,tagId,tagName,selectedFilterDate,lastRefreshTime,scrollController,searchController,searchFocusNode,globalSearchQuery);
 
 @override
 String toString() {
-  return 'ArticlesControllerState(onlyFavorite: $onlyFavorite, tagId: $tagId, tagName: $tagName, selectedFilterDate: $selectedFilterDate, lastRefreshTime: $lastRefreshTime, scrollController: $scrollController, searchController: $searchController, searchFocusNode: $searchFocusNode)';
+  return 'ArticlesControllerState(onlyFavorite: $onlyFavorite, tagId: $tagId, tagName: $tagName, selectedFilterDate: $selectedFilterDate, lastRefreshTime: $lastRefreshTime, scrollController: $scrollController, searchController: $searchController, searchFocusNode: $searchFocusNode, globalSearchQuery: $globalSearchQuery)';
 }
 
 
@@ -271,7 +275,7 @@ abstract mixin class _$ArticlesControllerStateCopyWith<$Res> implements $Article
   factory _$ArticlesControllerStateCopyWith(_ArticlesControllerState value, $Res Function(_ArticlesControllerState) _then) = __$ArticlesControllerStateCopyWithImpl;
 @override @useResult
 $Res call({
- bool onlyFavorite, int tagId, String tagName, DateTime? selectedFilterDate, DateTime? lastRefreshTime, ScrollController? scrollController, TextEditingController? searchController, FocusNode? searchFocusNode
+ bool onlyFavorite, int tagId, String tagName, DateTime? selectedFilterDate, DateTime? lastRefreshTime, ScrollController? scrollController, TextEditingController? searchController, FocusNode? searchFocusNode, String globalSearchQuery
 });
 
 
@@ -288,7 +292,7 @@ class __$ArticlesControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of ArticlesControllerState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? onlyFavorite = null,Object? tagId = null,Object? tagName = null,Object? selectedFilterDate = freezed,Object? lastRefreshTime = freezed,Object? scrollController = freezed,Object? searchController = freezed,Object? searchFocusNode = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? onlyFavorite = null,Object? tagId = null,Object? tagName = null,Object? selectedFilterDate = freezed,Object? lastRefreshTime = freezed,Object? scrollController = freezed,Object? searchController = freezed,Object? searchFocusNode = freezed,Object? globalSearchQuery = null,}) {
   return _then(_ArticlesControllerState(
 onlyFavorite: null == onlyFavorite ? _self.onlyFavorite : onlyFavorite // ignore: cast_nullable_to_non_nullable
 as bool,tagId: null == tagId ? _self.tagId : tagId // ignore: cast_nullable_to_non_nullable
@@ -298,7 +302,8 @@ as DateTime?,lastRefreshTime: freezed == lastRefreshTime ? _self.lastRefreshTime
 as DateTime?,scrollController: freezed == scrollController ? _self.scrollController : scrollController // ignore: cast_nullable_to_non_nullable
 as ScrollController?,searchController: freezed == searchController ? _self.searchController : searchController // ignore: cast_nullable_to_non_nullable
 as TextEditingController?,searchFocusNode: freezed == searchFocusNode ? _self.searchFocusNode : searchFocusNode // ignore: cast_nullable_to_non_nullable
-as FocusNode?,
+as FocusNode?,globalSearchQuery: null == globalSearchQuery ? _self.globalSearchQuery : globalSearchQuery // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

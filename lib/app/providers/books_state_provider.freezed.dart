@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$BooksStateModel {
 
- List<BookViewpointModel> get viewpoints; bool get isLoading; int get currentViewpointIndex; int get filterBookID; bool get isProcessing; DisplayMode get mode; int? get deepLinkSeedViewpointId; BookModel? get selectedBook;
+ List<BookViewpointModel> get viewpoints; List<BookModel> get allBooks; bool get isLoading; int get currentViewpointIndex; int get filterBookID; bool get isProcessing; DisplayMode get mode; int? get deepLinkSeedViewpointId; BookModel? get selectedBook;
 /// Create a copy of BooksStateModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $BooksStateModelCopyWith<BooksStateModel> get copyWith => _$BooksStateModelCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BooksStateModel&&const DeepCollectionEquality().equals(other.viewpoints, viewpoints)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.currentViewpointIndex, currentViewpointIndex) || other.currentViewpointIndex == currentViewpointIndex)&&(identical(other.filterBookID, filterBookID) || other.filterBookID == filterBookID)&&(identical(other.isProcessing, isProcessing) || other.isProcessing == isProcessing)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.deepLinkSeedViewpointId, deepLinkSeedViewpointId) || other.deepLinkSeedViewpointId == deepLinkSeedViewpointId)&&(identical(other.selectedBook, selectedBook) || other.selectedBook == selectedBook));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BooksStateModel&&const DeepCollectionEquality().equals(other.viewpoints, viewpoints)&&const DeepCollectionEquality().equals(other.allBooks, allBooks)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.currentViewpointIndex, currentViewpointIndex) || other.currentViewpointIndex == currentViewpointIndex)&&(identical(other.filterBookID, filterBookID) || other.filterBookID == filterBookID)&&(identical(other.isProcessing, isProcessing) || other.isProcessing == isProcessing)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.deepLinkSeedViewpointId, deepLinkSeedViewpointId) || other.deepLinkSeedViewpointId == deepLinkSeedViewpointId)&&(identical(other.selectedBook, selectedBook) || other.selectedBook == selectedBook));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(viewpoints),isLoading,currentViewpointIndex,filterBookID,isProcessing,mode,deepLinkSeedViewpointId,selectedBook);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(viewpoints),const DeepCollectionEquality().hash(allBooks),isLoading,currentViewpointIndex,filterBookID,isProcessing,mode,deepLinkSeedViewpointId,selectedBook);
 
 @override
 String toString() {
-  return 'BooksStateModel(viewpoints: $viewpoints, isLoading: $isLoading, currentViewpointIndex: $currentViewpointIndex, filterBookID: $filterBookID, isProcessing: $isProcessing, mode: $mode, deepLinkSeedViewpointId: $deepLinkSeedViewpointId, selectedBook: $selectedBook)';
+  return 'BooksStateModel(viewpoints: $viewpoints, allBooks: $allBooks, isLoading: $isLoading, currentViewpointIndex: $currentViewpointIndex, filterBookID: $filterBookID, isProcessing: $isProcessing, mode: $mode, deepLinkSeedViewpointId: $deepLinkSeedViewpointId, selectedBook: $selectedBook)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $BooksStateModelCopyWith<$Res>  {
   factory $BooksStateModelCopyWith(BooksStateModel value, $Res Function(BooksStateModel) _then) = _$BooksStateModelCopyWithImpl;
 @useResult
 $Res call({
- List<BookViewpointModel> viewpoints, bool isLoading, int currentViewpointIndex, int filterBookID, bool isProcessing, DisplayMode mode, int? deepLinkSeedViewpointId, BookModel? selectedBook
+ List<BookViewpointModel> viewpoints, List<BookModel> allBooks, bool isLoading, int currentViewpointIndex, int filterBookID, bool isProcessing, DisplayMode mode, int? deepLinkSeedViewpointId, BookModel? selectedBook
 });
 
 
@@ -62,10 +62,11 @@ class _$BooksStateModelCopyWithImpl<$Res>
 
 /// Create a copy of BooksStateModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? viewpoints = null,Object? isLoading = null,Object? currentViewpointIndex = null,Object? filterBookID = null,Object? isProcessing = null,Object? mode = null,Object? deepLinkSeedViewpointId = freezed,Object? selectedBook = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? viewpoints = null,Object? allBooks = null,Object? isLoading = null,Object? currentViewpointIndex = null,Object? filterBookID = null,Object? isProcessing = null,Object? mode = null,Object? deepLinkSeedViewpointId = freezed,Object? selectedBook = freezed,}) {
   return _then(_self.copyWith(
 viewpoints: null == viewpoints ? _self.viewpoints : viewpoints // ignore: cast_nullable_to_non_nullable
-as List<BookViewpointModel>,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
+as List<BookViewpointModel>,allBooks: null == allBooks ? _self.allBooks : allBooks // ignore: cast_nullable_to_non_nullable
+as List<BookModel>,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
 as bool,currentViewpointIndex: null == currentViewpointIndex ? _self.currentViewpointIndex : currentViewpointIndex // ignore: cast_nullable_to_non_nullable
 as int,filterBookID: null == filterBookID ? _self.filterBookID : filterBookID // ignore: cast_nullable_to_non_nullable
 as int,isProcessing: null == isProcessing ? _self.isProcessing : isProcessing // ignore: cast_nullable_to_non_nullable
@@ -157,10 +158,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<BookViewpointModel> viewpoints,  bool isLoading,  int currentViewpointIndex,  int filterBookID,  bool isProcessing,  DisplayMode mode,  int? deepLinkSeedViewpointId,  BookModel? selectedBook)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<BookViewpointModel> viewpoints,  List<BookModel> allBooks,  bool isLoading,  int currentViewpointIndex,  int filterBookID,  bool isProcessing,  DisplayMode mode,  int? deepLinkSeedViewpointId,  BookModel? selectedBook)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _BooksStateModel() when $default != null:
-return $default(_that.viewpoints,_that.isLoading,_that.currentViewpointIndex,_that.filterBookID,_that.isProcessing,_that.mode,_that.deepLinkSeedViewpointId,_that.selectedBook);case _:
+return $default(_that.viewpoints,_that.allBooks,_that.isLoading,_that.currentViewpointIndex,_that.filterBookID,_that.isProcessing,_that.mode,_that.deepLinkSeedViewpointId,_that.selectedBook);case _:
   return orElse();
 
 }
@@ -178,10 +179,10 @@ return $default(_that.viewpoints,_that.isLoading,_that.currentViewpointIndex,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<BookViewpointModel> viewpoints,  bool isLoading,  int currentViewpointIndex,  int filterBookID,  bool isProcessing,  DisplayMode mode,  int? deepLinkSeedViewpointId,  BookModel? selectedBook)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<BookViewpointModel> viewpoints,  List<BookModel> allBooks,  bool isLoading,  int currentViewpointIndex,  int filterBookID,  bool isProcessing,  DisplayMode mode,  int? deepLinkSeedViewpointId,  BookModel? selectedBook)  $default,) {final _that = this;
 switch (_that) {
 case _BooksStateModel():
-return $default(_that.viewpoints,_that.isLoading,_that.currentViewpointIndex,_that.filterBookID,_that.isProcessing,_that.mode,_that.deepLinkSeedViewpointId,_that.selectedBook);case _:
+return $default(_that.viewpoints,_that.allBooks,_that.isLoading,_that.currentViewpointIndex,_that.filterBookID,_that.isProcessing,_that.mode,_that.deepLinkSeedViewpointId,_that.selectedBook);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -198,10 +199,10 @@ return $default(_that.viewpoints,_that.isLoading,_that.currentViewpointIndex,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<BookViewpointModel> viewpoints,  bool isLoading,  int currentViewpointIndex,  int filterBookID,  bool isProcessing,  DisplayMode mode,  int? deepLinkSeedViewpointId,  BookModel? selectedBook)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<BookViewpointModel> viewpoints,  List<BookModel> allBooks,  bool isLoading,  int currentViewpointIndex,  int filterBookID,  bool isProcessing,  DisplayMode mode,  int? deepLinkSeedViewpointId,  BookModel? selectedBook)?  $default,) {final _that = this;
 switch (_that) {
 case _BooksStateModel() when $default != null:
-return $default(_that.viewpoints,_that.isLoading,_that.currentViewpointIndex,_that.filterBookID,_that.isProcessing,_that.mode,_that.deepLinkSeedViewpointId,_that.selectedBook);case _:
+return $default(_that.viewpoints,_that.allBooks,_that.isLoading,_that.currentViewpointIndex,_that.filterBookID,_that.isProcessing,_that.mode,_that.deepLinkSeedViewpointId,_that.selectedBook);case _:
   return null;
 
 }
@@ -213,7 +214,7 @@ return $default(_that.viewpoints,_that.isLoading,_that.currentViewpointIndex,_th
 
 
 class _BooksStateModel extends BooksStateModel {
-  const _BooksStateModel({final  List<BookViewpointModel> viewpoints = const [], this.isLoading = false, this.currentViewpointIndex = 0, this.filterBookID = -1, this.isProcessing = false, this.mode = DisplayMode.allRandom, this.deepLinkSeedViewpointId, this.selectedBook}): _viewpoints = viewpoints,super._();
+  const _BooksStateModel({final  List<BookViewpointModel> viewpoints = const [], final  List<BookModel> allBooks = const [], this.isLoading = false, this.currentViewpointIndex = 0, this.filterBookID = -1, this.isProcessing = false, this.mode = DisplayMode.allRandom, this.deepLinkSeedViewpointId, this.selectedBook}): _viewpoints = viewpoints,_allBooks = allBooks,super._();
   
 
  final  List<BookViewpointModel> _viewpoints;
@@ -221,6 +222,13 @@ class _BooksStateModel extends BooksStateModel {
   if (_viewpoints is EqualUnmodifiableListView) return _viewpoints;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_viewpoints);
+}
+
+ final  List<BookModel> _allBooks;
+@override@JsonKey() List<BookModel> get allBooks {
+  if (_allBooks is EqualUnmodifiableListView) return _allBooks;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_allBooks);
 }
 
 @override@JsonKey() final  bool isLoading;
@@ -241,16 +249,16 @@ _$BooksStateModelCopyWith<_BooksStateModel> get copyWith => __$BooksStateModelCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BooksStateModel&&const DeepCollectionEquality().equals(other._viewpoints, _viewpoints)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.currentViewpointIndex, currentViewpointIndex) || other.currentViewpointIndex == currentViewpointIndex)&&(identical(other.filterBookID, filterBookID) || other.filterBookID == filterBookID)&&(identical(other.isProcessing, isProcessing) || other.isProcessing == isProcessing)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.deepLinkSeedViewpointId, deepLinkSeedViewpointId) || other.deepLinkSeedViewpointId == deepLinkSeedViewpointId)&&(identical(other.selectedBook, selectedBook) || other.selectedBook == selectedBook));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BooksStateModel&&const DeepCollectionEquality().equals(other._viewpoints, _viewpoints)&&const DeepCollectionEquality().equals(other._allBooks, _allBooks)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.currentViewpointIndex, currentViewpointIndex) || other.currentViewpointIndex == currentViewpointIndex)&&(identical(other.filterBookID, filterBookID) || other.filterBookID == filterBookID)&&(identical(other.isProcessing, isProcessing) || other.isProcessing == isProcessing)&&(identical(other.mode, mode) || other.mode == mode)&&(identical(other.deepLinkSeedViewpointId, deepLinkSeedViewpointId) || other.deepLinkSeedViewpointId == deepLinkSeedViewpointId)&&(identical(other.selectedBook, selectedBook) || other.selectedBook == selectedBook));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_viewpoints),isLoading,currentViewpointIndex,filterBookID,isProcessing,mode,deepLinkSeedViewpointId,selectedBook);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_viewpoints),const DeepCollectionEquality().hash(_allBooks),isLoading,currentViewpointIndex,filterBookID,isProcessing,mode,deepLinkSeedViewpointId,selectedBook);
 
 @override
 String toString() {
-  return 'BooksStateModel(viewpoints: $viewpoints, isLoading: $isLoading, currentViewpointIndex: $currentViewpointIndex, filterBookID: $filterBookID, isProcessing: $isProcessing, mode: $mode, deepLinkSeedViewpointId: $deepLinkSeedViewpointId, selectedBook: $selectedBook)';
+  return 'BooksStateModel(viewpoints: $viewpoints, allBooks: $allBooks, isLoading: $isLoading, currentViewpointIndex: $currentViewpointIndex, filterBookID: $filterBookID, isProcessing: $isProcessing, mode: $mode, deepLinkSeedViewpointId: $deepLinkSeedViewpointId, selectedBook: $selectedBook)';
 }
 
 
@@ -261,7 +269,7 @@ abstract mixin class _$BooksStateModelCopyWith<$Res> implements $BooksStateModel
   factory _$BooksStateModelCopyWith(_BooksStateModel value, $Res Function(_BooksStateModel) _then) = __$BooksStateModelCopyWithImpl;
 @override @useResult
 $Res call({
- List<BookViewpointModel> viewpoints, bool isLoading, int currentViewpointIndex, int filterBookID, bool isProcessing, DisplayMode mode, int? deepLinkSeedViewpointId, BookModel? selectedBook
+ List<BookViewpointModel> viewpoints, List<BookModel> allBooks, bool isLoading, int currentViewpointIndex, int filterBookID, bool isProcessing, DisplayMode mode, int? deepLinkSeedViewpointId, BookModel? selectedBook
 });
 
 
@@ -278,10 +286,11 @@ class __$BooksStateModelCopyWithImpl<$Res>
 
 /// Create a copy of BooksStateModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? viewpoints = null,Object? isLoading = null,Object? currentViewpointIndex = null,Object? filterBookID = null,Object? isProcessing = null,Object? mode = null,Object? deepLinkSeedViewpointId = freezed,Object? selectedBook = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? viewpoints = null,Object? allBooks = null,Object? isLoading = null,Object? currentViewpointIndex = null,Object? filterBookID = null,Object? isProcessing = null,Object? mode = null,Object? deepLinkSeedViewpointId = freezed,Object? selectedBook = freezed,}) {
   return _then(_BooksStateModel(
 viewpoints: null == viewpoints ? _self._viewpoints : viewpoints // ignore: cast_nullable_to_non_nullable
-as List<BookViewpointModel>,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
+as List<BookViewpointModel>,allBooks: null == allBooks ? _self._allBooks : allBooks // ignore: cast_nullable_to_non_nullable
+as List<BookModel>,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
 as bool,currentViewpointIndex: null == currentViewpointIndex ? _self.currentViewpointIndex : currentViewpointIndex // ignore: cast_nullable_to_non_nullable
 as int,filterBookID: null == filterBookID ? _self.filterBookID : filterBookID // ignore: cast_nullable_to_non_nullable
 as int,isProcessing: null == isProcessing ? _self.isProcessing : isProcessing // ignore: cast_nullable_to_non_nullable

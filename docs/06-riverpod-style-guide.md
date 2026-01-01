@@ -204,6 +204,79 @@ class ArticleStateModel with _$ArticleStateModel {
 }
 ```
 
+### ⚠️ freezed 模型反模式
+
+#### ❌ 错误：getter 中调用 Service/Repository
+
+```dart
+@freezed
+abstract class BooksStateModel with _$BooksStateModel {
+  const BooksStateModel._();
+
+  const factory BooksStateModel({
+    @Default([]) List<BookViewpointModel> viewpoints,
+  }) = _BooksStateModel;
+
+  // ❌ 每次访问都会执行 I/O 操作！
+  List<BookModel> get allBooks {
+    return BookService.i.getBooks();  // 性能问题
+  }
+
+  // ❌ getter 中调用 Repository
+  BookModel? getBookById(int bookId) {
+    return BookRepository.i.find(bookId);  // 每次都查数据库
+  }
+}
+```
+
+#### ✅ 正确：数据作为字段存储
+
+```dart
+@freezed
+abstract class BooksStateModel with _$BooksStateModel {
+  const BooksStateModel._();
+
+  const factory BooksStateModel({
+    @Default([]) List<BookViewpointModel> viewpoints,
+    @Default([]) List<BookModel> allBooks,  // ✅ 作为字段存储
+  }) = _BooksStateModel;
+
+  // ✅ getter 只从现有字段查找（纯计算，无 I/O）
+  BookModel? getBookById(int bookId) {
+    try {
+      return allBooks.firstWhere((b) => b.id == bookId);
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+// ✅ 在 Provider 中加载数据
+@riverpod
+class BooksState extends _$BooksState {
+  @override
+  BooksStateModel build() {
+    Future.microtask(() => loadAllBooks());
+    return const BooksStateModel();
+  }
+
+  void loadAllBooks() {
+    final books = BookService.i.getBooks();
+    state = state.copyWith(allBooks: books);
+  }
+}
+```
+
+### freezed getter 原则
+
+| 做法 | 说明 |
+|------|------|
+| ✅ **字段存储数据** | `@Default([]) List<BookModel> allBooks` |
+| ✅ **getter 纯计算** | 只从现有字段派生，无副作用 |
+| ✅ **Provider 加载** | 在 Provider 方法中调用 Service |
+| ❌ **getter 调用 Service** | 每次访问都执行 I/O |
+| ❌ **getter 调用 Repository** | 每次访问都查数据库 |
+
 ### copyWith 模式
 
 ```dart
@@ -493,6 +566,97 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     final results = ref.watch(searchResultsProvider);
     // ...
   }
+}
+```
+
+---
+
+## View 层规范 ⭐重要
+
+### ❌ 反模式：View 中直接调用 Repository/Service
+
+```dart
+// ❌ 错误：在 View 中直接调用 Repository
+class _ArticlesAppBar extends ConsumerWidget {
+  void _showTagsDialog(BuildContext context) {
+    showModalBottomSheet(
+      builder: (_) => ArticlesTagsDialog(
+        tags: TagRepository.i.allModels(),  // ❌ 每次重建都查数据库！
+      ),
+    );
+  }
+
+  void _showCalendarDialog(BuildContext context) {
+    showModalBottomSheet(
+      builder: (_) => ArticleCalendarDialog(
+        articleCountMap: ArticleRepository.i.getArticleDailyCounts(),  // ❌ I/O 操作
+      ),
+    );
+  }
+}
+```
+
+### ✅ 正确：通过 State Provider 获取数据
+
+```dart
+// ✅ 在 State 中缓存数据
+@freezed
+abstract class ArticleStateModel with _$ArticleStateModel {
+  const factory ArticleStateModel({
+    @Default([]) List<TagModel> allTags,
+    @Default({}) Map<DateTime, int> articleDailyCounts,
+    // ...
+  }) = _ArticleStateModel;
+}
+
+// ✅ 在 Provider 中加载数据
+@riverpod
+class ArticleState extends _$ArticleState {
+  void loadAllTags() {
+    final tags = TagRepository.i.allModels();
+    state = state.copyWith(allTags: tags);
+  }
+
+  void refreshArticleDailyCounts() {
+    final counts = ArticleRepository.i.getArticleDailyCounts();
+    state = state.copyWith(articleDailyCounts: counts);
+  }
+}
+
+// ✅ 在 View 中通过 ref 获取数据
+class _ArticlesAppBar extends ConsumerWidget {
+  void _showTagsDialog(BuildContext context, WidgetRef ref) {
+    ref.read(articleStateProvider.notifier).loadAllTags();
+    final tags = ref.read(articleStateProvider).allTags;
+
+    showModalBottomSheet(
+      builder: (_) => ArticlesTagsDialog(tags: tags),
+    );
+  }
+}
+```
+
+### View 层原则
+
+| 做法 | 说明 |
+|------|------|
+| ✅ **ref.watch()** | 获取响应式数据 |
+| ✅ **ref.read()** | 事件回调中获取数据或调用方法 |
+| ✅ **State 缓存** | 数据存储在 State Provider 中 |
+| ❌ **Repository.i.xxx()** | 直接调用导致每次重建都查数据库 |
+| ❌ **Service.i.xxx()** | 直接调用导致重复 I/O 操作 |
+
+### ❌ 反模式：使用 dynamic 类型
+
+```dart
+// ❌ 错误：使用 dynamic 类型
+Widget _buildViewpointList(WidgetRef ref, dynamic booksState) {
+  // 失去类型安全和 IDE 支持
+}
+
+// ✅ 正确：使用明确类型
+Widget _buildViewpointList(WidgetRef ref, BooksStateModel booksState) {
+  // 类型安全，IDE 自动补全
 }
 ```
 
@@ -888,4 +1052,4 @@ class ArticleState extends _$ArticleState {
 
 ---
 
-*最后更新: 2025-12-28*
+*最后更新: 2026-01-01*

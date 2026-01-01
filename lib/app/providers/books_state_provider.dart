@@ -25,6 +25,7 @@ abstract class BooksStateModel with _$BooksStateModel {
 
   const factory BooksStateModel({
     @Default([]) List<BookViewpointModel> viewpoints,
+    @Default([]) List<BookModel> allBooks,
     @Default(false) bool isLoading,
     @Default(0) int currentViewpointIndex,
     @Default(-1) int filterBookID,
@@ -33,18 +34,6 @@ abstract class BooksStateModel with _$BooksStateModel {
     int? deepLinkSeedViewpointId,
     BookModel? selectedBook,
   }) = _BooksStateModel;
-
-  /// 获取当前观点
-  BookViewpointModel? get currentViewpoint {
-    if (viewpoints.isEmpty) return null;
-    final index = currentViewpointIndex.clamp(0, viewpoints.length - 1);
-    return viewpoints[index];
-  }
-
-  /// 获取所有书籍
-  List<BookModel> get allBooks {
-    return BookService.i.getBooks();
-  }
 }
 
 /// 读书状态 Provider
@@ -56,14 +45,19 @@ class BooksState extends _$BooksState {
   @override
   BooksStateModel build() {
     logger.i('BooksState Provider 初始化完成');
-    // 初始化时自动加载观点
-    Future.microtask(() => loadAllViewpoints());
+    // 初始化时加载书籍和观点
+    Future.microtask(() {
+      loadAllBooks();
+      loadAllViewpoints();
+    });
     return const BooksStateModel();
   }
 
-  /// 获取所有书籍
-  List<BookModel> get allBooks {
-    return BookService.i.getBooks();
+  /// 加载所有书籍到 State
+  void loadAllBooks() {
+    final books = BookService.i.getBooks();
+    state = state.copyWith(allBooks: books);
+    logger.d('加载所有书籍: ${books.length} 本');
   }
 
   /// 加载所有观点
@@ -200,7 +194,8 @@ class BooksState extends _$BooksState {
       // 再删除书籍本身
       BookRepository.i.remove(bookId);
       logger.i('删除书籍: ID=$bookId');
-      // 刷新观点列表
+      // 刷新书籍和观点列表
+      loadAllBooks();
       await loadAllViewpoints();
     } catch (e) {
       logger.e('删除书籍失败: ID=$bookId', error: e);
@@ -221,7 +216,8 @@ class BooksState extends _$BooksState {
 
         if (success) {
           logger.i('书籍刷新成功: ${book.title}');
-          // 刷新观点列表
+          // 刷新书籍和观点列表
+          loadAllBooks();
           await loadAllViewpoints();
         } else {
           logger.w('书籍刷新失败: ${book.title}');
@@ -233,6 +229,22 @@ class BooksState extends _$BooksState {
       rethrow;
     } finally {
       state = state.copyWith(isProcessing: false);
+    }
+  }
+
+  /// 获取当前观点
+  BookViewpointModel? getCurrentViewpoint() {
+    if (state.viewpoints.isEmpty) return null;
+    final index = state.currentViewpointIndex.clamp(0, state.viewpoints.length - 1);
+    return state.viewpoints[index];
+  }
+
+  /// 根据 ID 获取书籍（只从缓存数据查找）
+  BookModel? findBookById(int bookId) {
+    try {
+      return state.allBooks.firstWhere((b) => b.id == bookId);
+    } catch (_) {
+      return null;
     }
   }
 }

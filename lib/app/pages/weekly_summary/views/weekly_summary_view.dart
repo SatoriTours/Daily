@@ -2,6 +2,7 @@ import 'package:daily_satori/app/navigation/app_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/weekly_summary/providers/weekly_summary_controller_provider.dart';
+import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
@@ -528,12 +529,12 @@ class _DiaryDetailSheet extends StatelessWidget {
 // 书摘详情底部弹出框
 // ============================================================================
 
-class _ViewpointDetailSheet extends StatelessWidget {
+class _ViewpointDetailSheet extends ConsumerWidget {
   final BookViewpointModel viewpoint;
   const _ViewpointDetailSheet({required this.viewpoint});
 
   @override
-  Widget build(BuildContext context) => DraggableScrollableSheet(
+  Widget build(BuildContext context, WidgetRef ref) => DraggableScrollableSheet(
     initialChildSize: 0.7,
     minChildSize: 0.5,
     maxChildSize: 0.95,
@@ -546,7 +547,7 @@ class _ViewpointDetailSheet extends StatelessWidget {
       child: Column(
         children: [
           _buildDragHandle(context),
-          _buildHeader(context),
+          _buildHeader(context, ref),
           Divider(height: 1, color: AppColors.getOutlineVariant(context)),
           Expanded(child: _buildContent(context, scrollController)),
         ],
@@ -561,8 +562,9 @@ class _ViewpointDetailSheet extends StatelessWidget {
     decoration: BoxDecoration(color: AppColors.getOutlineVariant(context), borderRadius: BorderRadius.circular(2)),
   );
 
-  Widget _buildHeader(BuildContext context) {
-    final book = BookRepository.i.find(viewpoint.bookId);
+  Widget _buildHeader(BuildContext context, WidgetRef ref) {
+    final booksNotifier = ref.read(booksStateProvider.notifier);
+    final book = booksNotifier.findBookById(viewpoint.bookId);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(

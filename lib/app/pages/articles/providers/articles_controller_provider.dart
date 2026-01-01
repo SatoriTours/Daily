@@ -10,7 +10,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:daily_satori/app/config/app_config.dart';
-import 'package:daily_satori/app/data/article/article_repository.dart';
 import 'package:daily_satori/app/data/article/article_model.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 import 'package:daily_satori/app/providers/providers.dart';
@@ -48,6 +47,9 @@ abstract class ArticlesControllerState with _$ArticlesControllerState {
 
     /// FocusNode
     FocusNode? searchFocusNode,
+
+    /// 全局搜索查询（用于计算标题和过滤器状态）
+    @Default('') String globalSearchQuery,
   }) = _ArticlesControllerState;
 }
 
@@ -70,17 +72,24 @@ class ArticlesController extends _$ArticlesController {
   ArticlesControllerState build() {
     _initialize();
 
+    final articleState = ref.read(articleStateProvider);
     return ArticlesControllerState(
       lastRefreshTime: DateTime.now(),
       scrollController: _createScrollController(),
       searchController: TextEditingController(),
       searchFocusNode: FocusNode(),
+      globalSearchQuery: articleState.globalSearchQuery,
     );
   }
 
   /// 初始化
   void _initialize() {
     ref.listen(articleStateProvider, (prev, next) {
+      // 同步 globalSearchQuery 到 state
+      if (prev?.globalSearchQuery != next.globalSearchQuery) {
+        state = state.copyWith(globalSearchQuery: next.globalSearchQuery);
+      }
+
       final prevEvent = prev?.articleUpdateEvent;
       final nextEvent = next.articleUpdateEvent;
       if (prevEvent != nextEvent) _handleArticleUpdateEvent(nextEvent);
@@ -160,6 +169,7 @@ class ArticlesController extends _$ArticlesController {
 
     final articleState = ref.read(articleStateProvider.notifier);
     articleState.setGlobalSearch(query);
+    state = state.copyWith(globalSearchQuery: query);
     await reloadArticles();
   }
 
@@ -188,7 +198,13 @@ class ArticlesController extends _$ArticlesController {
 
   /// 清除所有过滤条件
   void clearAllFilters([TextEditingController? searchController]) {
-    state = state.copyWith(tagId: -1, tagName: '', onlyFavorite: false, selectedFilterDate: null);
+    state = state.copyWith(
+      tagId: -1,
+      tagName: '',
+      onlyFavorite: false,
+      selectedFilterDate: null,
+      globalSearchQuery: '',
+    );
 
     searchController?.clear();
 
@@ -200,9 +216,6 @@ class ArticlesController extends _$ArticlesController {
   // ========================================================================
   // 公开 API - UI 辅助方法
   // ========================================================================
-
-  /// 获取每天文章数量统计（用于日历视图）
-  Map<DateTime, int> getDailyArticleCounts() => ArticleRepository.i.getArticleDailyCounts();
 
   // ========================================================================
   // 应用生命周期处理
@@ -301,20 +314,14 @@ class _QueryParams {
 // 派生 Providers (Derived State)
 // ============================================================================
 
-/// 页面标题 Provider
+/// 计算显示标题
 @riverpod
-String articlesTitle(Ref ref) {
+String displayTitle(Ref ref) {
   final state = ref.watch(articlesControllerProvider);
-  final articleState = ref.watch(articleStateProvider);
-  final searchQuery = articleState.globalSearchQuery;
-
-  return switch ((
-    searchQuery.isNotEmpty,
-    state.tagName.isNotEmpty,
-    state.onlyFavorite,
-    state.selectedFilterDate != null,
-  )) {
-    (true, _, _, _) => 'article.search_result'.t.replaceAll('{query}', searchQuery),
+  return switch (
+    (state.globalSearchQuery.isNotEmpty, state.tagName.isNotEmpty, state.onlyFavorite, state.selectedFilterDate != null)
+  ) {
+    (true, _, _, _) => 'article.search_result'.t.replaceAll('{query}', state.globalSearchQuery),
     (_, true, _, _) => 'article.filter_by_tag'.t.replaceAll('{tag}', state.tagName),
     (_, _, true, _) => 'article.favorite_articles'.t,
     (_, _, _, true) => 'article.filter_by_date'.t,
@@ -322,14 +329,12 @@ String articlesTitle(Ref ref) {
   };
 }
 
-/// 是否存在筛选条件 Provider
+/// 是否存在筛选条件
 @riverpod
-bool articlesHasFilters(Ref ref) {
+bool hasFilters(Ref ref) {
   final state = ref.watch(articlesControllerProvider);
-  final articleState = ref.watch(articleStateProvider);
-
-  return articleState.globalSearchQuery.isNotEmpty ||
-      state.tagName.isNotEmpty ||
-      state.onlyFavorite ||
-      state.selectedFilterDate != null;
+  return state.globalSearchQuery.isNotEmpty ||
+         state.tagName.isNotEmpty ||
+         state.onlyFavorite ||
+         state.selectedFilterDate != null;
 }
