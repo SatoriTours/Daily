@@ -56,6 +56,8 @@ class BooksState extends _$BooksState {
   @override
   BooksStateModel build() {
     logger.i('BooksState Provider 初始化完成');
+    // 初始化时自动加载观点
+    Future.microtask(() => loadAllViewpoints());
     return const BooksStateModel();
   }
 

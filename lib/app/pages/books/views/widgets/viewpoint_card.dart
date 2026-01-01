@@ -25,11 +25,11 @@ class ViewpointCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Dimensions.verticalSpacerL,
-            _buildTitle(),
+            _buildTitle(context),
             Dimensions.verticalSpacerS,
             _buildViewpointBookInfo(context, book),
             Dimensions.verticalSpacerL,
-            _buildContent(),
+            _buildContent(context),
             if (viewpoint.example.isNotEmpty) ...[Dimensions.verticalSpacerL, _buildExample(context)],
             Dimensions.verticalSpacerL,
             _buildFooter(context, book),
@@ -40,30 +40,65 @@ class ViewpointCard extends StatelessWidget {
   }
 
   /// 构建标题
-  Widget _buildTitle() {
-    return Text(viewpoint.title, style: AppTypography.headingMedium.copyWith(fontWeight: FontWeight.bold));
+  Widget _buildTitle(BuildContext context) {
+    return SelectableText(
+      viewpoint.title,
+      style: AppTypography.headingMedium.copyWith(
+        fontWeight: FontWeight.bold,
+        height: 1.3,
+        color: AppColors.getOnSurface(context),
+      ),
+    );
   }
 
   /// 构建内容
-  Widget _buildContent() {
-    return SelectableText(viewpoint.content, style: AppTypography.bodyLarge.copyWith(height: 1.5));
+  Widget _buildContent(BuildContext context) {
+    return SelectableText(
+      viewpoint.content,
+      style: AppTypography.bodyLarge.copyWith(
+        height: 1.8,
+        letterSpacing: 0.5,
+        color: AppColors.getOnSurface(context).withValues(alpha: 0.9),
+      ),
+    );
   }
 
   /// 构建案例
   Widget _buildExample(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.bookmark, size: Dimensions.iconSizeS, color: AppColors.getPrimary(context)),
-            Dimensions.horizontalSpacerS,
-            Text('书籍案例', style: AppTypography.labelLarge.copyWith(color: AppColors.getPrimary(context))),
-          ],
-        ),
-        const SizedBox(height: Dimensions.spacingM - 2),
-        Text(viewpoint.example, style: AppTypography.bodyLarge),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingM, horizontal: Dimensions.spacingXs),
+      decoration: BoxDecoration(
+        color: AppColors.getSurfaceVariant(context).withValues(alpha: 0.3),
+        borderRadius: Dimensions.borderRadiusM,
+        border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.lightbulb_outline, size: Dimensions.iconSizeS, color: AppColors.getPrimary(context)),
+              Dimensions.horizontalSpacerS,
+              Text(
+                '书籍案例',
+                style: AppTypography.labelLarge.copyWith(
+                  color: AppColors.getPrimary(context),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          Dimensions.verticalSpacerS,
+          SelectableText(
+            viewpoint.example,
+            style: AppTypography.bodyLarge.copyWith(
+              height: 1.8,
+              letterSpacing: 0.5,
+              color: AppColors.getOnSurface(context).withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

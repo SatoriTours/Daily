@@ -142,12 +142,18 @@ class BooksController extends _$BooksController {
 
   /// 选择书籍
   Future<void> selectBook(int bookID) async {
-    final book = BookRepository.i.findModel(bookID);
-    if (book != null) {
-      final booksState = ref.read(booksStateProvider.notifier);
-      booksState.selectBook(book);
-      await _loadAllViewpoints();
+    final booksState = ref.read(booksStateProvider.notifier);
+    // 设置筛选书籍ID
+    booksState.setFilterBookID(bookID);
+    // 如果选择了具体的书籍，也设置 selectedBook
+    if (bookID != -1) {
+      final book = BookRepository.i.findModel(bookID);
+      if (book != null) {
+        booksState.selectBook(book);
+      }
     }
+    // 加载对应的观点
+    await _loadAllViewpoints();
   }
 
   /// 获取当前观点

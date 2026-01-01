@@ -1,5 +1,6 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/pages/books/providers/books_controller_provider.dart';
 import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
 import 'package:daily_satori/app/pages/books/views/widgets/widgets.dart';
@@ -98,8 +99,8 @@ class BooksView extends ConsumerWidget {
 
   /// 显示书籍过滤对话框
   void _showBooksFilterDialog(BuildContext context, WidgetRef ref) {
-    final state = ref.read(booksControllerProvider);
-    final books = state.getAllBooks(ref);
+    final booksState = ref.read(booksStateProvider);
+    final books = booksState.allBooks;
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -141,7 +142,7 @@ class BooksView extends ConsumerWidget {
 
   /// 构建过滤对话框列表
   Widget _buildFilterDialogList(BuildContext context, WidgetRef ref, List<BookModel> books) {
-    final state = ref.watch(booksControllerProvider);
+    final booksState = ref.watch(booksStateProvider);
     return Expanded(
       child: ListView.builder(
         padding: Dimensions.paddingVerticalS,
@@ -149,11 +150,11 @@ class BooksView extends ConsumerWidget {
         itemBuilder: (context, index) {
           // 第一项是"所有书籍"
           if (index == 0) {
-            return _buildBookFilterItem(context, ref, null, state.filterBookID == -1);
+            return _buildBookFilterItem(context, ref, null, booksState.filterBookID == -1);
           }
           // 其他项是具体的书籍
           final book = books[index - 1];
-          return _buildBookFilterItem(context, ref, book, state.filterBookID == book.id);
+          return _buildBookFilterItem(context, ref, book, booksState.filterBookID == book.id);
         },
       ),
     );
@@ -236,8 +237,8 @@ class BooksView extends ConsumerWidget {
 
   /// 构建页面主体
   Widget _buildBody(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(booksControllerProvider);
-    if (state.allViewpoints.isEmpty) {
+    final booksState = ref.watch(booksStateProvider);
+    if (booksState.viewpoints.isEmpty) {
       return _buildEmptyView();
     }
     return _buildViewpointList(ref);
@@ -259,15 +260,16 @@ class BooksView extends ConsumerWidget {
 
   /// 构建观点列表
   Widget _buildViewpointList(WidgetRef ref) {
-    final state = ref.watch(booksControllerProvider);
+    final booksState = ref.watch(booksStateProvider);
+    final controllerState = ref.watch(booksControllerProvider);
     return PageView.builder(
-      controller: state.pageController,
+      controller: controllerState.pageController,
       onPageChanged: (index) {
         ref.read(booksControllerProvider.notifier).goToViewpointIndex(index);
       },
-      itemCount: state.allViewpoints.length,
+      itemCount: booksState.viewpoints.length,
       itemBuilder: (context, index) {
-        final viewpoint = state.allViewpoints[index];
+        final viewpoint = booksState.viewpoints[index];
         final book = BookRepository.i.find(viewpoint.bookId);
         return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
@@ -302,13 +304,13 @@ class BooksView extends ConsumerWidget {
   }
 
   void _openJournalForCurrent(BuildContext context, WidgetRef ref) {
-    final booksState = ref.read(booksControllerProvider);
+    final booksState = ref.read(booksStateProvider);
     final diaryState = ref.read(diaryControllerProvider);
     // 若当前有观点,拼装带来源的模板;否则提供空白感悟模板
     String preset = '';
-    if (booksState.allViewpoints.isNotEmpty) {
-      final idx = booksState.currentViewpointIndex.clamp(0, booksState.allViewpoints.length - 1);
-      final vp = booksState.allViewpoints[idx];
+    if (booksState.viewpoints.isNotEmpty) {
+      final idx = booksState.currentViewpointIndex.clamp(0, booksState.viewpoints.length - 1);
+      final vp = booksState.viewpoints[idx];
       final book = BookRepository.i.find(vp.bookId);
       final title = vp.title.trim();
       final bookTitle = (book?.title ?? '').trim();
@@ -340,16 +342,16 @@ class BooksView extends ConsumerWidget {
 
   /// 显示删除书籍确认对话框
   void _showDeleteBookDialog(BuildContext context, WidgetRef ref) {
-    final state = ref.read(booksControllerProvider);
+    final booksState = ref.read(booksStateProvider);
     BookModel? book;
     // 尝试从当前观点获取书籍
-    final currentViewpoint = state.currentViewpoint(ref);
+    final currentViewpoint = booksState.currentViewpoint;
     if (currentViewpoint != null) {
       book = BookRepository.i.find(currentViewpoint.bookId);
-    } else if (state.filterBookID != -1) {
+    } else if (booksState.filterBookID != -1) {
       // 如果没有当前观点但有选中的书籍，直接获取书籍信息
-      final books = state.getAllBooks(ref);
-      book = books.where((b) => b.id == state.filterBookID).firstOrNull;
+      final books = booksState.allBooks;
+      book = books.where((b) => b.id == booksState.filterBookID).firstOrNull;
     }
     if (book == null) {
       UIUtils.showError('error.no_book_to_delete');
@@ -368,20 +370,20 @@ class BooksView extends ConsumerWidget {
 
   /// 确认并刷新当前书籍（带加载提示）
   void _confirmAndRefreshBook(BuildContext context, WidgetRef ref) {
-    final state = ref.read(booksControllerProvider);
+    final booksState = ref.read(booksStateProvider);
     BookModel? book;
     // 尝试从当前观点获取书籍
-    final currentViewpoint = state.currentViewpoint(ref);
+    final currentViewpoint = booksState.currentViewpoint;
     if (currentViewpoint != null) {
       book = BookRepository.i.find(currentViewpoint.bookId);
-    } else if (state.filterBookID != -1) {
+    } else if (booksState.filterBookID != -1) {
       // 如果没有当前观点但有选中的书籍，直接获取书籍信息
-      final books = state.getAllBooks(ref);
-      book = books.where((b) => b.id == state.filterBookID).firstOrNull;
+      final books = booksState.allBooks;
+      book = books.where((b) => b.id == booksState.filterBookID).firstOrNull;
     }
     if (book == null) {
       // 尝试刷新任意一本书（刷新第一本）
-      final books = state.getAllBooks(ref);
+      final books = booksState.allBooks;
       if (books.isNotEmpty) {
         book = books.first;
       }
