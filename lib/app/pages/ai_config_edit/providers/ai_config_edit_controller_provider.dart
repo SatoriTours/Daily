@@ -137,9 +137,6 @@ class AIConfigEditController extends _$AIConfigEditController {
 
       state = state.copyWith(isSaving: false);
 
-      // 显示成功提示
-      UIUtils.showSuccess('ai_config.save_success'.t);
-
       // 刷新配置列表
       ref.invalidate(aIConfigControllerProvider);
 
@@ -184,9 +181,31 @@ class AIConfigEditController extends _$AIConfigEditController {
     'gemini-pro',
   ];
 
+  /// API 供应商名称列表
+  List<String> get apiProviderNames => ['OpenAI', 'Anthropic', 'Google AI', '自定义'];
+
+  /// API 供应商 URL 列表
   List<String> get apiPresets => [
     'https://api.openai.com/v1',
     'https://api.anthropic.com/v1',
     'https://generativelanguage.googleapis.com/v1beta',
+    '', // 自定义 URL
   ];
+
+  /// 根据 URL 获取供应商名称
+  String getProviderNameByUrl(String url) {
+    if (url.isEmpty) return '选择供应商';
+    final index = apiPresets.indexOf(url);
+    if (index >= 0 && index < apiProviderNames.length) {
+      return apiProviderNames[index];
+    }
+    // 如果是自定义 URL，显示 "自定义"
+    return '自定义';
+  }
+
+  /// 检查是否为自定义 API 地址
+  bool get isCustomApiUrl {
+    if (state.apiAddress.isEmpty) return false;
+    return !apiPresets.sublist(0, apiPresets.length - 1).contains(state.apiAddress);
+  }
 }

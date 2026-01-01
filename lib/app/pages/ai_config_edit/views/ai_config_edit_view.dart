@@ -178,12 +178,12 @@ class _AIConfigEditViewState extends ConsumerState<AIConfigEditView> {
           title: "AI服务提供商",
           icon: Icons.cloud,
           child: SelectionField(
-            value: state.apiAddress.isEmpty ? '选择提供商' : state.apiAddress,
+            value: controller.getProviderNameByUrl(state.apiAddress),
             onTap: () => showSelectionBottomSheet(
               context: context,
               title: '选择AI服务提供商',
-              items: controller.apiPresets,
-              selectedValue: state.apiAddress,
+              items: controller.apiProviderNames,
+              selectedValue: controller.getProviderNameByUrl(state.apiAddress),
               onSelected: (index) {
                 final address = controller.apiPresets[index];
                 controller.updateApiAddress(address);
@@ -222,7 +222,7 @@ class _AIConfigEditViewState extends ConsumerState<AIConfigEditView> {
             onChanged: controller.updateApiToken,
           ),
         ),
-        if (controller.isCustomApiAddress)
+        if (controller.isCustomApiUrl)
           _buildFormSection(
             context: context,
             title: "自定义API地址",
