@@ -83,6 +83,7 @@ class _WeeklySummaryBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (state.isGenerating) return const _GeneratingState();
+    if (state.isLoading) return const _LoadingState();
     if (state.summaries.isEmpty) return const _EmptyState();
 
     return Column(
@@ -92,6 +93,19 @@ class _WeeklySummaryBody extends ConsumerWidget {
       ],
     );
   }
+}
+
+// ============================================================================
+// 加载状态
+// ============================================================================
+
+class _LoadingState extends StatelessWidget {
+  const _LoadingState();
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context))),
+  );
 }
 
 // ============================================================================

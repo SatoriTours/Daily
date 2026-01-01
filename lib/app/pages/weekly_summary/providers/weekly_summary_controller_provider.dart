@@ -32,13 +32,13 @@ abstract class WeeklySummaryControllerState with _$WeeklySummaryControllerState 
 class WeeklySummaryController extends _$WeeklySummaryController {
   @override
   WeeklySummaryControllerState build() {
-    Future.microtask(() => _initializeAndCheckSummary());
-    return const WeeklySummaryControllerState();
-  }
+    // 同步加载数据，速度很快
+    final list = WeeklySummaryService.i.getAllSummaries();
 
-  Future<void> _initializeAndCheckSummary() async {
-    await _loadSummaries();
-    await checkAndGenerate();
+    // 异步检查是否需要生成新周报
+    Future.microtask(() => checkAndGenerate());
+
+    return WeeklySummaryControllerState(summaries: list, currentSummary: list.isNotEmpty ? list.first : null);
   }
 
   Future<void> refreshSummaries() => _loadSummaries();
