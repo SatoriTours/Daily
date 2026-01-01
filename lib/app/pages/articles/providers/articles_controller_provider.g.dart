@@ -120,7 +120,7 @@ final class DisplayTitleProvider
   }
 }
 
-String _$displayTitleHash() => r'f1ee747b7071a8d5c5f6ccaaa37b99980b0da649';
+String _$displayTitleHash() => r'71b7fb350e62d43500de646b7ed72eead32f3509';
 
 /// 是否存在筛选条件
 
@@ -165,4 +165,4 @@ final class HasFiltersProvider extends $FunctionalProvider<bool, bool, bool>
   }
 }
 
-String _$hasFiltersHash() => r'881657c61d8367cd748b2ab0c0e618cf65183e31';
+String _$hasFiltersHash() => r'3720dde28fa3e3b66a5dd5b9a0d362deb26c6285';

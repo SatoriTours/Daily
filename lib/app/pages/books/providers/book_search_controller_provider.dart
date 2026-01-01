@@ -60,8 +60,8 @@ class BookSearchController extends _$BookSearchController {
 
     state = state.copyWith(isSearching: true, errorMessage: '', searchKeyword: keyword);
     try {
-      // 使用 BookService 进行在线搜索
-      final results = await BookService.i.searchBooks(keyword);
+      // 使用 BookRepository 进行在线搜索
+      final results = await BookRepository.i.searchBooks(keyword);
       state = state.copyWith(isSearching: false, searchResults: results);
     } catch (e) {
       logger.e('[BookSearchController] 搜索失败', error: e);
@@ -79,8 +79,8 @@ class BookSearchController extends _$BookSearchController {
   Future<void> selectBook(BookSearchResult searchResult) async {
     state = state.copyWith(isLoading: true);
     try {
-      // 使用 BookService 添加书籍
-      final book = await BookService.i.addBookFromSearch(searchResult);
+      // 使用 BookRepository 添加书籍
+      final book = await BookRepository.i.addBookFromSearch(searchResult);
       if (book != null) {
         // 刷新书籍列表
         await ref.read(booksStateProvider.notifier).loadAllViewpoints();

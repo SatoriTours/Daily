@@ -9,7 +9,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:daily_satori/app/data/index.dart';
-import 'package:daily_satori/app/services/book_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 
 part 'books_state_provider.freezed.dart';
@@ -55,7 +54,7 @@ class BooksState extends _$BooksState {
 
   /// 加载所有书籍到 State
   void loadAllBooks() {
-    final books = BookService.i.getBooks();
+    final books = BookRepository.i.allModels();
     state = state.copyWith(allBooks: books);
     logger.d('加载所有书籍: ${books.length} 本');
   }
@@ -211,8 +210,8 @@ class BooksState extends _$BooksState {
         logger.i('开始刷新书籍: ${book.title} (ID: $bookId)');
         state = state.copyWith(isProcessing: true);
 
-        // 调用 BookService 的刷新方法（包含AI调用、获取观点等完整逻辑）
-        final success = await BookService.i.refreshBook(bookId);
+        // 调用 BookRepository 的刷新方法（包含AI调用、获取观点等完整逻辑）
+        final success = await BookRepository.i.refreshBook(bookId);
 
         if (success) {
           logger.i('书籍刷新成功: ${book.title}');

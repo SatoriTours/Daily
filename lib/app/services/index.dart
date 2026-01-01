@@ -26,7 +26,6 @@ export 'ai_service/ai_article_processor.dart';
 // 数据服务
 export 'backup_service.dart';
 export 'migration_service/migration_service.dart';
-export 'book_service.dart';
 export 'webpage_parser_service.dart';
 
 // 网络服务

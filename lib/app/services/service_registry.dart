@@ -17,7 +17,6 @@ import 'package:daily_satori/app/services/backup_service.dart';
 import 'package:daily_satori/app/services/migration_service/migration_service.dart';
 import 'package:daily_satori/app/services/plugin_service.dart';
 import 'package:daily_satori/app/services/web_service/web_service.dart';
-import 'package:daily_satori/app/services/book_service.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/share_receive_service.dart';
 import 'package:daily_satori/app/services/clipboard_monitor_service.dart';
@@ -175,13 +174,6 @@ class ServiceRegistry {
         serviceName: 'WebService',
         priority: ServicePriority.normal,
         onInit: () => WebService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'BookService',
-        priority: ServicePriority.normal,
-        onInit: () => BookService.i.init(),
       ),
     );
 
