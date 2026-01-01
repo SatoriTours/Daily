@@ -16,8 +16,10 @@ import 'package:flutter/services.dart';
 class DiaryEditor extends ConsumerStatefulWidget {
   final DiaryModel? diary; // 可选的日记对象，用于编辑模式
   final DateTime? initialDate; // 初始日期，用于新建模式
+  final String? initialContent; // 初始内容，用于从其他页面预设内容
+  final int? initialCursorPosition; // 初始光标位置
 
-  const DiaryEditor({super.key, this.diary, this.initialDate});
+  const DiaryEditor({super.key, this.diary, this.initialDate, this.initialContent, this.initialCursorPosition});
 
   @override
   ConsumerState<DiaryEditor> createState() => _DiaryEditorState();
@@ -58,6 +60,12 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
     if (widget.diary != null) {
       _contentController.text = widget.diary!.content;
       _existingImages = widget.diary!.imagesList;
+    } else if (widget.initialContent != null && widget.initialContent!.isNotEmpty) {
+      // 使用传入的初始内容（如从读书页面预设的模板）
+      _contentController.text = widget.initialContent!;
+      // 使用指定的光标位置，否则放在末尾
+      final cursorPos = widget.initialCursorPosition ?? widget.initialContent!.length;
+      _contentController.selection = TextSelection.collapsed(offset: cursorPos.clamp(0, widget.initialContent!.length));
     } else {
       // 新建模式，添加默认标题格式
       _contentController.text = '# ';

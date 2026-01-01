@@ -2,7 +2,6 @@ import 'package:daily_satori/app_exports.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/pages/books/providers/books_controller_provider.dart';
-import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
 import 'package:daily_satori/app/pages/books/views/widgets/widgets.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
@@ -305,30 +304,62 @@ class BooksView extends ConsumerWidget {
 
   void _openJournalForCurrent(BuildContext context, WidgetRef ref) {
     final booksState = ref.read(booksStateProvider);
-    final diaryState = ref.read(diaryControllerProvider);
-    // 若当前有观点,拼装带来源的模板;否则提供空白感悟模板
+    // 若当前有观点,拼装带完整信息的模板;否则提供空白感悟模板
     String preset = '';
+    int cursorPosition = 0;
+
     if (booksState.viewpoints.isNotEmpty) {
       final idx = booksState.currentViewpointIndex.clamp(0, booksState.viewpoints.length - 1);
       final vp = booksState.viewpoints[idx];
       final book = BookRepository.i.find(vp.bookId);
-      final title = vp.title.trim();
-      final bookTitle = (book?.title ?? '').trim();
+      final viewpointTitle = vp.title.trim();
+      final content = vp.content.trim();
+      final bookTitle = (book?.title ?? '未知书籍').trim();
       final author = (book?.author ?? '').trim();
+
+      // 处理观点标题：移除末尾的标点符号，使标题拼接更自然
+      final cleanViewpointTitle = viewpointTitle.replaceAll(RegExp(r'[。.！!？?，,；;：:]+$'), '');
+
       final buffer = StringBuffer();
-      buffer.writeln('观点：$title');
-      if (bookTitle.isNotEmpty) {
-        buffer.writeln('来源：《$bookTitle》${author.isNotEmpty ? ' · $author' : ''}');
+      // 添加标题：书名 - 观点标题感悟
+      buffer.writeln('# $bookTitle - $cleanViewpointTitle感悟');
+      buffer.writeln();
+
+      // 记录光标位置（在标题后空一行的位置）
+      cursorPosition = buffer.length;
+
+      // 添加用户输入区域的占位（空行）
+      buffer.writeln();
+      buffer.writeln();
+
+      // 添加分隔线
+      buffer.writeln('---');
+      buffer.writeln();
+
+      // 添加观点信息（完整拷贝，防止书籍删除后丢失）
+      buffer.writeln('**观点**：$viewpointTitle');
+      buffer.writeln();
+      if (content.isNotEmpty) {
+        buffer.writeln('**内容**：');
+        buffer.writeln();
+        buffer.writeln('> $content');
+        buffer.writeln();
+      }
+      buffer.write('**出处**：《$bookTitle》');
+      if (author.isNotEmpty) {
+        buffer.write(' · $author');
       }
       buffer.writeln();
-      buffer.writeln('[](app://books/viewpoint/${vp.id})');
+      buffer.writeln();
+      // 添加深链（可选，用于快速跳转，但完整信息已拷贝）
+      buffer.writeln('[查看原始观点](app://books/viewpoint/${vp.id})');
+
       preset = buffer.toString();
     } else {
-      preset = '读书感悟：\n\n';
+      preset = '# 读书感悟\n\n';
+      cursorPosition = preset.length;
     }
-    diaryState.contentController?.clear();
-    diaryState.contentController?.text = preset;
-    diaryState.contentController?.selection = TextSelection.collapsed(offset: preset.length);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -336,7 +367,7 @@ class BooksView extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
-      builder: (context) => const DiaryEditor(),
+      builder: (context) => DiaryEditor(initialContent: preset, initialCursorPosition: cursorPosition),
     );
   }
 
