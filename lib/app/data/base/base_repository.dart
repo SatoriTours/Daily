@@ -81,14 +81,12 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
       return null;
     }
     final entity = box.get(id);
-    logger.d('[$entityName] 查找 ID=$id: ${entity != null ? '找到' : '未找到'}');
     return entity != null ? toModel(entity) : null;
   }
 
   /// 保存 Model
   int save(M model) {
     final id = box.put(toEntity(model));
-    logger.d('[$entityName] 保存: ID=$id');
     return id;
   }
 

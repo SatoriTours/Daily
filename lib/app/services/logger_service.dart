@@ -15,7 +15,21 @@ const String _logName = 'Satori';
 /// 示例：
 ///   logger.i('初始化完成');
 ///   logger.e('处理失败', error: e, stackTrace: st);
+///   loggerVerbose('长文本内容...'); // 仅开发环境输出，用于调试
 late final Logger logger;
+
+/// 长文本调试日志（仅在开发环境输出）
+///
+/// 用于打印完整的长文本内容，方便代码调试。
+/// 在生产环境中此函数不会输出任何内容。
+///
+/// 示例：
+///   loggerVerbose('完整的 HTML 内容: $htmlContent');
+///   loggerVerbose('API 响应: $jsonResponse');
+void loggerVerbose(String message) {
+  if (AppInfoUtils.isProduction) return;
+  log('[VERBOSE] $message', name: _logName);
+}
 
 class LoggerService implements AppService {
   LoggerService._privateConstructor();
@@ -75,7 +89,9 @@ class SatoriPrinter extends LogPrinter {
   @override
   List<String> log(LogEvent event) {
     final levelTag = _levelToTag(event.level);
-    final message = event.message.toString();
+    final rawMessage = event.message.toString();
+    // 截断消息到 36 个字符（按 rune 计算）
+    final message = _truncateMessage(rawMessage, maxLength: 50);
     // 优先使用事件自带的堆栈（若调用端传入 `stackTrace: StackTrace.current`，定位更准确）
     final caller = _callerTag(event.stackTrace); // 形如 [PluginService+93]
 
@@ -89,6 +105,13 @@ class SatoriPrinter extends LogPrinter {
     }
 
     return lines;
+  }
+
+  /// 截断消息到指定长度
+  String _truncateMessage(String message, {required int maxLength}) {
+    final runes = message.runes.toList();
+    if (runes.length <= maxLength) return message;
+    return '${String.fromCharCodes(runes.take(maxLength))}...';
   }
 
   String _formatMainLine({required String levelTag, required String message, required String caller}) {
