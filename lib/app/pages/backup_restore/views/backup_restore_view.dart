@@ -98,24 +98,30 @@ class BackupRestoreView extends ConsumerWidget {
       // 标记设置完成，备份恢复后不需要再显示引导
       ref.read(firstLaunchControllerProvider.notifier).markSetupComplete();
 
-      // 显示退出提示对话框
+      // 显示成功提示对话框
       if (context.mounted) {
         await showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) => AlertDialog(
-            title: const Text('还原成功'),
-            content: const Text('备份文件已成功还原，应用即将退出，请手动重新打开以使用恢复的数据。'),
+            icon: Icon(Icons.check_circle_rounded, color: AppColors.getSuccess(context), size: Dimensions.iconSizeXxl),
+            title: const Text('备份恢复完成'),
+            content: const Text('您的数据已成功恢复！\n\n为了确保所有数据正常加载，应用将会退出。请重新打开应用以查看恢复的内容。', style: TextStyle(height: 1.5)),
             actions: [
-              TextButton(
+              FilledButton.icon(
+                icon: const Icon(Icons.exit_to_app_rounded, size: Dimensions.iconSizeM),
+                label: const Text('确定并退出'),
+                style: ButtonStyles.getPrimaryStyle(context),
                 onPressed: () {
                   Navigator.of(context).pop();
-                  // 退出应用
-                  AppNavigation.exitApp();
+                  // 延迟一下再退出，让对话框有时间关闭
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    AppNavigation.exitApp();
+                  });
                 },
-                child: const Text('确定'),
               ),
             ],
+            actionsAlignment: MainAxisAlignment.center,
           ),
         );
       }

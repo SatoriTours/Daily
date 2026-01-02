@@ -1,4 +1,3 @@
-import 'package:daily_satori/app/navigation/app_navigation.dart';
 import 'dart:io';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/app/config/app_config.dart';
@@ -64,7 +63,23 @@ class BackupService {
   Future<void> init() async {
     logger.i("[初始化服务] BackupService");
     _initBackupItems();
+
+    // 检查并修复图片路径（用于备份恢复后首次启动）
+    await _fixImagePathsIfNeeded();
+
     checkAndBackup();
+  }
+
+  /// 检查并修复图片路径（仅在需要时执行）
+  Future<void> _fixImagePathsIfNeeded() async {
+    try {
+      // 可以通过检查某个标记文件判断是否刚刚恢复过备份
+      // 或者简单地每次启动都检查一次（开销不大）
+      await _fixAllImagePaths();
+      logger.i("图片路径检查完成");
+    } catch (e) {
+      logger.w("修复图片路径时出错: $e");
+    }
   }
 
   // 检查并执行备份
@@ -171,31 +186,33 @@ class BackupService {
   }
 
   /// 从备份恢复文件
+  ///
+  /// 注意：恢复后需要重启应用才能加载新数据库
   Future<bool> restoreBackup(String backupName) async {
     final backupFolder = path.join(backupDir, 'daily_satori_backup_$backupName');
     final appDocDir = (await getApplicationDocumentsDirectory()).path;
 
-    DialogUtils.showLoading();
-
     try {
       // 检查备份文件是否完整
       final backupFiles = await _validateBackupFiles(backupFolder);
-      if (backupFiles == null) {
-        return false;
-      }
+      if (backupFiles == null) return false;
 
-      // 恢复所有备份项
+      // 关闭 ObjectBox 实例，避免恢复时文件冲突
+      logger.i("关闭 ObjectBox 以准备恢复数据库");
+      ObjectboxService.i.dispose();
+
+      // 恢复所有备份项（包括数据库和图片）
       await _restoreAllBackupItems(backupFiles, appDocDir);
 
-      // 修正图片路径
-      await _fixAllImagePaths();
-
       logger.i("恢复备份完成: $backupFolder => $appDocDir");
-      AppNavigation.back();
+      logger.i("注意：需要重启应用以加载恢复的数据库");
+
+      // 不要尝试重新初始化 ObjectBox！
+      // ObjectBox 使用 late final Store，无法重新赋值
+      // 应该在恢复后退出应用，下次启动时自动加载新数据库
       return true;
     } catch (e) {
       logger.e("恢复备份失败: $e");
-      AppNavigation.back();
       return false;
     }
   }
@@ -206,14 +223,11 @@ class BackupService {
 
     for (final item in _backupItems) {
       final zipFile = File(path.join(backupFolder, item.zipFileName));
-      backupFiles.add(zipFile);
-
       if (!await zipFile.exists()) {
         logger.e("备份文件不存在: ${zipFile.path}");
-        logger.e("备份文件不完整，无法恢复");
-        AppNavigation.back();
         return null;
       }
+      backupFiles.add(zipFile);
     }
 
     return backupFiles;

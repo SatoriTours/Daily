@@ -104,6 +104,7 @@ class BackupRestoreController extends _$BackupRestoreController {
   Future<bool> restoreBackup() async {
     if (state.selectedBackupIndex < 0 || state.selectedBackupIndex >= state.backupList.length) return false;
 
+    // 检查Android权限
     if (Platform.isAndroid) {
       final permission = await Permission.manageExternalStorage.request();
       if (!permission.isGranted) {
@@ -112,28 +113,39 @@ class BackupRestoreController extends _$BackupRestoreController {
       }
     }
 
-    final file = state.backupList[state.selectedBackupIndex];
-    final name = p.basename(file.path);
-    const prefix = 'daily_satori_backup_';
-    final backupName = name.startsWith(prefix) ? name.substring(prefix.length) : name;
+    // 获取备份名称
+    final backupName = _extractBackupName(state.backupList[state.selectedBackupIndex]);
 
+    // 显示loading对话框
+    DialogUtils.showLoading();
     state = state.copyWith(isRestoring: true, errorMessage: '');
+
     try {
       final success = await BackupService.i.restoreBackup(backupName);
-      state = state.copyWith(isRestoring: false);
 
       if (success) {
+        // 刷新各模块状态
         ref.invalidate(articleStateProvider);
         ref.invalidate(diaryStateProvider);
         ref.invalidate(booksStateProvider);
-        return true;
       }
-      return false;
+
+      return success;
     } catch (e) {
       logger.e('[BackupRestoreController] 恢复备份失败', error: e);
-      state = state.copyWith(isRestoring: false, errorMessage: e.toString());
+      state = state.copyWith(errorMessage: e.toString());
       return false;
+    } finally {
+      state = state.copyWith(isRestoring: false);
+      DialogUtils.hideLoading();
     }
+  }
+
+  /// 从文件路径提取备份名称
+  String _extractBackupName(FileSystemEntity file) {
+    final name = p.basename(file.path);
+    const prefix = 'daily_satori_backup_';
+    return name.startsWith(prefix) ? name.substring(prefix.length) : name;
   }
 
   Future<void> deleteBackup(FileSystemEntity file) async {
