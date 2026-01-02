@@ -32,16 +32,10 @@ class FirstSetupGuide extends ConsumerWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            colorScheme.primary.withValues(alpha: 0.1),
-            colorScheme.secondary.withValues(alpha: 0.1),
-          ],
+          colors: [colorScheme.primary.withValues(alpha: 0.1), colorScheme.secondary.withValues(alpha: 0.1)],
         ),
         borderRadius: BorderRadius.circular(Dimensions.radiusL),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.3),
-          width: 2,
-        ),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3), width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,12 +57,7 @@ class FirstSetupGuide extends ConsumerWidget {
   }
 
   /// 构建标题
-  Widget _buildHeader(
-    BuildContext context,
-    TextTheme textTheme,
-    ColorScheme colorScheme,
-    FirstLaunchState setupState,
-  ) {
+  Widget _buildHeader(BuildContext context, TextTheme textTheme, ColorScheme colorScheme, FirstLaunchState setupState) {
     final isAllComplete = setupState.isSetupComplete;
     final pendingCount = setupState.pendingCount;
 
@@ -95,17 +84,12 @@ class FirstSetupGuide extends ConsumerWidget {
             children: [
               Text(
                 isAllComplete ? '设置已完成' : '欢迎使用 Daily Satori',
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.primary,
-                ),
+                style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
               ),
               if (!isAllComplete)
                 Text(
                   '还有 $pendingCount 项必要配置需要完成',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
+                  style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.7)),
                 ),
             ],
           ),
@@ -126,10 +110,7 @@ class FirstSetupGuide extends ConsumerWidget {
       ),
       child: Text(
         '为了让应用正常工作，请先完成 AI 配置（必填）。其他两项为可选配置，可根据需要设置。',
-        style: textTheme.bodyMedium?.copyWith(
-          color: colorScheme.onSurface.withValues(alpha: 0.8),
-          height: 1.5,
-        ),
+        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.8), height: 1.5),
       ),
     );
   }
@@ -168,17 +149,55 @@ class FirstSetupGuide extends ConsumerWidget {
           onTap: () => _showGoogleCloudKeyDialog(context, ref),
         ),
         Dimensions.verticalSpacerM,
-        _buildSetupItem(
-          context: context,
-          ref: ref,
-          title: '备份目录',
-          subtitle: '设置备份目录以确保数据安全，支持应用数据的备份和恢复（可选）',
-          icon: Icons.backup_rounded,
-          isComplete: setupState.hasBackupDir,
-          color: AppColors.getSuccess(context),
-          isRequired: false,
-          onTap: () => AppNavigation.toNamed(Routes.backupSettings),
-        ),
+        // 备份目录选择
+        if (!setupState.hasBackupDir)
+          _buildSetupItem(
+            context: context,
+            ref: ref,
+            title: '备份目录',
+            subtitle: '设置备份目录以确保数据安全，支持应用数据的备份和恢复（可选）',
+            icon: Icons.folder_rounded,
+            isComplete: false,
+            color: AppColors.getSuccess(context),
+            isRequired: false,
+            onTap: () async {
+              await AppNavigation.toNamed(Routes.backupSettings);
+              // 返回后刷新状态
+              ref.invalidate(firstLaunchControllerProvider);
+            },
+          ),
+        // 已配置备份目录后显示恢复选项
+        if (setupState.hasBackupDir) ...[
+          _buildSetupItem(
+            context: context,
+            ref: ref,
+            title: '备份目录',
+            subtitle: '已设置备份目录',
+            icon: Icons.folder_rounded,
+            isComplete: true,
+            color: AppColors.getSuccess(context),
+            isRequired: false,
+            canClickWhenComplete: true,
+            onTap: () async {
+              await AppNavigation.toNamed(Routes.backupSettings);
+              // 返回后刷新状态
+              ref.invalidate(firstLaunchControllerProvider);
+            },
+          ),
+          Dimensions.verticalSpacerM,
+          _buildSetupItem(
+            context: context,
+            ref: ref,
+            title: '从备份恢复',
+            subtitle: '从已有备份中恢复应用数据',
+            icon: Icons.restore_rounded,
+            isComplete: false,
+            color: AppColors.getInfo(context),
+            isRequired: false,
+            canClickWhenComplete: true,
+            onTap: () => AppNavigation.toNamed(Routes.backupRestore),
+          ),
+        ],
       ],
     );
   }
@@ -194,12 +213,13 @@ class FirstSetupGuide extends ConsumerWidget {
     required Color color,
     required bool isRequired,
     required VoidCallback onTap,
+    bool canClickWhenComplete = false,
   }) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
     return InkWell(
-      onTap: isComplete ? null : onTap,
+      onTap: (isComplete && !canClickWhenComplete) ? null : onTap,
       borderRadius: BorderRadius.circular(Dimensions.radiusM),
       child: Container(
         padding: const EdgeInsets.all(Dimensions.spacingM),
@@ -245,25 +265,17 @@ class FirstSetupGuide extends ConsumerWidget {
                         title,
                         style: textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: isComplete
-                              ? AppColors.getSuccess(context)
-                              : colorScheme.onSurface,
+                          color: isComplete ? AppColors.getSuccess(context) : colorScheme.onSurface,
                         ),
                       ),
                       if (isRequired) ...[
                         Dimensions.horizontalSpacerXs,
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: Dimensions.spacingXs,
-                            vertical: 2,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingXs, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppColors.getError(context).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(Dimensions.radiusXs),
-                            border: Border.all(
-                              color: AppColors.getError(context).withValues(alpha: 0.5),
-                              width: 1,
-                            ),
+                            border: Border.all(color: AppColors.getError(context).withValues(alpha: 0.5), width: 1),
                           ),
                           child: Text(
                             '必填',
@@ -290,11 +302,7 @@ class FirstSetupGuide extends ConsumerWidget {
             ),
             // 状态图标
             if (isComplete)
-              Icon(
-                Icons.check_circle_rounded,
-                color: AppColors.getSuccess(context),
-                size: Dimensions.iconSizeL,
-              )
+              Icon(Icons.check_circle_rounded, color: AppColors.getSuccess(context), size: Dimensions.iconSizeL)
             else
               Icon(
                 Icons.chevron_right_rounded,
@@ -325,17 +333,11 @@ class FirstSetupGuide extends ConsumerWidget {
           children: [
             Text(
               '配置进度',
-              style: textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: colorScheme.primary,
-              ),
+              style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.primary),
             ),
             Text(
               '$completedCount/3',
-              style: textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.primary,
-              ),
+              style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
             ),
           ],
         ),
@@ -347,9 +349,7 @@ class FirstSetupGuide extends ConsumerWidget {
             minHeight: 8,
             backgroundColor: colorScheme.surfaceContainerHighest,
             valueColor: AlwaysStoppedAnimation<Color>(
-              setupState.isSetupComplete
-                  ? AppColors.getSuccess(context)
-                  : colorScheme.primary,
+              setupState.isSetupComplete ? AppColors.getSuccess(context) : colorScheme.primary,
             ),
           ),
         ),

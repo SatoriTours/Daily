@@ -56,8 +56,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   children: [
                     // 首次设置引导
                     const FirstSetupGuide(),
-                    // 设置列表
-                    _buildSettingsList(context, ref),
+                    // 设置列表（首次设置未完成时隐藏）
+                    if (firstLaunchState.isSetupComplete) _buildSettingsList(context, ref),
                   ],
                 ),
               ),

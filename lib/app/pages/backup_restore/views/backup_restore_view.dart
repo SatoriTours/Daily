@@ -6,7 +6,6 @@ import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/providers/first_launch_provider.dart';
 import 'package:daily_satori/app/navigation/app_navigation.dart';
-import 'package:daily_satori/app/routes/app_routes.dart';
 
 /// 备份恢复页面
 class BackupRestoreView extends ConsumerWidget {
@@ -96,17 +95,29 @@ class BackupRestoreView extends ConsumerWidget {
   Future<void> _onRestorePressed(BuildContext context, WidgetRef ref) async {
     final result = await ref.read(backupRestoreControllerProvider.notifier).restoreBackup();
     if (result) {
-      UIUtils.showSuccess('备份文件已成功还原', title: '还原成功');
+      // 标记设置完成，备份恢复后不需要再显示引导
+      ref.read(firstLaunchControllerProvider.notifier).markSetupComplete();
 
-      // 刷新首次启动状态，以便检查配置是否已完成
-      ref.invalidate(firstLaunchControllerProvider);
-
-      // 等待一段时间让用户看到成功提示
-      await Future.delayed(const Duration(seconds: 1));
-
-      // 导航回首页并清空路由栈
+      // 显示退出提示对话框
       if (context.mounted) {
-        AppNavigation.offAllNamed(Routes.home);
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: const Text('还原成功'),
+            content: const Text('备份文件已成功还原，应用即将退出，请手动重新打开以使用恢复的数据。'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  // 退出应用
+                  AppNavigation.exitApp();
+                },
+                child: const Text('确定'),
+              ),
+            ],
+          ),
+        );
       }
     } else {
       UIUtils.showError('备份文件不存在或已损坏', title: '还原失败');

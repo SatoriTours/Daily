@@ -3,6 +3,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:daily_satori/app/routes/app_router.dart';
 
 class AppNavigation {
@@ -40,5 +41,10 @@ class AppNavigation {
   static Future<T?> offAllNamed<T>(String routeName, {Object? arguments}) async {
     appRouter.go(routeName, extra: arguments);
     return null;
+  }
+
+  /// 退出应用
+  static void exitApp() {
+    SystemNavigator.pop();
   }
 }
