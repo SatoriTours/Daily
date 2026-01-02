@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/pages/ai_config_edit/providers/ai_config_edit_controller_provider.dart';
@@ -30,7 +31,9 @@ class _AIConfigEditViewState extends ConsumerState<AIConfigEditView> {
 
     // Initialize state from arguments
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      // 从 go_router 获取路由参数
+      final state = GoRouterState.of(context);
+      final args = state.extra as Map<String, dynamic>?;
       if (args != null) {
         final config = args['aiConfig'] as AIConfig?;
         final functionType = args['functionType'] as int?;

@@ -108,6 +108,88 @@ showError('错误信息');
 showSuccess('操作成功');
 ```
 
+## 🧭 路由导航规范
+
+> 项目使用 `go_router` 进行路由管理
+
+### 导航方式
+
+```dart
+// ✅ 推荐：使用 AppNavigation 统一导航
+import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_routes.dart';
+
+// 跳转到命名路由
+AppNavigation.toNamed(Routes.settings);
+
+// 跳转并传递参数
+AppNavigation.toNamed(Routes.articleDetail, arguments: article);
+
+// 返回上一页
+AppNavigation.back();
+
+// 替换当前路由
+AppNavigation.offNamed(Routes.home);
+
+// 清空所有路由并跳转
+AppNavigation.offAllNamed(Routes.home);
+```
+
+### 接收路由参数
+
+```dart
+import 'package:go_router/go_router.dart';
+
+@override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  // ✅ 使用 GoRouterState 接收参数
+  final state = GoRouterState.of(context);
+  final arguments = state.extra;
+
+  if (arguments != null) {
+    // 使用参数...
+  }
+}
+```
+
+### 路由配置
+
+所有路由在 `lib/app/routes/app_router.dart` 中集中配置：
+
+```dart
+GoRoute(
+  path: Routes.home,
+  name: RouteNames.home,
+  builder: (context, state) => const HomeView(),
+)
+```
+
+### 严禁
+
+- ❌ 直接使用 `Navigator.pushNamed`（除对话框外）
+- ❌ 使用 `ModalRoute.of(context)?.settings.arguments` 获取参数
+- ❌ 硬编码路由路径字符串（应使用 `Routes.*` 常量）
+
+### 对话框导航
+
+对话框和底部表单可以直接使用 `Navigator.pop(context)`：
+
+```dart
+// ✅ 关闭对话框
+showDialog(
+  context: context,
+  builder: (context) => AlertDialog(
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),  // ✅ 允许
+        child: Text('关闭'),
+      ),
+    ],
+  ),
+);
+```
+
 ## ⚠️ 安全与隐私
 
 - ✅ 敏感信息存储于 `SettingRepository`
@@ -125,3 +207,6 @@ showSuccess('操作成功');
 - [ ] View 中不直接调用 Repository/Service
 - [ ] freezed 模型中的 getter 只做纯计算
 - [ ] 无 `dynamic` 类型，使用明确类型
+- [ ] 使用 `AppNavigation` 进行路由跳转
+- [ ] 使用 `GoRouterState.of(context).extra` 接收路由参数
+- [ ] 路由路径使用 `Routes.*` 常量

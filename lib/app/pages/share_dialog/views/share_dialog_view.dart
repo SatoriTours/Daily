@@ -4,6 +4,7 @@ import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:daily_satori/app/pages/share_dialog/providers/share_dialog_controller_provider.dart';
 
 import 'package:flutter/services.dart';
@@ -22,7 +23,9 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    // 从 go_router 获取路由参数
+    final state = GoRouterState.of(context);
+    final args = state.extra as Map<String, dynamic>?;
     if (args != null) {
       // 使用 Future.microtask 避免在构建过程中修改状态
       Future.microtask(() => ref.read(shareDialogControllerProvider.notifier).initialize(args));

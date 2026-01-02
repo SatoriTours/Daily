@@ -107,7 +107,7 @@ class _BooksAppBar extends ConsumerWidget implements PreferredSizeWidget {
       actions: [
         IconButton(
           icon: const Icon(Icons.add, size: Dimensions.iconSizeM),
-          onPressed: () => Navigator.of(context).pushNamed(Routes.bookSearch),
+          onPressed: () => AppNavigation.toNamed(Routes.bookSearch),
           tooltip: 'tooltip.add_book'.t,
         ),
         PopupMenuButton<String>(

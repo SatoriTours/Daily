@@ -5,6 +5,7 @@ import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/data/setting/setting_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_routes.dart';
 
 /// 支持的语言枚举
 enum SupportedLanguage {
@@ -179,8 +180,8 @@ class I18nService implements AppService {
 
   /// 重启应用
   void _restartApp(BuildContext context) {
-    // 使用 Navigator 推送一个新路由并替换所有路由，模拟重启效果
-    Navigator.of(context).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
+    // 使用 go_router 导航到首页，模拟重启效果
+    AppNavigation.offAllNamed(Routes.home);
   }
 
   /// 获取所有支持的语言列表

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:daily_satori/app/pages/article_detail/providers/article_detail_controller_provider.dart';
 import 'package:daily_satori/app/data/index.dart' show ArticleStatus, ArticleModel;
 import 'package:daily_satori/app/styles/index.dart';
@@ -28,8 +29,9 @@ class _ArticleDetailViewState extends ConsumerState<ArticleDetailView> {
     super.didChangeDependencies();
     if (!_isLoaded) {
       _isLoaded = true;
-      // 从路由参数获取文章信息并加载
-      final arguments = ModalRoute.of(context)?.settings.arguments;
+      // 从 go_router 获取路由参数
+      final state = GoRouterState.of(context);
+      final arguments = state.extra;
       if (arguments != null) {
         // 延迟执行以避免在 widget 构建阶段修改 Provider 状态
         Future(() {
