@@ -5,7 +5,7 @@ import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/providers/first_launch_provider.dart';
-import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 
 /// 备份恢复页面
 class BackupRestoreView extends ConsumerWidget {

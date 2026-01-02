@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/components/index.dart';
 import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/styles/index.dart';

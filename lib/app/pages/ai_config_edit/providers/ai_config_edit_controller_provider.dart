@@ -15,7 +15,7 @@ import 'package:daily_satori/app/services/index.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
-import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 
 part 'ai_config_edit_controller_provider.freezed.dart';
 part 'ai_config_edit_controller_provider.g.dart';

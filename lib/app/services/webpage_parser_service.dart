@@ -154,8 +154,8 @@ class WebpageParserService {
     }
   }
 
-  /// 处理AI任务阶段：处理标题、摘要、Markdown和图片
-  Future<void> _processAiTasks(ArticleModel article) async {
+  /// 处理AI任务阶段：处理标题、摘要、Markdown和图片（公开方法，用于恢复中断的任务）
+  Future<void> processAiTasks(ArticleModel article) async {
     logger.i("[AI处理] 开始 - 文章ID=${article.id}");
 
     try {
@@ -176,6 +176,11 @@ class WebpageParserService {
       logger.e("[AI处理] 失败 - 文章ID=${article.id}, 错误: $e");
       await _markArticleAsFailed(article.id, "AI处理失败: $e");
     }
+  }
+
+  /// 处理AI任务（内部使用）
+  Future<void> _processAiTasks(ArticleModel article) async {
+    await processAiTasks(article);
   }
 
   // ====================== AI处理相关方法 ======================

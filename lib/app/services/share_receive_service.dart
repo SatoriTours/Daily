@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:flutter/services.dart';
 
 import 'package:daily_satori/app/routes/app_routes.dart';

@@ -20,4 +20,4 @@ export 'app/services/services.dart';
 // 导出常用路由
 export 'app/routes/app_routes.dart';
 // 导出导航服务（替换 GetX 导航）
-export 'app/navigation/app_navigation.dart';
+export 'app/routes/app_navigation.dart';

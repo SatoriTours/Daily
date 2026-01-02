@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/weekly_summary/providers/weekly_summary_controller_provider.dart';

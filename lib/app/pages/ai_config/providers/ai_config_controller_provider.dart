@@ -9,7 +9,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/services/index.dart';
-import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
 
 part 'ai_config_controller_provider.freezed.dart';

@@ -4,7 +4,7 @@ import 'package:yaml/yaml.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/data/setting/setting_repository.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
 
 /// 支持的语言枚举

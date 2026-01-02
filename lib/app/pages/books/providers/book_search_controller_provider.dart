@@ -11,7 +11,7 @@ import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/services/index.dart';
 import 'package:daily_satori/app/utils/utils.dart';
-import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 
 part 'book_search_controller_provider.freezed.dart';
 part 'book_search_controller_provider.g.dart';

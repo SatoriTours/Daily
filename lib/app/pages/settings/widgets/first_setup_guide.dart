@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/providers/first_launch_provider.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
