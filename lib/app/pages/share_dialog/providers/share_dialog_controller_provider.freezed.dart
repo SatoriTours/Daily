@@ -17,7 +17,8 @@ mixin _$ShareDialogControllerState {
 /// 分享URL
  String get shareURL;/// 是否是更新模式
  bool get isUpdate;/// 是否从剪切板来的
- bool get fromClipboard;/// 文章ID
+ bool get fromClipboard;/// 是否从其他app分享来的
+ bool get fromShare;/// 文章ID
  int get articleID;/// 文章标题
  String get articleTitle;/// 文章标签
  String get articleTags;/// 标签列表
@@ -34,16 +35,16 @@ $ShareDialogControllerStateCopyWith<ShareDialogControllerState> get copyWith => 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ShareDialogControllerState&&(identical(other.shareURL, shareURL) || other.shareURL == shareURL)&&(identical(other.isUpdate, isUpdate) || other.isUpdate == isUpdate)&&(identical(other.fromClipboard, fromClipboard) || other.fromClipboard == fromClipboard)&&(identical(other.articleID, articleID) || other.articleID == articleID)&&(identical(other.articleTitle, articleTitle) || other.articleTitle == articleTitle)&&(identical(other.articleTags, articleTags) || other.articleTags == articleTags)&&const DeepCollectionEquality().equals(other.tagList, tagList)&&(identical(other.refreshAndAnalyze, refreshAndAnalyze) || other.refreshAndAnalyze == refreshAndAnalyze)&&(identical(other.titleEdited, titleEdited) || other.titleEdited == titleEdited));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ShareDialogControllerState&&(identical(other.shareURL, shareURL) || other.shareURL == shareURL)&&(identical(other.isUpdate, isUpdate) || other.isUpdate == isUpdate)&&(identical(other.fromClipboard, fromClipboard) || other.fromClipboard == fromClipboard)&&(identical(other.fromShare, fromShare) || other.fromShare == fromShare)&&(identical(other.articleID, articleID) || other.articleID == articleID)&&(identical(other.articleTitle, articleTitle) || other.articleTitle == articleTitle)&&(identical(other.articleTags, articleTags) || other.articleTags == articleTags)&&const DeepCollectionEquality().equals(other.tagList, tagList)&&(identical(other.refreshAndAnalyze, refreshAndAnalyze) || other.refreshAndAnalyze == refreshAndAnalyze)&&(identical(other.titleEdited, titleEdited) || other.titleEdited == titleEdited));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,shareURL,isUpdate,fromClipboard,articleID,articleTitle,articleTags,const DeepCollectionEquality().hash(tagList),refreshAndAnalyze,titleEdited);
+int get hashCode => Object.hash(runtimeType,shareURL,isUpdate,fromClipboard,fromShare,articleID,articleTitle,articleTags,const DeepCollectionEquality().hash(tagList),refreshAndAnalyze,titleEdited);
 
 @override
 String toString() {
-  return 'ShareDialogControllerState(shareURL: $shareURL, isUpdate: $isUpdate, fromClipboard: $fromClipboard, articleID: $articleID, articleTitle: $articleTitle, articleTags: $articleTags, tagList: $tagList, refreshAndAnalyze: $refreshAndAnalyze, titleEdited: $titleEdited)';
+  return 'ShareDialogControllerState(shareURL: $shareURL, isUpdate: $isUpdate, fromClipboard: $fromClipboard, fromShare: $fromShare, articleID: $articleID, articleTitle: $articleTitle, articleTags: $articleTags, tagList: $tagList, refreshAndAnalyze: $refreshAndAnalyze, titleEdited: $titleEdited)';
 }
 
 
@@ -54,7 +55,7 @@ abstract mixin class $ShareDialogControllerStateCopyWith<$Res>  {
   factory $ShareDialogControllerStateCopyWith(ShareDialogControllerState value, $Res Function(ShareDialogControllerState) _then) = _$ShareDialogControllerStateCopyWithImpl;
 @useResult
 $Res call({
- String shareURL, bool isUpdate, bool fromClipboard, int articleID, String articleTitle, String articleTags, List<String> tagList, bool refreshAndAnalyze, bool titleEdited
+ String shareURL, bool isUpdate, bool fromClipboard, bool fromShare, int articleID, String articleTitle, String articleTags, List<String> tagList, bool refreshAndAnalyze, bool titleEdited
 });
 
 
@@ -71,11 +72,12 @@ class _$ShareDialogControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of ShareDialogControllerState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? shareURL = null,Object? isUpdate = null,Object? fromClipboard = null,Object? articleID = null,Object? articleTitle = null,Object? articleTags = null,Object? tagList = null,Object? refreshAndAnalyze = null,Object? titleEdited = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? shareURL = null,Object? isUpdate = null,Object? fromClipboard = null,Object? fromShare = null,Object? articleID = null,Object? articleTitle = null,Object? articleTags = null,Object? tagList = null,Object? refreshAndAnalyze = null,Object? titleEdited = null,}) {
   return _then(_self.copyWith(
 shareURL: null == shareURL ? _self.shareURL : shareURL // ignore: cast_nullable_to_non_nullable
 as String,isUpdate: null == isUpdate ? _self.isUpdate : isUpdate // ignore: cast_nullable_to_non_nullable
 as bool,fromClipboard: null == fromClipboard ? _self.fromClipboard : fromClipboard // ignore: cast_nullable_to_non_nullable
+as bool,fromShare: null == fromShare ? _self.fromShare : fromShare // ignore: cast_nullable_to_non_nullable
 as bool,articleID: null == articleID ? _self.articleID : articleID // ignore: cast_nullable_to_non_nullable
 as int,articleTitle: null == articleTitle ? _self.articleTitle : articleTitle // ignore: cast_nullable_to_non_nullable
 as String,articleTags: null == articleTags ? _self.articleTags : articleTags // ignore: cast_nullable_to_non_nullable
@@ -167,10 +169,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String shareURL,  bool isUpdate,  bool fromClipboard,  int articleID,  String articleTitle,  String articleTags,  List<String> tagList,  bool refreshAndAnalyze,  bool titleEdited)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String shareURL,  bool isUpdate,  bool fromClipboard,  bool fromShare,  int articleID,  String articleTitle,  String articleTags,  List<String> tagList,  bool refreshAndAnalyze,  bool titleEdited)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ShareDialogControllerState() when $default != null:
-return $default(_that.shareURL,_that.isUpdate,_that.fromClipboard,_that.articleID,_that.articleTitle,_that.articleTags,_that.tagList,_that.refreshAndAnalyze,_that.titleEdited);case _:
+return $default(_that.shareURL,_that.isUpdate,_that.fromClipboard,_that.fromShare,_that.articleID,_that.articleTitle,_that.articleTags,_that.tagList,_that.refreshAndAnalyze,_that.titleEdited);case _:
   return orElse();
 
 }
@@ -188,10 +190,10 @@ return $default(_that.shareURL,_that.isUpdate,_that.fromClipboard,_that.articleI
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String shareURL,  bool isUpdate,  bool fromClipboard,  int articleID,  String articleTitle,  String articleTags,  List<String> tagList,  bool refreshAndAnalyze,  bool titleEdited)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String shareURL,  bool isUpdate,  bool fromClipboard,  bool fromShare,  int articleID,  String articleTitle,  String articleTags,  List<String> tagList,  bool refreshAndAnalyze,  bool titleEdited)  $default,) {final _that = this;
 switch (_that) {
 case _ShareDialogControllerState():
-return $default(_that.shareURL,_that.isUpdate,_that.fromClipboard,_that.articleID,_that.articleTitle,_that.articleTags,_that.tagList,_that.refreshAndAnalyze,_that.titleEdited);case _:
+return $default(_that.shareURL,_that.isUpdate,_that.fromClipboard,_that.fromShare,_that.articleID,_that.articleTitle,_that.articleTags,_that.tagList,_that.refreshAndAnalyze,_that.titleEdited);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -208,10 +210,10 @@ return $default(_that.shareURL,_that.isUpdate,_that.fromClipboard,_that.articleI
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String shareURL,  bool isUpdate,  bool fromClipboard,  int articleID,  String articleTitle,  String articleTags,  List<String> tagList,  bool refreshAndAnalyze,  bool titleEdited)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String shareURL,  bool isUpdate,  bool fromClipboard,  bool fromShare,  int articleID,  String articleTitle,  String articleTags,  List<String> tagList,  bool refreshAndAnalyze,  bool titleEdited)?  $default,) {final _that = this;
 switch (_that) {
 case _ShareDialogControllerState() when $default != null:
-return $default(_that.shareURL,_that.isUpdate,_that.fromClipboard,_that.articleID,_that.articleTitle,_that.articleTags,_that.tagList,_that.refreshAndAnalyze,_that.titleEdited);case _:
+return $default(_that.shareURL,_that.isUpdate,_that.fromClipboard,_that.fromShare,_that.articleID,_that.articleTitle,_that.articleTags,_that.tagList,_that.refreshAndAnalyze,_that.titleEdited);case _:
   return null;
 
 }
@@ -223,7 +225,7 @@ return $default(_that.shareURL,_that.isUpdate,_that.fromClipboard,_that.articleI
 
 
 class _ShareDialogControllerState implements ShareDialogControllerState {
-  const _ShareDialogControllerState({this.shareURL = '', this.isUpdate = false, this.fromClipboard = false, this.articleID = 0, this.articleTitle = '', this.articleTags = '', final  List<String> tagList = const [], this.refreshAndAnalyze = true, this.titleEdited = false}): _tagList = tagList;
+  const _ShareDialogControllerState({this.shareURL = '', this.isUpdate = false, this.fromClipboard = false, this.fromShare = false, this.articleID = 0, this.articleTitle = '', this.articleTags = '', final  List<String> tagList = const [], this.refreshAndAnalyze = true, this.titleEdited = false}): _tagList = tagList;
   
 
 /// 分享URL
@@ -232,6 +234,8 @@ class _ShareDialogControllerState implements ShareDialogControllerState {
 @override@JsonKey() final  bool isUpdate;
 /// 是否从剪切板来的
 @override@JsonKey() final  bool fromClipboard;
+/// 是否从其他app分享来的
+@override@JsonKey() final  bool fromShare;
 /// 文章ID
 @override@JsonKey() final  int articleID;
 /// 文章标题
@@ -262,16 +266,16 @@ _$ShareDialogControllerStateCopyWith<_ShareDialogControllerState> get copyWith =
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ShareDialogControllerState&&(identical(other.shareURL, shareURL) || other.shareURL == shareURL)&&(identical(other.isUpdate, isUpdate) || other.isUpdate == isUpdate)&&(identical(other.fromClipboard, fromClipboard) || other.fromClipboard == fromClipboard)&&(identical(other.articleID, articleID) || other.articleID == articleID)&&(identical(other.articleTitle, articleTitle) || other.articleTitle == articleTitle)&&(identical(other.articleTags, articleTags) || other.articleTags == articleTags)&&const DeepCollectionEquality().equals(other._tagList, _tagList)&&(identical(other.refreshAndAnalyze, refreshAndAnalyze) || other.refreshAndAnalyze == refreshAndAnalyze)&&(identical(other.titleEdited, titleEdited) || other.titleEdited == titleEdited));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ShareDialogControllerState&&(identical(other.shareURL, shareURL) || other.shareURL == shareURL)&&(identical(other.isUpdate, isUpdate) || other.isUpdate == isUpdate)&&(identical(other.fromClipboard, fromClipboard) || other.fromClipboard == fromClipboard)&&(identical(other.fromShare, fromShare) || other.fromShare == fromShare)&&(identical(other.articleID, articleID) || other.articleID == articleID)&&(identical(other.articleTitle, articleTitle) || other.articleTitle == articleTitle)&&(identical(other.articleTags, articleTags) || other.articleTags == articleTags)&&const DeepCollectionEquality().equals(other._tagList, _tagList)&&(identical(other.refreshAndAnalyze, refreshAndAnalyze) || other.refreshAndAnalyze == refreshAndAnalyze)&&(identical(other.titleEdited, titleEdited) || other.titleEdited == titleEdited));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,shareURL,isUpdate,fromClipboard,articleID,articleTitle,articleTags,const DeepCollectionEquality().hash(_tagList),refreshAndAnalyze,titleEdited);
+int get hashCode => Object.hash(runtimeType,shareURL,isUpdate,fromClipboard,fromShare,articleID,articleTitle,articleTags,const DeepCollectionEquality().hash(_tagList),refreshAndAnalyze,titleEdited);
 
 @override
 String toString() {
-  return 'ShareDialogControllerState(shareURL: $shareURL, isUpdate: $isUpdate, fromClipboard: $fromClipboard, articleID: $articleID, articleTitle: $articleTitle, articleTags: $articleTags, tagList: $tagList, refreshAndAnalyze: $refreshAndAnalyze, titleEdited: $titleEdited)';
+  return 'ShareDialogControllerState(shareURL: $shareURL, isUpdate: $isUpdate, fromClipboard: $fromClipboard, fromShare: $fromShare, articleID: $articleID, articleTitle: $articleTitle, articleTags: $articleTags, tagList: $tagList, refreshAndAnalyze: $refreshAndAnalyze, titleEdited: $titleEdited)';
 }
 
 
@@ -282,7 +286,7 @@ abstract mixin class _$ShareDialogControllerStateCopyWith<$Res> implements $Shar
   factory _$ShareDialogControllerStateCopyWith(_ShareDialogControllerState value, $Res Function(_ShareDialogControllerState) _then) = __$ShareDialogControllerStateCopyWithImpl;
 @override @useResult
 $Res call({
- String shareURL, bool isUpdate, bool fromClipboard, int articleID, String articleTitle, String articleTags, List<String> tagList, bool refreshAndAnalyze, bool titleEdited
+ String shareURL, bool isUpdate, bool fromClipboard, bool fromShare, int articleID, String articleTitle, String articleTags, List<String> tagList, bool refreshAndAnalyze, bool titleEdited
 });
 
 
@@ -299,11 +303,12 @@ class __$ShareDialogControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of ShareDialogControllerState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? shareURL = null,Object? isUpdate = null,Object? fromClipboard = null,Object? articleID = null,Object? articleTitle = null,Object? articleTags = null,Object? tagList = null,Object? refreshAndAnalyze = null,Object? titleEdited = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? shareURL = null,Object? isUpdate = null,Object? fromClipboard = null,Object? fromShare = null,Object? articleID = null,Object? articleTitle = null,Object? articleTags = null,Object? tagList = null,Object? refreshAndAnalyze = null,Object? titleEdited = null,}) {
   return _then(_ShareDialogControllerState(
 shareURL: null == shareURL ? _self.shareURL : shareURL // ignore: cast_nullable_to_non_nullable
 as String,isUpdate: null == isUpdate ? _self.isUpdate : isUpdate // ignore: cast_nullable_to_non_nullable
 as bool,fromClipboard: null == fromClipboard ? _self.fromClipboard : fromClipboard // ignore: cast_nullable_to_non_nullable
+as bool,fromShare: null == fromShare ? _self.fromShare : fromShare // ignore: cast_nullable_to_non_nullable
 as bool,articleID: null == articleID ? _self.articleID : articleID // ignore: cast_nullable_to_non_nullable
 as int,articleTitle: null == articleTitle ? _self.articleTitle : articleTitle // ignore: cast_nullable_to_non_nullable
 as String,articleTags: null == articleTags ? _self.articleTags : articleTags // ignore: cast_nullable_to_non_nullable

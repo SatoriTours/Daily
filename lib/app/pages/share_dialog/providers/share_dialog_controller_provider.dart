@@ -6,6 +6,7 @@ library;
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -32,6 +33,9 @@ abstract class ShareDialogControllerState with _$ShareDialogControllerState {
 
     /// 是否从剪切板来的
     @Default(false) bool fromClipboard,
+
+    /// 是否从其他app分享来的
+    @Default(false) bool fromShare,
 
     /// 文章ID
     @Default(0) int articleID,
@@ -82,6 +86,12 @@ class ShareDialogController extends _$ShareDialogController {
     if (args.containsKey('fromClipboard') && args['fromClipboard'] == true) {
       state = state.copyWith(fromClipboard: true);
       logger.i("来源: 剪切板");
+    }
+
+    // 检查是否从其他app分享来的
+    if (args.containsKey('fromShare') && args['fromShare'] == true) {
+      state = state.copyWith(fromShare: true);
+      logger.i("来源: 其他app分享");
     }
 
     // 初始化分享URL
@@ -221,9 +231,19 @@ class ShareDialogController extends _$ShareDialogController {
       // 使用 popUntil 返回到详情页，而不是 push 新页面
       Navigator.of(context).pop();
     } else {
-      // 新增模式：关闭分享对话框，导航到详情页
+      // 新增模式：关闭分享对话框
       Navigator.of(context).pop();
-      _navigateToDetail();
+
+      // 根据来源决定后续行为
+      if (state.fromShare) {
+        // 从其他app分享来的：返回上个app（使用 SystemNavigator.pop）
+        logger.i('[ShareDialog] 从其他app分享，返回上个app');
+        SystemNavigator.pop();
+      } else {
+        // 从剪贴板检测或手动打开：导航到详情页
+        logger.i('[ShareDialog] 从剪贴板或手动打开，进入详情页');
+        _navigateToDetail();
+      }
     }
   }
 

@@ -41,8 +41,8 @@ class ShareReceiveService {
     final url = _extractUrlFromText(sharedText);
     if (url.isEmpty) return;
 
-    // 直接处理分享内容
-    await AppNavigation.toNamed(Routes.shareDialog, arguments: {'shareURL': url});
+    // 传递 fromShare=true 标记，表示从其他app分享来的
+    await AppNavigation.toNamed(Routes.shareDialog, arguments: {'shareURL': url, 'fromShare': true});
   }
 
   /// 从文本中提取URL
