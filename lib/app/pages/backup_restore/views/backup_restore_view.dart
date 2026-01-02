@@ -1,10 +1,12 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/backup_restore/providers/backup_restore_controller_provider.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/providers/first_launch_provider.dart';
+import 'package:daily_satori/app/navigation/app_navigation.dart';
+import 'package:daily_satori/app/routes/app_routes.dart';
 
 /// 备份恢复页面
 class BackupRestoreView extends ConsumerWidget {
@@ -95,20 +97,19 @@ class BackupRestoreView extends ConsumerWidget {
     final result = await ref.read(backupRestoreControllerProvider.notifier).restoreBackup();
     if (result) {
       UIUtils.showSuccess('备份文件已成功还原', title: '还原成功');
+
+      // 刷新首次启动状态，以便检查配置是否已完成
+      ref.invalidate(firstLaunchControllerProvider);
+
+      // 等待一段时间让用户看到成功提示
+      await Future.delayed(const Duration(seconds: 1));
+
+      // 导航回首页并清空路由栈
+      if (context.mounted) {
+        AppNavigation.offAllNamed(Routes.home);
+      }
     } else {
       UIUtils.showError('备份文件不存在或已损坏', title: '还原失败');
-    }
-
-    if (AppInfoUtils.isProduction && result) {
-      await DialogUtils.showConfirm(
-        title: '重启应用',
-        message: '需要重启应用以完成还原，点击确定重启应用',
-        confirmText: '确定',
-        cancelText: '取消',
-        onConfirm: () {
-          exit(0);
-        },
-      );
     }
   }
 }

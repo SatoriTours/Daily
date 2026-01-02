@@ -45,7 +45,7 @@ final class BookSearchControllerProvider
 }
 
 String _$bookSearchControllerHash() =>
-    r'47de13f28532d6187e32ce80b952297b12b01c28';
+    r'fa34d7a00428b9d8363333076881ab33b477fb41';
 
 /// BookSearchController Provider
 

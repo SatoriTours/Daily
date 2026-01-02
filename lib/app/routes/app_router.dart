@@ -5,6 +5,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
 
 import 'package:daily_satori/app/pages/home/views/home_view.dart';
@@ -23,15 +24,47 @@ import 'package:daily_satori/app/pages/backup_restore/views/backup_restore_view.
 import 'package:daily_satori/app/pages/backup_settings/views/backup_settings_view.dart';
 import 'package:daily_satori/app/pages/plugin_center/views/plugin_center_view.dart';
 import 'package:daily_satori/app/pages/left_bar/views/left_bar_view.dart';
+import 'package:daily_satori/app/providers/first_launch_provider.dart';
 
 /// 全局 Navigator Key
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 /// GoRouter 实例
+///
+/// 注意：此路由需要在 ProviderScope 内部使用，请通过 routerProvider 访问
 final GoRouter appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
   initialLocation: Routes.home,
   debugLogDiagnostics: false,
+  redirect: (context, state) {
+    // 获取 ProviderContainer
+    final container = ProviderScope.containerOf(context);
+    final firstLaunchState = container.read(firstLaunchControllerProvider);
+
+    // 配置已完成，允许正常访问
+    if (firstLaunchState.isSetupComplete) {
+      return null;
+    }
+
+    // 配置未完成时，只允许访问以下页面
+    final allowedPaths = [
+      Routes.settings,
+      Routes.aiConfig,
+      Routes.aiConfigEdit,
+      Routes.backupSettings,
+      Routes.backupRestore, // 允许访问恢复备份页面
+    ];
+
+    final currentPath = state.uri.path;
+
+    // 如果当前路径在允许列表中，允许访问
+    if (allowedPaths.contains(currentPath)) {
+      return null;
+    }
+
+    // 其他路径都重定向到设置页面
+    return Routes.settings;
+  },
   routes: [
     GoRoute(path: Routes.home, name: RouteNames.home, builder: (context, state) => const HomeView()),
     GoRoute(path: Routes.articles, name: RouteNames.articles, builder: (context, state) => const ArticlesView()),

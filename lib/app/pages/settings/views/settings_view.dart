@@ -7,6 +7,8 @@ import 'package:daily_satori/app/utils/dialog_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/settings/providers/settings_controller_provider.dart';
+import 'package:daily_satori/app/pages/settings/widgets/first_setup_guide.dart';
+import 'package:daily_satori/app/providers/first_launch_provider.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
@@ -18,17 +20,48 @@ import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 /// 提供应用的主要设置功能,包括：
 /// - 功能设置：AI配置、插件管理
 /// - 系统管理：备份恢复、Web服务器、版本更新
-class SettingsView extends ConsumerWidget {
+class SettingsView extends ConsumerStatefulWidget {
   const SettingsView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(settingsControllerProvider);
+  ConsumerState<SettingsView> createState() => _SettingsViewState();
+}
 
-    return Scaffold(
-      backgroundColor: AppTheme.getColorScheme(context).surface,
-      appBar: _buildAppBar(context, ref),
-      body: state.isPageLoading ? StyleGuide.getLoadingState(context) : _buildSettingsList(context, ref),
+class _SettingsViewState extends ConsumerState<SettingsView> {
+  @override
+  void initState() {
+    super.initState();
+    // 延迟刷新状态，确保页面完全加载后检查
+    Future.microtask(() {
+      ref.invalidate(firstLaunchControllerProvider);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(settingsControllerProvider);
+    final firstLaunchState = ref.watch(firstLaunchControllerProvider);
+
+    return PopScope(
+      // 禁止返回键（在首次配置期间）
+      canPop: firstLaunchState.isSetupComplete,
+      child: Scaffold(
+        backgroundColor: AppTheme.getColorScheme(context).surface,
+        appBar: _buildAppBar(context, ref),
+        body: state.isPageLoading
+            ? StyleGuide.getLoadingState(context)
+            : SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  children: [
+                    // 首次设置引导
+                    const FirstSetupGuide(),
+                    // 设置列表
+                    _buildSettingsList(context, ref),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 
@@ -60,17 +93,9 @@ class SettingsView extends ConsumerWidget {
     final state = ref.watch(settingsControllerProvider);
     return Column(
       children: [
-        Expanded(
-          child: ListView(
-            physics: const BouncingScrollPhysics(),
-            padding: Dimensions.paddingM,
-            children: [
-              _buildFunctionSection(context, ref),
-              _buildSystemSection(context, ref, state),
-              Dimensions.verticalSpacerL,
-            ],
-          ),
-        ),
+        _buildFunctionSection(context, ref),
+        _buildSystemSection(context, ref, state),
+        Dimensions.verticalSpacerL,
         _buildVersionInfo(context, state),
         Dimensions.verticalSpacerM,
       ],
