@@ -21,6 +21,7 @@ import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/share_receive_service.dart';
 import 'package:daily_satori/app/services/clipboard_monitor_service.dart';
 import 'package:daily_satori/app/services/i18n/i18n_service.dart';
+import 'package:daily_satori/app/services/article_recovery_service.dart';
 
 class ServiceStatus {
   final AppService service;
@@ -169,15 +170,19 @@ class ServiceRegistry {
         onInit: () => PluginService.i.init(),
       ),
     );
-    register(
-      FunctionAppService(
-        serviceName: 'WebService',
-        priority: ServicePriority.normal,
-        onInit: () => WebService.i.init(),
-      ),
-    );
 
     // 低优先级
+    register(
+      FunctionAppService(serviceName: 'WebService', priority: ServicePriority.low, onInit: () => WebService.i.init()),
+    );
+
+    register(
+      FunctionAppService(
+        serviceName: 'ArticleRecoveryService',
+        priority: ServicePriority.low,
+        onInit: () => ArticleRecoveryService.i.init(),
+      ),
+    );
     register(
       FunctionAppService(
         serviceName: 'AppUpgradeService',
@@ -231,8 +236,18 @@ class ServiceRegistry {
     // low PostFrame 由上层触发，这里不做
   }
 
-  /// 初始化低优先级
+  /// 初始化低优先级服务
+  ///
+  /// 注意：低优先级服务仅在 AI 已配置时才会执行
+  /// 使用 AiService.i.isAiEnabled(0) 检查默认 AI 配置是否有效
   void initializeLowPriority() {
+    // 检查 AI 是否已配置（使用默认配置 functionType = 0）
+    if (!AiService.i.isAiEnabled(0)) {
+      logger.i("[ServiceRegistry] AI 未配置，跳过低优先级服务初始化");
+      return;
+    }
+
+    logger.i("[ServiceRegistry] 开始初始化低优先级服务");
     for (final s in _by(ServicePriority.low)) {
       // fire and forget
       unawaited(_safeInit(s, critical: false));

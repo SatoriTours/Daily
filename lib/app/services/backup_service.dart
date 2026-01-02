@@ -68,9 +68,6 @@ class BackupService {
     // 检查并修复图片路径（用于备份恢复后首次启动）
     await _fixImagePathsIfNeeded();
 
-    // 恢复未完成的 AI 任务
-    _resumePendingAiTasks();
-
     checkAndBackup();
   }
 
@@ -84,28 +81,6 @@ class BackupService {
     } catch (e) {
       logger.w("修复图片路径时出错: $e");
     }
-  }
-
-  /// 恢复未完成的 AI 任务
-  void _resumePendingAiTasks() {
-    Future.microtask(() async {
-      try {
-        final pendingArticles = ArticleRepository.i.findAllPending();
-        if (pendingArticles.isEmpty) return;
-
-        logger.i("发现 ${pendingArticles.length} 篇未完成的文章，自动恢复 AI 处理");
-
-        for (final article in pendingArticles) {
-          // 如果文章已经获取到内容，但还未完成 AI 处理
-          if (article.status == ArticleStatus.webContentFetched) {
-            logger.i("恢复文章 AI 处理: ${article.id} - ${article.title}");
-            await WebpageParserService.i.processAiTasks(article);
-          }
-        }
-      } catch (e) {
-        logger.e("恢复 AI 任务失败: $e");
-      }
-    });
   }
 
   // 检查并执行备份
