@@ -12,6 +12,11 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
 
   const ArticleDetailAppBar({super.key, required this.articleId, required this.article});
 
+  bool get _isProcessing {
+    final st = article?.status ?? ArticleStatus.pending;
+    return st == ArticleStatus.pending || st == ArticleStatus.webContentFetched;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = AppTheme.getTextTheme(context);
@@ -22,7 +27,26 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
         style: textTheme.titleLarge?.copyWith(color: Colors.white),
       ),
       centerTitle: true,
-      actions: [_buildAppBarActions(context, ref)],
+      actions: [
+        _buildLoadingIndicator(),
+        _buildAppBarActions(context, ref),
+      ],
+    );
+  }
+
+  Widget _buildLoadingIndicator() {
+    if (!_isProcessing) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(right: Dimensions.spacingS),
+      child: SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: Colors.white.withValues(alpha: 0.8),
+        ),
+      ),
     );
   }
 
