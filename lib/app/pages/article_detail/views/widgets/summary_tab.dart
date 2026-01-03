@@ -44,7 +44,7 @@ class SummaryTab extends ConsumerWidget {
               Dimensions.spacingL,
               Dimensions.spacingM,
             ),
-            child: Text(article!.showTitle(), style: AppTheme.getTextTheme(context).headlineMedium),
+            child: Text(article!.showTitle(), style: AppTheme.getTextTheme(context).titleLarge),
           ),
 
           // 标签区域
@@ -85,7 +85,14 @@ class SummaryTab extends ConsumerWidget {
       children: [
         // 如果有独立的摘要部分，先显示
         if (sections['summary']?.isNotEmpty ?? false) ...[
-          Text(sections['summary']!, style: textTheme.bodyLarge?.copyWith(height: 1.8, color: colorScheme.onSurface)),
+          Text(
+            sections['summary']!,
+            style: AppTypography.bodyLarge.copyWith(
+              height: 1.8,
+              color: colorScheme.onSurface,
+              fontSize: AppTypography.bodyLarge.fontSize! + 1,
+            ),
+          ),
           if (sections['hasKeyPoints'] == true) Dimensions.verticalSpacerXl,
         ],
 
@@ -103,7 +110,13 @@ class SummaryTab extends ConsumerWidget {
         // 如果既没有摘要也没有核心观点，显示原始内容
         if ((sections['summary']?.isEmpty ?? true) &&
             (sections['hasKeyPoints'] == false || (sections['keyPoints'] as List).isEmpty)) ...[
-          Text(content, style: textTheme.bodyLarge?.copyWith(height: 1.8)),
+          Text(
+            content,
+            style: AppTypography.bodyLarge.copyWith(
+              height: 1.8,
+              fontSize: AppTypography.bodyLarge.fontSize! + 1,
+            ),
+          ),
         ],
       ],
     );
@@ -140,7 +153,14 @@ class SummaryTab extends ConsumerWidget {
           ),
           // 观点内容
           Expanded(
-            child: Text(cleanPoint, style: textTheme.bodyLarge?.copyWith(height: 1.8, color: colorScheme.onSurface)),
+            child: Text(
+              cleanPoint,
+              style: AppTypography.bodyLarge.copyWith(
+                height: 1.8,
+                color: colorScheme.onSurface,
+                fontSize: AppTypography.bodyLarge.fontSize! + 1,
+              ),
+            ),
           ),
         ],
       ),
