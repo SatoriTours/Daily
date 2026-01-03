@@ -64,40 +64,55 @@ class ArticleDetailView extends ConsumerWidget {
   Widget _buildProcessingBanner(BuildContext context, WidgetRef ref, ArticleModel? article) {
     final st = article?.status ?? ArticleStatus.pending;
     final busy = st == ArticleStatus.pending || st == ArticleStatus.webContentFetched;
-    return busy ? _buildProcessingIndicator(context) : const SizedBox.shrink();
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 1600),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SizeTransition(sizeFactor: animation, axisAlignment: -1.0, child: child),
+        );
+      },
+      child: busy
+          ? _buildProcessingIndicator(key: const ValueKey('processing'), context: context)
+          : const SizedBox(key: ValueKey('empty'), height: 0),
+    );
   }
 
   // 简洁处理指示器：更安静、不打扰的设计
-  Widget _buildProcessingIndicator(BuildContext context) {
+  Widget _buildProcessingIndicator({required Key key, required BuildContext context}) {
     final colorScheme = AppTheme.getColorScheme(context);
     final primaryColor = colorScheme.primary;
     final surfaceContainer = colorScheme.surfaceContainerHighest;
     final onSurfaceVariant = colorScheme.onSurfaceVariant;
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-        Dimensions.spacingM,
-        Dimensions.spacingM,
-        Dimensions.spacingM,
-        Dimensions.spacingS,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
-      decoration: BoxDecoration(
-        color: surfaceContainer,
-        borderRadius: BorderRadius.circular(Dimensions.radiusS),
-        border: Border(left: BorderSide(color: primaryColor, width: 3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // 静态图标
-          Icon(Icons.auto_awesome_outlined, size: Dimensions.iconSizeS, color: primaryColor),
-          const SizedBox(width: Dimensions.spacingS),
-          Text('AI 整理中...', style: AppTypography.bodySmall.copyWith(color: onSurfaceVariant)),
-          const SizedBox(width: Dimensions.spacingXs),
-          // 三个点动画
-          _BouncingDots(color: onSurfaceVariant),
-        ],
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(
+          Dimensions.spacingM,
+          Dimensions.spacingM,
+          Dimensions.spacingM,
+          Dimensions.spacingS,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+        decoration: BoxDecoration(
+          color: surfaceContainer,
+          borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          border: Border(left: BorderSide(color: primaryColor, width: 3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 静态图标
+            Icon(Icons.auto_awesome_outlined, size: Dimensions.iconSizeS, color: primaryColor),
+            const SizedBox(width: Dimensions.spacingS),
+            Text('AI 整理中...', style: AppTypography.bodySmall.copyWith(color: onSurfaceVariant)),
+            const SizedBox(width: Dimensions.spacingXs),
+            // 三个点动画
+            _BouncingDots(color: onSurfaceVariant),
+          ],
+        ),
       ),
     );
   }
