@@ -50,7 +50,7 @@ final class ArticleStateProvider
   }
 }
 
-String _$articleStateHash() => r'dbb16fda95f87169296126aead122b7d428d7447';
+String _$articleStateHash() => r'4c3ef1959b0aa64db222906201e4e61a384032ce';
 
 /// 文章状态 Provider
 ///

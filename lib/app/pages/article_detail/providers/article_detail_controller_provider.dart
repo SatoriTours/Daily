@@ -30,72 +30,62 @@ abstract class ArticleDetailControllerState with _$ArticleDetailControllerState 
 }
 
 /// ArticleDetailController Provider
+/// 参数为 int 类型的文章 ID
 @riverpod
 class ArticleDetailController extends _$ArticleDetailController {
   @override
-  ArticleDetailControllerState build() {
+  ArticleDetailControllerState build(int articleId) {
+    // 在 build 中直接加载文章
+    final articleModel = _loadArticleById(articleId);
+
+    if (articleModel != null) {
+      // 直接计算标签字符串，不修改 state
+      final tags = articleModel.tags.map((tag) => tag.name).join(', ');
+
+      // 监听文章更新事件（直接在 build 中设置监听器）
+      ref.listen(articleStateProvider, (previous, next) {
+        final event = next.articleUpdateEvent;
+        final prevEvent = previous?.articleUpdateEvent;
+
+        // 只在事件实际变化时处理
+        if (prevEvent == event) return;
+
+        // 检查事件是否影响当前文章
+        if (!_affectsArticle(event, articleModel.id)) return;
+
+        logger.d("[ArticleDetail] 检测到文章事件: $event");
+
+        switch (event) {
+          case ArticleUpdateEventUpdated(:final article):
+            final newTags = article.tags.map((tag) => tag.name).join(', ');
+            state = state.copyWith(articleModel: article, tags: newTags);
+            break;
+          case ArticleUpdateEventDeleted():
+            // 如果文章被删除，返回上一页
+            logger.i("[ArticleDetail] 文章已被删除，返回列表");
+            AppNavigation.back();
+            break;
+          case ArticleUpdateEventCreated():
+          case ArticleUpdateEventNone():
+            // 不需要处理
+            break;
+        }
+      });
+
+      return ArticleDetailControllerState(articleModel: articleModel, tags: tags);
+    }
+
     return const ArticleDetailControllerState();
   }
 
-  /// 加载文章
-  void loadArticle(dynamic argument) {
-    ArticleModel? articleModel;
-
-    if (argument is ArticleModel) {
-      // 从数据库重新获取最新状态
-      articleModel = ArticleRepository.i.findModel(argument.id) ?? argument;
-    } else if (argument is int) {
-      // 通过ID查找文章
-      final articleRef = ArticleRepository.i.findModel(argument);
-      if (articleRef == null) {
-        throw ArgumentError('Article not found with ID: $argument');
-      }
-      articleModel = articleRef;
-    } else {
-      throw ArgumentError('Invalid argument type: ${argument.runtimeType}');
+  /// 通过 ID 加载文章
+  ArticleModel? _loadArticleById(int articleId) {
+    final article = ArticleRepository.i.findModel(articleId);
+    if (article == null) {
+      logger.w('Article not found with ID: $articleId');
+      return null;
     }
-
-    state = state.copyWith(articleModel: articleModel);
-    loadTags(articleModel);
-
-    // 设置为活跃文章
-    ref.read(articleStateProvider.notifier).setActiveArticle(articleModel);
-
-    // 监听文章更新事件
-    _initArticleUpdateListener(articleModel.id);
-  }
-
-  /// 初始化文章更新监听器
-  void _initArticleUpdateListener(int articleId) {
-    // 监听文章更新事件
-    ref.listen(articleStateProvider, (previous, next) {
-      final event = next.articleUpdateEvent;
-      final prevEvent = previous?.articleUpdateEvent;
-
-      // 只在事件实际变化时处理
-      if (prevEvent == event) return;
-
-      // 检查事件是否影响当前文章
-      if (!_affectsArticle(event, articleId)) return;
-
-      logger.d("[ArticleDetail] 检测到文章事件: $event");
-
-      switch (event) {
-        case ArticleUpdateEventUpdated(:final article):
-          state = state.copyWith(articleModel: article);
-          loadTags(article);
-          break;
-        case ArticleUpdateEventDeleted():
-          // 如果文章被删除，返回上一页
-          logger.i("[ArticleDetail] 文章已被删除，返回列表");
-          AppNavigation.back();
-          break;
-        case ArticleUpdateEventCreated():
-        case ArticleUpdateEventNone():
-          // 不需要处理
-          break;
-      }
-    });
+    return article;
   }
 
   /// 检查事件是否影响指定文章
@@ -109,12 +99,6 @@ class ArticleDetailController extends _$ArticleDetailController {
     };
   }
 
-  /// 加载并格式化文章标签
-  void loadTags(ArticleModel? article) {
-    if (article == null) return;
-    state = state.copyWith(tags: article.tags.map((tag) => tag.name).join(', '));
-  }
-
   /// 删除当前文章
   Future<void> deleteArticle() async {
     final articleModel = state.articleModel;
@@ -125,9 +109,6 @@ class ArticleDetailController extends _$ArticleDetailController {
 
     // 通知文章删除
     ref.read(articleStateProvider.notifier).notifyArticleDeleted(articleId);
-
-    // 清除活跃文章状态
-    ref.read(articleStateProvider.notifier).clearActiveArticle();
   }
 
   /// 生成文章的Markdown内容

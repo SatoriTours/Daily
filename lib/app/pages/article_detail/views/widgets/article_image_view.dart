@@ -18,6 +18,7 @@ import 'package:daily_satori/app/services/file_service.dart';
 class ArticleImageView extends ConsumerWidget {
   final String imagePath;
   final BoxFit fit;
+  final int? articleId;
   final ArticleModel? article;
   final String? networkUrl;
 
@@ -25,6 +26,7 @@ class ArticleImageView extends ConsumerWidget {
     super.key,
     required this.imagePath,
     this.fit = BoxFit.cover,
+    this.articleId,
     required this.article,
     this.networkUrl,
   });
@@ -67,9 +69,13 @@ class ArticleImageView extends ConsumerWidget {
                   confirmText: "确认",
                   cancelText: "取消",
                   onConfirm: () async {
-                    await ref.read(articleDetailControllerProvider.notifier).deleteImage(images[initialIndex]);
-                    UIUtils.showSuccess('删除成功', title: '提示');
-                    AppNavigation.back();
+                    if (articleId != null) {
+                      await ref
+                          .read(articleDetailControllerProvider(articleId!).notifier)
+                          .deleteImage(images[initialIndex]);
+                      UIUtils.showSuccess('删除成功', title: '提示');
+                      AppNavigation.back();
+                    }
                   },
                 );
               },

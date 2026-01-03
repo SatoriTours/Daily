@@ -15,17 +15,18 @@ import 'package:daily_satori/app/styles/index.dart';
 /// - 内容摘要（带格式化的核心观点）
 /// - 评论（如果有）
 class SummaryTab extends ConsumerWidget {
+  final int? articleId;
   final ArticleModel? article;
 
-  const SummaryTab({super.key, required this.article});
+  const SummaryTab({super.key, this.articleId, required this.article});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (article == null) {
+    if (article == null || articleId == null) {
       return const Center(child: Text('文章不存在'));
     }
 
-    final controllerState = ref.watch(articleDetailControllerProvider);
+    final controllerState = ref.watch(articleDetailControllerProvider(articleId!));
     final tags = controllerState.tags;
 
     return SingleChildScrollView(
@@ -112,10 +113,7 @@ class SummaryTab extends ConsumerWidget {
             (sections['hasKeyPoints'] == false || (sections['keyPoints'] as List).isEmpty)) ...[
           Text(
             content,
-            style: AppTypography.bodyLarge.copyWith(
-              height: 1.8,
-              fontSize: AppTypography.bodyLarge.fontSize! + 1,
-            ),
+            style: AppTypography.bodyLarge.copyWith(height: 1.8, fontSize: AppTypography.bodyLarge.fontSize! + 1),
           ),
         ],
       ],
@@ -215,8 +213,7 @@ class SummaryTab extends ConsumerWidget {
   }
 
   /// 判断是否有头图
-  bool get _hasHeaderImage =>
-      article!.shouldShowHeaderImage() || (article!.coverImageUrl?.isNotEmpty ?? false);
+  bool get _hasHeaderImage => article!.shouldShowHeaderImage() || (article!.coverImageUrl?.isNotEmpty ?? false);
 
   /// 判断是否有评论
   bool get _hasComment => article!.comment?.isNotEmpty ?? false;

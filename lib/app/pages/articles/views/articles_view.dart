@@ -213,7 +213,7 @@ class _ArticlesBody extends ConsumerWidget {
       isLoading: isLoading,
       scrollController: state.scrollController!,
       onRefresh: controller.reloadArticles,
-      onArticleTap: (article) => AppNavigation.toNamed(Routes.articleDetail, arguments: article),
+      onArticleTap: (article) => AppNavigation.toNamed(Routes.articleDetail, arguments: article.id),
       onFavoriteToggle: (article) {
         ArticleRepository.i.toggleFavorite(article.id);
         controller.updateArticle(article.id);

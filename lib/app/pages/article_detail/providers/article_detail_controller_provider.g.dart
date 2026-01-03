@@ -9,11 +9,13 @@ part of 'article_detail_controller_provider.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// ArticleDetailController Provider
+/// 参数为 int 类型的文章 ID
 
 @ProviderFor(ArticleDetailController)
-final articleDetailControllerProvider = ArticleDetailControllerProvider._();
+final articleDetailControllerProvider = ArticleDetailControllerFamily._();
 
 /// ArticleDetailController Provider
+/// 参数为 int 类型的文章 ID
 final class ArticleDetailControllerProvider
     extends
         $NotifierProvider<
@@ -21,19 +23,27 @@ final class ArticleDetailControllerProvider
           ArticleDetailControllerState
         > {
   /// ArticleDetailController Provider
-  ArticleDetailControllerProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'articleDetailControllerProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
+  /// 参数为 int 类型的文章 ID
+  ArticleDetailControllerProvider._({
+    required ArticleDetailControllerFamily super.from,
+    required int super.argument,
+  }) : super(
+         retry: null,
+         name: r'articleDetailControllerProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
 
   @override
   String debugGetCreateSourceHash() => _$articleDetailControllerHash();
+
+  @override
+  String toString() {
+    return r'articleDetailControllerProvider'
+        ''
+        '($argument)';
+  }
 
   @$internal
   @override
@@ -46,16 +56,62 @@ final class ArticleDetailControllerProvider
       providerOverride: $SyncValueProvider<ArticleDetailControllerState>(value),
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ArticleDetailControllerProvider &&
+        other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
 }
 
 String _$articleDetailControllerHash() =>
-    r'b2be30cafa4028ea8884656caedea412c5546d57';
+    r'd12aba13c2867b7e94c64cf559de4fbd5049040b';
 
 /// ArticleDetailController Provider
+/// 参数为 int 类型的文章 ID
+
+final class ArticleDetailControllerFamily extends $Family
+    with
+        $ClassFamilyOverride<
+          ArticleDetailController,
+          ArticleDetailControllerState,
+          ArticleDetailControllerState,
+          ArticleDetailControllerState,
+          int
+        > {
+  ArticleDetailControllerFamily._()
+    : super(
+        retry: null,
+        name: r'articleDetailControllerProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// ArticleDetailController Provider
+  /// 参数为 int 类型的文章 ID
+
+  ArticleDetailControllerProvider call(int articleId) =>
+      ArticleDetailControllerProvider._(argument: articleId, from: this);
+
+  @override
+  String toString() => r'articleDetailControllerProvider';
+}
+
+/// ArticleDetailController Provider
+/// 参数为 int 类型的文章 ID
 
 abstract class _$ArticleDetailController
     extends $Notifier<ArticleDetailControllerState> {
-  ArticleDetailControllerState build();
+  late final _$args = ref.$arg as int;
+  int get articleId => _$args;
+
+  ArticleDetailControllerState build(int articleId);
   @$mustCallSuper
   @override
   void runBuild() {
@@ -73,6 +129,6 @@ abstract class _$ArticleDetailController
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    element.handleCreate(ref, () => build(_$args));
   }
 }

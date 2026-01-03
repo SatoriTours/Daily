@@ -7,9 +7,10 @@ import 'package:daily_satori/app/pages/article_detail/providers/article_detail_c
 import 'package:daily_satori/app/styles/index.dart';
 
 class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget {
+  final int articleId;
   final ArticleModel? article;
 
-  const ArticleDetailAppBar({super.key, required this.article});
+  const ArticleDetailAppBar({super.key, required this.articleId, required this.article});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -17,15 +18,11 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
 
     return AppBar(
       title: Text(
-        article != null
-            ? StringUtils.getTopLevelDomain(Uri.parse(article!.url ?? '').host)
-            : '',
+        article != null ? StringUtils.getTopLevelDomain(Uri.parse(article!.url ?? '').host) : '',
         style: textTheme.titleLarge?.copyWith(color: Colors.white),
       ),
       centerTitle: true,
-      actions: [
-        _buildAppBarActions(context, ref),
-      ],
+      actions: [_buildAppBarActions(context, ref)],
     );
   }
 
@@ -107,13 +104,15 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
   }
 
   void _showDeleteConfirmationDialog(BuildContext context, WidgetRef ref) async {
+    if (article == null) return;
+
     await DialogUtils.showConfirm(
       title: "确认删除",
       message: "您确定要删除吗？",
       confirmText: "删除",
       cancelText: "取消",
       onConfirm: () async {
-        await ref.read(articleDetailControllerProvider.notifier).deleteArticle();
+        await ref.read(articleDetailControllerProvider(articleId).notifier).deleteArticle();
         UIUtils.showSuccess('删除成功', title: '提示');
       },
     );

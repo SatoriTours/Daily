@@ -33,8 +33,6 @@ abstract class ArticleStateModel with _$ArticleStateModel {
   const factory ArticleStateModel({
     @Default([]) List<ArticleModel> articles,
     @Default(false) bool isLoading,
-    @Default(-1) int activeArticleId,
-    ArticleModel? activeArticle,
     @Default(ArticleUpdateEvent.none()) ArticleUpdateEvent articleUpdateEvent,
     @Default('') String globalSearchQuery,
     @Default(false) bool isGlobalSearchActive,
@@ -82,27 +80,9 @@ class ArticleState extends _$ArticleState {
     notifyArticleUpdated(article);
   }
 
-  /// 设置活跃文章
-  void setActiveArticle(ArticleModel article) {
-    state = state.copyWith(activeArticleId: article.id, activeArticle: article);
-    logger.i('设置活跃文章: ${article.singleLineTitle} (ID: ${article.id})');
-  }
-
-  /// 清除活跃文章
-  void clearActiveArticle() {
-    state = state.copyWith(activeArticleId: -1, activeArticle: null);
-    logger.i('清除活跃文章');
-  }
-
   /// 通知文章更新
   void notifyArticleUpdated(ArticleModel article) {
     logger.i('通知文章更新: ${article.singleLineTitle} (ID: ${article.id})');
-
-    // 如果是当前活跃文章，更新活跃文章引用
-    if (state.activeArticleId == article.id) {
-      state = state.copyWith(activeArticle: article);
-      logger.d('已更新活跃文章引用，状态: ${article.status}');
-    }
 
     // 发布文章更新事件
     state = state.copyWith(articleUpdateEvent: ArticleUpdateEvent.updated(article));
@@ -111,11 +91,6 @@ class ArticleState extends _$ArticleState {
   /// 通知文章删除
   void notifyArticleDeleted(int articleId) {
     logger.i('通知文章删除: ID: $articleId');
-
-    // 如果是当前活跃文章，清除活跃文章引用
-    if (state.activeArticleId == articleId) {
-      clearActiveArticle();
-    }
 
     // 发布文章删除事件
     state = state.copyWith(articleUpdateEvent: ArticleUpdateEvent.deleted(articleId));
@@ -221,11 +196,6 @@ class ArticleState extends _$ArticleState {
       articles[index] = article;
       state = state.copyWith(articles: articles);
     }
-
-    // 如果是当前活跃文章，同步更新
-    if (state.activeArticleId == id) {
-      state = state.copyWith(activeArticle: article);
-    }
   }
 
   /// 从列表中移除文章
@@ -256,15 +226,9 @@ class ArticleState extends _$ArticleState {
     final index = state.articles.indexWhere((item) => item.id == id);
     if (index == -1) {
       // 如果列表中没有，从数据库加载
-      final article = ArticleRepository.i.findModel(id);
-      if (article != null) {
-        setActiveArticle(article);
-      }
-      return article;
+      return ArticleRepository.i.findModel(id);
     }
 
-    // 设置为活跃文章
-    setActiveArticle(state.articles[index]);
     return state.articles[index];
   }
 }

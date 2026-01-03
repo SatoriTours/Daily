@@ -15,9 +15,10 @@ import 'package:daily_satori/app/styles/index.dart';
 /// 1. Markdown格式（优先显示）
 /// 2. HTML格式
 class OriginalContentTab extends ConsumerWidget {
+  final int? articleId;
   final ArticleModel? article;
 
-  const OriginalContentTab({super.key, required this.article});
+  const OriginalContentTab({super.key, this.articleId, required this.article});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -99,7 +100,12 @@ class OriginalContentTab extends ConsumerWidget {
   Widget _buildTitleSection(BuildContext context, TextTheme textTheme, ColorScheme colorScheme) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(Dimensions.spacingL, Dimensions.spacingXl, Dimensions.spacingL, Dimensions.spacingL),
+      padding: const EdgeInsets.fromLTRB(
+        Dimensions.spacingL,
+        Dimensions.spacingXl,
+        Dimensions.spacingL,
+        Dimensions.spacingL,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -133,7 +139,12 @@ class OriginalContentTab extends ConsumerWidget {
   }
 
   /// 构建空状态视图
-  Widget _buildEmptyState(BuildContext context, WidgetRef? ref, {required String message, required bool showGenerateButton}) {
+  Widget _buildEmptyState(
+    BuildContext context,
+    WidgetRef? ref, {
+    required String message,
+    required bool showGenerateButton,
+  }) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
@@ -187,12 +198,16 @@ class OriginalContentTab extends ConsumerWidget {
 
   /// 生成Markdown内容
   Future<void> _generateMarkdown(BuildContext context, WidgetRef ref) async {
+    if (article == null || articleId == null) return;
+
     try {
       // 显示加载对话框
       DialogUtils.showLoading(tips: '正在生成Markdown内容，请稍候...');
 
       // 生成Markdown内容
-      await ref.read(articleDetailControllerProvider.notifier).generateMarkdownContent();
+      if (articleId != null) {
+        await ref.read(articleDetailControllerProvider(articleId!).notifier).generateMarkdownContent();
+      }
 
       // 关闭加载对话框
       DialogUtils.hideLoading();
