@@ -36,16 +36,16 @@ class ProcessingDialog {
   }) async {
     final context = AppNavigation.navigatorKey.currentContext;
     final displayMessage = message ?? (messageKey?.t ?? 'component.processing'.t);
-    final completer = Completer<T?>();
 
+    // 无 context 时直接执行，不显示对话框
     if (context == null) {
       logger.w('[ProcessingDialog] 无法显示对话框：context 为空，将直接执行回调');
-      try {
-        final result = await onProcess();
-        return result;
-      } catch (e) {
-        rethrow;
-      }
+      return onProcess();
+    }
+
+    // 关闭对话框
+    void closeDialog() {
+      if (context.mounted) AppNavigation.back();
     }
 
     // 显示对话框
@@ -53,37 +53,22 @@ class ProcessingDialog {
       context: context,
       barrierDismissible: barrierDismissible,
       barrierColor: Colors.black.withValues(alpha: 0.5),
-      builder: (context) => _ProcessingDialogWidget(
-        message: displayMessage,
-      ),
+      builder: (_) => _ProcessingDialogWidget(message: displayMessage),
     );
 
-    // 设置超时
+    // 超时处理
     Timer? timeoutTimer;
     if (timeout != null) {
-      timeoutTimer = Timer(Duration(milliseconds: timeout), () {
-        if (!completer.isCompleted && context.mounted) {
-          AppNavigation.back();
-          completer.complete(null);
-        }
-      });
+      timeoutTimer = Timer(Duration(milliseconds: timeout), closeDialog);
     }
 
+    // 执行处理并关闭对话框
     try {
-      // 执行处理函数
       final result = await onProcess();
-
-      // 关闭对话框
-      if (context.mounted) {
-        AppNavigation.back();
-      }
-      completer.complete(result);
+      closeDialog();
       return result;
     } catch (e) {
-      if (context.mounted) {
-        AppNavigation.back();
-      }
-      completer.completeError(e);
+      closeDialog();
       rethrow;
     } finally {
       timeoutTimer?.cancel();

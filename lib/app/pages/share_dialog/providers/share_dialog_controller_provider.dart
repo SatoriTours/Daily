@@ -414,11 +414,4 @@ class ShareDialogController extends _$ShareDialogController {
       AppNavigation.exitApp();
     }
   }
-
-  /// 导航到详情页
-  void _navigateToDetail() {
-    if (state.articleID > 0) {
-      AppNavigation.toNamed(Routes.articleDetail, arguments: state.articleID);
-    }
-  }
 }
