@@ -97,7 +97,7 @@ class LeftBarView extends ConsumerWidget {
               context,
               icon: Icons.settings,
               label: '设置',
-              onPressed: () => AppNavigation.toNamed('/settings'),
+              onPressed: () => AppNavigation.toNamed(Routes.settings),
             ),
           ),
         ],

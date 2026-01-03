@@ -130,7 +130,7 @@ class _ChatInputState extends State<ChatInput> {
       return;
     }
 
-    logger.i('[ChatInput] 发送消息: ${text.substring(0, text.length > 50 ? 50 : text.length)}...');
+    logger.i('[ChatInput] 发送消息: $text');
     widget.onSendMessage(text);
     _controller.clear();
     _focusNode.unfocus();

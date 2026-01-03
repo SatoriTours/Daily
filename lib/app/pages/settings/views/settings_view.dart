@@ -118,7 +118,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           subtitle: 'setting.ai_config_subtitle'.t,
           icon: Icons.smart_toy_rounded,
           color: AppColors.getPrimary(context),
-          onTap: () => AppNavigation.toNamed('/ai-config'),
+          onTap: () => AppNavigation.toNamed(Routes.aiConfig),
         ),
         _buildSettingItem(
           context: context,

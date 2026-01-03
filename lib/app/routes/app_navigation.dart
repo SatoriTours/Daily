@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:daily_satori/app/routes/app_router.dart';
+import 'package:go_router/go_router.dart';
 
 class AppNavigation {
   AppNavigation._();
@@ -14,7 +15,7 @@ class AppNavigation {
 
   /// 导航到命名路由
   static Future<T?> toNamed<T>(String routeName, {Object? arguments}) {
-    return appRouter.push<T>(routeName, extra: arguments);
+    return appRouter.pushNamed<T>(routeName, extra: arguments);
   }
 
   /// 导航到指定页面
@@ -33,14 +34,19 @@ class AppNavigation {
 
   /// 替换当前路由
   static Future<T?> offNamed<T>(String routeName, {Object? arguments}) async {
-    appRouter.pushReplacement(routeName, extra: arguments);
+    appRouter.pushReplacementNamed(routeName, extra: arguments);
     return null;
   }
 
   /// 清空所有路由并导航到新路由
   static Future<T?> offAllNamed<T>(String routeName, {Object? arguments}) async {
-    appRouter.go(routeName, extra: arguments);
+    appRouter.goNamed(routeName, extra: arguments);
     return null;
+  }
+
+  static Object? arguments(BuildContext context) {
+    final state = GoRouterState.of(context);
+    return state.extra;
   }
 
   /// 退出应用
