@@ -71,130 +71,288 @@ class ShareDialogController extends _$ShareDialogController {
     return const ShareDialogControllerState();
   }
 
-  /// 初始化
+  // ============================================================================
+  // 初始化相关
+  // ============================================================================
+
+  /// 初始化对话框
   void initialize(Map<String, dynamic> args) {
-    // 初始化文章ID
-    if (args.containsKey('articleID') && args['articleID'] != null) {
-      state = state.copyWith(articleID: args['articleID'], isUpdate: true);
-      logger.i("初始化文章ID: ${state.articleID}, 模式: 更新");
-      _loadArticleInfo(state.articleID);
+    _initializeMode(args);
+    _initializeSource(args);
+    _initializeUrl(args);
+    _initialTitleText = titleController.text;
+  }
+
+  /// 初始化模式（新增/更新）
+  void _initializeMode(Map<String, dynamic> args) {
+    final articleID = args['articleID'] as int?;
+    if (articleID != null && articleID > 0) {
+      state = state.copyWith(articleID: articleID, isUpdate: true);
+      logger.i("初始化文章ID: $articleID, 模式: 更新");
+      _loadArticleInfo(articleID);
     } else {
       logger.i("模式: 新增");
     }
+  }
 
-    // 检查是否从剪切板来的
-    if (args.containsKey('fromClipboard') && args['fromClipboard'] == true) {
+  /// 初始化来源
+  void _initializeSource(Map<String, dynamic> args) {
+    if (args['fromClipboard'] == true) {
       state = state.copyWith(fromClipboard: true);
       logger.i("来源: 剪切板");
     }
-
-    // 检查是否从其他app分享来的
-    if (args.containsKey('fromShare') && args['fromShare'] == true) {
+    if (args['fromShare'] == true) {
       state = state.copyWith(fromShare: true);
       logger.i("来源: 其他app分享");
     }
+  }
 
-    // 初始化分享URL
-    if (args.containsKey('shareURL') && args['shareURL'] != null) {
-      state = state.copyWith(shareURL: args['shareURL']);
-      logger.i("初始化分享链接: ${state.shareURL}");
-      ClipboardMonitorService.i.markUrlProcessed(state.shareURL);
+  /// 初始化URL
+  void _initializeUrl(Map<String, dynamic> args) {
+    final url = args['shareURL'] as String?;
+    if (url != null && url.isNotEmpty) {
+      state = state.copyWith(shareURL: url);
+      logger.i("初始化分享链接: $url");
+      ClipboardMonitorService.i.markUrlProcessed(url);
     }
-
-    // 记录初始标题并监听编辑变化
-    _initialTitleText = titleController.text;
   }
 
   /// 加载文章信息
   Future<void> _loadArticleInfo(int articleId) async {
-    if (articleId <= 0) return;
-
     final article = ArticleRepository.i.findModel(articleId);
-    if (article != null) {
-      state = state.copyWith(articleTitle: article.showTitle());
-      titleController.text = article.showTitle();
+    if (article == null) return;
 
-      if (state.shareURL.isEmpty) {
-        state = state.copyWith(shareURL: article.url ?? '');
-      }
+    final title = article.showTitle();
+    titleController.text = title;
 
-      commentController.text = article.comment ?? '';
+    state = state.copyWith(
+      articleTitle: title,
+      shareURL: state.shareURL.isEmpty ? (article.url ?? '') : state.shareURL,
+    );
 
-      // 组装标签
-      try {
-        final tagNames = article.tags.map((t) => t.name ?? '').where((e) => e.isNotEmpty).toList();
-        state = state.copyWith(articleTags: tagNames.join(', '), tagList: tagNames);
-        tagsController.text = state.articleTags;
-      } catch (_) {}
-      logger.i("加载文章信息成功: ${article.singleLineTitle}");
+    commentController.text = article.comment ?? '';
+    _loadArticleTags(article);
+
+    logger.i("加载文章信息成功: ${article.singleLineTitle}");
+  }
+
+  /// 加载文章标签
+  void _loadArticleTags(ArticleModel article) {
+    try {
+      final tagNames = article.tags.map((t) => t.name ?? '').where((e) => e.isNotEmpty).toList();
+      final tagsText = tagNames.join(', ');
+      state = state.copyWith(articleTags: tagsText, tagList: tagNames);
+      tagsController.text = tagsText;
+    } catch (e) {
+      logger.w('加载标签失败: $e');
     }
   }
+
+  // ============================================================================
+  // 保存逻辑
+  // ============================================================================
 
   /// 保存按钮点击
   Future<void> onSaveButtonPressed(BuildContext context) async {
     logger.i('[ShareDialog] 点击保存: isUpdate=${state.isUpdate}, refreshAndAnalyze=${state.refreshAndAnalyze}');
 
     try {
-      // 如果是更新并且选择不重新抓取/AI分析，则只做字段更新
       if (state.isUpdate && !state.refreshAndAnalyze) {
-        await _updateArticleFieldsOnly();
+        // 仅更新字段，不重新抓取
+        await _updateFieldsOnly();
       } else {
-        final userEditedTitle = _getUserEditedTitle();
-
-        final newArticle = await ProcessingDialog.show(
-          context: context,
-          messageKey: 'component.ai_analyzing',
-          onProcess: () async {
-            return await WebpageParserService.i.saveWebpage(
-              url: state.shareURL,
-              comment: commentController.text,
-              isUpdate: state.isUpdate,
-              articleID: state.articleID,
-              userTitle: userEditedTitle,
-            );
-          },
-        );
-
-        if (newArticle != null) {
-          // 新增模式：保存后拿到新文章ID
-          if (state.articleID <= 0 && newArticle.id > 0) {
-            state = state.copyWith(articleID: newArticle.id);
-            logger.i('[ShareDialog] 新增文章保存完成，ID=${state.articleID}');
-            // 通知文章创建
-            ref.read(articleStateProvider.notifier).notifyArticleCreated(newArticle);
-          }
-        } else {
-          throw Exception('文章保存失败');
-        }
-
-        // 保存后再应用用户手动输入的标签
-        await _applyManualTagsPostProcess();
+        // 完整保存：抓取+AI分析
+        await _saveWithFetch(context);
       }
 
       if (context.mounted) {
-        _backToPreviousStep(context);
+        _handleSaveSuccess(context);
       }
     } catch (e) {
-      final msg = e.toString();
-      if (msg.contains('网页已存在')) {
-        final exist = ArticleRepository.i.findByUrl(state.shareURL);
-        if (exist != null) {
-          if (context.mounted) {
-            await DialogUtils.showConfirm(
-              title: '提示',
-              message: '该网页已存在，是否更新？',
-              confirmText: '更新',
-              onConfirm: () async {
-                state = state.copyWith(isUpdate: true, articleID: exist.id);
-                await onSaveButtonPressed(context);
-              },
-            );
-          }
-          return;
-        }
+      if (context.mounted) {
+        await _handleSaveError(e, context);
       }
-      rethrow;
     }
+  }
+
+  /// 完整保存流程（抓取+AI分析）
+  Future<void> _saveWithFetch(BuildContext context) async {
+    final userEditedTitle = _getUserEditedTitle();
+
+    final newArticle = await ProcessingDialog.show(
+      context: context,
+      messageKey: 'component.ai_analyzing',
+      onProcess: () => WebpageParserService.i.saveWebpage(
+        url: state.shareURL,
+        comment: commentController.text,
+        isUpdate: state.isUpdate,
+        articleID: state.articleID,
+        userTitle: userEditedTitle,
+      ),
+    );
+
+    if (newArticle == null) {
+      throw Exception('文章保存失败');
+    }
+
+    // 新增模式：更新文章ID并通知
+    if (state.articleID <= 0 && newArticle.id > 0) {
+      state = state.copyWith(articleID: newArticle.id);
+      logger.i('[ShareDialog] 新增文章保存完成，ID=${state.articleID}');
+      ref.read(articleStateProvider.notifier).notifyArticleCreated(newArticle);
+    }
+
+    // 应用用户手动输入的标签
+    await _applyManualTags();
+  }
+
+  /// 仅更新字段（不重新抓取）
+  Future<void> _updateFieldsOnly() async {
+    final article = _getArticle();
+    if (article == null) return;
+
+    _updateArticleFields(article);
+    await _updateArticleTags(article);
+    await _saveArticle(article, log: '文章字段已更新(无重新抓取)');
+  }
+
+  /// 更新文章基本字段
+  void _updateArticleFields(ArticleModel article) {
+    final manualTitle = titleController.text.trim();
+    if (state.titleEdited && manualTitle.isNotEmpty) {
+      logger.i('[ShareDialog] 应用用户编辑的标题: "$manualTitle"');
+      article.title = manualTitle;
+      article.aiTitle = manualTitle;
+    }
+    article.comment = commentController.text.trim();
+  }
+
+  /// 更新文章标签
+  Future<void> _updateArticleTags(ArticleModel article) async {
+    final tagNames = _parseTagNames(tagsController.text.trim());
+    await _setArticleTags(article.id, tagNames);
+  }
+
+  /// 应用手动输入的标签（后处理）
+  Future<void> _applyManualTags() async {
+    final article = _getArticle();
+    if (article == null) return;
+
+    final rawTags = tagsController.text.trim();
+    if (rawTags.isEmpty && state.tagList.isEmpty) return;
+
+    final tagNames = _parseTagNames(rawTags);
+    final added = await _mergeArticleTags(article, tagNames);
+
+    if (added) {
+      await _saveArticle(article, log: '已应用手动标签修改');
+    }
+  }
+
+  /// 处理保存成功
+  void _handleSaveSuccess(BuildContext context) {
+    if (state.isUpdate) {
+      // 更新模式：返回详情页
+      AppNavigation.back();
+    } else {
+      // 新增模式：根据来源决定行为
+      AppNavigation.offAllNamed(Routes.home);
+
+      if (state.fromShare) {
+        logger.i('[ShareDialog] 从其他app分享，将app推到后台');
+        _moveAppToBackground();
+      }
+    }
+  }
+
+  /// 处理保存错误
+  Future<void> _handleSaveError(Object error, BuildContext context) async {
+    final msg = error.toString();
+    if (!msg.contains('网页已存在')) {
+      throw error;
+    }
+
+    final exist = ArticleRepository.i.findByUrl(state.shareURL);
+    if (exist == null) {
+      throw error;
+    }
+
+    await DialogUtils.showConfirm(
+      title: '提示',
+      message: '该网页已存在，是否更新？',
+      confirmText: '更新',
+      onConfirm: () async {
+        state = state.copyWith(isUpdate: true, articleID: exist.id);
+        await onSaveButtonPressed(context);
+      },
+    );
+  }
+
+  // ============================================================================
+  // 标签管理
+  // ============================================================================
+
+  /// 添加标签
+  void addTag(String tag) {
+    final trimmed = tag.trim();
+    if (trimmed.isEmpty || state.tagList.contains(trimmed)) return;
+
+    state = state.copyWith(tagList: [...state.tagList, trimmed]);
+    _syncTagsToController();
+  }
+
+  /// 移除标签
+  void removeTag(String tag) {
+    final updatedList = List<String>.from(state.tagList)..remove(tag);
+    state = state.copyWith(tagList: updatedList);
+    _syncTagsToController();
+  }
+
+  /// 同步标签列表到输入框
+  void _syncTagsToController() {
+    final tagsText = state.tagList.join(', ');
+    state = state.copyWith(articleTags: tagsText);
+    tagsController.text = tagsText;
+  }
+
+  // ============================================================================
+  // UI辅助方法
+  // ============================================================================
+
+  /// 获取短URL（用于显示）
+  String getShortUrl(String url) {
+    if (url.isEmpty) return '';
+
+    final uri = Uri.tryParse(url);
+    if (uri != null && uri.host.isNotEmpty) {
+      return uri.host;
+    }
+
+    return url.length > 30 ? '${url.substring(0, 30)}...' : url;
+  }
+
+  /// 切换是否重新抓取并AI分析
+  void toggleRefreshAndAnalyze(bool? value) {
+    if (value != null) {
+      state = state.copyWith(refreshAndAnalyze: value);
+    }
+  }
+
+  /// 标题变更回调
+  void onTitleChanged(String value) {
+    if (value != _initialTitleText) {
+      state = state.copyWith(titleEdited: true);
+    }
+  }
+
+  // ============================================================================
+  // 私有辅助方法
+  // ============================================================================
+
+  /// 获取当前文章（如果存在）
+  ArticleModel? _getArticle() {
+    if (state.articleID <= 0) return null;
+    return ArticleRepository.i.findModel(state.articleID);
   }
 
   /// 获取用户编辑的标题
@@ -207,174 +365,61 @@ class ShareDialogController extends _$ShareDialogController {
     return null;
   }
 
-  /// 仅更新字段
-  Future<void> _updateArticleFieldsOnly() async {
-    if (state.articleID <= 0) return;
-    final article = ArticleRepository.i.findModel(state.articleID);
-    if (article == null) return;
-
-    // 标题与备注
-    _setTitleIfEdited(article);
-    article.comment = commentController.text.trim();
-
-    // 标签
-    final tagNames = _getEffectiveTagNames(tagsController.text.trim());
-    await _replaceTags(article, tagNames);
-
-    await _saveAndNotify(article, log: '文章字段已更新(无重新抓取)');
-  }
-
-  /// 返回上一步
-  void _backToPreviousStep(BuildContext context) {
-    if (state.isUpdate) {
-      // 更新模式：先关闭当前页面，再返回详情页
-      // 使用 popUntil 返回到详情页，而不是 push 新页面
-      Navigator.of(context).pop();
-    } else {
-      // 新增模式：关闭分享对话框
-      Navigator.of(context).pop();
-
-      // 根据来源决定后续行为
-      if (state.fromShare) {
-        // 从其他app分享来的：返回上个app（使用 SystemNavigator.pop）
-        logger.i('[ShareDialog] 从其他app分享，返回上个app');
-        SystemNavigator.pop();
-      } else {
-        // 从剪贴板检测或手动打开：导航到详情页
-        logger.i('[ShareDialog] 从剪贴板或手动打开，进入详情页');
-        _navigateToDetail();
-      }
-    }
-  }
-
-  /// 导航到详情页
-  void _navigateToDetail() {
-    if (state.articleID <= 0) return;
-
-    AppNavigation.toNamed(Routes.articleDetail, arguments: state.articleID);
-  }
-
-  // 私有方法
-  bool _setTitleIfEdited(ArticleModel article) {
-    final manualTitle = titleController.text.trim();
-    if (state.titleEdited && manualTitle.isNotEmpty) {
-      logger.i('[ShareDialog] 应用用户编辑的标题: "$manualTitle"');
-      article.title = manualTitle;
-      article.aiTitle = manualTitle;
-      return true;
-    }
-    return false;
-  }
-
-  List<String> _getEffectiveTagNames(String rawText) {
+  /// 解析标签名称（从文本或列表）
+  List<String> _parseTagNames(String rawText) {
     final source = state.tagList.isNotEmpty ? state.tagList : rawText.split(RegExp(r'[，,]'));
     return source.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList();
   }
 
-  Future<void> _replaceTags(ArticleModel article, List<String> tagNames) async {
+  /// 设置文章标签（替换模式）
+  Future<void> _setArticleTags(int articleId, List<String> tagNames) async {
     try {
-      await TagRepository.i.setTagsForArticle(article.id, tagNames);
+      await TagRepository.i.setTagsForArticle(articleId, tagNames);
     } catch (e) {
-      logger.w('更新标签失败: $e');
+      logger.w('设置标签失败: $e');
     }
   }
 
-  Future<void> _applyManualTagsPostProcess() async {
-    if (state.articleID <= 0) return;
-    final article = ArticleRepository.i.findModel(state.articleID);
-    if (article == null) return;
-
-    final rawTags = tagsController.text.trim();
-    if (rawTags.isNotEmpty || state.tagList.isNotEmpty) {
-      final tagNames = _getEffectiveTagNames(rawTags);
-      await _mergeTags(article, tagNames);
-      await _saveAndNotify(article, log: '已应用手动标签修改');
-    }
-  }
-
-  Future<bool> _mergeTags(ArticleModel article, List<String> tagNames) async {
+  /// 合并文章标签（添加新标签，保留已有标签）
+  Future<bool> _mergeArticleTags(ArticleModel article, List<String> newTags) async {
     try {
-      final Set<String> existing = article.tags
-          .map<String>((t) => (t.name ?? '').toString())
-          .where((String e) => e.isNotEmpty)
-          .toSet();
-      var added = false;
-      for (final name in tagNames) {
-        if (!existing.contains(name)) {
-          added = true;
-        }
-      }
-      if (added) {
-        final merged = {...existing, ...tagNames}.toList();
-        await TagRepository.i.setTagsForArticle(article.id, merged);
-      }
-      return added;
+      final existing = article.tags.map((t) => t.name ?? '').where((e) => e.isNotEmpty).toSet();
+
+      final hasNewTags = newTags.any((tag) => !existing.contains(tag));
+      if (!hasNewTags) return false;
+
+      final merged = {...existing, ...newTags}.toList();
+      await TagRepository.i.setTagsForArticle(article.id, merged);
+      return true;
     } catch (e) {
-      logger.w('应用手动标签失败: $e');
+      logger.w('合并标签失败: $e');
       return false;
     }
   }
 
-  Future<void> _saveAndNotify(ArticleModel article, {String log = '已更新'}) async {
+  /// 保存文章并通知状态更新
+  Future<void> _saveArticle(ArticleModel article, {String log = '已更新'}) async {
     article.updatedAt = DateTime.now().toUtc();
     ArticleRepository.i.updateModel(article);
     ref.read(articleStateProvider.notifier).notifyArticleUpdated(article);
     logger.i('$log: ${article.id}');
   }
 
-  /// 添加标签
-  void addTag(String tag) {
-    final t = tag.trim();
-    if (t.isEmpty) return;
-    if (!state.tagList.contains(t)) {
-      state = state.copyWith(tagList: [...state.tagList, t]);
-      _syncTagsText();
-    }
-  }
-
-  /// 移除标签
-  void removeTag(String tag) {
-    final updatedList = List<String>.from(state.tagList)..remove(tag);
-    state = state.copyWith(tagList: updatedList);
-    _syncTagsText();
-  }
-
-  void _syncTagsText() {
-    final tagsText = state.tagList.join(', ');
-    state = state.copyWith(articleTags: tagsText);
-    tagsController.text = tagsText;
-  }
-
-  /// 获取短URL
-  String getShortUrl(String url) {
-    if (url.isEmpty) return '';
-
-    Uri? uri;
+  /// 将应用推到后台（Android）
+  Future<void> _moveAppToBackground() async {
+    const channel = MethodChannel('android/back/desktop');
     try {
-      uri = Uri.parse(url);
-    } catch (_) {}
-
-    if (uri != null && uri.host.isNotEmpty) {
-      return uri.host;
-    }
-
-    if (url.length > 30) {
-      return '${url.substring(0, 30)}...';
-    }
-    return url;
-  }
-
-  /// 切换是否重新抓取并AI分析
-  void toggleRefreshAndAnalyze(bool? value) {
-    if (value != null) {
-      state = state.copyWith(refreshAndAnalyze: value);
+      await channel.invokeMethod('backDesktop');
+    } catch (e) {
+      logger.w('[ShareDialog] moveTaskToBack 失败，使用 SystemNavigator.pop: $e');
+      SystemNavigator.pop();
     }
   }
 
-  /// 标题变更
-  void onTitleChanged(String value) {
-    if (value != _initialTitleText) {
-      state = state.copyWith(titleEdited: true);
+  /// 导航到详情页
+  void _navigateToDetail() {
+    if (state.articleID > 0) {
+      AppNavigation.toNamed(Routes.articleDetail, arguments: state.articleID);
     }
   }
 }
