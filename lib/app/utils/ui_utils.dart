@@ -13,9 +13,8 @@ class UIUtils {
     String content, {
     String title = 'message.success_title',
     bool isTop = true,
-    BuildContext? context,
   }) {
-    showSnackBar(title, content, isError: false, isTop: isTop, context: context);
+    showSnackBar(title, content, isError: false, isTop: isTop);
   }
 
   /// 显示错误提示（统一样式）
@@ -23,9 +22,8 @@ class UIUtils {
     String content, {
     String title = 'message.error_title',
     bool isTop = true,
-    BuildContext? context,
   }) {
-    showSnackBar(title, content, isError: true, isTop: isTop, context: context);
+    showSnackBar(title, content, isError: true, isTop: isTop);
   }
 
   /// 显示通用提示条
@@ -35,14 +33,13 @@ class UIUtils {
     bool isError = false,
     bool isTop = true,
     Duration? duration,
-    BuildContext? context,
   }) {
-    final ctx = context ?? AppNavigation.navigatorKey.currentContext;
-    if (ctx == null) return;
+    final context = AppNavigation.navigatorKey.currentContext;
+    if (context == null) return;
 
-    final bg = SnackbarStyles.getBackgroundColor(ctx, isError: isError);
-    final textColor = SnackbarStyles.getTextColor(ctx);
-    final mediaQuery = MediaQuery.of(ctx);
+    final bg = SnackbarStyles.getBackgroundColor(context, isError: isError);
+    final textColor = SnackbarStyles.getTextColor(context);
+    final mediaQuery = MediaQuery.of(context);
 
     EdgeInsets margin;
     if (isTop) {
@@ -65,7 +62,7 @@ class UIUtils {
       margin = EdgeInsets.only(left: 16, right: 16, top: 16, bottom: bottomNavHeight + bottomPadding + 16);
     }
 
-    ScaffoldMessenger.of(ctx).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Column(
           mainAxisSize: MainAxisSize.min,

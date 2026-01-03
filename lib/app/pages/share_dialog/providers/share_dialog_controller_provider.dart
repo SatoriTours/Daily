@@ -180,7 +180,6 @@ class ShareDialogController extends _$ShareDialogController {
     final userEditedTitle = _getUserEditedTitle();
 
     final newArticle = await ProcessingDialog.show(
-      context: context,
       messageKey: 'component.ai_analyzing',
       onProcess: () => WebpageParserService.i.saveWebpage(
         url: state.shareURL,

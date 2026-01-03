@@ -907,7 +907,6 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   /// 显示 Google Books API Key 配置对话框
   void _showGoogleBooksApiKeyDialog(BuildContext context, WidgetRef ref) {
     DialogUtils.showInputDialog(
-      context: context,
       title: 'dialog.google_books_api_key'.t,
       initialValue: SettingRepository.i.getSetting(SettingService.googleCloudApiKeyKey),
       confirmText: 'dialog.save'.t,

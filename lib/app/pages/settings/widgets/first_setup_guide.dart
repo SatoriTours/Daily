@@ -360,7 +360,6 @@ class FirstSetupGuide extends ConsumerWidget {
   /// 显示 Google Cloud API Key 配置对话框
   void _showGoogleCloudKeyDialog(BuildContext context, WidgetRef ref) {
     DialogUtils.showInputDialog(
-      context: context,
       title: '配置 Google Cloud API Key',
       hintText: '输入您的 Google Cloud API Key',
       initialValue: SettingRepository.i.getSetting(SettingService.googleCloudApiKeyKey),

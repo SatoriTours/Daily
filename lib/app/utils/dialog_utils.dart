@@ -18,25 +18,21 @@ class DialogUtils {
   static final ValueNotifier<double> _progressValue = ValueNotifier(0.0);
   static final ValueNotifier<String> _progressText = ValueNotifier('');
 
-  /// 获取当前 BuildContext
-  static BuildContext? get _context => AppNavigation.navigatorKey.currentContext;
-
   /// 显示提示对话框
   static Future<void> showAlert({
     required String title,
     required String message,
     String buttonText = '确定',
     VoidCallback? onConfirm,
-    BuildContext? context,
   }) async {
-    final ctx = context ?? _context;
-    if (ctx == null) {
+    final context = AppNavigation.navigatorKey.currentContext;
+    if (context == null) {
       logger.w('[DialogUtils] 无法显示对话框：context 为空');
       return;
     }
 
     await showDialog(
-      context: ctx,
+      context: context,
       builder: (context) => _CustomDialog(
         title: title,
         content: message,
@@ -61,16 +57,15 @@ class DialogUtils {
     String cancelText = '取消',
     VoidCallback? onConfirm,
     VoidCallback? onCancel,
-    BuildContext? context,
   }) async {
-    final ctx = context ?? _context;
-    if (ctx == null) {
+    final context = AppNavigation.navigatorKey.currentContext;
+    if (context == null) {
       logger.w('[DialogUtils] 无法显示对话框：context 为空');
       return;
     }
 
     await showDialog<bool>(
-      context: ctx,
+      context: context,
       builder: (context) => _CustomDialog(
         title: title,
         content: message,
@@ -109,17 +104,16 @@ class DialogUtils {
     TextInputType keyboardType = TextInputType.text,
     required void Function(String value) onConfirm,
     VoidCallback? onCancel,
-    BuildContext? context,
   }) async {
-    final ctx = context ?? _context;
-    if (ctx == null) {
+    final context = AppNavigation.navigatorKey.currentContext;
+    if (context == null) {
       logger.w('[DialogUtils] 无法显示对话框：context 为空');
       return;
     }
 
     final TextEditingController controller = TextEditingController(text: initialValue);
     await showDialog<String>(
-      context: ctx,
+      context: context,
       builder: (context) => _CustomDialog(
         title: title,
         content: '',
@@ -154,21 +148,21 @@ class DialogUtils {
   }
 
   /// 显示全屏加载提示
-  static void showLoading({String tips = '', Color? barrierColor, BuildContext? context}) {
+  static void showLoading({String tips = '', Color? barrierColor}) {
     logger.i("[DialogUtils] 显示加载提示: $tips $_isLoadingShown");
     if (_isLoadingShown) return;
 
-    final ctx = context ?? _context;
-    if (ctx == null) {
+    final context = AppNavigation.navigatorKey.currentContext;
+    if (context == null) {
       logger.w('[DialogUtils] 无法显示加载提示：context 为空');
       return;
     }
 
     logger.i("[DialogUtils] 显示加载提示1: $tips");
 
-    final textTheme = Theme.of(ctx).textTheme.bodyMedium;
+    final textTheme = Theme.of(context).textTheme.bodyMedium;
     showDialog(
-      context: ctx,
+      context: context,
       barrierDismissible: false,
       barrierColor: barrierColor ?? Colors.black.withValues(alpha: 0.5),
       builder: (context) => PopScope(
@@ -188,10 +182,10 @@ class DialogUtils {
   }
 
   /// 隐藏加载提示
-  static void hideLoading({BuildContext? context}) {
+  static void hideLoading() {
     if (_isLoadingShown) {
       _isLoadingShown = false;
-      _closeDialog(context: context);
+      _closeDialog();
     }
   }
 
@@ -202,13 +196,12 @@ class DialogUtils {
   static void showDownloadProgress({
     String title = '正在下载',
     String initialText = '准备下载...',
-    BuildContext? context,
   }) {
     logger.i("[DialogUtils] 显示下载进度对话框");
     if (_isProgressShown) return;
 
-    final ctx = context ?? _context;
-    if (ctx == null) {
+    final context = AppNavigation.navigatorKey.currentContext;
+    if (context == null) {
       logger.w('[DialogUtils] 无法显示进度对话框：context 为空');
       return;
     }
@@ -217,7 +210,7 @@ class DialogUtils {
     _progressText.value = initialText;
 
     showDialog(
-      context: ctx,
+      context: context,
       barrierDismissible: false,
       barrierColor: const Color(0x80000000),
       builder: (context) => PopScope(
@@ -253,19 +246,18 @@ class DialogUtils {
   }
 
   /// 隐藏下载进度对话框
-  static void hideDownloadProgress({BuildContext? context}) {
+  static void hideDownloadProgress() {
     if (_isProgressShown) {
       logger.i("[DialogUtils] 隐藏下载进度对话框");
       _isProgressShown = false;
       _progressValue.value = 0.0;
       _progressText.value = '';
-      _closeDialog(context: context);
+      _closeDialog();
     }
   }
 
-  static void _closeDialog({BuildContext? context}) {
-    final ctx = context ?? _context;
-    if (ctx != null && AppNavigation.navigatorKey.currentState?.canPop() == true) {
+  static void _closeDialog() {
+    if (AppNavigation.navigatorKey.currentState?.canPop() == true) {
       AppNavigation.back();
     }
   }
