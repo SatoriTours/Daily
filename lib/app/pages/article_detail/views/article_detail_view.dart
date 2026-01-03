@@ -47,13 +47,35 @@ class ArticleDetailView extends ConsumerWidget {
 
   // 内容区域：监听文章变化刷新标签页
   Widget _buildTabs(int articleId, ArticleModel? article) {
+    // 使用文章更新时间作为 key，当文章更新时触发淡入淡出动画
+    final articleIdValue = article?.id ?? 0;
+    int updatedAtMs = 0;
+    if (article?.updatedAt != null) {
+      updatedAtMs = article!.updatedAt.millisecondsSinceEpoch;
+    }
+    final contentKey = ValueKey('content_${articleIdValue}_$updatedAtMs');
+
     return Expanded(
-      child: TabBarView(
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          SummaryTab(articleId: articleId, article: article),
-          OriginalContentTab(articleId: articleId, article: article),
-        ],
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 500),
+        switchInCurve: Curves.easeInOut,
+        switchOutCurve: Curves.easeInOut,
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        child: KeyedSubtree(
+          key: contentKey,
+          child: TabBarView(
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              SummaryTab(articleId: articleId, article: article),
+              OriginalContentTab(articleId: articleId, article: article),
+            ],
+          ),
+        ),
       ),
     );
   }

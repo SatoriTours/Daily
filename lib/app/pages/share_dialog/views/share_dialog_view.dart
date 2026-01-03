@@ -228,7 +228,6 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
           controller: titleController,
           maxLines: null,
           minLines: 2,
-          maxLength: InputConfig.maxLength,
           style: AppTypography.bodyMedium.copyWith(fontSize: 15, height: 1.5),
           decoration: InputDecoration(
             hintText: 'ui.inputOrModifyArticleTitle'.t,
@@ -257,12 +256,7 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
               horizontal: Dimensions.spacingM - 2,
               vertical: Dimensions.spacingM - 2,
             ),
-            counterStyle: AppTypography.bodySmall.copyWith(
-              fontSize: 11,
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.medium),
-            ),
           ),
-          inputFormatters: [LengthLimitingTextInputFormatter(120)],
         ),
       ],
     );

@@ -20,11 +20,17 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = AppTheme.getTextTheme(context);
+    final titleText = article != null ? StringUtils.getTopLevelDomain(Uri.parse(article!.url ?? '').host) : '';
 
     return AppBar(
-      title: Text(
-        article != null ? StringUtils.getTopLevelDomain(Uri.parse(article!.url ?? '').host) : '',
-        style: textTheme.titleLarge?.copyWith(color: Colors.white),
+      title: AnimatedDefaultTextStyle(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        style: (_isProcessing ? textTheme.titleMedium : textTheme.titleLarge)?.copyWith(
+          color: Colors.white,
+          fontSize: _isProcessing ? 16 : null,
+        ) ?? const TextStyle(),
+        child: Text(titleText),
       ),
       centerTitle: true,
       actions: [
