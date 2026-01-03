@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/plugin_center/providers/plugin_center_controller_provider.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
 /// 服务器URL设置对话框
@@ -45,7 +46,7 @@ class ServerUrlDialog {
                     Expanded(
                       child: Text('插件服务器设置', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
                     ),
-                    IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.of(context).pop()),
+                    IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => AppNavigation.back()),
                   ],
                 ),
                 Dimensions.verticalSpacerL,
@@ -118,7 +119,7 @@ class ServerUrlDialog {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(),
+                        onPressed: () => AppNavigation.back(),
                         style: ButtonStyles.getOutlinedStyle(context),
                         child: const Text('取消'),
                       ),
@@ -131,7 +132,7 @@ class ServerUrlDialog {
                           if (url.isNotEmpty) {
                             ref.read(pluginCenterControllerProvider.notifier).updateServerUrl(url);
                           }
-                          Navigator.of(context).pop();
+                          AppNavigation.back();
                         },
                         style: ButtonStyles.getPrimaryStyle(context),
                         child: const Text('保存'),

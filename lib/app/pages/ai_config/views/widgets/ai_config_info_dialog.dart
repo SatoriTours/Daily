@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
 /// AI配置信息对话框
@@ -12,7 +13,7 @@ class AIConfigInfoDialog extends StatelessWidget {
     return AlertDialog(
       title: _buildDialogTitle(context),
       content: _buildDialogContent(context),
-      actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('了解了'))],
+      actions: [TextButton(onPressed: () => AppNavigation.back(), child: const Text('了解了'))],
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
     );
   }

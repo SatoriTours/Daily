@@ -10,6 +10,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/providers/providers.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 part 'books_controller_provider.freezed.dart';
@@ -109,18 +110,18 @@ class BooksController extends _$BooksController {
           onSubmitted: (value) {
             if (value.trim().isNotEmpty) {
               searchKeyword = value.trim();
-              Navigator.pop(dialogContext);
+              AppNavigation.back();
             }
           },
         ),
         actionsAlignment: MainAxisAlignment.end,
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text('button.cancel'.t)),
+          TextButton(onPressed: () => AppNavigation.back(), child: Text('button.cancel'.t)),
           TextButton(
             onPressed: () {
               if (titleController.text.trim().isNotEmpty) {
                 searchKeyword = titleController.text.trim();
-                Navigator.pop(dialogContext);
+                AppNavigation.back();
               }
             },
             child: Text('button.confirm'.t),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
@@ -104,7 +105,7 @@ class GenericFilterDialog extends StatelessWidget {
         Text('component.filter_title'.t, style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold)),
         IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => AppNavigation.back(),
           tooltip: 'component.cancel'.t,
         ),
       ],
@@ -274,7 +275,7 @@ class GenericFilterDialog extends StatelessWidget {
         TextButton(
           onPressed: () {
             onClearAll();
-            Navigator.pop(context);
+            AppNavigation.back();
           },
           child: Text(
             'component.filter_clear_all'.t,
@@ -282,7 +283,7 @@ class GenericFilterDialog extends StatelessWidget {
           ),
         ),
         ElevatedButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => AppNavigation.back(),
           style: ButtonStyles.getPrimaryStyle(context),
           child: Text('component.confirm'.t),
         ),

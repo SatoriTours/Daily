@@ -1,12 +1,12 @@
 import 'dart:io';
 
+import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/pages/diary/utils/diary_utils.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/diary_tag_selector_dialog.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/markdown_toolbar.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/image_preview.dart';
 import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
 import 'package:daily_satori/app/styles/index.dart';
-import 'package:daily_satori/app_exports.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -188,7 +188,7 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
                 leading: Icon(FeatherIcons.image, color: DiaryStyles.getAccentColor(context)),
                 title: Text('menu.select_from_gallery'.t),
                 onTap: () {
-                  Navigator.pop(context);
+                  AppNavigation.back();
                   _selectImages();
                 },
               ),
@@ -196,7 +196,7 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
                 leading: Icon(FeatherIcons.camera, color: DiaryStyles.getAccentColor(context)),
                 title: Text('menu.take_photo'.t),
                 onTap: () {
-                  Navigator.pop(context);
+                  AppNavigation.back();
                   _takePhoto();
                 },
               ),
@@ -259,7 +259,7 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
     await Future.delayed(const Duration(milliseconds: 100));
 
     if (mounted) {
-      Navigator.of(context).pop();
+      AppNavigation.back();
     }
   }
 

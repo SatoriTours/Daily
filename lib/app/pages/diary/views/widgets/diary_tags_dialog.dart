@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 
 import 'diary_tags_dialog_header.dart';
@@ -19,7 +20,7 @@ class DiaryTagsDialog extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        DiaryTagsDialogHeader(onClose: () => Navigator.pop(context)),
+        DiaryTagsDialogHeader(onClose: () => AppNavigation.back()),
         Divider(height: 1, thickness: 0.5, color: DiaryStyles.getDividerColor(context)),
         DiaryTagsList(tags: tags, onTagSelected: onTagSelected),
         Divider(height: 1, thickness: 0.5, color: DiaryStyles.getDividerColor(context)),

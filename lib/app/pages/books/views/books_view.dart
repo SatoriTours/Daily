@@ -224,7 +224,7 @@ class _BooksFilterDialog extends ConsumerWidget {
               Text('title.select_book'.t, style: AppTypography.titleMedium),
               IconButton(
                 icon: const Icon(Icons.close, size: Dimensions.iconSizeM),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => AppNavigation.back(),
               ),
             ],
           ),
@@ -252,7 +252,7 @@ class _BooksFilterDialog extends ConsumerWidget {
             child: TextButton.icon(
               onPressed: () {
                 ref.read(booksControllerProvider.notifier).selectBook(-1);
-                Navigator.pop(context);
+                AppNavigation.back();
               },
               icon: Icon(Icons.clear, size: Dimensions.iconSizeXs, color: AppColors.getPrimary(context)),
               label: Text(
@@ -278,7 +278,7 @@ class _BooksFilterDialog extends ConsumerWidget {
     return InkWell(
       onTap: () {
         ref.read(booksControllerProvider.notifier).selectBook(book?.id ?? -1);
-        Navigator.pop(context);
+        AppNavigation.back();
       },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingM - 4, horizontal: Dimensions.spacingM),

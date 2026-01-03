@@ -180,7 +180,7 @@ class _ContentDialog extends StatelessWidget {
           elevation: 0,
           leading: IconButton(
             icon: Icon(Icons.close, color: DiaryStyles.getPrimaryTextColor(context)),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => AppNavigation.back(),
           ),
           title: Row(
             children: [

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -77,7 +78,7 @@ class DiaryImageGallery extends StatelessWidget {
         backgroundColor: Colors.transparent,
         insetPadding: EdgeInsets.zero,
         child: GestureDetector(
-          onTap: () => Navigator.of(dialogContext).pop(),
+          onTap: () => AppNavigation.back(),
           child: Scaffold(
             backgroundColor: Colors.black,
             appBar: AppBar(
@@ -87,7 +88,7 @@ class DiaryImageGallery extends StatelessWidget {
               actions: [
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  onPressed: () => AppNavigation.back(),
                 ),
               ],
             ),

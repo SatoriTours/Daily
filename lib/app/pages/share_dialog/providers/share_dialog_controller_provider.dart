@@ -411,8 +411,8 @@ class ShareDialogController extends _$ShareDialogController {
     try {
       await channel.invokeMethod('backDesktop');
     } catch (e) {
-      logger.w('[ShareDialog] moveTaskToBack 失败，使用 SystemNavigator.pop: $e');
-      SystemNavigator.pop();
+      logger.w('[ShareDialog] moveTaskToBack 失败，使用 AppNavigation.exitApp: $e');
+      AppNavigation.exitApp();
     }
   }
 

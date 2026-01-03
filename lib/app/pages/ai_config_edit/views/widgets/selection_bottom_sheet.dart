@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/styles/index.dart';
 
 /// 选择底部弹出窗口
@@ -65,7 +66,7 @@ class SelectionBottomSheet extends StatelessWidget {
         itemCount: items.length,
         itemBuilder: (context, index) => _buildSelectionItem(context, items[index], items[index] == selectedValue, () {
           onSelected(index);
-          Navigator.pop(context);
+          AppNavigation.back();
         }),
       ),
     );

@@ -113,7 +113,7 @@ class BackupRestoreView extends ConsumerWidget {
                 label: const Text('确定并退出'),
                 style: ButtonStyles.getPrimaryStyle(context),
                 onPressed: () {
-                  Navigator.of(context).pop();
+                  AppNavigation.back();
                   // 延迟一下再退出，让对话框有时间关闭
                   Future.delayed(const Duration(milliseconds: 300), () {
                     AppNavigation.exitApp();

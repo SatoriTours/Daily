@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
@@ -54,7 +55,7 @@ class ProcessingDialog {
     if (timeout != null) {
       timeoutTimer = Timer(Duration(milliseconds: timeout), () {
         if (!completer.isCompleted && context.mounted) {
-          Navigator.of(context).pop();
+          AppNavigation.back();
           completer.complete(null);
         }
       });
@@ -66,13 +67,13 @@ class ProcessingDialog {
 
       // 关闭对话框
       if (context.mounted) {
-        Navigator.of(context).pop();
+        AppNavigation.back();
       }
       completer.complete(result);
       return result;
     } catch (e) {
       if (context.mounted) {
-        Navigator.of(context).pop();
+        AppNavigation.back();
       }
       completer.completeError(e);
       rethrow;

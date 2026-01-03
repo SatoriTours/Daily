@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 import 'package:daily_satori/app/components/common/common_calendar.dart';
@@ -55,7 +56,7 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
                 onDateSelected: (date) {
                   setState(() => _selectedDate = date);
                   widget.onDateSelected(date);
-                  Navigator.pop(context);
+                  AppNavigation.back();
                 },
                 onPreviousMonth: () => setState(() {
                   _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month - 1, 1);
@@ -94,7 +95,7 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
           ),
           IconButton(
             icon: Icon(FeatherIcons.x, size: Dimensions.iconSizeM, color: colorScheme.onSurfaceVariant),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => AppNavigation.back(),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
@@ -107,7 +108,7 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
     return InkWell(
       onTap: () {
         widget.onShowAllArticles();
-        Navigator.pop(context);
+        AppNavigation.back();
       },
       child: Container(
         padding: Dimensions.paddingVerticalM,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:daily_satori/app/data/tag/tag_model.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
@@ -39,7 +40,7 @@ class ArticlesTagsDialog extends StatelessWidget {
               Text('article.select_tag'.t, style: textTheme.titleMedium),
               IconButton(
                 icon: const Icon(FeatherIcons.x, size: Dimensions.iconSizeM),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => AppNavigation.back(),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               ),
@@ -71,7 +72,7 @@ class ArticlesTagsDialog extends StatelessWidget {
             child: InkWell(
               onTap: () {
                 onClearFilters();
-                Navigator.pop(context);
+                AppNavigation.back();
               },
               borderRadius: BorderRadius.circular(Dimensions.radiusL + 4),
               child: Padding(
@@ -116,7 +117,7 @@ class ArticlesTagsDialog extends StatelessWidget {
     return InkWell(
       onTap: () {
         onTagSelected(tag.id, tag.name ?? '');
-        Navigator.pop(context);
+        AppNavigation.back();
       },
       borderRadius: BorderRadius.circular(Dimensions.radiusL),
       child: Container(

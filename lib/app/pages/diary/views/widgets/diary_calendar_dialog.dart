@@ -1,6 +1,7 @@
 import 'package:daily_satori/app/data/index.dart';
 import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
 import 'package:daily_satori/app/providers/diary_state_provider.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:flutter/material.dart';
@@ -74,7 +75,7 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
           ),
           IconButton(
             icon: Icon(FeatherIcons.x, size: 20, color: DiaryStyles.getSecondaryTextColor(context)),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => AppNavigation.back(),
             splashRadius: 20,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -171,7 +172,7 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
               _selectedDate = date;
             });
             ref.read(diaryControllerProvider.notifier).filterByDate(date);
-            Navigator.pop(context);
+            AppNavigation.back();
           },
           child: Container(
             margin: const EdgeInsets.all(4),
@@ -226,7 +227,7 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
     return InkWell(
       onTap: () {
         ref.read(diaryControllerProvider.notifier).clearFilters();
-        Navigator.pop(context);
+        AppNavigation.back();
       },
       child: Container(
         width: double.infinity,

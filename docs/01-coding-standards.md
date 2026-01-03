@@ -173,7 +173,7 @@ GoRoute(
 
 ### 对话框导航
 
-对话框和底部表单可以直接使用 `Navigator.pop(context)`：
+对话框和底部表单应使用 `AppNavigation.back()`：
 
 ```dart
 // ✅ 关闭对话框
@@ -182,7 +182,7 @@ showDialog(
   builder: (context) => AlertDialog(
     actions: [
       TextButton(
-        onPressed: () => Navigator.pop(context),  // ✅ 允许
+        onPressed: () => AppNavigation.back(),  // ✅ 正确做法
         child: Text('关闭'),
       ),
     ],

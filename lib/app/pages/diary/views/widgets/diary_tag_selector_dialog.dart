@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app/styles/base/colors.dart';
@@ -49,7 +50,7 @@ class _DiaryTagSelectorDialogState extends ConsumerState<DiaryTagSelectorDialog>
 
   void _selectTag(String tag) {
     widget.onTagSelected(tag);
-    Navigator.pop(context);
+    AppNavigation.back();
   }
 
   void _addNewTag() {
@@ -58,7 +59,7 @@ class _DiaryTagSelectorDialogState extends ConsumerState<DiaryTagSelectorDialog>
       final cleanTag = newTag.startsWith('#') ? newTag.substring(1) : newTag;
       if (cleanTag.isNotEmpty) {
         widget.onTagSelected(cleanTag);
-        Navigator.pop(context);
+        AppNavigation.back();
       }
     }
   }

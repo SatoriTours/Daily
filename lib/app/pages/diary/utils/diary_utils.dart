@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/styles/pages/diary_styles.dart';
 import 'package:daily_satori/app/pages/books/providers/books_controller_provider.dart';
 import 'package:daily_satori/app/pages/home/providers/home_controller_provider.dart';
@@ -143,7 +144,7 @@ class DiaryUtils {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => AppNavigation.back(),
             child: Text('关闭', style: TextStyle(color: DiaryStyles.getAccentColor(context))),
           ),
         ],

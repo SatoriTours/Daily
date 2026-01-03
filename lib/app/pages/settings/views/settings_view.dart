@@ -480,7 +480,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               size: Dimensions.iconSizeM + 2,
               color: colorScheme.onSurface.withValues(alpha: Opacities.medium),
             ),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => AppNavigation.back(),
             tooltip: 'button.close'.t,
           ),
         ],
@@ -734,7 +734,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             Expanded(
               flex: 3,
               child: TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => AppNavigation.back(),
                 style: ButtonStyles.getOutlinedStyle(context),
                 child: Text('button.cancel'.t),
               ),
@@ -745,7 +745,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               flex: 7,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  AppNavigation.back();
                   ref.read(settingsControllerProvider.notifier).saveWebServerPassword(passwordController.text);
                 },
                 style: ButtonStyles.getPrimaryStyle(context),

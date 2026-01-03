@@ -43,7 +43,7 @@ class DialogUtils {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              AppNavigation.back();
               if (onConfirm != null) onConfirm();
             },
             child: Text(buttonText),
@@ -78,7 +78,7 @@ class DialogUtils {
           Expanded(
             child: TextButton(
               onPressed: () {
-                Navigator.of(context).pop(false);
+                AppNavigation.back();
                 if (onCancel != null) onCancel();
               },
               child: Text(cancelText),
@@ -88,7 +88,7 @@ class DialogUtils {
           Expanded(
             child: TextButton(
               onPressed: () {
-                Navigator.of(context).pop(true);
+                AppNavigation.back();
                 if (onConfirm != null) onConfirm();
               },
               child: Text(confirmText),
@@ -132,7 +132,7 @@ class DialogUtils {
           Expanded(
             child: TextButton(
               onPressed: () {
-                Navigator.of(context).pop();
+                AppNavigation.back();
                 if (onCancel != null) onCancel();
               },
               child: Text(cancelText),
@@ -142,7 +142,7 @@ class DialogUtils {
           Expanded(
             child: TextButton(
               onPressed: () {
-                Navigator.of(context).pop(controller.text);
+                AppNavigation.back(result: controller.text);
                 onConfirm(controller.text);
               },
               child: Text(confirmText),
@@ -265,8 +265,8 @@ class DialogUtils {
 
   static void _closeDialog({BuildContext? context}) {
     final ctx = context ?? _context;
-    if (ctx != null && Navigator.of(ctx).canPop()) {
-      Navigator.of(ctx).pop();
+    if (ctx != null && AppNavigation.navigatorKey.currentState?.canPop() == true) {
+      AppNavigation.back();
     }
   }
 }

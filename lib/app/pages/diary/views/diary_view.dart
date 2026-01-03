@@ -129,11 +129,11 @@ class DiaryView extends ConsumerWidget {
         tags: state.tags,
         onTagSelected: (tag) {
           controller.filterByTag(tag);
-          Navigator.pop(context);
+          AppNavigation.back();
         },
         onClearFilters: () {
           controller.clearFilters();
-          Navigator.pop(context);
+          AppNavigation.back();
         },
       ),
     ).then((_) => FocusManager.instance.primaryFocus?.unfocus());
