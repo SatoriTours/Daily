@@ -5,13 +5,9 @@
 library;
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import 'package:daily_satori/app/data/data.dart';
-import 'package:daily_satori/app/providers/providers.dart';
-import 'package:daily_satori/app/services/index.dart';
-import 'package:daily_satori/app/utils/utils.dart';
-import 'package:daily_satori/app/routes/app_navigation.dart';
+import 'package:daily_satori/app_exports.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'book_search_controller_provider.freezed.dart';
 part 'book_search_controller_provider.g.dart';

@@ -12,6 +12,7 @@ export 'app_state_provider.dart';
 export 'article_state_provider.dart';
 export 'diary_state_provider.dart';
 export 'books_state_provider.dart';
+export 'first_launch_provider.dart';
 
 // ========================================================================
 // 页面级 Controller Providers

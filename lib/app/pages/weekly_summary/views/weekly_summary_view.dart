@@ -1,15 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/weekly_summary/providers/weekly_summary_controller_provider.dart';
-import 'package:daily_satori/app/providers/providers.dart';
-import 'package:daily_satori/app/routes/app_navigation.dart';
-import 'package:daily_satori/app/styles/styles.dart';
-import 'package:daily_satori/app/utils/i18n_extension.dart';
-import 'package:daily_satori/app/utils/ui_utils.dart';
-import 'package:daily_satori/app/routes/app_routes.dart';
-import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
+
+
+import 'package:daily_satori/app_exports.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:daily_satori/app/data/data.dart';
+
 import 'package:daily_satori/app/pages/diary/views/widgets/diary_image_gallery.dart';
 
 /// 周报页面视图

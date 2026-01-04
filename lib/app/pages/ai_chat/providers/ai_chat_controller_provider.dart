@@ -2,13 +2,12 @@
 library;
 
 import 'dart:async';
+
+import 'package:daily_satori/app_exports.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import 'package:daily_satori/app/components/ai_chat/chat_message.dart';
 import 'package:daily_satori/app/pages/ai_chat/services/mcp/index.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 part 'ai_chat_controller_provider.freezed.dart';
 part 'ai_chat_controller_provider.g.dart';

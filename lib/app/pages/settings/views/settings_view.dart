@@ -1,19 +1,7 @@
-import 'package:daily_satori/app/routes/app_navigation.dart';
-import 'package:daily_satori/app/components/common/feature_icon.dart';
-import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
-import 'package:daily_satori/app/styles/styles.dart';
-import 'package:daily_satori/app/utils/ui_utils.dart';
-import 'package:daily_satori/app/utils/dialog_utils.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/settings/providers/settings_controller_provider.dart';
+
+import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/pages/settings/widgets/first_setup_guide.dart';
-import 'package:daily_satori/app/providers/first_launch_provider.dart';
-import 'package:daily_satori/app/utils/i18n_extension.dart';
-import 'package:daily_satori/app/services/app_upgrade_service.dart';
-import 'package:daily_satori/app/routes/app_routes.dart';
-import 'package:daily_satori/app/data/setting/setting_repository.dart';
-import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 
 /// 设置页面视图
 ///

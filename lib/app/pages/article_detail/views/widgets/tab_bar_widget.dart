@@ -1,7 +1,6 @@
-import 'package:flutter/material.dart';
 
-import 'package:daily_satori/app/styles/app_theme.dart';
 
+import 'package:daily_satori/app_exports.dart';
 class ArticleTabBar extends StatelessWidget {
   const ArticleTabBar({super.key});
 

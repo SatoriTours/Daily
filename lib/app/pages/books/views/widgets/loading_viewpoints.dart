@@ -1,5 +1,4 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/styles/styles.dart';
 
 /// 加载观点组件
 class LoadingViewpoints extends StatelessWidget {

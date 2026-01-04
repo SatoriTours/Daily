@@ -5,7 +5,6 @@ import 'package:daily_satori/app/pages/articles/providers/articles_controller_pr
 import 'widgets/articles_tags_dialog.dart';
 import 'widgets/articles_list.dart';
 import 'widgets/article_calendar_dialog.dart';
-import 'package:daily_satori/app/styles/styles.dart';
 
 /// 文章列表页面
 class ArticlesView extends ConsumerWidget {

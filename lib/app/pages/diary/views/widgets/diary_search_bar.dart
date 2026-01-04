@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart' show VoidCallback;
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/styles/styles.dart';
 
 /// 日记搜索栏组件
 ///

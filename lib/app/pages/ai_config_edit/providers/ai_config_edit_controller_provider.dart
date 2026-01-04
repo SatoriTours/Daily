@@ -5,17 +5,13 @@
 library;
 
 import 'package:freezed_annotation/freezed_annotation.dart';
+
+import 'package:daily_satori/app_exports.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
 import 'package:daily_satori/app/pages/ai_config/models/ai_config_types.dart';
 import 'package:daily_satori/app/pages/ai_config/providers/ai_config_controller_provider.dart';
-import 'package:daily_satori/app/services/index.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/utils/ui_utils.dart';
-import 'package:daily_satori/app/utils/i18n_extension.dart';
-import 'package:daily_satori/app/routes/app_navigation.dart';
 
 part 'ai_config_edit_controller_provider.freezed.dart';
 part 'ai_config_edit_controller_provider.g.dart';

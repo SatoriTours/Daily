@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/styles.dart';
+import 'package:daily_satori/app_exports.dart';
 
 /// 表单部分标题
 ///

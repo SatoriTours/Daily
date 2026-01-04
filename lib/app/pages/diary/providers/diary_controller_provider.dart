@@ -2,15 +2,13 @@
 library;
 
 import 'dart:io';
-import 'package:flutter/material.dart';
+
+
+import 'package:daily_satori/app_exports.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
-
-import 'package:daily_satori/app/data/data.dart';
-import 'package:daily_satori/app/providers/providers.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
 
 part 'diary_controller_provider.freezed.dart';
 part 'diary_controller_provider.g.dart';

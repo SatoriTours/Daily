@@ -5,18 +5,12 @@
 library;
 
 import 'dart:async';
-import 'package:flutter/material.dart';
+
+
+import 'package:daily_satori/app_exports.dart';
 import 'package:flutter/services.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-
-import 'package:daily_satori/app/data/data.dart';
-import 'package:daily_satori/app/providers/providers.dart';
-import 'package:daily_satori/app/services/index.dart';
-import 'package:daily_satori/app/components/dialogs/processing_dialog.dart';
-import 'package:daily_satori/app/utils/dialog_utils.dart';
-import 'package:daily_satori/app/routes/app_navigation.dart';
-import 'package:daily_satori/app/routes/app_routes.dart';
 
 part 'share_dialog_controller_provider.freezed.dart';
 part 'share_dialog_controller_provider.g.dart';

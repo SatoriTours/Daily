@@ -1,8 +1,6 @@
-import 'package:flutter/material.dart' show VoidCallback;
 import 'package:daily_satori/app/pages/left_bar/providers/left_bar_controller_provider.dart';
 import 'package:daily_satori/app/pages/articles/providers/articles_controller_provider.dart';
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/styles/styles.dart';
 
 class LeftBarView extends ConsumerWidget {
   const LeftBarView({super.key});

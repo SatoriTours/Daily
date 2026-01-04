@@ -6,13 +6,11 @@ library;
 
 import 'dart:io';
 
+import 'package:daily_satori/app_exports.dart';
 import 'package:flutter/services.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import 'package:daily_satori/app/data/data.dart';
-import 'package:daily_satori/app/services/index.dart';
-import 'package:daily_satori/app/utils/utils.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';

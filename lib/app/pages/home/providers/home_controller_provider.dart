@@ -5,10 +5,10 @@
 library;
 
 import 'package:flutter/foundation.dart';
+
+import 'package:daily_satori/app_exports.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-
-import 'package:daily_satori/app/services/logger_service.dart';
 
 part 'home_controller_provider.freezed.dart';
 part 'home_controller_provider.g.dart';

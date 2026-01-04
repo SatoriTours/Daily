@@ -5,15 +5,12 @@
 
 library;
 
-import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+
+import 'package:daily_satori/app_exports.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:daily_satori/app/config/app_config.dart';
-import 'package:daily_satori/app/data/article/article_model.dart';
-import 'package:daily_satori/app/utils/i18n_extension.dart';
-import 'package:daily_satori/app/providers/providers.dart';
-import 'package:daily_satori/app/services/index.dart';
 
 part 'articles_controller_provider.freezed.dart';
 part 'articles_controller_provider.g.dart';

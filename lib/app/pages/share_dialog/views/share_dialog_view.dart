@@ -1,12 +1,7 @@
-import 'package:daily_satori/app/routes/app_navigation.dart';
-import 'package:daily_satori/app/components/components.dart';
-import 'package:daily_satori/app/styles/styles.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:daily_satori/app/pages/share_dialog/providers/share_dialog_controller_provider.dart';
 
-import 'package:daily_satori/app/utils/i18n_extension.dart';
+import 'package:daily_satori/app_exports.dart';
+import 'package:daily_satori/app/pages/share_dialog/providers/share_dialog_controller_provider.dart';
 
 /// 分享页面视图
 /// 用于保存链接或添加/更新文章备注信息

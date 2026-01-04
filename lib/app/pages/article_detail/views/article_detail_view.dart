@@ -1,8 +1,6 @@
-import 'package:daily_satori/app/routes/app_navigation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/article_detail/providers/article_detail_controller_provider.dart';
-import 'package:daily_satori/app/data/data.dart' show ArticleModel;
+
+import 'package:daily_satori/app_exports.dart';
 
 import 'widgets/article_detail_app_bar.dart';
 import 'widgets/original_content_tab.dart';

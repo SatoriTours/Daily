@@ -9,7 +9,7 @@ library;
 export 'app/utils/utils.dart';
 
 // 导出 Flutter
-export 'package:flutter/material.dart' hide VoidCallback;
+export 'package:flutter/material.dart';
 
 // 导出数据层（模型和仓储）
 export 'app/data/data.dart';
@@ -26,3 +26,6 @@ export 'package:daily_satori/app/components/components.dart';
 export 'package:flutter_riverpod/flutter_riverpod.dart';
 export 'package:feather_icons/feather_icons.dart';
 export 'package:share_plus/share_plus.dart';
+
+// 导出样式系统
+export 'app/styles/styles.dart';

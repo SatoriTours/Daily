@@ -1,6 +1,6 @@
 import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
-import 'package:daily_satori/app/styles/styles.dart';
+
 import 'package:daily_satori/app_exports.dart';
 import 'package:intl/intl.dart';
 

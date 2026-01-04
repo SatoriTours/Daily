@@ -5,9 +5,9 @@
 library;
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import 'package:daily_satori/app/data/data.dart';
+import 'package:daily_satori/app_exports.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'left_bar_controller_provider.freezed.dart';
 part 'left_bar_controller_provider.g.dart';

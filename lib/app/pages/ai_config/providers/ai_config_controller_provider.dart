@@ -5,12 +5,9 @@
 library;
 
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import 'package:daily_satori/app/data/data.dart';
-import 'package:daily_satori/app/services/index.dart';
-import 'package:daily_satori/app/routes/app_navigation.dart';
-import 'package:daily_satori/app/routes/app_routes.dart';
+import 'package:daily_satori/app_exports.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'ai_config_controller_provider.freezed.dart';
 part 'ai_config_controller_provider.g.dart';

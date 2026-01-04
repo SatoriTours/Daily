@@ -1,10 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/books/providers/book_search_controller_provider.dart';
-import 'package:daily_satori/app/styles/styles.dart';
-import 'package:daily_satori/app/data/data.dart';
-import 'package:daily_satori/app/utils/i18n_extension.dart';
 
+
+import 'package:daily_satori/app_exports.dart';
 /// 书籍搜索结果视图
 class BookSearchView extends ConsumerStatefulWidget {
   const BookSearchView({super.key});

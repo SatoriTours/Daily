@@ -1,5 +1,4 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/styles/styles.dart';
 
 /// 空状态组件
 class EmptyState extends StatelessWidget {

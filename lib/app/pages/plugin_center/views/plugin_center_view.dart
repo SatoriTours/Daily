@@ -1,10 +1,8 @@
-import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/pages/plugin_center/views/widgets/plugin_card.dart';
+
+import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/pages/plugin_center/views/widgets/server_url_dialog.dart';
-import 'package:daily_satori/app/services/plugin_service.dart';
-import 'package:daily_satori/app/styles/styles.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:daily_satori/app/pages/plugin_center/providers/plugin_center_controller_provider.dart';
 
 /// 插件中心视图

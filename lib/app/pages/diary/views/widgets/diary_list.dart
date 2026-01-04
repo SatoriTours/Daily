@@ -1,5 +1,4 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/styles/styles.dart';
 
 import 'diary_card.dart';
 import 'diary_empty_state.dart';

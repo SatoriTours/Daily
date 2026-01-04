@@ -6,7 +6,6 @@ import 'package:daily_satori/app/pages/diary/views/widgets/diary_tag_selector_di
 import 'package:daily_satori/app/pages/diary/views/widgets/markdown_toolbar.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/image_preview.dart';
 import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
-import 'package:daily_satori/app/styles/styles.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 
