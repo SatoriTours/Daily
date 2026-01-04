@@ -54,9 +54,7 @@ class ADBlockService implements AppService {
   // 初始化服务
   @override
   Future<void> init() async {
-    logger.i("[初始化服务] ADBlockService");
     await _loadRules();
-    logger.i('广告拦截规则加载完成');
   }
 
   @override
@@ -186,10 +184,8 @@ class ADBlockService implements AppService {
     final file = File(filePath);
 
     if (await file.exists()) {
-      logger.i('广告规则文件使用网络更新版本');
       return file.readAsString();
     }
-    logger.i('广告规则文件使用本地版本');
     return rootBundle.loadString(_localEasylistFile);
   }
 

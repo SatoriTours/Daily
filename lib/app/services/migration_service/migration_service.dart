@@ -18,8 +18,6 @@ class MigrationService {
 
   /// 初始化服务
   Future<void> init() async {
-    logger.i("🔄 [迁移服务] 初始化");
-
     try {
       // 获取当前数据库版本
       final currentVersion = _getCurrentDbVersion();
@@ -96,11 +94,6 @@ class MigrationService {
           await _updateDbVersion(latestVersion);
         }
       }
-    }
-
-    // 如果没有任务需要执行，记录日志
-    if (latestVersion == currentVersion) {
-      logger.i("✅ [迁移服务] 数据库已是最新版本: v$currentVersion");
     }
   }
 }

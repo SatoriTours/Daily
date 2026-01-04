@@ -53,14 +53,10 @@ class I18nService implements AppService {
     await _loadSavedLanguage();
     await _loadTranslations();
     _isInitialized = true;
-    logger.i('I18nService initialized with language: ${currentLanguage.displayName}');
   }
 
   @override
-  Future<void> dispose() async {
-    // I18nService 不需要特殊的清理逻辑
-    logger.i('I18nService disposed');
-  }
+  Future<void> dispose() async {}
 
   /// 切换语言并重启应用
   Future<void> changeLanguageAndRestart(SupportedLanguage language, BuildContext context) async {
@@ -114,7 +110,6 @@ class I18nService implements AppService {
     try {
       final String yamlString = await rootBundle.loadString('assets/i18n/${currentLanguage.code}.yaml');
       _translations = loadYaml(yamlString);
-      logger.i('Loaded YAML translations for language: ${currentLanguage.code}');
     } catch (e, stackTrace) {
       logger.e('Failed to load translations for ${currentLanguage.code}', error: e, stackTrace: stackTrace);
 

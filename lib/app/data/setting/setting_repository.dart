@@ -153,7 +153,6 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
         setValue(key, value);
       }
     }
-    logger.i("[设置仓储] 初始化默认设置完成");
   }
 
   // 根据 key 删除某个配置

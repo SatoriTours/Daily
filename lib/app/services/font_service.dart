@@ -32,13 +32,9 @@ class FontService {
   /// - 禁用运行时字体获取
   /// - 注册字体许可证
   Future<void> init() async {
-    logger.i("[初始化服务] FontService");
-
     if (AppInfoUtils.isProduction) {
       _configureProductionFonts();
     }
-
-    logger.i('字体服务初始化完成');
   }
 
   /// 配置生产环境字体设置

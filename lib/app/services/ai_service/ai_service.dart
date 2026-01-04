@@ -35,10 +35,7 @@ class AiService {
   // MARK: - 初始化方法
 
   /// 初始化AI服务
-  Future<void> init() async {
-    logger.i("[AI服务] 初始化");
-    logger.i('AI服务初始化完成');
-  }
+  Future<void> init() async {}
 
   // MARK: - 核心方法
 
@@ -148,9 +145,6 @@ class AiService {
 
     // 检查配置是否有效
     final isValid = apiAddress.isNotEmpty && apiToken.isNotEmpty;
-    logger.d(
-      "[AI服务] 功能类型 $functionType 的AI ${isValid ? '已启用' : '未启用'}, API地址=${apiAddress.isNotEmpty}, 令牌=${apiToken.isNotEmpty}",
-    );
 
     return isValid;
   }

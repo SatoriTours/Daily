@@ -138,7 +138,6 @@ class ServiceRegistry {
       return;
     }
 
-    logger.i('[ServiceRegistry] 开始初始化低优先级服务');
     final low = _servicesByPriority(ServicePriority.low);
 
     for (final service in low) {

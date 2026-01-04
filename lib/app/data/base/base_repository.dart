@@ -70,7 +70,7 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
   /// 查询所有 Model
   List<M> all() {
     final result = box.getAll().map(toModel).toList();
-    logger.d('[$entityName] 查询所有: ${result.length} 条');
+    // logger.d('[$entityName] 查询所有: ${result.length} 条');
     return result;
   }
 

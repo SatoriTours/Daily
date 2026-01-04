@@ -22,7 +22,6 @@ class AIConfigService implements AppService {
   /// 初始化
   @override
   Future<void> init() async {
-    logger.i("[AI配置服务] 初始化");
     AIConfigRepository.i.initDefaultConfigs();
   }
 

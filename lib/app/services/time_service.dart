@@ -1,6 +1,5 @@
 import 'package:get_time_ago/get_time_ago.dart';
 
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 
 class TimeService implements AppService {
@@ -18,7 +17,6 @@ class TimeService implements AppService {
   /// 初始化时间服务
   @override
   Future<void> init() async {
-    logger.i("[初始化服务] TimeService");
     // 设置相对时间本地化为中文
     GetTimeAgo.setDefaultLocale('zh');
   }

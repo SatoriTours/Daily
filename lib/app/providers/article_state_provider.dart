@@ -48,8 +48,6 @@ class ArticleState extends _$ArticleState {
 
   @override
   ArticleStateModel build() {
-    logger.i('ArticleState Provider 初始化完成');
-
     // 监听 WebContentNotifier 的文章更新事件流
     _articleUpdateSubscription = WebContentNotifier.i.onArticleUpdated.listen(_onArticleUpdatedFromService);
 
@@ -158,7 +156,6 @@ class ArticleState extends _$ArticleState {
       }
 
       state = state.copyWith(articles: updatedArticles);
-      logger.i('加载文章列表完成: ${result.length} 篇');
     } finally {
       state = state.copyWith(isLoading: false);
     }

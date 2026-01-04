@@ -15,7 +15,6 @@ class ShareReceiveService {
 
   /// 初始化服务
   Future<void> init() async {
-    logger.i("[初始化服务] ShareReceiveService");
     _registerShareReceiveHandler();
   }
 

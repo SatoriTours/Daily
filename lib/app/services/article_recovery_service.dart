@@ -15,7 +15,6 @@ class ArticleRecoveryService {
 
   /// 初始化服务
   Future<void> init() async {
-    logger.i("[初始化服务] ArticleRecoveryService");
     await _resumePendingAiTasks();
   }
 
@@ -26,7 +25,7 @@ class ArticleRecoveryService {
     try {
       final pendingArticles = ArticleRepository.i.findAllPending();
       if (pendingArticles.isEmpty) {
-        logger.d("[文章恢复] 没有待处理的文章");
+        // logger.d("[文章恢复] 没有待处理的文章");
         return;
       }
 

@@ -34,14 +34,12 @@ abstract class AppStateModel with _$AppStateModel {
 class AppGlobalState extends _$AppGlobalState {
   @override
   AppStateModel build() {
-    logger.i('AppGlobalState Provider 初始化完成');
     return AppStateModel(lastActiveTime: DateTime.now());
   }
 
   /// 设置当前导航索引
   void setCurrentNavIndex(int index) {
     state = state.copyWith(currentNavIndex: index);
-    logger.i('设置导航索引: $index');
   }
 
   /// 设置应用后台状态

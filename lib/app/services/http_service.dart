@@ -29,7 +29,6 @@ class HttpService implements AppService {
 
   @override
   Future<void> init() async {
-    logger.i("[初始化服务] HttpService");
     _dio = Dio(
       BaseOptions(
         connectTimeout: _timeoutDuration,
@@ -42,7 +41,6 @@ class HttpService implements AppService {
 
     // 开发模式下忽略 SSL 证书验证（解决代理/VPN 环境下的证书问题）
     if (!AppInfoUtils.isProduction) {
-      logger.i("[HttpService] 开发模式：跳过 SSL 证书验证");
       (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
         final client = HttpClient();
         client.badCertificateCallback = (cert, host, port) => true;

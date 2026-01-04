@@ -40,7 +40,7 @@ class AppHttpServer {
     try {
       _server = await shelf_io.serve(handler, InternetAddress.anyIPv4, WebService.httpPort);
 
-      logger.i('[服务 WebService] Web服务启动成功: ${_server!.address.host}:${_server!.port}');
+      // logger.i('[服务 WebService] Web服务启动成功: ${_server!.address.host}:${_server!.port}');
 
       return;
     } catch (e) {
@@ -60,7 +60,7 @@ class AppHttpServer {
     // 注册新的RESTful API
     _router.mount('/api/v2', _apiController.createHandler());
 
-    logger.i('API路由已注册: /ping, /api/v1/articles, /api/v2/**');
+    // logger.i('API路由已注册: /ping, /api/v1/articles, /api/v2/**');
   }
 
   /// 注册静态资源路由
@@ -82,8 +82,6 @@ class AppHttpServer {
     _router.get('/', _adminHandler);
     _router.get('/admin', _adminHandler);
     _router.get('/admin/', _adminHandler);
-
-    logger.i('静态资源路由已注册: /images, /assets, /admin');
   }
 
   /// 处理内置静态资源（仅限 website 目录）

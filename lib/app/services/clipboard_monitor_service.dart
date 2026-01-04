@@ -34,7 +34,6 @@ class ClipboardMonitorService with WidgetsBindingObserver {
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
-    logger.i('[初始化服务] ClipboardMonitorService');
 
     // 注册应用生命周期监听
     WidgetsBinding.instance.addObserver(this);
@@ -89,7 +88,6 @@ class ClipboardMonitorService with WidgetsBindingObserver {
 
       // // 规则(2)：如果当前在 share dialog 页面，直接跳过
       // // 已移除 GetX，Riverpod架构下不需要此检查
-
 
       final clipboardText = await _getClipboardText();
       if (clipboardText.isEmpty) return;

@@ -61,7 +61,6 @@ class BackupService {
 
   // 初始化服务
   Future<void> init() async {
-    logger.i("[初始化服务] BackupService");
     _initBackupItems();
 
     // 检查并修复图片路径（用于备份恢复后首次启动）
@@ -76,7 +75,6 @@ class BackupService {
       // 可以通过检查某个标记文件判断是否刚刚恢复过备份
       // 或者简单地每次启动都检查一次（开销不大）
       await _fixAllImagePaths();
-      logger.i("图片路径检查完成");
     } catch (e) {
       logger.w("修复图片路径时出错: $e");
     }
@@ -326,7 +324,7 @@ class BackupService {
           DiaryRepository.i.save(diary);
         }
       }
-      logger.i('恢复后已修复日记图片路径');
+      // logger.i('恢复后已修复日记图片路径');
     } catch (e) {
       logger.w('修复日记图片路径时出错: $e');
     }
@@ -372,7 +370,7 @@ class BackupService {
           ArticleRepository.i.updateModel(am);
         }
       }
-      logger.i('恢复后已修复文章相关图片路径');
+      // logger.d('恢复后已修复文章相关图片路径');
     } catch (e) {
       logger.w('修复文章图片路径时出错: $e');
     }

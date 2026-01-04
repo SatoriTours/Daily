@@ -33,7 +33,6 @@ class FileService {
 
   // 初始化服务
   Future<void> init() async {
-    logger.i("[初始化服务] FileService");
     _appPath = (await getApplicationDocumentsDirectory()).path;
     _imagesBasePath = await createDirectory('images');
     _diaryImagesBasePath = await createDirectory('diary_images');
@@ -45,12 +44,12 @@ class FileService {
     await _initializePublicDirectory();
 
     // 日志输出各路径
-    logger.i("应用根目录: $_appPath");
-    logger.i("图片目录: $_imagesBasePath");
-    logger.i("日记图片目录: $_diaryImagesBasePath");
-    logger.i("下载目录: $_downloadsPath");
-    logger.i("公共资源目录: $_publicPath");
-    logger.i("临时目录: $_tempPath");
+    // logger.i("应用根目录: $_appPath");
+    // logger.i("图片目录: $_imagesBasePath");
+    // logger.i("日记图片目录: $_diaryImagesBasePath");
+    // logger.i("下载目录: $_downloadsPath");
+    // logger.i("公共资源目录: $_publicPath");
+    // logger.i("临时目录: $_tempPath");
   }
 
   // 初始化公共静态资源目录结构
@@ -60,8 +59,6 @@ class FileService {
     await createDirectory(path.join('public', 'js'));
     await createDirectory(path.join('public', 'img'));
     await createDirectory(path.join('public', 'fonts'));
-
-    logger.i("公共静态资源目录结构已初始化");
   }
 
   // 获取下载文件路径

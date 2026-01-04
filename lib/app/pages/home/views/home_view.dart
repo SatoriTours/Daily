@@ -16,18 +16,13 @@ import 'package:daily_satori/app/pages/weekly_summary/views/weekly_summary_view.
 class HomeView extends ConsumerWidget {
   const HomeView({super.key});
 
-  static const String _tag = 'HomeView';
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    _logBuild();
-
     // 确保 articleStateProvider 在应用启动时就被初始化
     // 这样它就能监听服务层的文章更新事件
     ref.watch(articleStateProvider);
 
     final state = ref.watch(homeControllerProvider);
-    _logPageSwitch(state.currentIndex);
 
     return Scaffold(
       body: _LazyIndexedStack(index: state.currentIndex, itemCount: 5, itemBuilder: (index) => _buildPage(index)),
@@ -88,21 +83,6 @@ class HomeView extends ConsumerWidget {
       ],
     );
   }
-
-  /// 记录页面构建日志
-  void _logBuild() {
-    if (kDebugMode) {
-      logger.i('主页视图构建 [$_tag]');
-    }
-  }
-
-  /// 记录页面切换日志
-  void _logPageSwitch(int index) {
-    if (kDebugMode) {
-      final pages = ['nav.articles'.t, 'nav.diary'.t, 'nav.books'.t, 'ai_chat.title'.t, 'weekly_summary.title'.t];
-      logger.i('切换到 ${pages[index]} 页面');
-    }
-  }
 }
 
 // ============================================================================
@@ -139,9 +119,6 @@ class _LazyIndexedStackState extends State<_LazyIndexedStack> {
     _loadedPages = List.filled(widget.itemCount, false);
     // 首页默认加载
     _loadedPages[widget.index] = true;
-    if (kDebugMode) {
-      logger.d('[_LazyIndexedStack] 初始化，首先加载页面: ${widget.index}');
-    }
   }
 
   @override
@@ -150,9 +127,6 @@ class _LazyIndexedStackState extends State<_LazyIndexedStack> {
     // 当切换到新页面时，标记该页面为已加载
     if (!_loadedPages[widget.index]) {
       _loadedPages[widget.index] = true;
-      if (kDebugMode) {
-        logger.d('[_LazyIndexedStack] 懒加载页面: ${widget.index}');
-      }
     }
   }
 

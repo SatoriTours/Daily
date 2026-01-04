@@ -27,9 +27,7 @@ class AppUpgradeService {
   bool get needUpgrade => _currentVersion != _latestVersion;
 
   // 初始化服务
-  Future<void> init() async {
-    logger.i("[初始化服务] AppUpgradeService");
-  }
+  Future<void> init() async {}
 
   // 检查并下载新版本(带UI提示)
   Future<void> checkAndDownload() async {

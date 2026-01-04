@@ -14,9 +14,7 @@ class FreeDiskService {
   static final FreeDiskService _instance = FreeDiskService._();
   static FreeDiskService get i => _instance;
 
-  Future<void> init() async {
-    logger.i("[初始化服务] FreeDiskService");
-  }
+  Future<void> init() async {}
 
   /// 清理并备份图片文件
   Future<void> clean() async {

@@ -28,8 +28,6 @@ class PluginService {
 
   /// 初始化插件服务
   Future<void> init() async {
-    logger.i("[初始化] PluginService");
-
     // 加载所有配置
     await _loadAiPromptsConfig();
     await _loadAiModelsConfig();
@@ -59,8 +57,6 @@ class PluginService {
           final content = item['content'] as String;
           _aiPrompts[key] = content;
         }
-
-        logger.i('解析YAML: ai_prompts - 加载了${promptsList.length}个提示词');
       }
     } catch (e) {
       logger.e('解析YAML: ai_prompts - 失败 | $e');
@@ -90,7 +86,7 @@ class PluginService {
           _aiModels.add(aiModel);
         }
 
-        logger.i('解析YAML: ai_models - 加载了${_aiModels.length}个模型预设');
+        // logger.i('解析YAML: ai_models - 加载了${_aiModels.length}个模型预设');
       }
     } catch (e) {
       logger.e('解析YAML: ai_models - 失败 | $e');
@@ -112,7 +108,7 @@ class PluginService {
         if (configContent.isNotEmpty) {
           // 保存到数据库
           SettingRepository.i.saveSetting(settingKey, configContent);
-          logger.i('加载本地配置: $fileName - 成功并保存到数据库');
+          // logger.i('加载本地配置: $fileName - 成功并保存到数据库');
         }
       } catch (e) {
         logger.e('加载本地配置: $fileName - 失败 | $e');

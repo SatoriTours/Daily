@@ -47,8 +47,6 @@ class ObjectboxService implements AppService {
   /// 初始化 ObjectBox 服务
   @override
   Future<void> init() async {
-    logger.i("[存储服务] 初始化");
-
     // 创建数据库目录并打开存储
     final docsDir = await getApplicationDocumentsDirectory();
     final dbPath = path.join(docsDir.path, dbDir);
@@ -61,7 +59,7 @@ class ObjectboxService implements AppService {
   /// 在开发环境中初始化管理界面
   void _initAdminIfNeeded() {
     if (!AppInfoUtils.isProduction && Admin.isAvailable()) {
-      logger.i("[存储服务] 启用管理界面: http://0.0.0.0:9000");
+      // logger.i("[存储服务] 启用管理界面: http://0.0.0.0:9000");
       _admin = Admin(store, bindUri: 'http://0.0.0.0:9000');
     }
   }

@@ -28,24 +28,24 @@ class FirstLaunchController extends _$FirstLaunchController {
       (config) => config.apiToken.isNotEmpty && config.apiAddress.isNotEmpty && config.modelName.isNotEmpty,
     );
 
-    logger.i('[首次启动] AI配置: ${hasAIConfig ? "已配置" : "未配置"}');
+    // logger.i('[首次启动] AI配置: ${hasAIConfig ? "已配置" : "未配置"}');
 
     // 2. 检查 Google Cloud API Key（选填）
     final googleCloudKey = SettingRepository.i.getSetting(SettingService.googleCloudApiKeyKey);
     final hasGoogleCloudKey = googleCloudKey.isNotEmpty;
 
-    logger.i('[首次启动] Google Cloud Key: ${hasGoogleCloudKey ? "已配置" : "未配置"}');
+    // logger.i('[首次启动] Google Cloud Key: ${hasGoogleCloudKey ? "已配置" : "未配置"}');
 
     // 3. 检查备份目录（选填）
     final backupDir = SettingRepository.i.getSetting(SettingService.backupDirKey);
     final hasBackupDir = backupDir.isNotEmpty;
 
-    logger.i('[首次启动] 备份目录: ${hasBackupDir ? "已配置" : "未配置"}');
+    // logger.i('[首次启动] 备份目录: ${hasBackupDir ? "已配置" : "未配置"}');
 
     // 检查 AI 配置和备份目录是否完成（必填项）
     final isSetupComplete = hasAIConfig && hasBackupDir;
 
-    logger.i('[首次启动] 配置状态: ${isSetupComplete ? "已完成" : "未完成"}');
+    // logger.i('[首次启动] 配置状态: ${isSetupComplete ? "已完成" : "未完成"}');
 
     return FirstLaunchState(
       isSetupComplete: isSetupComplete,
