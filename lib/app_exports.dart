@@ -19,3 +19,10 @@ export 'app/services/services.dart';
 
 // 导出常用路由
 export 'app/routes/routes.dart';
+
+export 'package:daily_satori/app/providers/providers.dart';
+export 'package:daily_satori/app/components/components.dart';
+
+export 'package:flutter_riverpod/flutter_riverpod.dart';
+export 'package:feather_icons/feather_icons.dart';
+export 'package:share_plus/share_plus.dart';

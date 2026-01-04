@@ -1,11 +1,7 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/pages/books/providers/books_controller_provider.dart';
 import 'package:daily_satori/app/pages/books/views/widgets/viewpoint_card.dart';
 import 'package:daily_satori/app/styles/styles.dart';
-import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
-import 'package:daily_satori/app/components/menus/s_popup_menu_item.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/diary_editor.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 

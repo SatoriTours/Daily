@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart' show VoidCallback;
-import 'package:feather_icons/feather_icons.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/styles/styles.dart';
 

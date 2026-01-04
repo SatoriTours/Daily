@@ -1,7 +1,5 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/pages/home/providers/home_controller_provider.dart';
 import 'package:daily_satori/app/pages/articles/views/articles_view.dart';
 import 'package:daily_satori/app/pages/books/views/books_view.dart';

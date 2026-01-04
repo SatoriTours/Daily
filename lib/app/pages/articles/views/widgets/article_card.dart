@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart' show VoidCallback;
 import 'package:get_time_ago/get_time_ago.dart';
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/components/common/smart_image.dart';
-import 'package:daily_satori/app/components/common/article_info_item.dart';
 import 'package:daily_satori/app/styles/styles.dart';
 import 'article_action_bar.dart';
 
