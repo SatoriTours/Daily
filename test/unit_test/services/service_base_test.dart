@@ -74,7 +74,7 @@ void main() {
         serviceName: 'TestService',
         priority: ServicePriority.normal,
         onInit: () async {
-          await Future.delayed(Duration(milliseconds: 10));
+          await Future.delayed(const Duration(milliseconds: 10));
           callCount++;
         },
       );

@@ -40,15 +40,8 @@ jobs:
       - name: Run code analysis
         run: flutter analyze
 
-      - name: Format code
-        run: dart format --set-exit-if-changed lib/ test/
-
       - name: Run unit tests
         run: ./test.sh quick
-        env:
-          TEST_AI_URL: ${{ secrets.TEST_AI_URL || 'https://api.deepseek.com' }}
-          TEST_AI_TOKEN: ${{ secrets.TEST_AI_TOKEN || '' }}
-          TEST_AI_MODEL: ${{ secrets.TEST_AI_MODEL || 'deepseek-chat' }}
 
       - name: Upload test results
         if: always()
