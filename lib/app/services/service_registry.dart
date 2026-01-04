@@ -23,6 +23,8 @@ import 'package:daily_satori/app/services/clipboard_monitor_service.dart';
 import 'package:daily_satori/app/services/i18n/i18n_service.dart';
 import 'package:daily_satori/app/services/article_recovery_service.dart';
 
+import 'dart:developer' as developer;
+
 class ServiceStatus {
   final AppService service;
   bool isInitialized = false;
@@ -53,211 +55,101 @@ class ServiceRegistry {
 
   /// 注册项目内的所有服务（使用函数适配器包裹现有单例）
   void registerAll() {
+    void registerService(
+      String name,
+      ServicePriority priority,
+      Future<void> Function() init, {
+      FutureOr<void> Function()? dispose,
+    }) => register(FunctionAppService(serviceName: name, priority: priority, onInit: init, onDispose: dispose));
+
     // 基础/关键
-    register(
-      FunctionAppService(
-        serviceName: 'LoggerService',
-        priority: ServicePriority.critical,
-        onInit: () => LoggerService.i.init(),
-      ),
+    registerService('LoggerService', ServicePriority.critical, () => LoggerService.i.init());
+    registerService('FlutterService', ServicePriority.critical, () => FlutterService.i.init());
+    registerService('TimeService', ServicePriority.critical, () => TimeService.i.init());
+    registerService(
+      'ObjectboxService',
+      ServicePriority.critical,
+      ObjectboxService.i.init,
+      dispose: ObjectboxService.i.dispose,
     );
-    register(
-      FunctionAppService(
-        serviceName: 'FlutterService',
-        priority: ServicePriority.critical,
-        onInit: () => FlutterService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'TimeService',
-        priority: ServicePriority.critical,
-        onInit: () => TimeService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'ObjectboxService',
-        priority: ServicePriority.critical,
-        onInit: () => ObjectboxService.i.init(),
-        onDispose: () => ObjectboxService.i.dispose(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'SettingService',
-        priority: ServicePriority.critical,
-        onInit: () => SettingService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'FileService',
-        priority: ServicePriority.critical,
-        onInit: () => FileService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'HttpService',
-        priority: ServicePriority.critical,
-        onInit: () => HttpService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'I18nService',
-        priority: ServicePriority.critical,
-        onInit: () async {
-          await I18nService.i.init();
-        },
-      ),
-    );
+    registerService('SettingService', ServicePriority.critical, () => SettingService.i.init());
+    registerService('FileService', ServicePriority.critical, () => FileService.i.init());
+    registerService('HttpService', ServicePriority.critical, () => HttpService.i.init());
+    registerService('I18nService', ServicePriority.critical, () async => I18nService.i.init());
 
     // 高优先级
-    // Note: State services migrated to Riverpod providers, no longer registered here
-    register(
-      FunctionAppService(
-        serviceName: 'FontService',
-        priority: ServicePriority.high,
-        onInit: () => FontService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'ADBlockService',
-        priority: ServicePriority.high,
-        onInit: () => ADBlockService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'FreeDiskService',
-        priority: ServicePriority.high,
-        onInit: () => FreeDiskService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'AIConfigService',
-        priority: ServicePriority.high,
-        onInit: () => AIConfigService.i.init(),
-      ),
-    );
+    registerService('FontService', ServicePriority.high, () => FontService.i.init());
+    registerService('ADBlockService', ServicePriority.high, () => ADBlockService.i.init());
+    registerService('FreeDiskService', ServicePriority.high, () => FreeDiskService.i.init());
+    registerService('AIConfigService', ServicePriority.high, () => AIConfigService.i.init());
 
     // 普通
-    register(
-      FunctionAppService(serviceName: 'AiService', priority: ServicePriority.normal, onInit: () => AiService.i.init()),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'BackupService',
-        priority: ServicePriority.normal,
-        onInit: () => BackupService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'MigrationService',
-        priority: ServicePriority.normal,
-        onInit: () => MigrationService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'PluginService',
-        priority: ServicePriority.normal,
-        onInit: () => PluginService.i.init(),
-      ),
-    );
+    registerService('AiService', ServicePriority.normal, () => AiService.i.init());
+    registerService('BackupService', ServicePriority.normal, () => BackupService.i.init());
+    registerService('MigrationService', ServicePriority.normal, () => MigrationService.i.init());
+    registerService('PluginService', ServicePriority.normal, () => PluginService.i.init());
 
     // 低优先级
-    register(
-      FunctionAppService(serviceName: 'WebService', priority: ServicePriority.low, onInit: () => WebService.i.init()),
-    );
-
-    register(
-      FunctionAppService(
-        serviceName: 'ArticleRecoveryService',
-        priority: ServicePriority.low,
-        onInit: () => ArticleRecoveryService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'AppUpgradeService',
-        priority: ServicePriority.low,
-        onInit: () => AppUpgradeService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'ShareReceiveService',
-        priority: ServicePriority.low,
-        onInit: () => ShareReceiveService.i.init(),
-      ),
-    );
-    register(
-      FunctionAppService(
-        serviceName: 'ClipboardMonitorService',
-        priority: ServicePriority.low,
-        onInit: () => ClipboardMonitorService.i.init(),
-      ),
-    );
+    registerService('WebService', ServicePriority.low, () => WebService.i.init());
+    registerService('ArticleRecoveryService', ServicePriority.low, () => ArticleRecoveryService.i.init());
+    registerService('AppUpgradeService', ServicePriority.low, () => AppUpgradeService.i.init());
+    registerService('ShareReceiveService', ServicePriority.low, () => ShareReceiveService.i.init());
+    registerService('ClipboardMonitorService', ServicePriority.low, () => ClipboardMonitorService.i.init());
   }
 
   Future<void> _safeInit(AppService service, {required bool critical}) async {
-    final st = ServiceStatus(service);
-    _status[service.serviceName] = st;
-    st.startTime = DateTime.now();
+    final status = ServiceStatus(service);
+    _status[service.serviceName] = status..startTime = DateTime.now();
+
     try {
+      developer.log('[I] 开始初始化服务: ${service.serviceName}', name: 'Satori', level: 800);
       await service.init();
-      st.isInitialized = true;
+      status.isInitialized = true;
     } catch (e) {
-      st.error = e;
+      status.error = e;
       if (critical) rethrow;
     } finally {
-      st.endTime = DateTime.now();
+      status.endTime = DateTime.now();
     }
   }
 
-  Iterable<AppService> _by(ServicePriority p) => _services.where((s) => s.priority == p);
+  List<AppService> _servicesByPriority(ServicePriority priority) =>
+      _services.where((s) => s.priority == priority).toList();
 
-  /// 按优先级初始化
+  /// 按优先级初始化所有服务
   Future<void> initializeAll() async {
-    // critical 同步串行
-    for (final s in _by(ServicePriority.critical)) {
-      await _safeInit(s, critical: true);
+    final critical = _servicesByPriority(ServicePriority.critical);
+    final high = _servicesByPriority(ServicePriority.high);
+    final normal = _servicesByPriority(ServicePriority.normal);
+
+    for (final service in critical) {
+      await _safeInit(service, critical: true);
     }
-    // high 并行
-    await Future.wait(_by(ServicePriority.high).map((s) => _safeInit(s, critical: false)));
-    // normal 异步并行
-    unawaited(Future.wait(_by(ServicePriority.normal).map((s) => _safeInit(s, critical: false))));
-    // low PostFrame 由上层触发，这里不做
+
+    await Future.wait(high.map((s) => _safeInit(s, critical: false)));
+
+    unawaited(Future.wait(normal.map((s) => _safeInit(s, critical: false))));
   }
 
-  /// 初始化低优先级服务
-  ///
-  /// 注意：低优先级服务仅在 AI 已配置时才会执行
-  /// 使用 AiService.i.isAiEnabled(0) 检查默认 AI 配置是否有效
+  /// 初始化低优先级服务（AI 配置完成后触发）
   void initializeLowPriority() {
-    // 检查 AI 是否已配置（使用默认配置 functionType = 0）
     if (!AiService.i.isAiEnabled(0)) {
-      logger.i("[ServiceRegistry] AI 未配置，跳过低优先级服务初始化");
+      logger.i('[ServiceRegistry] AI 未配置，跳过低优先级服务初始化');
       return;
     }
 
-    logger.i("[ServiceRegistry] 开始初始化低优先级服务");
-    for (final s in _by(ServicePriority.low)) {
-      // fire and forget
-      unawaited(_safeInit(s, critical: false));
+    logger.i('[ServiceRegistry] 开始初始化低优先级服务');
+    final low = _servicesByPriority(ServicePriority.low);
+
+    for (final service in low) {
+      unawaited(_safeInit(service, critical: false));
     }
   }
 
   Future<void> disposeAll() async {
-    for (final s in _services.reversed) {
+    for (final service in _services.reversed) {
       try {
-        await s.dispose();
+        await service.dispose();
       } catch (_) {}
     }
   }
