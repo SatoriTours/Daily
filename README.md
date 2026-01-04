@@ -98,10 +98,10 @@ flutter run
 
 ```
 框架：Flutter + Riverpod + GoRouter
-数据库：ObjectBox + SQLite
-网络：Dio + 自定义解析流水线
+数据库：ObjectBox
+网络：Dio
 AI：openai_dart
-书籍搜索：OpenLibrary API + pinyin
+书籍搜索：Google Cloud API
 Web 服务：shelf + WebSocket
 样式：Material Design 3
 其他：ADBlock 过滤、插件化架构、Riverpod 状态管理
