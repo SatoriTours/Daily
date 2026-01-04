@@ -1,4 +1,3 @@
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:flutter/material.dart';
 

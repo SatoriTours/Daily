@@ -1,7 +1,6 @@
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
 
 import 'package:daily_satori/app/data/data.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_provider.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/utils/random_utils.dart';
@@ -37,7 +36,8 @@ class SettingService implements AppService {
     openAITokenKey: '',
     openAIAddressKey: 'https://api.openai.com/v1',
     backupDirKey: '',
-    pluginKey: 'https://raw.githubusercontent.com/SatoriTours/plugin/refs/heads/main',
+    pluginKey:
+        'https://raw.githubusercontent.com/SatoriTours/plugin/refs/heads/main',
     webServerPasswordKey: RandomUtils.generateRandomPassword(),
     deviceIdKey: RandomUtils.generateDeviceId(),
     webSocketUrlKey: 'ws://10.0.2.2:3000/ws',

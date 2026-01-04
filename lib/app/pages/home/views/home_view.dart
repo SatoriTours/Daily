@@ -1,5 +1,4 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:flutter/foundation.dart';
 import 'package:daily_satori/app/pages/home/providers/home_controller_provider.dart';
 import 'package:daily_satori/app/pages/articles/views/articles_view.dart';
 import 'package:daily_satori/app/pages/books/views/books_view.dart';
@@ -25,7 +24,11 @@ class HomeView extends ConsumerWidget {
     final state = ref.watch(homeControllerProvider);
 
     return Scaffold(
-      body: _LazyIndexedStack(index: state.currentIndex, itemCount: 5, itemBuilder: (index) => _buildPage(index)),
+      body: _LazyIndexedStack(
+        index: state.currentIndex,
+        itemCount: 5,
+        itemBuilder: (index) => _buildPage(index),
+      ),
       bottomNavigationBar: _buildNavigationBar(state.currentIndex, ref),
     );
   }
@@ -52,7 +55,8 @@ class HomeView extends ConsumerWidget {
   Widget _buildNavigationBar(int currentIndex, WidgetRef ref) {
     return BottomNavigationBar(
       currentIndex: currentIndex,
-      onTap: (index) => ref.read(homeControllerProvider.notifier).changePage(index),
+      onTap: (index) =>
+          ref.read(homeControllerProvider.notifier).changePage(index),
       type: BottomNavigationBarType.fixed,
       items: [
         BottomNavigationBarItem(
@@ -103,7 +107,11 @@ class _LazyIndexedStack extends StatefulWidget {
   /// 页面构建器
   final Widget Function(int index) itemBuilder;
 
-  const _LazyIndexedStack({required this.index, required this.itemCount, required this.itemBuilder});
+  const _LazyIndexedStack({
+    required this.index,
+    required this.itemCount,
+    required this.itemBuilder,
+  });
 
   @override
   State<_LazyIndexedStack> createState() => _LazyIndexedStackState();
@@ -158,7 +166,8 @@ class _KeepAliveWrapper extends StatefulWidget {
   State<_KeepAliveWrapper> createState() => _KeepAliveWrapperState();
 }
 
-class _KeepAliveWrapperState extends State<_KeepAliveWrapper> with AutomaticKeepAliveClientMixin {
+class _KeepAliveWrapperState extends State<_KeepAliveWrapper>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
