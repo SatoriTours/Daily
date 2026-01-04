@@ -58,8 +58,6 @@ previous_tag=$(git tag --sort=-v:refname | head -2 | tail -1)
 ### 4. 执行 Git 命令
 
 ```bash
-# 添加 changelog
-git add docs/versions/changelog_${current_version}.md
 
 # 提交所有变更
 git add .
