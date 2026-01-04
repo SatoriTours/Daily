@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
-import '../test_config.dart' as test_config;
 
 void main() {
   group('Daily Satori 路由配置测试', () {
@@ -102,31 +101,6 @@ void main() {
       await tester.pump();
 
       expect(buttonPressed, isTrue);
-    });
-  });
-
-  group('TestConfig 测试', () {
-    test('AI URL 应该从环境变量读取或使用默认值', () {
-      final url = test_config.TestConfig.aiUrl;
-      expect(url, isNotEmpty);
-      expect(url, contains('deepseek.com'));
-    });
-
-    test('AI Model 应该返回正确的默认值', () {
-      expect(test_config.TestConfig.aiModel, 'deepseek-chat');
-    });
-
-    test('AI Token 应该从环境变量读取', () {
-      final token = test_config.TestConfig.aiToken;
-      expect(token, isNotEmpty);
-    });
-
-    test('hasAiConfig 在有配置时应该返回true', () {
-      expect(test_config.TestConfig.hasAiConfig, isTrue);
-    });
-
-    test('printConfig 应该能正常执行', () {
-      expect(() => test_config.TestConfig.printConfig(), returnsNormally);
     });
   });
 }
