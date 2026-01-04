@@ -10,6 +10,7 @@
 [![Flutter](https://img.shields.io/badge/Flutter-%3E%3D3.0-blue.svg)](https://flutter.dev/)
 [![Version](https://img.shields.io/badge/Version-3.6.85-brightgreen.svg)](https://github.com/SatoriTours/Daily/releases)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/SatoriTours/Daily/pulls)
+[![Unit Tests](https://github.com/SatoriTours/Daily/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/SatoriTours/Daily/actions/workflows/unit-tests.yml)
 
 [功能特性](#-功能特性) · [快速开始](#-快速开始) · [更新日志](#-更新日志) · [参与贡献](#-参与贡献)
 
