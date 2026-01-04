@@ -24,4 +24,8 @@ export 'ai_config_service.dart';
 export 'migration_service/migration_service.dart';
 export 'webpage_parser_service.dart';
 export 'service_base.dart';
+export 'service_registry.dart';
+export 'i18n/i18n_service.dart';
+export 'web_content/web_content_notifier.dart';
+export 'ai_service/ai_article_processor.dart';
 export 'weekly_summary_service.dart';
