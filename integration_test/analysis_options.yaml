@@ -1,0 +1,11 @@
+# 集成测试文件专用的静态代码分析配置
+# 继承根目录配置，但对某些规则进行放宽
+
+include: ../analysis_options.yaml
+
+analyzer:
+  errors:
+    # 测试文件禁用 const 相关规则（freezed 模型包含非 const 字段时无法使用 const）
+    prefer_const_constructors: ignore
+    prefer_const_declarations: ignore
+    prefer_const_literals_to_create_immutables: ignore
