@@ -7,7 +7,7 @@ library;
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/weekly_summary_service.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';

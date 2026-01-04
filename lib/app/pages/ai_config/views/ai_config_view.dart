@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/ai_config/providers/ai_config_controller_provider.dart';
-import 'package:daily_satori/app/data/index.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/data/data.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:daily_satori/app/components/common/feature_icon.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/pages/ai_config/models/ai_config_types.dart';

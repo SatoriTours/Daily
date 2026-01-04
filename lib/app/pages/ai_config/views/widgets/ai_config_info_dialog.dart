@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app/routes/app_navigation.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 
 /// AI配置信息对话框
 ///

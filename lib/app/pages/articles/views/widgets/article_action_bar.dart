@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app/data/article/article_model.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 
 /// 文章操作栏组件
 ///
@@ -46,9 +46,7 @@ class ArticleActionBar extends StatelessWidget {
           articleModel.isFavorite ? Icons.favorite : Icons.favorite_border,
           articleModel.isFavorite
               ? colorScheme.error
-              : colorScheme.onSurfaceVariant.withValues(
-                  alpha: Opacities.medium,
-                ),
+              : colorScheme.onSurfaceVariant.withValues(alpha: Opacities.medium),
           onFavoriteToggle,
         ),
         Dimensions.horizontalSpacerS,
@@ -62,12 +60,7 @@ class ArticleActionBar extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton(
-    BuildContext context,
-    IconData icon,
-    Color color,
-    VoidCallback? onTap,
-  ) {
+  Widget _buildActionButton(BuildContext context, IconData icon, Color color, VoidCallback? onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(Dimensions.radiusL),

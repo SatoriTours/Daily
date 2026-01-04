@@ -5,10 +5,10 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/pages/article_detail/providers/article_detail_controller_provider.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 
 /// 文章原始内容标签页
 /// 支持两种内容格式：

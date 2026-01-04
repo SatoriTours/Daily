@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 /// 通用搜索栏组件
@@ -79,6 +79,7 @@ class GenericSearchBar extends StatelessWidget {
     }
     return _buildExpandedSearchBar(context);
   }
+
   /// 收起状态的搜索栏
   Widget _buildCollapsedSearchBar(BuildContext context) {
     return Container(
@@ -86,10 +87,7 @@ class GenericSearchBar extends StatelessWidget {
       padding: padding ?? Dimensions.paddingHorizontalM,
       child: Row(
         children: [
-          if (showFilterButton && onFilterTap != null) ...[
-            _buildFilterButton(context),
-            Dimensions.horizontalSpacerS,
-          ],
+          if (showFilterButton && onFilterTap != null) ...[_buildFilterButton(context), Dimensions.horizontalSpacerS],
           Expanded(
             child: InkWell(
               onTap: onToggleSearch,
@@ -103,17 +101,11 @@ class GenericSearchBar extends StatelessWidget {
                 padding: Dimensions.paddingHorizontalM,
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.search,
-                      size: Dimensions.iconSizeM,
-                      color: AppColors.getOnSurfaceVariant(context),
-                    ),
+                    Icon(Icons.search, size: Dimensions.iconSizeM, color: AppColors.getOnSurfaceVariant(context)),
                     Dimensions.horizontalSpacerS,
                     Text(
                       hintText ?? 'component.search_placeholder'.t,
-                      style: AppTypography.bodyMedium.copyWith(
-                        color: AppColors.getOnSurfaceVariant(context),
-                      ),
+                      style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
                     ),
                   ],
                 ),
@@ -124,6 +116,7 @@ class GenericSearchBar extends StatelessWidget {
       ),
     );
   }
+
   /// 展开状态的搜索栏
   Widget _buildExpandedSearchBar(BuildContext context) {
     return Container(
@@ -177,24 +170,18 @@ class GenericSearchBar extends StatelessWidget {
               ),
             ),
           ),
-          if (showFilterButton && onFilterTap != null) ...[
-            Dimensions.horizontalSpacerS,
-            _buildFilterButton(context),
-          ],
+          if (showFilterButton && onFilterTap != null) ...[Dimensions.horizontalSpacerS, _buildFilterButton(context)],
         ],
       ),
     );
   }
+
   /// 过滤按钮
   Widget _buildFilterButton(BuildContext context) {
     return Tooltip(
       message: 'component.tooltip_filter'.t,
       child: IconButton(
-        icon: Icon(
-          Icons.filter_list,
-          size: Dimensions.iconSizeL,
-          color: AppColors.getPrimary(context),
-        ),
+        icon: Icon(Icons.filter_list, size: Dimensions.iconSizeL, color: AppColors.getPrimary(context)),
         onPressed: onFilterTap,
       ),
     );

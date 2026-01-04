@@ -1,6 +1,6 @@
 import 'package:daily_satori/app/routes/app_navigation.dart';
-import 'package:daily_satori/app/components/index.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/components/components.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

@@ -1,6 +1,6 @@
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 
 /// 图片处理器
 /// 专门负责处理文章图片的下载和存储

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 
 /// 自定义按钮组件
 ///

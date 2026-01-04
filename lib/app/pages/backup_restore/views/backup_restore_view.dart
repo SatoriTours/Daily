@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/backup_restore/providers/backup_restore_controller_provider.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:daily_satori/app/providers/first_launch_provider.dart';
 import 'package:daily_satori/app/routes/app_navigation.dart';
 

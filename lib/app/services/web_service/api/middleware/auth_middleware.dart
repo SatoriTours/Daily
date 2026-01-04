@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/web_service/api/session/session_manager.dart';
 import 'package:daily_satori/app/services/web_service/api/utils/request_utils.dart';

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/objectbox/session.dart';
 import 'package:shelf/shelf.dart';
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/index.dart';
-
+import 'package:daily_satori/app/styles/styles.dart';
 
 /// 按钮组件
 ///
@@ -19,12 +18,16 @@ import 'package:daily_satori/app/styles/index.dart';
 class ButtonGroup extends StatelessWidget {
   /// 按钮子组件列表
   final List<Widget> children;
+
   /// 按钮间距，默认使用中等水平间距
   final double? spacing;
+
   /// 布局方向，默认为水平
   final Axis direction;
+
   /// 底部边距，默认为24
   final double bottomPadding;
+
   /// 创建一个按钮组
   ///
   /// [children] 按钮子组件列表
@@ -43,12 +46,12 @@ class ButtonGroup extends StatelessWidget {
     final finalSpacing = spacing ?? Dimensions.spacingM;
     return Padding(
       padding: EdgeInsets.only(bottom: bottomPadding),
-      child:
-          direction == Axis.horizontal
-              ? Row(children: _addSpacingBetween(children, finalSpacing))
-              : Column(children: _addSpacingBetween(children, finalSpacing)),
+      child: direction == Axis.horizontal
+          ? Row(children: _addSpacingBetween(children, finalSpacing))
+          : Column(children: _addSpacingBetween(children, finalSpacing)),
     );
   }
+
   /// 在子组件之间添加间距
   List<Widget> _addSpacingBetween(List<Widget> widgets, double spacing) {
     if (widgets.length <= 1) return widgets;

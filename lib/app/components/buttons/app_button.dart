@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/index.dart';
-
+import 'package:daily_satori/app/styles/styles.dart';
 
 /// 按钮类型枚举
 enum AppButtonType {
   /// 主要按钮 - 填充背景色
   primary,
+
   /// 次要按钮 - 使用轮廓样式
   secondary,
 }
+
 /// 应用按钮组件
 ///
 /// 一个遵循应用设计规范的按钮组件，支持主要和次要风格
@@ -24,16 +25,22 @@ enum AppButtonType {
 class AppButton extends StatelessWidget {
   /// 按钮标题
   final String title;
+
   /// 按钮类型
   final AppButtonType type;
+
   /// 按钮点击回调
   final VoidCallback? onPressed;
+
   /// 按钮高度，默认使用标准按钮高度
   final double? height;
+
   /// 按钮图标，可选
   final IconData? icon;
+
   /// 按钮是否禁用
   final bool isDisabled;
+
   /// 创建一个应用按钮
   ///
   /// [title] 按钮显示的文本
@@ -58,6 +65,7 @@ class AppButton extends StatelessWidget {
       child: type == AppButtonType.primary ? _buildPrimaryButton(context) : _buildSecondaryButton(context),
     );
   }
+
   /// 构建主要按钮
   Widget _buildPrimaryButton(BuildContext context) {
     return ElevatedButton(
@@ -74,6 +82,7 @@ class AppButton extends StatelessWidget {
       child: _buildButtonContent(context),
     );
   }
+
   /// 构建次要按钮
   Widget _buildSecondaryButton(BuildContext context) {
     return OutlinedButton(
@@ -81,10 +90,9 @@ class AppButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         foregroundColor: Theme.of(context).colorScheme.primary,
         side: BorderSide(
-          color:
-              isDisabled
-                  ? Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)
-                  : Theme.of(context).colorScheme.primary,
+          color: isDisabled
+              ? Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)
+              : Theme.of(context).colorScheme.primary,
           width: 1.5,
         ),
         padding: Dimensions.paddingHorizontalM,
@@ -94,6 +102,7 @@ class AppButton extends StatelessWidget {
       child: _buildButtonContent(context),
     );
   }
+
   /// 构建按钮内容
   Widget _buildButtonContent(BuildContext context) {
     if (icon != null) {

@@ -1,7 +1,7 @@
 import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/components/common/feature_icon.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:daily_satori/app/utils/ui_utils.dart';
 import 'package:daily_satori/app/utils/dialog_utils.dart';
 import 'package:flutter/material.dart';

@@ -3,7 +3,7 @@ import 'package:daily_satori/app/components/indicators/s_filter_indicator.dart';
 import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
 import 'package:daily_satori/app/providers/diary_state_provider.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:feather_icons/feather_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

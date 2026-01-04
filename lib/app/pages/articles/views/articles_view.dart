@@ -6,7 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/pages/articles/providers/articles_controller_provider.dart';
 import 'package:daily_satori/app/components/empty_states/articles_empty_view.dart';
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 import 'package:daily_satori/app/components/search/generic_search_bar.dart';
@@ -14,7 +14,7 @@ import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'widgets/articles_tags_dialog.dart';
 import 'widgets/articles_list.dart';
 import 'widgets/article_calendar_dialog.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:daily_satori/app/components/indicators/s_filter_indicator.dart';
 import 'package:daily_satori/app/components/menus/s_popup_menu_item.dart';
 

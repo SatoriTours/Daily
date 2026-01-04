@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 
 /// 网页内容通知器
 ///

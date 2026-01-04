@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/index.dart';
-
+import 'package:daily_satori/app/styles/styles.dart';
 
 /// 评论输入框组件
 ///
@@ -16,22 +15,31 @@ import 'package:daily_satori/app/styles/index.dart';
 class CommentField extends StatelessWidget {
   /// 文本编辑控制器
   final TextEditingController controller;
+
   /// 提示文本
   final String hintText;
+
   /// 最小行数
   final int minLines;
+
   /// 是否自动获取焦点
   final bool autofocus;
+
   /// 键盘类型
   final TextInputType keyboardType;
+
   /// 输入动作类型
   final TextInputAction textInputAction;
+
   /// 内容变化回调
   final ValueChanged<String>? onChanged;
+
   /// 提交回调
   final ValueChanged<String>? onSubmitted;
+
   /// 自定义内容填充
   final EdgeInsetsGeometry? contentPadding;
+
   /// 创建一个评论输入框
   ///
   /// [controller] 文本编辑控制器
@@ -73,11 +81,14 @@ class CommentField extends StatelessWidget {
       ),
     );
   }
+
   /// 构建输入框装饰
   InputDecoration _buildInputDecoration(BuildContext context) {
     return InputDecoration(
       hintText: hintText,
-      hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.6)),
+      hintStyle: AppTypography.bodyMedium.copyWith(
+        color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.6),
+      ),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(Dimensions.radiusM), borderSide: BorderSide.none),
       contentPadding: contentPadding ?? Dimensions.paddingM,
       filled: true,

@@ -12,12 +12,10 @@ export 'app/utils/utils.dart';
 export 'package:flutter/material.dart' hide VoidCallback;
 
 // 导出数据层（模型和仓储）
-export 'app/data/index.dart';
+export 'app/data/data.dart';
 
 // 导出常用服务
 export 'app/services/services.dart';
 
 // 导出常用路由
-export 'app/routes/app_routes.dart';
-// 导出导航服务（替换 GetX 导航）
-export 'app/routes/app_navigation.dart';
+export 'app/routes/routes.dart';

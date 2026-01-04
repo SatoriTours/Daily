@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/index.dart';
-
+import 'package:daily_satori/app/styles/styles.dart';
 
 /// 自定义弹出菜单项
 class CustomMenuItem<T> {
@@ -9,6 +8,7 @@ class CustomMenuItem<T> {
   final IconData icon;
   CustomMenuItem({required this.value, required this.title, required this.icon});
 }
+
 /// 自定义弹出菜单
 class CustomPopupMenu<T> extends StatelessWidget {
   final List<CustomMenuItem<T>> items;
@@ -30,9 +30,11 @@ class CustomPopupMenu<T> extends StatelessWidget {
       onSelected: onSelected,
     );
   }
+
   List<PopupMenuEntry<T>> _buildPopupMenuItems(BuildContext context) {
     return items.map((item) => _buildPopupMenuItem(context, item)).toList();
   }
+
   PopupMenuEntry<T> _buildPopupMenuItem(BuildContext context, CustomMenuItem<T> item) {
     return PopupMenuItem<T>(
       value: item.value,
@@ -41,10 +43,7 @@ class CustomPopupMenu<T> extends StatelessWidget {
         children: [
           Icon(item.icon, size: Dimensions.iconSizeS, color: AppColors.getOnSurface(context)),
           Dimensions.horizontalSpacerS,
-          Text(
-            item.title,
-            style: AppTypography.labelSmall.copyWith(color: AppColors.getOnSurface(context)),
-          ),
+          Text(item.title, style: AppTypography.labelSmall.copyWith(color: AppColors.getOnSurface(context))),
         ],
       ),
     );

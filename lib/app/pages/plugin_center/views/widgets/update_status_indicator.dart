@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:flutter/material.dart';
 
 /// 更新状态指示器组件

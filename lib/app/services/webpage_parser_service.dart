@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/components/webview/headless_webview.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/services/ai_service/ai_article_processor.dart';

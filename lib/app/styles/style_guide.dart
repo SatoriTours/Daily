@@ -4,7 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 
 /// 应用风格指南
 ///
@@ -15,10 +15,7 @@ class StyleGuide {
 
   /// 获取页面容器装饰
   static BoxDecoration getPageContainerDecoration(BuildContext context) {
-    return BoxDecoration(
-      color: AppColors.getSurface(context),
-      borderRadius: BorderRadius.circular(Dimensions.radiusM),
-    );
+    return BoxDecoration(color: AppColors.getSurface(context), borderRadius: BorderRadius.circular(Dimensions.radiusM));
   }
 
   /// 获取卡片装饰
@@ -38,10 +35,7 @@ class StyleGuide {
 
   /// 获取列表项装饰
   static BoxDecoration getListItemDecoration(BuildContext context) {
-    return BoxDecoration(
-      color: AppColors.getSurface(context),
-      borderRadius: BorderRadius.circular(Dimensions.radiusS),
-    );
+    return BoxDecoration(color: AppColors.getSurface(context), borderRadius: BorderRadius.circular(Dimensions.radiusS));
   }
 
   /// 获取输入框装饰
@@ -54,8 +48,12 @@ class StyleGuide {
   }) {
     return InputDecoration(
       hintText: hintText,
-      hintStyle: AppTypography.getThemedStyle(context, AppTypography.bodyMedium,
-          lightColor: AppColors.onSurfaceVariant, darkColor: AppColors.onSurfaceVariantDark),
+      hintStyle: AppTypography.getThemedStyle(
+        context,
+        AppTypography.bodyMedium,
+        lightColor: AppColors.onSurfaceVariant,
+        darkColor: AppColors.onSurfaceVariantDark,
+      ),
       prefixIcon: prefixIcon,
       suffixIcon: suffixIcon,
       errorText: errorText,
@@ -109,9 +107,7 @@ class StyleGuide {
 
   /// 获取标签文本样式
   static TextStyle getChipTextStyle(BuildContext context, {bool selected = false}) {
-    return AppTypography.chipText.copyWith(
-      color: selected ? Colors.white : AppColors.getOnSurface(context),
-    );
+    return AppTypography.chipText.copyWith(color: selected ? Colors.white : AppColors.getOnSurface(context));
   }
 
   /// 获取分隔线
@@ -126,12 +122,7 @@ class StyleGuide {
   }
 
   /// 获取空状态组件
-  static Widget getEmptyState(
-    BuildContext context, {
-    required String message,
-    IconData? icon,
-    Widget? action,
-  }) {
+  static Widget getEmptyState(BuildContext context, {required String message, IconData? icon, Widget? action}) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -144,14 +135,15 @@ class StyleGuide {
           Dimensions.verticalSpacerM,
           Text(
             message,
-            style: AppTypography.getThemedStyle(context, AppTypography.bodyMedium,
-                lightColor: AppColors.onSurfaceVariant, darkColor: AppColors.onSurfaceVariantDark),
+            style: AppTypography.getThemedStyle(
+              context,
+              AppTypography.bodyMedium,
+              lightColor: AppColors.onSurfaceVariant,
+              darkColor: AppColors.onSurfaceVariantDark,
+            ),
             textAlign: TextAlign.center,
           ),
-          if (action != null) ...[
-            Dimensions.verticalSpacerM,
-            action,
-          ],
+          if (action != null) ...[Dimensions.verticalSpacerM, action],
         ],
       ),
     );
@@ -174,8 +166,12 @@ class StyleGuide {
           Dimensions.verticalSpacerM,
           Text(
             message,
-            style: AppTypography.getThemedStyle(context, AppTypography.bodyMedium,
-                lightColor: AppColors.onSurfaceVariant, darkColor: AppColors.onSurfaceVariantDark),
+            style: AppTypography.getThemedStyle(
+              context,
+              AppTypography.bodyMedium,
+              lightColor: AppColors.onSurfaceVariant,
+              darkColor: AppColors.onSurfaceVariantDark,
+            ),
           ),
         ],
       ),
@@ -183,34 +179,26 @@ class StyleGuide {
   }
 
   /// 获取错误状态组件
-  static Widget getErrorState(
-    BuildContext context, {
-    required String message,
-    VoidCallback? onRetry,
-  }) {
+  static Widget getErrorState(BuildContext context, {required String message, VoidCallback? onRetry}) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: Dimensions.iconSizeXxl,
-            color: AppColors.getError(context),
-          ),
+          Icon(Icons.error_outline, size: Dimensions.iconSizeXxl, color: AppColors.getError(context)),
           Dimensions.verticalSpacerM,
           Text(
             message,
-            style: AppTypography.getThemedStyle(context, AppTypography.bodyMedium,
-                lightColor: AppColors.onSurfaceVariant, darkColor: AppColors.onSurfaceVariantDark),
+            style: AppTypography.getThemedStyle(
+              context,
+              AppTypography.bodyMedium,
+              lightColor: AppColors.onSurfaceVariant,
+              darkColor: AppColors.onSurfaceVariantDark,
+            ),
             textAlign: TextAlign.center,
           ),
           if (onRetry != null) ...[
             Dimensions.verticalSpacerM,
-            ElevatedButton(
-              onPressed: onRetry,
-              style: getPrimaryButtonStyle(context),
-              child: const Text('重试'),
-            ),
+            ElevatedButton(onPressed: onRetry, style: getPrimaryButtonStyle(context), child: const Text('重试')),
           ],
         ],
       ),
@@ -224,9 +212,7 @@ class StyleGuide {
 
   /// 获取页面副标题样式
   static TextStyle getPageSubtitleStyle(BuildContext context) {
-    return AppTypography.bodyMedium.copyWith(
-      color: AppColors.getOnSurfaceVariant(context),
-    );
+    return AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context));
   }
 
   /// 获取列表项标题样式
@@ -236,9 +222,7 @@ class StyleGuide {
 
   /// 获取列表项副标题样式
   static TextStyle getListItemSubtitleStyle(BuildContext context) {
-    return AppTypography.listItemSubtitle.copyWith(
-      color: AppColors.getOnSurfaceVariant(context),
-    );
+    return AppTypography.listItemSubtitle.copyWith(color: AppColors.getOnSurfaceVariant(context));
   }
 
   /// 获取卡片标题样式
@@ -248,9 +232,7 @@ class StyleGuide {
 
   /// 获取卡片内容样式
   static TextStyle getCardContentStyle(BuildContext context) {
-    return AppTypography.cardContent.copyWith(
-      color: AppColors.getOnSurfaceVariant(context),
-    );
+    return AppTypography.cardContent.copyWith(color: AppColors.getOnSurfaceVariant(context));
   }
 
   /// 获取标准页面布局
@@ -263,12 +245,7 @@ class StyleGuide {
     return Scaffold(
       backgroundColor: AppColors.getBackground(context),
       body: SafeArea(
-        child: hasPadding
-            ? Padding(
-                padding: Dimensions.paddingPage,
-                child: child,
-              )
-            : child,
+        child: hasPadding ? Padding(padding: Dimensions.paddingPage, child: child) : child,
       ),
     );
   }

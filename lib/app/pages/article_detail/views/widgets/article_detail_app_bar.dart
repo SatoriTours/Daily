@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/pages/article_detail/providers/article_detail_controller_provider.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 
 class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final int articleId;
@@ -26,17 +26,16 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
       title: AnimatedDefaultTextStyle(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
-        style: (_isProcessing ? textTheme.titleMedium : textTheme.titleLarge)?.copyWith(
-          color: Colors.white,
-          fontSize: _isProcessing ? 16 : null,
-        ) ?? const TextStyle(),
+        style:
+            (_isProcessing ? textTheme.titleMedium : textTheme.titleLarge)?.copyWith(
+              color: Colors.white,
+              fontSize: _isProcessing ? 16 : null,
+            ) ??
+            const TextStyle(),
         child: Text(titleText),
       ),
       centerTitle: true,
-      actions: [
-        _buildLoadingIndicator(),
-        _buildAppBarActions(context, ref),
-      ],
+      actions: [_buildLoadingIndicator(), _buildAppBarActions(context, ref)],
     );
   }
 
@@ -48,10 +47,7 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
       child: SizedBox(
         width: 16,
         height: 16,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: Colors.white.withValues(alpha: 0.8),
-        ),
+        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white.withValues(alpha: 0.8)),
       ),
     );
   }

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/providers/providers.dart';
 import 'package:daily_satori/app/pages/books/providers/books_controller_provider.dart';
 import 'package:daily_satori/app/pages/books/views/widgets/viewpoint_card.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/components/menus/s_popup_menu_item.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/diary_editor.dart';
@@ -41,16 +41,10 @@ class BooksView extends ConsumerWidget {
     int cursorPosition = 0;
 
     if (booksState.viewpoints.isNotEmpty) {
-      final idx = booksState.currentViewpointIndex.clamp(
-        0,
-        booksState.viewpoints.length - 1,
-      );
+      final idx = booksState.currentViewpointIndex.clamp(0, booksState.viewpoints.length - 1);
       final vp = booksState.viewpoints[idx];
       final book = booksNotifier.findBookById(vp.bookId);
-      final cleanTitle = vp.title.trim().replaceAll(
-        RegExp(r'[。.！!？?，,；;：:]+$'),
-        '',
-      );
+      final cleanTitle = vp.title.trim().replaceAll(RegExp(r'[。.！!？?，,；;：:]+$'), '');
       final bookTitle = (book?.title ?? '未知书籍').trim();
       final author = (book?.author ?? '').trim();
 
@@ -89,14 +83,9 @@ class BooksView extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: DiaryStyles.getBottomSheetColor(context),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(base_dim.Dimensions.radiusL),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
-      builder: (_) => DiaryEditor(
-        initialContent: preset,
-        initialCursorPosition: cursorPosition,
-      ),
+      builder: (_) => DiaryEditor(initialContent: preset, initialCursorPosition: cursorPosition),
     );
   }
 }
@@ -109,10 +98,7 @@ class _BooksAppBar extends ConsumerWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SAppBar(
-      title: Text(
-        'title.books_wisdom'.t,
-        style: AppTypography.titleLarge.copyWith(color: Colors.white),
-      ),
+      title: Text('title.books_wisdom'.t, style: AppTypography.titleLarge.copyWith(color: Colors.white)),
       leading: IconButton(
         icon: const Icon(Icons.menu_book),
         onPressed: () => _showBooksFilterDialog(context, ref),
@@ -128,21 +114,9 @@ class _BooksAppBar extends ConsumerWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.more_horiz, size: Dimensions.iconSizeM),
           onSelected: (value) => _handleMenuSelection(value, context, ref),
           itemBuilder: (_) => [
-            SPopupMenuItem<String>(
-              value: 'shuffle',
-              icon: Icons.shuffle,
-              text: 'menu.shuffle'.t,
-            ),
-            SPopupMenuItem<String>(
-              value: 'refresh',
-              icon: Icons.refresh,
-              text: 'menu.refresh_book'.t,
-            ),
-            SPopupMenuItem<String>(
-              value: 'delete',
-              icon: Icons.delete_outline,
-              text: 'menu.delete_book'.t,
-            ),
+            SPopupMenuItem<String>(value: 'shuffle', icon: Icons.shuffle, text: 'menu.shuffle'.t),
+            SPopupMenuItem<String>(value: 'refresh', icon: Icons.refresh, text: 'menu.refresh_book'.t),
+            SPopupMenuItem<String>(value: 'delete', icon: Icons.delete_outline, text: 'menu.delete_book'.t),
           ],
         ),
       ],
@@ -170,9 +144,7 @@ class _BooksAppBar extends ConsumerWidget implements PreferredSizeWidget {
       context: context,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(base_dim.Dimensions.radiusL),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
       ),
       builder: (_) => _BooksFilterDialog(),
     );
@@ -186,33 +158,26 @@ class _BooksAppBar extends ConsumerWidget implements PreferredSizeWidget {
     }
     DialogUtils.showConfirm(
       title: 'dialog.delete_book'.t,
-      message:
-          '${'dialog.delete_book_confirm'.t}《${book.title}》？\n${'dialog.delete_book_warning'.t}',
+      message: '${'dialog.delete_book_confirm'.t}《${book.title}》？\n${'dialog.delete_book_warning'.t}',
       confirmText: 'button.delete'.t,
       cancelText: 'button.cancel'.t,
-      onConfirm: () =>
-          ref.read(booksControllerProvider.notifier).deleteBook(book.id),
+      onConfirm: () => ref.read(booksControllerProvider.notifier).deleteBook(book.id),
     );
   }
 
   void _confirmAndRefreshBook(BuildContext context, WidgetRef ref) {
-    final book =
-        _getCurrentBook(ref) ??
-        ref.read(booksStateProvider).allBooks.firstOrNull;
+    final book = _getCurrentBook(ref) ?? ref.read(booksStateProvider).allBooks.firstOrNull;
     if (book == null) {
       UIUtils.showError('error.no_book_to_refresh');
       return;
     }
     DialogUtils.showConfirm(
       title: 'dialog.refresh_book'.t,
-      message:
-          '${'dialog.refresh_book_message'.t}《${book.title}》${'dialog.refresh_book_warning'.t}',
+      message: '${'dialog.refresh_book_message'.t}《${book.title}》${'dialog.refresh_book_warning'.t}',
       confirmText: 'button.refresh'.t,
       cancelText: 'button.cancel'.t,
       onConfirm: () async {
-        DialogUtils.showLoading(
-          tips: '${'dialog.refreshing_book'.t}《${book.title}》...',
-        );
+        DialogUtils.showLoading(tips: '${'dialog.refreshing_book'.t}《${book.title}》...');
         try {
           await ref.read(booksControllerProvider.notifier).refreshBook(book.id);
           DialogUtils.hideLoading();
@@ -233,9 +198,7 @@ class _BooksAppBar extends ConsumerWidget implements PreferredSizeWidget {
       return booksNotifier.findBookById(currentViewpoint.bookId);
     }
     if (booksState.filterBookID != -1) {
-      return booksState.allBooks
-          .where((b) => b.id == booksState.filterBookID)
-          .firstOrNull;
+      return booksState.allBooks.where((b) => b.id == booksState.filterBookID).firstOrNull;
     }
     return null;
   }
@@ -246,9 +209,7 @@ class _BooksFilterDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final books = ref.watch(booksStateProvider.select((s) => s.allBooks));
-    final filterBookID = ref.watch(
-      booksStateProvider.select((s) => s.filterBookID),
-    );
+    final filterBookID = ref.watch(booksStateProvider.select((s) => s.filterBookID));
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -293,16 +254,10 @@ class _BooksFilterDialog extends ConsumerWidget {
                 ref.read(booksControllerProvider.notifier).selectBook(-1);
                 AppNavigation.back();
               },
-              icon: Icon(
-                Icons.clear,
-                size: Dimensions.iconSizeXs,
-                color: AppColors.getPrimary(context),
-              ),
+              icon: Icon(Icons.clear, size: Dimensions.iconSizeXs, color: AppColors.getPrimary(context)),
               label: Text(
                 'book.view_all_viewpoints'.t,
-                style: AppTypography.bodyMedium.copyWith(
-                  color: AppColors.getPrimary(context),
-                ),
+                style: AppTypography.bodyMedium.copyWith(color: AppColors.getPrimary(context)),
               ),
             ),
           ),
@@ -311,17 +266,10 @@ class _BooksFilterDialog extends ConsumerWidget {
     );
   }
 
-  Widget _buildItem(
-    BuildContext context,
-    WidgetRef ref,
-    BookModel? book,
-    bool isSelected,
-  ) {
+  Widget _buildItem(BuildContext context, WidgetRef ref, BookModel? book, bool isSelected) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isSelected
-        ? AppColors.getPrimary(
-            context,
-          ).withValues(alpha: isDark ? Opacities.mediumHigh : Opacities.low)
+        ? AppColors.getPrimary(context).withValues(alpha: isDark ? Opacities.mediumHigh : Opacities.low)
         : Colors.transparent;
     final textColor = isSelected
         ? (isDark ? Colors.white : AppColors.getPrimary(context))
@@ -333,10 +281,7 @@ class _BooksFilterDialog extends ConsumerWidget {
         AppNavigation.back();
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          vertical: Dimensions.spacingM - 4,
-          horizontal: Dimensions.spacingM,
-        ),
+        padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingM - 4, horizontal: Dimensions.spacingM),
         color: bgColor,
         child: Row(
           children: [
@@ -355,12 +300,7 @@ class _BooksFilterDialog extends ConsumerWidget {
                 ),
               ),
             ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: textColor,
-                size: Dimensions.iconSizeM,
-              ),
+            if (isSelected) Icon(Icons.check_circle, color: textColor, size: Dimensions.iconSizeM),
           ],
         ),
       ),
@@ -374,9 +314,7 @@ class _BooksBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final viewpoints = ref.watch(
-      booksStateProvider.select((s) => s.viewpoints),
-    );
+    final viewpoints = ref.watch(booksStateProvider.select((s) => s.viewpoints));
     if (viewpoints.isEmpty) {
       return Center(
         child: Column(
@@ -392,16 +330,12 @@ class _BooksBody extends ConsumerWidget {
     return _buildViewpointList(ref, viewpoints);
   }
 
-  Widget _buildViewpointList(
-    WidgetRef ref,
-    List<BookViewpointModel> viewpoints,
-  ) {
+  Widget _buildViewpointList(WidgetRef ref, List<BookViewpointModel> viewpoints) {
     final controllerState = ref.watch(booksControllerProvider);
     final booksNotifier = ref.read(booksStateProvider.notifier);
     return PageView.builder(
       controller: controllerState.pageController,
-      onPageChanged: (index) =>
-          ref.read(booksControllerProvider.notifier).goToViewpointIndex(index),
+      onPageChanged: (index) => ref.read(booksControllerProvider.notifier).goToViewpointIndex(index),
       itemCount: viewpoints.length,
       itemBuilder: (context, index) {
         final viewpoint = viewpoints[index];
@@ -412,10 +346,7 @@ class _BooksBody extends ConsumerWidget {
             Dimensions.spacingM,
             Dimensions.spacingM,
           ),
-          child: ViewpointCard(
-            viewpoint: viewpoint,
-            book: booksNotifier.findBookById(viewpoint.bookId),
-          ),
+          child: ViewpointCard(viewpoint: viewpoint, book: booksNotifier.findBookById(viewpoint.bookId)),
         );
       },
     );

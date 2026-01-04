@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app/routes/app_navigation.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 /// 通用过滤对话框
@@ -98,52 +98,41 @@ class GenericFilterDialog extends StatelessWidget {
       ),
     );
   }
+
   Widget _buildHeader(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text('component.filter_title'.t, style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold)),
-        IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => AppNavigation.back(),
-          tooltip: 'component.cancel'.t,
-        ),
+        IconButton(icon: const Icon(Icons.close), onPressed: () => AppNavigation.back(), tooltip: 'component.cancel'.t),
       ],
     );
   }
+
   Widget _buildDateFilter(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(
-              Icons.calendar_today,
-              size: Dimensions.iconSizeS,
-              color: AppColors.getOnSurfaceVariant(context),
-            ),
+            Icon(Icons.calendar_today, size: Dimensions.iconSizeS, color: AppColors.getOnSurfaceVariant(context)),
             Dimensions.horizontalSpacerS,
-            Text(
-              'component.filter_date'.t,
-              style: AppTypography.titleMedium.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Text('component.filter_date'.t, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
           ],
         ),
         Dimensions.verticalSpacerS,
         InkWell(
-        onTap: () async {
-          final date = await showDatePicker(
-            context: context,
-            initialDate: selectedDate ?? DateTime.now(),
-            firstDate: DateTime(2000),
-            lastDate: DateTime.now(),
-          );
-          if (date != null) {
-            onDateSelected(date);
-          }
-        },
+          onTap: () async {
+            final date = await showDatePicker(
+              context: context,
+              initialDate: selectedDate ?? DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime.now(),
+            );
+            if (date != null) {
+              onDateSelected(date);
+            }
+          },
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
           child: Container(
             width: double.infinity,
@@ -177,97 +166,76 @@ class GenericFilterDialog extends StatelessWidget {
       ],
     );
   }
+
   Widget _buildTagsFilter(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(
-              Icons.tag,
-              size: Dimensions.iconSizeS,
-              color: AppColors.getOnSurfaceVariant(context),
-            ),
+            Icon(Icons.tag, size: Dimensions.iconSizeS, color: AppColors.getOnSurfaceVariant(context)),
             Dimensions.horizontalSpacerS,
-            Text(
-              'component.filter_tags'.t,
-              style: AppTypography.titleMedium.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Text('component.filter_tags'.t, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
           ],
         ),
         Dimensions.verticalSpacerS,
         Wrap(
-        spacing: Dimensions.spacingS,
-        runSpacing: Dimensions.spacingS,
-        children: List.generate(availableTags.length, (index) {
-          final tag = availableTags[index];
-          final tagId = availableTagIds[index];
-          final isSelected = selectedTags.contains(tagId);
-          return FilterChip(
-            label: Text(tag),
-            selected: isSelected,
-            onSelected: (selected) {
-              final newTags = List<int>.from(selectedTags);
-              if (selected) {
-                newTags.add(tagId);
-              } else {
-                newTags.remove(tagId);
-              }
-              onTagsSelected(newTags);
-            },
-            backgroundColor: AppColors.getSurfaceContainer(context),
-            selectedColor: AppColors.getPrimary(context).withValues(alpha: 0.2),
-            labelStyle: AppTypography.bodySmall,
-            pressElevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(Dimensions.radiusS),
-              side: BorderSide(
-                color: isSelected ? AppColors.getPrimary(context) : Colors.transparent,
-                width: 1,
+          spacing: Dimensions.spacingS,
+          runSpacing: Dimensions.spacingS,
+          children: List.generate(availableTags.length, (index) {
+            final tag = availableTags[index];
+            final tagId = availableTagIds[index];
+            final isSelected = selectedTags.contains(tagId);
+            return FilterChip(
+              label: Text(tag),
+              selected: isSelected,
+              onSelected: (selected) {
+                final newTags = List<int>.from(selectedTags);
+                if (selected) {
+                  newTags.add(tagId);
+                } else {
+                  newTags.remove(tagId);
+                }
+                onTagsSelected(newTags);
+              },
+              backgroundColor: AppColors.getSurfaceContainer(context),
+              selectedColor: AppColors.getPrimary(context).withValues(alpha: 0.2),
+              labelStyle: AppTypography.bodySmall,
+              pressElevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Dimensions.radiusS),
+                side: BorderSide(color: isSelected ? AppColors.getPrimary(context) : Colors.transparent, width: 1),
               ),
-            ),
-          );
-        }),
+            );
+          }),
         ),
         Dimensions.verticalSpacerS,
       ],
     );
   }
+
   Widget _buildFavoriteFilter(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(
-              Icons.favorite,
-              size: Dimensions.iconSizeS,
-              color: AppColors.getOnSurfaceVariant(context),
-            ),
+            Icon(Icons.favorite, size: Dimensions.iconSizeS, color: AppColors.getOnSurfaceVariant(context)),
             Dimensions.horizontalSpacerS,
-            Text(
-              'component.filter_favorite'.t,
-              style: AppTypography.titleMedium.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Text('component.filter_favorite'.t, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
           ],
         ),
         Dimensions.verticalSpacerS,
         Row(
           children: [
-            Checkbox(
-              value: isFavorite,
-              onChanged: (value) => onFavoriteChanged(value ?? false),
-            ),
+            Checkbox(value: isFavorite, onChanged: (value) => onFavoriteChanged(value ?? false)),
             Text('component.filter_favorite'.t, style: AppTypography.bodyMedium),
           ],
         ),
       ],
     );
   }
+
   Widget _buildActions(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -291,6 +259,7 @@ class GenericFilterDialog extends StatelessWidget {
     );
   }
 }
+
 /// 过滤配置辅助类
 class FilterConfig {
   final DateTime? date;
@@ -307,6 +276,7 @@ class FilterConfig {
       keyword: keyword ?? this.keyword,
     );
   }
+
   @override
   String toString() {
     return 'FilterConfig(date: $date, tags: $tags, isFavorite: $isFavorite, keyword: $keyword)';

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 /// 加载指示器组件
@@ -52,10 +52,7 @@ class LoadingIndicator extends StatelessWidget {
   });
 
   /// 创建小尺寸加载指示器
-  factory LoadingIndicator.small({
-    String? message,
-    String? messageKey,
-  }) {
+  factory LoadingIndicator.small({String? message, String? messageKey}) {
     return LoadingIndicator(
       message: message,
       messageKey: messageKey,
@@ -66,17 +63,8 @@ class LoadingIndicator extends StatelessWidget {
   }
 
   /// 创建大尺寸加载指示器
-  factory LoadingIndicator.large({
-    String? message,
-    String? messageKey,
-  }) {
-    return LoadingIndicator(
-      message: message,
-      messageKey: messageKey,
-      size: 48,
-      strokeWidth: 4.0,
-      isLarge: true,
-    );
+  factory LoadingIndicator.large({String? message, String? messageKey}) {
+    return LoadingIndicator(message: message, messageKey: messageKey, size: 48, strokeWidth: 4.0, isLarge: true);
   }
 
   /// 获取消息文本
@@ -108,9 +96,7 @@ class LoadingIndicator extends StatelessWidget {
             SizedBox(height: isSmall ? Dimensions.spacingS : Dimensions.spacingM),
             Text(
               _messageText!,
-              style: isSmall
-                ? AppTypography.bodySmall
-                : (isLarge ? AppTypography.bodyLarge : AppTypography.bodyMedium),
+              style: isSmall ? AppTypography.bodySmall : (isLarge ? AppTypography.bodyLarge : AppTypography.bodyMedium),
               textAlign: TextAlign.center,
             ),
           ],

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/backup_settings/providers/backup_settings_controller_provider.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 
 class BackupSettingsView extends ConsumerWidget {
   const BackupSettingsView({super.key});

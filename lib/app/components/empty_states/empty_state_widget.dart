@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 /// 通用空状态提示组件
@@ -68,13 +68,7 @@ class EmptyStateWidget extends StatelessWidget {
     Widget? action,
     bool compact = false,
   }) {
-    return EmptyStateWidget(
-      icon: icon,
-      titleKey: titleKey,
-      subtitleKey: subtitleKey,
-      action: action,
-      compact: compact,
-    );
+    return EmptyStateWidget(icon: icon, titleKey: titleKey, subtitleKey: subtitleKey, action: action, compact: compact);
   }
 
   /// 获取主标题文本
@@ -90,13 +84,12 @@ class EmptyStateWidget extends StatelessWidget {
     if (subtitleKey != null) return subtitleKey!.t;
     return null;
   }
+
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: compact
-          ? Dimensions.paddingCard
-          : Dimensions.paddingPage,
+        padding: compact ? Dimensions.paddingCard : Dimensions.paddingPage,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -124,9 +117,7 @@ class EmptyStateWidget extends StatelessWidget {
   Widget _buildTitle(BuildContext context) {
     return Text(
       _titleText,
-      style: compact
-        ? AppTypography.titleMedium
-        : AppTypography.titleLarge,
+      style: compact ? AppTypography.titleMedium : AppTypography.titleLarge,
       textAlign: TextAlign.center,
     );
   }
@@ -138,9 +129,7 @@ class EmptyStateWidget extends StatelessWidget {
         Dimensions.verticalSpacerS,
         Text(
           _subtitleText!,
-          style: compact
-            ? AppTypography.bodySmall
-            : AppTypography.bodyMedium,
+          style: compact ? AppTypography.bodySmall : AppTypography.bodyMedium,
           textAlign: TextAlign.center,
         ),
       ],
@@ -149,11 +138,6 @@ class EmptyStateWidget extends StatelessWidget {
 
   /// 构建操作按钮
   Widget _buildAction() {
-    return Column(
-      children: [
-        Dimensions.verticalSpacerL,
-        action!,
-      ],
-    );
+    return Column(children: [Dimensions.verticalSpacerL, action!]);
   }
 }

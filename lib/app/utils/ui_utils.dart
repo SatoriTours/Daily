@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 import 'package:daily_satori/app/routes/app_navigation.dart';
 
@@ -9,20 +9,12 @@ class UIUtils {
   UIUtils._();
 
   /// 显示成功提示（统一样式）
-  static void showSuccess(
-    String content, {
-    String title = 'message.success_title',
-    bool isTop = true,
-  }) {
+  static void showSuccess(String content, {String title = 'message.success_title', bool isTop = true}) {
     showSnackBar(title, content, isError: false, isTop: isTop);
   }
 
   /// 显示错误提示（统一样式）
-  static void showError(
-    String content, {
-    String title = 'message.error_title',
-    bool isTop = true,
-  }) {
+  static void showError(String content, {String title = 'message.error_title', bool isTop = true}) {
     showSnackBar(title, content, isError: true, isTop: isTop);
   }
 

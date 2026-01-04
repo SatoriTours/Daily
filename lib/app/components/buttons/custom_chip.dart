@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/index.dart';
-
+import 'package:daily_satori/app/styles/styles.dart';
 
 /// 自定义标签组件
 ///
@@ -22,12 +21,16 @@ import 'package:daily_satori/app/styles/index.dart';
 class CustomChip extends StatelessWidget {
   /// 标签文本
   final String label;
+
   /// 可选的标签图标
   final IconData? icon;
+
   /// 标签点击回调
   final VoidCallback? onTap;
+
   /// 是否处于选中状态
   final bool isSelected;
+
   /// 创建一个自定义标签
   ///
   /// [label] 标签显示的文本
@@ -47,15 +50,18 @@ class CustomChip extends StatelessWidget {
       ),
     );
   }
+
   /// 获取背景颜色
   Color _getBackgroundColor(BuildContext context) {
     return isSelected ? AppColors.getPrimary(context) : AppColors.getPrimary(context).withAlpha(26);
   }
+
   /// 构建图标
   Widget? _buildIcon(BuildContext context) {
     if (icon == null) return null;
     return Icon(icon, size: 16, color: isSelected ? Colors.white : AppColors.getPrimary(context));
   }
+
   /// 构建标签文本
   Widget _buildLabel(BuildContext context) {
     return Text(

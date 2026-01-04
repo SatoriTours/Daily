@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:daily_satori/app/pages/ai_chat/providers/ai_chat_controller_provider.dart';
 import 'package:daily_satori/app/routes/app_navigation.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 import 'package:daily_satori/app/components/app_bars/s_app_bar.dart';
 import '../../../components/ai_chat/chat_interface.dart';

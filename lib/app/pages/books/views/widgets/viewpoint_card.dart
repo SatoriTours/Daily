@@ -1,5 +1,5 @@
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:intl/intl.dart';
 
 // ...existing imports...

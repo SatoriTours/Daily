@@ -4,7 +4,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:daily_satori/app/components/webview/base_webview.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/config/app_config.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 
 /// 无头浏览器数据模型
 class HeadlessWebViewResult {

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 /// 处理中对话框
@@ -79,23 +79,16 @@ class ProcessingDialog {
   ///
   /// [onProcess] 处理函数
   /// [messageKey] 提示消息国际化key
-  static Future<T?> showSimple<T>({
-    required Future<T> Function() onProcess,
-    String? messageKey,
-  }) {
-    return show<T>(
-      messageKey: messageKey ?? 'component.processing',
-      onProcess: onProcess,
-    );
+  static Future<T?> showSimple<T>({required Future<T> Function() onProcess, String? messageKey}) {
+    return show<T>(messageKey: messageKey ?? 'component.processing', onProcess: onProcess);
   }
 }
+
 /// 处理中对话框组件
 class _ProcessingDialogWidget extends StatelessWidget {
   final String message;
 
-  const _ProcessingDialogWidget({
-    required this.message,
-  });
+  const _ProcessingDialogWidget({required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -124,9 +117,7 @@ class _ProcessingDialogWidget extends StatelessWidget {
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: AppTypography.bodyMedium.copyWith(
-                  color: AppColors.getOnSurface(context),
-                ),
+                style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context)),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),

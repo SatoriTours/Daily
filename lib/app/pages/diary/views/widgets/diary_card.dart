@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' show VoidCallback;
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:daily_satori/app_exports.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import '../../utils/diary_utils.dart';
 import 'diary_timestamp.dart';
 import 'diary_more_menu.dart';

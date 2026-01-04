@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/index.dart';
-
+import 'package:daily_satori/app/styles/styles.dart';
 
 /// 自定义卡片组件
 ///
@@ -23,18 +22,22 @@ import 'package:daily_satori/app/styles/index.dart';
 class CustomCard extends StatelessWidget {
   /// 卡片内容
   final Widget child;
+
   /// 点击回调
   ///
   /// 如果为 null，卡片将不可点击
   final VoidCallback? onTap;
+
   /// 内边距
   ///
   /// 默认为 Dimensions.paddingM
   final EdgeInsetsGeometry? padding;
+
   /// 阴影高度
   ///
   /// 控制卡片的阴影效果，默认为 2.0
   final double elevation;
+
   /// 创建一个自定义卡片
   ///
   /// [child] 卡片内容
@@ -51,6 +54,7 @@ class CustomCard extends StatelessWidget {
       child: _buildCardContent(),
     );
   }
+
   /// 构建卡片内容
   Widget _buildCardContent() {
     final cardChild = Padding(padding: padding ?? Dimensions.paddingM, child: child);

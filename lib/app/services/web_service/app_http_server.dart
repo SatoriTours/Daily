@@ -3,7 +3,7 @@ import 'package:daily_satori/app/routes/app_routes.dart';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';

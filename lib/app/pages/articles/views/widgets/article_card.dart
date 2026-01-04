@@ -3,7 +3,7 @@ import 'package:get_time_ago/get_time_ago.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/components/common/smart_image.dart';
 import 'package:daily_satori/app/components/common/article_info_item.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'article_action_bar.dart';
 
 /// 文章卡片组件
@@ -16,24 +16,15 @@ class ArticleCard extends StatelessWidget {
   final VoidCallback? onFavoriteToggle;
   final VoidCallback? onShare;
 
-  const ArticleCard({
-    super.key,
-    required this.articleModel,
-    this.onTap,
-    this.onFavoriteToggle,
-    this.onShare,
-  });
+  const ArticleCard({super.key, required this.articleModel, this.onTap, this.onFavoriteToggle, this.onShare});
 
   bool get _isProcessing =>
-      articleModel.status == ArticleStatus.pending ||
-      articleModel.status == ArticleStatus.webContentFetched;
+      articleModel.status == ArticleStatus.pending || articleModel.status == ArticleStatus.webContentFetched;
 
   bool get _hasError => articleModel.status == ArticleStatus.error;
 
   bool get _hasImage =>
-      articleModel.hasHeaderImage() ||
-      (articleModel.coverImageUrl != null &&
-          articleModel.coverImageUrl!.isNotEmpty);
+      articleModel.hasHeaderImage() || (articleModel.coverImageUrl != null && articleModel.coverImageUrl!.isNotEmpty);
 
   bool get _hasTitle =>
       (articleModel.aiTitle != null && articleModel.aiTitle!.isNotEmpty) ||
@@ -44,15 +35,8 @@ class ArticleCard extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
-      ),
-      child: Stack(
-        children: [
-          _buildMainContent(context),
-          if (_hasError) _buildErrorBadge(context),
-        ],
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS + 2)),
+      child: Stack(children: [_buildMainContent(context), if (_hasError) _buildErrorBadge(context)]),
     );
   }
 
@@ -61,10 +45,7 @@ class ArticleCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: Dimensions.spacingM - 4,
-          vertical: Dimensions.spacingS + 2,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM - 4, vertical: Dimensions.spacingS + 2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -87,10 +68,7 @@ class ArticleCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildTitleSection(context),
-              if (_hasError) _buildErrorMessage(context),
-            ],
+            children: [_buildTitleSection(context), if (_hasError) _buildErrorMessage(context)],
           ),
         ),
       ],
@@ -102,19 +80,12 @@ class ArticleCard extends StatelessWidget {
     final colorScheme = AppTheme.getColorScheme(context);
 
     if (_hasTitle) {
-      return Text(
-        articleModel.showTitle(),
-        style: textTheme.titleMedium,
-        maxLines: 3,
-        overflow: TextOverflow.ellipsis,
-      );
+      return Text(articleModel.showTitle(), style: textTheme.titleMedium, maxLines: 3, overflow: TextOverflow.ellipsis);
     }
 
     return Text(
       articleModel.url ?? '',
-      style: textTheme.titleMedium?.copyWith(
-        color: colorScheme.onSurfaceVariant,
-      ),
+      style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant),
       maxLines: 3,
       overflow: TextOverflow.ellipsis,
     );
@@ -125,9 +96,7 @@ class ArticleCard extends StatelessWidget {
       padding: const EdgeInsets.only(top: Dimensions.spacingS),
       child: Text(
         articleModel.aiContent ?? '内容处理失败',
-        style: AppTheme.getTextTheme(
-          context,
-        ).bodySmall?.copyWith(color: AppTheme.getColorScheme(context).error),
+        style: AppTheme.getTextTheme(context).bodySmall?.copyWith(color: AppTheme.getColorScheme(context).error),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -152,10 +121,7 @@ class ArticleCard extends StatelessWidget {
       height: Dimensions.spacingL,
       child: Row(
         children: [
-          ArticleInfoItem(
-            icon: Icons.public,
-            text: StringUtils.getTopLevelDomain(url.host),
-          ),
+          ArticleInfoItem(icon: Icons.public, text: StringUtils.getTopLevelDomain(url.host)),
           Dimensions.horizontalSpacerS,
           ArticleInfoItem(
             icon: Icons.access_time,
@@ -179,10 +145,7 @@ class ArticleCard extends StatelessWidget {
       top: 0,
       right: 0,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: Dimensions.spacingS,
-          vertical: Dimensions.spacingXs,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingS, vertical: Dimensions.spacingXs),
         decoration: BoxDecoration(
           color: colorScheme.error,
           borderRadius: const BorderRadius.only(
@@ -190,10 +153,7 @@ class ArticleCard extends StatelessWidget {
             bottomLeft: Radius.circular(Dimensions.radiusS + 2),
           ),
         ),
-        child: Text(
-          '加载失败',
-          style: TextStyle(color: colorScheme.onError, fontSize: 12),
-        ),
+        child: Text('加载失败', style: TextStyle(color: colorScheme.onError, fontSize: 12)),
       ),
     );
   }

@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/migration_service/migration_task.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';

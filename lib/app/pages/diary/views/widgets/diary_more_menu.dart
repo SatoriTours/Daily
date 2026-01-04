@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app/utils/utils.dart';
 import 'package:feather_icons/feather_icons.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 
 /// 日记卡片的更多操作菜单
 class DiaryMoreMenu extends StatelessWidget {

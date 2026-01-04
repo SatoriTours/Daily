@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/web_service/api/middleware/auth_middleware.dart';
 import 'package:daily_satori/app/services/web_service/api/utils/request_utils.dart';

@@ -1,5 +1,5 @@
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/styles/index.dart';
+import 'package:daily_satori/app/styles/styles.dart';
 import 'package:flutter/material.dart';
 import 'package:daily_satori/app/routes/app_navigation.dart';
 
@@ -193,10 +193,7 @@ class DialogUtils {
   ///
   /// [title] 对话框标题
   /// [initialText] 初始提示文本
-  static void showDownloadProgress({
-    String title = '正在下载',
-    String initialText = '准备下载...',
-  }) {
+  static void showDownloadProgress({String title = '正在下载', String initialText = '准备下载...'}) {
     logger.i("[DialogUtils] 显示下载进度对话框");
     if (_isProgressShown) return;
 
@@ -215,11 +212,7 @@ class DialogUtils {
       barrierColor: const Color(0x80000000),
       builder: (context) => PopScope(
         canPop: false,
-        child: _DownloadProgressDialog(
-          title: title,
-          progressValue: _progressValue,
-          progressText: _progressText,
-        ),
+        child: _DownloadProgressDialog(title: title, progressValue: _progressValue, progressText: _progressText),
       ),
     );
     _isProgressShown = true;
@@ -329,11 +322,7 @@ class _DownloadProgressDialog extends StatelessWidget {
   final ValueNotifier<double> progressValue;
   final ValueNotifier<String> progressText;
 
-  const _DownloadProgressDialog({
-    required this.title,
-    required this.progressValue,
-    required this.progressText,
-  });
+  const _DownloadProgressDialog({required this.title, required this.progressValue, required this.progressText});
 
   @override
   Widget build(BuildContext context) {
@@ -373,10 +362,8 @@ class _DownloadProgressDialog extends StatelessWidget {
             // 进度文本
             ValueListenableBuilder<String>(
               valueListenable: progressText,
-              builder: (context, text, child) => Text(
-                text,
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
+              builder: (context, text, child) =>
+                  Text(text, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             ),
           ],
         ),

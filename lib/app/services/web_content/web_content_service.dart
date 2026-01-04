@@ -3,7 +3,7 @@ import 'package:daily_satori/app/services/web_content/ai_processor.dart';
 import 'package:daily_satori/app/services/web_content/image_processor.dart';
 import 'package:daily_satori/app/services/web_content/article_manager.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/web_content/web_content_notifier.dart';
 
 /// 重构后的网页内容服务

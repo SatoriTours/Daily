@@ -5,7 +5,7 @@
 library;
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 
@@ -23,10 +23,9 @@ class FirstLaunchController extends _$FirstLaunchController {
   FirstLaunchState _checkSetupStatus() {
     // 1. 检查 AI 配置（必填）
     final aiConfigs = AIConfigRepository.i.allModels();
-    final hasAIConfig = aiConfigs.any((config) =>
-        config.apiToken.isNotEmpty &&
-        config.apiAddress.isNotEmpty &&
-        config.modelName.isNotEmpty);
+    final hasAIConfig = aiConfigs.any(
+      (config) => config.apiToken.isNotEmpty && config.apiAddress.isNotEmpty && config.modelName.isNotEmpty,
+    );
 
     logger.i('[首次启动] AI配置: ${hasAIConfig ? "已配置" : "未配置"}');
 
@@ -84,12 +83,7 @@ class FirstLaunchState {
   });
 
   /// 复制并修改部分字段
-  FirstLaunchState copyWith({
-    bool? isSetupComplete,
-    bool? hasAIConfig,
-    bool? hasGoogleCloudKey,
-    bool? hasBackupDir,
-  }) {
+  FirstLaunchState copyWith({bool? isSetupComplete, bool? hasAIConfig, bool? hasGoogleCloudKey, bool? hasBackupDir}) {
     return FirstLaunchState(
       isSetupComplete: isSetupComplete ?? this.isSetupComplete,
       hasAIConfig: hasAIConfig ?? this.hasAIConfig,

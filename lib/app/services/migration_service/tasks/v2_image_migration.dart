@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:daily_satori/app/data/index.dart';
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/objectbox/image.dart' as db_image;
 import 'package:daily_satori/app/objectbox/screenshot.dart';
