@@ -41,8 +41,8 @@ class FirstLaunchController extends _$FirstLaunchController {
 
     logger.i('[首次启动] 备份目录: ${hasBackupDir ? "已配置" : "未配置"}');
 
-    // 只检查 AI 配置是否完成（必填项）
-    final isSetupComplete = hasAIConfig;
+    // 检查 AI 配置和备份目录是否完成（必填项）
+    final isSetupComplete = hasAIConfig && hasBackupDir;
 
     logger.i('[首次启动] 配置状态: ${isSetupComplete ? "已完成" : "未完成"}');
 

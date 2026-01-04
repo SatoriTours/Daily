@@ -43,7 +43,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 child: Column(
                   children: [
                     // 首次设置引导
-                    const FirstSetupGuide(),
+                    if (!firstLaunchState.isSetupComplete) const FirstSetupGuide(),
                     // 设置列表（首次设置未完成时隐藏）
                     if (firstLaunchState.isSetupComplete) _buildSettingsList(context, ref),
                   ],

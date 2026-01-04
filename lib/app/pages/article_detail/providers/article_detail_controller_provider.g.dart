@@ -70,7 +70,7 @@ final class ArticleDetailControllerProvider
 }
 
 String _$articleDetailControllerHash() =>
-    r'd12aba13c2867b7e94c64cf559de4fbd5049040b';
+    r'0ce2a839fd5804c6fdc7e8e585a9832f61784c36';
 
 /// ArticleDetailController Provider
 /// 参数为 int 类型的文章 ID

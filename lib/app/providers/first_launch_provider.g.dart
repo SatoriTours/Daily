@@ -45,7 +45,7 @@ final class FirstLaunchControllerProvider
 }
 
 String _$firstLaunchControllerHash() =>
-    r'edc172358009b30eb12f10ac819774a768a63094';
+    r'88b9b22f44a061b17ed8ab5a1b52590aeab61a59';
 
 /// 首次启动状态
 

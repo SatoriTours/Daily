@@ -283,33 +283,33 @@ class MessageBubble extends StatelessWidget {
 
     return MarkdownStyleSheet(
       // 全局块间距 - 控制列表项等块元素之间的间距
-      blockSpacing: 6,
-      // 段落样式 - 使用较小字体和紧凑行距
-      p: AppTypography.bodySmall.copyWith(color: textColor, height: 1.35),
-      pPadding: const EdgeInsets.only(bottom: 2),
-      // 标题样式 - 整体调小
-      h1: AppTypography.titleMedium.copyWith(color: textColor, fontWeight: FontWeight.bold, height: 1.2),
-      h1Padding: const EdgeInsets.only(top: 6, bottom: 2),
-      h2: AppTypography.titleSmall.copyWith(color: textColor, fontWeight: FontWeight.bold, height: 1.2),
-      h2Padding: const EdgeInsets.only(top: 4, bottom: 2),
-      h3: AppTypography.bodyLarge.copyWith(color: textColor, fontWeight: FontWeight.w600, height: 1.2),
-      h3Padding: const EdgeInsets.only(top: 3, bottom: 1),
-      h4: AppTypography.bodyMedium.copyWith(color: textColor, fontWeight: FontWeight.w600, height: 1.2),
+      blockSpacing: 8,
+      // 段落样式 - 使用适中字体和紧凑行距
+      p: AppTypography.bodyMedium.copyWith(color: textColor, height: 1.5),
+      pPadding: const EdgeInsets.only(bottom: 4),
+      // 标题样式 - 适中大小
+      h1: AppTypography.titleMedium.copyWith(color: textColor, fontWeight: FontWeight.bold, height: 1.3),
+      h1Padding: const EdgeInsets.only(top: 8, bottom: 4),
+      h2: AppTypography.titleSmall.copyWith(color: textColor, fontWeight: FontWeight.bold, height: 1.3),
+      h2Padding: const EdgeInsets.only(top: 6, bottom: 4),
+      h3: AppTypography.bodyLarge.copyWith(color: textColor, fontWeight: FontWeight.w600, height: 1.3),
+      h3Padding: const EdgeInsets.only(top: 4, bottom: 2),
+      h4: AppTypography.bodyMedium.copyWith(color: textColor, fontWeight: FontWeight.w600, height: 1.3),
       // 强调样式
-      strong: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.bold, color: AppColors.getPrimary(context)),
-      em: AppTypography.bodySmall.copyWith(fontStyle: FontStyle.italic, color: secondaryColor),
+      strong: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.getPrimary(context)),
+      em: AppTypography.bodyMedium.copyWith(fontStyle: FontStyle.italic, color: secondaryColor),
       // 列表样式 - 适中行距
-      listBullet: AppTypography.bodySmall.copyWith(color: textColor, height: 1.25),
-      listIndent: 14,
-      listBulletPadding: const EdgeInsets.only(right: 2),
+      listBullet: AppTypography.bodyMedium.copyWith(color: textColor, height: 1.4),
+      listIndent: 16,
+      listBulletPadding: const EdgeInsets.only(right: 4),
       orderedListAlign: WrapAlignment.start,
       unorderedListAlign: WrapAlignment.start,
       // 代码样式
       code: _buildCodeStyle(context),
-      codeblockPadding: const EdgeInsets.all(8),
+      codeblockPadding: const EdgeInsets.all(10),
       codeblockDecoration: _buildCodeBlockDecoration(context),
       // 引用块样式
-      blockquotePadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      blockquotePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       blockquoteDecoration: _buildBlockquoteDecoration(context),
       // 水平线样式
       horizontalRuleDecoration: _buildHorizontalRuleDecoration(context),
@@ -425,11 +425,11 @@ class MessageBubble extends StatelessWidget {
         Expanded(
           child: Text(
             step.description,
-            style: AppTypography.bodySmall.copyWith(
+            style: AppTypography.bodyMedium.copyWith(
               color: step.status == StepStatus.pending
                   ? AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.7)
                   : AppColors.getOnSurface(context),
-              height: 1.3,
+              height: 1.4,
             ),
           ),
         ),
@@ -473,7 +473,7 @@ class MessageBubble extends StatelessWidget {
         onRetry?.call();
       },
       icon: Icon(Icons.refresh, size: Dimensions.iconSizeS, color: AppColors.getError(context)),
-      label: Text('ai_chat.retry'.t, style: AppTypography.bodySmall.copyWith(color: AppColors.getError(context))),
+      label: Text('ai_chat.retry'.t, style: AppTypography.bodyMedium.copyWith(color: AppColors.getError(context))),
     );
   }
 
@@ -510,8 +510,8 @@ class MessageBubble extends StatelessWidget {
   /// 根据消息类型和错误状态返回合适的文本样式
   TextStyle _getTextStyle(BuildContext context) {
     final baseStyle = message.type == ChatMessageType.user
-        ? AppTypography.bodyMedium.copyWith(color: AppColors.getOnPrimary(context))
-        : AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context));
+        ? AppTypography.bodyLarge.copyWith(color: AppColors.getOnPrimary(context))
+        : AppTypography.bodyLarge.copyWith(color: AppColors.getOnSurface(context));
 
     if (message.hasError) {
       return baseStyle.copyWith(color: AppColors.getError(context));
