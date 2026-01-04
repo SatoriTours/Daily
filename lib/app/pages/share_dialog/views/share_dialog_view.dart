@@ -1,13 +1,11 @@
 import 'package:daily_satori/app/routes/app_navigation.dart';
 import 'package:daily_satori/app/components/index.dart';
-import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/styles/index.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:daily_satori/app/pages/share_dialog/providers/share_dialog_controller_provider.dart';
 
-import 'package:flutter/services.dart';
 import 'package:daily_satori/app/utils/i18n_extension.dart';
 
 /// 分享页面视图
