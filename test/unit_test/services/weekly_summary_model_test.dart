@@ -16,15 +16,37 @@ void main() {
 
     group('fromValue', () {
       test('should return correct status for valid values', () {
-        expect(WeeklySummaryStatus.fromValue('pending'), equals(WeeklySummaryStatus.pending));
-        expect(WeeklySummaryStatus.fromValue('generating'), equals(WeeklySummaryStatus.generating));
-        expect(WeeklySummaryStatus.fromValue('completed'), equals(WeeklySummaryStatus.completed));
-        expect(WeeklySummaryStatus.fromValue('failed'), equals(WeeklySummaryStatus.failed));
+        expect(
+          WeeklySummaryStatus.fromValue('pending'),
+          equals(WeeklySummaryStatus.pending),
+        );
+        expect(
+          WeeklySummaryStatus.fromValue('generating'),
+          equals(WeeklySummaryStatus.generating),
+        );
+        expect(
+          WeeklySummaryStatus.fromValue('completed'),
+          equals(WeeklySummaryStatus.completed),
+        );
+        expect(
+          WeeklySummaryStatus.fromValue('failed'),
+          equals(WeeklySummaryStatus.failed),
+        );
       });
 
       test('should return pending for unknown value', () {
-        expect(WeeklySummaryStatus.fromValue('unknown'), equals(WeeklySummaryStatus.pending));
-        expect(WeeklySummaryStatus.fromValue(''), equals(WeeklySummaryStatus.pending));
+        expect(
+          WeeklySummaryStatus.fromValue('unknown'),
+          equals(WeeklySummaryStatus.pending),
+        );
+        expect(
+          WeeklySummaryStatus.fromValue(''),
+          equals(WeeklySummaryStatus.pending),
+        );
+        expect(
+          WeeklySummaryStatus.fromValue('invalid'),
+          equals(WeeklySummaryStatus.pending),
+        );
       });
     });
   });
@@ -33,7 +55,7 @@ void main() {
     test('create should build valid model', () {
       final startDate = DateTime(2024, 1, 1);
       final endDate = DateTime(2024, 1, 7);
-      
+
       final model = WeeklySummaryModel.create(
         weekStartDate: startDate,
         weekEndDate: endDate,
@@ -104,7 +126,7 @@ void main() {
         weekEndDate: DateTime(2024, 1, 7),
       );
       model.status = WeeklySummaryStatus.completed;
-      
+
       expect(model.isCompleted, isTrue);
       expect(model.isGenerating, isFalse);
       expect(model.isFailed, isFalse);
@@ -116,7 +138,7 @@ void main() {
         weekEndDate: DateTime(2024, 1, 7),
       );
       model.status = WeeklySummaryStatus.generating;
-      
+
       expect(model.isGenerating, isTrue);
       expect(model.isCompleted, isFalse);
     });
@@ -127,7 +149,7 @@ void main() {
         weekEndDate: DateTime(2024, 1, 7),
       );
       model.status = WeeklySummaryStatus.failed;
-      
+
       expect(model.isFailed, isTrue);
       expect(model.isCompleted, isFalse);
     });
@@ -149,6 +171,18 @@ void main() {
 
       expect(model.weekLabel, contains('2024年第'));
       expect(model.weekLabel, contains('周'));
+    });
+
+    test('weekLabel should calculate correct week number', () {
+      // For Jan 8, 2024:
+      // daysDiff = 7, weekday = 1
+      // weekNumber = ((7 + 1 - 1) / 7).ceil() = 1
+      final model = WeeklySummaryModel.create(
+        weekStartDate: DateTime(2024, 1, 8),
+        weekEndDate: DateTime(2024, 1, 14),
+      );
+
+      expect(model.weekLabel, equals('2024年第1周'));
     });
   });
 }
