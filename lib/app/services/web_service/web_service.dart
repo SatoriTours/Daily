@@ -26,7 +26,7 @@ class WebService {
   Future<void> init() async {
     logger.i("[初始化服务] WebService");
     await _httpServer.start();
-    await _webSocketTunnel.startConnect();
+    // await _webSocketTunnel.startConnect();
     logger.i('WebService 服务初始化完成');
   }
 
@@ -70,7 +70,8 @@ class WebService {
       // 如果没有找到首选接口，遍历查找任意IPv4地址
       for (var interface in interfaces) {
         for (var address in interface.addresses) {
-          if (address.type == InternetAddressType.IPv4 && !address.address.startsWith('127.')) {
+          if (address.type == InternetAddressType.IPv4 &&
+              !address.address.startsWith('127.')) {
             return address.address;
           }
         }

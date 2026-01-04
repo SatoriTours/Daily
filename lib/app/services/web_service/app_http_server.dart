@@ -79,6 +79,7 @@ class AppHttpServer {
     _router.mount('/website', _websiteHandler);
 
     // 管理后台页面
+    _router.get('/', _adminHandler);
     _router.get('/admin', _adminHandler);
     _router.get('/admin/', _adminHandler);
 
