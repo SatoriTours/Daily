@@ -16,6 +16,7 @@ part 'first_launch_provider.g.dart';
 class FirstLaunchController extends _$FirstLaunchController {
   @override
   FirstLaunchState build() {
+    ref.keepAlive();
     return _checkSetupStatus();
   }
 
