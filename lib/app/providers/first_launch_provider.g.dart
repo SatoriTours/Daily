@@ -2,10 +2,6 @@
 
 part of 'first_launch_provider.dart';
 
-// **************************************************************************
-// RiverpodGenerator
-// **************************************************************************
-
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// 首次启动状态

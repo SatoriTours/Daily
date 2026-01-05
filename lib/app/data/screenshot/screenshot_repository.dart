@@ -12,7 +12,6 @@ class ScreenshotRepository extends BaseRepository<Screenshot, ScreenshotModel> {
   // 私有构造函数
   ScreenshotRepository._();
 
-  // 单例
   static final i = ScreenshotRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================

@@ -22,7 +22,6 @@ class FileService {
   late String _publicPath;
   late String _tempPath;
 
-  // Getters
   String get imagesBasePath => _imagesBasePath;
   String get diaryImagesBasePath => _diaryImagesBasePath;
   String get downloadsPath => _downloadsPath;

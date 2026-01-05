@@ -8,7 +8,6 @@ class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
   // 私有构造函数
   AIConfigRepository._();
 
-  // 单例
   static final i = AIConfigRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================

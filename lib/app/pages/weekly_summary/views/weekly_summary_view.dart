@@ -22,10 +22,6 @@ class WeeklySummaryView extends ConsumerWidget {
   }
 }
 
-// ============================================================================
-// AppBar
-// ============================================================================
-
 class _WeeklySummaryAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final WeeklySummaryControllerState state;
   const _WeeklySummaryAppBar({required this.state});
@@ -83,10 +79,6 @@ class _WeeklySummaryAppBar extends ConsumerWidget implements PreferredSizeWidget
   );
 }
 
-// ============================================================================
-// Body
-// ============================================================================
-
 class _WeeklySummaryBody extends ConsumerWidget {
   final WeeklySummaryControllerState state;
   const _WeeklySummaryBody({required this.state});
@@ -101,9 +93,7 @@ class _WeeklySummaryBody extends ConsumerWidget {
   }
 }
 
-// ============================================================================
 // 加载状态
-// ============================================================================
 
 class _LoadingState extends StatelessWidget {
   const _LoadingState();
@@ -114,9 +104,7 @@ class _LoadingState extends StatelessWidget {
   );
 }
 
-// ============================================================================
 // 生成中状态
-// ============================================================================
 
 class _GeneratingState extends StatelessWidget {
   const _GeneratingState();
@@ -154,9 +142,7 @@ class _GeneratingState extends StatelessWidget {
   );
 }
 
-// ============================================================================
 // 空状态
-// ============================================================================
 
 class _EmptyState extends ConsumerWidget {
   const _EmptyState();
@@ -190,9 +176,7 @@ class _EmptyState extends ConsumerWidget {
   );
 }
 
-// ============================================================================
 // 周报内容
-// ============================================================================
 
 class _SummaryContent extends StatelessWidget {
   final WeeklySummaryModel? summary;
@@ -271,9 +255,7 @@ class _StatBadge extends StatelessWidget {
   }
 }
 
-// ============================================================================
 // Markdown 内容
-// ============================================================================
 
 class _MarkdownContent extends StatelessWidget {
   final String content;
@@ -387,9 +369,7 @@ class _MarkdownContent extends StatelessWidget {
   }
 }
 
-// ============================================================================
 // 日记详情底部弹出框
-// ============================================================================
 
 class _DiaryDetailSheet extends StatelessWidget {
   final DiaryModel diary;
@@ -519,9 +499,7 @@ class _DiaryDetailSheet extends StatelessWidget {
   );
 }
 
-// ============================================================================
 // 书摘详情底部弹出框
-// ============================================================================
 
 class _ViewpointDetailSheet extends ConsumerWidget {
   final BookViewpointModel viewpoint;
@@ -608,9 +586,7 @@ class _ViewpointDetailSheet extends ConsumerWidget {
   );
 }
 
-// ============================================================================
 // 历史周报选择器
-// ============================================================================
 
 void _showHistorySheet(BuildContext context, WidgetRef ref, WeeklySummaryControllerState state) {
   showModalBottomSheet(

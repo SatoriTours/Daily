@@ -6,7 +6,6 @@ import 'package:daily_satori/app/services/service_base.dart';
 ///
 /// 负责提供AI配置的业务逻辑
 class AIConfigService implements AppService {
-  // MARK: - 单例实现
   AIConfigService._privateConstructor();
   static final AIConfigService _instance = AIConfigService._privateConstructor();
   static AIConfigService get i => _instance;
@@ -16,8 +15,6 @@ class AIConfigService implements AppService {
 
   @override
   ServicePriority get priority => ServicePriority.high;
-
-  // MARK: - 方法
 
   /// 初始化
   @override

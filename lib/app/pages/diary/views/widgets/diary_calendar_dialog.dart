@@ -158,7 +158,6 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
       dayWidgets.add(const SizedBox());
     }
 
-    // Days
     for (var i = 1; i <= daysInMonth; i++) {
       final date = DateTime(_displayedMonth.year, _displayedMonth.month, i);
       final isToday = DateUtils.isSameDay(date, DateTime.now());

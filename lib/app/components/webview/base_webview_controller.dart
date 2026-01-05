@@ -26,8 +26,6 @@ class BaseWebViewController {
   /// [webViewController] 底层的 InAppWebViewController 实例
   BaseWebViewController(this.webViewController);
 
-  // MARK: - 页面导航
-
   /// 加载指定 URL
   ///
   /// [url] 要加载的网页地址
@@ -49,8 +47,6 @@ class BaseWebViewController {
   Future<void> reload() async {
     await webViewController.reload();
   }
-
-  // MARK: - 页面滚动
 
   /// 获取页面内容高度
   ///
@@ -75,8 +71,6 @@ class BaseWebViewController {
     await webViewController.scrollTo(x: x, y: y);
   }
 
-  // MARK: - JavaScript 交互
-
   /// 添加 JavaScript 处理器
   ///
   /// [handlerName] 处理器名称
@@ -100,8 +94,6 @@ class BaseWebViewController {
     await webViewController.injectJavascriptFileFromAsset(assetFilePath: assetFilePath);
   }
 
-  // MARK: - CSS 注入
-
   /// 注入 CSS 文件
   ///
   /// [assetFilePath] CSS 文件的资源路径
@@ -115,8 +107,6 @@ class BaseWebViewController {
   Future<void> injectCSSCode({required String source}) async {
     await webViewController.injectCSSCode(source: source);
   }
-
-  // MARK: - 页面功能
 
   /// 将页面翻译为简体中文
   ///

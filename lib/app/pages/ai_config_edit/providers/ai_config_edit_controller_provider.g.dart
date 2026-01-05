@@ -2,10 +2,6 @@
 
 part of 'ai_config_edit_controller_provider.dart';
 
-// **************************************************************************
-// RiverpodGenerator
-// **************************************************************************
-
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// AIConfigEditController Provider

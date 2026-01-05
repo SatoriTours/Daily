@@ -15,7 +15,6 @@ import 'package:daily_satori/app/pages/diary/utils/diary_utils.dart';
 /// 支持文章、日记、书籍等多种类型的搜索结果
 class SearchResultCard extends StatelessWidget {
   // ========================================================================
-  // 属性
   // ========================================================================
 
   /// 搜索结果数据

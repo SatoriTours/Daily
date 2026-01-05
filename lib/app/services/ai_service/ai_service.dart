@@ -19,12 +19,9 @@ part 'part.html_to_markdown.dart';
 ///
 /// 负责处理AI相关功能，包括文本翻译和内容摘要
 class AiService {
-  // MARK: - 单例实现
   AiService._privateConstructor();
   static final AiService _instance = AiService._privateConstructor();
   static AiService get i => _instance;
-
-  // MARK: - 私有属性
 
   /// 默认温度值（控制输出随机性，已迁移至 AIConfig）
   static double get _defaultTemperature => AIConfig.defaultTemperature;
@@ -32,12 +29,8 @@ class AiService {
   /// 文本最大处理长度（已迁移至 AIConfig）
   static int get _maxContentLength => AIConfig.maxContentLength;
 
-  // MARK: - 初始化方法
-
   /// 初始化AI服务
   Future<void> init() async {}
-
-  // MARK: - 核心方法
 
   /// 发送AI请求
   ///
@@ -131,8 +124,6 @@ class AiService {
     final modelName = AIConfigService.i.getModelNameForFunction(functionType);
     return modelName;
   }
-
-  // MARK: - 工具方法
 
   /// 判断指定功能类型的AI服务是否启用
   ///

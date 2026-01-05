@@ -52,7 +52,6 @@ class BackupService {
     ];
   }
 
-  // Getters
   String get backupDir => SettingRepository.i.getSetting(SettingService.backupDirKey);
   File get backupTimeFile => File(path.join(backupDir, 'backup_time.txt'));
   int get _backupInterval =>

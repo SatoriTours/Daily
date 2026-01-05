@@ -17,8 +17,6 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 ///
 /// 所有具体的 WebView 实现都应该继承此类。
 abstract class BaseWebView {
-  // MARK: - 资源注入
-
   /// 注入通用资源
   ///
   /// 注入应用程序的通用 JavaScript 和 CSS 文件
@@ -73,8 +71,6 @@ abstract class BaseWebView {
     logger.i("注入 CSS 广告屏蔽规则");
     await controller.injectCSSCode(source: css.toString());
   }
-
-  // MARK: - URL 和请求处理
 
   /// 处理 URL 加载请求
   ///
@@ -131,8 +127,6 @@ abstract class BaseWebView {
 
     return null;
   }
-
-  // MARK: - 配置和权限
 
   /// 获取 WebView 配置
   ///

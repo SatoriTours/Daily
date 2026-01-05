@@ -2,10 +2,6 @@
 
 part of 'app_state_provider.dart';
 
-// **************************************************************************
-// RiverpodGenerator
-// **************************************************************************
-
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// 全局应用状态 Provider

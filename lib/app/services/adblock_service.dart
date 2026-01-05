@@ -41,7 +41,6 @@ class ADBlockService implements AppService {
   final List<String> _containsExceptionRules = []; // 包含匹配例外规则
   final List<RegExp> _regexExceptionRules = []; // 正则匹配例外规则
 
-  // Getters
   List<String> get cssRules => _cssRules;
   Map<String, List<String>> get domainCssRules => _domainCssRules;
   List<String> get exactNetworkRules => _exactNetworkRules;

@@ -10,7 +10,6 @@ import 'package:daily_satori/app/utils/random_utils.dart';
 /// 只提供设置键常量和初始化方法
 /// 不再提供任何业务逻辑或代理方法，所有设置操作应直接调用 SettingRepository
 class SettingService implements AppService {
-  // MARK: - 单例实现
   SettingService._privateConstructor();
   static final SettingService _instance = SettingService._privateConstructor();
   static SettingService get i => _instance;
@@ -21,7 +20,6 @@ class SettingService implements AppService {
   @override
   ServicePriority get priority => ServicePriority.critical;
 
-  // MARK: - 设置键常量
   static String openAITokenKey = 'openai_token';
   static String openAIAddressKey = 'openai_address';
   static String backupDirKey = 'backup_dir';
@@ -31,7 +29,6 @@ class SettingService implements AppService {
   static String webSocketUrlKey = 'web_socket_url';
   static String googleCloudApiKeyKey = 'google_cloud_api_key';
 
-  // MARK: - 默认设置值
   static Map<String, String> defaultSettings = {
     openAITokenKey: '',
     openAIAddressKey: 'https://api.openai.com/v1',
@@ -43,7 +40,6 @@ class SettingService implements AppService {
     webSocketUrlKey: 'ws://10.0.2.2:3000/ws',
   };
 
-  // MARK: - 初始化方法
   @override
   Future<void> init() async {
     SettingRepository.i.initDefaultSettings(defaultSettings);

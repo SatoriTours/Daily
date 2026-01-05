@@ -9,7 +9,6 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
   // 私有构造函数
   DiaryRepository._();
 
-  // 单例
   static final i = DiaryRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================

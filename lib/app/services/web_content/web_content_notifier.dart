@@ -7,7 +7,6 @@ import 'package:daily_satori/app/data/data.dart';
 ///
 /// 用于从服务层通知 Riverpod providers 文章状态变化
 class WebContentNotifier {
-  // 单例
   WebContentNotifier._();
   static final WebContentNotifier i = WebContentNotifier._();
 

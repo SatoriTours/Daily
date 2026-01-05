@@ -12,7 +12,6 @@ class SessionRepository extends BaseRepository<SessionEntity, SessionModel> {
   // 私有构造函数
   SessionRepository._();
 
-  // 单例
   static final i = SessionRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================

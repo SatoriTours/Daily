@@ -4,9 +4,7 @@
 /// 页面级 controller providers 已移动到各自的 pages/*/providers/ 目录中。
 library;
 
-// ========================================================================
 // State Providers (全局状态服务)
-// ========================================================================
 
 export 'app_state_provider.dart';
 export 'article_state_provider.dart';
@@ -14,9 +12,7 @@ export 'diary_state_provider.dart';
 export 'books_state_provider.dart';
 export 'first_launch_provider.dart';
 
-// ========================================================================
 // 页面级 Controller Providers
-// ========================================================================
 // 页面级 providers 现在位于各自的页面目录下:
 //
 // - pages/articles/providers/articles_controller_provider.dart

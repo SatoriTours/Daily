@@ -25,7 +25,6 @@ enum SupportedLanguage {
 class I18nService implements AppService {
   static const String _languageKey = 'app_language';
 
-  // MARK: - 单例实现
   I18nService._privateConstructor();
   static final I18nService _instance = I18nService._privateConstructor();
   static I18nService get i => _instance;

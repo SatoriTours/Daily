@@ -12,7 +12,6 @@ class ImageRepository extends BaseRepository<Image, ImageModel> {
   // 私有构造函数
   ImageRepository._();
 
-  // 单例
   static final i = ImageRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================

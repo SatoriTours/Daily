@@ -65,9 +65,9 @@ class ShareDialogController extends _$ShareDialogController {
     return const ShareDialogControllerState();
   }
 
-  // ============================================================================
+  
   // 初始化相关
-  // ============================================================================
+  
 
   /// 初始化对话框
   void initialize(Map<String, dynamic> args) {
@@ -142,9 +142,9 @@ class ShareDialogController extends _$ShareDialogController {
     }
   }
 
-  // ============================================================================
+  
   // 保存逻辑
-  // ============================================================================
+  
 
   /// 保存按钮点击
   Future<void> onSaveButtonPressed(BuildContext context) async {
@@ -281,9 +281,9 @@ class ShareDialogController extends _$ShareDialogController {
     );
   }
 
-  // ============================================================================
+  
   // 标签管理
-  // ============================================================================
+  
 
   /// 添加标签
   void addTag(String tag) {
@@ -308,9 +308,9 @@ class ShareDialogController extends _$ShareDialogController {
     tagsController.text = tagsText;
   }
 
-  // ============================================================================
+  
   // UI辅助方法
-  // ============================================================================
+  
 
   /// 获取短URL（用于显示）
   String getShortUrl(String url) {
@@ -338,9 +338,9 @@ class ShareDialogController extends _$ShareDialogController {
     }
   }
 
-  // ============================================================================
+  
   // 私有辅助方法
-  // ============================================================================
+  
 
   /// 获取当前文章（如果存在）
   ArticleModel? _getArticle() {

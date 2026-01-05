@@ -2,10 +2,6 @@
 
 part of 'article_state_provider.dart';
 
-// **************************************************************************
-// RiverpodGenerator
-// **************************************************************************
-
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// 文章状态 Provider

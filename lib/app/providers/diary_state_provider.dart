@@ -174,7 +174,6 @@ class DiaryState extends _$DiaryState {
         logger.i('新增日记: ${diary.content.substring(0, 20)}...');
         addDiaryToList(diary);
       } else {
-        // 更新
         DiaryRepository.i.updateModel(diary);
         logger.i('更新日记: ID=${diary.id}');
         updateDiaryInList(diary.id);

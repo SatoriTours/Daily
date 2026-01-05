@@ -5,10 +5,6 @@
 
 part of 'backup_restore_controller_provider.dart';
 
-// **************************************************************************
-// FreezedGenerator
-// **************************************************************************
-
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc

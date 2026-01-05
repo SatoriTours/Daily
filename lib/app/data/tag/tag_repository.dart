@@ -15,7 +15,6 @@ class TagRepository extends BaseRepository<Tag, TagModel> {
   // 私有构造函数
   TagRepository._();
 
-  // 单例
   static final i = TagRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================

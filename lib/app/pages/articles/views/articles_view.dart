@@ -20,9 +20,7 @@ class ArticlesView extends ConsumerWidget {
   }
 }
 
-// ============================================================================
 // AppBar 组件
-// ============================================================================
 
 class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
   const _ArticlesAppBar();
@@ -145,9 +143,7 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
   }
 }
 
-// ============================================================================
 // Body 组件
-// ============================================================================
 
 class _ArticlesBody extends ConsumerWidget {
   const _ArticlesBody();

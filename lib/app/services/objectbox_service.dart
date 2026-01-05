@@ -15,7 +15,6 @@ import 'package:daily_satori/app/config/app_config.dart';
 ///
 /// 负责管理ObjectBox数据库的初始化、访问和操作
 class ObjectboxService implements AppService {
-  // MARK: - 单例实现
   ObjectboxService._();
   static final ObjectboxService _instance = ObjectboxService._();
   static ObjectboxService get i => _instance;
@@ -26,12 +25,8 @@ class ObjectboxService implements AppService {
   @override
   ServicePriority get priority => ServicePriority.critical;
 
-  // MARK: - 常量
-
   /// 数据库目录名（已迁移至 DatabaseConfig）
   static String get dbDir => DatabaseConfig.objectBoxDir;
-
-  // MARK: - 属性
 
   /// ObjectBox 存储实例
   late final Store _store;
@@ -41,8 +36,6 @@ class ObjectboxService implements AppService {
 
   /// ObjectBox Admin 实例
   late Admin _admin;
-
-  // MARK: - 初始化与释放
 
   /// 初始化 ObjectBox 服务
   @override
@@ -72,8 +65,6 @@ class ObjectboxService implements AppService {
       _admin.close();
     }
   }
-
-  // MARK: - 数据访问
 
   /// 获取指定类型的 Box
   Box<T> box<T>() => _store.box<T>();

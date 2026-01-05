@@ -117,7 +117,6 @@ class AIConfigEditController extends _$AIConfigEditController {
     }
   }
 
-  // Getters
   String get pageTitle => state.config == null ? 'ai_config.create_title'.t : 'ai_config.edit_title'.t;
   bool get isSystemConfig => state.functionType == AIConfigTypes.general;
   bool get isSpecialConfig => state.functionType != AIConfigTypes.general;

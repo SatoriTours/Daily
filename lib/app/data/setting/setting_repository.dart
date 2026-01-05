@@ -12,7 +12,6 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
   // 私有构造函数
   SettingRepository._();
 
-  // 单例
   static final i = SettingRepository._();
 
   // ==================== BaseRepository 必须实现的方法 ====================
