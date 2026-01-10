@@ -76,7 +76,7 @@ String buildProductionSummaryPrompt(
 
 /// 内部构建提示词
 String _buildPrompt(WeeklySummaryInput input) {
-  final template = _env.fromString(PluginService.i.getWeeklySummaryTemplate());
+  final template = _env.fromString(PluginService.i.weeklySummaryTemplate);
 
   return template.render({
     'title': input.title,

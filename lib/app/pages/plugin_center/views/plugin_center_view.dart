@@ -12,12 +12,12 @@ class PluginCenterView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(pluginCenterControllerProvider);
-    // Note: PluginService.i.getAllPlugins() might not be reactive.
+    // Note: PluginService.i.getPlugins() might not be reactive.
     // Ideally the controller should expose the list of plugins.
     // For now, we assume the list is static or we might need to reload it.
     // But since we are just fixing compilation errors, let's stick to what we have
     // but make sure it compiles.
-    final plugins = PluginService.i.getAllPlugins();
+    final plugins = PluginService.i.getPlugins();
     final hasPlugins = plugins.isNotEmpty;
     final isUpdating = state.isLoading || state.updatingPluginId.isNotEmpty;
 

@@ -161,7 +161,7 @@ class BookRepository extends BaseRepository<Book, BookModel> {
 
     try {
       // 重新获取书籍信息
-      final promptTemplate = _pluginService.getBookInfo();
+      final promptTemplate = _pluginService.bookInfo;
       final prompt = _renderTemplate(promptTemplate, {'title': book.title});
       final response = await _aiService.complete(prompt);
       final cleanedResponse = _cleanJsonResponse(response);
@@ -220,7 +220,7 @@ class BookRepository extends BaseRepository<Book, BookModel> {
     try {
       logger.i('开始使用AI创建书籍: $title');
 
-      final promptTemplate = _pluginService.getBookInfo();
+      final promptTemplate = _pluginService.bookInfo;
       logger.d(
         'Book info template: ${promptTemplate.isNotEmpty ? "已加载" : "为空"}',
       );
@@ -269,7 +269,7 @@ class BookRepository extends BaseRepository<Book, BookModel> {
   /// 处理并保存书籍观点
   Future<void> _processAndSaveViewpoints(BookModel book) async {
     try {
-      final promptTemplate = _pluginService.getBookInfo();
+      final promptTemplate = _pluginService.bookInfo;
       final prompt = _renderTemplate(promptTemplate, {'title': book.title});
 
       final response = await _aiService.complete(prompt);
@@ -349,7 +349,7 @@ class BookRepository extends BaseRepository<Book, BookModel> {
     String viewpoint,
   ) async {
     try {
-      final promptTemplate = _pluginService.getBookViewpoint();
+      final promptTemplate = _pluginService.bookViewpoint;
       final prompt = _renderTemplate(promptTemplate, {
         'title': title,
         'author': author,

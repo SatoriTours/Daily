@@ -73,7 +73,7 @@ class AiService extends AppService {
     if (text.isEmpty) return text;
     if (!isEnabled(type)) return text;
 
-    final role = _template(PluginService.i.getTranslateRole(), {});
+    final role = _template(PluginService.i.translateRole, {});
     return await complete(
       text,
       systemPrompt: role,
@@ -87,8 +87,8 @@ class AiService extends AppService {
     if (!isEnabled(type)) return content;
 
     final text = StringUtils.getSubstring(content, length: 500);
-    final role = _template(PluginService.i.getSummarizeOneLineRole(), {'text': text});
-    final prompt = _template(PluginService.i.getSummarizeOneLinePrompt(), {'text': text});
+    final role = _template(PluginService.i.summarizeOneLineRole, {'text': text});
+    final prompt = _template(PluginService.i.summarizeOneLinePrompt, {'text': text});
 
     return await complete(prompt, systemPrompt: role, type: type);
   }
@@ -100,8 +100,8 @@ class AiService extends AppService {
 
     final isLong = text.length > 300;
     final prompt = _template(
-      isLong ? PluginService.i.getLongSummaryRole() : PluginService.i.getShortSummaryRole(),
-      {'commonTags': PluginService.i.getCommonTags().split(',').join(',')},
+      isLong ? PluginService.i.longSummaryRole : PluginService.i.shortSummaryRole,
+      {'commonTags': PluginService.i.commonTags.split(',').join(',')},
     );
 
     final content = await complete(
@@ -129,7 +129,7 @@ class AiService extends AppService {
     if (html.isEmpty) return '';
     if (!isEnabled(type)) return html;
 
-    final role = PluginService.i.getHtmlToMarkdownRole();
+    final role = PluginService.i.htmlToMarkdownRole;
     final result = await complete(html, systemPrompt: role, type: type);
     return result.isEmpty ? html : _postProcessMarkdown(result);
   }
@@ -162,7 +162,7 @@ class AiService extends AppService {
   }
 
   String _formatLongSummary(AiSummaryResult result) => _template(
-        PluginService.i.getLongSummaryResult(),
+        PluginService.i.longSummaryResult,
         {
           'title': result.title.isNotEmpty ? result.title : '文章分析',
           'summary': result.summary,
