@@ -23,6 +23,9 @@ class FontService extends AppService {
   /// 获取 FontService 实例
   static FontService get i => _instance;
 
+  @override
+  ServicePriority get priority => ServicePriority.high;
+
   /// 字体许可证文件路径（已迁移至 UrlConfig）
   static String get _fontLicensePath => UrlConfig.fontLicensePath;
 

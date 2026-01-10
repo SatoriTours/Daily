@@ -14,6 +14,9 @@ class FileService extends AppService {
   static final FileService _instance = FileService._();
   static FileService get i => _instance;
 
+  @override
+  ServicePriority get priority => ServicePriority.critical;
+
   // 路径存储
   late String _appPath;
   late String _imagesBasePath;

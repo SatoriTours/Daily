@@ -19,6 +19,9 @@ class PluginService extends AppService {
   static final PluginService _instance = PluginService._();
   static PluginService get i => _instance;
 
+  @override
+  ServicePriority get priority => ServicePriority.normal;
+
   // 最终使用的数据
   List<AiModel> _aiModels = [];
   final Map<String, String> _aiPrompts = {};

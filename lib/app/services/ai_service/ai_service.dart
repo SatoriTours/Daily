@@ -21,6 +21,9 @@ class AiService extends AppService {
   static final AiService _instance = AiService._();
   static AiService get i => _instance;
 
+  @override
+  ServicePriority get priority => ServicePriority.normal;
+
   static double get _defaultTemperature => AIConfig.defaultTemperature;
   static int get _maxContentLength => AIConfig.maxContentLength;
 

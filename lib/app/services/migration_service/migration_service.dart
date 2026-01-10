@@ -14,6 +14,9 @@ class MigrationService extends AppService {
   static final MigrationService _instance = MigrationService._();
   static MigrationService get i => _instance;
 
+  @override
+  ServicePriority get priority => ServicePriority.normal;
+
   // 数据库版本号的设置键
   static const String _dbVersionKey = 'db_version';
 

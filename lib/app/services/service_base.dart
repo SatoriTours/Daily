@@ -11,7 +11,7 @@ enum ServicePriority {
 /// 服务生命周期契约
 abstract class AppService {
   /// 服务名称，默认取类名（去掉 Service 后缀）
-  String get serviceName => runtimeType.toString().replaceAll('Service', '');
+  String get serviceName => runtimeType.toString();
 
   /// 服务优先级，默认为 normal
   ServicePriority get priority => ServicePriority.normal;

@@ -41,6 +41,9 @@ class BackupService extends AppService {
   static final BackupService _instance = BackupService._();
   static BackupService get i => _instance;
 
+  @override
+  ServicePriority get priority => ServicePriority.normal;
+
   // 备份进度监控 (使用 ValueNotifier 替代 .obs)
   final ValueNotifier<bool> isBackingUp = ValueNotifier(false);
   final ValueNotifier<double> backupProgress = ValueNotifier(0.0);
