@@ -141,7 +141,7 @@ class BackupRestoreController extends _$BackupRestoreController {
     state = state.copyWith(isRestoring: true, errorMessage: '');
 
     try {
-      final success = await BackupService.i.restoreBackup(backupName);
+      final success = await BackupService.i.restore(backupName);
 
       if (success) {
         // 刷新各模块状态

@@ -86,7 +86,7 @@ class BackupSettingsController extends _$BackupSettingsController {
     state = state.copyWith(isLoading: true);
     try {
       final success = await BackupService.i.checkAndBackup(
-        immediateBackup: true,
+        immediate: true,
       );
       state = state.copyWith(isLoading: false);
       if (success) {
