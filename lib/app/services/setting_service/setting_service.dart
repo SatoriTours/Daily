@@ -9,13 +9,10 @@ import 'package:daily_satori/app/utils/random_utils.dart';
 ///
 /// 只提供设置键常量和初始化方法
 /// 不再提供任何业务逻辑或代理方法，所有设置操作应直接调用 SettingRepository
-class SettingService implements AppService {
+class SettingService extends AppService {
   SettingService._privateConstructor();
   static final SettingService _instance = SettingService._privateConstructor();
   static SettingService get i => _instance;
-
-  @override
-  String get serviceName => 'SettingService';
 
   @override
   ServicePriority get priority => ServicePriority.critical;

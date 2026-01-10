@@ -14,13 +14,10 @@ import 'package:daily_satori/app/config/app_config.dart';
 /// 对象存储服务类
 ///
 /// 负责管理ObjectBox数据库的初始化、访问和操作
-class ObjectboxService implements AppService {
+class ObjectboxService extends AppService {
   ObjectboxService._();
   static final ObjectboxService _instance = ObjectboxService._();
   static ObjectboxService get i => _instance;
-
-  @override
-  String get serviceName => 'ObjectboxService';
 
   @override
   ServicePriority get priority => ServicePriority.critical;

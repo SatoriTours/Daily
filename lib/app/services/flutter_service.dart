@@ -1,14 +1,11 @@
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:flutter/material.dart';
 
-class FlutterService implements AppService {
+class FlutterService extends AppService {
   // 单例模式
   FlutterService._();
   static final FlutterService _instance = FlutterService._();
   static FlutterService get i => _instance;
-
-  @override
-  String get serviceName => 'FlutterService';
 
   @override
   ServicePriority get priority => ServicePriority.critical;

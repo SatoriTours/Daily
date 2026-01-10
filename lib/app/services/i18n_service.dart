@@ -17,7 +17,7 @@ enum SupportedLanguage {
   final String displayName;
 }
 
-class I18nService implements AppService {
+class I18nService extends AppService {
   static const _languageKey = 'app_language';
   static final I18nService _instance = I18nService._();
   static I18nService get i => _instance;
@@ -28,8 +28,6 @@ class I18nService implements AppService {
   final _warnedKeys = <String>{};
   bool _isInitialized = false;
 
-  @override
-  String get serviceName => 'I18nService';
   @override
   ServicePriority get priority => ServicePriority.critical;
 

@@ -10,14 +10,11 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/utils/app_info_utils.dart';
 
-class ADBlockService implements AppService {
+class ADBlockService extends AppService {
   // 单例模式
   ADBlockService._();
   static final ADBlockService _instance = ADBlockService._();
   static ADBlockService get i => _instance;
-
-  @override
-  String get serviceName => 'ADBlockService';
 
   @override
   ServicePriority get priority => ServicePriority.high;

@@ -2,13 +2,11 @@ import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 
-class AIConfigService implements AppService {
+class AIConfigService extends AppService {
   static final AIConfigService _instance = AIConfigService._();
   static AIConfigService get i => _instance;
   AIConfigService._();
 
-  @override
-  String get serviceName => 'AIConfigService';
   @override
   ServicePriority get priority => ServicePriority.high;
 

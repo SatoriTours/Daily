@@ -15,12 +15,10 @@ void loggerVerbose(String message) {
 }
 
 /// 日志服务
-class LoggerService implements AppService {
+class LoggerService extends AppService {
   LoggerService._();
   static final LoggerService i = LoggerService._();
 
-  @override
-  String get serviceName => 'LoggerService';
   @override
   ServicePriority get priority => ServicePriority.critical;
   @override

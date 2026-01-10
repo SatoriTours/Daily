@@ -9,13 +9,11 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/utils/app_info_utils.dart';
 
-class HttpService implements AppService {
+class HttpService extends AppService {
   HttpService._();
   static final HttpService _instance = HttpService._();
   static HttpService get i => _instance;
 
-  @override
-  String get serviceName => 'HttpService';
   @override
   ServicePriority get priority => ServicePriority.critical;
 
