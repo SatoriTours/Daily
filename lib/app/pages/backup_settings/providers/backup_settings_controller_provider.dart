@@ -85,9 +85,7 @@ class BackupSettingsController extends _$BackupSettingsController {
   Future<void> performBackup() async {
     state = state.copyWith(isLoading: true);
     try {
-      final success = await BackupService.i.checkAndBackup(
-        immediate: true,
-      );
+      final success = await BackupService.i.backupNow();
       state = state.copyWith(isLoading: false);
       if (success) {
         UIUtils.showSuccess('backup_settings.backup_success'.t);

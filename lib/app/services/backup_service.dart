@@ -1,8 +1,6 @@
 import 'dart:io';
-import 'dart:isolate';
 import 'package:archive/archive.dart' as arch;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_archive/flutter_archive.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -10,10 +8,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:daily_satori/app/config/app_config.dart';
 import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/file_service.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
-import 'package:daily_satori/app/utils/utils.dart';
+import 'package:daily_satori/app/utils/app_info_utils.dart';
 
 /// 备份服务
 class BackupService extends AppService {
@@ -31,31 +30,63 @@ class BackupService extends AppService {
   int get _interval => AppInfoUtils.isProduction ? BackupConfig.productionIntervalHours : BackupConfig.developmentIntervalHours;
 
   /// 备份项列表
-  List<({String name, String source, String zip})> get items => [
-        (name: '数据库', source: FileService.i.dbPath, zip: 'objectbox.zip'),
-        (name: '网页图片', source: FileService.i.imagesBasePath, zip: 'images.zip'),
-        (name: '日记图片', source: FileService.i.diaryImagesBasePath, zip: 'diary_images.zip'),
-      ];
+  List<({String name, String source, String zip})> get items {
+    final dbPath = FileService.i.dbPath;
+    final imagesPath = FileService.i.toAbsolutePath(FileService.i.imagesBasePath);
+    final diaryPath = FileService.i.toAbsolutePath(FileService.i.diaryImagesBasePath);
+    logger.i('[备份] dbPath: $dbPath');
+    logger.i('[备份] imagesPath: $imagesPath');
+    logger.i('[备份] diaryPath: $diaryPath');
+    return [
+      (name: '数据库', source: dbPath, zip: 'objectbox.zip'),
+      (name: '网页图片', source: imagesPath, zip: 'images.zip'),
+      (name: '日记图片', source: diaryPath, zip: 'diary_images.zip'),
+    ];
+  }
 
   @override
   Future<void> init() async {
     await _fixImagePaths();
-    checkAndBackup();
+    if (AppInfoUtils.isProduction) checkAndBackup();
   }
 
   /// 检查并执行备份
-  Future<bool> checkAndBackup({bool immediate = false}) async {
-    if (backupDir.isEmpty || isBackingUp.value || !AppInfoUtils.isProduction) return false;
+  Future<bool> checkAndBackup() async {
+    if (backupDir.isEmpty || isBackingUp.value) return false;
 
     isBackingUp.value = true;
     backupProgress.value = 0.0;
 
     try {
       final last = await _lastBackupTime();
-      if (immediate || DateTime.now().difference(last).inHours >= _interval) {
+      if (DateTime.now().difference(last).inHours >= _interval) {
         await _performBackup();
         return true;
       }
+      return false;
+    } finally {
+      isBackingUp.value = false;
+    }
+  }
+
+  /// 立即备份
+  Future<bool> backupNow() async {
+    logger.i('[备份] backupNow called');
+    logger.i('[备份] backupDir: $backupDir, isBackingUp: ${isBackingUp.value}');
+    if (backupDir.isEmpty || isBackingUp.value) {
+      logger.i('[备份] 提前返回: backupDir=$backupDir, isBackingUp=${isBackingUp.value}');
+      return false;
+    }
+
+    isBackingUp.value = true;
+    backupProgress.value = 0.0;
+
+    try {
+      logger.i('[备份] 开始执行 _performBackup');
+      await _performBackup();
+      return true;
+    } catch (e, stack) {
+      logger.e('[备份] 失败', error: e, stackTrace: stack);
       return false;
     } finally {
       isBackingUp.value = false;
@@ -90,35 +121,39 @@ class BackupService extends AppService {
   }
 
   Future<void> _performBackup() async {
+    logger.i('[备份] backupDir: $backupDir');
     final ts = DateTime.now().toIso8601String().replaceAll(RegExp('[:.]+'), '-');
     final folder = path.join(backupDir, 'daily_satori_backup_$ts');
+    logger.i('[备份] 备份目录: $folder');
+    await Directory(backupDir).create(recursive: true);
     await Directory(folder).create();
 
     backupProgress.value = 0.1;
     final step = 0.9 / items.length;
 
     for (int i = 0; i < items.length; i++) {
+      logger.i('[备份] 开始压缩 ${items[i].name}: ${items[i].source}');
       await _compress(items[i].source, path.join(folder, items[i].zip));
       backupProgress.value = 0.1 + step * (i + 1);
     }
 
     backupProgress.value = 1.0;
     await _timeFile.writeAsString(DateTime.now().toIso8601String());
+    logger.i('[备份] 完成');
   }
 
   Future<void> _compress(String source, String target) async {
     final dir = Directory(source);
-    if (!await dir.exists()) return;
+    final exists = await dir.exists();
+    logger.i('[备份] 源目录是否存在: $exists, path: $source');
+    if (!exists) return;
 
-    final token = RootIsolateToken.instance!;
-    await Isolate.run(() async {
-      BackgroundIsolateBinaryMessenger.ensureInitialized(token);
-      await ZipFile.createFromDirectory(
-        sourceDir: dir,
-        zipFile: File(target),
-        recurseSubDirs: true,
-      );
-    });
+    await ZipFile.createFromDirectory(
+      sourceDir: dir,
+      zipFile: File(target),
+      recurseSubDirs: true,
+    );
+    logger.i('[备份] 压缩完成: $target');
   }
 
   Future<bool> _validateFiles(String folder) async {
