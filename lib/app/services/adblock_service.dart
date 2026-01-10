@@ -1,15 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
-
-import 'package:dio/dio.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/utils/app_info_utils.dart';
-import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/config/app_config.dart';
+import 'package:daily_satori/app/services/http_service.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/service_base.dart';
+import 'package:daily_satori/app/utils/app_info_utils.dart';
 
 class ADBlockService implements AppService {
   // 单例模式
@@ -178,7 +177,7 @@ class ADBlockService implements AppService {
   // 更新规则
   Future<void> _updateRules() async {
     try {
-      final response = await Dio().get(_easylistUrl);
+      final response = await HttpService.i.get(_easylistUrl);
       if (response.statusCode == 200) {
         final file = File(await _getLocalPath());
         await file.writeAsString(response.data);

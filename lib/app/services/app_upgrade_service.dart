@@ -205,7 +205,7 @@ class AppUpgradeService extends AppService {
     }
 
     Future<Map<String, dynamic>> doGet(String url) async {
-      final resp = await HttpService.i.dio.get(
+      final resp = await HttpService.i.get(
         url,
         options: Options(headers: buildHeaders()),
       );
