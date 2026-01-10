@@ -114,7 +114,7 @@ class WeeklySummaryService extends AppService {
         viewpoints: viewpoints,
         previousAppIdeas: previousAppIdeas,
       );
-      final aiResult = await AiService.i.getCompletion(prompt);
+      final aiResult = await AiService.i.complete(prompt);
 
       if (aiResult.isEmpty) {
         WeeklySummaryRepository.i.updateStatus(
@@ -229,7 +229,7 @@ class WeeklySummaryService extends AppService {
         viewpoints: viewpoints,
         previousAppIdeas: previousAppIdeas,
       );
-      final aiResult = await AiService.i.getCompletion(prompt);
+      final aiResult = await AiService.i.complete(prompt);
 
       if (aiResult.isEmpty) {
         WeeklySummaryRepository.i.updateStatus(

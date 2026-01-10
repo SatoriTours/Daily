@@ -75,7 +75,7 @@ class AiProcessor {
     logger.i('[AI:Markdown] ▶ 开始处理Markdown');
 
     try {
-      final markdown = await AiService.i.convertHtmlToMarkdown(htmlContent);
+      final markdown = await AiService.i.htmlToMarkdown(htmlContent);
 
       if (markdown.isEmpty) {
         logger.w('[AI:Markdown] 处理结果为空');

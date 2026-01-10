@@ -185,7 +185,7 @@ ${jsonEncode(booksInfo)}
 - 如果找不到$limit本相关书籍，宁可少返回也不要凑数
 ''';
 
-      final response = await _aiService.getCompletion(prompt);
+      final response = await _aiService.complete(prompt);
       final cleanedResponse = _cleanJsonResponse(response);
       final Map<String, dynamic> aiData = jsonDecode(cleanedResponse);
 

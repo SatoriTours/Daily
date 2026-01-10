@@ -163,7 +163,7 @@ class BookRepository extends BaseRepository<Book, BookModel> {
       // 重新获取书籍信息
       final promptTemplate = _pluginService.getBookInfo();
       final prompt = _renderTemplate(promptTemplate, {'title': book.title});
-      final response = await _aiService.getCompletion(prompt);
+      final response = await _aiService.complete(prompt);
       final cleanedResponse = _cleanJsonResponse(response);
       final Map<String, dynamic> bookData = jsonDecode(cleanedResponse);
 
@@ -228,7 +228,7 @@ class BookRepository extends BaseRepository<Book, BookModel> {
       final prompt = _renderTemplate(promptTemplate, {'title': title});
       logger.d('Generated prompt length: ${prompt.length}');
 
-      final response = await _aiService.getCompletion(prompt);
+      final response = await _aiService.complete(prompt);
       logger.d(
         'AI response received: ${response.isNotEmpty ? response.length : 0} chars',
       );
@@ -272,7 +272,7 @@ class BookRepository extends BaseRepository<Book, BookModel> {
       final promptTemplate = _pluginService.getBookInfo();
       final prompt = _renderTemplate(promptTemplate, {'title': book.title});
 
-      final response = await _aiService.getCompletion(prompt);
+      final response = await _aiService.complete(prompt);
 
       if (response.isEmpty) {
         logger.w('AI返回空响应，无法处理书籍观点: ${book.title}');
@@ -379,12 +379,12 @@ class BookRepository extends BaseRepository<Book, BookModel> {
     String prompt,
   ) async {
     try {
-      final response = await _aiService.getCompletion(prompt);
+      final response = await _aiService.complete(prompt);
       final cleanedResponse = _cleanJsonResponse(response);
       return jsonDecode(cleanedResponse);
     } catch (e, stackTrace) {
       logger.w('获取观点详情失败，正在重试...', error: e, stackTrace: stackTrace);
-      final response = await _aiService.getCompletion(prompt);
+      final response = await _aiService.complete(prompt);
       final cleanedResponse = _cleanJsonResponse(response);
       return jsonDecode(cleanedResponse);
     }

@@ -114,7 +114,7 @@ class AiArticleProcessor {
     final html = article.htmlContent ?? '';
     if (html.isEmpty) return;
     try {
-      final markdown = await AiService.i.convertHtmlToMarkdown(html);
+      final markdown = await AiService.i.htmlToMarkdown(html);
       if (markdown.isEmpty) return;
       ArticleRepository.i.updateField(
         articleId,

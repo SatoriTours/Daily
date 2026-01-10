@@ -122,7 +122,7 @@ class ServiceManager {
 
   /// 初始化低优先级服务（AI 配置完成后触发）
   void initializeLowPriority() {
-    if (!AiService.i.isAiEnabled(AIFunctionType.general)) {
+    if (!AiService.i.isEnabled(AIFunctionType.general)) {
       logger.i('[ServiceRegistry] AI 未配置，跳过低优先级服务初始化');
       return;
     }
