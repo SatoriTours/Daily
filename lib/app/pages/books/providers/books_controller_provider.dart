@@ -49,10 +49,11 @@ class BooksController extends _$BooksController {
   /// 上一个观点
   void previousViewpoint() {
     final current = ref.read(booksStateProvider).currentViewpointIndex;
-    if (current > 0)
+    if (current > 0) {
       ref
           .read(booksStateProvider.notifier)
           .setCurrentViewpointIndex(current - 1);
+    }
   }
 
   /// 下一个观点

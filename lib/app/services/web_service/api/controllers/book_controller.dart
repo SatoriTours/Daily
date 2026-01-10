@@ -118,8 +118,9 @@ class BookController {
       final introduction = body['introduction'] as String? ?? '';
       final coverImage = body['coverImage'] as String? ?? '';
 
-      if (title == null || title.isEmpty)
+      if (title == null || title.isEmpty) {
         return ResponseUtils.validationError('书名不能为空');
+      }
 
       final book = BookModel.create(
         title: title,
@@ -150,10 +151,12 @@ class BookController {
       if (body['title'] != null) book.title = body['title'] as String;
       if (body['author'] != null) book.author = body['author'] as String;
       if (body['category'] != null) book.category = body['category'] as String;
-      if (body['introduction'] != null)
+      if (body['introduction'] != null) {
         book.introduction = body['introduction'] as String;
-      if (body['coverImage'] != null)
+      }
+      if (body['coverImage'] != null) {
         book.coverImage = body['coverImage'] as String;
+      }
 
       BookRepository.i.save(book);
       return ResponseUtils.success(_bookToJson(book));
@@ -215,8 +218,9 @@ class BookController {
       final content = body['content'] as String?;
       final example = body['example'] as String? ?? '';
 
-      if (content == null || content.isEmpty)
+      if (content == null || content.isEmpty) {
         return ResponseUtils.validationError('观点内容不能为空');
+      }
 
       final viewpoint = BookViewpointModel.create(
         bookId: id,
@@ -248,10 +252,12 @@ class BookController {
       final body = await RequestUtils.parseJsonBody(request);
 
       if (body['title'] != null) viewpoint.title = body['title'] as String;
-      if (body['content'] != null)
+      if (body['content'] != null) {
         viewpoint.content = body['content'] as String;
-      if (body['example'] != null)
+      }
+      if (body['example'] != null) {
         viewpoint.example = body['example'] as String;
+      }
 
       BookViewpointRepository.i.save(viewpoint);
       return ResponseUtils.success(_viewpointToJson(viewpoint));

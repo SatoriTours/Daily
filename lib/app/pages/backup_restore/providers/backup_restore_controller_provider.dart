@@ -100,8 +100,9 @@ class BackupRestoreController extends _$BackupRestoreController {
         (m) => '${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}',
       );
       final dateTime = DateTime.tryParse(isoString);
-      if (dateTime != null)
+      if (dateTime != null) {
         return DateTimeUtils.formatDateTimeToLocal(dateTime);
+      }
 
       // 回退：尝试解析旧格式
       final parts = timestamp.split('-');
@@ -117,8 +118,9 @@ class BackupRestoreController extends _$BackupRestoreController {
 
   Future<bool> restoreBackup() async {
     if (state.selectedBackupIndex < 0 ||
-        state.selectedBackupIndex >= state.backupList.length)
+        state.selectedBackupIndex >= state.backupList.length) {
       return false;
+    }
 
     // 检查Android权限
     if (Platform.isAndroid) {

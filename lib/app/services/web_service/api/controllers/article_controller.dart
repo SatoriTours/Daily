@@ -127,8 +127,9 @@ class ArticleController {
       final url = body['url'] as String?;
       final comment = body['comment'] as String? ?? '';
 
-      if (url == null || url.isEmpty)
+      if (url == null || url.isEmpty) {
         return ResponseUtils.validationError('URL不能为空');
+      }
 
       logger.i('[WebService][Articles] 创建文章: $url');
 
@@ -215,15 +216,21 @@ class ArticleController {
 
   void _applyArticlePatch(ArticleModel article, Map<String, dynamic> body) {
     if (body.containsKey('title')) article.title = body['title'] as String?;
-    if (body.containsKey('content'))
+    if (body.containsKey('content')) {
       article.content = body['content'] as String?;
-    if (body.containsKey('url')) article.url = body['url'] as String?;
-    if (body.containsKey('isFavorite'))
+    }
+    if (body.containsKey('url')) {
+      article.url = body['url'] as String?;
+    }
+    if (body.containsKey('isFavorite')) {
       article.isFavorite = body['isFavorite'] as bool;
-    if (body.containsKey('comment'))
+    }
+    if (body.containsKey('comment')) {
       article.comment = body['comment'] as String?;
-    if (body.containsKey('coverImage'))
+    }
+    if (body.containsKey('coverImage')) {
       article.coverImage = body['coverImage'] as String?;
+    }
   }
 
   Map<String, dynamic> _articleToJson(ArticleModel article) {

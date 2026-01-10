@@ -135,8 +135,9 @@ class AIConfigEditController extends _$AIConfigEditController {
   bool get isFormValid {
     if (state.name.trim().isEmpty) return false;
     if (!state.inheritFromGeneral) {
-      if (state.apiAddress.trim().isEmpty || state.apiToken.trim().isEmpty)
+      if (state.apiAddress.trim().isEmpty || state.apiToken.trim().isEmpty) {
         return false;
+      }
     }
     return true;
   }

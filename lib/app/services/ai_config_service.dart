@@ -2,87 +2,48 @@ import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 
-/// AI配置服务类
-///
-/// 负责提供AI配置的业务逻辑
 class AIConfigService implements AppService {
-  AIConfigService._privateConstructor();
-  static final AIConfigService _instance =
-      AIConfigService._privateConstructor();
+  static final AIConfigService _instance = AIConfigService._();
   static AIConfigService get i => _instance;
+  AIConfigService._();
 
   @override
   String get serviceName => 'AIConfigService';
-
   @override
   ServicePriority get priority => ServicePriority.high;
 
-  /// 初始化
   @override
-  Future<void> init() async {
-    AIConfigRepository.i.initDefaultConfigs();
-  }
+  Future<void> init() async => AIConfigRepository.i.initDefaultConfigs();
 
-  /// 获取通用配置
-  AIConfigModel? getGeneralConfig() {
-    return AIConfigRepository.i.getGeneralConfig();
-  }
+  AIConfigModel? getGeneralConfig() => AIConfigRepository.i.getGeneralConfig();
 
-  /// 获取特定功能类型的默认配置
-  AIConfigModel? getDefaultConfig(int functionType) {
+  AIConfigModel? getDefaultConfig(AIFunctionType type) {
     try {
-      // 获取指定功能的默认配置
-      final defaultConfig = AIConfigRepository.i
-          .getDefaultAIConfigByFunctionType(functionType);
-
-      // 如果配置需要继承自通用配置，则应用继承
-      if (defaultConfig != null && defaultConfig.inheritFromGeneral) {
-        final generalConfig = getGeneralConfig();
-        if (generalConfig != null) {
-          defaultConfig.inheritFromConfig(generalConfig);
-        }
+      final config = AIConfigRepository.i.getDefaultAIConfigByFunctionTypeEnum(type);
+      if (config?.inheritFromGeneral == true) {
+        final general = getGeneralConfig();
+        if (general != null) config?.inheritFromConfig(general);
       }
-
-      return defaultConfig;
+      return config;
     } catch (e, stackTrace) {
-      logger.e("[AI配置服务] 获取默认配置失败: $e", stackTrace: stackTrace);
+      logger.e('[AI配置服务] 获取默认配置失败: $e', stackTrace: stackTrace);
       return null;
     }
   }
 
-  /// 获取AI功能类型名称
-  String getFunctionTypeName(int functionType) {
-    switch (functionType) {
-      case 1:
-        return "文章分析";
-      case 2:
-        return "书本解读";
-      case 3:
-        return "日记总结";
-      case 0:
-        return "通用配置";
-      default:
-        return "未知";
-    }
-  }
+  String getFunctionTypeName(AIFunctionType type) => type.displayName;
 
-  /// 为特定功能获取API地址
-  String getApiAddressForFunction(int functionType) {
-    final config = getDefaultConfig(functionType);
-    return config?.apiAddress ?? "";
-  }
+  String getConfigValue(AIFunctionType type, String Function(AIConfigModel?) getter) =>
+      getter(getDefaultConfig(type));
 
-  /// 为特定功能获取API令牌
-  String getApiTokenForFunction(int functionType) {
-    final config = getDefaultConfig(functionType);
-    return config?.apiToken ?? "";
-  }
+  String getApiAddressForFunction(AIFunctionType type) =>
+      getConfigValue(type, (c) => c?.apiAddress ?? '');
 
-  /// 为特定功能获取模型名称
-  String getModelNameForFunction(int functionType) {
-    final config = getDefaultConfig(functionType);
-    return config?.modelName ?? "";
-  }
+  String getApiTokenForFunction(AIFunctionType type) =>
+      getConfigValue(type, (c) => c?.apiToken ?? '');
+
+  String getModelNameForFunction(AIFunctionType type) =>
+      getConfigValue(type, (c) => c?.modelName ?? '');
 
   @override
   void dispose() {}

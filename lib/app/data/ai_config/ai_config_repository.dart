@@ -31,7 +31,12 @@ class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
     return findFirstByCondition(AIConfig_.functionType.equals(0));
   }
 
-  /// 根据功能类型获取默认AI配置
+  /// 根据功能类型获取默认AI配置（枚举版本）
+  AIConfigModel? getDefaultAIConfigByFunctionTypeEnum(AIFunctionType type) {
+    return getDefaultAIConfigByFunctionType(type.value);
+  }
+
+  /// 根据功能类型获取默认AI配置（int版本，保留兼容性）
   AIConfigModel? getDefaultAIConfigByFunctionType(int functionType) {
     return findFirstByCondition(
       AIConfig_.functionType.equals(functionType) &

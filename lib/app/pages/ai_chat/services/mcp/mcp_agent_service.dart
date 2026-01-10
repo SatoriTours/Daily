@@ -20,7 +20,7 @@ class MCPAgentService {
   static MCPAgentService get i => _instance ??= MCPAgentService._();
   MCPAgentService._();
 
-  static const int _functionType = 0;
+  static const AIFunctionType _functionType = AIFunctionType.general;
   static const int _maxToolCallRounds = 5;
   final MCPToolExecutor _toolExecutor = MCPToolExecutor.i;
 
@@ -33,8 +33,9 @@ class MCPAgentService {
     final collectedResults = <SearchResult>[];
 
     void updateStep(String stepName, String status) {
-      if (currentStepName != null && currentStepName != stepName)
+      if (currentStepName != null && currentStepName != stepName) {
         onStep(currentStepName!, 'completed');
+      }
       currentStepName = stepName;
       onStep(stepName, status);
     }

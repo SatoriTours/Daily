@@ -102,13 +102,16 @@ class _SearchResults extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(bookSearchControllerProvider);
 
-    if (state.isSearching)
+    if (state.isSearching) {
       return _buildSearchingState(context, state.searchKeyword);
+    }
     if (state.isLoading) return _buildLoadingState(context);
-    if (state.errorMessage.isNotEmpty)
+    if (state.errorMessage.isNotEmpty) {
       return _buildErrorState(context, ref, state.errorMessage);
-    if (state.searchResults.isEmpty && state.searchKeyword.isNotEmpty)
+    }
+    if (state.searchResults.isEmpty && state.searchKeyword.isNotEmpty) {
       return _buildEmptyState(context);
+    }
     if (state.searchResults.isEmpty) return _buildInitialState(context);
 
     return _buildResultsList(context, ref, state.searchResults);
@@ -208,10 +211,11 @@ class _SearchResults extends ConsumerWidget {
               final keyword = ref
                   .read(bookSearchControllerProvider)
                   .searchKeyword;
-              if (keyword.isNotEmpty)
+              if (keyword.isNotEmpty) {
                 ref
                     .read(bookSearchControllerProvider.notifier)
                     .searchBooks(keyword);
+              }
             },
             icon: const Icon(Icons.refresh),
             label: Text('button.retry'.t),

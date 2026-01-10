@@ -148,19 +148,24 @@ class DiaryController {
 
       final diaryRepository = DiaryRepository.i;
       final existingDiary = diaryRepository.find(diaryId);
-      if (existingDiary == null)
+      if (existingDiary == null) {
         return ResponseUtils.error('日记不存在', status: 404);
+      }
 
       final body = await RequestUtils.parseJsonBody(request);
 
-      if (body.containsKey('content'))
+      if (body.containsKey('content')) {
         existingDiary.content = body['content'] as String;
-      if (body.containsKey('tags'))
+      }
+      if (body.containsKey('tags')) {
         existingDiary.tags = body['tags'] as String?;
-      if (body.containsKey('mood'))
+      }
+      if (body.containsKey('mood')) {
         existingDiary.mood = body['mood'] as String?;
-      if (body.containsKey('images'))
+      }
+      if (body.containsKey('images')) {
         existingDiary.entity.images = body['images'] as String?;
+      }
 
       existingDiary.updatedAt = DateTime.now();
       diaryRepository.save(existingDiary);

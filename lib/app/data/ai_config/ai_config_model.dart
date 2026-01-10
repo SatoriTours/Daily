@@ -1,6 +1,21 @@
 import 'package:daily_satori/app/data/base/entity_model.dart';
 import 'package:daily_satori/app/objectbox/ai_config.dart';
 
+/// AI功能类型枚举
+enum AIFunctionType {
+  general(0, '通用配置'),
+  articleAnalysis(1, '文章分析'),
+  bookInterpretation(2, '书本解读'),
+  diarySummary(3, '日记总结');
+
+  const AIFunctionType(this.value, this.displayName);
+  final int value;
+  final String displayName;
+
+  static AIFunctionType fromValue(int value) =>
+      values.firstWhere((e) => e.value == value, orElse: () => general);
+}
+
 /// AI配置模型类
 class AIConfigModel extends EntityModel<AIConfig> {
   AIConfigModel(super.entity);
@@ -50,6 +65,12 @@ class AIConfigModel extends EntityModel<AIConfig> {
   int get functionType => entity.functionType;
   set functionType(int value) => entity.functionType = value;
 
+  AIFunctionType get functionTypeEnum =>
+      AIFunctionType.fromValue(functionType);
+
+  set functionTypeEnum(AIFunctionType type) =>
+      functionType = type.value;
+
   bool get inheritFromGeneral => entity.inheritFromGeneral;
   set inheritFromGeneral(bool value) => entity.inheritFromGeneral = value;
 
@@ -64,20 +85,7 @@ class AIConfigModel extends EntityModel<AIConfig> {
     if (modelName.isEmpty) modelName = general.modelName;
   }
 
-  String get functionTypeName {
-    switch (functionType) {
-      case 0:
-        return "通用配置";
-      case 1:
-        return "文章总结";
-      case 2:
-        return "书本解读";
-      case 3:
-        return "日记总结";
-      default:
-        return "未知";
-    }
-  }
+  String get functionTypeName => functionTypeEnum.displayName;
 
   @override
   String toString() {

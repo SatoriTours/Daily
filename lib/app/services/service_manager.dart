@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/flutter_service.dart';
@@ -121,7 +122,7 @@ class ServiceManager {
 
   /// 初始化低优先级服务（AI 配置完成后触发）
   void initializeLowPriority() {
-    if (!AiService.i.isAiEnabled(0)) {
+    if (!AiService.i.isAiEnabled(AIFunctionType.general)) {
       logger.i('[ServiceRegistry] AI 未配置，跳过低优先级服务初始化');
       return;
     }

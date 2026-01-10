@@ -376,8 +376,9 @@ class _MarkdownContent extends StatelessWidget {
 
     if (href.startsWith('article:')) {
       final id = int.tryParse(href.substring(8));
-      if (id != null)
+      if (id != null) {
         AppNavigation.toNamed(Routes.articleDetail, arguments: id);
+      }
     } else if (href.startsWith('diary:')) {
       final id = int.tryParse(href.substring(6));
       if (id != null) {
