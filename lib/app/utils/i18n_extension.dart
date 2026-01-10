@@ -1,4 +1,4 @@
-import 'package:daily_satori/app/services/i18n/i18n_service.dart';
+import 'package:daily_satori/app/services/i18n_service.dart';
 
 /// 国际化扩展方法
 extension I18nExtension on String {

@@ -20,7 +20,7 @@ import 'package:daily_satori/app/services/web_service/web_service.dart';
 import 'package:daily_satori/app/services/app_upgrade_service.dart';
 import 'package:daily_satori/app/services/share_receive_service.dart';
 import 'package:daily_satori/app/services/clipboard_monitor_service.dart';
-import 'package:daily_satori/app/services/i18n/i18n_service.dart';
+import 'package:daily_satori/app/services/i18n_service.dart';
 import 'package:daily_satori/app/services/article_recovery_service.dart';
 
 import 'dart:developer' as developer;
@@ -35,9 +35,7 @@ class ServiceStatus {
   ServiceStatus(this.service);
 
   Duration? get initializationTime =>
-      isInitialized && startTime != null && endTime != null
-      ? endTime!.difference(startTime!)
-      : null;
+      isInitialized && startTime != null && endTime != null ? endTime!.difference(startTime!) : null;
 }
 
 /// 集中式服务注册与生命周期管理
@@ -92,11 +90,7 @@ class ServiceManager {
     _status[service.serviceName] = status..startTime = DateTime.now();
 
     try {
-      developer.log(
-        '[I] 初始化服务: ${service.serviceName}',
-        name: 'Satori',
-        level: 800,
-      );
+      developer.log('[I] 初始化服务: ${service.serviceName}', name: 'Satori', level: 800);
       await service.init();
       status.isInitialized = true;
     } catch (e) {
