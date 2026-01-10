@@ -31,7 +31,10 @@ class OpenLibrarySearchEngine extends BookSearchEngine {
   );
 
   @override
-  Future<List<BookSearchResult>> searchBooks(String query, {int limit = 8}) async {
+  Future<List<BookSearchResult>> searchBooks(
+    String query, {
+    int limit = 8,
+  }) async {
     try {
       logger.i('开始通过 $engineName 搜索书籍: $query');
 
@@ -41,12 +44,19 @@ class OpenLibrarySearchEngine extends BookSearchEngine {
       // 1. 如果是中文，转换为拼音进行搜索
       String searchTerm = query;
       if (_containsChinese(query)) {
-        searchTerm = PinyinHelper.getPinyinE(query, separator: ' ', format: PinyinFormat.WITHOUT_TONE);
+        searchTerm = PinyinHelper.getPinyinE(
+          query,
+          separator: ' ',
+          format: PinyinFormat.WITHOUT_TONE,
+        );
         logger.i('中文查询转换为拼音: $searchTerm');
       }
 
       // 2. 调用 OpenLibrary API 搜索
-      final openLibraryResults = await _searchOpenLibrary(searchTerm, limit: limit * 2); // 多获取一些结果供AI筛选
+      final openLibraryResults = await _searchOpenLibrary(
+        searchTerm,
+        limit: limit * 2,
+      ); // 多获取一些结果供AI筛选
 
       if (openLibraryResults.isEmpty) {
         logger.w('OpenLibrary 没有找到结果');
@@ -56,7 +66,11 @@ class OpenLibrarySearchEngine extends BookSearchEngine {
       logger.i('OpenLibrary 返回 ${openLibraryResults.length} 个结果');
 
       // 3. 使用 AI 处理结果：翻译拼音为中文，过滤不相关的结果
-      final processedResults = await _processResultsWithAI(openLibraryResults, originalChineseQuery, limit);
+      final processedResults = await _processResultsWithAI(
+        openLibraryResults,
+        originalChineseQuery,
+        limit,
+      );
 
       logger.i('$engineName 搜索完成，找到 ${processedResults.length} 个相关结果');
       return processedResults;
@@ -83,7 +97,10 @@ class OpenLibrarySearchEngine extends BookSearchEngine {
   }
 
   /// 调用 OpenLibrary API 搜索书籍
-  Future<List<Map<String, dynamic>>> _searchOpenLibrary(String query, {int limit = 16}) async {
+  Future<List<Map<String, dynamic>>> _searchOpenLibrary(
+    String query, {
+    int limit = 16,
+  }) async {
     try {
       // 使用 OpenLibrary Search API
       // 文档: https://openlibrary.org/dev/docs/api/search
@@ -92,7 +109,8 @@ class OpenLibrarySearchEngine extends BookSearchEngine {
         queryParameters: {
           'q': query,
           'limit': limit,
-          'fields': 'key,title,author_name,first_publish_year,isbn,cover_i,publisher,subject',
+          'fields':
+              'key,title,author_name,first_publish_year,isbn,cover_i,publisher,subject',
           'lang': 'en',
         },
       );
@@ -194,7 +212,8 @@ ${jsonEncode(booksInfo)}
 
         // 获取 ISBN
         String isbn = '';
-        if (originalDoc['isbn'] != null && (originalDoc['isbn'] as List).isNotEmpty) {
+        if (originalDoc['isbn'] != null &&
+            (originalDoc['isbn'] as List).isNotEmpty) {
           isbn = (originalDoc['isbn'] as List).first.toString();
         }
 

@@ -4,11 +4,16 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/pages/article_detail/providers/article_detail_controller_provider.dart';
 
-class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget {
+class ArticleDetailAppBar extends ConsumerWidget
+    implements PreferredSizeWidget {
   final int articleId;
   final ArticleModel? article;
 
-  const ArticleDetailAppBar({super.key, required this.articleId, required this.article});
+  const ArticleDetailAppBar({
+    super.key,
+    required this.articleId,
+    required this.article,
+  });
 
   bool get _isProcessing {
     final st = article?.status ?? ArticleStatus.pending;
@@ -18,17 +23,20 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = AppTheme.getTextTheme(context);
-    final titleText = article != null ? StringUtils.getTopLevelDomain(Uri.parse(article!.url ?? '').host) : '';
+    final titleText = article != null
+        ? StringUtils.getTopLevelDomain(Uri.parse(article!.url ?? '').host)
+        : '';
 
     return AppBar(
       title: AnimatedDefaultTextStyle(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
         style:
-            (_isProcessing ? textTheme.titleMedium : textTheme.titleLarge)?.copyWith(
-              color: Colors.white,
-              fontSize: _isProcessing ? 16 : null,
-            ) ??
+            (_isProcessing ? textTheme.titleMedium : textTheme.titleLarge)
+                ?.copyWith(
+                  color: Colors.white,
+                  fontSize: _isProcessing ? 16 : null,
+                ) ??
             const TextStyle(),
         child: Text(titleText),
       ),
@@ -45,7 +53,10 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
       child: SizedBox(
         width: 16,
         height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white.withValues(alpha: 0.8)),
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: Colors.white.withValues(alpha: 0.8),
+        ),
       ),
     );
   }
@@ -59,7 +70,9 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
       padding: EdgeInsets.zero,
       color: colorScheme.surface,
       elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      ),
       itemBuilder: (context) => _buildPopupMenuItems(context),
       onSelected: (value) => _handleMenuSelection(context, ref, value),
     );
@@ -73,10 +86,17 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
       (4, "浏览器打开", Icons.open_in_browser),
     ];
 
-    return menuItems.map((item) => _buildPopupMenuItem(context, item.$1, item.$2, item.$3)).toList();
+    return menuItems
+        .map((item) => _buildPopupMenuItem(context, item.$1, item.$2, item.$3))
+        .toList();
   }
 
-  PopupMenuItem<int> _buildPopupMenuItem(BuildContext context, int value, String title, IconData icon) {
+  PopupMenuItem<int> _buildPopupMenuItem(
+    BuildContext context,
+    int value,
+    String title,
+    IconData icon,
+  ) {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
@@ -87,7 +107,10 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
         children: [
           Icon(icon, size: Dimensions.iconSizeS, color: colorScheme.onSurface),
           Dimensions.horizontalSpacerS,
-          Text(title, style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
+          Text(
+            title,
+            style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+          ),
         ],
       ),
     );
@@ -118,7 +141,10 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
   }
 
   void _onShareArticle(BuildContext context) {
-    AppNavigation.toNamed(Routes.shareDialog, arguments: {'articleID': article!.id});
+    AppNavigation.toNamed(
+      Routes.shareDialog,
+      arguments: {'articleID': article!.id},
+    );
   }
 
   void _onCopyURL(BuildContext context) {
@@ -127,7 +153,10 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
     UIUtils.showSuccess('URL已复制到剪贴板');
   }
 
-  void _showDeleteConfirmationDialog(BuildContext context, WidgetRef ref) async {
+  void _showDeleteConfirmationDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     if (article == null) return;
 
     await DialogUtils.showConfirm(
@@ -136,7 +165,9 @@ class ArticleDetailAppBar extends ConsumerWidget implements PreferredSizeWidget 
       confirmText: "删除",
       cancelText: "取消",
       onConfirm: () async {
-        await ref.read(articleDetailControllerProvider(articleId).notifier).deleteArticle();
+        await ref
+            .read(articleDetailControllerProvider(articleId).notifier)
+            .deleteArticle();
         UIUtils.showSuccess('删除成功', title: '提示');
       },
     );

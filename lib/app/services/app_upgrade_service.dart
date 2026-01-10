@@ -7,8 +7,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/config/app_config.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
-class AppUpgradeService {
+class AppUpgradeService extends AppService {
+  @override
+  ServicePriority get priority => ServicePriority.low;
   // 单例模式
   AppUpgradeService._();
   static final AppUpgradeService _instance = AppUpgradeService._();
@@ -26,7 +29,7 @@ class AppUpgradeService {
   String get downloadURL => _downloadURL;
   bool get needUpgrade => _currentVersion != _latestVersion;
 
-  // 初始化服务
+  @override
   Future<void> init() async {}
 
   // 检查并下载新版本(带UI提示)
@@ -64,7 +67,9 @@ class AppUpgradeService {
   Future<bool> check() async {
     try {
       await Future.wait([_getCurrentVersion(), _getLatestVersionFromGithub()]);
-      logger.i("当前版本: $_currentVersion, 最新版本: $_latestVersion, 需要更新: $needUpgrade");
+      logger.i(
+        "当前版本: $_currentVersion, 最新版本: $_latestVersion, 需要更新: $needUpgrade",
+      );
 
       // 开发模式下永远显示有更新，便于测试
       if (!AppInfoUtils.isProduction) {
@@ -97,7 +102,10 @@ class AppUpgradeService {
           }
         }
 
-        DialogUtils.showDownloadProgress(title: '正在下载更新', initialText: '准备下载...');
+        DialogUtils.showDownloadProgress(
+          title: '正在下载更新',
+          initialText: '准备下载...',
+        );
         try {
           final appFilePath = await HttpService.i.downloadFileWithProgress(
             _downloadURL,
@@ -179,14 +187,17 @@ class AppUpgradeService {
   Future<Map<String, dynamic>> _fetchLatestReleaseJsonWithFallback() async {
     Map<String, String> buildHeaders() {
       final base = <String, String>{
-        'User-Agent': 'DailyApp/UpgradeChecker (+https://github.com/SatoriTours/Daily)',
+        'User-Agent':
+            'DailyApp/UpgradeChecker (+https://github.com/SatoriTours/Daily)',
         'Accept': 'application/vnd.github+json',
         'X-GitHub-Api-Version': '2022-11-28',
       };
 
       // 可选：支持通过环境变量提供 GitHub Token，以避免 403（未认证限流）。
       // Windows/macOS/Linux 桌面端可生效；移动端通常无此环境变量。
-      final token = Platform.environment['GITHUB_TOKEN'] ?? Platform.environment['DS_GITHUB_TOKEN'];
+      final token =
+          Platform.environment['GITHUB_TOKEN'] ??
+          Platform.environment['DS_GITHUB_TOKEN'];
       if (token != null && token.trim().isNotEmpty) {
         base['Authorization'] = 'Bearer ${token.trim()}';
       }
@@ -194,7 +205,10 @@ class AppUpgradeService {
     }
 
     Future<Map<String, dynamic>> doGet(String url) async {
-      final resp = await HttpService.i.dio.get(url, options: Options(headers: buildHeaders()));
+      final resp = await HttpService.i.dio.get(
+        url,
+        options: Options(headers: buildHeaders()),
+      );
       if (resp.statusCode == 200 && resp.data is Map<String, dynamic>) {
         return Map<String, dynamic>.from(resp.data);
       }

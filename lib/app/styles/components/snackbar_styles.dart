@@ -9,8 +9,13 @@ class SnackbarStyles {
   SnackbarStyles._();
 
   /// 背景色（带透明度）
-  static Color getBackgroundColor(BuildContext context, {required bool isError}) {
-    final base = isError ? AppColors.getError(context) : AppColors.getSuccess(context);
+  static Color getBackgroundColor(
+    BuildContext context, {
+    required bool isError,
+  }) {
+    final base = isError
+        ? AppColors.getError(context)
+        : AppColors.getSuccess(context);
     return base.withAlpha(204); // ~80% 透明度
   }
 
@@ -18,8 +23,10 @@ class SnackbarStyles {
   static Color getTextColor(BuildContext context) => Colors.white;
 
   /// 图标
-  static Icon getIcon({required bool isError}) =>
-      Icon(isError ? Icons.error_outline : Icons.check_circle_outline, color: Colors.white);
+  static Icon getIcon({required bool isError}) => Icon(
+    isError ? Icons.error_outline : Icons.check_circle_outline,
+    color: Colors.white,
+  );
 
   /// 外边距
   static EdgeInsets getMargin() => const EdgeInsets.all(Dimensions.spacingS);

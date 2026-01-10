@@ -52,12 +52,20 @@ class RequestUtils {
   }
 
   /// 验证请求体中必需的字段
-  static bool validateRequiredFields(Map<String, dynamic> body, List<String> requiredFields) {
-    return requiredFields.every((field) => body.containsKey(field) && body[field] != null);
+  static bool validateRequiredFields(
+    Map<String, dynamic> body,
+    List<String> requiredFields,
+  ) {
+    return requiredFields.every(
+      (field) => body.containsKey(field) && body[field] != null,
+    );
   }
 
   /// 过滤请求体中的字段，只保留允许的字段
-  static Map<String, dynamic> filterBodyFields(Map<String, dynamic> body, List<String> allowedFields) {
+  static Map<String, dynamic> filterBodyFields(
+    Map<String, dynamic> body,
+    List<String> allowedFields,
+  ) {
     final filteredBody = <String, dynamic>{};
     for (final field in allowedFields) {
       if (body.containsKey(field)) {

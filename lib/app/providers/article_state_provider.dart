@@ -20,9 +20,12 @@ part 'article_state_provider.g.dart';
 @freezed
 abstract class ArticleUpdateEvent with _$ArticleUpdateEvent {
   const factory ArticleUpdateEvent.none() = ArticleUpdateEventNone;
-  const factory ArticleUpdateEvent.created(ArticleModel article) = ArticleUpdateEventCreated;
-  const factory ArticleUpdateEvent.updated(ArticleModel article) = ArticleUpdateEventUpdated;
-  const factory ArticleUpdateEvent.deleted(int articleId) = ArticleUpdateEventDeleted;
+  const factory ArticleUpdateEvent.created(ArticleModel article) =
+      ArticleUpdateEventCreated;
+  const factory ArticleUpdateEvent.updated(ArticleModel article) =
+      ArticleUpdateEventUpdated;
+  const factory ArticleUpdateEvent.deleted(int articleId) =
+      ArticleUpdateEventDeleted;
 }
 
 /// 文章状态模型
@@ -49,7 +52,9 @@ class ArticleState extends _$ArticleState {
   @override
   ArticleStateModel build() {
     // 监听 WebContentNotifier 的文章更新事件流
-    _articleUpdateSubscription = WebContentNotifier.i.onArticleUpdated.listen(_onArticleUpdatedFromService);
+    _articleUpdateSubscription = WebContentNotifier.i.onArticleUpdated.listen(
+      _onArticleUpdatedFromService,
+    );
 
     // 在 provider 销毁时取消订阅
     ref.onDispose(() {
@@ -83,7 +88,9 @@ class ArticleState extends _$ArticleState {
     logger.i('通知文章更新: ${article.singleLineTitle} (ID: ${article.id})');
 
     // 发布文章更新事件
-    state = state.copyWith(articleUpdateEvent: ArticleUpdateEvent.updated(article));
+    state = state.copyWith(
+      articleUpdateEvent: ArticleUpdateEvent.updated(article),
+    );
   }
 
   /// 通知文章删除
@@ -91,7 +98,9 @@ class ArticleState extends _$ArticleState {
     logger.i('通知文章删除: ID: $articleId');
 
     // 发布文章删除事件
-    state = state.copyWith(articleUpdateEvent: ArticleUpdateEvent.deleted(articleId));
+    state = state.copyWith(
+      articleUpdateEvent: ArticleUpdateEvent.deleted(articleId),
+    );
   }
 
   /// 通知文章创建
@@ -99,7 +108,9 @@ class ArticleState extends _$ArticleState {
     logger.i('通知文章创建: ${article.singleLineTitle} (ID: ${article.id})');
 
     // 发布文章创建事件
-    state = state.copyWith(articleUpdateEvent: ArticleUpdateEvent.created(article));
+    state = state.copyWith(
+      articleUpdateEvent: ArticleUpdateEvent.created(article),
+    );
   }
 
   /// 清除文章更新事件（防止重复处理）
@@ -109,7 +120,10 @@ class ArticleState extends _$ArticleState {
 
   /// 设置全局搜索
   void setGlobalSearch(String query) {
-    state = state.copyWith(globalSearchQuery: query, isGlobalSearchActive: query.isNotEmpty);
+    state = state.copyWith(
+      globalSearchQuery: query,
+      isGlobalSearchActive: query.isNotEmpty,
+    );
     logger.i('设置全局搜索: $query');
   }
 
@@ -197,7 +211,9 @@ class ArticleState extends _$ArticleState {
 
   /// 从列表中移除文章
   void removeArticleFromList(int id) {
-    final updatedArticles = state.articles.where((article) => article.id != id).toList();
+    final updatedArticles = state.articles
+        .where((article) => article.id != id)
+        .toList();
     state = state.copyWith(articles: updatedArticles);
     logger.i('从列表中移除文章: ID=$id');
   }

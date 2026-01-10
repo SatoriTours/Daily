@@ -14,10 +14,12 @@ class DiaryTagSelectorDialog extends ConsumerStatefulWidget {
   const DiaryTagSelectorDialog({super.key, required this.onTagSelected});
 
   @override
-  ConsumerState<DiaryTagSelectorDialog> createState() => _DiaryTagSelectorDialogState();
+  ConsumerState<DiaryTagSelectorDialog> createState() =>
+      _DiaryTagSelectorDialogState();
 }
 
-class _DiaryTagSelectorDialogState extends ConsumerState<DiaryTagSelectorDialog> {
+class _DiaryTagSelectorDialogState
+    extends ConsumerState<DiaryTagSelectorDialog> {
   final TextEditingController _newTagController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   bool _hasInput = false;
@@ -107,7 +109,11 @@ class _DiaryTagSelectorDialogState extends ConsumerState<DiaryTagSelectorDialog>
           ],
 
           // 底部安全区域
-          SizedBox(height: MediaQuery.of(context).padding.bottom > 0 ? 0 : Dimensions.spacingS),
+          SizedBox(
+            height: MediaQuery.of(context).padding.bottom > 0
+                ? 0
+                : Dimensions.spacingS,
+          ),
         ],
       ),
     );
@@ -122,18 +128,31 @@ class _DiaryTagSelectorDialogState extends ConsumerState<DiaryTagSelectorDialog>
       style: TextStyle(fontSize: 16, color: AppColors.getOnSurface(context)),
       decoration: InputDecoration(
         hintText: 'hint.enter_new_tag'.t,
-        hintStyle: TextStyle(color: AppColors.getOnSurfaceVariant(context), fontSize: 15),
+        hintStyle: TextStyle(
+          color: AppColors.getOnSurfaceVariant(context),
+          fontSize: 15,
+        ),
         filled: true,
         fillColor: AppColors.getSurfaceContainer(context),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         // 前缀图标 - #
         prefixIcon: Container(
           width: 40,
           alignment: Alignment.center,
           child: Text(
             '#',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryColor),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: primaryColor,
+            ),
           ),
         ),
         // 后缀按钮 - 添加
@@ -145,8 +164,15 @@ class _DiaryTagSelectorDialogState extends ConsumerState<DiaryTagSelectorDialog>
                   borderRadius: BorderRadius.circular(20),
                   child: Container(
                     margin: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: primaryColor.withValues(alpha: 0.1), shape: BoxShape.circle),
-                    child: Icon(FeatherIcons.arrowUp, size: 20, color: primaryColor),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      FeatherIcons.arrowUp,
+                      size: 20,
+                      color: primaryColor,
+                    ),
                   ),
                 ),
               )
@@ -183,7 +209,12 @@ class _DiaryTagSelectorDialogState extends ConsumerState<DiaryTagSelectorDialog>
           decoration: BoxDecoration(
             color: AppColors.getSurfaceContainer(context),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05), width: 1),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white10
+                  : Colors.black.withValues(alpha: 0.05),
+              width: 1,
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -199,7 +230,11 @@ class _DiaryTagSelectorDialogState extends ConsumerState<DiaryTagSelectorDialog>
               const SizedBox(width: 4),
               Text(
                 tag,
-                style: TextStyle(fontSize: 14, color: AppColors.getOnSurface(context), fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.getOnSurface(context),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),

@@ -4,7 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// 测试辅助工具类
 class TestHelpers {
   /// 等待应用加载完成
-  static Future<void> waitForAppLoad(WidgetTester tester, {int seconds = 3}) async {
+  static Future<void> waitForAppLoad(
+    WidgetTester tester, {
+    int seconds = 3,
+  }) async {
     await tester.pumpAndSettle(Duration(seconds: seconds));
   }
 
@@ -42,7 +45,11 @@ class TestHelpers {
   }
 
   /// 在文本字段中输入文本
-  static Future<bool> enterText(WidgetTester tester, String text, {bool clearFirst = false}) async {
+  static Future<bool> enterText(
+    WidgetTester tester,
+    String text, {
+    bool clearFirst = false,
+  }) async {
     final field = find.byType(TextField).first;
     if (tester.any(field)) {
       await tester.tap(field);

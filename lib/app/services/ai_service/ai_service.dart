@@ -10,6 +10,7 @@ import 'package:daily_satori/app/services/ai_config_service.dart';
 import 'package:jinja/jinja.dart';
 import 'package:daily_satori/app/utils/string_utils.dart';
 import 'package:daily_satori/app/config/app_config.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
 part 'part.translate.dart';
 part 'part.summarize.dart';
@@ -18,7 +19,7 @@ part 'part.html_to_markdown.dart';
 /// AI服务类
 ///
 /// 负责处理AI相关功能，包括文本翻译和内容摘要
-class AiService {
+class AiService extends AppService {
   AiService._privateConstructor();
   static final AiService _instance = AiService._privateConstructor();
   static AiService get i => _instance;
@@ -29,7 +30,7 @@ class AiService {
   /// 文本最大处理长度（已迁移至 AIConfig）
   static int get _maxContentLength => AIConfig.maxContentLength;
 
-  /// 初始化AI服务
+  @override
   Future<void> init() async {}
 
   /// 发送AI请求
@@ -59,7 +60,10 @@ class AiService {
 
     try {
       // 限制内容长度
-      final trimmedContent = StringUtils.getSubstring(content, length: _maxContentLength);
+      final trimmedContent = StringUtils.getSubstring(
+        content,
+        length: _maxContentLength,
+      );
 
       // 获取模型
       final modelName = _getModelNameForFunction(functionType);
@@ -71,7 +75,11 @@ class AiService {
           model: model,
           messages: [
             ChatCompletionMessage.system(content: role.trim()),
-            ChatCompletionMessage.user(content: ChatCompletionUserMessageContent.string(trimmedContent.trim())),
+            ChatCompletionMessage.user(
+              content: ChatCompletionUserMessageContent.string(
+                trimmedContent.trim(),
+              ),
+            ),
           ],
           temperature: _defaultTemperature,
           responseFormat: responseFormat,
@@ -95,13 +103,17 @@ class AiService {
       String baseUrl;
 
       // 尝试从AI配置服务获取特定功能的配置
-      final apiAddress = AIConfigService.i.getApiAddressForFunction(functionType);
+      final apiAddress = AIConfigService.i.getApiAddressForFunction(
+        functionType,
+      );
       final apiToken = AIConfigService.i.getApiTokenForFunction(functionType);
 
       // 如果特定功能配置为空，则使用通用设置
       if (apiAddress.isEmpty || apiToken.isEmpty) {
         apiKey = SettingRepository.i.getSetting(SettingService.openAITokenKey);
-        baseUrl = SettingRepository.i.getSetting(SettingService.openAIAddressKey);
+        baseUrl = SettingRepository.i.getSetting(
+          SettingService.openAIAddressKey,
+        );
       } else {
         apiKey = apiToken;
         baseUrl = apiAddress;
@@ -174,10 +186,15 @@ class AiService {
     logger.i("[AI服务] 发送AI请求中...");
 
     // 系统角色设置
-    const role = "你是一个帮助用户回答问题的AI助手。请严格按照用户的要求提供信息。如果要求JSON格式输出，请确保返回有效的JSON数据。";
+    const role =
+        "你是一个帮助用户回答问题的AI助手。请严格按照用户的要求提供信息。如果要求JSON格式输出，请确保返回有效的JSON数据。";
 
     // 发送请求
-    final response = await _sendRequest(role, prompt, functionType: functionType);
+    final response = await _sendRequest(
+      role,
+      prompt,
+      functionType: functionType,
+    );
 
     // 处理响应
     final result = response?.choices.first.message.content ?? '';

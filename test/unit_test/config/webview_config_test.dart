@@ -42,7 +42,10 @@ void main() {
     });
 
     test('timeout should be greater than load progress check delay', () {
-      expect(WebViewConfig.timeout > WebViewConfig.loadProgressCheckDelay, isTrue);
+      expect(
+        WebViewConfig.timeout > WebViewConfig.loadProgressCheckDelay,
+        isTrue,
+      );
     });
   });
 }

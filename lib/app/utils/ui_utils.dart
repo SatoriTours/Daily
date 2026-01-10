@@ -9,12 +9,20 @@ class UIUtils {
   UIUtils._();
 
   /// 显示成功提示（统一样式）
-  static void showSuccess(String content, {String title = 'message.success_title', bool isTop = true}) {
+  static void showSuccess(
+    String content, {
+    String title = 'message.success_title',
+    bool isTop = true,
+  }) {
     showSnackBar(title, content, isError: false, isTop: isTop);
   }
 
   /// 显示错误提示（统一样式）
-  static void showError(String content, {String title = 'message.error_title', bool isTop = true}) {
+  static void showError(
+    String content, {
+    String title = 'message.error_title',
+    bool isTop = true,
+  }) {
     showSnackBar(title, content, isError: true, isTop: isTop);
   }
 
@@ -44,14 +52,29 @@ class UIUtils {
 
       // 计算可用高度，考虑底部导航栏和安全区域
       final availableHeight =
-          mediaQuery.size.height - topOffset - snackBarHeight - bottomNavHeight - bottomPadding - 16;
+          mediaQuery.size.height -
+          topOffset -
+          snackBarHeight -
+          bottomNavHeight -
+          bottomPadding -
+          16;
 
-      margin = EdgeInsets.only(left: 16, right: 16, top: topOffset, bottom: availableHeight > 0 ? availableHeight : 16);
+      margin = EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: topOffset,
+        bottom: availableHeight > 0 ? availableHeight : 16,
+      );
     } else {
       // 底部显示：考虑底部导航栏和安全区域
       final bottomPadding = mediaQuery.padding.bottom;
       const bottomNavHeight = 80.0; // 预估底部导航栏高度
-      margin = EdgeInsets.only(left: 16, right: 16, top: 16, bottom: bottomNavHeight + bottomPadding + 16);
+      margin = EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: bottomNavHeight + bottomPadding + 16,
+      );
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -67,7 +90,10 @@ class UIUtils {
                 Expanded(
                   child: Text(
                     title.t,
-                    style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -80,7 +106,9 @@ class UIUtils {
         duration: duration ?? SnackbarStyles.getDuration(),
         margin: margin,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(SnackbarStyles.getBorderRadius())),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(SnackbarStyles.getBorderRadius()),
+        ),
       ),
     );
   }

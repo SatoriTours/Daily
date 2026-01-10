@@ -17,11 +17,21 @@ class UpdateStatusIndicator extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingS + 2, horizontal: Dimensions.spacingM),
+      padding: const EdgeInsets.symmetric(
+        vertical: Dimensions.spacingS + 2,
+        horizontal: Dimensions.spacingM,
+      ),
       decoration: BoxDecoration(
-        color: AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow),
+        color: AppColors.getPrimary(
+          context,
+        ).withValues(alpha: Opacities.extraLow),
         border: Border(
-          bottom: BorderSide(color: AppColors.getPrimary(context).withValues(alpha: Opacities.low), width: 1),
+          bottom: BorderSide(
+            color: AppColors.getPrimary(
+              context,
+            ).withValues(alpha: Opacities.low),
+            width: 1,
+          ),
         ),
       ),
       child: Row(
@@ -31,7 +41,9 @@ class UpdateStatusIndicator extends StatelessWidget {
             height: Dimensions.iconSizeS,
             child: CircularProgressIndicator(
               strokeWidth: 2.5,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.getPrimary(context),
+              ),
             ),
           ),
           Dimensions.horizontalSpacerM,
@@ -50,7 +62,9 @@ class UpdateStatusIndicator extends StatelessWidget {
                 Text(
                   updatingFileName,
                   style: AppTypography.bodySmall.copyWith(
-                    color: AppColors.getPrimary(context).withValues(alpha: Opacities.mediumHigh),
+                    color: AppColors.getPrimary(
+                      context,
+                    ).withValues(alpha: Opacities.mediumHigh),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

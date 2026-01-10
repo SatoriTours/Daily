@@ -34,7 +34,11 @@ class DiaryEmptyState extends StatelessWidget {
                     ? DiaryStyles.getAccentColor(context).withAlpha(20)
                     : DiaryStyles.getAccentColor(context).withAlpha(12),
               ),
-              child: Icon(icon, size: 40, color: DiaryStyles.getAccentColor(context)),
+              child: Icon(
+                icon,
+                size: 40,
+                color: DiaryStyles.getAccentColor(context),
+              ),
             ),
             Dimensions.verticalSpacerL,
             Text(
@@ -50,7 +54,10 @@ class DiaryEmptyState extends StatelessWidget {
               Dimensions.verticalSpacerS,
               Text(
                 subMessage!,
-                style: TextStyle(fontSize: 14, color: DiaryStyles.getSecondaryTextColor(context)),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: DiaryStyles.getSecondaryTextColor(context),
+                ),
                 textAlign: TextAlign.center,
               ),
             ],

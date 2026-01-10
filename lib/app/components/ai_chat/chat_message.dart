@@ -218,10 +218,7 @@ class ChatMessage {
   ///
   /// [id] 消息唯一标识
   /// [content] 系统提示内容
-  factory ChatMessage.system({
-    required String id,
-    required String content,
-  }) {
+  factory ChatMessage.system({required String id, required String content}) {
     return ChatMessage(
       id: id,
       type: ChatMessageType.system,
@@ -259,10 +256,7 @@ class ChatMessage {
   ///
   /// [id] 消息唯一标识
   /// [content] 思考内容
-  factory ChatMessage.thinking({
-    required String id,
-    required String content,
-  }) {
+  factory ChatMessage.thinking({required String id, required String content}) {
     return ChatMessage(
       id: id,
       type: ChatMessageType.thinking,
@@ -318,8 +312,7 @@ class ChatMessage {
   ///
   /// 包括正在发送和正在处理两种状态
   bool get isProcessing =>
-      status == MessageStatus.processing ||
-      status == MessageStatus.sending;
+      status == MessageStatus.processing || status == MessageStatus.sending;
 
   /// 是否已完成
   bool get isCompleted => status == MessageStatus.completed;

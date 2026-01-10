@@ -61,7 +61,11 @@ class ButtonGroup extends StatelessWidget {
       result.add(Expanded(child: widgets[i]));
       // 如果不是最后一个子组件，添加间距
       if (i < widgets.length - 1) {
-        result.add(direction == Axis.horizontal ? SizedBox(width: spacing) : SizedBox(height: spacing));
+        result.add(
+          direction == Axis.horizontal
+              ? SizedBox(width: spacing)
+              : SizedBox(height: spacing),
+        );
       }
     }
     return result;

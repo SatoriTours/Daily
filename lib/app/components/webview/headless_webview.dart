@@ -57,7 +57,9 @@ class HeadlessWebView extends BaseWebView {
   /// 清理不活跃的会话
   void _cleanupInactiveSessions() {
     final now = DateTime.now();
-    final expiredSessions = _activeSessions.where((session) => session.isExpired(now)).toList();
+    final expiredSessions = _activeSessions
+        .where((session) => session.isExpired(now))
+        .toList();
 
     for (var session in expiredSessions) {
       _activeSessions.remove(session);
@@ -93,7 +95,9 @@ class HeadlessWebView extends BaseWebView {
 
     // 检查是否需要等待其他会话完成
     while (_activeSessions.length >= WebViewConfig.maxConcurrentSessions) {
-      logger.w("[HeadlessWebView] 已达到最大并发会话数(${WebViewConfig.maxConcurrentSessions})，等待中...");
+      logger.w(
+        "[HeadlessWebView] 已达到最大并发会话数(${WebViewConfig.maxConcurrentSessions})，等待中...",
+      );
       await Future.delayed(NetworkConfig.retryDelay);
       _cleanupInactiveSessions();
     }
@@ -124,7 +128,8 @@ class HeadlessWebView extends BaseWebView {
 class _HeadlessWebViewSession {
   final String url;
   final BaseWebView _baseWebView;
-  final Completer<HeadlessWebViewResult> _completer = Completer<HeadlessWebViewResult>();
+  final Completer<HeadlessWebViewResult> _completer =
+      Completer<HeadlessWebViewResult>();
 
   // 浏览器实例
   late HeadlessInAppWebView _headlessWebView;
@@ -151,7 +156,8 @@ class _HeadlessWebViewSession {
 
   // 会话超时设置
   static const _sessionMaxLifetime = WebViewConfig.sessionMaxLifetime; // 最大生命周期
-  static const _sessionInactivityTimeout = SessionConfig.inactivityTimeout; // 不活动超时时间
+  static const _sessionInactivityTimeout =
+      SessionConfig.inactivityTimeout; // 不活动超时时间
 
   _HeadlessWebViewSession(this.url, this._baseWebView);
 
@@ -337,16 +343,23 @@ class _HeadlessWebViewSession {
           (domMetrics['textLength'] as int) ~/ 100;
 
       // 计算变化率
-      double changePercent = (currentSize - _lastDOMSize).abs() / (_lastDOMSize > 0 ? _lastDOMSize : 1);
-      logger.d("[HeadlessWebView] DOM变化率: ${(changePercent * 100).toStringAsFixed(2)}%");
+      double changePercent =
+          (currentSize - _lastDOMSize).abs() /
+          (_lastDOMSize > 0 ? _lastDOMSize : 1);
+      logger.d(
+        "[HeadlessWebView] DOM变化率: ${(changePercent * 100).toStringAsFixed(2)}%",
+      );
 
       // 添加启发式判断：如果DOM已经很大但变化很小，可以快速完成（新增）
       final bool isLargePage = currentSize > 10000;
       final bool hasMinimalChanges = changePercent < 0.01;
 
-      if (changePercent < _domStabilityThreshold || (isLargePage && hasMinimalChanges)) {
+      if (changePercent < _domStabilityThreshold ||
+          (isLargePage && hasMinimalChanges)) {
         _stabilityCounter++;
-        logger.d("[HeadlessWebView] DOM稳定计数: $_stabilityCounter/$_requiredStableChecks");
+        logger.d(
+          "[HeadlessWebView] DOM稳定计数: $_stabilityCounter/$_requiredStableChecks",
+        );
 
         if (_stabilityCounter >= _requiredStableChecks) {
           logger.i("[HeadlessWebView] DOM已稳定，进行内容提取");
@@ -392,7 +405,9 @@ class _HeadlessWebViewSession {
   }
 
   /// 解析网页内容
-  Future<HeadlessWebViewResult> _parseWebPageContent(InAppWebViewController controller) async {
+  Future<HeadlessWebViewResult> _parseWebPageContent(
+    InAppWebViewController controller,
+  ) async {
     try {
       // 使用并行执行注入资源和脚本
       final futures = await Future.wait([
@@ -435,15 +450,23 @@ class _HeadlessWebViewSession {
 
       // 注入解析脚本
       try {
-        await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/Readability.js");
-        await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/parse_content.js");
+        await controller.injectJavascriptFileFromAsset(
+          assetFilePath: "assets/js/Readability.js",
+        );
+        await controller.injectJavascriptFileFromAsset(
+          assetFilePath: "assets/js/parse_content.js",
+        );
       } catch (e) {
         logger.e("[HeadlessWebView] 注入解析脚本失败: $e");
         rethrow;
       }
 
       // 执行解析，使用超时保护
-      final parseResult = await _executeScriptWithTimeout(controller, "parseContent()", 5000);
+      final parseResult = await _executeScriptWithTimeout(
+        controller,
+        "parseContent()",
+        5000,
+      );
 
       if (parseResult == null) {
         logger.w("[HeadlessWebView] 解析结果为空，返回空结果");
@@ -456,7 +479,8 @@ class _HeadlessWebViewSession {
 
       // 提取封面图URL
       String coverImageUrl = '';
-      if (result['imageUrls'] != null && (result['imageUrls'] as List).isNotEmpty) {
+      if (result['imageUrls'] != null &&
+          (result['imageUrls'] as List).isNotEmpty) {
         coverImageUrl = (result['imageUrls'] as List).first;
       }
 
@@ -476,10 +500,16 @@ class _HeadlessWebViewSession {
   }
 
   /// 带超时保护地执行JavaScript
-  Future<dynamic> _executeScriptWithTimeout(InAppWebViewController controller, String script, int timeoutMs) async {
+  Future<dynamic> _executeScriptWithTimeout(
+    InAppWebViewController controller,
+    String script,
+    int timeoutMs,
+  ) async {
     try {
       // 创建一个可以在超时的情况下取消的计算
-      final result = await controller.evaluateJavascript(source: script).timeout(Duration(milliseconds: timeoutMs));
+      final result = await controller
+          .evaluateJavascript(source: script)
+          .timeout(Duration(milliseconds: timeoutMs));
       return result;
     } on TimeoutException {
       logger.w("[HeadlessWebView] JavaScript执行超时: $script");
@@ -502,7 +532,9 @@ class _HeadlessWebViewSession {
 
     List<String> imageUrls = [];
     if (resultMap['imageUrls'] != null && resultMap['imageUrls'] is List) {
-      imageUrls = (resultMap['imageUrls'] as List).map((e) => e.toString()).toList();
+      imageUrls = (resultMap['imageUrls'] as List)
+          .map((e) => e.toString())
+          .toList();
     }
     result['imageUrls'] = imageUrls;
 

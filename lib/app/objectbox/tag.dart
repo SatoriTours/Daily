@@ -23,7 +23,13 @@ class Tag implements BaseEntity {
   @Backlink()
   final articles = ToMany<Article>();
 
-  Tag({this.id = 0, this.name, this.icon, DateTime? createdAt, DateTime? updatedAt}) {
+  Tag({
+    this.id = 0,
+    this.name,
+    this.icon,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
     this.createdAt = createdAt ?? DateTime.now();
     this.updatedAt = updatedAt ?? DateTime.now();
   }

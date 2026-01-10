@@ -33,7 +33,8 @@ class MCPAgentService {
     final collectedResults = <SearchResult>[];
 
     void updateStep(String stepName, String status) {
-      if (currentStepName != null && currentStepName != stepName) onStep(currentStepName!, 'completed');
+      if (currentStepName != null && currentStepName != stepName)
+        onStep(currentStepName!, 'completed');
       currentStepName = stepName;
       onStep(stepName, status);
     }
@@ -41,13 +42,18 @@ class MCPAgentService {
     try {
       final client = await _createClient();
       if (client == null) {
-        return MCPAgentResult(answer: MCPPrompts.buildErrorResponse('AI 服务未配置，请先在设置中配置 OpenAI API'), searchResults: []);
+        return MCPAgentResult(
+          answer: MCPPrompts.buildErrorResponse('AI 服务未配置，请先在设置中配置 OpenAI API'),
+          searchResults: [],
+        );
       }
 
       updateStep('正在理解您的问题...', 'processing');
       final messages = <ChatCompletionMessage>[
         ChatCompletionMessage.system(content: MCPPrompts.buildSystemPrompt()),
-        ChatCompletionMessage.user(content: ChatCompletionUserMessageContent.string(query)),
+        ChatCompletionMessage.user(
+          content: ChatCompletionUserMessageContent.string(query),
+        ),
       ];
 
       String? finalAnswer;
@@ -63,13 +69,28 @@ class MCPAgentService {
         final message = response.choices.first.message;
         if (message.toolCalls != null && message.toolCalls!.isNotEmpty) {
           updateStep('正在查询数据...', 'processing');
-          messages.add(ChatCompletionMessage.assistant(toolCalls: message.toolCalls));
+          messages.add(
+            ChatCompletionMessage.assistant(toolCalls: message.toolCalls),
+          );
 
           for (final toolCall in message.toolCalls!) {
-            onToolCall?.call(toolCall.function.name, _parseArguments(toolCall.function.arguments));
-            final toolResult = await _toolExecutor.executeTool(toolCall.function.name, toolCall.function.arguments);
-            collectedResults.addAll(_extractSearchResults(toolCall.function.name, toolResult));
-            messages.add(ChatCompletionMessage.tool(toolCallId: toolCall.id, content: toolResult));
+            onToolCall?.call(
+              toolCall.function.name,
+              _parseArguments(toolCall.function.arguments),
+            );
+            final toolResult = await _toolExecutor.executeTool(
+              toolCall.function.name,
+              toolCall.function.arguments,
+            );
+            collectedResults.addAll(
+              _extractSearchResults(toolCall.function.name, toolResult),
+            );
+            messages.add(
+              ChatCompletionMessage.tool(
+                toolCallId: toolCall.id,
+                content: toolResult,
+              ),
+            );
           }
           updateStep('正在生成回答...', 'processing');
         } else {
@@ -86,28 +107,48 @@ class MCPAgentService {
         _completeStep(currentStepName, onStep);
       }
 
-      final filteredResults = _filterRelevantResults(collectedResults, finalAnswer ?? '');
-      final cleanAnswer = _removeRefsTag(finalAnswer ?? MCPPrompts.buildErrorResponse('无法生成回答'));
-      return MCPAgentResult(answer: cleanAnswer, searchResults: filteredResults);
+      final filteredResults = _filterRelevantResults(
+        collectedResults,
+        finalAnswer ?? '',
+      );
+      final cleanAnswer = _removeRefsTag(
+        finalAnswer ?? MCPPrompts.buildErrorResponse('无法生成回答'),
+      );
+      return MCPAgentResult(
+        answer: cleanAnswer,
+        searchResults: filteredResults,
+      );
     } catch (e, stackTrace) {
       logger.e('[MCPAgentService] 处理失败', error: e, stackTrace: stackTrace);
       if (currentStepName != null) onStep(currentStepName!, 'error');
       onStep('处理失败', 'error');
-      return MCPAgentResult(answer: MCPPrompts.buildErrorResponse('处理失败: $e'), searchResults: collectedResults);
+      return MCPAgentResult(
+        answer: MCPPrompts.buildErrorResponse('处理失败: $e'),
+        searchResults: collectedResults,
+      );
     }
   }
 
-  List<SearchResult> _filterRelevantResults(List<SearchResult> results, String answer) {
+  List<SearchResult> _filterRelevantResults(
+    List<SearchResult> results,
+    String answer,
+  ) {
     if (results.isEmpty || answer.isEmpty) return results;
 
-    final refsMatch = RegExp(r'<!--\s*refs:\s*([^>]+)\s*-->').firstMatch(answer);
+    final refsMatch = RegExp(
+      r'<!--\s*refs:\s*([^>]+)\s*-->',
+    ).firstMatch(answer);
     if (refsMatch == null) return _filterByTitleMatch(results, answer);
 
     final refsContent = refsMatch.group(1)?.trim() ?? '';
     if (refsContent.toLowerCase() == 'none') return [];
     if (refsContent.isEmpty) return _filterByTitleMatch(results, answer);
 
-    final referencedIds = <String, Set<int>>{'article': <int>{}, 'diary': <int>{}, 'book': <int>{}};
+    final referencedIds = <String, Set<int>>{
+      'article': <int>{},
+      'diary': <int>{},
+      'book': <int>{},
+    };
     for (final ref in refsContent.split(',').map((s) => s.trim())) {
       final match = RegExp(r'(article|diary|book)_(\d+)').firstMatch(ref);
       if (match != null) {
@@ -116,24 +157,32 @@ class MCPAgentService {
       }
     }
 
-    if (referencedIds.values.fold<int>(0, (sum, set) => sum + set.length) == 0) {
+    if (referencedIds.values.fold<int>(0, (sum, set) => sum + set.length) ==
+        0) {
       return _filterByTitleMatch(results, answer);
     }
 
     final filtered = results
         .where(
           (r) => switch (r.type) {
-            SearchResultType.article => referencedIds['article']!.contains(r.id),
+            SearchResultType.article => referencedIds['article']!.contains(
+              r.id,
+            ),
             SearchResultType.diary => referencedIds['diary']!.contains(r.id),
             SearchResultType.book => referencedIds['book']!.contains(r.id),
           },
         )
         .toList();
 
-    return filtered.isEmpty && results.isNotEmpty ? _filterByTitleMatch(results, answer) : filtered;
+    return filtered.isEmpty && results.isNotEmpty
+        ? _filterByTitleMatch(results, answer)
+        : filtered;
   }
 
-  List<SearchResult> _filterByTitleMatch(List<SearchResult> results, String answer) {
+  List<SearchResult> _filterByTitleMatch(
+    List<SearchResult> results,
+    String answer,
+  ) {
     final answerLower = answer.toLowerCase();
     return results.where((result) {
       final keywords = result.title
@@ -158,7 +207,8 @@ class MCPAgentService {
     }).toList();
   }
 
-  String _removeRefsTag(String answer) => answer.replaceAll(RegExp(r'\n*<!--\s*refs:[^>]*-->\s*$'), '').trim();
+  String _removeRefsTag(String answer) =>
+      answer.replaceAll(RegExp(r'\n*<!--\s*refs:[^>]*-->\s*$'), '').trim();
 
   void _completeStep(String? currentStepName, Function(String, String) onStep) {
     if (currentStepName != null) onStep(currentStepName, 'completed');
@@ -172,7 +222,10 @@ class MCPAgentService {
         return _extractResults(data['diaries'] as List, _diaryToSearchResult);
       }
       if (toolName.contains('article') && data['articles'] != null) {
-        return _extractResults(data['articles'] as List, _articleToSearchResult);
+        return _extractResults(
+          data['articles'] as List,
+          _articleToSearchResult,
+        );
       }
       if (toolName.contains('book') && data['books'] != null) {
         return _extractResults(data['books'] as List, _bookToSearchResult);
@@ -183,7 +236,10 @@ class MCPAgentService {
     }
   }
 
-  List<SearchResult> _extractResults(List items, SearchResult Function(Map<String, dynamic>) converter) {
+  List<SearchResult> _extractResults(
+    List items,
+    SearchResult Function(Map<String, dynamic>) converter,
+  ) {
     return items
         .map((item) {
           try {
@@ -202,7 +258,11 @@ class MCPAgentService {
     if (tags is List) {
       tagsList = tags.map((t) => t.toString()).toList();
     } else if (tags is String && tags.isNotEmpty) {
-      tagsList = tags.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+      tagsList = tags
+          .split(',')
+          .map((t) => t.trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
     }
 
     return SearchResult.fromDiary(
@@ -214,24 +274,28 @@ class MCPAgentService {
     );
   }
 
-  SearchResult _articleToSearchResult(Map<String, dynamic> a) => SearchResult.fromArticle(
-    id: a['id'] as int,
-    title: a['title'] as String? ?? '未知标题',
-    summary: _truncate(a['summary'] as String?, 100),
-    createdAt: _parseDateTime(a['createdAt']),
-    isFavorite: a['isFavorite'] as bool?,
-  );
+  SearchResult _articleToSearchResult(Map<String, dynamic> a) =>
+      SearchResult.fromArticle(
+        id: a['id'] as int,
+        title: a['title'] as String? ?? '未知标题',
+        summary: _truncate(a['summary'] as String?, 100),
+        createdAt: _parseDateTime(a['createdAt']),
+        isFavorite: a['isFavorite'] as bool?,
+      );
 
-  SearchResult _bookToSearchResult(Map<String, dynamic> b) => SearchResult.fromBook(
-    id: b['id'] as int,
-    title: b['title'] as String? ?? '未知书名',
-    summary: b['author'] as String?,
-    createdAt: _parseDateTime(b['createdAt']),
-  );
+  SearchResult _bookToSearchResult(Map<String, dynamic> b) =>
+      SearchResult.fromBook(
+        id: b['id'] as int,
+        title: b['title'] as String? ?? '未知书名',
+        summary: b['author'] as String?,
+        createdAt: _parseDateTime(b['createdAt']),
+      );
 
   String _generateDiaryTitle(Map<String, dynamic> diary) {
     final createdAt = _parseDateTime(diary['createdAt']);
-    return createdAt != null ? '${createdAt.year}年${createdAt.month}月${createdAt.day}日的日记' : '日记';
+    return createdAt != null
+        ? '${createdAt.year}年${createdAt.month}月${createdAt.day}日的日记'
+        : '日记';
   }
 
   Future<OpenAIClient?> _createClient() async {
@@ -241,7 +305,9 @@ class MCPAgentService {
 
       if (apiKey.isEmpty || baseUrl.isEmpty) {
         apiKey = SettingRepository.i.getSetting(SettingService.openAITokenKey);
-        baseUrl = SettingRepository.i.getSetting(SettingService.openAIAddressKey);
+        baseUrl = SettingRepository.i.getSetting(
+          SettingService.openAIAddressKey,
+        );
       }
       if (apiKey.isEmpty || baseUrl.isEmpty) return null;
       return OpenAIClient(apiKey: apiKey, baseUrl: baseUrl);
@@ -258,10 +324,14 @@ class MCPAgentService {
     try {
       return await client.createChatCompletion(
         request: CreateChatCompletionRequest(
-          model: ChatCompletionModel.modelId(AIConfigService.i.getModelNameForFunction(_functionType)),
+          model: ChatCompletionModel.modelId(
+            AIConfigService.i.getModelNameForFunction(_functionType),
+          ),
           messages: messages,
           tools: _buildTools(),
-          toolChoice: const ChatCompletionToolChoiceOption.mode(ChatCompletionToolChoiceMode.auto),
+          toolChoice: const ChatCompletionToolChoiceOption.mode(
+            ChatCompletionToolChoiceMode.auto,
+          ),
           temperature: 0.7,
         ),
       );
@@ -280,7 +350,10 @@ class MCPAgentService {
             description: tool.description,
             parameters: {
               'type': 'object',
-              'properties': {for (final entry in tool.parameters.entries) entry.key: entry.value.toSchema()},
+              'properties': {
+                for (final entry in tool.parameters.entries)
+                  entry.key: entry.value.toSchema(),
+              },
               'required': tool.required,
             },
           ),
@@ -296,9 +369,12 @@ class MCPAgentService {
     }
   }
 
-  String? _truncate(String? content, int maxLength) => content == null || content.isEmpty
+  String? _truncate(String? content, int maxLength) =>
+      content == null || content.isEmpty
       ? null
-      : (content.length <= maxLength ? content : '${content.substring(0, maxLength)}...');
+      : (content.length <= maxLength
+            ? content
+            : '${content.substring(0, maxLength)}...');
 
   DateTime? _parseDateTime(dynamic value) {
     if (value == null) return null;

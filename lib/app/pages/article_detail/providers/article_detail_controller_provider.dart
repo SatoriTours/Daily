@@ -14,7 +14,8 @@ part 'article_detail_controller_provider.g.dart';
 
 /// ArticleDetailController 状态
 @freezed
-abstract class ArticleDetailControllerState with _$ArticleDetailControllerState {
+abstract class ArticleDetailControllerState
+    with _$ArticleDetailControllerState {
   const ArticleDetailControllerState._();
 
   const factory ArticleDetailControllerState({
@@ -69,7 +70,10 @@ class ArticleDetailController extends _$ArticleDetailController {
         }
       });
 
-      return ArticleDetailControllerState(articleModel: articleModel, tags: tags);
+      return ArticleDetailControllerState(
+        articleModel: articleModel,
+        tags: tags,
+      );
     }
 
     return const ArticleDetailControllerState();
@@ -88,8 +92,10 @@ class ArticleDetailController extends _$ArticleDetailController {
   /// 检查事件是否影响指定文章
   bool _affectsArticle(ArticleUpdateEvent event, int targetArticleId) {
     return switch (event) {
-      ArticleUpdateEventUpdated(:final article) => article.id == targetArticleId,
-      ArticleUpdateEventDeleted(:final articleId) => articleId == targetArticleId,
+      ArticleUpdateEventUpdated(:final article) =>
+        article.id == targetArticleId,
+      ArticleUpdateEventDeleted(:final articleId) =>
+        articleId == targetArticleId,
       ArticleUpdateEventCreated() => false,
       ArticleUpdateEventNone() => false,
       _ => false,
@@ -120,7 +126,8 @@ class ArticleDetailController extends _$ArticleDetailController {
     }
 
     // 检查是否已经生成过Markdown内容
-    if (articleModel.aiMarkdownContent != null && articleModel.aiMarkdownContent!.isNotEmpty) {
+    if (articleModel.aiMarkdownContent != null &&
+        articleModel.aiMarkdownContent!.isNotEmpty) {
       logger.i("Markdown内容已存在，跳过生成");
       return;
     }
@@ -147,7 +154,9 @@ class ArticleDetailController extends _$ArticleDetailController {
       state = state.copyWith(articleModel: articleModel);
 
       // 通知全局状态服务文章已更新
-      ref.read(articleStateProvider.notifier).notifyArticleUpdated(articleModel);
+      ref
+          .read(articleStateProvider.notifier)
+          .notifyArticleUpdated(articleModel);
 
       logger.i("Markdown内容生成并保存成功");
     } catch (e) {

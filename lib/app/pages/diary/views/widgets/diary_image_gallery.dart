@@ -49,13 +49,22 @@ class DiaryImageGallery extends StatelessWidget {
           color: DiaryStyles.getTagBackgroundColor(context),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(FeatherIcons.image, color: DiaryStyles.getPrimaryTextColor(context)),
+        child: Icon(
+          FeatherIcons.image,
+          color: DiaryStyles.getPrimaryTextColor(context),
+        ),
       ),
     );
   }
 
   /// 构建单个图片项
-  Widget _buildImageItem(BuildContext context, String imagePath, File file, int index, List<String> allImages) {
+  Widget _buildImageItem(
+    BuildContext context,
+    String imagePath,
+    File file,
+    int index,
+    List<String> allImages,
+  ) {
     return GestureDetector(
       onTap: () => _showFullScreenGallery(context, allImages, index),
       child: Container(
@@ -71,7 +80,11 @@ class DiaryImageGallery extends StatelessWidget {
   }
 
   /// 显示全屏图片画廊
-  void _showFullScreenGallery(BuildContext context, List<String> images, int initialIndex) {
+  void _showFullScreenGallery(
+    BuildContext context,
+    List<String> images,
+    int initialIndex,
+  ) {
     showDialog(
       context: context,
       builder: (dialogContext) => Dialog(
@@ -103,7 +116,13 @@ class DiaryImageGallery extends StatelessWidget {
 
                 if (!file.existsSync()) {
                   return PhotoViewGalleryPageOptions.customChild(
-                    child: const Center(child: Icon(FeatherIcons.image, color: Colors.white70, size: 48)),
+                    child: const Center(
+                      child: Icon(
+                        FeatherIcons.image,
+                        color: Colors.white70,
+                        size: 48,
+                      ),
+                    ),
                   );
                 }
 
@@ -114,14 +133,25 @@ class DiaryImageGallery extends StatelessWidget {
                   maxScale: PhotoViewComputedScale.covered * 5.0,
                   heroAttributes: PhotoViewHeroAttributes(tag: resolved),
                   errorBuilder: (context, error, stackTrace) {
-                    return const Center(child: Icon(FeatherIcons.alertCircle, color: Colors.white70, size: 48));
+                    return const Center(
+                      child: Icon(
+                        FeatherIcons.alertCircle,
+                        color: Colors.white70,
+                        size: 48,
+                      ),
+                    );
                   },
                 );
               },
               loadingBuilder: (context, event) => Center(
                 child: CircularProgressIndicator(
-                  value: event == null ? 0 : event.cumulativeBytesLoaded / (event.expectedTotalBytes ?? 1),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white70),
+                  value: event == null
+                      ? 0
+                      : event.cumulativeBytesLoaded /
+                            (event.expectedTotalBytes ?? 1),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    Colors.white70,
+                  ),
                 ),
               ),
               backgroundDecoration: const BoxDecoration(color: Colors.black),

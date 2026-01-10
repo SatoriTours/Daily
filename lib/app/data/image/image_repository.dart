@@ -29,7 +29,10 @@ class ImageRepository extends BaseRepository<Image, ImageModel> {
   }
 
   /// 使用数据创建图片模型
-  ImageModel createWithData(Map<String, dynamic> data, ArticleModel articleModel) {
+  ImageModel createWithData(
+    Map<String, dynamic> data,
+    ArticleModel articleModel,
+  ) {
     final image = Image(url: data['url'], path: data['path']);
     image.article.target = articleModel.entity;
     return ImageModel(image);

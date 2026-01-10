@@ -50,7 +50,10 @@ class TagRepository extends BaseRepository<Tag, TagModel> {
   }
 
   /// 添加标签到文章
-  Future<bool> addTagToArticle(ArticleModel articleModel, String tagName) async {
+  Future<bool> addTagToArticle(
+    ArticleModel articleModel,
+    String tagName,
+  ) async {
     try {
       // 获取或创建标签
       final tagModel = findOrCreate(tagName);

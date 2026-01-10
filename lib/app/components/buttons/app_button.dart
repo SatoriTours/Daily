@@ -62,7 +62,9 @@ class AppButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: height ?? Dimensions.buttonHeight,
-      child: type == AppButtonType.primary ? _buildPrimaryButton(context) : _buildSecondaryButton(context),
+      child: type == AppButtonType.primary
+          ? _buildPrimaryButton(context)
+          : _buildSecondaryButton(context),
     );
   }
 
@@ -74,8 +76,12 @@ class AppButton extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         padding: Dimensions.paddingHorizontalM,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusM)),
-        disabledBackgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusM),
+        ),
+        disabledBackgroundColor: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest,
         disabledForegroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
         elevation: 0,
       ),
@@ -96,7 +102,9 @@ class AppButton extends StatelessWidget {
           width: 1.5,
         ),
         padding: Dimensions.paddingHorizontalM,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusM)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusM),
+        ),
         disabledForegroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
       child: _buildButtonContent(context),

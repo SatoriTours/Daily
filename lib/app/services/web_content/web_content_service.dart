@@ -5,13 +5,17 @@ import 'package:daily_satori/app/services/web_content/article_manager.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/web_content/web_content_notifier.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
 /// 重构后的网页内容服务
 /// 使用单一职责原则，将WebpageParserService拆分为多个专门的服务
-class WebContentService {
+class WebContentService extends AppService {
+  @override
+  ServicePriority get priority => ServicePriority.low;
   // 单例实现
   WebContentService._privateConstructor();
-  static final WebContentService _instance = WebContentService._privateConstructor();
+  static final WebContentService _instance =
+      WebContentService._privateConstructor();
   static WebContentService get i => _instance;
 
   // 依赖的服务
@@ -23,6 +27,9 @@ class WebContentService {
   /// 获取通知器（使用单例）
   WebContentNotifier get _notifier => WebContentNotifier.i;
 
+  @override
+  Future<void> init() async {}
+
   // ====================== 公共API ======================
 
   /// 保存网页（重构后的API）
@@ -32,7 +39,9 @@ class WebContentService {
     bool isUpdate = false,
     int articleID = 0,
   }) async {
-    logger.i('[WebContentService] ▶ 保存网页: URL=$url, 更新=$isUpdate, ID=$articleID');
+    logger.i(
+      '[WebContentService] ▶ 保存网页: URL=$url, 更新=$isUpdate, ID=$articleID',
+    );
 
     try {
       // 步骤1: 初始化文章
@@ -53,7 +62,11 @@ class WebContentService {
       logger.i('[WebContentService] ◀ 处理完成: #${article.id}');
       return article;
     } catch (e, stackTrace) {
-      logger.e('[WebContentService] 处理失败: $e', error: e, stackTrace: stackTrace);
+      logger.e(
+        '[WebContentService] 处理失败: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       if (isUpdate && articleID > 0) {
         _articleManager.markAsFailed(articleID, '处理失败: $e');

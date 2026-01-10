@@ -10,27 +10,12 @@ enum ServicePriority {
 
 /// 服务生命周期契约
 abstract class AppService {
-  String get serviceName;
-  ServicePriority get priority;
+  /// 服务名称，默认取类名（去掉 Service 后缀）
+  String get serviceName => runtimeType.toString().replaceAll('Service', '');
+
+  /// 服务优先级，默认为 normal
+  ServicePriority get priority => ServicePriority.normal;
 
   Future<void> init();
   FutureOr<void> dispose() {}
-}
-
-/// 用函数适配现有单例服务的轻量适配器
-class FunctionAppService implements AppService {
-  @override
-  final String serviceName;
-  @override
-  final ServicePriority priority;
-  final Future<void> Function() onInit;
-  final FutureOr<void> Function()? onDispose;
-
-  FunctionAppService({required this.serviceName, required this.priority, required this.onInit, this.onDispose});
-
-  @override
-  Future<void> init() => onInit();
-
-  @override
-  FutureOr<void> dispose() => onDispose?.call();
 }

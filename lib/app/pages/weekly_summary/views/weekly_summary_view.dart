@@ -1,6 +1,5 @@
 import 'package:daily_satori/app/pages/weekly_summary/providers/weekly_summary_controller_provider.dart';
 
-
 import 'package:daily_satori/app_exports.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
@@ -22,7 +21,8 @@ class WeeklySummaryView extends ConsumerWidget {
   }
 }
 
-class _WeeklySummaryAppBar extends ConsumerWidget implements PreferredSizeWidget {
+class _WeeklySummaryAppBar extends ConsumerWidget
+    implements PreferredSizeWidget {
   final WeeklySummaryControllerState state;
   const _WeeklySummaryAppBar({required this.state});
 
@@ -36,7 +36,10 @@ class _WeeklySummaryAppBar extends ConsumerWidget implements PreferredSizeWidget
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('weekly_summary.title'.t, style: TextStyle(color: AppColors.getOnPrimary(context))),
+          Text(
+            'weekly_summary.title'.t,
+            style: TextStyle(color: AppColors.getOnPrimary(context)),
+          ),
           const SizedBox(width: 4),
           Icon(Icons.arrow_drop_down, color: AppColors.getOnPrimary(context)),
         ],
@@ -66,14 +69,18 @@ class _WeeklySummaryAppBar extends ConsumerWidget implements PreferredSizeWidget
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.getOnPrimary(context)),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppColors.getOnPrimary(context),
+                  ),
                 ),
               ),
             )
           : IconButton(
               icon: Icon(Icons.refresh, color: AppColors.getOnPrimary(context)),
               tooltip: 'weekly_summary.regenerate'.t,
-              onPressed: () => ref.read(weeklySummaryControllerProvider.notifier).regenerateCurrentSummary(),
+              onPressed: () => ref
+                  .read(weeklySummaryControllerProvider.notifier)
+                  .regenerateCurrentSummary(),
             ),
     ],
   );
@@ -100,7 +107,9 @@ class _LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context))),
+    child: CircularProgressIndicator(
+      valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
+    ),
   );
 }
 
@@ -122,18 +131,24 @@ class _GeneratingState extends StatelessWidget {
             height: 60,
             child: CircularProgressIndicator(
               strokeWidth: 3,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.getPrimary(context),
+              ),
             ),
           ),
           Dimensions.verticalSpacerL,
           Text(
             'weekly_summary.generating'.t,
-            style: AppTypography.titleMedium.copyWith(color: AppColors.getOnSurface(context)),
+            style: AppTypography.titleMedium.copyWith(
+              color: AppColors.getOnSurface(context),
+            ),
           ),
           Dimensions.verticalSpacerS,
           Text(
             'weekly_summary.generating_hint'.t,
-            style: AppTypography.bodySmall.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -152,21 +167,31 @@ class _EmptyState extends ConsumerWidget {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.summarize_outlined, size: 80, color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.3)),
+        Icon(
+          Icons.summarize_outlined,
+          size: 80,
+          color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.3),
+        ),
         Dimensions.verticalSpacerL,
         Text(
           'weekly_summary.no_summary'.t,
-          style: AppTypography.titleMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+          style: AppTypography.titleMedium.copyWith(
+            color: AppColors.getOnSurfaceVariant(context),
+          ),
         ),
         Dimensions.verticalSpacerS,
         Text(
           'weekly_summary.no_summary_hint'.t,
-          style: AppTypography.bodySmall.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+          style: AppTypography.bodySmall.copyWith(
+            color: AppColors.getOnSurfaceVariant(context),
+          ),
           textAlign: TextAlign.center,
         ),
         Dimensions.verticalSpacerL,
         ElevatedButton.icon(
-          onPressed: () => ref.read(weeklySummaryControllerProvider.notifier).checkAndGenerate(),
+          onPressed: () => ref
+              .read(weeklySummaryControllerProvider.notifier)
+              .checkAndGenerate(),
           icon: const Icon(Icons.auto_awesome),
           label: Text('weekly_summary.generate_now'.t),
           style: ButtonStyles.getPrimaryStyle(context),
@@ -186,7 +211,10 @@ class _SummaryContent extends StatelessWidget {
   Widget build(BuildContext context) {
     if (summary == null) return const SizedBox.shrink();
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.spacingM,
+        vertical: Dimensions.spacingM,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -218,9 +246,17 @@ class _SummaryHeader extends StatelessWidget {
           ),
         ),
       ),
-      _StatBadge(icon: Icons.article_outlined, count: summary.articleCount, color: AppColors.getPrimary(context)),
+      _StatBadge(
+        icon: Icons.article_outlined,
+        count: summary.articleCount,
+        color: AppColors.getPrimary(context),
+      ),
       const SizedBox(width: 12),
-      _StatBadge(icon: Icons.book_outlined, count: summary.diaryCount, color: AppColors.getSuccess(context)),
+      _StatBadge(
+        icon: Icons.book_outlined,
+        count: summary.diaryCount,
+        color: AppColors.getSuccess(context),
+      ),
       if (summary.isFailed) ...[
         const SizedBox(width: 12),
         Icon(Icons.error_outline, color: AppColors.getError(context), size: 18),
@@ -234,7 +270,11 @@ class _StatBadge extends StatelessWidget {
   final int count;
   final Color color;
 
-  const _StatBadge({required this.icon, required this.count, required this.color});
+  const _StatBadge({
+    required this.icon,
+    required this.count,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -269,17 +309,29 @@ class _MarkdownContent extends StatelessWidget {
       data: processedContent,
       selectable: true,
       styleSheet: MarkdownStyleSheet(
-        h1: AppTypography.headingMedium.copyWith(color: AppColors.getOnSurface(context)),
-        h2: AppTypography.titleLarge.copyWith(color: AppColors.getOnSurface(context)),
-        h3: AppTypography.titleMedium.copyWith(color: AppColors.getOnSurface(context)),
-        p: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context)),
-        listBullet: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context)),
+        h1: AppTypography.headingMedium.copyWith(
+          color: AppColors.getOnSurface(context),
+        ),
+        h2: AppTypography.titleLarge.copyWith(
+          color: AppColors.getOnSurface(context),
+        ),
+        h3: AppTypography.titleMedium.copyWith(
+          color: AppColors.getOnSurface(context),
+        ),
+        p: AppTypography.bodyMedium.copyWith(
+          color: AppColors.getOnSurface(context),
+        ),
+        listBullet: AppTypography.bodyMedium.copyWith(
+          color: AppColors.getOnSurface(context),
+        ),
         blockquote: AppTypography.bodyMedium.copyWith(
           color: AppColors.getOnSurfaceVariant(context),
           fontStyle: FontStyle.italic,
         ),
         blockquoteDecoration: BoxDecoration(
-          border: Border(left: BorderSide(color: AppColors.getPrimary(context), width: 4)),
+          border: Border(
+            left: BorderSide(color: AppColors.getPrimary(context), width: 4),
+          ),
         ),
         code: AppTypography.bodySmall.copyWith(
           backgroundColor: AppColors.getSurfaceContainer(context),
@@ -297,20 +349,24 @@ class _MarkdownContent extends StatelessWidget {
   String _processContentLinks(String content) {
     var processed = content.replaceAllMapped(
       RegExp(r'\[\[article:(\d+)(?::([^\]]+))?\]\]'),
-      (match) => '[📄 ${match.group(2) ?? '文章${match.group(1)}'}](article:${match.group(1)})',
+      (match) =>
+          '[📄 ${match.group(2) ?? '文章${match.group(1)}'}](article:${match.group(1)})',
     );
     processed = processed.replaceAllMapped(
       RegExp(r'\[\[diary:(\d+)(?::([^\]]+))?\]\]'),
-      (match) => '[📝 ${match.group(2) ?? '日记${match.group(1)}'}](diary:${match.group(1)})',
+      (match) =>
+          '[📝 ${match.group(2) ?? '日记${match.group(1)}'}](diary:${match.group(1)})',
     );
     processed = processed.replaceAllMapped(
       RegExp(r'\[\[viewpoint:(\d+)(?::([^\]]+))?\]\]'),
-      (match) => '[📖 ${match.group(2) ?? '书摘${match.group(1)}'}](viewpoint:${match.group(1)})',
+      (match) =>
+          '[📖 ${match.group(2) ?? '书摘${match.group(1)}'}](viewpoint:${match.group(1)})',
     );
     // 兼容 bookmark 格式（映射到 viewpoint）
     processed = processed.replaceAllMapped(
       RegExp(r'\[\[bookmark:(\d+)(?::([^\]]+))?\]\]'),
-      (match) => '[📖 ${match.group(2) ?? '书摘${match.group(1)}'}](viewpoint:${match.group(1)})',
+      (match) =>
+          '[📖 ${match.group(2) ?? '书摘${match.group(1)}'}](viewpoint:${match.group(1)})',
     );
     return processed;
   }
@@ -320,7 +376,8 @@ class _MarkdownContent extends StatelessWidget {
 
     if (href.startsWith('article:')) {
       final id = int.tryParse(href.substring(8));
-      if (id != null) AppNavigation.toNamed(Routes.articleDetail, arguments: id);
+      if (id != null)
+        AppNavigation.toNamed(Routes.articleDetail, arguments: id);
     } else if (href.startsWith('diary:')) {
       final id = int.tryParse(href.substring(6));
       if (id != null) {
@@ -344,13 +401,18 @@ class _MarkdownContent extends StatelessWidget {
     }
   }
 
-  void _showViewpointDetailSheet(BuildContext context, BookViewpointModel viewpoint) {
+  void _showViewpointDetailSheet(
+    BuildContext context,
+    BookViewpointModel viewpoint,
+  ) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.getSurface(context),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(Dimensions.radiusL),
+        ),
       ),
       builder: (context) => _ViewpointDetailSheet(viewpoint: viewpoint),
     );
@@ -362,7 +424,9 @@ class _MarkdownContent extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: AppColors.getSurface(context),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(Dimensions.radiusL),
+        ),
       ),
       builder: (context) => _DiaryDetailSheet(diary: diary),
     );
@@ -384,7 +448,9 @@ class _DiaryDetailSheet extends StatelessWidget {
     builder: (context, scrollController) => Container(
       decoration: BoxDecoration(
         color: AppColors.getSurface(context),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(Dimensions.radiusL),
+        ),
       ),
       child: Column(
         children: [
@@ -401,14 +467,21 @@ class _DiaryDetailSheet extends StatelessWidget {
     margin: const EdgeInsets.only(top: 12, bottom: 8),
     width: 40,
     height: 4,
-    decoration: BoxDecoration(color: AppColors.getOutlineVariant(context), borderRadius: BorderRadius.circular(2)),
+    decoration: BoxDecoration(
+      color: AppColors.getOutlineVariant(context),
+      borderRadius: BorderRadius.circular(2),
+    ),
   );
 
   Widget _buildHeader(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     child: Row(
       children: [
-        Icon(Icons.book_outlined, color: AppColors.getPrimary(context), size: 24),
+        Icon(
+          Icons.book_outlined,
+          color: AppColors.getPrimary(context),
+          size: 24,
+        ),
         Dimensions.horizontalSpacerS,
         Expanded(
           child: Column(
@@ -416,17 +489,24 @@ class _DiaryDetailSheet extends StatelessWidget {
             children: [
               Text(
                 'weekly_summary.diary_detail'.t,
-                style: AppTypography.titleMedium.copyWith(color: AppColors.getOnSurface(context)),
+                style: AppTypography.titleMedium.copyWith(
+                  color: AppColors.getOnSurface(context),
+                ),
               ),
               Text(
                 _formatDate(diary.createdAt),
-                style: AppTypography.labelSmall.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.getOnSurfaceVariant(context),
+                ),
               ),
             ],
           ),
         ),
         IconButton(
-          icon: Icon(Icons.close, color: AppColors.getOnSurfaceVariant(context)),
+          icon: Icon(
+            Icons.close,
+            color: AppColors.getOnSurfaceVariant(context),
+          ),
           onPressed: () => AppNavigation.back(),
         ),
       ],
@@ -440,8 +520,12 @@ class _DiaryDetailSheet extends StatelessWidget {
         '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
   }
 
-  Widget _buildContent(BuildContext context, ScrollController scrollController) {
-    final tagList = diary.tags?.split(',').where((t) => t.trim().isNotEmpty).toList() ?? [];
+  Widget _buildContent(
+    BuildContext context,
+    ScrollController scrollController,
+  ) {
+    final tagList =
+        diary.tags?.split(',').where((t) => t.trim().isNotEmpty).toList() ?? [];
 
     return SingleChildScrollView(
       controller: scrollController,
@@ -453,17 +537,33 @@ class _DiaryDetailSheet extends StatelessWidget {
             data: diary.content,
             selectable: true,
             styleSheet: MarkdownStyleSheet(
-              h1: AppTypography.headingMedium.copyWith(color: AppColors.getOnSurface(context)),
-              h2: AppTypography.titleLarge.copyWith(color: AppColors.getOnSurface(context)),
-              h3: AppTypography.titleMedium.copyWith(color: AppColors.getOnSurface(context)),
-              p: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context), height: 1.6),
-              listBullet: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context)),
+              h1: AppTypography.headingMedium.copyWith(
+                color: AppColors.getOnSurface(context),
+              ),
+              h2: AppTypography.titleLarge.copyWith(
+                color: AppColors.getOnSurface(context),
+              ),
+              h3: AppTypography.titleMedium.copyWith(
+                color: AppColors.getOnSurface(context),
+              ),
+              p: AppTypography.bodyMedium.copyWith(
+                color: AppColors.getOnSurface(context),
+                height: 1.6,
+              ),
+              listBullet: AppTypography.bodyMedium.copyWith(
+                color: AppColors.getOnSurface(context),
+              ),
               blockquote: AppTypography.bodyMedium.copyWith(
                 color: AppColors.getOnSurfaceVariant(context),
                 fontStyle: FontStyle.italic,
               ),
               blockquoteDecoration: BoxDecoration(
-                border: Border(left: BorderSide(color: AppColors.getPrimary(context), width: 4)),
+                border: Border(
+                  left: BorderSide(
+                    color: AppColors.getPrimary(context),
+                    width: 4,
+                  ),
+                ),
               ),
               code: AppTypography.bodySmall.copyWith(
                 backgroundColor: AppColors.getSurfaceContainer(context),
@@ -481,7 +581,11 @@ class _DiaryDetailSheet extends StatelessWidget {
           ],
           if (tagList.isNotEmpty) ...[
             Dimensions.verticalSpacerL,
-            Wrap(spacing: 8, runSpacing: 8, children: tagList.map((tag) => _buildTag(context, tag)).toList()),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: tagList.map((tag) => _buildTag(context, tag)).toList(),
+            ),
           ],
           SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
         ],
@@ -495,7 +599,12 @@ class _DiaryDetailSheet extends StatelessWidget {
       color: AppColors.getPrimary(context).withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(Dimensions.radiusCircular),
     ),
-    child: Text('#$tag', style: AppTypography.labelSmall.copyWith(color: AppColors.getPrimary(context))),
+    child: Text(
+      '#$tag',
+      style: AppTypography.labelSmall.copyWith(
+        color: AppColors.getPrimary(context),
+      ),
+    ),
   );
 }
 
@@ -514,7 +623,9 @@ class _ViewpointDetailSheet extends ConsumerWidget {
     builder: (context, scrollController) => Container(
       decoration: BoxDecoration(
         color: AppColors.getSurface(context),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(Dimensions.radiusL),
+        ),
       ),
       child: Column(
         children: [
@@ -531,7 +642,10 @@ class _ViewpointDetailSheet extends ConsumerWidget {
     margin: const EdgeInsets.only(top: 12, bottom: 8),
     width: 40,
     height: 4,
-    decoration: BoxDecoration(color: AppColors.getOutlineVariant(context), borderRadius: BorderRadius.circular(2)),
+    decoration: BoxDecoration(
+      color: AppColors.getOutlineVariant(context),
+      borderRadius: BorderRadius.circular(2),
+    ),
   );
 
   Widget _buildHeader(BuildContext context, WidgetRef ref) {
@@ -541,7 +655,11 @@ class _ViewpointDetailSheet extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Icon(Icons.bookmark_outlined, color: AppColors.getPrimary(context), size: 24),
+          Icon(
+            Icons.bookmark_outlined,
+            color: AppColors.getPrimary(context),
+            size: 24,
+          ),
           Dimensions.horizontalSpacerS,
           Expanded(
             child: Column(
@@ -549,12 +667,16 @@ class _ViewpointDetailSheet extends ConsumerWidget {
               children: [
                 Text(
                   'weekly_summary.viewpoint_detail'.t,
-                  style: AppTypography.titleMedium.copyWith(color: AppColors.getOnSurface(context)),
+                  style: AppTypography.titleMedium.copyWith(
+                    color: AppColors.getOnSurface(context),
+                  ),
                 ),
                 if (book != null)
                   Text(
                     book.title,
-                    style: AppTypography.labelSmall.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+                    style: AppTypography.labelSmall.copyWith(
+                      color: AppColors.getOnSurfaceVariant(context),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -562,7 +684,10 @@ class _ViewpointDetailSheet extends ConsumerWidget {
             ),
           ),
           IconButton(
-            icon: Icon(Icons.close, color: AppColors.getOnSurfaceVariant(context)),
+            icon: Icon(
+              Icons.close,
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
             onPressed: () => AppNavigation.back(),
           ),
         ],
@@ -570,7 +695,10 @@ class _ViewpointDetailSheet extends ConsumerWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, ScrollController scrollController) => SingleChildScrollView(
+  Widget _buildContent(
+    BuildContext context,
+    ScrollController scrollController,
+  ) => SingleChildScrollView(
     controller: scrollController,
     padding: Dimensions.paddingCard,
     child: Column(
@@ -578,7 +706,10 @@ class _ViewpointDetailSheet extends ConsumerWidget {
       children: [
         SelectableText(
           viewpoint.content,
-          style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context), height: 1.6),
+          style: AppTypography.bodyMedium.copyWith(
+            color: AppColors.getOnSurface(context),
+            height: 1.6,
+          ),
         ),
         SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
       ],
@@ -588,18 +719,27 @@ class _ViewpointDetailSheet extends ConsumerWidget {
 
 // 历史周报选择器
 
-void _showHistorySheet(BuildContext context, WidgetRef ref, WeeklySummaryControllerState state) {
+void _showHistorySheet(
+  BuildContext context,
+  WidgetRef ref,
+  WeeklySummaryControllerState state,
+) {
   showModalBottomSheet(
     context: context,
     backgroundColor: AppColors.getSurface(context),
     isScrollControlled: true,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL))),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(Dimensions.radiusL),
+      ),
+    ),
     builder: (context) => DraggableScrollableSheet(
       initialChildSize: 0.6,
       minChildSize: 0.4,
       maxChildSize: 0.9,
       expand: false,
-      builder: (context, scrollController) => _HistorySheet(state: state, scrollController: scrollController),
+      builder: (context, scrollController) =>
+          _HistorySheet(state: state, scrollController: scrollController),
     ),
   );
 }
@@ -630,7 +770,12 @@ class _HistorySheet extends ConsumerWidget {
           padding: const EdgeInsets.only(left: 20, right: 20, bottom: 4),
           child: Row(
             children: [
-              Text('weekly_summary.history'.t, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                'weekly_summary.history'.t,
+                style: AppTypography.titleMedium.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.close),
@@ -648,18 +793,30 @@ class _HistorySheet extends ConsumerWidget {
             controller: scrollController,
             padding: const EdgeInsets.symmetric(vertical: 8),
             itemCount: state.summaries.length,
-            separatorBuilder: (context, index) => const Divider(height: 1, indent: 20, endIndent: 20, thickness: 0.5),
+            separatorBuilder: (context, index) => const Divider(
+              height: 1,
+              indent: 20,
+              endIndent: 20,
+              thickness: 0.5,
+            ),
             itemBuilder: (context, index) {
               final summary = state.summaries[index];
               final isSelected = state.currentSummary?.id == summary.id;
               return InkWell(
                 onTap: () {
-                  ref.read(weeklySummaryControllerProvider.notifier).selectSummary(summary);
+                  ref
+                      .read(weeklySummaryControllerProvider.notifier)
+                      .selectSummary(summary);
                   AppNavigation.back();
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  color: isSelected ? AppColors.getPrimary(context).withValues(alpha: 0.05) : null,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  color: isSelected
+                      ? AppColors.getPrimary(context).withValues(alpha: 0.05)
+                      : null,
                   child: Row(
                     children: [
                       Expanded(
@@ -669,19 +826,30 @@ class _HistorySheet extends ConsumerWidget {
                             Text(
                               summary.weekLabel,
                               style: AppTypography.bodyLarge.copyWith(
-                                color: isSelected ? AppColors.getPrimary(context) : AppColors.getOnSurface(context),
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                color: isSelected
+                                    ? AppColors.getPrimary(context)
+                                    : AppColors.getOnSurface(context),
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               summary.weekTitle,
-                              style: AppTypography.bodySmall.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+                              style: AppTypography.bodySmall.copyWith(
+                                color: AppColors.getOnSurfaceVariant(context),
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      if (isSelected) Icon(Icons.check, color: AppColors.getPrimary(context), size: 20),
+                      if (isSelected)
+                        Icon(
+                          Icons.check,
+                          color: AppColors.getPrimary(context),
+                          size: 20,
+                        ),
                     ],
                   ),
                 ),

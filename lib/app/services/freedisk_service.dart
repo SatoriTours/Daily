@@ -7,19 +7,28 @@ import 'package:daily_satori/app/objectbox/image.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
-class FreeDiskService {
+class FreeDiskService extends AppService {
+  @override
+  ServicePriority get priority => ServicePriority.high;
+
   // 单例模式
   FreeDiskService._();
   static final FreeDiskService _instance = FreeDiskService._();
   static FreeDiskService get i => _instance;
 
+  @override
   Future<void> init() async {}
 
   /// 清理并备份图片文件
   Future<void> clean() async {
     await _backupAndCleanFiles<Image>(
-      imagePaths: ObjectboxService.i.box<Article>().getAll().map((article) => article.coverImage).toList(),
+      imagePaths: ObjectboxService.i
+          .box<Article>()
+          .getAll()
+          .map((article) => article.coverImage)
+          .toList(),
       sourcePath: FileService.i.imagesBasePath,
       backupDirName: 'images_bak',
     );

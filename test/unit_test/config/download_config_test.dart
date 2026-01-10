@@ -11,11 +11,18 @@ void main() {
     });
 
     test('default receive timeout should be longer than send timeout', () {
-      expect(DownloadConfig.defaultReceiveTimeout > DownloadConfig.defaultSendTimeout, isTrue);
+      expect(
+        DownloadConfig.defaultReceiveTimeout >
+            DownloadConfig.defaultSendTimeout,
+        isTrue,
+      );
     });
 
     test('image receive timeout should be longer than send timeout', () {
-      expect(DownloadConfig.imageReceiveTimeout > DownloadConfig.imageSendTimeout, isTrue);
+      expect(
+        DownloadConfig.imageReceiveTimeout > DownloadConfig.imageSendTimeout,
+        isTrue,
+      );
     });
 
     test('all timeouts should be positive', () {

@@ -15,7 +15,10 @@ class BookController {
 
     final authed = const Pipeline().addMiddleware(AuthMiddleware.requireAuth());
 
-    Future<Response> runAuthed(Request request, FutureOr<Response> Function(Request request) handler) async {
+    Future<Response> runAuthed(
+      Request request,
+      FutureOr<Response> Function(Request request) handler,
+    ) async {
       final h = authed.addHandler(handler);
       return await h(request);
     }
@@ -23,21 +26,38 @@ class BookController {
     router.get('/', authed.addHandler(_getBooks));
 
     // 书籍本体
-    router.get('/<id>', (request, id) => runAuthed(request, (req) => _getBook(req, id)));
+    router.get(
+      '/<id>',
+      (request, id) => runAuthed(request, (req) => _getBook(req, id)),
+    );
     router.post('/', authed.addHandler(_createBook));
-    router.put('/<id>', (request, id) => runAuthed(request, (req) => _updateBook(req, id)));
-    router.delete('/<id>', (request, id) => runAuthed(request, (req) => _deleteBook(req, id)));
+    router.put(
+      '/<id>',
+      (request, id) => runAuthed(request, (req) => _updateBook(req, id)),
+    );
+    router.delete(
+      '/<id>',
+      (request, id) => runAuthed(request, (req) => _deleteBook(req, id)),
+    );
 
     // 观点
-    router.get('/<id>/viewpoints', (request, id) => runAuthed(request, (req) => _getViewpoints(req, id)));
-    router.post('/<id>/viewpoints', (request, id) => runAuthed(request, (req) => _createViewpoint(req, id)));
+    router.get(
+      '/<id>/viewpoints',
+      (request, id) => runAuthed(request, (req) => _getViewpoints(req, id)),
+    );
+    router.post(
+      '/<id>/viewpoints',
+      (request, id) => runAuthed(request, (req) => _createViewpoint(req, id)),
+    );
     router.put(
       '/<id>/viewpoints/<viewpointId>',
-      (request, id, viewpointId) => runAuthed(request, (req) => _updateViewpoint(req, id, viewpointId)),
+      (request, id, viewpointId) =>
+          runAuthed(request, (req) => _updateViewpoint(req, id, viewpointId)),
     );
     router.delete(
       '/<id>/viewpoints/<viewpointId>',
-      (request, id, viewpointId) => runAuthed(request, (req) => _deleteViewpoint(req, id, viewpointId)),
+      (request, id, viewpointId) =>
+          runAuthed(request, (req) => _deleteViewpoint(req, id, viewpointId)),
     );
 
     return router;
@@ -75,7 +95,9 @@ class BookController {
       final book = BookRepository.i.find(bookId);
       if (book == null) return ResponseUtils.error('书籍不存在', status: 404);
 
-      final viewpoints = BookViewpointRepository.i.findModelsByBookIds([bookId]);
+      final viewpoints = BookViewpointRepository.i.findModelsByBookIds([
+        bookId,
+      ]);
       final bookJson = _bookToJson(book);
       bookJson['viewpoints'] = viewpoints.map(_viewpointToJson).toList();
 
@@ -96,7 +118,8 @@ class BookController {
       final introduction = body['introduction'] as String? ?? '';
       final coverImage = body['coverImage'] as String? ?? '';
 
-      if (title == null || title.isEmpty) return ResponseUtils.validationError('书名不能为空');
+      if (title == null || title.isEmpty)
+        return ResponseUtils.validationError('书名不能为空');
 
       final book = BookModel.create(
         title: title,
@@ -127,8 +150,10 @@ class BookController {
       if (body['title'] != null) book.title = body['title'] as String;
       if (body['author'] != null) book.author = body['author'] as String;
       if (body['category'] != null) book.category = body['category'] as String;
-      if (body['introduction'] != null) book.introduction = body['introduction'] as String;
-      if (body['coverImage'] != null) book.coverImage = body['coverImage'] as String;
+      if (body['introduction'] != null)
+        book.introduction = body['introduction'] as String;
+      if (body['coverImage'] != null)
+        book.coverImage = body['coverImage'] as String;
 
       BookRepository.i.save(book);
       return ResponseUtils.success(_bookToJson(book));
@@ -146,9 +171,13 @@ class BookController {
       final book = BookRepository.i.find(bookId);
       if (book == null) return ResponseUtils.error('书籍不存在', status: 404);
 
-      final viewpoints = BookViewpointRepository.i.findModelsByBookIds([bookId]);
+      final viewpoints = BookViewpointRepository.i.findModelsByBookIds([
+        bookId,
+      ]);
       if (viewpoints.isNotEmpty) {
-        BookViewpointRepository.i.removeMany(viewpoints.map((v) => v.id).toList());
+        BookViewpointRepository.i.removeMany(
+          viewpoints.map((v) => v.id).toList(),
+        );
       }
 
       BookRepository.i.remove(bookId);
@@ -186,9 +215,15 @@ class BookController {
       final content = body['content'] as String?;
       final example = body['example'] as String? ?? '';
 
-      if (content == null || content.isEmpty) return ResponseUtils.validationError('观点内容不能为空');
+      if (content == null || content.isEmpty)
+        return ResponseUtils.validationError('观点内容不能为空');
 
-      final viewpoint = BookViewpointModel.create(bookId: id, title: title, content: content, example: example);
+      final viewpoint = BookViewpointModel.create(
+        bookId: id,
+        title: title,
+        content: content,
+        example: example,
+      );
 
       BookViewpointRepository.i.save(viewpoint);
       return ResponseUtils.success(_viewpointToJson(viewpoint));
@@ -198,7 +233,11 @@ class BookController {
     }
   }
 
-  Future<Response> _updateViewpoint(Request request, String bookId, String viewpointId) async {
+  Future<Response> _updateViewpoint(
+    Request request,
+    String bookId,
+    String viewpointId,
+  ) async {
     try {
       final vpId = int.tryParse(viewpointId);
       if (vpId == null) return ResponseUtils.validationError('无效的观点ID');
@@ -209,8 +248,10 @@ class BookController {
       final body = await RequestUtils.parseJsonBody(request);
 
       if (body['title'] != null) viewpoint.title = body['title'] as String;
-      if (body['content'] != null) viewpoint.content = body['content'] as String;
-      if (body['example'] != null) viewpoint.example = body['example'] as String;
+      if (body['content'] != null)
+        viewpoint.content = body['content'] as String;
+      if (body['example'] != null)
+        viewpoint.example = body['example'] as String;
 
       BookViewpointRepository.i.save(viewpoint);
       return ResponseUtils.success(_viewpointToJson(viewpoint));
@@ -220,7 +261,11 @@ class BookController {
     }
   }
 
-  Future<Response> _deleteViewpoint(Request request, String bookId, String viewpointId) async {
+  Future<Response> _deleteViewpoint(
+    Request request,
+    String bookId,
+    String viewpointId,
+  ) async {
     try {
       final vpId = int.tryParse(viewpointId);
       if (vpId == null) return ResponseUtils.validationError('无效的观点ID');

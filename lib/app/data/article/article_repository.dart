@@ -42,7 +42,9 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
     Condition<Article>? condition;
     for (final status in statuses) {
       final statusCondition = Article_.status.equals(status.value);
-      condition = condition == null ? statusCondition : condition.or(statusCondition);
+      condition = condition == null
+          ? statusCondition
+          : condition.or(statusCondition);
     }
 
     return findByCondition(condition!);
@@ -51,7 +53,9 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
   /// 查找所有待处理的文章
   List<ArticleModel> findAllPending() {
     final pendingArticles = findByStatus(ArticleStatus.pending);
-    final webContentFetchedArticles = findByStatus(ArticleStatus.webContentFetched);
+    final webContentFetchedArticles = findByStatus(
+      ArticleStatus.webContentFetched,
+    );
     return [...pendingArticles, ...webContentFetchedArticles];
   }
 
@@ -61,15 +65,22 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
     final completedArticles = findByStatus(ArticleStatus.completed);
 
     for (final article in completedArticles) {
-      final bool titleComplete = article.aiTitle != null && article.aiTitle!.isNotEmpty;
-      final bool summaryComplete = article.aiContent != null && article.aiContent!.isNotEmpty;
-      final bool markdownComplete = article.aiMarkdownContent != null && article.aiMarkdownContent!.isNotEmpty;
+      final bool titleComplete =
+          article.aiTitle != null && article.aiTitle!.isNotEmpty;
+      final bool summaryComplete =
+          article.aiContent != null && article.aiContent!.isNotEmpty;
+      final bool markdownComplete =
+          article.aiMarkdownContent != null &&
+          article.aiMarkdownContent!.isNotEmpty;
       final bool coverComplete =
           article.coverImageUrl == null ||
           article.coverImageUrl!.isEmpty ||
           (article.coverImage != null && article.coverImage!.isNotEmpty);
 
-      if (!titleComplete || !summaryComplete || !markdownComplete || !coverComplete) {
+      if (!titleComplete ||
+          !summaryComplete ||
+          !markdownComplete ||
+          !coverComplete) {
         result.add(article);
       }
     }
@@ -79,7 +90,9 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
 
   /// 找到最近的一个待处理文章
   ArticleModel? findLastPending() {
-    final condition = Article_.status.notEquals('completed').and(Article_.status.notEquals(''));
+    final condition = Article_.status
+        .notEquals('completed')
+        .and(Article_.status.notEquals(''));
     return findFirstByCondition(condition);
   }
 
@@ -136,7 +149,10 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
 
     // 删除关联的图片文件
     if (articleModel.images.isNotEmpty) {
-      final imagePaths = articleModel.images.map((img) => img.path ?? '').where((p) => p.isNotEmpty).toList();
+      final imagePaths = articleModel.images
+          .map((img) => img.path ?? '')
+          .where((p) => p.isNotEmpty)
+          .toList();
       if (imagePaths.isNotEmpty) {
         final deletedCount = await FileService.i.deleteFiles(imagePaths);
         logger.i("删除文章 #$id 的图片文件: $deletedCount/${imagePaths.length} 个");
@@ -207,7 +223,9 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
 
   /// 获取搜索结果数量
   int getSearchCount(String query) {
-    return countByCondition(Article_.title.contains(query, caseSensitive: false));
+    return countByCondition(
+      Article_.title.contains(query, caseSensitive: false),
+    );
   }
 
   /// 获取搜索结果总页数
@@ -251,17 +269,27 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
 
     if (isFavorite != null) {
       final favoriteCondition = Article_.isFavorite.equals(isFavorite);
-      condition = condition == null ? favoriteCondition : condition.and(favoriteCondition);
+      condition = condition == null
+          ? favoriteCondition
+          : condition.and(favoriteCondition);
     }
 
     if (startDate != null) {
-      final startCondition = Article_.createdAt.greaterOrEqual(startDate.millisecondsSinceEpoch);
-      condition = condition == null ? startCondition : condition.and(startCondition);
+      final startCondition = Article_.createdAt.greaterOrEqual(
+        startDate.millisecondsSinceEpoch,
+      );
+      condition = condition == null
+          ? startCondition
+          : condition.and(startCondition);
     }
 
     if (endDate != null) {
-      final endCondition = Article_.createdAt.lessOrEqual(endDate.millisecondsSinceEpoch);
-      condition = condition == null ? endCondition : condition.and(endCondition);
+      final endCondition = Article_.createdAt.lessOrEqual(
+        endDate.millisecondsSinceEpoch,
+      );
+      condition = condition == null
+          ? endCondition
+          : condition.and(endCondition);
     }
 
     if (referenceId != null) {
@@ -273,7 +301,10 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
 
     // 执行查询
     final query = condition != null
-        ? box.query(condition).order(Article_.id, flags: Order.descending).build()
+        ? box
+              .query(condition)
+              .order(Article_.id, flags: Order.descending)
+              .build()
         : box.query().order(Article_.id, flags: Order.descending).build();
 
     if (limit != null) {
@@ -300,7 +331,10 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
     }
 
     final query = condition != null
-        ? box.query(condition).order(Article_.id, flags: Order.descending).build()
+        ? box
+              .query(condition)
+              .order(Article_.id, flags: Order.descending)
+              .build()
         : box.query().order(Article_.id, flags: Order.descending).build();
 
     query
@@ -317,4 +351,10 @@ class ArticleRepository extends BaseRepository<Article, ArticleModel> {
 }
 
 /// 文章字段名称枚举
-enum ArticleFieldName { status, aiTitle, aiContent, aiMarkdownContent, coverImage }
+enum ArticleFieldName {
+  status,
+  aiTitle,
+  aiContent,
+  aiMarkdownContent,
+  coverImage,
+}

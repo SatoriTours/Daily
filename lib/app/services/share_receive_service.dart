@@ -3,8 +3,11 @@ import 'package:flutter/services.dart';
 
 import 'package:daily_satori/app/routes/app_routes.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
-class ShareReceiveService {
+class ShareReceiveService extends AppService {
+  @override
+  ServicePriority get priority => ServicePriority.low;
   // 单例模式
   ShareReceiveService._();
   static final ShareReceiveService _instance = ShareReceiveService._();
@@ -13,7 +16,7 @@ class ShareReceiveService {
   // 定义与原生平台通信的通道
   static const _platform = MethodChannel('tours.sator.daily/share');
 
-  /// 初始化服务
+  @override
   Future<void> init() async {
     _registerShareReceiveHandler();
   }
@@ -41,13 +44,18 @@ class ShareReceiveService {
     if (url.isEmpty) return;
 
     // 传递 fromShare=true 标记，表示从其他app分享来的
-    await AppNavigation.toNamed(Routes.shareDialog, arguments: {'shareURL': url, 'fromShare': true});
+    await AppNavigation.toNamed(
+      Routes.shareDialog,
+      arguments: {'shareURL': url, 'fromShare': true},
+    );
   }
 
   /// 从文本中提取URL
   String _extractUrlFromText(String text) {
     // 简单实现从文本中提取URL的逻辑
-    final urlRegex = RegExp(r'https?://[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?');
+    final urlRegex = RegExp(
+      r'https?://[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?',
+    );
     final match = urlRegex.firstMatch(text);
     return match != null ? match.group(0) ?? '' : '';
   }

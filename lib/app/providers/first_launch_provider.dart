@@ -25,19 +25,26 @@ class FirstLaunchController extends _$FirstLaunchController {
     // 1. 检查 AI 配置（必填）
     final aiConfigs = AIConfigRepository.i.allModels();
     final hasAIConfig = aiConfigs.any(
-      (config) => config.apiToken.isNotEmpty && config.apiAddress.isNotEmpty && config.modelName.isNotEmpty,
+      (config) =>
+          config.apiToken.isNotEmpty &&
+          config.apiAddress.isNotEmpty &&
+          config.modelName.isNotEmpty,
     );
 
     // logger.i('[首次启动] AI配置: ${hasAIConfig ? "已配置" : "未配置"}');
 
     // 2. 检查 Google Cloud API Key（选填）
-    final googleCloudKey = SettingRepository.i.getSetting(SettingService.googleCloudApiKeyKey);
+    final googleCloudKey = SettingRepository.i.getSetting(
+      SettingService.googleCloudApiKeyKey,
+    );
     final hasGoogleCloudKey = googleCloudKey.isNotEmpty;
 
     // logger.i('[首次启动] Google Cloud Key: ${hasGoogleCloudKey ? "已配置" : "未配置"}');
 
     // 3. 检查备份目录（选填）
-    final backupDir = SettingRepository.i.getSetting(SettingService.backupDirKey);
+    final backupDir = SettingRepository.i.getSetting(
+      SettingService.backupDirKey,
+    );
     final hasBackupDir = backupDir.isNotEmpty;
 
     // logger.i('[首次启动] 备份目录: ${hasBackupDir ? "已配置" : "未配置"}');
@@ -84,7 +91,12 @@ class FirstLaunchState {
   });
 
   /// 复制并修改部分字段
-  FirstLaunchState copyWith({bool? isSetupComplete, bool? hasAIConfig, bool? hasGoogleCloudKey, bool? hasBackupDir}) {
+  FirstLaunchState copyWith({
+    bool? isSetupComplete,
+    bool? hasAIConfig,
+    bool? hasGoogleCloudKey,
+    bool? hasBackupDir,
+  }) {
     return FirstLaunchState(
       isSetupComplete: isSetupComplete ?? this.isSetupComplete,
       hasAIConfig: hasAIConfig ?? this.hasAIConfig,

@@ -78,11 +78,17 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
         }
       },
       itemBuilder: (_) => [
-        SPopupMenuItem<String>(value: 'tags', icon: FeatherIcons.tag, text: 'article.filter_tags'.t),
+        SPopupMenuItem<String>(
+          value: 'tags',
+          icon: FeatherIcons.tag,
+          text: 'article.filter_tags'.t,
+        ),
         SPopupMenuItem<String>(
           value: 'favorite',
           icon: state.onlyFavorite ? Icons.favorite : Icons.favorite_border,
-          text: state.onlyFavorite ? 'article.show_all'.t : 'article.show_favorite_only'.t,
+          text: state.onlyFavorite
+              ? 'article.show_all'.t
+              : 'article.show_favorite_only'.t,
           iconColor: state.onlyFavorite ? Colors.red : null,
         ),
       ],
@@ -92,7 +98,11 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
   void _scrollToTop(ArticlesControllerState state) {
     final sc = state.scrollController;
     if (sc != null && sc.hasClients) {
-      sc.animateTo(0, duration: Animations.durationNormal, curve: Curves.easeInOut);
+      sc.animateTo(
+        0,
+        duration: Animations.durationNormal,
+        curve: Curves.easeInOut,
+      );
     }
   }
 
@@ -107,7 +117,9 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
+      shape: const RoundedRectangleBorder(
+        borderRadius: Dimensions.borderRadiusTop,
+      ),
       builder: (_) => ArticlesTagsDialog(
         tags: tags,
         selectedTagId: state.tagId,
@@ -132,7 +144,9 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
+      shape: const RoundedRectangleBorder(
+        borderRadius: Dimensions.borderRadiusTop,
+      ),
       isScrollControlled: true,
       builder: (_) => ArticleCalendarDialog(
         articleCountMap: articleCountMap,
@@ -153,21 +167,34 @@ class _ArticlesBody extends ConsumerWidget {
     final state = ref.watch(articlesControllerProvider);
     final controller = ref.read(articlesControllerProvider.notifier);
     final articles = ref.watch(articleStateProvider.select((s) => s.articles));
-    final isLoading = ref.watch(articleStateProvider.select((s) => s.isLoading));
-    final isSearchVisible = ref.watch(appGlobalStateProvider.select((s) => s.isSearchBarVisible));
+    final isLoading = ref.watch(
+      articleStateProvider.select((s) => s.isLoading),
+    );
+    final isSearchVisible = ref.watch(
+      appGlobalStateProvider.select((s) => s.isSearchBarVisible),
+    );
     final hasFilters = ref.watch(hasFiltersProvider);
     final displayTitle = ref.watch(displayTitleProvider);
 
     return Column(
       children: [
         if (isSearchVisible) _buildSearchBar(state, controller),
-        if (hasFilters) FilterIndicator(title: displayTitle, onClear: controller.clearAllFilters),
-        Expanded(child: _buildArticlesList(articles, isLoading, state, controller)),
+        if (hasFilters)
+          FilterIndicator(
+            title: displayTitle,
+            onClear: controller.clearAllFilters,
+          ),
+        Expanded(
+          child: _buildArticlesList(articles, isLoading, state, controller),
+        ),
       ],
     );
   }
 
-  Widget _buildSearchBar(ArticlesControllerState state, ArticlesController controller) {
+  Widget _buildSearchBar(
+    ArticlesControllerState state,
+    ArticlesController controller,
+  ) {
     return GenericSearchBar(
       controller: state.searchController!,
       focusNode: state.searchFocusNode!,
@@ -197,13 +224,17 @@ class _ArticlesBody extends ConsumerWidget {
       isLoading: isLoading,
       scrollController: state.scrollController!,
       onRefresh: controller.reloadArticles,
-      onArticleTap: (article) => AppNavigation.toNamed(Routes.articleDetail, arguments: article.id),
+      onArticleTap: (article) =>
+          AppNavigation.toNamed(Routes.articleDetail, arguments: article.id),
       onFavoriteToggle: (article) {
         ArticleRepository.i.toggleFavorite(article.id);
         controller.updateArticle(article.id);
       },
       onShare: (article) => SharePlus.instance.share(
-        ShareParams(text: article.url ?? '', subject: article.aiTitle ?? article.title ?? ''),
+        ShareParams(
+          text: article.url ?? '',
+          subject: article.aiTitle ?? article.title ?? '',
+        ),
       ),
     );
   }

@@ -17,17 +17,29 @@ class DiaryController {
 
     final authed = const Pipeline().addMiddleware(AuthMiddleware.requireAuth());
 
-    Future<Response> runAuthed(Request request, FutureOr<Response> Function(Request request) handler) async {
+    Future<Response> runAuthed(
+      Request request,
+      FutureOr<Response> Function(Request request) handler,
+    ) async {
       final h = authed.addHandler(handler);
       return await h(request);
     }
 
     router.get('/', authed.addHandler(_getDiaries));
     router.get('/search', authed.addHandler(_searchDiaries));
-    router.get('/<id>', (request, id) => runAuthed(request, (req) => _getDiary(req, id)));
+    router.get(
+      '/<id>',
+      (request, id) => runAuthed(request, (req) => _getDiary(req, id)),
+    );
     router.post('/', authed.addHandler(_createDiary));
-    router.put('/<id>', (request, id) => runAuthed(request, (req) => _updateDiary(req, id)));
-    router.delete('/<id>', (request, id) => runAuthed(request, (req) => _deleteDiary(req, id)));
+    router.put(
+      '/<id>',
+      (request, id) => runAuthed(request, (req) => _updateDiary(req, id)),
+    );
+    router.delete(
+      '/<id>',
+      (request, id) => runAuthed(request, (req) => _deleteDiary(req, id)),
+    );
 
     return router;
   }
@@ -136,14 +148,19 @@ class DiaryController {
 
       final diaryRepository = DiaryRepository.i;
       final existingDiary = diaryRepository.find(diaryId);
-      if (existingDiary == null) return ResponseUtils.error('日记不存在', status: 404);
+      if (existingDiary == null)
+        return ResponseUtils.error('日记不存在', status: 404);
 
       final body = await RequestUtils.parseJsonBody(request);
 
-      if (body.containsKey('content')) existingDiary.content = body['content'] as String;
-      if (body.containsKey('tags')) existingDiary.tags = body['tags'] as String?;
-      if (body.containsKey('mood')) existingDiary.mood = body['mood'] as String?;
-      if (body.containsKey('images')) existingDiary.entity.images = body['images'] as String?;
+      if (body.containsKey('content'))
+        existingDiary.content = body['content'] as String;
+      if (body.containsKey('tags'))
+        existingDiary.tags = body['tags'] as String?;
+      if (body.containsKey('mood'))
+        existingDiary.mood = body['mood'] as String?;
+      if (body.containsKey('images'))
+        existingDiary.entity.images = body['images'] as String?;
 
       existingDiary.updatedAt = DateTime.now();
       diaryRepository.save(existingDiary);
@@ -179,7 +196,9 @@ class DiaryController {
       'content': MarkdownImageUtils.convertContentImages(diary.content),
       'tags': diary.tags,
       'mood': diary.mood,
-      'images': diary.imagesList.map(FileService.i.convertLocalPathToWebPath).toList(),
+      'images': diary.imagesList
+          .map(FileService.i.convertLocalPathToWebPath)
+          .toList(),
       'createdAt': diary.createdAt.toIso8601String(),
       'updatedAt': diary.updatedAt.toIso8601String(),
     };

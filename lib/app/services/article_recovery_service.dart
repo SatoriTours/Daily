@@ -1,11 +1,14 @@
 import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/webpage_parser_service.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
 /// 文章恢复服务
 ///
 /// 负责在应用启动时检测并恢复未完成的文章 AI 处理任务
-class ArticleRecoveryService {
+class ArticleRecoveryService extends AppService {
+  @override
+  ServicePriority get priority => ServicePriority.low;
   // ====================== 单例实现 ======================
   ArticleRecoveryService._();
   static final ArticleRecoveryService _instance = ArticleRecoveryService._();
@@ -13,7 +16,7 @@ class ArticleRecoveryService {
 
   // ====================== 初始化 ======================
 
-  /// 初始化服务
+  @override
   Future<void> init() async {
     await _resumePendingAiTasks();
   }

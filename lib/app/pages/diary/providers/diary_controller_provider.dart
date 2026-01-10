@@ -3,7 +3,6 @@ library;
 
 import 'dart:io';
 
-
 import 'package:daily_satori/app_exports.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -121,7 +120,10 @@ class DiaryController extends _$DiaryController {
         if (await file.exists()) {
           final timestamp = DateTime.now().millisecondsSinceEpoch;
           final ext = p.extension(path);
-          final newPath = p.join(_imageDirectoryPath!, '${timestamp}_${newPaths.length}$ext');
+          final newPath = p.join(
+            _imageDirectoryPath!,
+            '${timestamp}_${newPaths.length}$ext',
+          );
           await file.copy(newPath);
           newPaths.add(newPath);
         } else {
@@ -135,7 +137,8 @@ class DiaryController extends _$DiaryController {
     return newPaths.join(',');
   }
 
-  void toggleSearchVisibility() => state = state.copyWith(isSearchVisible: !state.isSearchVisible);
+  void toggleSearchVisibility() =>
+      state = state.copyWith(isSearchVisible: !state.isSearchVisible);
 
   void filterByDate(DateTime date) {
     state = state.copyWith(selectedFilterDate: date);
@@ -147,7 +150,12 @@ class DiaryController extends _$DiaryController {
     _loadDiaries();
   }
 
-  Future<void> createDiary(String content, {String? tags, String? images, DateTime? date}) async {
+  Future<void> createDiary(
+    String content, {
+    String? tags,
+    String? images,
+    DateTime? date,
+  }) async {
     final localImages = await _copyImagesToLocal(images);
     final diary = DiaryModel.create(
       content: content,
@@ -160,7 +168,12 @@ class DiaryController extends _$DiaryController {
     _extractTags();
   }
 
-  Future<void> updateDiary(int id, String content, {String? tags, String? images}) async {
+  Future<void> updateDiary(
+    int id,
+    String content, {
+    String? tags,
+    String? images,
+  }) async {
     final localImages = await _copyImagesToLocal(images);
     final oldDiary = DiaryRepository.i.find(id);
     if (oldDiary != null) {
@@ -176,7 +189,8 @@ class DiaryController extends _$DiaryController {
   }
 
   void updateCurrentTag(String tag) => state = state.copyWith(currentTag: tag);
-  void enableSearch(bool enabled) => state = state.copyWith(isSearchVisible: enabled);
+  void enableSearch(bool enabled) =>
+      state = state.copyWith(isSearchVisible: enabled);
 
   void search(String query) {
     state = state.copyWith(searchQuery: query);
@@ -184,7 +198,11 @@ class DiaryController extends _$DiaryController {
   }
 
   void clearFilters() {
-    state = state.copyWith(searchQuery: '', selectedFilterDate: null, currentTag: '');
+    state = state.copyWith(
+      searchQuery: '',
+      selectedFilterDate: null,
+      currentTag: '',
+    );
     _loadDiaries();
   }
 

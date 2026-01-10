@@ -1,7 +1,7 @@
 import 'package:daily_satori/app/pages/backup_settings/providers/backup_settings_controller_provider.dart';
 
-
 import 'package:daily_satori/app_exports.dart';
+
 class BackupSettingsView extends ConsumerWidget {
   const BackupSettingsView({super.key});
 
@@ -13,7 +13,10 @@ class BackupSettingsView extends ConsumerWidget {
     return Scaffold(
       backgroundColor: colorScheme.surface,
       appBar: SAppBar(
-        title: Text('备份与恢复', style: TextStyle(color: AppColors.getOnPrimary(context))),
+        title: Text(
+          '备份与恢复',
+          style: TextStyle(color: AppColors.getOnPrimary(context)),
+        ),
         centerTitle: true,
         elevation: 0,
         backgroundColorLight: AppColors.primary,
@@ -24,7 +27,11 @@ class BackupSettingsView extends ConsumerWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, WidgetRef ref, BackupSettingsControllerState state) {
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    BackupSettingsControllerState state,
+  ) {
     final hasBackupDirectory = state.backupDirectory.isNotEmpty;
 
     if (!hasBackupDirectory) {
@@ -48,31 +55,52 @@ class BackupSettingsView extends ConsumerWidget {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: colorScheme.primaryContainer.withValues(alpha: Opacities.high),
+                color: colorScheme.primaryContainer.withValues(
+                  alpha: Opacities.high,
+                ),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.folder_open_rounded, size: 64, color: colorScheme.primary),
+              child: Icon(
+                Icons.folder_open_rounded,
+                size: 64,
+                color: colorScheme.primary,
+              ),
             ),
             Dimensions.verticalSpacerL,
             Dimensions.verticalSpacerL,
-            Text('请选择备份目录', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              '请选择备份目录',
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             Dimensions.verticalSpacerM,
             Text(
               '选择一个文件夹存储您的应用数据备份',
               style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: Opacities.higherOpaque),
+                color: colorScheme.onSurface.withValues(
+                  alpha: Opacities.higherOpaque,
+                ),
               ),
               textAlign: TextAlign.center,
             ),
             Dimensions.verticalSpacerL,
             Dimensions.verticalSpacerL,
             ElevatedButton.icon(
-              onPressed: () => ref.read(backupSettingsControllerProvider.notifier).selectBackupDirectory(),
-              icon: const Icon(Icons.create_new_folder_rounded, size: Dimensions.iconSizeM),
+              onPressed: () => ref
+                  .read(backupSettingsControllerProvider.notifier)
+                  .selectBackupDirectory(),
+              icon: const Icon(
+                Icons.create_new_folder_rounded,
+                size: Dimensions.iconSizeM,
+              ),
               label: const Text('选择备份目录'),
               style: ButtonStyles.getPrimaryStyle(context).copyWith(
                 padding: const WidgetStatePropertyAll(
-                  EdgeInsets.symmetric(horizontal: Dimensions.spacingXl, vertical: Dimensions.spacingM),
+                  EdgeInsets.symmetric(
+                    horizontal: Dimensions.spacingXl,
+                    vertical: Dimensions.spacingM,
+                  ),
                 ),
               ),
             ),
@@ -82,7 +110,11 @@ class BackupSettingsView extends ConsumerWidget {
     );
   }
 
-  Widget _buildMainContent(BuildContext context, WidgetRef ref, BackupSettingsControllerState state) {
+  Widget _buildMainContent(
+    BuildContext context,
+    WidgetRef ref,
+    BackupSettingsControllerState state,
+  ) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: Dimensions.paddingPage,
@@ -121,17 +153,27 @@ class BackupSettingsView extends ConsumerWidget {
     );
   }
 
-  Widget _buildDirectoryCard(BuildContext context, WidgetRef ref, BackupSettingsControllerState state) {
+  Widget _buildDirectoryCard(
+    BuildContext context,
+    WidgetRef ref,
+    BackupSettingsControllerState state,
+  ) {
     final textTheme = AppTheme.getTextTheme(context);
     final cardColor = AppColors.getSuccess(context);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingL, vertical: Dimensions.spacingS),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.spacingL,
+        vertical: Dimensions.spacingS,
+      ),
       decoration: BoxDecoration(
         color: cardColor.withValues(alpha: Opacities.low),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
-        border: Border.all(color: cardColor.withValues(alpha: Opacities.mediumHigh), width: 1.5),
+        border: Border.all(
+          color: cardColor.withValues(alpha: Opacities.mediumHigh),
+          width: 1.5,
+        ),
       ),
       child: Row(
         children: [
@@ -142,7 +184,11 @@ class BackupSettingsView extends ConsumerWidget {
               color: cardColor.withValues(alpha: Opacities.mediumLow),
               borderRadius: BorderRadius.circular(Dimensions.radiusS),
             ),
-            child: Icon(Icons.folder_rounded, size: Dimensions.iconSizeXl - 6, color: cardColor),
+            child: Icon(
+              Icons.folder_rounded,
+              size: Dimensions.iconSizeXl - 6,
+              color: cardColor,
+            ),
           ),
           Dimensions.horizontalSpacerM,
           Expanded(
@@ -151,12 +197,17 @@ class BackupSettingsView extends ConsumerWidget {
               children: [
                 Text(
                   '备份位置',
-                  style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: cardColor),
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: cardColor,
+                  ),
                 ),
                 Dimensions.verticalSpacerXs,
                 Text(
                   state.backupDirectory,
-                  style: textTheme.bodySmall?.copyWith(color: cardColor.withValues(alpha: Opacities.highOpaque)),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: cardColor.withValues(alpha: Opacities.highOpaque),
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -165,7 +216,9 @@ class BackupSettingsView extends ConsumerWidget {
           ),
           Dimensions.horizontalSpacerS,
           InkWell(
-            onTap: () => ref.read(backupSettingsControllerProvider.notifier).selectBackupDirectory(),
+            onTap: () => ref
+                .read(backupSettingsControllerProvider.notifier)
+                .selectBackupDirectory(),
             borderRadius: BorderRadius.circular(Dimensions.radiusS),
             child: Container(
               padding: Dimensions.paddingS,
@@ -173,7 +226,11 @@ class BackupSettingsView extends ConsumerWidget {
                 color: cardColor.withValues(alpha: Opacities.mediumLow),
                 borderRadius: BorderRadius.circular(Dimensions.radiusS),
               ),
-              child: Icon(Icons.edit_outlined, size: Dimensions.iconSizeM, color: cardColor),
+              child: Icon(
+                Icons.edit_outlined,
+                size: Dimensions.iconSizeM,
+                color: cardColor,
+              ),
             ),
           ),
         ],
@@ -200,7 +257,10 @@ class BackupSettingsView extends ConsumerWidget {
         decoration: BoxDecoration(
           color: color.withValues(alpha: Opacities.low),
           borderRadius: BorderRadius.circular(Dimensions.radiusM),
-          border: Border.all(color: color.withValues(alpha: Opacities.mediumHigh), width: 1.5),
+          border: Border.all(
+            color: color.withValues(alpha: Opacities.mediumHigh),
+            width: 1.5,
+          ),
         ),
         child: Row(
           children: [
@@ -220,13 +280,18 @@ class BackupSettingsView extends ConsumerWidget {
                 children: [
                   Text(
                     title,
-                    style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: color),
+                    style: textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
                   ),
                   if (subtitle != null) ...[
                     Dimensions.verticalSpacerXs,
                     Text(
                       subtitle,
-                      style: textTheme.bodySmall?.copyWith(color: color.withValues(alpha: Opacities.highOpaque)),
+                      style: textTheme.bodySmall?.copyWith(
+                        color: color.withValues(alpha: Opacities.highOpaque),
+                      ),
                     ),
                   ],
                 ],
@@ -255,7 +320,9 @@ class BackupSettingsView extends ConsumerWidget {
           title,
           style: textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
-            color: colorScheme.onSurface.withValues(alpha: Opacities.veryLowOpaque),
+            color: colorScheme.onSurface.withValues(
+              alpha: Opacities.veryLowOpaque,
+            ),
           ),
         ),
       ],
@@ -271,18 +338,28 @@ class BackupSettingsView extends ConsumerWidget {
       decoration: BoxDecoration(
         color: colorScheme.primary.withValues(alpha: Opacities.low),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
-        border: Border.all(color: colorScheme.primary.withValues(alpha: Opacities.medium), width: 1),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: Opacities.medium),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.lightbulb_outline_rounded, size: Dimensions.iconSizeM, color: colorScheme.primary),
+              Icon(
+                Icons.lightbulb_outline_rounded,
+                size: Dimensions.iconSizeM,
+                color: colorScheme.primary,
+              ),
               Dimensions.horizontalSpacerS,
               Text(
                 '备份说明',
-                style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.primary),
+                style: textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.primary,
+                ),
               ),
             ],
           ),
@@ -293,7 +370,9 @@ class BackupSettingsView extends ConsumerWidget {
             '• 建议定期备份数据以防丢失',
             style: textTheme.bodySmall?.copyWith(
               height: 1.6,
-              color: colorScheme.onSurface.withValues(alpha: Opacities.highOpaque),
+              color: colorScheme.onSurface.withValues(
+                alpha: Opacities.highOpaque,
+              ),
             ),
           ),
         ],

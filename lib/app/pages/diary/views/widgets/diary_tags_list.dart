@@ -6,7 +6,11 @@ class DiaryTagsList extends StatelessWidget {
   final List<String> tags;
   final Function(String) onTagSelected;
 
-  const DiaryTagsList({super.key, required this.tags, required this.onTagSelected});
+  const DiaryTagsList({
+    super.key,
+    required this.tags,
+    required this.onTagSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +18,13 @@ class DiaryTagsList extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.all(16),
         child: Center(
-          child: Text('暂无标签', style: TextStyle(color: DiaryStyles.getSecondaryTextColor(context), fontSize: 14)),
+          child: Text(
+            '暂无标签',
+            style: TextStyle(
+              color: DiaryStyles.getSecondaryTextColor(context),
+              fontSize: 14,
+            ),
+          ),
         ),
       );
     }
@@ -33,7 +43,13 @@ class DiaryTagsList extends StatelessWidget {
     return InkWell(
       onTap: () => onTagSelected(tag),
       child: Chip(
-        label: Text('#$tag', style: TextStyle(color: DiaryStyles.getPrimaryTextColor(context), fontSize: 13)),
+        label: Text(
+          '#$tag',
+          style: TextStyle(
+            color: DiaryStyles.getPrimaryTextColor(context),
+            fontSize: 13,
+          ),
+        ),
         backgroundColor: DiaryStyles.getTagBackgroundColor(context),
         padding: const EdgeInsets.symmetric(horizontal: 4),
         visualDensity: VisualDensity.compact,

@@ -12,7 +12,10 @@ import 'package:daily_satori/app/services/logger_service.dart';
 /// 日记模块的工具类
 class DiaryUtils {
   /// 在当前光标位置插入Markdown内容
-  static void insertMarkdown(TextEditingController controller, String markdown) {
+  static void insertMarkdown(
+    TextEditingController controller,
+    String markdown,
+  ) {
     final int currentPosition = controller.selection.baseOffset;
     final int currentEndPosition = controller.selection.extentOffset;
     final bool hasSelection = currentPosition != currentEndPosition;
@@ -20,15 +23,21 @@ class DiaryUtils {
     // 处理光标位置无效的情况
     if (currentPosition < 0) {
       controller.text = controller.text + markdown;
-      controller.selection = TextSelection.collapsed(offset: controller.text.length);
+      controller.selection = TextSelection.collapsed(
+        offset: controller.text.length,
+      );
       return;
     }
 
     // 如果有选中文本，则对选中的文本应用格式
     if (hasSelection) {
       final String selectedText = controller.text.substring(
-        currentPosition < currentEndPosition ? currentPosition : currentEndPosition,
-        currentPosition < currentEndPosition ? currentEndPosition : currentPosition,
+        currentPosition < currentEndPosition
+            ? currentPosition
+            : currentEndPosition,
+        currentPosition < currentEndPosition
+            ? currentEndPosition
+            : currentPosition,
       );
 
       // 应用不同的格式
@@ -57,29 +66,43 @@ class DiaryUtils {
 
       // 替换选中的文本
       final newText = controller.text.replaceRange(
-        currentPosition < currentEndPosition ? currentPosition : currentEndPosition,
-        currentPosition < currentEndPosition ? currentEndPosition : currentPosition,
+        currentPosition < currentEndPosition
+            ? currentPosition
+            : currentEndPosition,
+        currentPosition < currentEndPosition
+            ? currentEndPosition
+            : currentPosition,
         formattedText,
       );
 
       controller.text = newText;
       // 更新光标位置
       final newCursorPosition =
-          (currentPosition < currentEndPosition ? currentPosition : currentEndPosition) + formattedText.length;
+          (currentPosition < currentEndPosition
+              ? currentPosition
+              : currentEndPosition) +
+          formattedText.length;
       controller.selection = TextSelection.collapsed(offset: newCursorPosition);
     } else {
       // 在光标位置插入Markdown
       final String newText =
-          controller.text.substring(0, currentPosition) + markdown + controller.text.substring(currentPosition);
+          controller.text.substring(0, currentPosition) +
+          markdown +
+          controller.text.substring(currentPosition);
 
       controller.text = newText;
-      controller.selection = TextSelection.collapsed(offset: currentPosition + markdown.length);
+      controller.selection = TextSelection.collapsed(
+        offset: currentPosition + markdown.length,
+      );
     }
   }
 
   /// 检查文本是否为URL
   static bool isUrl(String text) {
-    final urlPattern = RegExp(r'^(http|https)://[a-zA-Z0-9-_.]+\.[a-zA-Z]{2,}(:[0-9]+)?(/.*)?$', caseSensitive: false);
+    final urlPattern = RegExp(
+      r'^(http|https)://[a-zA-Z0-9-_.]+\.[a-zA-Z]{2,}(:[0-9]+)?(/.*)?$',
+      caseSensitive: false,
+    );
     return urlPattern.hasMatch(text.trim());
   }
 
@@ -106,7 +129,10 @@ class DiaryUtils {
       builder: (context) => AlertDialog(
         title: Text(
           '预览',
-          style: TextStyle(color: DiaryStyles.getPrimaryTextColor(context), fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: DiaryStyles.getPrimaryTextColor(context),
+            fontWeight: FontWeight.w600,
+          ),
         ),
         content: SizedBox(
           width: double.maxFinite,
@@ -133,7 +159,10 @@ class DiaryUtils {
                         borderRadius: BorderRadius.circular(8.0),
                       ),
                       child: Center(
-                        child: Icon(Icons.broken_image_outlined, color: DiaryStyles.getSecondaryTextColor(context)),
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: DiaryStyles.getSecondaryTextColor(context),
+                        ),
                       ),
                     ),
                   ),
@@ -145,7 +174,10 @@ class DiaryUtils {
         actions: [
           TextButton(
             onPressed: () => AppNavigation.back(),
-            child: Text('关闭', style: TextStyle(color: DiaryStyles.getAccentColor(context))),
+            child: Text(
+              '关闭',
+              style: TextStyle(color: DiaryStyles.getAccentColor(context)),
+            ),
           ),
         ],
         backgroundColor: DiaryStyles.getBottomSheetColor(context),
@@ -160,7 +192,12 @@ class DiaryUtils {
 
     return MarkdownStyleSheet(
       // 段落样式优化
-      p: TextStyle(color: DiaryStyles.getPrimaryTextColor(context), fontSize: 15.0, height: 1.4, letterSpacing: 0.2),
+      p: TextStyle(
+        color: DiaryStyles.getPrimaryTextColor(context),
+        fontSize: 15.0,
+        height: 1.4,
+        letterSpacing: 0.2,
+      ),
 
       // 标题样式优化
       h1: TextStyle(
@@ -198,25 +235,41 @@ class DiaryUtils {
         height: 1.4,
       ),
       blockquoteDecoration: BoxDecoration(
-        border: Border(left: BorderSide(color: DiaryStyles.getAccentColor(context).withAlpha(128), width: 3.0)),
+        border: Border(
+          left: BorderSide(
+            color: DiaryStyles.getAccentColor(context).withAlpha(128),
+            width: 3.0,
+          ),
+        ),
       ),
-      blockquotePadding: const EdgeInsets.only(left: 12.0, top: 6.0, bottom: 6.0),
+      blockquotePadding: const EdgeInsets.only(
+        left: 12.0,
+        top: 6.0,
+        bottom: 6.0,
+      ),
 
       // 代码样式优化
       code: TextStyle(
         color: isDarkMode ? Colors.greenAccent[200] : Colors.green[800],
-        backgroundColor: isDarkMode ? Colors.grey[850] : DiaryStyles.getInputBackgroundColor(context),
+        backgroundColor: isDarkMode
+            ? Colors.grey[850]
+            : DiaryStyles.getInputBackgroundColor(context),
         fontFamily: 'monospace',
         fontSize: 14.0,
       ),
       codeblockDecoration: BoxDecoration(
-        color: isDarkMode ? Colors.grey[850] : DiaryStyles.getInputBackgroundColor(context),
+        color: isDarkMode
+            ? Colors.grey[850]
+            : DiaryStyles.getInputBackgroundColor(context),
         borderRadius: BorderRadius.circular(6.0),
       ),
       codeblockPadding: const EdgeInsets.all(8.0),
 
       // 列表样式优化
-      listBullet: TextStyle(color: DiaryStyles.getAccentColor(context), fontSize: 14),
+      listBullet: TextStyle(
+        color: DiaryStyles.getAccentColor(context),
+        fontSize: 14,
+      ),
       listIndent: 20.0,
 
       // 链接样式优化
@@ -228,15 +281,31 @@ class DiaryUtils {
       ),
 
       // 强调样式优化
-      em: TextStyle(fontStyle: FontStyle.italic, color: DiaryStyles.getPrimaryTextColor(context), fontSize: 15.0),
-      strong: TextStyle(fontWeight: FontWeight.w700, color: DiaryStyles.getPrimaryTextColor(context), fontSize: 15.0),
+      em: TextStyle(
+        fontStyle: FontStyle.italic,
+        color: DiaryStyles.getPrimaryTextColor(context),
+        fontSize: 15.0,
+      ),
+      strong: TextStyle(
+        fontWeight: FontWeight.w700,
+        color: DiaryStyles.getPrimaryTextColor(context),
+        fontSize: 15.0,
+      ),
 
       // 段间距优化
       blockSpacing: 12.0,
       horizontalRuleDecoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: DiaryStyles.getSecondaryTextColor(context).withAlpha(77), width: 1.0)),
+        border: Border(
+          bottom: BorderSide(
+            color: DiaryStyles.getSecondaryTextColor(context).withAlpha(77),
+            width: 1.0,
+          ),
+        ),
       ),
-      tableBorder: TableBorder.all(color: DiaryStyles.getSecondaryTextColor(context).withAlpha(77), width: 1.0),
+      tableBorder: TableBorder.all(
+        color: DiaryStyles.getSecondaryTextColor(context).withAlpha(77),
+        width: 1.0,
+      ),
       tableHeadAlign: TextAlign.center,
       tableCellsPadding: const EdgeInsets.all(6.0),
     );

@@ -44,28 +44,47 @@ class PluginCard extends ConsumerWidget {
   }
 
   /// 构建标题行
-  Widget _buildTitleRow(BuildContext context, WidgetRef ref, bool isUpdating, PluginCenterControllerState state) {
+  Widget _buildTitleRow(
+    BuildContext context,
+    WidgetRef ref,
+    bool isUpdating,
+    PluginCenterControllerState state,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // 图标
         Container(
           decoration: BoxDecoration(
-            color: AppColors.getPrimary(context).withValues(alpha: Opacities.low),
+            color: AppColors.getPrimary(
+              context,
+            ).withValues(alpha: Opacities.low),
             borderRadius: Dimensions.borderRadiusS,
           ),
           padding: Dimensions.paddingS,
-          child: Icon(Icons.settings_input_svideo, color: AppColors.getPrimary(context), size: Dimensions.iconSizeM),
+          child: Icon(
+            Icons.settings_input_svideo,
+            color: AppColors.getPrimary(context),
+            size: Dimensions.iconSizeM,
+          ),
         ),
         Dimensions.horizontalSpacerM,
 
         // 文件名
         Expanded(
-          child: Text(plugin.fileName, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold)),
+          child: Text(
+            plugin.fileName,
+            style: AppTypography.titleMedium.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
 
         // 更新按钮或进度指示器
-        if (isUpdating) _buildUpdatingIndicator(context) else _buildUpdateButton(context, ref, state),
+        if (isUpdating)
+          _buildUpdatingIndicator(context)
+        else
+          _buildUpdateButton(context, ref, state),
       ],
     );
   }
@@ -73,7 +92,10 @@ class PluginCard extends ConsumerWidget {
   /// 构建更新中指示器
   Widget _buildUpdatingIndicator(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingXs + 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.spacingM,
+        vertical: Dimensions.spacingXs + 2,
+      ),
       decoration: BoxDecoration(
         color: AppColors.getPrimary(context).withValues(alpha: Opacities.low),
         borderRadius: BorderRadius.circular(Dimensions.radiusCircular),
@@ -86,13 +108,18 @@ class PluginCard extends ConsumerWidget {
             height: Dimensions.iconSizeXs - 2,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.getPrimary(context),
+              ),
             ),
           ),
           Dimensions.horizontalSpacerS,
           Text(
             '更新中',
-            style: AppTypography.labelSmall.copyWith(color: AppColors.getPrimary(context), fontWeight: FontWeight.w500),
+            style: AppTypography.labelSmall.copyWith(
+              color: AppColors.getPrimary(context),
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -100,7 +127,11 @@ class PluginCard extends ConsumerWidget {
   }
 
   /// 构建更新按钮
-  Widget _buildUpdateButton(BuildContext context, WidgetRef ref, PluginCenterControllerState state) {
+  Widget _buildUpdateButton(
+    BuildContext context,
+    WidgetRef ref,
+    PluginCenterControllerState state,
+  ) {
     final isEnabled = state.updatingPluginId.isEmpty;
     return Material(
       color: Colors.transparent,
@@ -117,7 +148,9 @@ class PluginCard extends ConsumerWidget {
                 Icons.refresh,
                 color: isEnabled
                     ? AppColors.getPrimary(context)
-                    : AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+                    : AppColors.getOnSurface(
+                        context,
+                      ).withValues(alpha: Opacities.medium),
                 size: Dimensions.iconSizeM + 2,
               ),
             ],
@@ -132,7 +165,9 @@ class PluginCard extends ConsumerWidget {
     return Text(
       plugin.description,
       style: AppTypography.bodyMedium.copyWith(
-        color: AppColors.getOnSurface(context).withValues(alpha: Opacities.mediumHigh),
+        color: AppColors.getOnSurface(
+          context,
+        ).withValues(alpha: Opacities.mediumHigh),
         height: 1.4,
       ),
     );
@@ -141,9 +176,14 @@ class PluginCard extends ConsumerWidget {
   /// 构建更新时间信息
   Widget _buildUpdateTime(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs + 2),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.spacingS + 2,
+        vertical: Dimensions.spacingXs + 2,
+      ),
       decoration: BoxDecoration(
-        color: AppColors.getOnSurface(context).withValues(alpha: Opacities.extraLow),
+        color: AppColors.getOnSurface(
+          context,
+        ).withValues(alpha: Opacities.extraLow),
         borderRadius: Dimensions.borderRadiusS,
       ),
       child: Row(
@@ -152,13 +192,17 @@ class PluginCard extends ConsumerWidget {
           Icon(
             Icons.update,
             size: Dimensions.iconSizeXs - 2,
-            color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+            color: AppColors.getOnSurface(
+              context,
+            ).withValues(alpha: Opacities.medium),
           ),
           Dimensions.horizontalSpacerXs,
           Text(
             '上次更新: ${_getUpdateTimeText(plugin.lastUpdateTime)}',
             style: AppTypography.labelSmall.copyWith(
-              color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+              color: AppColors.getOnSurface(
+                context,
+              ).withValues(alpha: Opacities.medium),
             ),
           ),
         ],

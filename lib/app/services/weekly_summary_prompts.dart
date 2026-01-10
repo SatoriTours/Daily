@@ -59,7 +59,8 @@ String buildProductionSummaryPrompt(
   List<BookViewpointModel>? viewpoints,
   String? previousAppIdeas,
 }) {
-  final dateRange = '${weekStart.month}月${weekStart.day}日 - ${weekEnd.month}月${weekEnd.day}日';
+  final dateRange =
+      '${weekStart.month}月${weekStart.day}日 - ${weekEnd.month}月${weekEnd.day}日';
 
   return _buildPrompt(
     WeeklySummaryInput(
@@ -92,9 +93,15 @@ List<Map<String, dynamic>> _formatArticles(List<ArticleModel> articles) {
   return articles.map((article) {
     final title = article.aiTitle ?? article.title ?? '无标题';
     final content = article.aiContent ?? article.content ?? '';
-    final summary = content.length > 200 ? '${content.substring(0, 200)}...' : content;
+    final summary = content.length > 200
+        ? '${content.substring(0, 200)}...'
+        : content;
 
-    return {'id': article.id, 'title': title, 'summary': summary.isNotEmpty ? summary : '无摘要'};
+    return {
+      'id': article.id,
+      'title': title,
+      'summary': summary.isNotEmpty ? summary : '无摘要',
+    };
   }).toList();
 }
 
@@ -103,17 +110,27 @@ List<Map<String, dynamic>> _formatDiaries(List<DiaryModel> diaries) {
   return diaries.map((diary) {
     final date = diary.createdAt;
     final content = diary.content;
-    final summary = content.length > 150 ? '${content.substring(0, 150)}...' : content;
+    final summary = content.length > 150
+        ? '${content.substring(0, 150)}...'
+        : content;
 
-    return {'id': diary.id, 'date': '${date.month}月${date.day}日', 'summary': summary};
+    return {
+      'id': diary.id,
+      'date': '${date.month}月${date.day}日',
+      'summary': summary,
+    };
   }).toList();
 }
 
 /// 格式化书籍观点列表为模板数据
-List<Map<String, dynamic>> _formatViewpoints(List<BookViewpointModel> viewpoints) {
+List<Map<String, dynamic>> _formatViewpoints(
+  List<BookViewpointModel> viewpoints,
+) {
   return viewpoints.map((vp) {
     final content = vp.content;
-    final summary = content.length > 150 ? '${content.substring(0, 150)}...' : content;
+    final summary = content.length > 150
+        ? '${content.substring(0, 150)}...'
+        : content;
 
     return {'id': vp.id, 'title': vp.title, 'content': summary};
   }).toList();

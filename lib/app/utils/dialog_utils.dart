@@ -111,7 +111,9 @@ class DialogUtils {
       return;
     }
 
-    final TextEditingController controller = TextEditingController(text: initialValue);
+    final TextEditingController controller = TextEditingController(
+      text: initialValue,
+    );
     await showDialog<String>(
       context: context,
       builder: (context) => _CustomDialog(
@@ -172,7 +174,10 @@ class DialogUtils {
             mainAxisSize: MainAxisSize.min,
             children: [
               const CircularProgressIndicator(),
-              if (tips.isNotEmpty) ...[const SizedBox(height: 16), Text(tips, style: textTheme)],
+              if (tips.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(tips, style: textTheme),
+              ],
             ],
           ),
         ),
@@ -193,7 +198,10 @@ class DialogUtils {
   ///
   /// [title] 对话框标题
   /// [initialText] 初始提示文本
-  static void showDownloadProgress({String title = '正在下载', String initialText = '准备下载...'}) {
+  static void showDownloadProgress({
+    String title = '正在下载',
+    String initialText = '准备下载...',
+  }) {
     logger.i("[DialogUtils] 显示下载进度对话框");
     if (_isProgressShown) return;
 
@@ -212,7 +220,11 @@ class DialogUtils {
       barrierColor: const Color(0x80000000),
       builder: (context) => PopScope(
         canPop: false,
-        child: _DownloadProgressDialog(title: title, progressValue: _progressValue, progressText: _progressText),
+        child: _DownloadProgressDialog(
+          title: title,
+          progressValue: _progressValue,
+          progressText: _progressText,
+        ),
       ),
     );
     _isProgressShown = true;
@@ -263,7 +275,12 @@ class _CustomDialog extends StatelessWidget {
   final Widget? contentWidget; // 自定义内容组件(可选)
   final List<Widget> actions;
 
-  const _CustomDialog({required this.title, required this.content, this.contentWidget, required this.actions});
+  const _CustomDialog({
+    required this.title,
+    required this.content,
+    this.contentWidget,
+    required this.actions,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -273,7 +290,11 @@ class _CustomDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: dialogTheme.backgroundColor ?? theme.colorScheme.surface,
       elevation: dialogTheme.elevation ?? 0,
-      shape: dialogTheme.shape ?? RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
+      shape:
+          dialogTheme.shape ??
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Dimensions.radiusL),
+          ),
       child: Padding(
         padding: Dimensions.paddingDialog,
         child: IntrinsicHeight(
@@ -286,12 +307,16 @@ class _CustomDialog extends StatelessWidget {
                 title,
                 style:
                     dialogTheme.titleTextStyle ??
-                    theme.textTheme.headlineSmall?.copyWith(color: theme.colorScheme.onSurface),
+                    theme.textTheme.headlineSmall?.copyWith(
+                      color: theme.colorScheme.onSurface,
+                    ),
               ),
               const SizedBox(height: 16),
               // 内容 - 使用 ConstrainedBox 限制最大高度并支持滚动
               ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.5,
+                ),
                 child: SingleChildScrollView(
                   child:
                       contentWidget ??
@@ -300,7 +325,9 @@ class _CustomDialog extends StatelessWidget {
                               content,
                               style:
                                   dialogTheme.contentTextStyle ??
-                                  theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                                  theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
                             )
                           : const SizedBox.shrink()),
                 ),
@@ -322,7 +349,11 @@ class _DownloadProgressDialog extends StatelessWidget {
   final ValueNotifier<double> progressValue;
   final ValueNotifier<String> progressText;
 
-  const _DownloadProgressDialog({required this.title, required this.progressValue, required this.progressText});
+  const _DownloadProgressDialog({
+    required this.title,
+    required this.progressValue,
+    required this.progressText,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -332,7 +363,11 @@ class _DownloadProgressDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: dialogTheme.backgroundColor ?? theme.colorScheme.surface,
       elevation: dialogTheme.elevation ?? 0,
-      shape: dialogTheme.shape ?? RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
+      shape:
+          dialogTheme.shape ??
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Dimensions.radiusL),
+          ),
       child: Padding(
         padding: Dimensions.paddingDialog,
         child: Column(
@@ -344,7 +379,9 @@ class _DownloadProgressDialog extends StatelessWidget {
               title,
               style:
                   dialogTheme.titleTextStyle ??
-                  theme.textTheme.headlineSmall?.copyWith(color: theme.colorScheme.onSurface),
+                  theme.textTheme.headlineSmall?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                  ),
             ),
             const SizedBox(height: Dimensions.spacingL),
             // 进度条
@@ -353,7 +390,9 @@ class _DownloadProgressDialog extends StatelessWidget {
               builder: (context, value, child) => LinearProgressIndicator(
                 value: value > 0 ? value : null,
                 backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  theme.colorScheme.primary,
+                ),
                 minHeight: 6,
                 borderRadius: BorderRadius.circular(Dimensions.radiusXs),
               ),
@@ -362,8 +401,12 @@ class _DownloadProgressDialog extends StatelessWidget {
             // 进度文本
             ValueListenableBuilder<String>(
               valueListenable: progressText,
-              builder: (context, text, child) =>
-                  Text(text, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              builder: (context, text, child) => Text(
+                text,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
           ],
         ),

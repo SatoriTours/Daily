@@ -47,7 +47,9 @@ class AiProcessor {
     logger.i('[AI:摘要] ▶ 开始处理摘要和标签');
 
     try {
-      final (summary, tagsDynamic) = await AiService.i.summarize(content.trim());
+      final (summary, tagsDynamic) = await AiService.i.summarize(
+        content.trim(),
+      );
       final List<String> tags = tagsDynamic.map((e) => e.toString()).toList();
 
       if (summary.isEmpty) {
@@ -95,7 +97,11 @@ class AiProcessor {
 
     try {
       // 创建任务列表
-      final tasks = [_processTitleTask(article), _processSummaryTask(article), _processMarkdownTask(article)];
+      final tasks = [
+        _processTitleTask(article),
+        _processSummaryTask(article),
+        _processMarkdownTask(article),
+      ];
 
       // 并行执行所有AI处理任务
       await Future.wait(tasks);

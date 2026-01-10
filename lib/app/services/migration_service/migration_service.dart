@@ -2,12 +2,13 @@ import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/migration_service/migration_task.dart';
 import 'package:daily_satori/app/services/migration_service/migration_tasks.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
 /// 迁移服务，用于处理数据模型和文件存储的迁移工作
 ///
 /// 负责处理不同版本之间的数据结构变更、存储模式变更等迁移工作
 /// 支持版本管理，确保迁移任务按顺序执行且不会重复执行
-class MigrationService {
+class MigrationService extends AppService {
   // 单例模式
   MigrationService._();
   static final MigrationService _instance = MigrationService._();
@@ -16,7 +17,7 @@ class MigrationService {
   // 数据库版本号的设置键
   static const String _dbVersionKey = 'db_version';
 
-  /// 初始化服务
+  @override
   Future<void> init() async {
     try {
       // 获取当前数据库版本
@@ -34,7 +35,10 @@ class MigrationService {
 
   /// 获取当前数据库版本
   int _getCurrentDbVersion() {
-    final versionStr = SettingRepository.i.getSetting(_dbVersionKey, defaultValue: '0');
+    final versionStr = SettingRepository.i.getSetting(
+      _dbVersionKey,
+      defaultValue: '0',
+    );
     try {
       return int.parse(versionStr);
     } catch (e) {
@@ -50,7 +54,10 @@ class MigrationService {
   }
 
   /// 执行所有需要的迁移任务
-  Future<void> _runMigrations(int currentVersion, List<MigrationTask> tasks) async {
+  Future<void> _runMigrations(
+    int currentVersion,
+    List<MigrationTask> tasks,
+  ) async {
     // 最新版本号
     int latestVersion = currentVersion;
 

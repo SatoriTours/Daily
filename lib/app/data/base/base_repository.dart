@@ -156,7 +156,11 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
   // ==================== 分页查询 ====================
 
   /// 分页查询所有 Model
-  List<M> allPaginated({required int page, QueryIntegerProperty<E>? orderBy, bool descending = false}) {
+  List<M> allPaginated({
+    required int page,
+    QueryIntegerProperty<E>? orderBy,
+    bool descending = false,
+  }) {
     final offset = (page - 1) * pageSize;
     final queryBuilder = box.query();
 
@@ -172,7 +176,11 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
   }
 
   /// 分页查询所有 Model(别名)
-  List<M> allModelsPaginated({required int page, QueryIntegerProperty<E>? orderBy, bool descending = false}) {
+  List<M> allModelsPaginated({
+    required int page,
+    QueryIntegerProperty<E>? orderBy,
+    bool descending = false,
+  }) {
     return allPaginated(page: page, orderBy: orderBy, descending: descending);
   }
 
@@ -219,7 +227,8 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
   }
 
   /// 根据条件查询 Model 列表(别名)
-  List<M> findModelsByCondition(Condition<E> condition) => findByCondition(condition);
+  List<M> findModelsByCondition(Condition<E> condition) =>
+      findByCondition(condition);
 
   /// 根据条件分页查询 Model(别名)
   List<M> findModelsByConditionPaginated({
@@ -228,7 +237,12 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
     QueryIntegerProperty<E>? orderBy,
     bool descending = false,
   }) {
-    return findByConditionPaginated(condition: condition, page: page, orderBy: orderBy, descending: descending);
+    return findByConditionPaginated(
+      condition: condition,
+      page: page,
+      orderBy: orderBy,
+      descending: descending,
+    );
   }
 
   // ==================== 字符串查询 ====================
@@ -239,7 +253,10 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
     required String searchText,
     bool caseSensitive = false,
   }) {
-    final condition = property.contains(searchText, caseSensitive: caseSensitive);
+    final condition = property.contains(
+      searchText,
+      caseSensitive: caseSensitive,
+    );
     return findByCondition(condition);
   }
 
@@ -263,15 +280,25 @@ abstract class BaseRepository<E extends BaseEntity, M extends EntityModel<E>> {
     required DateTime startDate,
     required DateTime endDate,
   }) {
-    final condition = property.between(startDate.millisecondsSinceEpoch, endDate.millisecondsSinceEpoch);
+    final condition = property.between(
+      startDate.millisecondsSinceEpoch,
+      endDate.millisecondsSinceEpoch,
+    );
     return findByCondition(condition);
   }
 
   /// 根据指定日期查询
-  List<M> findByDate({required QueryIntegerProperty<E> property, required DateTime date}) {
+  List<M> findByDate({
+    required QueryIntegerProperty<E> property,
+    required DateTime date,
+  }) {
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
-    return findByDateRange(property: property, startDate: startOfDay, endDate: endOfDay);
+    return findByDateRange(
+      property: property,
+      startDate: startOfDay,
+      endDate: endOfDay,
+    );
   }
 
   // ==================== 统计功能 ====================

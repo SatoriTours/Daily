@@ -43,19 +43,25 @@ class BooksController extends _$BooksController {
   }
 
   /// 加载所有观点
-  Future<void> loadAllViewpoints() => ref.read(booksStateProvider.notifier).loadAllViewpoints();
+  Future<void> loadAllViewpoints() =>
+      ref.read(booksStateProvider.notifier).loadAllViewpoints();
 
   /// 上一个观点
   void previousViewpoint() {
     final current = ref.read(booksStateProvider).currentViewpointIndex;
-    if (current > 0) ref.read(booksStateProvider.notifier).setCurrentViewpointIndex(current - 1);
+    if (current > 0)
+      ref
+          .read(booksStateProvider.notifier)
+          .setCurrentViewpointIndex(current - 1);
   }
 
   /// 下一个观点
   void nextViewpoint() {
     final state = ref.read(booksStateProvider);
     if (state.currentViewpointIndex < state.viewpoints.length - 1) {
-      ref.read(booksStateProvider.notifier).setCurrentViewpointIndex(state.currentViewpointIndex + 1);
+      ref
+          .read(booksStateProvider.notifier)
+          .setCurrentViewpointIndex(state.currentViewpointIndex + 1);
     }
   }
 
@@ -101,7 +107,10 @@ class BooksController extends _$BooksController {
         title: Text('title.add_book'.t),
         content: TextField(
           controller: titleController,
-          decoration: InputDecoration(labelText: 'label.book_title'.t, hintText: 'hint.enter_book_name'.t),
+          decoration: InputDecoration(
+            labelText: 'label.book_title'.t,
+            hintText: 'hint.enter_book_name'.t,
+          ),
           autofocus: false,
           onSubmitted: (value) {
             if (value.trim().isNotEmpty) {
@@ -112,7 +121,10 @@ class BooksController extends _$BooksController {
         ),
         actionsAlignment: MainAxisAlignment.end,
         actions: [
-          TextButton(onPressed: () => AppNavigation.back(), child: Text('button.cancel'.t)),
+          TextButton(
+            onPressed: () => AppNavigation.back(),
+            child: Text('button.cancel'.t),
+          ),
           TextButton(
             onPressed: () {
               if (titleController.text.trim().isNotEmpty) {
@@ -131,13 +143,16 @@ class BooksController extends _$BooksController {
   }
 
   /// 跳转到指定观点索引
-  void goToViewpointIndex(int index) => ref.read(booksStateProvider.notifier).setCurrentViewpointIndex(index);
+  void goToViewpointIndex(int index) =>
+      ref.read(booksStateProvider.notifier).setCurrentViewpointIndex(index);
 
   /// 删除书籍
-  Future<void> deleteBook(int bookId) => ref.read(booksStateProvider.notifier).deleteBook(bookId);
+  Future<void> deleteBook(int bookId) =>
+      ref.read(booksStateProvider.notifier).deleteBook(bookId);
 
   /// 刷新书籍数据
-  Future<void> refreshBook(int bookId) => ref.read(booksStateProvider.notifier).refreshBook(bookId);
+  Future<void> refreshBook(int bookId) =>
+      ref.read(booksStateProvider.notifier).refreshBook(bookId);
 
   /// 打开指定ID的观点
   void openViewpointById(int viewpointId) {

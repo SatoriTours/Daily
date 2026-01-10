@@ -12,7 +12,10 @@ enum ArticleStatus {
 
   /// 从字符串值获取枚举
   static ArticleStatus fromValue(String value) {
-    return ArticleStatus.values.firstWhere((status) => status.value == value, orElse: () => ArticleStatus.error);
+    return ArticleStatus.values.firstWhere(
+      (status) => status.value == value,
+      orElse: () => ArticleStatus.error,
+    );
   }
 
   @override

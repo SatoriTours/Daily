@@ -29,7 +29,10 @@ class ViewpointCard extends StatelessWidget {
             _buildViewpointBookInfo(context, book),
             Dimensions.verticalSpacerL,
             _buildContent(context),
-            if (viewpoint.example.isNotEmpty) ...[Dimensions.verticalSpacerL, _buildExample(context)],
+            if (viewpoint.example.isNotEmpty) ...[
+              Dimensions.verticalSpacerL,
+              _buildExample(context),
+            ],
             Dimensions.verticalSpacerL,
             _buildFooter(context, book),
           ],
@@ -65,18 +68,27 @@ class ViewpointCard extends StatelessWidget {
   /// 构建案例
   Widget _buildExample(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingM, horizontal: Dimensions.spacingXs),
+      padding: const EdgeInsets.symmetric(
+        vertical: Dimensions.spacingM,
+        horizontal: Dimensions.spacingXs,
+      ),
       decoration: BoxDecoration(
         color: AppColors.getSurfaceVariant(context).withValues(alpha: 0.3),
         borderRadius: Dimensions.borderRadiusM,
-        border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.1)),
+        border: Border.all(
+          color: AppColors.getOutline(context).withValues(alpha: 0.1),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.lightbulb_outline, size: Dimensions.iconSizeS, color: AppColors.getPrimary(context)),
+              Icon(
+                Icons.lightbulb_outline,
+                size: Dimensions.iconSizeS,
+                color: AppColors.getPrimary(context),
+              ),
               Dimensions.horizontalSpacerS,
               Text(
                 '书籍案例',
@@ -110,9 +122,16 @@ class ViewpointCard extends StatelessWidget {
         Expanded(
           child: Row(
             children: [
-              const Icon(Icons.calendar_today, size: Dimensions.iconSizeXs - 2, color: Colors.grey),
+              const Icon(
+                Icons.calendar_today,
+                size: Dimensions.iconSizeXs - 2,
+                color: Colors.grey,
+              ),
               const SizedBox(width: Dimensions.spacingXs + 2),
-              Text(formattedDate, style: AppTypography.labelSmall.copyWith(color: Colors.grey)),
+              Text(
+                formattedDate,
+                style: AppTypography.labelSmall.copyWith(color: Colors.grey),
+              ),
             ],
           ),
         ),
@@ -125,7 +144,11 @@ class ViewpointCard extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        const Icon(Icons.menu_book, size: Dimensions.iconSizeXs - 2, color: Colors.grey),
+        const Icon(
+          Icons.menu_book,
+          size: Dimensions.iconSizeXs - 2,
+          color: Colors.grey,
+        ),
         const SizedBox(width: Dimensions.spacingXs + 2),
         Text(
           book != null ? '《${book.title}》· ${book.author}' : '未知书籍',

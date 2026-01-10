@@ -9,7 +9,10 @@ extension PartSummarize on AiService {
   /// 以一句话总结文本内容，常用于生成简短标题
   /// [content] 需要总结的内容
   /// [functionType] 功能类型，默认为0（通用配置）
-  Future<String> summarizeOneLine(String content, {int functionType = 0}) async {
+  Future<String> summarizeOneLine(
+    String content, {
+    int functionType = 0,
+  }) async {
     if (content.isEmpty) return '';
 
     // 验证AI服务可用性
@@ -24,12 +27,21 @@ extension PartSummarize on AiService {
     final trimmedContent = StringUtils.getSubstring(content, length: 500);
 
     // 准备摘要提示
-    final role = _renderTemplate(PluginService.i.getSummarizeOneLineRole(), {'text': trimmedContent});
+    final role = _renderTemplate(PluginService.i.getSummarizeOneLineRole(), {
+      'text': trimmedContent,
+    });
 
-    final prompt = _renderTemplate(PluginService.i.getSummarizeOneLinePrompt(), {'text': trimmedContent});
+    final prompt = _renderTemplate(
+      PluginService.i.getSummarizeOneLinePrompt(),
+      {'text': trimmedContent},
+    );
 
     // 发送请求，使用指定的功能类型
-    final response = await _sendRequest(role, prompt, functionType: functionType);
+    final response = await _sendRequest(
+      role,
+      prompt,
+      functionType: functionType,
+    );
 
     // 处理响应
     final result = response?.choices.first.message.content ?? '';
@@ -47,7 +59,10 @@ extension PartSummarize on AiService {
   /// 分析文本内容，生成详细摘要和相关标签
   /// [text] 需要分析的文本内容
   /// [functionType] 功能类型，默认为0（通用配置）
-  Future<(String, List<String>)> summarize(String text, {int functionType = 0}) async {
+  Future<(String, List<String>)> summarize(
+    String text, {
+    int functionType = 0,
+  }) async {
     if (text.isEmpty) return ('', const <String>[]);
 
     // 检查AI是否启用
@@ -60,7 +75,9 @@ extension PartSummarize on AiService {
 
     // 根据文本长度选择不同的摘要提示
     final isLongText = text.length > 300;
-    final systemPrompt = isLongText ? _longSummarizeSystemPrompt : _shortSummarizeSystemPrompt;
+    final systemPrompt = isLongText
+        ? _longSummarizeSystemPrompt
+        : _shortSummarizeSystemPrompt;
 
     // 发送JSON格式的请求，使用指定的功能类型
     final response = await _sendRequest(
@@ -88,12 +105,18 @@ extension PartSummarize on AiService {
     }
 
     // 格式化摘要结果
-    final String summary = isLongText ? _formatLongSummary(result) : result.summary.trim();
+    final String summary = isLongText
+        ? _formatLongSummary(result)
+        : result.summary.trim();
 
     final List<String> tags = result.tags;
 
-    logger.i("[AI摘要] 摘要生成完成: ${StringUtils.singleLine(StringUtils.getSubstring(summary))}");
-    logger.i("[AI摘要] 标签生成完成: ${StringUtils.singleLine(StringUtils.getSubstring(tags.join(', ')))}");
+    logger.i(
+      "[AI摘要] 摘要生成完成: ${StringUtils.singleLine(StringUtils.getSubstring(summary))}",
+    );
+    logger.i(
+      "[AI摘要] 标签生成完成: ${StringUtils.singleLine(StringUtils.getSubstring(tags.join(', ')))}",
+    );
 
     return (summary, tags);
   }
@@ -108,12 +131,16 @@ extension PartSummarize on AiService {
   }
 
   /// 获取短文本摘要系统提示
-  String get _shortSummarizeSystemPrompt =>
-      _renderTemplate(PluginService.i.getShortSummaryRole(), {'commonTags': _commonTags.join(',')});
+  String get _shortSummarizeSystemPrompt => _renderTemplate(
+    PluginService.i.getShortSummaryRole(),
+    {'commonTags': _commonTags.join(',')},
+  );
 
   /// 获取长文本摘要系统提示
-  String get _longSummarizeSystemPrompt =>
-      _renderTemplate(PluginService.i.getLongSummaryRole(), {'commonTags': _commonTags.join(',')});
+  String get _longSummarizeSystemPrompt => _renderTemplate(
+    PluginService.i.getLongSummaryRole(),
+    {'commonTags': _commonTags.join(',')},
+  );
 
   /// 获取常用标签列表
   List<String> get _commonTags => PluginService.i.getCommonTags().split(',');
@@ -136,13 +163,20 @@ class AiSummaryResult {
   final String summary;
 
   /// 构造函数
-  AiSummaryResult({this.title = '', required this.keyPoints, required this.tags, this.summary = ''});
+  AiSummaryResult({
+    this.title = '',
+    required this.keyPoints,
+    required this.tags,
+    this.summary = '',
+  });
 
   /// 从JSON构造
   factory AiSummaryResult.fromJson(Map<String, dynamic> json) {
     return AiSummaryResult(
       title: (json['title'] ?? '').toString(),
-      keyPoints: List<String>.from(json['key_points'] ?? json['keyPoints'] ?? []),
+      keyPoints: List<String>.from(
+        json['key_points'] ?? json['keyPoints'] ?? [],
+      ),
       tags: List<String>.from(json['tags'] ?? []),
       summary: (json['summary'] ?? '').toString(),
     );

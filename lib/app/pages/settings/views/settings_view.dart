@@ -43,9 +43,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 child: Column(
                   children: [
                     // 首次设置引导
-                    if (!firstLaunchState.isSetupComplete) const FirstSetupGuide(),
+                    if (!firstLaunchState.isSetupComplete)
+                      const FirstSetupGuide(),
                     // 设置列表（首次设置未完成时隐藏）
-                    if (firstLaunchState.isSetupComplete) _buildSettingsList(context, ref),
+                    if (firstLaunchState.isSetupComplete)
+                      _buildSettingsList(context, ref),
                   ],
                 ),
               ),
@@ -58,7 +60,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   /// 构建顶部导航栏
   PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref) {
     return SAppBar(
-      title: Text('title.settings'.t, style: TextStyle(color: AppColors.getOnPrimary(context))),
+      title: Text(
+        'title.settings'.t,
+        style: TextStyle(color: AppColors.getOnPrimary(context)),
+      ),
       centerTitle: true,
       elevation: 0,
       backgroundColorLight: AppColors.primary,
@@ -66,7 +71,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       foregroundColor: AppColors.getOnPrimary(context),
       actions: [
         IconButton(
-          icon: Icon(Icons.info_outline, color: AppColors.getOnPrimary(context)),
+          icon: Icon(
+            Icons.info_outline,
+            color: AppColors.getOnPrimary(context),
+          ),
           tooltip: 'dialog.about'.t,
           onPressed: () => _showAboutDialog(context, ref),
         ),
@@ -132,7 +140,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
 
   /// 构建系统设置分区
   /// 包含备份恢复、Web服务器、版本更新等系统功能
-  Widget _buildSystemSection(BuildContext context, WidgetRef ref, SettingsControllerState state) {
+  Widget _buildSystemSection(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsControllerState state,
+  ) {
     return _buildSettingsSection(
       context: context,
       title: 'dialog.system'.t,
@@ -168,7 +180,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }
 
   /// 构建下载文章图片设置项
-  Widget _buildDownloadImagesItem(BuildContext context, WidgetRef ref, SettingsControllerState state) {
+  Widget _buildDownloadImagesItem(
+    BuildContext context,
+    WidgetRef ref,
+    SettingsControllerState state,
+  ) {
     final isDownloading = state.isDownloadingImages;
     final progress = state.downloadProgress;
     final total = state.downloadTotal;
@@ -177,12 +193,18 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       context: context,
       title: 'setting.download_images'.t,
       subtitle: isDownloading
-          ? 'setting.download_images_progress'.t.replaceAll('{current}', '$progress').replaceAll('{total}', '$total')
+          ? 'setting.download_images_progress'.t
+                .replaceAll('{current}', '$progress')
+                .replaceAll('{total}', '$total')
           : 'setting.download_images_subtitle'.t,
       icon: Icons.image_rounded,
       color: AppColors.getWarning(context),
       isLoading: isDownloading,
-      onTap: isDownloading ? null : () => ref.read(settingsControllerProvider.notifier).downloadMissingArticleImages(),
+      onTap: isDownloading
+          ? null
+          : () => ref
+                .read(settingsControllerProvider.notifier)
+                .downloadMissingArticleImages(),
     );
   }
 
@@ -214,7 +236,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 ? SizedBox(
                     width: Dimensions.iconSizeS,
                     height: Dimensions.iconSizeS,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.getColorScheme(context).primary),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppTheme.getColorScheme(context).primary,
+                    ),
                   )
                 : _buildSettingItemTrailingIcon(context),
           ],
@@ -247,7 +272,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           // 分区内容卡片
           Card(
             margin: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusM)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Dimensions.radiusM),
+            ),
             child: Column(children: items),
           ),
         ],
@@ -256,12 +283,19 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }
 
   /// 构建分区标题
-  Widget _buildSectionHeader(BuildContext context, String title, IconData icon) {
+  Widget _buildSectionHeader(
+    BuildContext context,
+    String title,
+    IconData icon,
+  ) {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.spacingM,
+        vertical: Dimensions.spacingS,
+      ),
       child: Row(
         children: [
           Icon(icon, size: Dimensions.iconSizeXs, color: colorScheme.primary),
@@ -310,7 +344,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }
 
   /// 构建设置项文本内容
-  Widget _buildSettingItemText(BuildContext context, String title, String subtitle) {
+  Widget _buildSettingItemText(
+    BuildContext context,
+    String title,
+    String subtitle,
+  ) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
@@ -320,7 +358,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         Text(title, style: textTheme.titleSmall),
         Text(
           subtitle,
-          style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: Opacities.mediumHigh)),
+          style: textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurface.withValues(
+              alpha: Opacities.mediumHigh,
+            ),
+          ),
         ),
       ],
     );
@@ -337,7 +379,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }
 
   /// 构建版本信息
-  Widget _buildVersionInfo(BuildContext context, SettingsControllerState state) {
+  Widget _buildVersionInfo(
+    BuildContext context,
+    SettingsControllerState state,
+  ) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
@@ -346,12 +391,17 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         children: [
           Text(
             '${'setting.version'.t} ${state.appVersion}',
-            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
           ),
           Dimensions.verticalSpacerS,
           Text(
             '© 2023-2024 Satori Tours',
-            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.5), fontSize: 11),
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: 0.5),
+              fontSize: 11,
+            ),
           ),
         ],
       ),
@@ -396,7 +446,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       context: context,
       isScrollControlled: true,
       backgroundColor: colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
+      shape: const RoundedRectangleBorder(
+        borderRadius: Dimensions.borderRadiusTop,
+      ),
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.9,
         minChildSize: 0.5,
@@ -411,7 +463,12 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               Expanded(
                 child: SingleChildScrollView(
                   controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(Dimensions.spacingL, 0, Dimensions.spacingL, Dimensions.spacingL),
+                  padding: const EdgeInsets.fromLTRB(
+                    Dimensions.spacingL,
+                    0,
+                    Dimensions.spacingL,
+                    Dimensions.spacingL,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -419,7 +476,13 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                       Builder(
                         builder: (context) {
                           final state = ref.watch(settingsControllerProvider);
-                          return _buildServerInfoSection(context, ref, primaryColor, textTheme, state);
+                          return _buildServerInfoSection(
+                            context,
+                            ref,
+                            primaryColor,
+                            textTheme,
+                            state,
+                          );
                         },
                       ),
                       Dimensions.verticalSpacerL,
@@ -460,7 +523,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             iconSize: Dimensions.iconSizeM + 2,
           ),
           Dimensions.horizontalSpacerM,
-          Text('setting.web_server'.t, style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            'setting.web_server'.t,
+            style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+          ),
           const Spacer(),
           IconButton(
             icon: Icon(
@@ -487,13 +553,23 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle(context, 'setting.server_info'.t, Icons.info_outline_rounded),
+        _buildSectionTitle(
+          context,
+          'setting.server_info'.t,
+          Icons.info_outline_rounded,
+        ),
         Dimensions.verticalSpacerM,
         // HTTP服务器地址
         _buildHttpAddressCard(context, ref, primaryColor, textTheme, state),
         Dimensions.verticalSpacerM,
         // WebSocket地址
-        _buildWebSocketAddressCard(context, ref, primaryColor, textTheme, state),
+        _buildWebSocketAddressCard(
+          context,
+          ref,
+          primaryColor,
+          textTheme,
+          state,
+        ),
         Dimensions.verticalSpacerM,
         // 连接状态
         _buildConnectionStatusCard(context, ref, textTheme, state),
@@ -514,7 +590,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       title: 'setting.http_server_address'.t,
       content: SelectableText(
         state.webServiceAddress,
-        style: textTheme.bodyMedium?.copyWith(color: primaryColor, fontWeight: FontWeight.w600),
+        style: textTheme.bodyMedium?.copyWith(
+          color: primaryColor,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       icon: Icons.language_rounded,
       iconColor: AppColors.getPrimary(context),
@@ -542,7 +621,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       title: 'setting.websocket_access'.t,
       content: SelectableText(
         state.webAccessUrl,
-        style: textTheme.bodyMedium?.copyWith(color: primaryColor, fontWeight: FontWeight.w600),
+        style: textTheme.bodyMedium?.copyWith(
+          color: primaryColor,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       icon: Icons.wifi_rounded,
       iconColor: AppColors.getSecondary(context),
@@ -581,8 +663,12 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     SettingsControllerState state,
   ) {
     final isConnected = state.isWebSocketConnected;
-    final statusColor = isConnected ? AppColors.getSuccess(context) : AppColors.getError(context);
-    final statusText = isConnected ? 'status.connected'.t : 'status.disconnected'.t;
+    final statusColor = isConnected
+        ? AppColors.getSuccess(context)
+        : AppColors.getError(context);
+    final statusText = isConnected
+        ? 'status.connected'.t
+        : 'status.disconnected'.t;
 
     return Row(
       children: [
@@ -590,7 +676,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         Dimensions.horizontalSpacerS,
         Text(
           statusText,
-          style: textTheme.bodyMedium?.copyWith(color: statusColor, fontWeight: FontWeight.w600),
+          style: textTheme.bodyMedium?.copyWith(
+            color: statusColor,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -604,7 +693,13 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 4, spreadRadius: 1)],
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.3),
+            blurRadius: 4,
+            spreadRadius: 1,
+          ),
+        ],
       ),
     );
   }
@@ -614,7 +709,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle(context, 'setting.server_management'.t, Icons.settings_rounded),
+        _buildSectionTitle(
+          context,
+          'setting.server_management'.t,
+          Icons.settings_rounded,
+        ),
         Dimensions.verticalSpacerM,
         // 密码设置
         _buildWebServerSetting(
@@ -633,14 +732,19 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           subtitle: 'setting.restart_service_subtitle'.t,
           icon: Icons.refresh_rounded,
           color: AppColors.getSuccess(context),
-          onTap: () => ref.read(settingsControllerProvider.notifier).restartWebService(),
+          onTap: () =>
+              ref.read(settingsControllerProvider.notifier).restartWebService(),
         ),
       ],
     );
   }
 
   /// 构建服务器提示卡片
-  Widget _buildServerTipCard(BuildContext context, Color primaryColor, ColorScheme colorScheme) {
+  Widget _buildServerTipCard(
+    BuildContext context,
+    Color primaryColor,
+    ColorScheme colorScheme,
+  ) {
     final textTheme = AppTheme.getTextTheme(context);
     const tipText = 'setting.network_tip';
 
@@ -649,17 +753,27 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       decoration: BoxDecoration(
         color: primaryColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
-        border: Border.all(color: primaryColor.withValues(alpha: 0.2), width: 1),
+        border: Border.all(
+          color: primaryColor.withValues(alpha: 0.2),
+          width: 1,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lightbulb_outline_rounded, size: Dimensions.iconSizeS, color: primaryColor),
+          Icon(
+            Icons.lightbulb_outline_rounded,
+            size: Dimensions.iconSizeS,
+            color: primaryColor,
+          ),
           Dimensions.horizontalSpacerS,
           Expanded(
             child: Text(
               tipText.t,
-              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.7), height: 1.4),
+              style: textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.7),
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -669,16 +783,28 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
 
   /// 显示密码设置对话框
   void _showPasswordSettingDialog(BuildContext context, WidgetRef ref) {
-    final passwordController = TextEditingController(text: ref.read(webServerPasswordProvider));
+    final passwordController = TextEditingController(
+      text: ref.read(webServerPasswordProvider),
+    );
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
-        contentPadding: const EdgeInsets.fromLTRB(Dimensions.spacingL, Dimensions.spacingM + 4, Dimensions.spacingL, 0),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusL),
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(
+          Dimensions.spacingL,
+          Dimensions.spacingM + 4,
+          Dimensions.spacingL,
+          0,
+        ),
+        actionsPadding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.spacingM,
+          vertical: Dimensions.spacingM,
+        ),
         actionsAlignment: MainAxisAlignment.end,
         title: _buildPasswordDialogTitle(dialogContext, textTheme),
         content: _PasswordDialogContent(
@@ -686,7 +812,11 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           colorScheme: colorScheme,
           textTheme: textTheme,
         ),
-        actions: _buildPasswordDialogActions(dialogContext, ref, passwordController),
+        actions: _buildPasswordDialogActions(
+          dialogContext,
+          ref,
+          passwordController,
+        ),
       ),
     );
   }
@@ -702,7 +832,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           iconSize: Dimensions.iconSizeM,
         ),
         Dimensions.horizontalSpacerM,
-        Text('setting.server_password'.t, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          'setting.server_password'.t,
+          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
       ],
     );
   }
@@ -734,7 +867,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               child: ElevatedButton(
                 onPressed: () {
                   AppNavigation.back();
-                  ref.read(settingsControllerProvider.notifier).saveWebServerPassword(passwordController.text);
+                  ref
+                      .read(settingsControllerProvider.notifier)
+                      .saveWebServerPassword(passwordController.text);
                 },
                 style: ButtonStyles.getPrimaryStyle(context),
                 child: Text('button.save'.t),
@@ -786,14 +921,23 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }
 
   /// 构建信息卡片头部
-  Widget _buildInfoCardHeader(BuildContext context, String title, IconData icon, Color iconColor, Widget? action) {
+  Widget _buildInfoCardHeader(
+    BuildContext context,
+    String title,
+    IconData icon,
+    Color iconColor,
+    Widget? action,
+  ) {
     final textTheme = AppTheme.getTextTheme(context);
 
     return Row(
       children: [
         Icon(icon, size: Dimensions.iconSizeM, color: iconColor),
         Dimensions.horizontalSpacerS,
-        Text(title, style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          title,
+          style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+        ),
         const Spacer(),
         if (action != null) action,
       ],
@@ -818,7 +962,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(Dimensions.radiusM),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM - 2),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.spacingM,
+          vertical: Dimensions.spacingM - 2,
+        ),
         decoration: decoration,
         child: Row(
           children: [
@@ -842,19 +989,28 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }
 
   /// 构建服务器设置项文本
-  Widget _buildServerSettingText(BuildContext context, String title, String? subtitle) {
+  Widget _buildServerSettingText(
+    BuildContext context,
+    String title,
+    String? subtitle,
+  ) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          title,
+          style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
         if (subtitle != null) ...[
           Dimensions.verticalSpacerXs,
           Text(
             subtitle,
-            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: Opacities.medium)),
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: Opacities.medium),
+            ),
           ),
         ],
       ],
@@ -896,12 +1052,17 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   void _showGoogleBooksApiKeyDialog(BuildContext context, WidgetRef ref) {
     DialogUtils.showInputDialog(
       title: 'dialog.google_books_api_key'.t,
-      initialValue: SettingRepository.i.getSetting(SettingService.googleCloudApiKeyKey),
+      initialValue: SettingRepository.i.getSetting(
+        SettingService.googleCloudApiKeyKey,
+      ),
       confirmText: 'dialog.save'.t,
       cancelText: 'dialog.cancel'.t,
       onConfirm: (value) {
         final apiKey = value.trim();
-        SettingRepository.i.saveSetting(SettingService.googleCloudApiKeyKey, apiKey);
+        SettingRepository.i.saveSetting(
+          SettingService.googleCloudApiKeyKey,
+          apiKey,
+        );
         UIUtils.showSuccess('保存成功');
       },
     );
@@ -914,7 +1075,11 @@ class _PasswordDialogContent extends StatefulWidget {
   final ColorScheme colorScheme;
   final TextTheme textTheme;
 
-  const _PasswordDialogContent({required this.passwordController, required this.colorScheme, required this.textTheme});
+  const _PasswordDialogContent({
+    required this.passwordController,
+    required this.colorScheme,
+    required this.textTheme,
+  });
 
   @override
   State<_PasswordDialogContent> createState() => _PasswordDialogContentState();
@@ -945,7 +1110,11 @@ class _PasswordDialogContentState extends State<_PasswordDialogContent> {
       decoration: _buildTipCardDecoration(),
       child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, size: Dimensions.iconSizeXs, color: widget.colorScheme.primary),
+          Icon(
+            Icons.info_outline_rounded,
+            size: Dimensions.iconSizeXs,
+            color: widget.colorScheme.primary,
+          ),
           Dimensions.horizontalSpacerS,
           Expanded(
             child: Text(
@@ -966,7 +1135,10 @@ class _PasswordDialogContentState extends State<_PasswordDialogContent> {
     return BoxDecoration(
       color: widget.colorScheme.primary.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(Dimensions.radiusS),
-      border: Border.all(color: widget.colorScheme.primary.withValues(alpha: 0.2), width: 1),
+      border: Border.all(
+        color: widget.colorScheme.primary.withValues(alpha: 0.2),
+        width: 1,
+      ),
     );
   }
 
@@ -989,7 +1161,10 @@ class _PasswordDialogContentState extends State<_PasswordDialogContent> {
       border: _buildInputBorder(widget.colorScheme.outline, 1),
       focusedBorder: _buildInputBorder(widget.colorScheme.primary, 2),
       enabledBorder: _buildInputBorder(widget.colorScheme.outline, 1),
-      contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM - 2),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.spacingM,
+        vertical: Dimensions.spacingM - 2,
+      ),
     );
   }
 
@@ -997,11 +1172,15 @@ class _PasswordDialogContentState extends State<_PasswordDialogContent> {
   Widget _buildPasswordVisibilityToggle() {
     return IconButton(
       icon: Icon(
-        isPasswordVisible ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+        isPasswordVisible
+            ? Icons.visibility_off_rounded
+            : Icons.visibility_rounded,
         size: Dimensions.iconSizeM,
       ),
       onPressed: () => setState(() => isPasswordVisible = !isPasswordVisible),
-      tooltip: isPasswordVisible ? 'button.hide_password'.t : 'button.show_password'.t,
+      tooltip: isPasswordVisible
+          ? 'button.hide_password'.t
+          : 'button.show_password'.t,
     );
   }
 

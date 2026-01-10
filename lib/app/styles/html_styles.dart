@@ -78,14 +78,8 @@ class HtmlStyles {
         fontSize: FontSize(15.0),
         lineHeight: LineHeight.number(1.8),
       ),
-      "strong,b": Style(
-        fontWeight: FontWeight.bold,
-        fontSize: FontSize(15.0),
-      ),
-      "em,i": Style(
-        fontStyle: FontStyle.italic,
-        fontSize: FontSize(15.0),
-      ),
+      "strong,b": Style(fontWeight: FontWeight.bold, fontSize: FontSize(15.0)),
+      "em,i": Style(fontStyle: FontStyle.italic, fontSize: FontSize(15.0)),
     };
   }
 }

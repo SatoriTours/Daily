@@ -34,8 +34,12 @@ class BookViewpointModel extends EntityModel<BookViewpoint> {
       title: json['title'] as String,
       content: json['content'] as String,
       example: json['example'] as String? ?? '',
-      createAt: json['createAt'] != null ? DateTime.parse(json['createAt'] as String) : null,
-      updateAt: json['updateAt'] != null ? DateTime.parse(json['updateAt'] as String) : null,
+      createAt: json['createAt'] != null
+          ? DateTime.parse(json['createAt'] as String)
+          : null,
+      updateAt: json['updateAt'] != null
+          ? DateTime.parse(json['updateAt'] as String)
+          : null,
     );
   }
 

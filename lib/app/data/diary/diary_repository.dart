@@ -26,13 +26,23 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
   /// 查找所有日记,按创建时间倒序排列
   List<DiaryModel> findAll() {
     final condition = Diary_.id.notEquals(0);
-    return findByConditionPaginated(condition: condition, page: 1, orderBy: Diary_.createdAt, descending: true);
+    return findByConditionPaginated(
+      condition: condition,
+      page: 1,
+      orderBy: Diary_.createdAt,
+      descending: true,
+    );
   }
 
   /// 分页查找所有日记,按创建时间倒序排列
   List<DiaryModel> findAllPaginated(int page) {
     final condition = Diary_.id.notEquals(0);
-    return findByConditionPaginated(condition: condition, page: page, orderBy: Diary_.createdAt, descending: true);
+    return findByConditionPaginated(
+      condition: condition,
+      page: page,
+      orderBy: Diary_.createdAt,
+      descending: true,
+    );
   }
 
   /// 按日期查找日记,返回指定日期的所有日记
@@ -54,7 +64,10 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
     final condition = Diary_.content
         .contains(keyword, caseSensitive: false)
         .or(Diary_.tags.contains(keyword, caseSensitive: false));
-    final query = box.query(condition).order(Diary_.createdAt, flags: Order.descending).build();
+    final query = box
+        .query(condition)
+        .order(Diary_.createdAt, flags: Order.descending)
+        .build();
     if (limit != null) {
       query.limit = limit;
     }
@@ -66,7 +79,12 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
     final condition = Diary_.content
         .contains(keyword, caseSensitive: false)
         .or(Diary_.tags.contains(keyword, caseSensitive: false));
-    return findByConditionPaginated(condition: condition, page: page, orderBy: Diary_.createdAt, descending: true);
+    return findByConditionPaginated(
+      condition: condition,
+      page: page,
+      orderBy: Diary_.createdAt,
+      descending: true,
+    );
   }
 
   /// 获取查找结果的总数
@@ -87,7 +105,8 @@ class DiaryRepository extends BaseRepository<Diary, DiaryModel> {
     final stats = <String, int>{};
 
     for (final diary in diaries) {
-      final dateKey = '${diary.createdAt.year}-${diary.createdAt.month.toString().padLeft(2, '0')}';
+      final dateKey =
+          '${diary.createdAt.year}-${diary.createdAt.month.toString().padLeft(2, '0')}';
       stats[dateKey] = (stats[dateKey] ?? 0) + 1;
     }
 

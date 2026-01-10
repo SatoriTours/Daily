@@ -1,6 +1,5 @@
 import 'package:daily_satori/app/pages/ai_config/providers/ai_config_controller_provider.dart';
 
-
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/pages/ai_config/models/ai_config_types.dart';
 import 'package:daily_satori/app/pages/ai_config/views/widgets/ai_config_info_dialog.dart';
@@ -54,7 +53,11 @@ class AIConfigView extends ConsumerWidget {
   // ========================================================================
 
   /// 构建主体内容
-  Widget _buildBody(BuildContext context, WidgetRef ref, AIConfigControllerState state) {
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    AIConfigControllerState state,
+  ) {
     if (state.isLoading) {
       return StyleGuide.getLoadingState(context);
     }
@@ -73,19 +76,26 @@ class AIConfigView extends ConsumerWidget {
       child: Text(
         '没有配置',
         style: AppTypography.bodyMedium.copyWith(
-          color: AppColors.getOnSurface(context).withValues(alpha: Opacities.mediumLow),
+          color: AppColors.getOnSurface(
+            context,
+          ).withValues(alpha: Opacities.mediumLow),
         ),
       ),
     );
   }
 
   /// 构建配置列表
-  Widget _buildConfigList(BuildContext context, WidgetRef ref, List<AIConfigModel> configs) {
+  Widget _buildConfigList(
+    BuildContext context,
+    WidgetRef ref,
+    List<AIConfigModel> configs,
+  ) {
     return ListView.separated(
       padding: Dimensions.paddingPage,
       itemCount: configs.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) => _buildConfigCard(context, ref, configs[index]),
+      itemBuilder: (context, index) =>
+          _buildConfigCard(context, ref, configs[index]),
     );
   }
 
@@ -94,12 +104,17 @@ class AIConfigView extends ConsumerWidget {
   // ========================================================================
 
   /// 构建配置卡片
-  Widget _buildConfigCard(BuildContext context, WidgetRef ref, AIConfigModel config) {
+  Widget _buildConfigCard(
+    BuildContext context,
+    WidgetRef ref,
+    AIConfigModel config,
+  ) {
     final color = AIConfigTypes.getColor(config.functionType);
     return Card(
       margin: EdgeInsets.zero,
       child: InkWell(
-        onTap: () => ref.read(aIConfigControllerProvider.notifier).editConfig(config),
+        onTap: () =>
+            ref.read(aIConfigControllerProvider.notifier).editConfig(config),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
         child: Padding(
           padding: Dimensions.paddingCard,
@@ -134,7 +149,9 @@ class AIConfigView extends ConsumerWidget {
       child: Row(
         children: [
           // 左侧：配置名称和继承标签
-          Expanded(child: _buildConfigNameWithBadge(context, config, isInheriting)),
+          Expanded(
+            child: _buildConfigNameWithBadge(context, config, isInheriting),
+          ),
           // 右侧：状态信息或模型名称
           _buildConfigStatus(context, config),
         ],
@@ -143,11 +160,18 @@ class AIConfigView extends ConsumerWidget {
   }
 
   /// 构建配置名称（带继承标签）
-  Widget _buildConfigNameWithBadge(BuildContext context, AIConfigModel config, bool isInheriting) {
+  Widget _buildConfigNameWithBadge(
+    BuildContext context,
+    AIConfigModel config,
+    bool isInheriting,
+  ) {
     return Row(
       children: [
         Text(config.name, style: AppTypography.titleSmall),
-        if (isInheriting) ...[Dimensions.horizontalSpacerS, _buildInheritBadge(context)],
+        if (isInheriting) ...[
+          Dimensions.horizontalSpacerS,
+          _buildInheritBadge(context),
+        ],
       ],
     );
   }
@@ -157,10 +181,17 @@ class AIConfigView extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow),
+        color: AppColors.getPrimary(
+          context,
+        ).withValues(alpha: Opacities.extraLow),
         borderRadius: BorderRadius.circular(Dimensions.radiusCircular),
       ),
-      child: Text('继承', style: AppTypography.labelSmall.copyWith(color: AppColors.getPrimary(context))),
+      child: Text(
+        '继承',
+        style: AppTypography.labelSmall.copyWith(
+          color: AppColors.getPrimary(context),
+        ),
+      ),
     );
   }
 
@@ -170,7 +201,9 @@ class AIConfigView extends ConsumerWidget {
       return Text(
         config.functionType == 0 ? '未配置' : '使用通用配置',
         style: AppTypography.bodySmall.copyWith(
-          color: AppColors.getOnSurface(context).withValues(alpha: Opacities.mediumLow),
+          color: AppColors.getOnSurface(
+            context,
+          ).withValues(alpha: Opacities.mediumLow),
         ),
       );
     }
@@ -181,13 +214,17 @@ class AIConfigView extends ConsumerWidget {
         Icon(
           Icons.smart_toy,
           size: Dimensions.iconSizeXs,
-          color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+          color: AppColors.getOnSurface(
+            context,
+          ).withValues(alpha: Opacities.medium),
         ),
         Dimensions.horizontalSpacerXs,
         Text(
           config.modelName,
           style: AppTypography.bodySmall.copyWith(
-            color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+            color: AppColors.getOnSurface(
+              context,
+            ).withValues(alpha: Opacities.medium),
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -200,7 +237,9 @@ class AIConfigView extends ConsumerWidget {
   Widget _buildChevronIcon(BuildContext context) {
     return Icon(
       Icons.chevron_right,
-      color: AppColors.getOnSurface(context).withValues(alpha: Opacities.mediumLow),
+      color: AppColors.getOnSurface(
+        context,
+      ).withValues(alpha: Opacities.mediumLow),
       size: Dimensions.iconSizeS,
     );
   }
@@ -211,6 +250,9 @@ class AIConfigView extends ConsumerWidget {
 
   /// 显示AI配置信息对话框
   void _showInfoDialog(BuildContext context) {
-    showDialog(context: context, builder: (context) => const AIConfigInfoDialog());
+    showDialog(
+      context: context,
+      builder: (context) => const AIConfigInfoDialog(),
+    );
   }
 }

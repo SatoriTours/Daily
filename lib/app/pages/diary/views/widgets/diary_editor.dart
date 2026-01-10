@@ -16,7 +16,13 @@ class DiaryEditor extends ConsumerStatefulWidget {
   final String? initialContent; // 初始内容，用于从其他页面预设内容
   final int? initialCursorPosition; // 初始光标位置
 
-  const DiaryEditor({super.key, this.diary, this.initialDate, this.initialContent, this.initialCursorPosition});
+  const DiaryEditor({
+    super.key,
+    this.diary,
+    this.initialDate,
+    this.initialContent,
+    this.initialCursorPosition,
+  });
 
   @override
   ConsumerState<DiaryEditor> createState() => _DiaryEditorState();
@@ -57,12 +63,16 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
     if (widget.diary != null) {
       _contentController.text = widget.diary!.content;
       _existingImages = widget.diary!.imagesList;
-    } else if (widget.initialContent != null && widget.initialContent!.isNotEmpty) {
+    } else if (widget.initialContent != null &&
+        widget.initialContent!.isNotEmpty) {
       // 使用传入的初始内容（如从读书页面预设的模板）
       _contentController.text = widget.initialContent!;
       // 使用指定的光标位置，否则放在末尾
-      final cursorPos = widget.initialCursorPosition ?? widget.initialContent!.length;
-      _contentController.selection = TextSelection.collapsed(offset: cursorPos.clamp(0, widget.initialContent!.length));
+      final cursorPos =
+          widget.initialCursorPosition ?? widget.initialContent!.length;
+      _contentController.selection = TextSelection.collapsed(
+        offset: cursorPos.clamp(0, widget.initialContent!.length),
+      );
     } else {
       // 新建模式，添加默认标题格式
       _contentController.text = '# ';
@@ -99,7 +109,9 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
       // 恢复光标位置
       final int cursorPosition = _contentController.selection.baseOffset;
       _contentController.selection = TextSelection.collapsed(
-        offset: cursorPosition < previousText.length ? cursorPosition : previousText.length,
+        offset: cursorPosition < previousText.length
+            ? cursorPosition
+            : previousText.length,
       );
 
       // 强制更新状态
@@ -118,7 +130,9 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
       // 恢复光标位置
       final int cursorPosition = _contentController.selection.baseOffset;
       _contentController.selection = TextSelection.collapsed(
-        offset: cursorPosition < redoText.length ? cursorPosition : redoText.length,
+        offset: cursorPosition < redoText.length
+            ? cursorPosition
+            : redoText.length,
       );
 
       // 强制更新状态
@@ -128,7 +142,9 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
 
   /// 处理粘贴操作
   Future<void> _handlePaste() async {
-    final ClipboardData? clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+    final ClipboardData? clipboardData = await Clipboard.getData(
+      Clipboard.kTextPlain,
+    );
     if (clipboardData != null && clipboardData.text != null) {
       final String pasteText = clipboardData.text!;
       // 自动将链接转换为Markdown链接格式
@@ -140,10 +156,14 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
         // 插入转换后的文本
         final String currentText = _contentController.text;
         final String newText =
-            currentText.substring(0, cursorPosition) + convertedText + currentText.substring(cursorPosition);
+            currentText.substring(0, cursorPosition) +
+            convertedText +
+            currentText.substring(cursorPosition);
 
         _contentController.text = newText;
-        _contentController.selection = TextSelection.collapsed(offset: cursorPosition + convertedText.length);
+        _contentController.selection = TextSelection.collapsed(
+          offset: cursorPosition + convertedText.length,
+        );
       }
     }
   }
@@ -182,7 +202,10 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: Icon(FeatherIcons.image, color: DiaryStyles.getAccentColor(context)),
+                leading: Icon(
+                  FeatherIcons.image,
+                  color: DiaryStyles.getAccentColor(context),
+                ),
                 title: Text('menu.select_from_gallery'.t),
                 onTap: () {
                   AppNavigation.back();
@@ -190,7 +213,10 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
                 },
               ),
               ListTile(
-                leading: Icon(FeatherIcons.camera, color: DiaryStyles.getAccentColor(context)),
+                leading: Icon(
+                  FeatherIcons.camera,
+                  color: DiaryStyles.getAccentColor(context),
+                ),
                 title: Text('menu.take_photo'.t),
                 onTap: () {
                   AppNavigation.back();
@@ -218,7 +244,9 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
 
   /// 保存日记
   Future<void> _saveDiary() async {
-    if (_contentController.text.isEmpty && _selectedImages.isEmpty && _existingImages.isEmpty) {
+    if (_contentController.text.isEmpty &&
+        _selectedImages.isEmpty &&
+        _existingImages.isEmpty) {
       UIUtils.showError('日记内容不能为空');
       return;
     }
@@ -237,11 +265,18 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
     // 从内容中提取标签
     final String tags = DiaryUtils.extractTags(_contentController.text);
 
-    final String? imagesString = allImagePaths.isNotEmpty ? allImagePaths.join(',') : null;
+    final String? imagesString = allImagePaths.isNotEmpty
+        ? allImagePaths.join(',')
+        : null;
 
     if (widget.diary != null) {
       // 更新日记
-      await controller.updateDiary(widget.diary!.id, _contentController.text, images: imagesString, tags: tags);
+      await controller.updateDiary(
+        widget.diary!.id,
+        _contentController.text,
+        images: imagesString,
+        tags: tags,
+      );
     } else {
       // 创建日记
       await controller.createDiary(
@@ -269,7 +304,8 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
 
     for (int i = 0; i < _selectedImages.length; i++) {
       final XFile image = _selectedImages[i];
-      final String fileName = 'diary_img_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+      final String fileName =
+          'diary_img_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
       final String filePath = '$dirPath/$fileName';
 
       // 复制图片到应用目录
@@ -311,7 +347,9 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
     if (lines.isNotEmpty) {
       final lastLine = lines.last.trim();
 
-      if (lastLine.startsWith('#') && !lastLine.startsWith('# ') && !lastLine.startsWith('## ')) {
+      if (lastLine.startsWith('#') &&
+          !lastLine.startsWith('# ') &&
+          !lastLine.startsWith('## ')) {
         // 最后一行是标签行（#xxx 格式，不是 Markdown 标题）
         // 直接在后面添加，用空格分隔
         newContent = '$content $tagToInsert';
@@ -328,7 +366,9 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
 
     _contentController.text = newContent;
     // 将光标移到末尾
-    _contentController.selection = TextSelection.collapsed(offset: newContent.length);
+    _contentController.selection = TextSelection.collapsed(
+      offset: newContent.length,
+    );
 
     setState(() {});
   }
@@ -355,13 +395,23 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
               autofocus: true,
               textAlignVertical: TextAlignVertical.top,
               decoration: _getInputDecoration(context),
-              style: TextStyle(fontSize: 16, height: 1.5, color: DiaryStyles.getPrimaryTextColor(context)),
+              style: TextStyle(
+                fontSize: 16,
+                height: 1.5,
+                color: DiaryStyles.getPrimaryTextColor(context),
+              ),
             ),
           ),
 
           // 统一显示所有图片预览（已有 + 新选择）
           if (_existingImages.isNotEmpty || _selectedImages.isNotEmpty)
-            ImagePreview(images: [..._existingImages, ..._selectedImages.map((e) => e.path)], onDelete: _removeImage),
+            ImagePreview(
+              images: [
+                ..._existingImages,
+                ..._selectedImages.map((e) => e.path),
+              ],
+              onDelete: _removeImage,
+            ),
 
           // 工具栏和操作按钮
           _buildToolbar(context),
@@ -378,7 +428,10 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
       focusedBorder: InputBorder.none,
       errorBorder: InputBorder.none,
       disabledBorder: InputBorder.none,
-      contentPadding: EdgeInsets.symmetric(vertical: Dimensions.spacingS + 4, horizontal: Dimensions.spacingM),
+      contentPadding: EdgeInsets.symmetric(
+        vertical: Dimensions.spacingS + 4,
+        horizontal: Dimensions.spacingM,
+      ),
     );
   }
 
@@ -403,13 +456,29 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
           ),
 
           // 图片添加按钮
-          _buildToolbarButton(context, FeatherIcons.image, 'button.add_image'.t, _showImageOptions),
+          _buildToolbarButton(
+            context,
+            FeatherIcons.image,
+            'button.add_image'.t,
+            _showImageOptions,
+          ),
 
           // 标签添加按钮
-          _buildToolbarButton(context, FeatherIcons.tag, 'button.add_tag'.t, _showTagSelector),
+          _buildToolbarButton(
+            context,
+            FeatherIcons.tag,
+            'button.add_tag'.t,
+            _showTagSelector,
+          ),
 
           // 保存按钮
-          _buildToolbarButton(context, FeatherIcons.check, 'button.save'.t, _saveDiary, isAccent: true),
+          _buildToolbarButton(
+            context,
+            FeatherIcons.check,
+            'button.save'.t,
+            _saveDiary,
+            isAccent: true,
+          ),
         ],
       ),
     );
@@ -428,7 +497,9 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
       child: Container(
         width: 36,
         height: 36,
-        margin: const EdgeInsets.symmetric(horizontal: Dimensions.spacingXs / 2),
+        margin: const EdgeInsets.symmetric(
+          horizontal: Dimensions.spacingXs / 2,
+        ),
         child: IconButton(
           onPressed: onPressed,
           icon: Icon(

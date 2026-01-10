@@ -48,14 +48,20 @@ class AIConfigController extends _$AIConfigController {
   /// 创建新配置
   Future<void> createNewConfig() async {
     logger.i('[AIConfigController] 创建新配置');
-    await AppNavigation.toNamed(Routes.aiConfigEdit, arguments: {'functionType': state.selectedFunctionType});
+    await AppNavigation.toNamed(
+      Routes.aiConfigEdit,
+      arguments: {'functionType': state.selectedFunctionType},
+    );
     refreshConfigs();
   }
 
   /// 编辑配置
   Future<void> editConfig(AIConfigModel config) async {
     logger.i('[AIConfigController] 编辑配置: ${config.name}');
-    await AppNavigation.toNamed(Routes.aiConfigEdit, arguments: {'aiConfig': config.entity});
+    await AppNavigation.toNamed(
+      Routes.aiConfigEdit,
+      arguments: {'aiConfig': config.entity},
+    );
     refreshConfigs();
   }
 

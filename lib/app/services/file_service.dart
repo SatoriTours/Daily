@@ -7,8 +7,9 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
-class FileService {
+class FileService extends AppService {
   // 单例模式
   FileService._();
   static final FileService _instance = FileService._();
@@ -30,7 +31,7 @@ class FileService {
   String get dbPath => path.join(_appPath, ObjectboxService.dbDir);
   String get appPath => _appPath;
 
-  // 初始化服务
+  @override
   Future<void> init() async {
     _appPath = (await getApplicationDocumentsDirectory()).path;
     _imagesBasePath = await createDirectory('images');
@@ -61,7 +62,8 @@ class FileService {
   }
 
   // 获取下载文件路径
-  String getDownloadPath(String fileName) => path.join(_downloadsPath, fileName);
+  String getDownloadPath(String fileName) =>
+      path.join(_downloadsPath, fileName);
 
   // 获取临时下载文件路径（更适合通过 FileProvider 对外共享/安装）
   Future<String> getTempDownloadPath(String fileName) async {
@@ -77,13 +79,16 @@ class FileService {
   // ========================================================================
 
   /// 获取图片的相对路径（用于存储到数据库）
-  String getImagePath(String imageName) => path.join(_imagesBasePath, imageName);
+  String getImagePath(String imageName) =>
+      path.join(_imagesBasePath, imageName);
 
   /// 获取日记图片的相对路径（用于存储到数据库）
-  String getDiaryImagePath(String imageName) => path.join(_diaryImagesBasePath, imageName);
+  String getDiaryImagePath(String imageName) =>
+      path.join(_diaryImagesBasePath, imageName);
 
   /// 获取公共资源的相对路径
-  String getPublicPath(String relativePath) => path.join(_publicPath, relativePath);
+  String getPublicPath(String relativePath) =>
+      path.join(_publicPath, relativePath);
 
   /// 根据URL生成文件名（仅文件名，不包含路径）
   String generateFileNameByUrl(String url) {
@@ -152,7 +157,10 @@ class FileService {
   }
 
   // 保存文件到公共目录
-  Future<String> saveToPublicDirectory(List<int> bytes, String relativePath) async {
+  Future<String> saveToPublicDirectory(
+    List<int> bytes,
+    String relativePath,
+  ) async {
     // getPublicPath 返回相对路径如 public/css/style.css
     final relPath = getPublicPath(relativePath);
     // 转换为绝对路径用于实际文件操作
@@ -170,7 +178,8 @@ class FileService {
   }
 
   // 获取当前时间戳
-  String _getCurrentTimestamp() => DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+  String _getCurrentTimestamp() =>
+      DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
 
   // 生成随机值
   String _generateRandomValue() => Random().nextInt(10000).toString();
@@ -178,7 +187,10 @@ class FileService {
   // 获取文件扩展名
   String _getFileExtension(String url) {
     const pattern = r'\b\w+\.(jpg|jpeg|png|gif|svg|webp)\b';
-    final match = RegExp(pattern, caseSensitive: false).firstMatch(url.toLowerCase());
+    final match = RegExp(
+      pattern,
+      caseSensitive: false,
+    ).firstMatch(url.toLowerCase());
     return match != null ? '.${match.group(0)!.split('.').last}' : '';
   }
 

@@ -20,12 +20,18 @@ class IsbndbSearchEngine extends BookSearchEngine {
   final Dio _dio = Dio();
 
   @override
-  Future<List<BookSearchResult>> searchBooks(String query, {int limit = 8}) async {
+  Future<List<BookSearchResult>> searchBooks(
+    String query, {
+    int limit = 8,
+  }) async {
     try {
       logger.i('开始通过 $engineName 搜索书籍: $query');
 
       // 并行搜索第一页和第二页
-      final results = await Future.wait([_searchPage(query, 1), _searchPage(query, 2)]);
+      final results = await Future.wait([
+        _searchPage(query, 1),
+        _searchPage(query, 2),
+      ]);
 
       // 合并结果
       final allResults = results.expand((element) => element).toList();
@@ -40,7 +46,9 @@ class IsbndbSearchEngine extends BookSearchEngine {
       // 简单的去重（根据ISBN或标题+作者）
       final uniqueResults = <String, BookSearchResult>{};
       for (var book in allResults) {
-        final key = book.isbn.isNotEmpty ? book.isbn : '${book.title}-${book.author}';
+        final key = book.isbn.isNotEmpty
+            ? book.isbn
+            : '${book.title}-${book.author}';
         uniqueResults.putIfAbsent(key, () => book);
       }
 
@@ -137,7 +145,10 @@ class IsbndbSearchEngine extends BookSearchEngine {
     }
   }
 
-  Future<List<BookSearchResult>> _fallbackToGoogle(String query, int limit) async {
+  Future<List<BookSearchResult>> _fallbackToGoogle(
+    String query,
+    int limit,
+  ) async {
     logger.i('回退到 Google Books 搜索');
     return await GoogleBooksSearchEngine.i.searchBooks(query, limit: limit);
   }

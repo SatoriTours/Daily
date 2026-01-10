@@ -34,7 +34,9 @@ class ApiController {
     router.mount('/stats', StatsController().router.call);
 
     // 文件上传API
-    final filePipeline = const Pipeline().addMiddleware(AuthMiddleware.requireAuth());
+    final filePipeline = const Pipeline().addMiddleware(
+      AuthMiddleware.requireAuth(),
+    );
     router.post('/upload', filePipeline.addHandler(_handleFileUpload));
 
     // 添加404错误处理
@@ -73,13 +75,26 @@ class ApiController {
         String subDir = 'other';
 
         // 根据文件类型决定存储的子目录
-        if (['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp'].contains(fileExtension)) {
+        if ([
+          '.jpg',
+          '.jpeg',
+          '.png',
+          '.gif',
+          '.svg',
+          '.webp',
+        ].contains(fileExtension)) {
           subDir = 'img';
         } else if (['.css'].contains(fileExtension)) {
           subDir = 'css';
         } else if (['.js'].contains(fileExtension)) {
           subDir = 'js';
-        } else if (['.ttf', '.woff', '.woff2', '.eot', '.otf'].contains(fileExtension)) {
+        } else if ([
+          '.ttf',
+          '.woff',
+          '.woff2',
+          '.eot',
+          '.otf',
+        ].contains(fileExtension)) {
           subDir = 'fonts';
         }
 
@@ -106,7 +121,10 @@ class ApiController {
   }
 
   /// 解析multipart/form-data (简化版)
-  Future<List<Map<String, dynamic>>> _parseMultipartFormData(List<int> bytes, String contentType) async {
+  Future<List<Map<String, dynamic>>> _parseMultipartFormData(
+    List<int> bytes,
+    String contentType,
+  ) async {
     final result = <Map<String, dynamic>>[];
 
     try {
@@ -160,7 +178,9 @@ class ApiController {
 
   /// 创建带错误处理的管道
   Handler createHandler() {
-    return const Pipeline().addMiddleware(_errorHandler()).addHandler(router.call);
+    return const Pipeline()
+        .addMiddleware(_errorHandler())
+        .addHandler(router.call);
   }
 
   /// 错误处理中间件

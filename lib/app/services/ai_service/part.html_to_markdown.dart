@@ -41,7 +41,11 @@ extension PartHtmlToMarkdown on AiService {
   /// [htmlContent] HTML内容
   /// [title] 文章标题，可选
   /// [updatedAt] 更新时间，可选
-  Future<String> convertHtmlToMarkdown(String htmlContent, {String? title, DateTime? updatedAt}) async {
+  Future<String> convertHtmlToMarkdown(
+    String htmlContent, {
+    String? title,
+    DateTime? updatedAt,
+  }) async {
     final markdown = await htmlToMarkdown(htmlContent, functionType: 1);
     return _postProcessMarkdown(markdown);
   }
@@ -85,26 +89,45 @@ extension PartHtmlToMarkdown on AiService {
 
     // 检查是否第一个段落被错误地标记为标题
     final lines = processed.split('\n');
-    if (lines.isNotEmpty && lines.first.startsWith('# ') && lines.first.length < 30) {
+    if (lines.isNotEmpty &&
+        lines.first.startsWith('# ') &&
+        lines.first.length < 30) {
       // 如果第一个标题很短，检查是否是常见的误判情况
       final firstLine = lines.first;
       final content = firstLine.substring(2).trim();
 
       // 常见误判的关键词 - 这些通常是文章内容中的小标题，不是真正的文章标题
       final falseTitleKeywords = [
-        '主要功能', '功能特点', '产品介绍', '使用说明', '注意事项',
-        '基本功能', '核心功能', '功能列表', '功能概述', '目录', '内容简介',
-        '特点', '优势', '使用方法', '安装步骤', '配置说明', '常见问题'
+        '主要功能',
+        '功能特点',
+        '产品介绍',
+        '使用说明',
+        '注意事项',
+        '基本功能',
+        '核心功能',
+        '功能列表',
+        '功能概述',
+        '目录',
+        '内容简介',
+        '特点',
+        '优势',
+        '使用方法',
+        '安装步骤',
+        '配置说明',
+        '常见问题',
       ];
 
       // 检查是否是真正的文章标题还是误判的小标题
-      bool isFalseTitle = falseTitleKeywords.any((keyword) => content.contains(keyword));
+      bool isFalseTitle = falseTitleKeywords.any(
+        (keyword) => content.contains(keyword),
+      );
 
       // 如果是真正的文章标题，应该包含完整的句子或表达完整意思
-      bool isRealTitle = content.contains('。') ||
-                         content.contains('！') ||
-                         content.contains('？') ||
-                         content.length > 15; // 真正的标题通常更长
+      bool isRealTitle =
+          content.contains('。') ||
+          content.contains('！') ||
+          content.contains('？') ||
+          content.length > 15; // 真正的标题通常更长
 
       // 如果是常见的误判关键词，则移除标题标记
       if (isFalseTitle && !isRealTitle) {
@@ -167,7 +190,10 @@ extension PartHtmlToMarkdown on AiService {
     processed = processed.replaceAll(',', '，');
 
     // 英文句号转中文句号（在中文语境下）
-    processed = processed.replaceAllMapped(RegExp(r'([^a-zA-Z0-9])\.(?=\s|$)'), (match) => '${match.group(1)}。');
+    processed = processed.replaceAllMapped(
+      RegExp(r'([^a-zA-Z0-9])\.(?=\s|$)'),
+      (match) => '${match.group(1)}。',
+    );
 
     // 英文冒号转中文冒号
     processed = processed.replaceAll(':', '：');

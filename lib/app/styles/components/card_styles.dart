@@ -44,7 +44,10 @@ class CardStyles {
 
   /// 获取简洁卡片样式 - 无边框无阴影
   static BoxDecoration getSimpleDecoration(BuildContext context) {
-    return BoxDecoration(color: AppColors.getSurface(context), borderRadius: BorderRadius.circular(Dimensions.radiusM));
+    return BoxDecoration(
+      color: AppColors.getSurface(context),
+      borderRadius: BorderRadius.circular(Dimensions.radiusM),
+    );
   }
 
   // ========================================================================
@@ -106,7 +109,8 @@ class CardStyles {
   static EdgeInsets getStandardPadding() => Dimensions.paddingCard;
 
   /// 获取紧凑卡片内边距
-  static EdgeInsets getCompactPadding() => const EdgeInsets.all(Dimensions.spacingS);
+  static EdgeInsets getCompactPadding() =>
+      const EdgeInsets.all(Dimensions.spacingS);
 
   /// 获取列表项内边距
   static EdgeInsets getListItemPadding() => Dimensions.paddingListItem;

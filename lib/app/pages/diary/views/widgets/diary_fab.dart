@@ -13,7 +13,8 @@ class DiaryFab extends StatefulWidget {
   State<DiaryFab> createState() => _DiaryFabState();
 }
 
-class _DiaryFabState extends State<DiaryFab> with SingleTickerProviderStateMixin {
+class _DiaryFabState extends State<DiaryFab>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _rotationAnimation;
   late Animation<double> _scaleAnimation;
@@ -27,17 +28,18 @@ class _DiaryFabState extends State<DiaryFab> with SingleTickerProviderStateMixin
 
   /// 初始化动画控制器和动画
   void _initAnimations() {
-    _animationController = AnimationController(duration: Animations.durationNormal, vsync: this);
+    _animationController = AnimationController(
+      duration: Animations.durationNormal,
+      vsync: this,
+    );
 
-    _rotationAnimation = Tween<double>(
-      begin: 0,
-      end: 0.125,
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
+    _rotationAnimation = Tween<double>(begin: 0, end: 0.125).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
 
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -63,7 +65,11 @@ class _DiaryFabState extends State<DiaryFab> with SingleTickerProviderStateMixin
             child: Center(
               child: RotationTransition(
                 turns: _rotationAnimation,
-                child: Icon(FeatherIcons.plus, size: Dimensions.iconSizeS, color: theme.colorScheme.onPrimary),
+                child: Icon(
+                  FeatherIcons.plus,
+                  size: Dimensions.iconSizeS,
+                  color: theme.colorScheme.onPrimary,
+                ),
               ),
             ),
           ),

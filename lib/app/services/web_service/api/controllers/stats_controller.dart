@@ -76,12 +76,16 @@ class StatsController {
       final recentDiaries = DiaryRepository.i.findAllPaginated(1);
       final diariesJson = recentDiaries.take(5).map((d) {
         final firstLine = d.content.split('\n').first.trim();
-        final title = firstLine.length > 50 ? '${firstLine.substring(0, 50)}...' : firstLine;
+        final title = firstLine.length > 50
+            ? '${firstLine.substring(0, 50)}...'
+            : firstLine;
         return {
           'id': d.id,
           'type': 'diary',
           'title': title.isEmpty ? '日记' : title,
-          'content': d.content.length > 100 ? '${d.content.substring(0, 100)}...' : d.content,
+          'content': d.content.length > 100
+              ? '${d.content.substring(0, 100)}...'
+              : d.content,
           'createdAt': d.createdAt.toIso8601String(),
         };
       }).toList();
@@ -100,7 +104,11 @@ class StatsController {
           )
           .toList();
 
-      return ResponseUtils.success({'articles': articlesJson, 'diaries': diariesJson, 'books': booksJson});
+      return ResponseUtils.success({
+        'articles': articlesJson,
+        'diaries': diariesJson,
+        'books': booksJson,
+      });
     } catch (e) {
       logger.e('[WebService][Stats] 获取最近活动失败', error: e);
       return ResponseUtils.serverError('获取最近活动时发生错误');

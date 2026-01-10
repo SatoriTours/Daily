@@ -19,11 +19,17 @@ class ArticleInfoItem extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: Dimensions.iconSizeXs, color: colorScheme.onSurfaceVariant.withAlpha(179)),
+        Icon(
+          icon,
+          size: Dimensions.iconSizeXs,
+          color: colorScheme.onSurfaceVariant.withAlpha(179),
+        ),
         Dimensions.horizontalSpacerXs,
         Text(
           text,
-          style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant.withAlpha(179)),
+          style: textTheme.labelSmall?.copyWith(
+            color: colorScheme.onSurfaceVariant.withAlpha(179),
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),

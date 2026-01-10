@@ -34,13 +34,21 @@ class DiaryView extends ConsumerWidget {
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context, DiaryControllerState state, DiaryController controller) {
+  PreferredSizeWidget _buildAppBar(
+    BuildContext context,
+    DiaryControllerState state,
+    DiaryController controller,
+  ) {
     return SAppBar(
       backgroundColorDark: AppColors.backgroundDark,
       backgroundColorLight: DiaryStyles.getAccentColor(context),
       elevation: 1,
       leading: IconButton(
-        icon: const Icon(FeatherIcons.calendar, color: Colors.white, size: Dimensions.iconSizeM),
+        icon: const Icon(
+          FeatherIcons.calendar,
+          color: Colors.white,
+          size: Dimensions.iconSizeM,
+        ),
         onPressed: () => _showCalendarDialog(context, state, controller),
         tooltip: '日历',
       ),
@@ -48,7 +56,11 @@ class DiaryView extends ConsumerWidget {
       onTitleDoubleTap: () => _scrollToTop(state),
       actions: [
         IconButton(
-          icon: const Icon(FeatherIcons.search, color: Colors.white, size: Dimensions.iconSizeM),
+          icon: const Icon(
+            FeatherIcons.search,
+            color: Colors.white,
+            size: Dimensions.iconSizeM,
+          ),
           onPressed: () {
             state.searchController?.clear();
             if (state.searchQuery.isNotEmpty) controller.clearFilters();
@@ -57,7 +69,11 @@ class DiaryView extends ConsumerWidget {
           tooltip: '搜索',
         ),
         IconButton(
-          icon: const Icon(FeatherIcons.tag, color: Colors.white, size: Dimensions.iconSizeM),
+          icon: const Icon(
+            FeatherIcons.tag,
+            color: Colors.white,
+            size: Dimensions.iconSizeM,
+          ),
           onPressed: () => _showTagsDialog(context, state, controller),
           tooltip: '标签',
         ),
@@ -66,7 +82,11 @@ class DiaryView extends ConsumerWidget {
     );
   }
 
-  Widget _buildSearchBar(bool show, DiaryControllerState state, DiaryController controller) {
+  Widget _buildSearchBar(
+    bool show,
+    DiaryControllerState state,
+    DiaryController controller,
+  ) {
     return AnimatedPositioned(
       duration: Animations.durationNormal,
       curve: Curves.easeInOut,
@@ -88,14 +108,22 @@ class DiaryView extends ConsumerWidget {
     return Positioned(
       right: Dimensions.spacingL,
       bottom: Dimensions.spacingL,
-      child: SafeArea(bottom: true, right: true, child: DiaryFab(onPressed: () => _showEditorDialog(context))),
+      child: SafeArea(
+        bottom: true,
+        right: true,
+        child: DiaryFab(onPressed: () => _showEditorDialog(context)),
+      ),
     );
   }
 
   void _scrollToTop(DiaryControllerState state) {
     final sc = state.scrollController;
     if (sc != null && sc.hasClients) {
-      sc.animateTo(0, duration: Animations.durationNormal, curve: Curves.easeInOut);
+      sc.animateTo(
+        0,
+        duration: Animations.durationNormal,
+        curve: Curves.easeInOut,
+      );
     }
   }
 
@@ -106,19 +134,28 @@ class DiaryView extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: DiaryStyles.getBottomSheetColor(context),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(base_dim.Dimensions.radiusL),
+        ),
       ),
-      builder: (_) => diary != null ? DiaryEditor(diary: diary) : const DiaryEditor(),
+      builder: (_) =>
+          diary != null ? DiaryEditor(diary: diary) : const DiaryEditor(),
     ).then((_) => FocusManager.instance.primaryFocus?.unfocus());
   }
 
-  void _showTagsDialog(BuildContext context, DiaryControllerState state, DiaryController controller) {
+  void _showTagsDialog(
+    BuildContext context,
+    DiaryControllerState state,
+    DiaryController controller,
+  ) {
     FocusManager.instance.primaryFocus?.unfocus();
     showModalBottomSheet(
       context: context,
       backgroundColor: DiaryStyles.getBottomSheetColor(context),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(base_dim.Dimensions.radiusL),
+        ),
       ),
       builder: (_) => DiaryTagsDialog(
         tags: state.tags,
@@ -134,16 +171,24 @@ class DiaryView extends ConsumerWidget {
     ).then((_) => FocusManager.instance.primaryFocus?.unfocus());
   }
 
-  void _showCalendarDialog(BuildContext context, DiaryControllerState state, DiaryController controller) {
+  void _showCalendarDialog(
+    BuildContext context,
+    DiaryControllerState state,
+    DiaryController controller,
+  ) {
     FocusManager.instance.primaryFocus?.unfocus();
-    if (state.searchQuery.isNotEmpty || state.currentTag.isNotEmpty || state.selectedFilterDate != null) {
+    if (state.searchQuery.isNotEmpty ||
+        state.currentTag.isNotEmpty ||
+        state.selectedFilterDate != null) {
       controller.clearFilters();
     }
     showModalBottomSheet(
       context: context,
       backgroundColor: DiaryStyles.getBottomSheetColor(context),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(base_dim.Dimensions.radiusL),
+        ),
       ),
       isScrollControlled: true,
       builder: (_) => const DiaryCalendarDialog(),
@@ -210,7 +255,9 @@ class _DiaryContent extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: DiaryStyles.getBottomSheetColor(context),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(base_dim.Dimensions.radiusL)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(base_dim.Dimensions.radiusL),
+        ),
       ),
       builder: (_) => DiaryEditor(diary: diary),
     ).then((_) => FocusManager.instance.primaryFocus?.unfocus());

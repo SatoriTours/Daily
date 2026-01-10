@@ -13,8 +13,15 @@ class AIConfigInfoDialog extends StatelessWidget {
     return AlertDialog(
       title: _buildDialogTitle(context),
       content: _buildDialogContent(context),
-      actions: [TextButton(onPressed: () => AppNavigation.back(), child: const Text('了解了'))],
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
+      actions: [
+        TextButton(
+          onPressed: () => AppNavigation.back(),
+          child: const Text('了解了'),
+        ),
+      ],
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusL),
+      ),
     );
   }
 
@@ -22,7 +29,11 @@ class AIConfigInfoDialog extends StatelessWidget {
   Widget _buildDialogTitle(BuildContext context) {
     return Row(
       children: [
-        Icon(Icons.help_outline, color: AppColors.getPrimary(context), size: Dimensions.iconSizeM),
+        Icon(
+          Icons.help_outline,
+          color: AppColors.getPrimary(context),
+          size: Dimensions.iconSizeM,
+        ),
         Dimensions.horizontalSpacerM,
         Text('AI配置说明', style: AppTypography.titleLarge),
       ],
@@ -49,7 +60,9 @@ class AIConfigInfoDialog extends StatelessWidget {
           Text(
             '通过不同功能类型的配置，您可以针对特定任务优化AI性能。',
             style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+              color: AppColors.getOnSurface(
+                context,
+              ).withValues(alpha: Opacities.medium),
             ),
           ),
         ],
@@ -58,13 +71,27 @@ class AIConfigInfoDialog extends StatelessWidget {
   }
 
   /// 构建信息项目
-  Widget _buildInfoItem(BuildContext context, String title, String description) {
+  Widget _buildInfoItem(
+    BuildContext context,
+    String title,
+    String description,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          title,
+          style: AppTypography.titleMedium.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         Dimensions.verticalSpacerS,
-        Text(description, style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context))),
+        Text(
+          description,
+          style: AppTypography.bodyMedium.copyWith(
+            color: AppColors.getOnSurfaceVariant(context),
+          ),
+        ),
       ],
     );
   }

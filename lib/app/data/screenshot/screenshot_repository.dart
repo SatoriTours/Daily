@@ -29,7 +29,10 @@ class ScreenshotRepository extends BaseRepository<Screenshot, ScreenshotModel> {
   }
 
   /// 使用数据创建截图模型
-  ScreenshotModel createWithData(Map<String, dynamic> data, ArticleModel articleModel) {
+  ScreenshotModel createWithData(
+    Map<String, dynamic> data,
+    ArticleModel articleModel,
+  ) {
     final screenshot = Screenshot(path: data['path']);
     screenshot.article.target = articleModel.entity;
     return ScreenshotModel(screenshot);

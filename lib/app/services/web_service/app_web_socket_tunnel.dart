@@ -20,10 +20,12 @@ class AppWebSocketTunnel {
   final String _httpForwardUrl = 'http://127.0.0.1:8888';
 
   /// WebSocket服务器URL
-  String get _webSocketUrl => SettingRepository.i.getSetting(SettingService.webSocketUrlKey);
+  String get _webSocketUrl =>
+      SettingRepository.i.getSetting(SettingService.webSocketUrlKey);
 
   /// 设备ID
-  String get _deviceId => SettingRepository.i.getSetting(SettingService.deviceIdKey);
+  String get _deviceId =>
+      SettingRepository.i.getSetting(SettingService.deviceIdKey);
 
   /// 重连机制相关参数
   int _retryCount = 0;
@@ -49,7 +51,11 @@ class AppWebSocketTunnel {
       _channel = WebSocketChannel.connect(Uri.parse(_webSocketUrl));
 
       // 设置监听器
-      _channel!.stream.listen(_handleMessage, onError: _handleError, onDone: _handleDone);
+      _channel!.stream.listen(
+        _handleMessage,
+        onError: _handleError,
+        onDone: _handleDone,
+      );
 
       // 等待连接准备就绪
       await _channel!.ready;
@@ -164,7 +170,8 @@ class AppWebSocketTunnel {
       // 解析消息内容
       final messageMap = jsonDecode(data);
       final requestPath = messageMap['path'] as String? ?? '';
-      final headers = (messageMap['headers'] as Map?)?.cast<String, String>() ?? {};
+      final headers =
+          (messageMap['headers'] as Map?)?.cast<String, String>() ?? {};
       final body = messageMap['body'] as String? ?? '';
       final method = messageMap['method'] as String? ?? 'GET';
 
@@ -176,7 +183,11 @@ class AppWebSocketTunnel {
       final response = await _dio.request(
         forwardUrl,
         data: body.isNotEmpty ? body : null,
-        options: Options(method: method, headers: headers, validateStatus: (_) => true),
+        options: Options(
+          method: method,
+          headers: headers,
+          validateStatus: (_) => true,
+        ),
       );
 
       // 处理响应
@@ -194,11 +205,16 @@ class AppWebSocketTunnel {
       final responseData = {
         "http_code": response.statusCode,
         "content-type": response.headers.map['content-type']?.first ?? '',
-        "body": response.data is String ? response.data : jsonEncode(response.data),
+        "body": response.data is String
+            ? response.data
+            : jsonEncode(response.data),
       };
 
       // 封装消息
-      final responseMessage = {"message_id": messageID, "data": jsonEncode(responseData)};
+      final responseMessage = {
+        "message_id": messageID,
+        "data": jsonEncode(responseData),
+      };
 
       // 发送响应
       final responseJson = jsonEncode(responseMessage);
@@ -216,11 +232,22 @@ class AppWebSocketTunnel {
     try {
       if (messageID != null) {
         // 结构化错误响应
-        final standardErrorBody = {"code": 500, "msg": errorMessage, "data": null};
+        final standardErrorBody = {
+          "code": 500,
+          "msg": errorMessage,
+          "data": null,
+        };
 
-        final errorData = {"http_code": 500, "content-type": "application/json", "body": jsonEncode(standardErrorBody)};
+        final errorData = {
+          "http_code": 500,
+          "content-type": "application/json",
+          "body": jsonEncode(standardErrorBody),
+        };
 
-        final errorResponse = {"message_id": messageID, "data": jsonEncode(errorData)};
+        final errorResponse = {
+          "message_id": messageID,
+          "data": jsonEncode(errorData),
+        };
 
         _channel?.sink.add(jsonEncode(errorResponse));
       } else {

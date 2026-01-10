@@ -17,12 +17,17 @@ class GoogleBooksSearchEngine extends BookSearchEngine {
   final Dio _dio = Dio();
 
   @override
-  Future<List<BookSearchResult>> searchBooks(String query, {int limit = 8}) async {
+  Future<List<BookSearchResult>> searchBooks(
+    String query, {
+    int limit = 8,
+  }) async {
     try {
       logger.i('开始通过 $engineName 搜索书籍: $query');
 
       // 检查 API Key 是否配置
-      final apiKey = SettingRepository.i.getSetting(SettingService.googleCloudApiKeyKey);
+      final apiKey = SettingRepository.i.getSetting(
+        SettingService.googleCloudApiKeyKey,
+      );
       if (apiKey.isEmpty) {
         logger.w('Google Books API Key 未配置，无法搜索');
         return [];
@@ -66,7 +71,9 @@ class GoogleBooksSearchEngine extends BookSearchEngine {
   @override
   Future<bool> isAvailable() async {
     try {
-      final apiKey = SettingRepository.i.getSetting(SettingService.googleCloudApiKeyKey);
+      final apiKey = SettingRepository.i.getSetting(
+        SettingService.googleCloudApiKeyKey,
+      );
       return apiKey.isNotEmpty;
     } catch (e) {
       logger.w('$engineName 不可用: $e');
@@ -95,14 +102,21 @@ class GoogleBooksSearchEngine extends BookSearchEngine {
 
         // 获取 ISBN
         String isbn = '';
-        final industryIdentifiers = volumeInfo['industryIdentifiers'] as List<dynamic>?;
+        final industryIdentifiers =
+            volumeInfo['industryIdentifiers'] as List<dynamic>?;
         if (industryIdentifiers != null && industryIdentifiers.isNotEmpty) {
           // 优先使用 ISBN_13
           final isbn13 = industryIdentifiers
               .where((id) => (id as Map<String, dynamic>)['type'] == 'ISBN_13')
-              .map<String>((id) => (id as Map<String, dynamic>)['identifier'] as String)
+              .map<String>(
+                (id) => (id as Map<String, dynamic>)['identifier'] as String,
+              )
               .firstOrNull;
-          isbn = isbn13 ?? (industryIdentifiers.first as Map<String, dynamic>)['identifier'] as String? ?? '';
+          isbn =
+              isbn13 ??
+              (industryIdentifiers.first as Map<String, dynamic>)['identifier']
+                  as String? ??
+              '';
         }
 
         // 获取分类

@@ -104,9 +104,9 @@ class DiaryStyles {
 
   /// 获取标签内边距
   static EdgeInsets getTagPadding() => const EdgeInsets.symmetric(
-        horizontal: Dimensions.spacingS,
-        vertical: Dimensions.spacingXxs,
-      );
+    horizontal: Dimensions.spacingS,
+    vertical: Dimensions.spacingXxs,
+  );
 
   // ========================================================================
   // 卡片样式
@@ -127,9 +127,9 @@ class DiaryStyles {
 
   /// 获取日记项目外边距
   static EdgeInsets getDiaryItemMargin() => const EdgeInsets.symmetric(
-        horizontal: Dimensions.spacingM,
-        vertical: Dimensions.spacingS,
-      );
+    horizontal: Dimensions.spacingM,
+    vertical: Dimensions.spacingS,
+  );
 
   // ========================================================================
   // 文本样式
@@ -151,9 +151,7 @@ class DiaryStyles {
 
   /// 获取日记时间文本样式
   static TextStyle getTimeTextStyle(BuildContext context) {
-    return AppTypography.captionText.copyWith(
-      color: getTimeTextColor(context),
-    );
+    return AppTypography.captionText.copyWith(color: getTimeTextColor(context));
   }
 
   // ========================================================================
@@ -174,17 +172,19 @@ class DiaryStyles {
   /// 获取底部表单形状
   static RoundedRectangleBorder getBottomSheetShape() {
     return const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(Dimensions.radiusL),
+      ),
     );
   }
 
   /// 获取底部表单内边距
   static EdgeInsets getBottomSheetPadding() => const EdgeInsets.fromLTRB(
-        Dimensions.spacingM,
-        Dimensions.spacingM,
-        Dimensions.spacingM,
-        Dimensions.spacingXxl,
-      );
+    Dimensions.spacingM,
+    Dimensions.spacingM,
+    Dimensions.spacingM,
+    Dimensions.spacingXxl,
+  );
 
   // ========================================================================
   // 浮动按钮样式
@@ -192,7 +192,8 @@ class DiaryStyles {
 
   /// 获取浮动按钮颜色
   /// @deprecated 使用 `AppColors.getPrimary(context)` 替代
-  static Color getFabColor(BuildContext context) => AppColors.getPrimary(context);
+  static Color getFabColor(BuildContext context) =>
+      AppColors.getPrimary(context);
 
   /// 获取浮动按钮图标颜色
   static Color getFabIconColor(BuildContext context) => Colors.white;

@@ -12,7 +12,9 @@ class ServerUrlDialog {
   /// 显示服务器URL设置对话框
   static Future<void> show(BuildContext context, WidgetRef ref) async {
     final controllerState = ref.read(pluginCenterControllerProvider);
-    final textController = TextEditingController(text: controllerState.pluginServerUrl);
+    final textController = TextEditingController(
+      text: controllerState.pluginServerUrl,
+    );
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTheme.getTextTheme(context);
 
@@ -20,9 +22,13 @@ class ServerUrlDialog {
       context: context,
       isScrollControlled: true,
       backgroundColor: colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
+      shape: const RoundedRectangleBorder(
+        borderRadius: Dimensions.borderRadiusTop,
+      ),
       builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: SingleChildScrollView(
           child: Padding(
             padding: Dimensions.paddingL,
@@ -40,13 +46,25 @@ class ServerUrlDialog {
                         color: colorScheme.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(Dimensions.radiusS),
                       ),
-                      child: Icon(Icons.dns_rounded, color: colorScheme.primary, size: Dimensions.iconSizeM),
+                      child: Icon(
+                        Icons.dns_rounded,
+                        color: colorScheme.primary,
+                        size: Dimensions.iconSizeM,
+                      ),
                     ),
                     Dimensions.horizontalSpacerM,
                     Expanded(
-                      child: Text('插件服务器设置', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+                      child: Text(
+                        '插件服务器设置',
+                        style: textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                    IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => AppNavigation.back()),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => AppNavigation.back(),
+                    ),
                   ],
                 ),
                 Dimensions.verticalSpacerL,
@@ -54,7 +72,10 @@ class ServerUrlDialog {
                 // 说明文本
                 Text(
                   '服务器地址',
-                  style: textTheme.labelLarge?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.w600),
+                  style: textTheme.labelLarge?.copyWith(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 Dimensions.verticalSpacerS,
 
@@ -63,22 +84,36 @@ class ServerUrlDialog {
                   controller: textController,
                   decoration: InputDecoration(
                     hintText: 'https://example.com/plugins',
-                    hintStyle: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.4)),
-                    prefixIcon: Icon(Icons.link_rounded, color: colorScheme.primary),
+                    hintStyle: TextStyle(
+                      color: colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                    prefixIcon: Icon(
+                      Icons.link_rounded,
+                      color: colorScheme.primary,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(Dimensions.radiusM),
-                      borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.5)),
+                      borderSide: BorderSide(
+                        color: colorScheme.outline.withValues(alpha: 0.5),
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(Dimensions.radiusM),
-                      borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
+                      borderSide: BorderSide(
+                        color: colorScheme.outline.withValues(alpha: 0.3),
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(Dimensions.radiusM),
-                      borderSide: BorderSide(color: colorScheme.primary, width: 2),
+                      borderSide: BorderSide(
+                        color: colorScheme.primary,
+                        width: 2,
+                      ),
                     ),
                     filled: true,
-                    fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                    fillColor: colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.3,
+                    ),
                     contentPadding: Dimensions.paddingM,
                   ),
                   style: textTheme.bodyLarge,
@@ -96,17 +131,26 @@ class ServerUrlDialog {
                   decoration: BoxDecoration(
                     color: colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(Dimensions.radiusS),
-                    border: Border.all(color: colorScheme.primary.withValues(alpha: 0.2)),
+                    border: Border.all(
+                      color: colorScheme.primary.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.info_outline_rounded, size: Dimensions.iconSizeS, color: colorScheme.primary),
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: Dimensions.iconSizeS,
+                        color: colorScheme.primary,
+                      ),
                       Dimensions.horizontalSpacerS,
                       Expanded(
                         child: Text(
                           '服务器URL应指向包含插件配置文件的目录',
-                          style: textTheme.bodySmall?.copyWith(color: colorScheme.primary, height: 1.4),
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.primary,
+                            height: 1.4,
+                          ),
                         ),
                       ),
                     ],
@@ -130,7 +174,9 @@ class ServerUrlDialog {
                         onPressed: () {
                           final url = textController.text.trim();
                           if (url.isNotEmpty) {
-                            ref.read(pluginCenterControllerProvider.notifier).updateServerUrl(url);
+                            ref
+                                .read(pluginCenterControllerProvider.notifier)
+                                .updateServerUrl(url);
                           }
                           AppNavigation.back();
                         },

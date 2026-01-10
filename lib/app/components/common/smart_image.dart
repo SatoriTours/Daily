@@ -100,7 +100,9 @@ class SmartImage extends StatelessWidget {
       width: width,
       height: height,
       errorBuilder: (_, _, _) {
-        return _hasValidNetworkUrl ? _buildNetworkImage(context) : _buildErrorWidget(context);
+        return _hasValidNetworkUrl
+            ? _buildNetworkImage(context)
+            : _buildErrorWidget(context);
       },
     );
   }
@@ -129,7 +131,12 @@ class SmartImage extends StatelessWidget {
       width: width,
       height: height,
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: Center(child: CircularProgressIndicator(strokeWidth: 2.0, color: Theme.of(context).colorScheme.primary)),
+      child: Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 2.0,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
     );
   }
 
@@ -143,7 +150,11 @@ class SmartImage extends StatelessWidget {
         color: colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(borderRadius),
       ),
-      child: Icon(Icons.image_not_supported, color: colorScheme.onSurfaceVariant, size: errorIconSize),
+      child: Icon(
+        Icons.image_not_supported,
+        color: colorScheme.onSurfaceVariant,
+        size: errorIconSize,
+      ),
     );
   }
 

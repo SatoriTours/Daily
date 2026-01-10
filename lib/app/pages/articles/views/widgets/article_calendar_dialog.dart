@@ -41,12 +41,18 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
   Widget build(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
     return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildHeader(context, colorScheme),
-          Divider(height: 1, thickness: 0.5, color: colorScheme.outline.withValues(alpha: 0.5)),
+          Divider(
+            height: 1,
+            thickness: 0.5,
+            color: colorScheme.outline.withValues(alpha: 0.5),
+          ),
           Expanded(
             child: SingleChildScrollView(
               child: CommonCalendar(
@@ -59,15 +65,27 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
                   AppNavigation.back();
                 },
                 onPreviousMonth: () => setState(() {
-                  _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month - 1, 1);
+                  _displayedMonth = DateTime(
+                    _displayedMonth.year,
+                    _displayedMonth.month - 1,
+                    1,
+                  );
                 }),
                 onNextMonth: () => setState(() {
-                  _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 1);
+                  _displayedMonth = DateTime(
+                    _displayedMonth.year,
+                    _displayedMonth.month + 1,
+                    1,
+                  );
                 }),
               ),
             ),
           ),
-          Divider(height: 1, thickness: 0.5, color: colorScheme.outline.withValues(alpha: 0.5)),
+          Divider(
+            height: 1,
+            thickness: 0.5,
+            color: colorScheme.outline.withValues(alpha: 0.5),
+          ),
           _buildAllArticlesButton(context, colorScheme),
           SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
@@ -94,7 +112,11 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
             ),
           ),
           IconButton(
-            icon: Icon(FeatherIcons.x, size: Dimensions.iconSizeM, color: colorScheme.onSurfaceVariant),
+            icon: Icon(
+              FeatherIcons.x,
+              size: Dimensions.iconSizeM,
+              color: colorScheme.onSurfaceVariant,
+            ),
             onPressed: () => AppNavigation.back(),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
@@ -104,7 +126,10 @@ class _ArticleCalendarDialogState extends State<ArticleCalendarDialog> {
     );
   }
 
-  Widget _buildAllArticlesButton(BuildContext context, ColorScheme colorScheme) {
+  Widget _buildAllArticlesButton(
+    BuildContext context,
+    ColorScheme colorScheme,
+  ) {
     return InkWell(
       onTap: () {
         widget.onShowAllArticles();

@@ -159,6 +159,8 @@ class RiverpodRetry {
     }
 
     // 所有尝试都失败，抛出最后一个错误
-    throw lastError is Exception ? lastError : Exception('Operation failed after $maxAttempts attempts: $lastError');
+    throw lastError is Exception
+        ? lastError
+        : Exception('Operation failed after $maxAttempts attempts: $lastError');
   }
 }

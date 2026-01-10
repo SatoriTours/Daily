@@ -67,10 +67,15 @@ class CustomButton extends StatelessWidget {
   /// 构建按钮样式
   ButtonStyle _buildButtonStyle(BuildContext context) {
     if (isPrimary) {
-      return ElevatedButton.styleFrom(backgroundColor: AppColors.getPrimary(context), foregroundColor: Colors.white);
+      return ElevatedButton.styleFrom(
+        backgroundColor: AppColors.getPrimary(context),
+        foregroundColor: Colors.white,
+      );
     }
     return ElevatedButton.styleFrom(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? AppColors.getSurface(context) : Colors.white,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? AppColors.getSurface(context)
+          : Colors.white,
       foregroundColor: AppColors.getPrimary(context),
       side: BorderSide(color: AppColors.getPrimary(context)),
     );

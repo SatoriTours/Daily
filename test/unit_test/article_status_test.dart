@@ -13,7 +13,10 @@ void main() {
     });
 
     test('webContentFetched should have correct value', () {
-      expect(ArticleStatus.webContentFetched.value, equals('web_content_fetched'));
+      expect(
+        ArticleStatus.webContentFetched.value,
+        equals('web_content_fetched'),
+      );
       expect(ArticleStatus.webContentFetched.label, equals('网页内容已获取'));
     });
 
@@ -29,9 +32,18 @@ void main() {
 
     group('fromValue', () {
       test('should return correct status for valid values', () {
-        expect(ArticleStatus.fromValue('pending'), equals(ArticleStatus.pending));
-        expect(ArticleStatus.fromValue('web_content_fetched'), equals(ArticleStatus.webContentFetched));
-        expect(ArticleStatus.fromValue('completed'), equals(ArticleStatus.completed));
+        expect(
+          ArticleStatus.fromValue('pending'),
+          equals(ArticleStatus.pending),
+        );
+        expect(
+          ArticleStatus.fromValue('web_content_fetched'),
+          equals(ArticleStatus.webContentFetched),
+        );
+        expect(
+          ArticleStatus.fromValue('completed'),
+          equals(ArticleStatus.completed),
+        );
         expect(ArticleStatus.fromValue('error'), equals(ArticleStatus.error));
       });
 

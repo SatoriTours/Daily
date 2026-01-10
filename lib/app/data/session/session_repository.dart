@@ -78,7 +78,9 @@ class SessionRepository extends BaseRepository<SessionEntity, SessionModel> {
 
     // 查询所有会话
     final allSessions = all();
-    final expiredSessions = allSessions.where((session) => session.entity.lastAccessedAt.isBefore(expireTime)).toList();
+    final expiredSessions = allSessions
+        .where((session) => session.entity.lastAccessedAt.isBefore(expireTime))
+        .toList();
 
     if (expiredSessions.isNotEmpty) {
       // 删除过期会话

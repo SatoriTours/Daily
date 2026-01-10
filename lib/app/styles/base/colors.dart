@@ -7,8 +7,14 @@ class AppColors {
   AppColors._();
 
   // 获取当前主题颜色的辅助方法
-  static Color getThemeColor(BuildContext context, Color lightColor, Color darkColor) {
-    return Theme.of(context).brightness == Brightness.light ? lightColor : darkColor;
+  static Color getThemeColor(
+    BuildContext context,
+    Color lightColor,
+    Color darkColor,
+  ) {
+    return Theme.of(context).brightness == Brightness.light
+        ? lightColor
+        : darkColor;
   }
 
   // 品牌色
@@ -30,7 +36,9 @@ class AppColors {
 
   // 表面容器高亮色（更深）
   static const Color surfaceContainerHighest = Color(0xFFE0E0E0); // 表面容器高亮色
-  static const Color surfaceContainerHighestDark = Color(0xFF3A3A3A); // 表面容器高亮色-暗
+  static const Color surfaceContainerHighestDark = Color(
+    0xFF3A3A3A,
+  ); // 表面容器高亮色-暗
 
   // 文本色
   static const Color onBackground = Color(0xFF212121); // 背景上文本
@@ -90,45 +98,66 @@ class AppColors {
   ];
 
   // 主题相关颜色获取方法
-  static Color getPrimary(BuildContext context) => getThemeColor(context, primary, primaryLight);
+  static Color getPrimary(BuildContext context) =>
+      getThemeColor(context, primary, primaryLight);
 
-  static Color getBackground(BuildContext context) => getThemeColor(context, background, backgroundDark);
+  static Color getBackground(BuildContext context) =>
+      getThemeColor(context, background, backgroundDark);
 
-  static Color getSurface(BuildContext context) => getThemeColor(context, surface, surfaceDark);
+  static Color getSurface(BuildContext context) =>
+      getThemeColor(context, surface, surfaceDark);
 
   static Color getSurfaceContainer(BuildContext context) =>
       getThemeColor(context, surfaceContainer, surfaceContainerDark);
 
   static Color getSurfaceContainerHighest(BuildContext context) =>
-      getThemeColor(context, surfaceContainerHighest, surfaceContainerHighestDark);
+      getThemeColor(
+        context,
+        surfaceContainerHighest,
+        surfaceContainerHighestDark,
+      );
 
-  static Color getOnBackground(BuildContext context) => getThemeColor(context, onBackground, onBackgroundDark);
+  static Color getOnBackground(BuildContext context) =>
+      getThemeColor(context, onBackground, onBackgroundDark);
 
-  static Color getOnSurface(BuildContext context) => getThemeColor(context, onSurface, onSurfaceDark);
+  static Color getOnSurface(BuildContext context) =>
+      getThemeColor(context, onSurface, onSurfaceDark);
 
   static Color getOnSurfaceVariant(BuildContext context) =>
       getThemeColor(context, onSurfaceVariant, onSurfaceVariantDark);
 
-  static Color getOutline(BuildContext context) => getThemeColor(context, outline, outlineDark);
+  static Color getOutline(BuildContext context) =>
+      getThemeColor(context, outline, outlineDark);
 
-  static Color getOutlineVariant(BuildContext context) => getThemeColor(context, outlineVariant, outlineVariantDark);
+  static Color getOutlineVariant(BuildContext context) =>
+      getThemeColor(context, outlineVariant, outlineVariantDark);
 
-  static Color getSuccess(BuildContext context) => getThemeColor(context, success, successDark);
+  static Color getSuccess(BuildContext context) =>
+      getThemeColor(context, success, successDark);
 
-  static Color getError(BuildContext context) => getThemeColor(context, error, errorDark);
+  static Color getError(BuildContext context) =>
+      getThemeColor(context, error, errorDark);
 
-  static Color getWarning(BuildContext context) => getThemeColor(context, warning, warningDark);
+  static Color getWarning(BuildContext context) =>
+      getThemeColor(context, warning, warningDark);
 
-  static Color getInfo(BuildContext context) => getThemeColor(context, info, infoDark);
+  static Color getInfo(BuildContext context) =>
+      getThemeColor(context, info, infoDark);
 
   static List<Color> getTagColors(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.light ? tagColors : tagColorsDark;
+      Theme.of(context).brightness == Brightness.light
+      ? tagColors
+      : tagColorsDark;
 
   // Material 3 容器颜色
-  static Color getPrimaryContainer(BuildContext context) =>
-      getThemeColor(context, primary.withValues(alpha: 0.2), primaryLight.withValues(alpha: 0.2));
+  static Color getPrimaryContainer(BuildContext context) => getThemeColor(
+    context,
+    primary.withValues(alpha: 0.2),
+    primaryLight.withValues(alpha: 0.2),
+  );
 
-  static Color getOnPrimaryContainer(BuildContext context) => getThemeColor(context, primaryDark, primaryLight);
+  static Color getOnPrimaryContainer(BuildContext context) =>
+      getThemeColor(context, primaryDark, primaryLight);
 
   static Color getSecondaryContainer(BuildContext context) =>
       getThemeColor(context, const Color(0xFFE8F5E9), const Color(0xFF2E3B2E));
@@ -145,5 +174,6 @@ class AppColors {
   static Color getSecondary(BuildContext context) =>
       getThemeColor(context, const Color(0xFF4CAF50), const Color(0xFF66BB6A));
 
-  static Color getOnPrimary(BuildContext context) => getThemeColor(context, Colors.white, Colors.white);
+  static Color getOnPrimary(BuildContext context) =>
+      getThemeColor(context, Colors.white, Colors.white);
 }

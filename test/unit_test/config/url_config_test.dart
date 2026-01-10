@@ -11,7 +11,10 @@ void main() {
 
     test('should have GitHub release API mirror URL', () {
       expect(UrlConfig.githubReleaseApiMirror.isNotEmpty, isTrue);
-      expect(UrlConfig.githubReleaseApiMirror.contains('mirror.ghproxy.com'), isTrue);
+      expect(
+        UrlConfig.githubReleaseApiMirror.contains('mirror.ghproxy.com'),
+        isTrue,
+      );
     });
 
     test('should have easylist URL', () {

@@ -10,10 +10,12 @@ class ButtonStyles {
   ButtonStyles._();
 
   /// 获取标准按钮尺寸
-  static Size getStandardSize() => const Size.fromHeight(Dimensions.buttonHeight);
+  static Size getStandardSize() =>
+      const Size.fromHeight(Dimensions.buttonHeight);
 
   /// 获取小按钮尺寸
-  static Size getSmallSize() => const Size.fromHeight(Dimensions.buttonHeightSmall);
+  static Size getSmallSize() =>
+      const Size.fromHeight(Dimensions.buttonHeightSmall);
 
   /// 获取主要按钮样式
   static ButtonStyle getPrimaryStyle(BuildContext context) {
@@ -24,7 +26,9 @@ class ButtonStyles {
       foregroundColor: Colors.white,
       elevation: 0,
       padding: Dimensions.paddingButton,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      ),
       minimumSize: getStandardSize(),
       textStyle: AppTypography.buttonText,
       shadowColor: Colors.transparent,
@@ -36,11 +40,15 @@ class ButtonStyles {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ElevatedButton.styleFrom(
-      backgroundColor: isDark ? Colors.white.withValues(alpha: 0.1) : AppColors.primary.withValues(alpha: 0.1),
+      backgroundColor: isDark
+          ? Colors.white.withValues(alpha: 0.1)
+          : AppColors.primary.withValues(alpha: 0.1),
       foregroundColor: isDark ? Colors.white : AppColors.primary,
       elevation: 0,
       padding: Dimensions.paddingButton,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      ),
       minimumSize: getStandardSize(),
       textStyle: AppTypography.buttonText,
       shadowColor: Colors.transparent,
@@ -53,9 +61,14 @@ class ButtonStyles {
 
     return OutlinedButton.styleFrom(
       foregroundColor: isDark ? AppColors.primaryLight : AppColors.primary,
-      side: BorderSide(color: isDark ? AppColors.primaryLight : AppColors.primary, width: 1.5),
+      side: BorderSide(
+        color: isDark ? AppColors.primaryLight : AppColors.primary,
+        width: 1.5,
+      ),
       padding: Dimensions.paddingButton,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      ),
       minimumSize: getStandardSize(),
       textStyle: AppTypography.buttonText,
     );
@@ -68,7 +81,9 @@ class ButtonStyles {
     return TextButton.styleFrom(
       foregroundColor: isDark ? AppColors.primaryLight : AppColors.primary,
       padding: Dimensions.paddingButton,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      ),
       minimumSize: getStandardSize(),
       textStyle: AppTypography.buttonText,
     );
@@ -83,7 +98,9 @@ class ButtonStyles {
       foregroundColor: Colors.white,
       elevation: 0,
       padding: Dimensions.paddingButton,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      ),
       minimumSize: getStandardSize(),
       textStyle: AppTypography.buttonText,
       shadowColor: Colors.transparent,
@@ -99,7 +116,9 @@ class ButtonStyles {
       foregroundColor: Colors.white,
       elevation: 0,
       padding: Dimensions.paddingButton,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      ),
       minimumSize: getStandardSize(),
       textStyle: AppTypography.buttonText,
       shadowColor: Colors.transparent,
@@ -115,7 +134,9 @@ class ButtonStyles {
       foregroundColor: isDark ? Colors.black87 : Colors.white,
       elevation: 0,
       padding: Dimensions.paddingButton,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      ),
       minimumSize: getStandardSize(),
       textStyle: AppTypography.buttonText,
       shadowColor: Colors.transparent,

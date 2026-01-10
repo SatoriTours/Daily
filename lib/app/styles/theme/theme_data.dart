@@ -61,8 +61,14 @@ class AppThemeData {
         elevation: 0,
         centerTitle: true,
         titleTextStyle: AppTypography.appBarTitle.copyWith(color: Colors.white),
-        iconTheme: const IconThemeData(color: Colors.white, size: Dimensions.iconSizeM),
-        actionsIconTheme: const IconThemeData(color: Colors.white, size: Dimensions.iconSizeM),
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+          size: Dimensions.iconSizeM,
+        ),
+        actionsIconTheme: const IconThemeData(
+          color: Colors.white,
+          size: Dimensions.iconSizeM,
+        ),
         systemOverlayStyle: SystemUiOverlayStyle.light,
       ),
 
@@ -142,9 +148,15 @@ class AppThemeData {
         filled: true,
         fillColor: AppColors.surfaceContainer,
         contentPadding: Dimensions.paddingInput,
-        labelStyle: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariant),
-        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariant.withValues(alpha: 0.7)),
-        helperStyle: AppTypography.captionText.copyWith(color: AppColors.onSurfaceVariant),
+        labelStyle: AppTypography.bodyMedium.copyWith(
+          color: AppColors.onSurfaceVariant,
+        ),
+        hintStyle: AppTypography.bodyMedium.copyWith(
+          color: AppColors.onSurfaceVariant.withValues(alpha: 0.7),
+        ),
+        helperStyle: AppTypography.captionText.copyWith(
+          color: AppColors.onSurfaceVariant,
+        ),
         errorStyle: AppTypography.errorText.copyWith(color: AppColors.error),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
@@ -168,7 +180,10 @@ class AppThemeData {
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.outline.withValues(alpha: 0.5), width: 1.0),
+          borderSide: BorderSide(
+            color: AppColors.outline.withValues(alpha: 0.5),
+            width: 1.0,
+          ),
         ),
       ),
 
@@ -179,7 +194,9 @@ class AppThemeData {
           foregroundColor: Colors.white,
           elevation: 0,
           padding: Dimensions.paddingButton,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          ),
           minimumSize: const Size.fromHeight(Dimensions.buttonHeight),
           textStyle: AppTypography.buttonText,
         ),
@@ -190,7 +207,9 @@ class AppThemeData {
           foregroundColor: AppColors.primary,
           side: const BorderSide(color: AppColors.primary, width: 1.5),
           padding: Dimensions.paddingButton,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          ),
           minimumSize: const Size.fromHeight(Dimensions.buttonHeight),
           textStyle: AppTypography.buttonText,
         ),
@@ -200,7 +219,9 @@ class AppThemeData {
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
           padding: Dimensions.paddingButton,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          ),
           minimumSize: const Size.fromHeight(Dimensions.buttonHeight),
           textStyle: AppTypography.buttonText,
         ),
@@ -223,9 +244,15 @@ class AppThemeData {
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.surface,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
-        titleTextStyle: AppTypography.dialogTitle.copyWith(color: AppColors.onSurface),
-        contentTextStyle: AppTypography.dialogContent.copyWith(color: AppColors.onSurfaceVariant),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusL),
+        ),
+        titleTextStyle: AppTypography.dialogTitle.copyWith(
+          color: AppColors.onSurface,
+        ),
+        contentTextStyle: AppTypography.dialogContent.copyWith(
+          color: AppColors.onSurfaceVariant,
+        ),
       ),
 
       // 列表磁贴主题
@@ -235,7 +262,9 @@ class AppThemeData {
         minVerticalPadding: 12,
         dense: false,
         style: ListTileStyle.list,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusS),
+        ),
         iconColor: AppColors.onSurfaceVariant,
         textColor: AppColors.onSurface,
         selectedColor: AppColors.primary,
@@ -243,7 +272,11 @@ class AppThemeData {
       ),
 
       // 分隔线主题
-      dividerTheme: const DividerThemeData(color: AppColors.outline, thickness: 1, space: Dimensions.spacingM),
+      dividerTheme: const DividerThemeData(
+        color: AppColors.outline,
+        thickness: 1,
+        space: Dimensions.spacingM,
+      ),
 
       // 标签主题
       chipTheme: ChipThemeData(
@@ -254,7 +287,9 @@ class AppThemeData {
         secondarySelectedColor: AppColors.primary,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
         labelStyle: AppTypography.chipText.copyWith(color: AppColors.primary),
-        secondaryLabelStyle: AppTypography.chipText.copyWith(color: Colors.white),
+        secondaryLabelStyle: AppTypography.chipText.copyWith(
+          color: Colors.white,
+        ),
         shape: const StadiumBorder(),
       ),
 
@@ -262,7 +297,9 @@ class AppThemeData {
       popupMenuTheme: PopupMenuThemeData(
         color: AppColors.surface,
         elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusM)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusM),
+        ),
       ),
 
       // 其他配置
@@ -328,8 +365,14 @@ class AppThemeData {
         elevation: 0,
         centerTitle: true,
         titleTextStyle: AppTypography.appBarTitle.copyWith(color: Colors.white),
-        iconTheme: const IconThemeData(color: Colors.white, size: Dimensions.iconSizeM),
-        actionsIconTheme: const IconThemeData(color: Colors.white, size: Dimensions.iconSizeM),
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+          size: Dimensions.iconSizeM,
+        ),
+        actionsIconTheme: const IconThemeData(
+          color: Colors.white,
+          size: Dimensions.iconSizeM,
+        ),
         systemOverlayStyle: SystemUiOverlayStyle.light,
       ),
 
@@ -390,7 +433,10 @@ class AppThemeData {
           return Colors.transparent;
         }),
         checkColor: WidgetStateProperty.all(Colors.black),
-        side: const BorderSide(color: AppColors.onSurfaceVariantDark, width: 1.5),
+        side: const BorderSide(
+          color: AppColors.onSurfaceVariantDark,
+          width: 1.5,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
 
@@ -409,21 +455,38 @@ class AppThemeData {
         filled: true,
         fillColor: AppColors.surfaceContainerDark,
         contentPadding: Dimensions.paddingInput,
-        labelStyle: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariantDark),
-        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariantDark.withValues(alpha: 0.7)),
-        helperStyle: AppTypography.captionText.copyWith(color: AppColors.onSurfaceVariantDark),
-        errorStyle: AppTypography.errorText.copyWith(color: AppColors.errorDark),
+        labelStyle: AppTypography.bodyMedium.copyWith(
+          color: AppColors.onSurfaceVariantDark,
+        ),
+        hintStyle: AppTypography.bodyMedium.copyWith(
+          color: AppColors.onSurfaceVariantDark.withValues(alpha: 0.7),
+        ),
+        helperStyle: AppTypography.captionText.copyWith(
+          color: AppColors.onSurfaceVariantDark,
+        ),
+        errorStyle: AppTypography.errorText.copyWith(
+          color: AppColors.errorDark,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: const BorderSide(color: AppColors.outlineDark, width: 1.0),
+          borderSide: const BorderSide(
+            color: AppColors.outlineDark,
+            width: 1.0,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: const BorderSide(color: AppColors.outlineDark, width: 1.0),
+          borderSide: const BorderSide(
+            color: AppColors.outlineDark,
+            width: 1.0,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: const BorderSide(color: AppColors.primaryLight, width: 2.0),
+          borderSide: const BorderSide(
+            color: AppColors.primaryLight,
+            width: 2.0,
+          ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
@@ -435,7 +498,10 @@ class AppThemeData {
         ),
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
-          borderSide: BorderSide(color: AppColors.outlineDark.withValues(alpha: 0.5), width: 1.0),
+          borderSide: BorderSide(
+            color: AppColors.outlineDark.withValues(alpha: 0.5),
+            width: 1.0,
+          ),
         ),
       ),
 
@@ -446,7 +512,9 @@ class AppThemeData {
           foregroundColor: Colors.black,
           elevation: 0,
           padding: Dimensions.paddingButton,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          ),
           minimumSize: const Size.fromHeight(Dimensions.buttonHeight),
           textStyle: AppTypography.buttonText,
         ),
@@ -457,7 +525,9 @@ class AppThemeData {
           foregroundColor: AppColors.primaryLight,
           side: const BorderSide(color: AppColors.primaryLight, width: 1.5),
           padding: Dimensions.paddingButton,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          ),
           minimumSize: const Size.fromHeight(Dimensions.buttonHeight),
           textStyle: AppTypography.buttonText,
         ),
@@ -467,7 +537,9 @@ class AppThemeData {
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primaryLight,
           padding: Dimensions.paddingButton,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Dimensions.radiusS),
+          ),
           minimumSize: const Size.fromHeight(Dimensions.buttonHeight),
           textStyle: AppTypography.buttonText,
         ),
@@ -490,9 +562,15 @@ class AppThemeData {
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.surfaceDark,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
-        titleTextStyle: AppTypography.dialogTitle.copyWith(color: AppColors.onSurfaceDark),
-        contentTextStyle: AppTypography.dialogContent.copyWith(color: AppColors.onSurfaceVariantDark),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusL),
+        ),
+        titleTextStyle: AppTypography.dialogTitle.copyWith(
+          color: AppColors.onSurfaceDark,
+        ),
+        contentTextStyle: AppTypography.dialogContent.copyWith(
+          color: AppColors.onSurfaceVariantDark,
+        ),
       ),
 
       // 列表磁贴主题
@@ -502,7 +580,9 @@ class AppThemeData {
         minVerticalPadding: 12,
         dense: false,
         style: ListTileStyle.list,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusS),
+        ),
         iconColor: AppColors.onSurfaceVariantDark,
         textColor: AppColors.onSurfaceDark,
         selectedColor: AppColors.primaryLight,
@@ -510,7 +590,11 @@ class AppThemeData {
       ),
 
       // 分隔线主题
-      dividerTheme: const DividerThemeData(color: AppColors.outlineDark, thickness: 1, space: Dimensions.spacingM),
+      dividerTheme: const DividerThemeData(
+        color: AppColors.outlineDark,
+        thickness: 1,
+        space: Dimensions.spacingM,
+      ),
 
       // 标签主题
       chipTheme: ChipThemeData(
@@ -520,8 +604,12 @@ class AppThemeData {
         selectedColor: AppColors.primaryLight,
         secondarySelectedColor: AppColors.primaryLight,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-        labelStyle: AppTypography.chipText.copyWith(color: AppColors.primaryLight),
-        secondaryLabelStyle: AppTypography.chipText.copyWith(color: Colors.black),
+        labelStyle: AppTypography.chipText.copyWith(
+          color: AppColors.primaryLight,
+        ),
+        secondaryLabelStyle: AppTypography.chipText.copyWith(
+          color: Colors.black,
+        ),
         shape: const StadiumBorder(),
       ),
 
@@ -529,7 +617,9 @@ class AppThemeData {
       popupMenuTheme: PopupMenuThemeData(
         color: AppColors.surfaceDark,
         elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusM)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Dimensions.radiusM),
+        ),
       ),
 
       // 其他配置

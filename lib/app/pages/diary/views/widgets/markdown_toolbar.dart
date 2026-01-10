@@ -41,14 +41,54 @@ class MarkdownToolbar extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               padding: EdgeInsets.zero,
               children: [
-                _buildToolbarButton(context, FontAwesomeIcons.heading, '标题', () => _formatSelectedText('# ')),
-                _buildToolbarButton(context, FontAwesomeIcons.bold, '粗体', () => _formatSelectedText('**')),
-                _buildToolbarButton(context, FontAwesomeIcons.italic, '斜体', () => _formatSelectedText('*')),
-                _buildToolbarButton(context, FontAwesomeIcons.listUl, '无序列表', () => _formatSelectedText('- ')),
-                _buildToolbarButton(context, FontAwesomeIcons.listOl, '有序列表', () => _formatSelectedText('1. ')),
-                _buildToolbarButton(context, FontAwesomeIcons.link, '链接', () => _formatAsLink()),
-                _buildToolbarButton(context, FontAwesomeIcons.quoteLeft, '引用', () => _formatSelectedText('> ')),
-                _buildToolbarButton(context, FontAwesomeIcons.code, '代码', () => _formatSelectedText('`')),
+                _buildToolbarButton(
+                  context,
+                  FontAwesomeIcons.heading,
+                  '标题',
+                  () => _formatSelectedText('# '),
+                ),
+                _buildToolbarButton(
+                  context,
+                  FontAwesomeIcons.bold,
+                  '粗体',
+                  () => _formatSelectedText('**'),
+                ),
+                _buildToolbarButton(
+                  context,
+                  FontAwesomeIcons.italic,
+                  '斜体',
+                  () => _formatSelectedText('*'),
+                ),
+                _buildToolbarButton(
+                  context,
+                  FontAwesomeIcons.listUl,
+                  '无序列表',
+                  () => _formatSelectedText('- '),
+                ),
+                _buildToolbarButton(
+                  context,
+                  FontAwesomeIcons.listOl,
+                  '有序列表',
+                  () => _formatSelectedText('1. '),
+                ),
+                _buildToolbarButton(
+                  context,
+                  FontAwesomeIcons.link,
+                  '链接',
+                  () => _formatAsLink(),
+                ),
+                _buildToolbarButton(
+                  context,
+                  FontAwesomeIcons.quoteLeft,
+                  '引用',
+                  () => _formatSelectedText('> '),
+                ),
+                _buildToolbarButton(
+                  context,
+                  FontAwesomeIcons.code,
+                  '代码',
+                  () => _formatSelectedText('`'),
+                ),
                 _buildToolbarButton(
                   context,
                   FontAwesomeIcons.minus,
@@ -57,13 +97,31 @@ class MarkdownToolbar extends StatelessWidget {
                 ),
 
                 // 添加粘贴按钮
-                if (pasteCallback != null) _buildToolbarButton(context, Icons.content_paste, '粘贴', pasteCallback),
+                if (pasteCallback != null)
+                  _buildToolbarButton(
+                    context,
+                    Icons.content_paste,
+                    '粘贴',
+                    pasteCallback,
+                  ),
 
                 // 添加撤销按钮
-                _buildToolbarButton(context, Icons.undo, '撤销', undoCallback, isActive: canUndo),
+                _buildToolbarButton(
+                  context,
+                  Icons.undo,
+                  '撤销',
+                  undoCallback,
+                  isActive: canUndo,
+                ),
 
                 // 添加重做按钮
-                _buildToolbarButton(context, Icons.redo, '重做', redoCallback, isActive: canRedo),
+                _buildToolbarButton(
+                  context,
+                  Icons.redo,
+                  '重做',
+                  redoCallback,
+                  isActive: canRedo,
+                ),
               ],
             ),
           ),
@@ -82,8 +140,12 @@ class MarkdownToolbar extends StatelessWidget {
 
     if (hasSelection) {
       // 如果有选中文本，直接应用格式
-      final start = selection.baseOffset < selection.extentOffset ? selection.baseOffset : selection.extentOffset;
-      final end = selection.baseOffset < selection.extentOffset ? selection.extentOffset : selection.baseOffset;
+      final start = selection.baseOffset < selection.extentOffset
+          ? selection.baseOffset
+          : selection.extentOffset;
+      final end = selection.baseOffset < selection.extentOffset
+          ? selection.extentOffset
+          : selection.baseOffset;
       final selectedText = controller.text.substring(start, end);
 
       String formattedText;
@@ -100,7 +162,9 @@ class MarkdownToolbar extends StatelessWidget {
       // 更新文本
       final newText = controller.text.replaceRange(start, end, formattedText);
       controller.text = newText;
-      controller.selection = TextSelection.collapsed(offset: start + formattedText.length);
+      controller.selection = TextSelection.collapsed(
+        offset: start + formattedText.length,
+      );
     } else {
       // 如果没有选中文本，根据标记类型插入
       if (['# ', '> ', '- ', '1. '].contains(markdownSymbol)) {
@@ -111,13 +175,21 @@ class MarkdownToolbar extends StatelessWidget {
         final position = controller.selection.baseOffset;
         if (position >= 0) {
           final pair = '$markdownSymbol$markdownSymbol';
-          final newText = controller.text.replaceRange(position, position, pair);
+          final newText = controller.text.replaceRange(
+            position,
+            position,
+            pair,
+          );
           controller.text = newText;
-          controller.selection = TextSelection.collapsed(offset: position + markdownSymbol.length);
+          controller.selection = TextSelection.collapsed(
+            offset: position + markdownSymbol.length,
+          );
         } else {
           // 如果光标位置无效，直接在末尾添加
           controller.text += '$markdownSymbol$markdownSymbol';
-          controller.selection = TextSelection.collapsed(offset: controller.text.length - markdownSymbol.length);
+          controller.selection = TextSelection.collapsed(
+            offset: controller.text.length - markdownSymbol.length,
+          );
         }
       }
     }
@@ -130,8 +202,12 @@ class MarkdownToolbar extends StatelessWidget {
 
     if (hasSelection) {
       // 如果有选中文本
-      final start = selection.baseOffset < selection.extentOffset ? selection.baseOffset : selection.extentOffset;
-      final end = selection.baseOffset < selection.extentOffset ? selection.extentOffset : selection.baseOffset;
+      final start = selection.baseOffset < selection.extentOffset
+          ? selection.baseOffset
+          : selection.extentOffset;
+      final end = selection.baseOffset < selection.extentOffset
+          ? selection.extentOffset
+          : selection.baseOffset;
       final selectedText = controller.text.substring(start, end);
 
       String formattedText;
@@ -148,9 +224,14 @@ class MarkdownToolbar extends StatelessWidget {
 
       // 如果是URL，将光标定位到"链接文本"部分以便用户修改
       if (DiaryUtils.isUrl(selectedText)) {
-        controller.selection = TextSelection(baseOffset: start + 1, extentOffset: start + 5);
+        controller.selection = TextSelection(
+          baseOffset: start + 1,
+          extentOffset: start + 5,
+        );
       } else {
-        controller.selection = TextSelection.collapsed(offset: start + formattedText.length);
+        controller.selection = TextSelection.collapsed(
+          offset: start + formattedText.length,
+        );
       }
     } else {
       // 如果没有选中文本，直接插入一个链接模板
@@ -167,10 +248,9 @@ class MarkdownToolbar extends StatelessWidget {
     bool isActive = true,
   }) {
     // 使用isActive参数决定颜色，而不仅仅依赖于onPressed是否为null
-    final Color iconColor =
-        (!isActive || onPressed == null)
-            ? DiaryStyles.getPrimaryTextColor(context).withAlpha(77) // 禁用状态
-            : DiaryStyles.getPrimaryTextColor(context);
+    final Color iconColor = (!isActive || onPressed == null)
+        ? DiaryStyles.getPrimaryTextColor(context).withAlpha(77) // 禁用状态
+        : DiaryStyles.getPrimaryTextColor(context);
 
     return Tooltip(
       message: tooltip,
@@ -190,12 +270,20 @@ class MarkdownToolbar extends StatelessWidget {
   }
 
   // 构建保存/更新按钮
-  Widget _buildSaveButton(BuildContext context, String text, VoidCallback onPressed) {
+  Widget _buildSaveButton(
+    BuildContext context,
+    String text,
+    VoidCallback onPressed,
+  ) {
     return Container(
       margin: const EdgeInsets.only(left: 8),
       child: IconButton(
         onPressed: onPressed,
-        icon: Icon(FeatherIcons.check, size: 18, color: DiaryStyles.getAccentColor(context)),
+        icon: Icon(
+          FeatherIcons.check,
+          size: 18,
+          color: DiaryStyles.getAccentColor(context),
+        ),
         tooltip: text,
         padding: const EdgeInsets.all(0),
         visualDensity: VisualDensity.compact,

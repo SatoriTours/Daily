@@ -8,17 +8,20 @@ import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/routes/app_routes.dart';
 import 'package:daily_satori/app/utils/dialog_utils.dart';
 import 'package:daily_satori/app/utils/string_utils.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
 /// 全局剪贴板监听服务
 ///
-/// 目标：把“检查剪贴板并导航到分享对话框”的逻辑从各个页面的 Controller 中抽离，
+/// 目标：把"检查剪贴板并导航到分享对话框"的逻辑从各个页面的 Controller 中抽离，
 /// 统一在应用层按生命周期时机触发，避免重复代码和遗漏。
 ///
 /// 行为：
 /// - 应用启动后首帧渲染完成时检查一次剪贴板；
 /// - 应用从后台恢复到前台（resumed）时检查一次剪贴板；
 /// - 通过内存去重，避免同一 URL 重复弹窗。
-class ClipboardMonitorService with WidgetsBindingObserver {
+class ClipboardMonitorService extends AppService with WidgetsBindingObserver {
+  @override
+  ServicePriority get priority => ServicePriority.low;
   ClipboardMonitorService._();
   static final ClipboardMonitorService _instance = ClipboardMonitorService._();
   static ClipboardMonitorService get i => _instance;
@@ -30,7 +33,7 @@ class ClipboardMonitorService with WidgetsBindingObserver {
   /// 规则(1)：用于避免重复弹出同一 URL 的内存记录
   String _lastUrlInMemory = '';
 
-  /// 初始化并注册生命周期监听
+  @override
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
@@ -116,7 +119,10 @@ class ClipboardMonitorService with WidgetsBindingObserver {
       message: message,
       onConfirm: () {
         logger.i('[ClipboardMonitorService] 用户确认处理URL，跳转到分享页');
-        AppNavigation.toNamed(Routes.shareDialog, arguments: {'shareURL': url, 'fromClipboard': true});
+        AppNavigation.toNamed(
+          Routes.shareDialog,
+          arguments: {'shareURL': url, 'fromClipboard': true},
+        );
       },
       onCancel: () {
         logger.i('[ClipboardMonitorService] 用户取消处理URL');

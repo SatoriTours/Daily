@@ -20,7 +20,10 @@ void main() {
     });
 
     test('inactivity timeout should be less than expire time', () {
-      expect(SessionConfig.inactivityTimeout < SessionConfig.expireTime, isTrue);
+      expect(
+        SessionConfig.inactivityTimeout < SessionConfig.expireTime,
+        isTrue,
+      );
     });
 
     test('check interval should be less than expire time', () {

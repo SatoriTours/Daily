@@ -35,13 +35,19 @@ class SearchResultCard extends StatelessWidget {
       color: AppColors.getSurfaceContainerHighest(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Dimensions.radiusS),
-        side: BorderSide(color: AppColors.getOutline(context).withValues(alpha: 0.1), width: 1),
+        side: BorderSide(
+          color: AppColors.getOutline(context).withValues(alpha: 0.1),
+          width: 1,
+        ),
       ),
       child: InkWell(
         onTap: () => _navigateToDetail(),
         borderRadius: BorderRadius.circular(Dimensions.radiusS),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.spacingM,
+            vertical: Dimensions.spacingS,
+          ),
           child: Row(
             children: [
               // 类型图标
@@ -62,11 +68,19 @@ class SearchResultCard extends StatelessWidget {
               // 收藏图标
               if (result.isFavorite == true) ...[
                 const SizedBox(width: Dimensions.spacingXs),
-                Icon(Icons.favorite, size: 14, color: AppColors.getError(context)),
+                Icon(
+                  Icons.favorite,
+                  size: 14,
+                  color: AppColors.getError(context),
+                ),
               ],
               // 箭头图标
               const SizedBox(width: Dimensions.spacingXs),
-              Icon(Icons.chevron_right, size: 18, color: AppColors.getOnSurfaceVariant(context)),
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: AppColors.getOnSurfaceVariant(context),
+              ),
             ],
           ),
         ),
@@ -83,7 +97,9 @@ class SearchResultCard extends StatelessWidget {
   /// 根据搜索结果类型导航到对应的详情页面
   /// 文章导航到详情页，日记和书籍显示对话框
   void _navigateToDetail() {
-    logger.i('[SearchResultCard] 点击搜索结果: ${result.type.name} - ${result.title}');
+    logger.i(
+      '[SearchResultCard] 点击搜索结果: ${result.type.name} - ${result.title}',
+    );
 
     switch (result.type) {
       case SearchResultType.article:
@@ -109,12 +125,16 @@ class SearchResultCard extends StatelessWidget {
       logger.w('[SearchResultCard] 找不到日记, ID: ${result.id}');
       final context = AppNavigation.navigatorKey.currentContext;
       if (context != null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('找不到该日记')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('找不到该日记')));
       }
       return;
     }
 
-    logger.d('[SearchResultCard] 找到日记, 标题: ${result.title}, 内容长度: ${diary.content.length}');
+    logger.d(
+      '[SearchResultCard] 找到日记, 标题: ${result.title}, 内容长度: ${diary.content.length}',
+    );
     final context = AppNavigation.navigatorKey.currentContext;
     if (context == null) return;
 
@@ -136,7 +156,9 @@ class SearchResultCard extends StatelessWidget {
     if (book == null) {
       final context = AppNavigation.navigatorKey.currentContext;
       if (context != null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('找不到该书籍')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('找不到该书籍')));
       }
       return;
     }
@@ -166,7 +188,13 @@ class _ContentDialog extends StatelessWidget {
   final String? tags;
   final String icon;
 
-  const _ContentDialog({required this.title, required this.content, this.createdAt, this.tags, required this.icon});
+  const _ContentDialog({
+    required this.title,
+    required this.content,
+    this.createdAt,
+    this.tags,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +206,10 @@ class _ContentDialog extends StatelessWidget {
           backgroundColor: DiaryStyles.getCardBackgroundColor(context),
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.close, color: DiaryStyles.getPrimaryTextColor(context)),
+            icon: Icon(
+              Icons.close,
+              color: DiaryStyles.getPrimaryTextColor(context),
+            ),
             onPressed: () => AppNavigation.back(),
           ),
           title: Row(
@@ -203,7 +234,10 @@ class _ContentDialog extends StatelessWidget {
                     if (createdAt != null)
                       Text(
                         _formatDateTime(createdAt!),
-                        style: TextStyle(fontSize: 12, color: DiaryStyles.getSecondaryTextColor(context)),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: DiaryStyles.getSecondaryTextColor(context),
+                        ),
                       ),
                   ],
                 ),
@@ -224,7 +258,10 @@ class _ContentDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 标签列表
-          if (tags != null && tags!.isNotEmpty) ...[_buildTags(context), const SizedBox(height: Dimensions.spacingM)],
+          if (tags != null && tags!.isNotEmpty) ...[
+            _buildTags(context),
+            const SizedBox(height: Dimensions.spacingM),
+          ],
           // 使用与日记页面相同的 Markdown 渲染
           MarkdownBody(
             data: content,
@@ -248,20 +285,34 @@ class _ContentDialog extends StatelessWidget {
         final trimmedTag = tag.trim();
         if (trimmedTag.isEmpty) return const SizedBox.shrink();
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.spacingS + 2,
+            vertical: Dimensions.spacingXs,
+          ),
           decoration: BoxDecoration(
             color: DiaryStyles.getAccentColor(context).withAlpha(20),
             borderRadius: Dimensions.borderRadiusM,
-            border: Border.all(color: DiaryStyles.getAccentColor(context).withAlpha(50), width: 1),
+            border: Border.all(
+              color: DiaryStyles.getAccentColor(context).withAlpha(50),
+              width: 1,
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.tag, size: 14, color: DiaryStyles.getAccentColor(context)),
+              Icon(
+                Icons.tag,
+                size: 14,
+                color: DiaryStyles.getAccentColor(context),
+              ),
               const SizedBox(width: Dimensions.spacingXs),
               Text(
                 trimmedTag,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: DiaryStyles.getAccentColor(context)),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: DiaryStyles.getAccentColor(context),
+                ),
               ),
             ],
           ),

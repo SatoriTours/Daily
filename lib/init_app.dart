@@ -11,11 +11,11 @@ Future<void> initApp() async {
 
   _setupErrorHandlers();
 
-  ServiceRegistry.i.registerAll();
-  await ServiceRegistry.i.initializeAll();
+  ServiceManager.i.registerAll();
+  await ServiceManager.i.initializeAll();
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    ServiceRegistry.i.initializeLowPriority();
+    ServiceManager.i.initializeLowPriority();
   });
 }
 
@@ -58,5 +58,5 @@ void _errorLog(String message, {StackTrace? stackTrace}) {
 
 /// 应用退出清理
 Future<void> clearApp() async {
-  await ServiceRegistry.i.disposeAll();
+  await ServiceManager.i.disposeAll();
 }

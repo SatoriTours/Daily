@@ -21,7 +21,9 @@ class ListStyles {
       minVerticalPadding: 12,
       dense: false,
       style: ListTileStyle.list,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusS)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusS),
+      ),
       iconColor: AppColors.getOnSurfaceVariant(context),
       textColor: AppColors.getOnSurface(context),
       selectedColor: AppColors.getPrimary(context),
@@ -33,11 +35,19 @@ class ListStyles {
   // ========================================================================
 
   /// 获取列表项容器装饰
-  static BoxDecoration getListItemDecoration(BuildContext context, {bool isSelected = false, bool hasBorder = false}) {
+  static BoxDecoration getListItemDecoration(
+    BuildContext context, {
+    bool isSelected = false,
+    bool hasBorder = false,
+  }) {
     return BoxDecoration(
-      color: isSelected ? AppColors.getPrimary(context).withValues(alpha: 0.1) : Colors.transparent,
+      color: isSelected
+          ? AppColors.getPrimary(context).withValues(alpha: 0.1)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(Dimensions.radiusS),
-      border: hasBorder ? Border.all(color: AppColors.getOutline(context), width: 1) : null,
+      border: hasBorder
+          ? Border.all(color: AppColors.getOutline(context), width: 1)
+          : null,
     );
   }
 
@@ -55,7 +65,13 @@ class ListStyles {
 
   /// 获取列表分隔线
   static Widget getDivider(BuildContext context, {double indent = 0}) {
-    return Divider(color: AppColors.getOutline(context), height: 1, thickness: 1, indent: indent, endIndent: indent);
+    return Divider(
+      color: AppColors.getOutline(context),
+      height: 1,
+      thickness: 1,
+      indent: indent,
+      endIndent: indent,
+    );
   }
 
   // ========================================================================
@@ -73,12 +89,16 @@ class ListStyles {
 
   /// 获取列表项标题样式
   static TextStyle getListItemTitleStyle(BuildContext context) {
-    return AppTypography.listItemTitle.copyWith(color: AppColors.getOnSurface(context));
+    return AppTypography.listItemTitle.copyWith(
+      color: AppColors.getOnSurface(context),
+    );
   }
 
   /// 获取列表项副标题样式
   static TextStyle getListItemSubtitleStyle(BuildContext context) {
-    return AppTypography.listItemSubtitle.copyWith(color: AppColors.getOnSurfaceVariant(context));
+    return AppTypography.listItemSubtitle.copyWith(
+      color: AppColors.getOnSurfaceVariant(context),
+    );
   }
 
   // ========================================================================
@@ -86,8 +106,10 @@ class ListStyles {
   // ========================================================================
 
   /// 获取列表组标题内边距
-  static EdgeInsets getGroupTitlePadding() =>
-      const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS);
+  static EdgeInsets getGroupTitlePadding() => const EdgeInsets.symmetric(
+    horizontal: Dimensions.spacingM,
+    vertical: Dimensions.spacingS,
+  );
 
   /// 获取列表单元格内边距
   static EdgeInsets getListCellPadding() => Dimensions.paddingListItem;
@@ -131,10 +153,15 @@ class ListStyles {
               onTap: onAction,
               borderRadius: BorderRadius.circular(Dimensions.radiusS),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingXs, vertical: Dimensions.spacingXxs),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.spacingXs,
+                  vertical: Dimensions.spacingXxs,
+                ),
                 child: Text(
                   actionText,
-                  style: AppTypography.labelMedium.copyWith(color: AppColors.getPrimary(context)),
+                  style: AppTypography.labelMedium.copyWith(
+                    color: AppColors.getPrimary(context),
+                  ),
                 ),
               ),
             ),

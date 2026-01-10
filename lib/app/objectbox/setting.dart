@@ -19,7 +19,13 @@ class Setting implements BaseEntity {
   String? key;
   String? value;
 
-  Setting({this.id = 0, this.key, this.value, DateTime? createdAt, DateTime? updatedAt}) {
+  Setting({
+    this.id = 0,
+    this.key,
+    this.value,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
     this.createdAt = createdAt ?? DateTime.now();
     this.updatedAt = updatedAt ?? DateTime.now();
   }

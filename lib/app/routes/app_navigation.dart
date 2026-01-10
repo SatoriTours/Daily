@@ -39,7 +39,10 @@ class AppNavigation {
   }
 
   /// 清空所有路由并导航到新路由
-  static Future<T?> offAllNamed<T>(String routeName, {Object? arguments}) async {
+  static Future<T?> offAllNamed<T>(
+    String routeName, {
+    Object? arguments,
+  }) async {
     appRouter.goNamed(routeName, extra: arguments);
     return null;
   }

@@ -23,8 +23,12 @@ abstract class BaseWebView {
   /// - common.js: 通用 JavaScript 功能
   /// - common.css: 通用样式规则
   Future<void> injectResources(InAppWebViewController controller) async {
-    await controller.injectJavascriptFileFromAsset(assetFilePath: "assets/js/common.js");
-    await controller.injectCSSFileFromAsset(assetFilePath: "assets/css/common.css");
+    await controller.injectJavascriptFileFromAsset(
+      assetFilePath: "assets/js/common.js",
+    );
+    await controller.injectCSSFileFromAsset(
+      assetFilePath: "assets/css/common.css",
+    );
   }
 
   /// 注入 Twitter 专用样式规则
@@ -76,7 +80,10 @@ abstract class BaseWebView {
   ///
   /// 只允许加载 HTTP 和 HTTPS 协议的 URL
   /// 其他协议的 URL 将被取消加载
-  Future<NavigationActionPolicy> handleUrlLoading(InAppWebViewController controller, NavigationAction action) async {
+  Future<NavigationActionPolicy> handleUrlLoading(
+    InAppWebViewController controller,
+    NavigationAction action,
+  ) async {
     final uri = action.request.url!;
     return (uri.scheme == "http" || uri.scheme == "https")
         ? NavigationActionPolicy.ALLOW
@@ -96,7 +103,10 @@ abstract class BaseWebView {
     final url = request.url.toString().replaceFirst(r'^https?://', '');
 
     // 检查完全匹配规则
-    final exactRule = ADBlockService.i.exactNetworkRules.firstWhere((rule) => url == rule, orElse: () => '');
+    final exactRule = ADBlockService.i.exactNetworkRules.firstWhere(
+      (rule) => url == rule,
+      orElse: () => '',
+    );
 
     if (exactRule.isNotEmpty) {
       logger.d("[广告拦截-完全匹配] => 开始拦截广告请求: $url => $exactRule");
@@ -153,6 +163,9 @@ abstract class BaseWebView {
     InAppWebViewController controller,
     PermissionRequest request,
   ) async {
-    return PermissionResponse(resources: request.resources, action: PermissionResponseAction.GRANT);
+    return PermissionResponse(
+      resources: request.resources,
+      action: PermissionResponseAction.GRANT,
+    );
   }
 }

@@ -84,8 +84,11 @@ class BooksState extends _$BooksState {
     }
 
     // 随机选择 _kRandomCount 个观点
-    final shuffled = List<BookViewpointModel>.from(allViewpoints)..shuffle(_rand);
-    final selected = shuffled.take(_kRandomCount.clamp(0, allViewpoints.length)).toList();
+    final shuffled = List<BookViewpointModel>.from(allViewpoints)
+      ..shuffle(_rand);
+    final selected = shuffled
+        .take(_kRandomCount.clamp(0, allViewpoints.length))
+        .toList();
 
     state = state.copyWith(viewpoints: selected, currentViewpointIndex: 0);
     logger.i('加载 ${selected.length} 个随机观点');
@@ -93,7 +96,9 @@ class BooksState extends _$BooksState {
 
   /// 加载特定书籍的观点
   Future<void> _loadSpecificBookViewpoints() async {
-    final bookViewpoints = BookViewpointRepository.i.findModelsByBookIds([state.filterBookID]);
+    final bookViewpoints = BookViewpointRepository.i.findModelsByBookIds([
+      state.filterBookID,
+    ]);
 
     // 深链模式：如果有指定的观点ID，将其放在第一位
     List<BookViewpointModel> orderedViewpoints;
@@ -103,13 +108,19 @@ class BooksState extends _$BooksState {
         orElse: () => bookViewpoints.first,
       );
 
-      final others = bookViewpoints.where((vp) => vp.id != state.deepLinkSeedViewpointId).toList();
+      final others = bookViewpoints
+          .where((vp) => vp.id != state.deepLinkSeedViewpointId)
+          .toList();
       orderedViewpoints = [seedViewpoint, ...others];
     } else {
       orderedViewpoints = bookViewpoints;
     }
 
-    state = state.copyWith(viewpoints: orderedViewpoints, currentViewpointIndex: 0, deepLinkSeedViewpointId: null);
+    state = state.copyWith(
+      viewpoints: orderedViewpoints,
+      currentViewpointIndex: 0,
+      deepLinkSeedViewpointId: null,
+    );
     logger.i('加载 ${orderedViewpoints.length} 个观点');
   }
 
@@ -157,12 +168,16 @@ class BooksState extends _$BooksState {
 
   /// 从列表中移除观点
   void removeViewpointFromList(int id) {
-    final updatedViewpoints = state.viewpoints.where((vp) => vp.id != id).toList();
+    final updatedViewpoints = state.viewpoints
+        .where((vp) => vp.id != id)
+        .toList();
     state = state.copyWith(viewpoints: updatedViewpoints);
 
     // 调整当前索引
     if (state.currentViewpointIndex >= updatedViewpoints.length) {
-      state = state.copyWith(currentViewpointIndex: max(0, updatedViewpoints.length - 1));
+      state = state.copyWith(
+        currentViewpointIndex: max(0, updatedViewpoints.length - 1),
+      );
     }
 
     logger.d('从列表移除观点: ID=$id');
@@ -187,7 +202,9 @@ class BooksState extends _$BooksState {
       // 先删除该书籍的所有观点
       final viewpoints = BookViewpointRepository.i.findByBookIds([bookId]);
       if (viewpoints.isNotEmpty) {
-        BookViewpointRepository.i.removeMany(viewpoints.map((e) => e.id).toList());
+        BookViewpointRepository.i.removeMany(
+          viewpoints.map((e) => e.id).toList(),
+        );
         logger.i('删除书籍观点: ${viewpoints.length} 条');
       }
       // 再删除书籍本身
@@ -234,7 +251,10 @@ class BooksState extends _$BooksState {
   /// 获取当前观点
   BookViewpointModel? getCurrentViewpoint() {
     if (state.viewpoints.isEmpty) return null;
-    final index = state.currentViewpointIndex.clamp(0, state.viewpoints.length - 1);
+    final index = state.currentViewpointIndex.clamp(
+      0,
+      state.viewpoints.length - 1,
+    );
     return state.viewpoints[index];
   }
 

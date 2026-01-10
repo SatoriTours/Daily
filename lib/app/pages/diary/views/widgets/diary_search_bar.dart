@@ -32,7 +32,8 @@ class DiarySearchBar extends StatefulWidget {
   State<DiarySearchBar> createState() => _DiarySearchBarState();
 }
 
-class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProviderStateMixin {
+class _DiarySearchBarState extends State<DiarySearchBar>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
   bool _showClearButton = false;
@@ -40,8 +41,14 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(vsync: this, duration: Animations.durationNormal);
-    _fadeAnimation = CurvedAnimation(parent: _animController, curve: Curves.easeInOut);
+    _animController = AnimationController(
+      vsync: this,
+      duration: Animations.durationNormal,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeInOut,
+    );
 
     _animController.forward();
 
@@ -107,7 +114,13 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
         padding: Dimensions.paddingS,
         decoration: BoxDecoration(
           color: DiaryStyles.getCardBackgroundColor(context),
-          boxShadow: [BoxShadow(color: Colors.black.withAlpha(15), offset: const Offset(0, 2), blurRadius: 4)],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(15),
+              offset: const Offset(0, 2),
+              blurRadius: 4,
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -124,7 +137,11 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
   /// 构建返回按钮
   Widget _buildBackButton() {
     return IconButton(
-      icon: Icon(FeatherIcons.arrowLeft, color: DiaryStyles.getPrimaryTextColor(context), size: Dimensions.iconSizeM),
+      icon: Icon(
+        FeatherIcons.arrowLeft,
+        color: DiaryStyles.getPrimaryTextColor(context),
+        size: Dimensions.iconSizeM,
+      ),
       onPressed: _handleClose,
       splashRadius: Dimensions.spacingL,
       tooltip: '返回',
@@ -145,12 +162,21 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
         focusNode: widget.searchFocusNode,
         decoration: InputDecoration(
           hintText: '搜索日记内容...',
-          hintStyle: TextStyle(color: DiaryStyles.getSecondaryTextColor(context), fontSize: 14),
+          hintStyle: TextStyle(
+            color: DiaryStyles.getSecondaryTextColor(context),
+            fontSize: 14,
+          ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.spacingM,
+            vertical: Dimensions.spacingS,
+          ),
           isDense: true,
         ),
-        style: TextStyle(color: DiaryStyles.getPrimaryTextColor(context), fontSize: 14),
+        style: TextStyle(
+          color: DiaryStyles.getPrimaryTextColor(context),
+          fontSize: 14,
+        ),
         textInputAction: TextInputAction.search,
         onSubmitted: (_) => _performSearch(),
       ),
@@ -160,7 +186,11 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
   /// 构建搜索按钮
   Widget _buildSearchButton() {
     return IconButton(
-      icon: Icon(FeatherIcons.search, color: DiaryStyles.getAccentColor(context), size: Dimensions.iconSizeM),
+      icon: Icon(
+        FeatherIcons.search,
+        color: DiaryStyles.getAccentColor(context),
+        size: Dimensions.iconSizeM,
+      ),
       onPressed: _performSearch,
       splashRadius: Dimensions.spacingL,
       tooltip: '搜索',
@@ -173,7 +203,11 @@ class _DiarySearchBarState extends State<DiarySearchBar> with SingleTickerProvid
       opacity: _showClearButton ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 200),
       child: IconButton(
-        icon: Icon(FeatherIcons.x, color: DiaryStyles.getPrimaryTextColor(context), size: Dimensions.iconSizeM),
+        icon: Icon(
+          FeatherIcons.x,
+          color: DiaryStyles.getPrimaryTextColor(context),
+          size: Dimensions.iconSizeM,
+        ),
         onPressed: _showClearButton ? _clearSearch : null,
         splashRadius: Dimensions.spacingL,
         tooltip: '清除',

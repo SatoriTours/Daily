@@ -32,13 +32,19 @@ class AppHttpServer {
     _registerApiRoutes();
 
     // 构建中间件及处理链
-    final pipeline = const shelf.Pipeline().addMiddleware(shelf.logRequests()).addMiddleware(_corsMiddleware());
+    final pipeline = const shelf.Pipeline()
+        .addMiddleware(shelf.logRequests())
+        .addMiddleware(_corsMiddleware());
 
     final handler = pipeline.addHandler(_router.call);
 
     // 启动服务器
     try {
-      _server = await shelf_io.serve(handler, InternetAddress.anyIPv4, WebService.httpPort);
+      _server = await shelf_io.serve(
+        handler,
+        InternetAddress.anyIPv4,
+        WebService.httpPort,
+      );
 
       // logger.i('[服务 WebService] Web服务启动成功: ${_server!.address.host}:${_server!.port}');
 
@@ -66,11 +72,21 @@ class AppHttpServer {
   /// 注册静态资源路由
   Future<void> _registerStaticRoutes() async {
     // 图片文件目录（转换为绝对路径）
-    final imagesDir = FileService.i.toAbsolutePath(FileService.i.imagesBasePath);
-    final imagesHandler = createStaticHandler(imagesDir, serveFilesOutsidePath: true);
+    final imagesDir = FileService.i.toAbsolutePath(
+      FileService.i.imagesBasePath,
+    );
+    final imagesHandler = createStaticHandler(
+      imagesDir,
+      serveFilesOutsidePath: true,
+    );
 
-    final diaryImagesDir = FileService.i.toAbsolutePath(FileService.i.diaryImagesBasePath);
-    final diaryImagesHandler = createStaticHandler(diaryImagesDir, serveFilesOutsidePath: true);
+    final diaryImagesDir = FileService.i.toAbsolutePath(
+      FileService.i.diaryImagesBasePath,
+    );
+    final diaryImagesHandler = createStaticHandler(
+      diaryImagesDir,
+      serveFilesOutsidePath: true,
+    );
 
     _router.mount('/images', imagesHandler);
     _router.mount('/diary_images', diaryImagesHandler);
@@ -103,7 +119,10 @@ class AppHttpServer {
       // 确定内容类型
       final contentType = _getContentType(assetPath);
 
-      return shelf.Response.ok(data.buffer.asUint8List(), headers: {'Content-Type': contentType});
+      return shelf.Response.ok(
+        data.buffer.asUint8List(),
+        headers: {'Content-Type': contentType},
+      );
     } catch (e) {
       logger.e('加载内置资源失败: $e');
       return shelf.Response.notFound('资源不存在');
@@ -114,7 +133,10 @@ class AppHttpServer {
   Future<shelf.Response> _adminHandler(shelf.Request request) async {
     try {
       final data = await rootBundle.load('assets/website/admin.html');
-      return shelf.Response.ok(data.buffer.asUint8List(), headers: {'Content-Type': 'text/html; charset=utf-8'});
+      return shelf.Response.ok(
+        data.buffer.asUint8List(),
+        headers: {'Content-Type': 'text/html; charset=utf-8'},
+      );
     } catch (e) {
       logger.e('加载管理后台页面失败: $e');
       return shelf.Response.notFound('管理后台页面不存在');
@@ -155,7 +177,10 @@ class AppHttpServer {
       return _response(1, '请先把上个页面保存完成');
     }
 
-    AppNavigation.toNamed(Routes.shareDialog, arguments: {'articleID': 0, 'shareURL': params['url'], 'update': false});
+    AppNavigation.toNamed(
+      Routes.shareDialog,
+      arguments: {'articleID': 0, 'shareURL': params['url'], 'update': false},
+    );
 
     return _response(0, '请在 APP 中继续操作');
   }
@@ -182,18 +207,29 @@ class AppHttpServer {
 
   /// 验证密码
   bool _verifyPassword(String? password) {
-    final expectedPassword = SettingRepository.i.getSetting(SettingService.webServerPasswordKey);
+    final expectedPassword = SettingRepository.i.getSetting(
+      SettingService.webServerPasswordKey,
+    );
     return password == expectedPassword;
   }
 
   /// 生成标准响应
-  shelf.Response _response(int code, String msg, {int status = 200, dynamic data}) {
+  shelf.Response _response(
+    int code,
+    String msg, {
+    int status = 200,
+    dynamic data,
+  }) {
     final body = jsonEncode({
       "code": code,
       "msg": msg,
       "data": data ?? (code == 0 ? {"success": true} : null),
     });
-    return shelf.Response(status, body: body, headers: {'Content-Type': 'application/json; charset=utf-8'});
+    return shelf.Response(
+      status,
+      body: body,
+      headers: {'Content-Type': 'application/json; charset=utf-8'},
+    );
   }
 
   /// CORS中间件，允许跨域请求
@@ -207,7 +243,9 @@ class AppHttpServer {
 
         // 处理正常请求
         final response = await innerHandler(request);
-        return response.change(headers: {..._getCorsHeaders(), ...response.headers});
+        return response.change(
+          headers: {..._getCorsHeaders(), ...response.headers},
+        );
       };
     };
   }
@@ -216,7 +254,8 @@ class AppHttpServer {
   Map<String, String> _getCorsHeaders() => {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Origin, Content-Type, X-Auth-Token, Authorization',
+    'Access-Control-Allow-Headers':
+        'Origin, Content-Type, X-Auth-Token, Authorization',
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400',
   };

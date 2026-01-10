@@ -20,7 +20,9 @@ class AiArticleProcessor {
   static final AiArticleProcessor i = AiArticleProcessor._();
 
   Future<void> processAll(ArticleModel article) async {
-    logger.i('[AI] 开始处理文章 #${article.id} title=${StringUtils.singleLine(article.title)}');
+    logger.i(
+      '[AI] 开始处理文章 #${article.id} title=${StringUtils.singleLine(article.title)}',
+    );
     final tasks = <Future<void>>[
       _processTitle(article),
       _processSummary(article),
@@ -35,7 +37,9 @@ class AiArticleProcessor {
 
     // 先重新从数据库获取最新状态，检查是否已有用户设置的 aiTitle
     final freshArticle = ArticleRepository.i.findModel(articleId);
-    if (freshArticle != null && freshArticle.aiTitle != null && freshArticle.aiTitle!.isNotEmpty) {
+    if (freshArticle != null &&
+        freshArticle.aiTitle != null &&
+        freshArticle.aiTitle!.isNotEmpty) {
       logger.d('[AI:标题] 已有 aiTitle，跳过处理 #$articleId');
       return;
     }
@@ -72,7 +76,11 @@ class AiArticleProcessor {
         return;
       }
 
-      ArticleRepository.i.updateField(articleId, ArticleFieldName.aiTitle, aiTitle);
+      ArticleRepository.i.updateField(
+        articleId,
+        ArticleFieldName.aiTitle,
+        aiTitle,
+      );
       logger.d('[AI:标题] 完成 #$articleId: $aiTitle');
     } catch (e) {
       logger.e('[AI:标题] 失败 #$articleId: $e');
@@ -89,7 +97,11 @@ class AiArticleProcessor {
     try {
       final (summary, tags) = await AiService.i.summarize(content.trim());
       if (summary.isEmpty) return;
-      ArticleRepository.i.updateField(articleId, ArticleFieldName.aiContent, summary);
+      ArticleRepository.i.updateField(
+        articleId,
+        ArticleFieldName.aiContent,
+        summary,
+      );
       await _saveTags(article, tags);
       logger.d('[AI:摘要] 完成 #$articleId');
     } catch (e) {
@@ -104,7 +116,11 @@ class AiArticleProcessor {
     try {
       final markdown = await AiService.i.convertHtmlToMarkdown(html);
       if (markdown.isEmpty) return;
-      ArticleRepository.i.updateField(articleId, ArticleFieldName.aiMarkdownContent, markdown);
+      ArticleRepository.i.updateField(
+        articleId,
+        ArticleFieldName.aiMarkdownContent,
+        markdown,
+      );
       logger.d('[AI:Markdown] 完成 #$articleId');
     } catch (e) {
       logger.e('[AI:Markdown] 失败 #$articleId: $e');
@@ -118,7 +134,11 @@ class AiArticleProcessor {
     try {
       final path = await HttpService.i.downloadImage(imageUrl);
       if (path.isEmpty) return;
-      ArticleRepository.i.updateField(articleId, ArticleFieldName.coverImage, path);
+      ArticleRepository.i.updateField(
+        articleId,
+        ArticleFieldName.coverImage,
+        path,
+      );
       logger.d('[AI:图片] 完成 #$articleId');
     } catch (e) {
       logger.e('[AI:图片] 失败 #$articleId: $e');

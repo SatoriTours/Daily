@@ -6,7 +6,6 @@ library;
 
 import 'dart:async';
 
-
 import 'package:daily_satori/app_exports.dart';
 import 'package:flutter/services.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -65,9 +64,7 @@ class ShareDialogController extends _$ShareDialogController {
     return const ShareDialogControllerState();
   }
 
-  
   // 初始化相关
-  
 
   /// 初始化对话框
   void initialize(Map<String, dynamic> args) {
@@ -133,7 +130,10 @@ class ShareDialogController extends _$ShareDialogController {
   /// 加载文章标签
   void _loadArticleTags(ArticleModel article) {
     try {
-      final tagNames = article.tags.map((t) => t.name ?? '').where((e) => e.isNotEmpty).toList();
+      final tagNames = article.tags
+          .map((t) => t.name ?? '')
+          .where((e) => e.isNotEmpty)
+          .toList();
       final tagsText = tagNames.join(', ');
       state = state.copyWith(articleTags: tagsText, tagList: tagNames);
       tagsController.text = tagsText;
@@ -142,13 +142,13 @@ class ShareDialogController extends _$ShareDialogController {
     }
   }
 
-  
   // 保存逻辑
-  
 
   /// 保存按钮点击
   Future<void> onSaveButtonPressed(BuildContext context) async {
-    logger.i('[ShareDialog] 点击保存: isUpdate=${state.isUpdate}, refreshAndAnalyze=${state.refreshAndAnalyze}');
+    logger.i(
+      '[ShareDialog] 点击保存: isUpdate=${state.isUpdate}, refreshAndAnalyze=${state.refreshAndAnalyze}',
+    );
 
     try {
       if (state.isUpdate && !state.refreshAndAnalyze) {
@@ -281,9 +281,7 @@ class ShareDialogController extends _$ShareDialogController {
     );
   }
 
-  
   // 标签管理
-  
 
   /// 添加标签
   void addTag(String tag) {
@@ -308,9 +306,7 @@ class ShareDialogController extends _$ShareDialogController {
     tagsController.text = tagsText;
   }
 
-  
   // UI辅助方法
-  
 
   /// 获取短URL（用于显示）
   String getShortUrl(String url) {
@@ -338,9 +334,7 @@ class ShareDialogController extends _$ShareDialogController {
     }
   }
 
-  
   // 私有辅助方法
-  
 
   /// 获取当前文章（如果存在）
   ArticleModel? _getArticle() {
@@ -360,8 +354,14 @@ class ShareDialogController extends _$ShareDialogController {
 
   /// 解析标签名称（从文本或列表）
   List<String> _parseTagNames(String rawText) {
-    final source = state.tagList.isNotEmpty ? state.tagList : rawText.split(RegExp(r'[，,]'));
-    return source.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList();
+    final source = state.tagList.isNotEmpty
+        ? state.tagList
+        : rawText.split(RegExp(r'[，,]'));
+    return source
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList();
   }
 
   /// 设置文章标签（替换模式）
@@ -374,9 +374,15 @@ class ShareDialogController extends _$ShareDialogController {
   }
 
   /// 合并文章标签（添加新标签，保留已有标签）
-  Future<bool> _mergeArticleTags(ArticleModel article, List<String> newTags) async {
+  Future<bool> _mergeArticleTags(
+    ArticleModel article,
+    List<String> newTags,
+  ) async {
     try {
-      final existing = article.tags.map((t) => t.name ?? '').where((e) => e.isNotEmpty).toSet();
+      final existing = article.tags
+          .map((t) => t.name ?? '')
+          .where((e) => e.isNotEmpty)
+          .toSet();
 
       final hasNewTags = newTags.any((tag) => !existing.contains(tag));
       if (!hasNewTags) return false;

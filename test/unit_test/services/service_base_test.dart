@@ -24,63 +24,61 @@ void main() {
     });
   });
 
-  group('FunctionAppService', () {
-    test('should have correct serviceName', () {
-      final service = FunctionAppService(
-        serviceName: 'TestService',
-        priority: ServicePriority.normal,
-        onInit: () async {},
-      );
-      expect(service.serviceName, equals('TestService'));
-    });
+  group('AppService', () {
+    test(
+      'should have default serviceName from class name (removes Service suffix)',
+      () {
+        final service = TestService();
+        // 去掉 Service 后缀，TestService -> Test
+        expect(service.serviceName, equals('Test'));
+      },
+    );
 
-    test('should have correct priority', () {
-      final service = FunctionAppService(
-        serviceName: 'TestService',
-        priority: ServicePriority.normal,
-        onInit: () async {},
-      );
+    test('should have default priority normal', () {
+      final service = TestService();
       expect(service.priority, equals(ServicePriority.normal));
     });
 
-    test('init should call onInit', () async {
-      bool initialized = false;
-      final service = FunctionAppService(
-        serviceName: 'TestService',
-        priority: ServicePriority.normal,
-        onInit: () async {
-          initialized = true;
-        },
-      );
-
-      await service.init();
-      expect(initialized, isTrue);
+    test('should support custom priority', () {
+      final service = CustomPriorityService();
+      expect(service.priority, equals(ServicePriority.critical));
     });
 
-    test('dispose without onDispose should not throw', () async {
-      final service = FunctionAppService(
-        serviceName: 'TestService',
-        priority: ServicePriority.normal,
-        onInit: () async {},
-      );
-
-      await service.dispose();
-      expect(service.serviceName, equals('TestService'));
+    test('should support custom serviceName', () {
+      final service = CustomNameService();
+      expect(service.serviceName, equals('CustomName'));
     });
 
-    test('should handle async init', () async {
-      int callCount = 0;
-      final service = FunctionAppService(
-        serviceName: 'TestService',
-        priority: ServicePriority.normal,
-        onInit: () async {
-          await Future.delayed(const Duration(milliseconds: 10));
-          callCount++;
-        },
-      );
+    test('init should complete successfully', () async {
+      final service = TestService();
+      await expectLater(service.init(), completes);
+    });
 
-      await service.init();
-      expect(callCount, equals(1));
+    test('dispose without override should not throw', () async {
+      final service = TestService();
+      // dispose 返回 void，直接调用不应抛出异常
+      expect(() => service.dispose(), returnsNormally);
     });
   });
+}
+
+class TestService extends AppService {
+  @override
+  Future<void> init() async {}
+}
+
+class CustomPriorityService extends AppService {
+  @override
+  ServicePriority get priority => ServicePriority.critical;
+
+  @override
+  Future<void> init() async {}
+}
+
+class CustomNameService extends AppService {
+  @override
+  String get serviceName => 'CustomName';
+
+  @override
+  Future<void> init() async {}
 }

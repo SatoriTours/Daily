@@ -1,7 +1,7 @@
 import 'package:daily_satori/app/pages/books/providers/book_search_controller_provider.dart';
 
-
 import 'package:daily_satori/app_exports.dart';
+
 /// 书籍搜索结果视图
 class BookSearchView extends ConsumerStatefulWidget {
   const BookSearchView({super.key});
@@ -18,7 +18,9 @@ class _BookSearchViewState extends ConsumerState<BookSearchView> {
     super.initState();
     _searchController = TextEditingController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final keyword = ref.read(bookSearchControllerProvider.notifier).consumeInitialKeyword();
+      final keyword = ref
+          .read(bookSearchControllerProvider.notifier)
+          .consumeInitialKeyword();
       if (keyword.isNotEmpty) {
         _searchController.text = keyword;
         ref.read(bookSearchControllerProvider.notifier).searchBooks(keyword);
@@ -35,15 +37,22 @@ class _BookSearchViewState extends ConsumerState<BookSearchView> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(bookSearchControllerProvider);
-    final title = state.searchResults.isNotEmpty ? '搜索 (${state.searchResults.length})' : 'ui.search'.t;
+    final title = state.searchResults.isNotEmpty
+        ? '搜索 (${state.searchResults.length})'
+        : 'ui.search'.t;
 
     return Scaffold(
-      appBar: AppBar(title: Text(title, style: AppTypography.appBarTitle), elevation: 0),
+      appBar: AppBar(
+        title: Text(title, style: AppTypography.appBarTitle),
+        elevation: 0,
+      ),
       body: SafeArea(
         child: Column(
           children: [
             _buildSearchBar(context),
-            Expanded(child: _SearchResults(searchController: _searchController)),
+            Expanded(
+              child: _SearchResults(searchController: _searchController),
+            ),
           ],
         ),
       ),
@@ -61,13 +70,22 @@ class _BookSearchViewState extends ConsumerState<BookSearchView> {
       child: TextField(
         controller: _searchController,
         autofocus: true,
-        decoration: InputStyles.getSearchDecoration(context, hintText: 'hint.title'.t).copyWith(
-          contentPadding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingXs),
-          isDense: true,
-        ),
+        decoration:
+            InputStyles.getSearchDecoration(
+              context,
+              hintText: 'hint.title'.t,
+            ).copyWith(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: Dimensions.spacingM,
+                vertical: Dimensions.spacingXs,
+              ),
+              isDense: true,
+            ),
         onSubmitted: (value) {
           if (value.trim().isNotEmpty) {
-            ref.read(bookSearchControllerProvider.notifier).searchBooks(value.trim());
+            ref
+                .read(bookSearchControllerProvider.notifier)
+                .searchBooks(value.trim());
           }
         },
       ),
@@ -84,10 +102,13 @@ class _SearchResults extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(bookSearchControllerProvider);
 
-    if (state.isSearching) return _buildSearchingState(context, state.searchKeyword);
+    if (state.isSearching)
+      return _buildSearchingState(context, state.searchKeyword);
     if (state.isLoading) return _buildLoadingState(context);
-    if (state.errorMessage.isNotEmpty) return _buildErrorState(context, ref, state.errorMessage);
-    if (state.searchResults.isEmpty && state.searchKeyword.isNotEmpty) return _buildEmptyState(context);
+    if (state.errorMessage.isNotEmpty)
+      return _buildErrorState(context, ref, state.errorMessage);
+    if (state.searchResults.isEmpty && state.searchKeyword.isNotEmpty)
+      return _buildEmptyState(context);
     if (state.searchResults.isEmpty) return _buildInitialState(context);
 
     return _buildResultsList(context, ref, state.searchResults);
@@ -115,7 +136,12 @@ class _SearchResults extends ConsumerWidget {
             ),
           ),
           Dimensions.verticalSpacerS,
-          Text('正在获取书籍信息', style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context))),
+          Text(
+            '正在获取书籍信息',
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
+          ),
         ],
       ),
     );
@@ -126,15 +152,26 @@ class _SearchResults extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(AppColors.getPrimary(context))),
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation(AppColors.getPrimary(context)),
+          ),
           Dimensions.verticalSpacerM,
-          Text('正在添加书籍...', style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context))),
+          Text(
+            '正在添加书籍...',
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildErrorState(BuildContext context, WidgetRef ref, String errorMessage) {
+  Widget _buildErrorState(
+    BuildContext context,
+    WidgetRef ref,
+    String errorMessage,
+  ) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -142,7 +179,9 @@ class _SearchResults extends ConsumerWidget {
           Icon(
             Icons.error_outline_rounded,
             size: 64,
-            color: AppColors.getError(context).withValues(alpha: Opacities.high),
+            color: AppColors.getError(
+              context,
+            ).withValues(alpha: Opacities.high),
           ),
           Dimensions.verticalSpacerM,
           Text(
@@ -158,14 +197,21 @@ class _SearchResults extends ConsumerWidget {
             child: Text(
               errorMessage,
               textAlign: TextAlign.center,
-              style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.getOnSurfaceVariant(context),
+              ),
             ),
           ),
           Dimensions.verticalSpacerL,
           FilledButton.icon(
             onPressed: () {
-              final keyword = ref.read(bookSearchControllerProvider).searchKeyword;
-              if (keyword.isNotEmpty) ref.read(bookSearchControllerProvider.notifier).searchBooks(keyword);
+              final keyword = ref
+                  .read(bookSearchControllerProvider)
+                  .searchKeyword;
+              if (keyword.isNotEmpty)
+                ref
+                    .read(bookSearchControllerProvider.notifier)
+                    .searchBooks(keyword);
             },
             icon: const Icon(Icons.refresh),
             label: Text('button.retry'.t),
@@ -183,18 +229,24 @@ class _SearchResults extends ConsumerWidget {
           Icon(
             Icons.search_off_rounded,
             size: 64,
-            color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.high),
+            color: AppColors.getOnSurfaceVariant(
+              context,
+            ).withValues(alpha: Opacities.high),
           ),
           Dimensions.verticalSpacerM,
           Text(
             'empty.search'.t,
-            style: AppTypography.bodyLarge.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+            style: AppTypography.bodyLarge.copyWith(
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
           ),
           Dimensions.verticalSpacerS,
           Text(
             '请尝试使用更具体的关键词',
             style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.highOpaque),
+              color: AppColors.getOnSurfaceVariant(
+                context,
+              ).withValues(alpha: Opacities.highOpaque),
             ),
           ),
         ],
@@ -210,15 +262,24 @@ class _SearchResults extends ConsumerWidget {
           Icon(
             Icons.menu_book_rounded,
             size: 64,
-            color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.high),
+            color: AppColors.getOnSurfaceVariant(
+              context,
+            ).withValues(alpha: Opacities.high),
           ),
           Dimensions.verticalSpacerM,
-          Text('搜索书籍', style: AppTypography.bodyLarge.copyWith(color: AppColors.getOnSurfaceVariant(context))),
+          Text(
+            '搜索书籍',
+            style: AppTypography.bodyLarge.copyWith(
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
+          ),
           Dimensions.verticalSpacerS,
           Text(
             '输入书名、作者或关键词进行搜索',
             style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.highOpaque),
+              color: AppColors.getOnSurfaceVariant(
+                context,
+              ).withValues(alpha: Opacities.highOpaque),
             ),
           ),
         ],
@@ -226,7 +287,11 @@ class _SearchResults extends ConsumerWidget {
     );
   }
 
-  Widget _buildResultsList(BuildContext context, WidgetRef ref, List<BookSearchResult> results) {
+  Widget _buildResultsList(
+    BuildContext context,
+    WidgetRef ref,
+    List<BookSearchResult> results,
+  ) {
     return ListView.builder(
       padding: EdgeInsets.fromLTRB(
         Dimensions.paddingPage.left,
@@ -252,10 +317,16 @@ class _BookResultCard extends ConsumerWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
-        side: BorderSide(color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.low), width: 1),
+        side: BorderSide(
+          color: AppColors.getOnSurfaceVariant(
+            context,
+          ).withValues(alpha: Opacities.low),
+          width: 1,
+        ),
       ),
       child: InkWell(
-        onTap: () => ref.read(bookSearchControllerProvider.notifier).selectBook(result),
+        onTap: () =>
+            ref.read(bookSearchControllerProvider.notifier).selectBook(result),
         borderRadius: BorderRadius.circular(Dimensions.radiusM),
         child: Padding(
           padding: Dimensions.paddingCard,
@@ -263,7 +334,10 @@ class _BookResultCard extends ConsumerWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (result.coverUrl.isNotEmpty) ...[_buildCover(context), Dimensions.horizontalSpacerS],
+                if (result.coverUrl.isNotEmpty) ...[
+                  _buildCover(context),
+                  Dimensions.horizontalSpacerS,
+                ],
                 Expanded(child: _buildInfo(context)),
               ],
             ),
@@ -285,13 +359,17 @@ class _BookResultCard extends ConsumerWidget {
           width: 80,
           height: 120,
           decoration: BoxDecoration(
-            color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.low),
+            color: AppColors.getOnSurfaceVariant(
+              context,
+            ).withValues(alpha: Opacities.low),
             borderRadius: BorderRadius.circular(Dimensions.radiusS),
           ),
           child: Icon(
             Icons.book,
             size: 40,
-            color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.high),
+            color: AppColors.getOnSurfaceVariant(
+              context,
+            ).withValues(alpha: Opacities.high),
           ),
         ),
       ),
@@ -324,13 +402,17 @@ class _BookResultCard extends ConsumerWidget {
                 Icon(
                   Icons.person_outline,
                   size: Dimensions.iconSizeXs - 2,
-                  color: AppColors.getOnSurfaceVariant(context).withValues(alpha: Opacities.highOpaque),
+                  color: AppColors.getOnSurfaceVariant(
+                    context,
+                  ).withValues(alpha: Opacities.highOpaque),
                 ),
                 const SizedBox(width: Dimensions.spacingXs + 2),
                 Expanded(
                   child: Text(
                     result.author,
-                    style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: AppColors.getOnSurfaceVariant(context),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -342,7 +424,10 @@ class _BookResultCard extends ConsumerWidget {
               Dimensions.verticalSpacerS,
               Text(
                 result.introduction,
-                style: AppTypography.bodySmall.copyWith(color: AppColors.getOnSurfaceVariant(context), height: 1.5),
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.getOnSurfaceVariant(context),
+                  height: 1.5,
+                ),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -355,7 +440,11 @@ class _BookResultCard extends ConsumerWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Icon(Icons.add_circle_outline, size: Dimensions.iconSizeXs, color: AppColors.getPrimary(context)),
+              Icon(
+                Icons.add_circle_outline,
+                size: Dimensions.iconSizeXs,
+                color: AppColors.getPrimary(context),
+              ),
               Dimensions.horizontalSpacerXs,
               Text(
                 '点击添加书籍',

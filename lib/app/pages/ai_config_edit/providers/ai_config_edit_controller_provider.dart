@@ -58,15 +58,23 @@ class AIConfigEditController extends _$AIConfigEditController {
   }
 
   void updateName(String name) => state = state.copyWith(name: name);
-  void updateApiAddress(String address) => state = state.copyWith(apiAddress: address);
+  void updateApiAddress(String address) =>
+      state = state.copyWith(apiAddress: address);
   void updateApiToken(String token) => state = state.copyWith(apiToken: token);
-  void updateModelName(String modelName) => state = state.copyWith(modelName: modelName);
-  void updateFunctionType(int type) => state = state.copyWith(functionType: type);
+  void updateModelName(String modelName) =>
+      state = state.copyWith(modelName: modelName);
+  void updateFunctionType(int type) =>
+      state = state.copyWith(functionType: type);
 
   void setInheritFromGeneral(bool inherit) {
     if (inherit) {
       // 切换到继承模式时，清空独立配置字段
-      state = state.copyWith(inheritFromGeneral: true, apiAddress: '', apiToken: '', modelName: '');
+      state = state.copyWith(
+        inheritFromGeneral: true,
+        apiAddress: '',
+        apiToken: '',
+        modelName: '',
+      );
     } else {
       state = state.copyWith(inheritFromGeneral: false);
     }
@@ -117,7 +125,9 @@ class AIConfigEditController extends _$AIConfigEditController {
     }
   }
 
-  String get pageTitle => state.config == null ? 'ai_config.create_title'.t : 'ai_config.edit_title'.t;
+  String get pageTitle => state.config == null
+      ? 'ai_config.create_title'.t
+      : 'ai_config.edit_title'.t;
   bool get isSystemConfig => state.functionType == AIConfigTypes.general;
   bool get isSpecialConfig => state.functionType != AIConfigTypes.general;
   bool get isCustomApiAddress => state.apiAddress.isNotEmpty;
@@ -125,7 +135,8 @@ class AIConfigEditController extends _$AIConfigEditController {
   bool get isFormValid {
     if (state.name.trim().isEmpty) return false;
     if (!state.inheritFromGeneral) {
-      if (state.apiAddress.trim().isEmpty || state.apiToken.trim().isEmpty) return false;
+      if (state.apiAddress.trim().isEmpty || state.apiToken.trim().isEmpty)
+        return false;
     }
     return true;
   }
@@ -138,7 +149,12 @@ class AIConfigEditController extends _$AIConfigEditController {
     'claude-3-sonnet',
     'gemini-pro',
   ];
-  List<String> get apiProviderNames => ['OpenAI', 'Anthropic', 'Google AI', '自定义'];
+  List<String> get apiProviderNames => [
+    'OpenAI',
+    'Anthropic',
+    'Google AI',
+    '自定义',
+  ];
   List<String> get apiPresets => [
     'https://api.openai.com/v1',
     'https://api.anthropic.com/v1',
@@ -149,9 +165,12 @@ class AIConfigEditController extends _$AIConfigEditController {
   String getProviderNameByUrl(String url) {
     if (url.isEmpty) return '选择供应商';
     final index = apiPresets.indexOf(url);
-    return (index >= 0 && index < apiProviderNames.length) ? apiProviderNames[index] : '自定义';
+    return (index >= 0 && index < apiProviderNames.length)
+        ? apiProviderNames[index]
+        : '自定义';
   }
 
   bool get isCustomApiUrl =>
-      state.apiAddress.isNotEmpty && !apiPresets.sublist(0, apiPresets.length - 1).contains(state.apiAddress);
+      state.apiAddress.isNotEmpty &&
+      !apiPresets.sublist(0, apiPresets.length - 1).contains(state.apiAddress);
 }

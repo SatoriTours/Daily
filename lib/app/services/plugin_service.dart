@@ -6,13 +6,14 @@ import 'package:path/path.dart' as path;
 import 'package:daily_satori/app/data/data.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:yaml/yaml.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
 /// 插件服务类 - 负责管理AI提示词和API模型预设
 ///
 /// 配置加载顺序：
 /// 1. 优先从数据库加载
 /// 2. 若数据库无配置，则加载本地文件并保存到数据库
-class PluginService {
+class PluginService extends AppService {
   // 单例模式实现
   PluginService._();
   static final PluginService _instance = PluginService._();
@@ -26,7 +27,7 @@ class PluginService {
   final _aiPromptsFileName = 'ai_prompts.yaml';
   final _aiModelsFileName = 'ai_models.yaml';
 
-  /// 初始化插件服务
+  @override
   Future<void> init() async {
     // 加载所有配置
     await _loadAiPromptsConfig();
@@ -126,7 +127,10 @@ class PluginService {
       return;
     }
 
-    await Future.wait([_updateConfig(_aiPromptsFileName, baseUrl), _updateConfig(_aiModelsFileName, baseUrl)]);
+    await Future.wait([
+      _updateConfig(_aiPromptsFileName, baseUrl),
+      _updateConfig(_aiModelsFileName, baseUrl),
+    ]);
 
     logger.i('配置更新完成');
   }
@@ -229,8 +233,10 @@ class PluginService {
   // 公开API - 获取提示词
   String getTranslateRole() => _aiPrompts['translate_role'] ?? '';
   String getTranslatePrompt() => _aiPrompts['translate_prompt'] ?? '';
-  String getSummarizeOneLineRole() => _aiPrompts['summarize_oneline_role'] ?? '';
-  String getSummarizeOneLinePrompt() => _aiPrompts['summarize_oneline_prompt'] ?? '';
+  String getSummarizeOneLineRole() =>
+      _aiPrompts['summarize_oneline_role'] ?? '';
+  String getSummarizeOneLinePrompt() =>
+      _aiPrompts['summarize_oneline_prompt'] ?? '';
   String getLongSummaryRole() => _aiPrompts['long_summary_role'] ?? '';
   String getShortSummaryRole() => _aiPrompts['short_summary_role'] ?? '';
   String getLongSummaryResult() => _aiPrompts['long_summary_result'] ?? '';
@@ -238,7 +244,8 @@ class PluginService {
   String getHtmlToMarkdownRole() => _aiPrompts['html_to_markdown_role'] ?? '';
 
   // 书籍相关提示词
-  String getBookRecommendByCategory() => _aiPrompts['book_recommend_by_category'] ?? '';
+  String getBookRecommendByCategory() =>
+      _aiPrompts['book_recommend_by_category'] ?? '';
   String getBookViewpoint() => _aiPrompts['book_viewpoint'] ?? '';
   String getBookInfo() => _aiPrompts['book_info'] ?? '';
 
@@ -246,7 +253,8 @@ class PluginService {
   String getBookSearch() => _aiPrompts['book_search'] ?? '';
 
   /// 获取周报模板
-  String getWeeklySummaryTemplate() => _aiPrompts['weekly_summary_template'] ?? '';
+  String getWeeklySummaryTemplate() =>
+      _aiPrompts['weekly_summary_template'] ?? '';
 
   /// 获取API提供商预设列表
   List<AiModel> getAiModels() => _aiModels;
@@ -267,5 +275,9 @@ class PluginInfo {
   final String description;
   final DateTime? lastUpdateTime;
 
-  PluginInfo({required this.fileName, required this.description, this.lastUpdateTime});
+  PluginInfo({
+    required this.fileName,
+    required this.description,
+    this.lastUpdateTime,
+  });
 }

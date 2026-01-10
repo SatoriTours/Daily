@@ -6,7 +6,11 @@ class DiaryClearFiltersButton extends StatelessWidget {
   final VoidCallback onPressed;
   final String text;
 
-  const DiaryClearFiltersButton({super.key, required this.onPressed, this.text = '清除筛选'});
+  const DiaryClearFiltersButton({
+    super.key,
+    required this.onPressed,
+    this.text = '清除筛选',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +25,13 @@ class DiaryClearFiltersButton extends StatelessWidget {
             color: DiaryStyles.getInputBackgroundColor(context),
             borderRadius: BorderRadius.circular(24),
           ),
-          child: Text(text, style: TextStyle(color: DiaryStyles.getPrimaryTextColor(context), fontWeight: FontWeight.w500)),
+          child: Text(
+            text,
+            style: TextStyle(
+              color: DiaryStyles.getPrimaryTextColor(context),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
       ),
     );

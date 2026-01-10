@@ -66,7 +66,10 @@ class LabeledSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildHeader(context),
-        if (contentPadding != null) Padding(padding: contentPadding!, child: child) else child,
+        if (contentPadding != null)
+          Padding(padding: contentPadding!, child: child)
+        else
+          child,
       ],
     );
     if (!showCardBackground) {
@@ -94,7 +97,11 @@ class LabeledSection extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, size: iconSize ?? Dimensions.iconSizeS, color: iconColor ?? AppColors.getPrimary(context)),
+          Icon(
+            icon,
+            size: iconSize ?? Dimensions.iconSizeS,
+            color: iconColor ?? AppColors.getPrimary(context),
+          ),
           Dimensions.horizontalSpacerS,
           Text(
             label,

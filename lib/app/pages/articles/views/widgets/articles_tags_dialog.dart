@@ -52,7 +52,10 @@ class ArticlesTagsDialog extends StatelessWidget {
 
         // 标签列表
         SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingS, horizontal: Dimensions.spacingM - 4),
+          padding: const EdgeInsets.symmetric(
+            vertical: Dimensions.spacingS,
+            horizontal: Dimensions.spacingM - 4,
+          ),
           child: Wrap(
             spacing: Dimensions.spacingS,
             runSpacing: Dimensions.spacingS,
@@ -73,13 +76,23 @@ class ArticlesTagsDialog extends StatelessWidget {
               },
               borderRadius: BorderRadius.circular(Dimensions.radiusL + 4),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Dimensions.spacingM,
+                  vertical: Dimensions.spacingS,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(FeatherIcons.x, size: Dimensions.iconSizeXs, color: colorScheme.primary),
+                    Icon(
+                      FeatherIcons.x,
+                      size: Dimensions.iconSizeXs,
+                      color: colorScheme.primary,
+                    ),
                     Dimensions.horizontalSpacerS,
-                    Text('清除所有过滤', style: TextStyle(color: colorScheme.primary)),
+                    Text(
+                      '清除所有过滤',
+                      style: TextStyle(color: colorScheme.primary),
+                    ),
                   ],
                 ),
               ),
@@ -95,7 +108,9 @@ class ArticlesTagsDialog extends StatelessWidget {
     final colorScheme = AppTheme.getColorScheme(context);
     final isSelected = selectedTagId == tag.id;
 
-    final backgroundColor = isSelected ? colorScheme.primary.withAlpha(51) : colorScheme.surfaceContainerHighest;
+    final backgroundColor = isSelected
+        ? colorScheme.primary.withAlpha(51)
+        : colorScheme.surfaceContainerHighest;
 
     final textColor = isSelected ? colorScheme.primary : colorScheme.onSurface;
 
@@ -106,9 +121,18 @@ class ArticlesTagsDialog extends StatelessWidget {
       },
       borderRadius: BorderRadius.circular(Dimensions.radiusL),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM - 4, vertical: Dimensions.spacingXs + 2),
-        decoration: BoxDecoration(color: backgroundColor, borderRadius: BorderRadius.circular(Dimensions.radiusL)),
-        child: Text(tag.name ?? '', style: TextStyle(fontSize: 13, color: textColor)),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.spacingM - 4,
+          vertical: Dimensions.spacingXs + 2,
+        ),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(Dimensions.radiusL),
+        ),
+        child: Text(
+          tag.name ?? '',
+          style: TextStyle(fontSize: 13, color: textColor),
+        ),
       ),
     );
   }

@@ -20,8 +20,14 @@ void main() {
     group('generateRandomPassword', () {
       test('should return password of specified length', () {
         expect(RandomUtils.generateRandomPassword(length: 8).length, equals(8));
-        expect(RandomUtils.generateRandomPassword(length: 16).length, equals(16));
-        expect(RandomUtils.generateRandomPassword(length: 32).length, equals(32));
+        expect(
+          RandomUtils.generateRandomPassword(length: 16).length,
+          equals(16),
+        );
+        expect(
+          RandomUtils.generateRandomPassword(length: 32).length,
+          equals(32),
+        );
       });
 
       test('should return non-empty string', () {

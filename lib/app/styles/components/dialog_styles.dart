@@ -27,7 +27,9 @@ class DialogStyles {
 
     return BoxDecoration(
       color: isDark ? AppColors.surfaceDark : AppColors.surface,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)),
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(Dimensions.radiusL),
+      ),
       boxShadow: AppShadows.getBottomSheetShadow(context),
     );
   }
@@ -56,16 +58,26 @@ class DialogStyles {
   static EdgeInsets getDialogPadding() => Dimensions.paddingDialog;
 
   /// 获取对话框内容内边距
-  static EdgeInsets getDialogContentPadding() =>
-      const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM);
+  static EdgeInsets getDialogContentPadding() => const EdgeInsets.symmetric(
+    horizontal: Dimensions.spacingM,
+    vertical: Dimensions.spacingM,
+  );
 
   /// 获取对话框操作区内边距
-  static EdgeInsets getDialogActionsPadding() =>
-      const EdgeInsets.fromLTRB(Dimensions.spacingS, 0, Dimensions.spacingM, Dimensions.spacingM);
+  static EdgeInsets getDialogActionsPadding() => const EdgeInsets.fromLTRB(
+    Dimensions.spacingS,
+    0,
+    Dimensions.spacingM,
+    Dimensions.spacingM,
+  );
 
   /// 获取底部表单内边距
-  static EdgeInsets getBottomSheetPadding() =>
-      const EdgeInsets.fromLTRB(Dimensions.spacingM, Dimensions.spacingM, Dimensions.spacingM, Dimensions.spacingXxl);
+  static EdgeInsets getBottomSheetPadding() => const EdgeInsets.fromLTRB(
+    Dimensions.spacingM,
+    Dimensions.spacingM,
+    Dimensions.spacingM,
+    Dimensions.spacingXxl,
+  );
 
   /// 获取对话框标题与内容间距
   static SizedBox getTitleContentSpacer() => Dimensions.verticalSpacerM;
@@ -74,12 +86,16 @@ class DialogStyles {
   static SizedBox getContentActionsSpacer() => Dimensions.verticalSpacerM;
 
   /// 获取对话框形状
-  static ShapeBorder getDialogShape() =>
-      RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL));
+  static ShapeBorder getDialogShape() => RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(Dimensions.radiusL),
+  );
 
   /// 获取底部表单形状
-  static ShapeBorder getBottomSheetShape() =>
-      const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL)));
+  static ShapeBorder getBottomSheetShape() => const RoundedRectangleBorder(
+    borderRadius: BorderRadius.vertical(
+      top: Radius.circular(Dimensions.radiusL),
+    ),
+  );
 
   /// 创建标准对话框主题
   static DialogTheme getDialogTheme(BuildContext context) {
@@ -96,7 +112,11 @@ class DialogStyles {
   }
 
   /// 创建底部表单标题行
-  static Widget createBottomSheetTitle(BuildContext context, {required String title, VoidCallback? onClose}) {
+  static Widget createBottomSheetTitle(
+    BuildContext context, {
+    required String title,
+    VoidCallback? onClose,
+  }) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         Dimensions.spacingM,
@@ -114,10 +134,9 @@ class DialogStyles {
               onPressed: onClose,
               padding: const EdgeInsets.all(Dimensions.spacingXs),
               iconSize: Dimensions.iconSizeM,
-              color:
-                  Theme.of(context).brightness == Brightness.dark
-                      ? AppColors.onSurfaceVariantDark
-                      : AppColors.onSurfaceVariant,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.onSurfaceVariantDark
+                  : AppColors.onSurfaceVariant,
               splashRadius: 24,
             ),
         ],
@@ -129,12 +148,18 @@ class DialogStyles {
   static Widget createDivider(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Divider(color: isDark ? AppColors.outlineDark : AppColors.outline, height: 1, thickness: 1);
+    return Divider(
+      color: isDark ? AppColors.outlineDark : AppColors.outline,
+      height: 1,
+      thickness: 1,
+    );
   }
 
   /// 获取抽屉内容最大宽度
-  static double getDrawerMaxWidth(BuildContext context) => MediaQuery.of(context).size.width * 0.85;
+  static double getDrawerMaxWidth(BuildContext context) =>
+      MediaQuery.of(context).size.width * 0.85;
 
   /// 获取底部表单最大高度
-  static double getBottomSheetMaxHeight(BuildContext context) => MediaQuery.of(context).size.height * 0.85;
+  static double getBottomSheetMaxHeight(BuildContext context) =>
+      MediaQuery.of(context).size.height * 0.85;
 }

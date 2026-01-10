@@ -5,15 +5,23 @@ import 'package:daily_satori/app/objectbox/article.dart';
 import 'package:daily_satori/app/services/ai_service/ai_article_processor.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/web_content/web_content_notifier.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
 /// 网页解析服务 - 负责网页内容获取、AI处理和持久化
-class WebpageParserService {
+class WebpageParserService extends AppService {
+  @override
+  ServicePriority get priority => ServicePriority.normal;
+
   // ====================== 单例实现 ======================
   WebpageParserService._privateConstructor();
-  static final WebpageParserService _instance = WebpageParserService._privateConstructor();
+  static final WebpageParserService _instance =
+      WebpageParserService._privateConstructor();
   static WebpageParserService get i => _instance;
 
   // ====================== 公共API ======================
+
+  @override
+  Future<void> init() async {}
 
   /// 保存网页（对外API）
   ///
@@ -26,11 +34,18 @@ class WebpageParserService {
     int articleID = 0,
     String? userTitle,
   }) async {
-    logger.i("[保存网页] 开始 - URL=$url, 更新=$isUpdate, ID=$articleID, userTitle=$userTitle");
+    logger.i(
+      "[保存网页] 开始 - URL=$url, 更新=$isUpdate, ID=$articleID, userTitle=$userTitle",
+    );
 
     try {
       // 步骤1: 初始化文章
-      final article = await _processArticleInitialization(url, comment, isUpdate, articleID);
+      final article = await _processArticleInitialization(
+        url,
+        comment,
+        isUpdate,
+        articleID,
+      );
 
       // 步骤2: 获取网页内容
       final fetched = await _processWebContentFetch(article);
@@ -77,7 +92,12 @@ class WebpageParserService {
   // ====================== 内部处理方法 ======================
 
   /// 处理文章初始化阶段：验证URL、创建或更新文章
-  Future<ArticleModel> _processArticleInitialization(String url, String comment, bool isUpdate, int articleID) async {
+  Future<ArticleModel> _processArticleInitialization(
+    String url,
+    String comment,
+    bool isUpdate,
+    int articleID,
+  ) async {
     logger.i("[初始化文章] 开始");
 
     // 验证URL
@@ -126,11 +146,13 @@ class WebpageParserService {
         throw Exception("网页标题为空");
       }
 
-      if (result.htmlContent.isEmpty || result.htmlContent.length < AiArticleConstants.minHtmlLength) {
+      if (result.htmlContent.isEmpty ||
+          result.htmlContent.length < AiArticleConstants.minHtmlLength) {
         throw Exception("HTML内容为空或过短(${result.htmlContent.length}字节)");
       }
 
-      if (result.textContent.isEmpty || result.textContent.length < AiArticleConstants.minTextLength) {
+      if (result.textContent.isEmpty ||
+          result.textContent.length < AiArticleConstants.minTextLength) {
         throw Exception("文本内容为空或过短(${result.textContent.length}字节)");
       }
 
@@ -168,7 +190,11 @@ class WebpageParserService {
       await AiArticleProcessor.i.processAll(updatedArticle);
 
       // 更新状态为完成
-      ArticleRepository.i.updateField(article.id, ArticleFieldName.status, ArticleStatus.completed);
+      ArticleRepository.i.updateField(
+        article.id,
+        ArticleFieldName.status,
+        ArticleStatus.completed,
+      );
       _notifyUI(article.id);
 
       logger.i("[AI处理] 成功 - 文章ID=${article.id}");

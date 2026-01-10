@@ -46,7 +46,9 @@ class CommonCalendar extends StatelessWidget {
   /// 判断是否是今天
   bool _isToday(DateTime date) {
     final now = DateTime.now();
-    return date.year == now.year && date.month == now.month && date.day == now.day;
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 
   /// 判断两个日期是否是同一天
@@ -59,14 +61,19 @@ class CommonCalendar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [if (showHeader) _buildHeader(context), _buildWeekdayHeader(context), _buildCalendar(context)],
+      children: [
+        if (showHeader) _buildHeader(context),
+        _buildWeekdayHeader(context),
+        _buildCalendar(context),
+      ],
     );
   }
 
   Widget _buildHeader(BuildContext context) {
     final colorScheme = AppTheme.getColorScheme(context);
     final textTheme = AppTypography.getTextTheme();
-    final monthFormat = headerTitleFormatter ?? (date) => DateFormat('yyyy年MM月').format(date);
+    final monthFormat =
+        headerTitleFormatter ?? (date) => DateFormat('yyyy年MM月').format(date);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -75,7 +82,10 @@ class CommonCalendar extends StatelessWidget {
         children: [
           Text(
             monthFormat(displayedMonth),
-            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500, color: colorScheme.primary),
+            style: textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+              color: colorScheme.primary,
+            ),
           ),
           Row(
             children: [
@@ -89,7 +99,11 @@ class CommonCalendar extends StatelessWidget {
     );
   }
 
-  Widget _buildIconButton(BuildContext context, IconData icon, VoidCallback onPressed) {
+  Widget _buildIconButton(
+    BuildContext context,
+    IconData icon,
+    VoidCallback onPressed,
+  ) {
     final colorScheme = AppTheme.getColorScheme(context);
 
     return InkWell(
@@ -97,7 +111,11 @@ class CommonCalendar extends StatelessWidget {
       borderRadius: BorderRadius.circular(Dimensions.radiusXl),
       child: Container(
         padding: Dimensions.paddingS,
-        child: Icon(icon, size: Dimensions.iconSizeS, color: colorScheme.onSurfaceVariant),
+        child: Icon(
+          icon,
+          size: Dimensions.iconSizeS,
+          color: colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
@@ -107,7 +125,10 @@ class CommonCalendar extends StatelessWidget {
     const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
 
     return Container(
-      padding: Dimensions.paddingHorizontalM.copyWith(top: Dimensions.spacingS, bottom: Dimensions.spacingS),
+      padding: Dimensions.paddingHorizontalM.copyWith(
+        top: Dimensions.spacingS,
+        bottom: Dimensions.spacingS,
+      ),
       margin: const EdgeInsets.only(bottom: Dimensions.spacingXs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -119,7 +140,9 @@ class CommonCalendar extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
-                color: isWeekend ? colorScheme.primary.withValues(alpha: 0.7) : colorScheme.onSurfaceVariant,
+                color: isWeekend
+                    ? colorScheme.primary.withValues(alpha: 0.7)
+                    : colorScheme.onSurfaceVariant,
                 fontWeight: isWeekend ? FontWeight.w500 : FontWeight.normal,
               ),
             ),
@@ -132,7 +155,11 @@ class CommonCalendar extends StatelessWidget {
   Widget _buildCalendar(BuildContext context) {
     final firstDayOfMonth = displayedMonth;
     final firstWeekday = firstDayOfMonth.weekday;
-    final daysInMonth = DateTime(firstDayOfMonth.year, firstDayOfMonth.month + 1, 0).day;
+    final daysInMonth = DateTime(
+      firstDayOfMonth.year,
+      firstDayOfMonth.month + 1,
+      0,
+    ).day;
 
     return GridView.builder(
       shrinkWrap: true,
@@ -153,7 +180,8 @@ class CommonCalendar extends StatelessWidget {
         }
 
         final date = DateTime(firstDayOfMonth.year, firstDayOfMonth.month, day);
-        final markedCount = markedDates?[DateTime(date.year, date.month, date.day)] ?? 0;
+        final markedCount =
+            markedDates?[DateTime(date.year, date.month, date.day)] ?? 0;
         final isToday = _isToday(date);
         final isSelected = _isSameDay(date, selectedDate);
 
@@ -165,7 +193,13 @@ class CommonCalendar extends StatelessWidget {
     );
   }
 
-  Widget _buildDayCell(BuildContext context, int day, int markedCount, bool isToday, bool isSelected) {
+  Widget _buildDayCell(
+    BuildContext context,
+    int day,
+    int markedCount,
+    bool isToday,
+    bool isSelected,
+  ) {
     final colorScheme = AppTheme.getColorScheme(context);
 
     Color bgColor;
@@ -185,7 +219,10 @@ class CommonCalendar extends StatelessWidget {
         shape: BoxShape.circle,
         color: bgColor,
         border: markedCount > 0 && !isSelected
-            ? Border.all(color: colorScheme.primary.withValues(alpha: 0.3), width: 1)
+            ? Border.all(
+                color: colorScheme.primary.withValues(alpha: 0.3),
+                width: 1,
+              )
             : null,
       ),
       child: Stack(
@@ -197,8 +234,12 @@ class CommonCalendar extends StatelessWidget {
               day.toString(),
               style: TextStyle(
                 fontSize: 15,
-                fontWeight: (isToday || isSelected || markedCount > 0) ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface,
+                fontWeight: (isToday || isSelected || markedCount > 0)
+                    ? FontWeight.bold
+                    : FontWeight.normal,
+                color: isSelected
+                    ? colorScheme.onPrimary
+                    : colorScheme.onSurface,
               ),
             ),
           ),
@@ -214,16 +255,24 @@ class CommonCalendar extends StatelessWidget {
                       ? colorScheme.onPrimary.withValues(alpha: 0.92)
                       : colorScheme.primary.withValues(alpha: 0.92),
                   shape: BoxShape.circle,
-                  border: isSelected ? Border.all(color: colorScheme.primary, width: 0.5) : null,
+                  border: isSelected
+                      ? Border.all(color: colorScheme.primary, width: 0.5)
+                      : null,
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 1, offset: const Offset(0, 0.5)),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 1,
+                      offset: const Offset(0, 0.5),
+                    ),
                   ],
                 ),
                 child: Center(
                   child: Text(
                     markedCount > 99 ? '99+' : markedCount.toString(),
                     style: TextStyle(
-                      color: isSelected ? colorScheme.primary : colorScheme.onPrimary,
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.onPrimary,
                       fontSize: 8,
                       fontWeight: FontWeight.bold,
                     ),

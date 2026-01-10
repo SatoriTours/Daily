@@ -16,9 +16,18 @@ class FormSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: Dimensions.iconSizeS, color: AppColors.getPrimary(context)),
+        Icon(
+          icon,
+          size: Dimensions.iconSizeS,
+          color: AppColors.getPrimary(context),
+        ),
         Dimensions.horizontalSpacerM,
-        Text(title, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w500)),
+        Text(
+          title,
+          style: AppTypography.titleMedium.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ],
     );
   }
@@ -57,21 +66,29 @@ class FormTextField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: AppTypography.bodyMedium.copyWith(
-          color: AppColors.getOnSurface(context).withValues(alpha: Opacities.mediumLow),
+          color: AppColors.getOnSurface(
+            context,
+          ).withValues(alpha: Opacities.mediumLow),
         ),
         contentPadding: Dimensions.paddingInput,
         border: _buildBorder(context, AppColors.getOutline(context), 1),
         enabledBorder: _buildBorder(context, AppColors.getOutline(context), 1),
         focusedBorder: _buildBorder(context, AppColors.getPrimary(context), 2),
         filled: true,
-        fillColor: AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.extraLow),
+        fillColor: AppColors.getSurfaceContainerHighest(
+          context,
+        ).withValues(alpha: Opacities.extraLow),
       ),
       onChanged: onChanged,
     );
   }
 
   /// 构建边框样式
-  OutlineInputBorder _buildBorder(BuildContext context, Color color, double width) {
+  OutlineInputBorder _buildBorder(
+    BuildContext context,
+    Color color,
+    double width,
+  ) {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(Dimensions.radiusS),
       borderSide: BorderSide(color: color, width: width),
@@ -100,16 +117,26 @@ class SelectionField extends StatelessWidget {
         width: double.infinity,
         padding: Dimensions.paddingInput,
         decoration: BoxDecoration(
-          color: AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.extraLow),
+          color: AppColors.getSurfaceContainerHighest(
+            context,
+          ).withValues(alpha: Opacities.extraLow),
           borderRadius: BorderRadius.circular(Dimensions.radiusS),
           border: Border.all(color: AppColors.getOutline(context), width: 1),
         ),
         child: Row(
           children: [
             Expanded(
-              child: Text(value, style: AppTypography.bodyMedium, overflow: TextOverflow.ellipsis),
+              child: Text(
+                value,
+                style: AppTypography.bodyMedium,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            Icon(Icons.arrow_drop_down, color: AppColors.getOnSurface(context), size: Dimensions.iconSizeM),
+            Icon(
+              Icons.arrow_drop_down,
+              color: AppColors.getOnSurface(context),
+              size: Dimensions.iconSizeM,
+            ),
           ],
         ),
       ),

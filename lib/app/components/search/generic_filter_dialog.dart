@@ -67,7 +67,9 @@ class GenericFilterDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Dimensions.radiusL)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusL),
+      ),
       child: Container(
         constraints: const BoxConstraints(maxWidth: 400, maxHeight: 500),
         padding: Dimensions.paddingCard,
@@ -103,8 +105,15 @@ class GenericFilterDialog extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('component.filter_title'.t, style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold)),
-        IconButton(icon: const Icon(Icons.close), onPressed: () => AppNavigation.back(), tooltip: 'component.cancel'.t),
+        Text(
+          'component.filter_title'.t,
+          style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold),
+        ),
+        IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => AppNavigation.back(),
+          tooltip: 'component.cancel'.t,
+        ),
       ],
     );
   }
@@ -115,9 +124,18 @@ class GenericFilterDialog extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(Icons.calendar_today, size: Dimensions.iconSizeS, color: AppColors.getOnSurfaceVariant(context)),
+            Icon(
+              Icons.calendar_today,
+              size: Dimensions.iconSizeS,
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
             Dimensions.horizontalSpacerS,
-            Text('component.filter_date'.t, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              'component.filter_date'.t,
+              style: AppTypography.titleMedium.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
         Dimensions.verticalSpacerS,
@@ -173,9 +191,18 @@ class GenericFilterDialog extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(Icons.tag, size: Dimensions.iconSizeS, color: AppColors.getOnSurfaceVariant(context)),
+            Icon(
+              Icons.tag,
+              size: Dimensions.iconSizeS,
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
             Dimensions.horizontalSpacerS,
-            Text('component.filter_tags'.t, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              'component.filter_tags'.t,
+              style: AppTypography.titleMedium.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
         Dimensions.verticalSpacerS,
@@ -199,12 +226,19 @@ class GenericFilterDialog extends StatelessWidget {
                 onTagsSelected(newTags);
               },
               backgroundColor: AppColors.getSurfaceContainer(context),
-              selectedColor: AppColors.getPrimary(context).withValues(alpha: 0.2),
+              selectedColor: AppColors.getPrimary(
+                context,
+              ).withValues(alpha: 0.2),
               labelStyle: AppTypography.bodySmall,
               pressElevation: 2,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(Dimensions.radiusS),
-                side: BorderSide(color: isSelected ? AppColors.getPrimary(context) : Colors.transparent, width: 1),
+                side: BorderSide(
+                  color: isSelected
+                      ? AppColors.getPrimary(context)
+                      : Colors.transparent,
+                  width: 1,
+                ),
               ),
             );
           }),
@@ -220,16 +254,31 @@ class GenericFilterDialog extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(Icons.favorite, size: Dimensions.iconSizeS, color: AppColors.getOnSurfaceVariant(context)),
+            Icon(
+              Icons.favorite,
+              size: Dimensions.iconSizeS,
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
             Dimensions.horizontalSpacerS,
-            Text('component.filter_favorite'.t, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              'component.filter_favorite'.t,
+              style: AppTypography.titleMedium.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
         Dimensions.verticalSpacerS,
         Row(
           children: [
-            Checkbox(value: isFavorite, onChanged: (value) => onFavoriteChanged(value ?? false)),
-            Text('component.filter_favorite'.t, style: AppTypography.bodyMedium),
+            Checkbox(
+              value: isFavorite,
+              onChanged: (value) => onFavoriteChanged(value ?? false),
+            ),
+            Text(
+              'component.filter_favorite'.t,
+              style: AppTypography.bodyMedium,
+            ),
           ],
         ),
       ],
@@ -247,7 +296,9 @@ class GenericFilterDialog extends StatelessWidget {
           },
           child: Text(
             'component.filter_clear_all'.t,
-            style: AppTypography.bodyMedium.copyWith(color: AppColors.getError(context)),
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.getError(context),
+            ),
           ),
         ),
         ElevatedButton(
@@ -266,9 +317,23 @@ class FilterConfig {
   final List<int> tags;
   final bool isFavorite;
   final String? keyword;
-  const FilterConfig({this.date, this.tags = const [], this.isFavorite = false, this.keyword});
-  bool get hasActiveFilters => date != null || tags.isNotEmpty || isFavorite || keyword?.isNotEmpty == true;
-  FilterConfig copyWith({DateTime? date, List<int>? tags, bool? isFavorite, String? keyword}) {
+  const FilterConfig({
+    this.date,
+    this.tags = const [],
+    this.isFavorite = false,
+    this.keyword,
+  });
+  bool get hasActiveFilters =>
+      date != null ||
+      tags.isNotEmpty ||
+      isFavorite ||
+      keyword?.isNotEmpty == true;
+  FilterConfig copyWith({
+    DateTime? date,
+    List<int>? tags,
+    bool? isFavorite,
+    String? keyword,
+  }) {
     return FilterConfig(
       date: date ?? this.date,
       tags: tags ?? this.tags,

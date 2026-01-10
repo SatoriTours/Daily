@@ -112,11 +112,19 @@ class ADBlockService implements AppService {
       //3. ||piclect.com^*.gif$third-party
       //4. ||ggwan.com^$third-party,domain=~linghit.com
       //5. /d/*-*-*.ap|$script,third-party
-      pattern = pattern.replaceAll(RegExp(r'\|.*$'), ''); // 移除 | 后面的内容， 例如 /d/*-*-*.ap|$script,third-party
-      pattern = pattern.replaceAll(RegExp(r'\$.*$'), ''); // 移除 $ 后面的内容， 例如 ||ggwan.com^$third-party,domain=~linghit.com
+      pattern = pattern.replaceAll(
+        RegExp(r'\|.*$'),
+        '',
+      ); // 移除 | 后面的内容， 例如 /d/*-*-*.ap|$script,third-party
+      pattern = pattern.replaceAll(
+        RegExp(r'\$.*$'),
+        '',
+      ); // 移除 $ 后面的内容， 例如 ||ggwan.com^$third-party,domain=~linghit.com
       try {
         final regExp = RegExp(pattern);
-        isException ? _regexExceptionRules.add(regExp) : _regexNetworkRules.add(regExp);
+        isException
+            ? _regexExceptionRules.add(regExp)
+            : _regexNetworkRules.add(regExp);
       } catch (e) {
         // 目前还有如下格式需要去兼容
         // [Satori] [E]  解析正则表达式规则失败 /^https\?:\/\/..*bit(ly)\?\.(com => FormatException: Unterminated group /^https\?:\/\/..*bit(ly)\?\.(com
@@ -128,9 +136,13 @@ class ADBlockService implements AppService {
     } else {
       if (isExactMatch) {
         final rule = line.substring(0, line.length - 1);
-        isException ? _exactExceptionRules.add(rule) : _exactNetworkRules.add(rule);
+        isException
+            ? _exactExceptionRules.add(rule)
+            : _exactNetworkRules.add(rule);
       } else {
-        isException ? _containsExceptionRules.add(line) : _containsNetworkRules.add(line);
+        isException
+            ? _containsExceptionRules.add(line)
+            : _containsNetworkRules.add(line);
       }
     }
   }

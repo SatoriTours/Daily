@@ -54,18 +54,27 @@ class SettingsController extends _$SettingsController {
 
   void _setupWebSocketListener() {
     void onConnectionChanged() {
-      state = state.copyWith(isWebSocketConnected: WebService.i.webSocketTunnel.isConnected.value);
+      state = state.copyWith(
+        isWebSocketConnected: WebService.i.webSocketTunnel.isConnected.value,
+      );
     }
 
     WebService.i.webSocketTunnel.isConnected.addListener(onConnectionChanged);
-    ref.onDispose(() => WebService.i.webSocketTunnel.isConnected.removeListener(onConnectionChanged));
+    ref.onDispose(
+      () => WebService.i.webSocketTunnel.isConnected.removeListener(
+        onConnectionChanged,
+      ),
+    );
   }
 
   Future<void> _loadAppVersion() async {
     state = state.copyWith(isPageLoading: true);
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      state = state.copyWith(appVersion: '${packageInfo.version}+${packageInfo.buildNumber}', isPageLoading: false);
+      state = state.copyWith(
+        appVersion: '${packageInfo.version}+${packageInfo.buildNumber}',
+        isPageLoading: false,
+      );
     } catch (e) {
       logger.e('加载应用版本信息失败: $e');
       state = state.copyWith(appVersion: '未知版本', isPageLoading: false);
@@ -78,11 +87,15 @@ class SettingsController extends _$SettingsController {
   }
 
   void _updateWebAccessUrl() {
-    state = state.copyWith(webAccessUrl: WebService.i.webSocketTunnel.getWebAccessUrl());
+    state = state.copyWith(
+      webAccessUrl: WebService.i.webSocketTunnel.getWebAccessUrl(),
+    );
   }
 
   void _updateWebSocketStatus() {
-    state = state.copyWith(isWebSocketConnected: WebService.i.webSocketTunnel.isConnected.value);
+    state = state.copyWith(
+      isWebSocketConnected: WebService.i.webSocketTunnel.isConnected.value,
+    );
   }
 
   Future<void> selectBackupDirectory() async {
@@ -94,18 +107,25 @@ class SettingsController extends _$SettingsController {
 
     final selectedDirectory = await FilePicker.platform.getDirectoryPath(
       dialogTitle: '选择备份文件夹',
-      initialDirectory: SettingRepository.i.getSetting(SettingService.backupDirKey),
+      initialDirectory: SettingRepository.i.getSetting(
+        SettingService.backupDirKey,
+      ),
     );
 
     if (selectedDirectory != null) {
       logger.i('[SettingsController] 选择备份目录: $selectedDirectory');
-      SettingRepository.i.saveSetting(SettingService.backupDirKey, selectedDirectory);
+      SettingRepository.i.saveSetting(
+        SettingService.backupDirKey,
+        selectedDirectory,
+      );
     }
   }
 
-  void copyWebServiceAddress() => Clipboard.setData(ClipboardData(text: state.webServiceAddress));
+  void copyWebServiceAddress() =>
+      Clipboard.setData(ClipboardData(text: state.webServiceAddress));
 
-  void copyWebAccessUrl() => Clipboard.setData(ClipboardData(text: state.webAccessUrl));
+  void copyWebAccessUrl() =>
+      Clipboard.setData(ClipboardData(text: state.webAccessUrl));
 
   void reAnalyzeAllWebpages() {
     logger.i('[SettingsController] 重新分析所有网页');
@@ -114,7 +134,10 @@ class SettingsController extends _$SettingsController {
 
   Future<void> saveWebServerPassword(String password) async {
     try {
-      SettingRepository.i.saveSetting(SettingService.webServerPasswordKey, password);
+      SettingRepository.i.saveSetting(
+        SettingService.webServerPasswordKey,
+        password,
+      );
       UIUtils.showSuccess('密码设置成功');
     } catch (e) {
       logger.e('保存密码失败: $e');
@@ -165,7 +188,9 @@ class SettingsController extends _$SettingsController {
         return;
       }
 
-      logger.i('[SettingsController] 发现 ${articlesToDownload.length} 篇文章需要下载封面图片');
+      logger.i(
+        '[SettingsController] 发现 ${articlesToDownload.length} 篇文章需要下载封面图片',
+      );
       await _downloadArticleImages(articlesToDownload);
       _showDownloadResult();
     } catch (e) {
@@ -176,7 +201,9 @@ class SettingsController extends _$SettingsController {
     }
   }
 
-  List<ArticleModel> _filterArticlesNeedingDownload(List<ArticleModel> articles) {
+  List<ArticleModel> _filterArticlesNeedingDownload(
+    List<ArticleModel> articles,
+  ) {
     final result = <ArticleModel>[];
 
     for (final article in articles) {
@@ -203,14 +230,20 @@ class SettingsController extends _$SettingsController {
       state = state.copyWith(downloadProgress: state.downloadProgress + 1);
 
       try {
-        final imagePath = await HttpService.i.downloadImage(article.coverImageUrl!);
+        final imagePath = await HttpService.i.downloadImage(
+          article.coverImageUrl!,
+        );
 
         if (imagePath.isNotEmpty) {
           article.coverImage = imagePath;
           ArticleRepository.i.updateModel(article);
-          state = state.copyWith(downloadSuccessCount: state.downloadSuccessCount + 1);
+          state = state.copyWith(
+            downloadSuccessCount: state.downloadSuccessCount + 1,
+          );
         } else {
-          state = state.copyWith(downloadFailCount: state.downloadFailCount + 1);
+          state = state.copyWith(
+            downloadFailCount: state.downloadFailCount + 1,
+          );
         }
       } catch (e) {
         state = state.copyWith(downloadFailCount: state.downloadFailCount + 1);
@@ -220,7 +253,8 @@ class SettingsController extends _$SettingsController {
   }
 
   void _showDownloadResult() {
-    final message = '下载完成: 成功 ${state.downloadSuccessCount} 张, 失败 ${state.downloadFailCount} 张';
+    final message =
+        '下载完成: 成功 ${state.downloadSuccessCount} 张, 失败 ${state.downloadFailCount} 张';
     logger.i('[SettingsController] $message');
     UIUtils.showSuccess(message);
   }

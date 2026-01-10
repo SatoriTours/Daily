@@ -13,22 +13,35 @@ class ArticleDetailView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final arguments = AppNavigation.arguments(context);
-    final articleId = arguments is int ? arguments : (arguments as ArticleModel?)?.id;
+    final articleId = arguments is int
+        ? arguments
+        : (arguments as ArticleModel?)?.id;
 
     if (articleId == null) {
       return const Scaffold(body: Center(child: Text('文章不存在')));
     }
 
-    final controllerState = ref.watch(articleDetailControllerProvider(articleId));
+    final controllerState = ref.watch(
+      articleDetailControllerProvider(articleId),
+    );
     final article = controllerState.articleModel;
 
-    return DefaultTabController(length: 2, child: _buildScaffold(context, articleId, article));
+    return DefaultTabController(
+      length: 2,
+      child: _buildScaffold(context, articleId, article),
+    );
   }
 
-  Widget _buildScaffold(BuildContext context, int articleId, ArticleModel? article) {
+  Widget _buildScaffold(
+    BuildContext context,
+    int articleId,
+    ArticleModel? article,
+  ) {
     return Scaffold(
       appBar: ArticleDetailAppBar(articleId: articleId, article: article),
-      body: Column(children: [_buildContent(articleId, article), const ArticleTabBar()]),
+      body: Column(
+        children: [_buildContent(articleId, article), const ArticleTabBar()],
+      ),
     );
   }
 

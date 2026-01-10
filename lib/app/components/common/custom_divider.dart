@@ -34,7 +34,12 @@ class CustomDivider extends StatelessWidget {
   /// [height] 分隔线高度，默认为 1.0
   /// [indent] 起始缩进，默认为 0.0
   /// [endIndent] 结束缩进，默认为 0.0
-  const CustomDivider({super.key, this.height = 1.0, this.indent = 0.0, this.endIndent = 0.0});
+  const CustomDivider({
+    super.key,
+    this.height = 1.0,
+    this.indent = 0.0,
+    this.endIndent = 0.0,
+  });
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;

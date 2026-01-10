@@ -10,10 +10,16 @@ import 'package:shelf/shelf.dart';
 ///
 /// 会话数据持久化在 ObjectBox（见 `SessionRepository`）。
 class Session {
-  Session(this.id) : _creationTime = DateTime.now(), _lastAccessTime = DateTime.now();
+  Session(this.id)
+    : _creationTime = DateTime.now(),
+      _lastAccessTime = DateTime.now();
 
   factory Session.fromModel(SessionModel model) {
-    final session = Session._fromEntity(model.sessionId, model.createdAt, model.lastAccessedAt);
+    final session = Session._fromEntity(
+      model.sessionId,
+      model.createdAt,
+      model.lastAccessedAt,
+    );
     session.isAuthenticated = model.isAuthenticated;
     session.username = model.username;
     return session;
@@ -108,7 +114,12 @@ class SessionManager {
   }
 
   static Response createSessionResponse(Response response, Session session) {
-    return response.change(headers: {'Set-Cookie': 'session_id=${session.id}; HttpOnly; Path=/; SameSite=Strict'});
+    return response.change(
+      headers: {
+        'Set-Cookie':
+            'session_id=${session.id}; HttpOnly; Path=/; SameSite=Strict',
+      },
+    );
   }
 
   static String _generateSessionId() {

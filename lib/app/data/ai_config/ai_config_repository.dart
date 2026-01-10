@@ -33,7 +33,10 @@ class AIConfigRepository extends BaseRepository<AIConfig, AIConfigModel> {
 
   /// 根据功能类型获取默认AI配置
   AIConfigModel? getDefaultAIConfigByFunctionType(int functionType) {
-    return findFirstByCondition(AIConfig_.functionType.equals(functionType) & AIConfig_.isDefault.equals(true));
+    return findFirstByCondition(
+      AIConfig_.functionType.equals(functionType) &
+          AIConfig_.isDefault.equals(true),
+    );
   }
 
   /// 更新AI配置(设置更新时间)

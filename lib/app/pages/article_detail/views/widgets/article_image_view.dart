@@ -51,7 +51,12 @@ class ArticleImageView extends ConsumerWidget {
     );
   }
 
-  void _showFullScreenImage(BuildContext context, WidgetRef ref, List<String> images, {int initialIndex = 0}) {
+  void _showFullScreenImage(
+    BuildContext context,
+    WidgetRef ref,
+    List<String> images, {
+    int initialIndex = 0,
+  }) {
     showDialog(
       context: context,
       builder: (context) => Scaffold(
@@ -71,7 +76,11 @@ class ArticleImageView extends ConsumerWidget {
                   onConfirm: () async {
                     if (articleId != null) {
                       await ref
-                          .read(articleDetailControllerProvider(articleId!).notifier)
+                          .read(
+                            articleDetailControllerProvider(
+                              articleId!,
+                            ).notifier,
+                          )
                           .deleteImage(images[initialIndex]);
                       UIUtils.showSuccess('删除成功', title: '提示');
                       AppNavigation.back();
@@ -115,7 +124,8 @@ class ArticleImageView extends ConsumerWidget {
       return FileImage(File(resolved));
     } else if (networkUrl != null && networkUrl!.isNotEmpty) {
       return NetworkImage(networkUrl!);
-    } else if (article?.coverImageUrl != null && article!.coverImageUrl!.isNotEmpty) {
+    } else if (article?.coverImageUrl != null &&
+        article!.coverImageUrl!.isNotEmpty) {
       return NetworkImage(article!.coverImageUrl!);
     }
     return FileImage(File(resolved)); // 这里会报错，但会被errorBuilder处理

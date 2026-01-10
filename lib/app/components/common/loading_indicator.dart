@@ -64,7 +64,13 @@ class LoadingIndicator extends StatelessWidget {
 
   /// 创建大尺寸加载指示器
   factory LoadingIndicator.large({String? message, String? messageKey}) {
-    return LoadingIndicator(message: message, messageKey: messageKey, size: 48, strokeWidth: 4.0, isLarge: true);
+    return LoadingIndicator(
+      message: message,
+      messageKey: messageKey,
+      size: 48,
+      strokeWidth: 4.0,
+      isLarge: true,
+    );
   }
 
   /// 获取消息文本
@@ -89,14 +95,22 @@ class LoadingIndicator extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              AppColors.getPrimary(context),
+            ),
             strokeWidth: _strokeWidth,
           ),
           if (_messageText != null) ...[
-            SizedBox(height: isSmall ? Dimensions.spacingS : Dimensions.spacingM),
+            SizedBox(
+              height: isSmall ? Dimensions.spacingS : Dimensions.spacingM,
+            ),
             Text(
               _messageText!,
-              style: isSmall ? AppTypography.bodySmall : (isLarge ? AppTypography.bodyLarge : AppTypography.bodyMedium),
+              style: isSmall
+                  ? AppTypography.bodySmall
+                  : (isLarge
+                        ? AppTypography.bodyLarge
+                        : AppTypography.bodyMedium),
               textAlign: TextAlign.center,
             ),
           ],

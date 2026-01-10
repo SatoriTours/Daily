@@ -7,7 +7,11 @@ class DiaryTagsDialogHeader extends StatelessWidget {
   final String title;
   final VoidCallback onClose;
 
-  const DiaryTagsDialogHeader({super.key, this.title = '选择标签', required this.onClose});
+  const DiaryTagsDialogHeader({
+    super.key,
+    this.title = '选择标签',
+    required this.onClose,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -18,10 +22,18 @@ class DiaryTagsDialogHeader extends StatelessWidget {
         children: [
           Text(
             title,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: DiaryStyles.getPrimaryTextColor(context)),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: DiaryStyles.getPrimaryTextColor(context),
+            ),
           ),
           IconButton(
-            icon: Icon(FeatherIcons.x, size: 20, color: DiaryStyles.getSecondaryTextColor(context)),
+            icon: Icon(
+              FeatherIcons.x,
+              size: 20,
+              color: DiaryStyles.getSecondaryTextColor(context),
+            ),
             onPressed: onClose,
           ),
         ],

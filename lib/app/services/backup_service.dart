@@ -14,6 +14,7 @@ import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/setting_service/setting_service.dart';
 import 'package:daily_satori/app/services/objectbox_service.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 import 'package:daily_satori/app/data/data.dart';
 
 /// 备份项配置类，定义备份内容和目标
@@ -27,10 +28,14 @@ class BackupItem {
   /// 目标文件名
   final String zipFileName;
 
-  const BackupItem({required this.name, required this.sourcePath, required this.zipFileName});
+  const BackupItem({
+    required this.name,
+    required this.sourcePath,
+    required this.zipFileName,
+  });
 }
 
-class BackupService {
+class BackupService extends AppService {
   // 单例模式
   BackupService._();
   static final BackupService _instance = BackupService._();
@@ -46,19 +51,33 @@ class BackupService {
   // 初始化备份项配置
   void _initBackupItems() {
     _backupItems = [
-      BackupItem(name: "数据库", sourcePath: FileService.i.dbPath, zipFileName: 'objectbox.zip'),
-      BackupItem(name: "网页图片", sourcePath: FileService.i.imagesBasePath, zipFileName: 'images.zip'),
-      BackupItem(name: "日记图片", sourcePath: FileService.i.diaryImagesBasePath, zipFileName: 'diary_images.zip'),
+      BackupItem(
+        name: "数据库",
+        sourcePath: FileService.i.dbPath,
+        zipFileName: 'objectbox.zip',
+      ),
+      BackupItem(
+        name: "网页图片",
+        sourcePath: FileService.i.imagesBasePath,
+        zipFileName: 'images.zip',
+      ),
+      BackupItem(
+        name: "日记图片",
+        sourcePath: FileService.i.diaryImagesBasePath,
+        zipFileName: 'diary_images.zip',
+      ),
     ];
   }
 
-  String get backupDir => SettingRepository.i.getSetting(SettingService.backupDirKey);
+  String get backupDir =>
+      SettingRepository.i.getSetting(SettingService.backupDirKey);
   File get backupTimeFile => File(path.join(backupDir, 'backup_time.txt'));
-  int get _backupInterval =>
-      AppInfoUtils.isProduction ? BackupConfig.productionIntervalHours : BackupConfig.developmentIntervalHours;
+  int get _backupInterval => AppInfoUtils.isProduction
+      ? BackupConfig.productionIntervalHours
+      : BackupConfig.developmentIntervalHours;
   List<BackupItem> get backupItems => _backupItems;
 
-  // 初始化服务
+  @override
   Future<void> init() async {
     _initBackupItems();
 
@@ -97,7 +116,9 @@ class BackupService {
     try {
       logger.i("准备备份应用");
       final lastBackupTime = await _getLastBackupTime();
-      final backupTimeDifference = DateTime.now().difference(lastBackupTime).inHours;
+      final backupTimeDifference = DateTime.now()
+          .difference(lastBackupTime)
+          .inHours;
 
       if (backupTimeDifference >= _backupInterval || immediateBackup) {
         logger.i("开始备份应用");
@@ -106,7 +127,9 @@ class BackupService {
         return true;
       } else {
         final remainingHours = _backupInterval - backupTimeDifference;
-        logger.i("上次备份时间 $lastBackupTime, 备份间隔为 $_backupInterval 小时, 离下次备份还差: $remainingHours 小时");
+        logger.i(
+          "上次备份时间 $lastBackupTime, 备份间隔为 $_backupInterval 小时, 离下次备份还差: $remainingHours 小时",
+        );
         return false;
       }
     } catch (e) {
@@ -133,7 +156,10 @@ class BackupService {
 
   // 执行备份
   Future<void> _performBackup() async {
-    final timestamp = DateTime.now().toIso8601String().replaceAll(RegExp('[:.]+'), '-');
+    final timestamp = DateTime.now().toIso8601String().replaceAll(
+      RegExp('[:.]+'),
+      '-',
+    );
     final backupFolder = path.join(backupDir, 'daily_satori_backup_$timestamp');
     await Directory(backupFolder).create(recursive: true);
 
@@ -145,7 +171,10 @@ class BackupService {
     // 按配置进行备份
     for (final item in _backupItems) {
       logger.i("开始备份${item.name}");
-      await _compressDirectory(item.sourcePath, path.join(backupFolder, item.zipFileName));
+      await _compressDirectory(
+        item.sourcePath,
+        path.join(backupFolder, item.zipFileName),
+      );
       currentProgress += progressPerItem;
       backupProgress.value = currentProgress;
     }
@@ -165,7 +194,11 @@ class BackupService {
         await Isolate.run(() async {
           BackgroundIsolateBinaryMessenger.ensureInitialized(rootIsolateToken);
           final targetFile = File(targetPath);
-          await ZipFile.createFromDirectory(sourceDir: sourceDirectory, zipFile: targetFile, recurseSubDirs: true);
+          await ZipFile.createFromDirectory(
+            sourceDir: sourceDirectory,
+            zipFile: targetFile,
+            recurseSubDirs: true,
+          );
         });
         logger.i("成功压缩目录 $sourceDir 到 $targetPath");
       } else {
@@ -186,7 +219,10 @@ class BackupService {
   ///
   /// 注意：恢复后需要重启应用才能加载新数据库
   Future<bool> restoreBackup(String backupName) async {
-    final backupFolder = path.join(backupDir, 'daily_satori_backup_$backupName');
+    final backupFolder = path.join(
+      backupDir,
+      'daily_satori_backup_$backupName',
+    );
     final appDocDir = (await getApplicationDocumentsDirectory()).path;
 
     try {
@@ -231,7 +267,10 @@ class BackupService {
   }
 
   /// 恢复所有备份项
-  Future<void> _restoreAllBackupItems(List<File> backupFiles, String appDocDir) async {
+  Future<void> _restoreAllBackupItems(
+    List<File> backupFiles,
+    String appDocDir,
+  ) async {
     for (int i = 0; i < _backupItems.length; i++) {
       final item = _backupItems[i];
       final zipFile = backupFiles[i];
@@ -273,7 +312,9 @@ class BackupService {
           ..createSync(recursive: true)
           ..writeAsBytesSync(data);
       } else {
-        Directory(path.join(destinationPath, filename)).createSync(recursive: true);
+        Directory(
+          path.join(destinationPath, filename),
+        ).createSync(recursive: true);
       }
     }
   }
@@ -290,7 +331,11 @@ class BackupService {
         final images = diary.images;
         if (images == null || images.trim().isEmpty) continue;
 
-        final parts = images.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        final parts = images
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
         bool changed = false;
         final fixed = <String>[];
 
@@ -298,7 +343,9 @@ class BackupService {
           final normalized = path.normalize(p0);
           // 兼容不同分隔符，定位到 diary_images 段
           final segments = normalized.split(RegExp(r"[\\/]+"));
-          final idx = segments.indexWhere((s) => s.toLowerCase() == 'diary_images');
+          final idx = segments.indexWhere(
+            (s) => s.toLowerCase() == 'diary_images',
+          );
           if (idx != -1) {
             final relSegments = segments.sublist(idx + 1);
             final relPath = path.joinAll(relSegments);
@@ -376,10 +423,16 @@ class BackupService {
   }
 
   /// 将任意旧路径映射到新根目录（根据标记目录名提取相对路径）
-  String _mapToNewBase(String oldPath, String newBase, {required String marker}) {
+  String _mapToNewBase(
+    String oldPath,
+    String newBase, {
+    required String marker,
+  }) {
     final normalized = path.normalize(oldPath);
     final segments = normalized.split(RegExp(r"[\\/]+"));
-    final idx = segments.indexWhere((s) => s.toLowerCase() == marker.toLowerCase());
+    final idx = segments.indexWhere(
+      (s) => s.toLowerCase() == marker.toLowerCase(),
+    );
     if (idx != -1) {
       final rel = path.joinAll(segments.sublist(idx + 1));
       return path.join(newBase, rel);

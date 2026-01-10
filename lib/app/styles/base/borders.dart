@@ -18,7 +18,10 @@ class AppBorders {
   }
 
   /// 获取主题色边框
-  static BorderSide getPrimaryBorder(BuildContext context, {double width = 1.0}) {
+  static BorderSide getPrimaryBorder(
+    BuildContext context, {
+    double width = 1.0,
+  }) {
     return BorderSide(color: AppColors.getPrimary(context), width: width);
   }
 
@@ -56,7 +59,10 @@ class AppBorders {
   static InputBorder getInputDisabledBorder(BuildContext context) {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(Dimensions.radiusS),
-      borderSide: BorderSide(color: AppColors.getOutline(context).withValues(alpha: 0.5), width: 1.0),
+      borderSide: BorderSide(
+        color: AppColors.getOutline(context).withValues(alpha: 0.5),
+        width: 1.0,
+      ),
     );
   }
 
@@ -73,7 +79,11 @@ class AppBorders {
   // ========================================================================
 
   /// 获取分隔线
-  static Divider getDivider(BuildContext context, {double height = 1.0, double indent = 0.0}) {
+  static Divider getDivider(
+    BuildContext context, {
+    double height = 1.0,
+    double indent = 0.0,
+  }) {
     return Divider(
       height: height,
       thickness: Dimensions.dividerHeight,
@@ -84,7 +94,11 @@ class AppBorders {
   }
 
   /// 获取垂直分隔线
-  static VerticalDivider getVerticalDivider(BuildContext context, {double width = 1.0, double indent = 0.0}) {
+  static VerticalDivider getVerticalDivider(
+    BuildContext context, {
+    double width = 1.0,
+    double indent = 0.0,
+  }) {
     return VerticalDivider(
       width: width,
       thickness: Dimensions.dividerHeight,
@@ -120,7 +134,10 @@ class AppBorders {
     return BoxDecoration(
       color: backgroundColor ?? AppColors.getSurface(context),
       borderRadius: borderRadius ?? BorderRadius.circular(Dimensions.radiusS),
-      border: Border.all(color: AppColors.getPrimary(context), width: Dimensions.borderWidthM),
+      border: Border.all(
+        color: AppColors.getPrimary(context),
+        width: Dimensions.borderWidthM,
+      ),
     );
   }
 
@@ -129,7 +146,11 @@ class AppBorders {
   // ========================================================================
 
   /// 获取顶部边框
-  static Border getTopBorder(Color color, {double opacity = 0.3, double width = Dimensions.borderWidthXs}) {
+  static Border getTopBorder(
+    Color color, {
+    double opacity = 0.3,
+    double width = Dimensions.borderWidthXs,
+  }) {
     return Border(
       top: BorderSide(
         color: color.withValues(alpha: opacity),
@@ -139,7 +160,11 @@ class AppBorders {
   }
 
   /// 获取底部边框
-  static Border getBottomBorder(Color color, {double opacity = 0.3, double width = Dimensions.borderWidthXs}) {
+  static Border getBottomBorder(
+    Color color, {
+    double opacity = 0.3,
+    double width = Dimensions.borderWidthXs,
+  }) {
     return Border(
       bottom: BorderSide(
         color: color.withValues(alpha: opacity),
@@ -149,7 +174,11 @@ class AppBorders {
   }
 
   /// 获取左侧边框
-  static Border getLeftBorder(Color color, {double opacity = 0.3, double width = Dimensions.borderWidthXs}) {
+  static Border getLeftBorder(
+    Color color, {
+    double opacity = 0.3,
+    double width = Dimensions.borderWidthXs,
+  }) {
     return Border(
       left: BorderSide(
         color: color.withValues(alpha: opacity),
@@ -159,7 +188,11 @@ class AppBorders {
   }
 
   /// 获取右侧边框
-  static Border getRightBorder(Color color, {double opacity = 0.3, double width = Dimensions.borderWidthXs}) {
+  static Border getRightBorder(
+    Color color, {
+    double opacity = 0.3,
+    double width = Dimensions.borderWidthXs,
+  }) {
     return Border(
       right: BorderSide(
         color: color.withValues(alpha: opacity),

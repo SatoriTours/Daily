@@ -17,7 +17,10 @@ class ArticleTags extends StatelessWidget {
   Widget build(BuildContext context) {
     if (tags.isEmpty) return const SizedBox.shrink();
 
-    final tagList = tags.split(', ').where((tag) => tag.trim().isNotEmpty).toList();
+    final tagList = tags
+        .split(', ')
+        .where((tag) => tag.trim().isNotEmpty)
+        .toList();
 
     if (tagList.isEmpty) return const SizedBox.shrink();
 
@@ -32,7 +35,10 @@ class ArticleTags extends StatelessWidget {
   Widget _buildTag(BuildContext context, String tag) {
     final accentColor = DiaryStyles.getAccentColor(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingS + 2, vertical: Dimensions.spacingXs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.spacingS + 2,
+        vertical: Dimensions.spacingXs,
+      ),
       decoration: BoxDecoration(
         color: accentColor.withAlpha(20),
         borderRadius: Dimensions.borderRadiusM,
@@ -45,7 +51,11 @@ class ArticleTags extends StatelessWidget {
           const SizedBox(width: Dimensions.spacingXs),
           Text(
             tag,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: accentColor),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: accentColor,
+            ),
           ),
         ],
       ),

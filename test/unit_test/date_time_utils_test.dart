@@ -6,7 +6,10 @@ void main() {
     group('nowToString', () {
       test('should return ISO 8601 formatted string', () {
         final result = DateTimeUtils.nowToString();
-        expect(result, matches(RegExp(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}')));
+        expect(
+          result,
+          matches(RegExp(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}')),
+        );
       });
     });
 
@@ -42,7 +45,9 @@ void main() {
       });
 
       test('should handle valid date string', () {
-        final result = DateTimeUtils.formatDateTimeToLocal(DateTime.parse('2024-01-15'));
+        final result = DateTimeUtils.formatDateTimeToLocal(
+          DateTime.parse('2024-01-15'),
+        );
         expect(result.isNotEmpty, isTrue);
       });
     });

@@ -17,7 +17,8 @@ part 'backup_restore_controller_provider.g.dart';
 
 /// BackupRestoreController 状态
 @freezed
-abstract class BackupRestoreControllerState with _$BackupRestoreControllerState {
+abstract class BackupRestoreControllerState
+    with _$BackupRestoreControllerState {
   const factory BackupRestoreControllerState({
     @Default(false) bool isLoading,
     @Default(false) bool isRestoring,
@@ -46,20 +47,32 @@ class BackupRestoreController extends _$BackupRestoreController {
     try {
       final path = state.backupPath;
       if (path.isEmpty) {
-        state = state.copyWith(isLoading: false, backupList: [], errorMessage: 'backup_restore.no_backup_path'.t);
+        state = state.copyWith(
+          isLoading: false,
+          backupList: [],
+          errorMessage: 'backup_restore.no_backup_path'.t,
+        );
         return;
       }
 
       final directory = Directory(path);
       if (!await directory.exists()) {
-        state = state.copyWith(isLoading: false, backupList: [], errorMessage: 'backup_restore.path_not_exist'.t);
+        state = state.copyWith(
+          isLoading: false,
+          backupList: [],
+          errorMessage: 'backup_restore.path_not_exist'.t,
+        );
         return;
       }
 
       final backupList =
           directory
               .listSync()
-              .where((e) => e is Directory && p.basename(e.path).startsWith('daily_satori_backup_'))
+              .where(
+                (e) =>
+                    e is Directory &&
+                    p.basename(e.path).startsWith('daily_satori_backup_'),
+              )
               .toList()
             ..sort((a, b) => b.path.compareTo(a.path));
 
@@ -71,7 +84,8 @@ class BackupRestoreController extends _$BackupRestoreController {
     }
   }
 
-  void selectBackupIndex(int index) => state = state.copyWith(selectedBackupIndex: index);
+  void selectBackupIndex(int index) =>
+      state = state.copyWith(selectedBackupIndex: index);
 
   String getBackupTime(FileSystemEntity file) {
     final name = p.basename(file.path);
@@ -86,12 +100,15 @@ class BackupRestoreController extends _$BackupRestoreController {
         (m) => '${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}',
       );
       final dateTime = DateTime.tryParse(isoString);
-      if (dateTime != null) return DateTimeUtils.formatDateTimeToLocal(dateTime);
+      if (dateTime != null)
+        return DateTimeUtils.formatDateTimeToLocal(dateTime);
 
       // 回退：尝试解析旧格式
       final parts = timestamp.split('-');
       if (parts.length >= 6) {
-        final dt = DateTime.tryParse('${parts[0]}-${parts[1]}-${parts[2]} ${parts[3]}:${parts[4]}:${parts[5]}');
+        final dt = DateTime.tryParse(
+          '${parts[0]}-${parts[1]}-${parts[2]} ${parts[3]}:${parts[4]}:${parts[5]}',
+        );
         if (dt != null) return DateTimeUtils.formatDateTimeToLocal(dt);
       }
     } catch (_) {}
@@ -99,7 +116,9 @@ class BackupRestoreController extends _$BackupRestoreController {
   }
 
   Future<bool> restoreBackup() async {
-    if (state.selectedBackupIndex < 0 || state.selectedBackupIndex >= state.backupList.length) return false;
+    if (state.selectedBackupIndex < 0 ||
+        state.selectedBackupIndex >= state.backupList.length)
+      return false;
 
     // 检查Android权限
     if (Platform.isAndroid) {
@@ -111,7 +130,9 @@ class BackupRestoreController extends _$BackupRestoreController {
     }
 
     // 获取备份名称
-    final backupName = _extractBackupName(state.backupList[state.selectedBackupIndex]);
+    final backupName = _extractBackupName(
+      state.backupList[state.selectedBackupIndex],
+    );
 
     // 显示loading对话框
     DialogUtils.showLoading();

@@ -70,7 +70,9 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
       final existingSettings = findByCondition(condition);
 
       // 2. 将现有设置转换为 Map，方便查找
-      final existingMap = {for (var model in existingSettings) model.entity.key: model};
+      final existingMap = {
+        for (var model in existingSettings) model.entity.key: model,
+      };
 
       // 3. 准备要更新的设置模型列表
       final modelsToUpdate = <SettingModel>[];
@@ -101,7 +103,10 @@ class SettingRepository extends BaseRepository<Setting, SettingModel> {
   /// 获取所有键的集合
   Set<String> getKeys() {
     final settings = all();
-    return settings.where((s) => s.entity.key != null).map((s) => s.entity.key!).toSet();
+    return settings
+        .where((s) => s.entity.key != null)
+        .map((s) => s.entity.key!)
+        .toSet();
   }
 
   /// 根据键删除设置

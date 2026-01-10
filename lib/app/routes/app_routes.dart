@@ -22,4 +22,3 @@ abstract class Routes {
   static const aiChat = '/ai-chat';
   static const weeklySummary = '/weekly-summary';
 }
-

@@ -21,7 +21,9 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
     final args = state.extra as Map<String, dynamic>?;
     if (args != null) {
       // 使用 Future.microtask 避免在构建过程中修改状态
-      Future.microtask(() => ref.read(shareDialogControllerProvider.notifier).initialize(args));
+      Future.microtask(
+        () => ref.read(shareDialogControllerProvider.notifier).initialize(args),
+      );
     }
   }
 
@@ -40,7 +42,10 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
   // 构建顶部应用栏
   PreferredSizeWidget _buildAppBar(BuildContext context, bool isUpdate) {
     return SAppBar(
-      title: Text(isUpdate ? 'ui.updateArticle'.t : 'ui.saveLink'.t, style: const TextStyle(color: Colors.white)),
+      title: Text(
+        isUpdate ? 'ui.updateArticle'.t : 'ui.saveLink'.t,
+        style: const TextStyle(color: Colors.white),
+      ),
       centerTitle: true,
       // 更新模式下不显示返回按钮
       leading: isUpdate ? const SizedBox.shrink() : null,
@@ -78,12 +83,19 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
   }
 
   // 构建底部按钮区域
-  Widget _buildBottomButton(BuildContext context, WidgetRef ref, bool isUpdate) {
+  Widget _buildBottomButton(
+    BuildContext context,
+    WidgetRef ref,
+    bool isUpdate,
+  ) {
     return Container(
       padding: Dimensions.paddingBottomForm,
       decoration: BoxDecoration(
         color: AppColors.getSurface(context),
-        border: AppBorders.getTopBorder(AppColors.getOutline(context), opacity: Opacities.medium),
+        border: AppBorders.getTopBorder(
+          AppColors.getOutline(context),
+          opacity: Opacities.medium,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: Opacities.ultraLow),
@@ -108,10 +120,14 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
               flex: 2,
               child: FilledButton(
                 style: StyleGuide.getPrimaryButtonStyle(context),
-                onPressed: () => ref.read(shareDialogControllerProvider.notifier).onSaveButtonPressed(context),
+                onPressed: () => ref
+                    .read(shareDialogControllerProvider.notifier)
+                    .onSaveButtonPressed(context),
                 child: Text(
                   isUpdate ? 'ui.saveChanges'.t : 'ui.save'.t,
-                  style: AppTypography.buttonText.copyWith(fontWeight: FontWeight.w600),
+                  style: AppTypography.buttonText.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -134,10 +150,18 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
             Icon(
               Icons.link_rounded,
               size: Dimensions.iconSizeS,
-              color: theme.colorScheme.primary.withValues(alpha: Opacities.highOpaque),
+              color: theme.colorScheme.primary.withValues(
+                alpha: Opacities.highOpaque,
+              ),
             ),
             Dimensions.horizontalSpacerS,
-            Text('ui.link'.t, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text(
+              'ui.link'.t,
+              style: AppTypography.titleSmall.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const Spacer(),
             if (isUpdate) ...[
               Row(
@@ -148,7 +172,9 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
                     size: Dimensions.iconSizeXs - 2,
                     color: controllerState.refreshAndAnalyze
                         ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.mediumHigh),
+                        : theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: Opacities.mediumHigh,
+                          ),
                   ),
                   Dimensions.horizontalSpacerXs,
                   Text(
@@ -158,7 +184,9 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
                       fontWeight: FontWeight.w500,
                       color: controllerState.refreshAndAnalyze
                           ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.highOpaque),
+                          : theme.colorScheme.onSurfaceVariant.withValues(
+                              alpha: Opacities.highOpaque,
+                            ),
                     ),
                   ),
                   Dimensions.horizontalSpacerS,
@@ -166,7 +194,9 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
                     scale: 0.8,
                     child: Switch.adaptive(
                       value: controllerState.refreshAndAnalyze,
-                      onChanged: (v) => ref.read(shareDialogControllerProvider.notifier).toggleRefreshAndAnalyze(v),
+                      onChanged: (v) => ref
+                          .read(shareDialogControllerProvider.notifier)
+                          .toggleRefreshAndAnalyze(v),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
@@ -180,16 +210,23 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
           width: double.infinity,
           padding: Dimensions.paddingInput,
           decoration: BoxDecoration(
-            color: AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.high),
+            color: AppColors.getSurfaceContainerHighest(
+              context,
+            ).withValues(alpha: Opacities.high),
             borderRadius: BorderRadius.circular(Dimensions.radiusS),
             border: Border.all(
-              color: AppColors.getOutlineVariant(context).withValues(alpha: Opacities.mediumHigh),
+              color: AppColors.getOutlineVariant(
+                context,
+              ).withValues(alpha: Opacities.mediumHigh),
               width: Dimensions.borderWidthXs,
             ),
           ),
           child: SelectableText(
             controllerState.shareURL,
-            style: AppTypography.bodySmall.copyWith(color: AppColors.getOnSurfaceVariant(context), height: 1.4),
+            style: AppTypography.bodySmall.copyWith(
+              color: AppColors.getOnSurfaceVariant(context),
+              height: 1.4,
+            ),
             maxLines: 2,
           ),
         ),
@@ -198,9 +235,15 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
   }
 
   // 构建标题区域
-  Widget _buildTitleSection(BuildContext context, WidgetRef ref, bool isUpdate) {
+  Widget _buildTitleSection(
+    BuildContext context,
+    WidgetRef ref,
+    bool isUpdate,
+  ) {
     final theme = Theme.of(context);
-    final titleController = ref.read(shareDialogControllerProvider.notifier).titleController;
+    final titleController = ref
+        .read(shareDialogControllerProvider.notifier)
+        .titleController;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,10 +253,18 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
             Icon(
               Icons.title_rounded,
               size: Dimensions.iconSizeS,
-              color: theme.colorScheme.primary.withValues(alpha: Opacities.highOpaque),
+              color: theme.colorScheme.primary.withValues(
+                alpha: Opacities.highOpaque,
+              ),
             ),
             Dimensions.horizontalSpacerS,
-            Text('ui.title'.t, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text(
+              'ui.title'.t,
+              style: AppTypography.titleSmall.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
         Dimensions.verticalSpacerS,
@@ -224,24 +275,37 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
           style: AppTypography.bodyMedium.copyWith(fontSize: 15, height: 1.5),
           decoration: InputDecoration(
             hintText: 'ui.inputOrModifyArticleTitle'.t,
-            hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.half)),
+            hintStyle: TextStyle(
+              color: theme.colorScheme.onSurfaceVariant.withValues(
+                alpha: Opacities.half,
+              ),
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
               borderSide: BorderSide(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: Opacities.high),
+                color: theme.colorScheme.outlineVariant.withValues(
+                  alpha: Opacities.high,
+                ),
                 width: 0.5,
               ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
               borderSide: BorderSide(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: Opacities.medium),
+                color: theme.colorScheme.outlineVariant.withValues(
+                  alpha: Opacities.medium,
+                ),
                 width: 0.5,
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
-              borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: Opacities.medium), width: 1),
+              borderSide: BorderSide(
+                color: theme.colorScheme.primary.withValues(
+                  alpha: Opacities.medium,
+                ),
+                width: 1,
+              ),
             ),
             filled: true,
             fillColor: theme.colorScheme.surface,
@@ -258,7 +322,9 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
   // 构建备注区域
   Widget _buildCommentSection(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final commentController = ref.read(shareDialogControllerProvider.notifier).commentController;
+    final commentController = ref
+        .read(shareDialogControllerProvider.notifier)
+        .commentController;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,16 +334,26 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
             Icon(
               Icons.comment_outlined,
               size: Dimensions.iconSizeS,
-              color: theme.colorScheme.primary.withValues(alpha: Opacities.highOpaque),
+              color: theme.colorScheme.primary.withValues(
+                alpha: Opacities.highOpaque,
+              ),
             ),
             Dimensions.horizontalSpacerS,
-            Text('ui.comment'.t, style: AppTypography.titleSmall.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
+            Text(
+              'ui.comment'.t,
+              style: AppTypography.titleSmall.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             Dimensions.horizontalSpacerXs,
             Text(
               'ui.optional'.t,
               style: AppTypography.bodySmall.copyWith(
                 fontSize: 12,
-                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.medium),
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: Opacities.medium,
+                ),
               ),
             ),
           ],
@@ -290,24 +366,37 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
           style: AppTypography.bodyMedium.copyWith(fontSize: 14, height: 1.6),
           decoration: InputDecoration(
             hintText: 'ui.addCommentInfo'.t,
-            hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant.withValues(alpha: Opacities.half)),
+            hintStyle: TextStyle(
+              color: theme.colorScheme.onSurfaceVariant.withValues(
+                alpha: Opacities.half,
+              ),
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
               borderSide: BorderSide(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: Opacities.high),
+                color: theme.colorScheme.outlineVariant.withValues(
+                  alpha: Opacities.high,
+                ),
                 width: 0.5,
               ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
               borderSide: BorderSide(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: Opacities.medium),
+                color: theme.colorScheme.outlineVariant.withValues(
+                  alpha: Opacities.medium,
+                ),
                 width: 0.5,
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(Dimensions.radiusS + 2),
-              borderSide: BorderSide(color: theme.colorScheme.primary.withValues(alpha: Opacities.medium), width: 1),
+              borderSide: BorderSide(
+                color: theme.colorScheme.primary.withValues(
+                  alpha: Opacities.medium,
+                ),
+                width: 1,
+              ),
             ),
             filled: true,
             fillColor: theme.colorScheme.surface,

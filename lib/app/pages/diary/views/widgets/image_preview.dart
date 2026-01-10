@@ -14,7 +14,12 @@ class ImagePreview extends StatelessWidget {
   /// 是否使用 XFile（true）或 File（false）
   final bool isXFile;
 
-  const ImagePreview({super.key, required this.images, required this.onDelete, this.isXFile = false});
+  const ImagePreview({
+    super.key,
+    required this.images,
+    required this.onDelete,
+    this.isXFile = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +48,10 @@ class ImagePreview extends StatelessWidget {
                 height: 100,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
-                  image: DecorationImage(image: FileImage(file), fit: BoxFit.cover),
+                  image: DecorationImage(
+                    image: FileImage(file),
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               Positioned(
@@ -53,8 +61,15 @@ class ImagePreview extends StatelessWidget {
                   onTap: () => onDelete(index),
                   child: Container(
                     padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(color: Colors.black.withAlpha(128), shape: BoxShape.circle),
-                    child: const Icon(FeatherIcons.x, size: 14, color: Colors.white),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withAlpha(128),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      FeatherIcons.x,
+                      size: 14,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -70,7 +85,10 @@ class ImagePreview extends StatelessWidget {
     return Container(
       width: 100,
       height: 100,
-      decoration: BoxDecoration(color: Colors.grey.withAlpha(77), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+        color: Colors.grey.withAlpha(77),
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Stack(
         children: [
           const Center(child: Icon(FeatherIcons.image, color: Colors.grey)),
@@ -81,8 +99,15 @@ class ImagePreview extends StatelessWidget {
               onTap: () => onDelete(index),
               child: Container(
                 padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(color: Colors.black.withAlpha(128), shape: BoxShape.circle),
-                child: const Icon(FeatherIcons.x, size: 14, color: Colors.white),
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(128),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  FeatherIcons.x,
+                  size: 14,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),

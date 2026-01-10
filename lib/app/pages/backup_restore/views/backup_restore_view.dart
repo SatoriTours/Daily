@@ -21,26 +21,41 @@ class BackupRestoreView extends ConsumerWidget {
         backgroundColorDark: AppColors.backgroundDark,
         foregroundColor: Colors.white,
       ),
-      body: Padding(padding: Dimensions.paddingPage, child: _buildBody(context, ref, state)),
+      body: Padding(
+        padding: Dimensions.paddingPage,
+        child: _buildBody(context, ref, state),
+      ),
     );
   }
 
-  Widget _buildBody(BuildContext context, WidgetRef ref, BackupRestoreControllerState state) {
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    BackupRestoreControllerState state,
+  ) {
     if (state.errorMessage.isNotEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: Dimensions.iconSizeXxl, color: AppColors.getError(context)),
+            Icon(
+              Icons.error_outline,
+              size: Dimensions.iconSizeXxl,
+              color: AppColors.getError(context),
+            ),
             Dimensions.verticalSpacerM,
             Text(
               state.errorMessage,
-              style: AppTypography.bodyMedium.copyWith(color: AppColors.getError(context)),
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.getError(context),
+              ),
               textAlign: TextAlign.center,
             ),
             Dimensions.verticalSpacerL,
             ElevatedButton(
-              onPressed: () => ref.read(backupRestoreControllerProvider.notifier).loadBackupFiles(),
+              onPressed: () => ref
+                  .read(backupRestoreControllerProvider.notifier)
+                  .loadBackupFiles(),
               child: Text('button.refresh'.t),
             ),
           ],
@@ -61,8 +76,12 @@ class BackupRestoreView extends ConsumerWidget {
           child: _BackupList(
             itemCount: state.backupList.length,
             selectedIndex: state.selectedBackupIndex,
-            createdAtOf: (i) => ref.read(backupRestoreControllerProvider.notifier).getBackupTime(state.backupList[i]),
-            onTap: (i) => ref.read(backupRestoreControllerProvider.notifier).selectBackupIndex(i),
+            createdAtOf: (i) => ref
+                .read(backupRestoreControllerProvider.notifier)
+                .getBackupTime(state.backupList[i]),
+            onTap: (i) => ref
+                .read(backupRestoreControllerProvider.notifier)
+                .selectBackupIndex(i),
           ),
         ),
         _buildRestoreButton(context, ref, state),
@@ -70,25 +89,39 @@ class BackupRestoreView extends ConsumerWidget {
     );
   }
 
-  Widget _buildRestoreButton(BuildContext context, WidgetRef ref, BackupRestoreControllerState state) {
+  Widget _buildRestoreButton(
+    BuildContext context,
+    WidgetRef ref,
+    BackupRestoreControllerState state,
+  ) {
     return Container(
       width: double.infinity,
       padding: Dimensions.paddingVerticalM,
       child: ElevatedButton.icon(
         icon: const Icon(Icons.restore_rounded, size: Dimensions.iconSizeM + 2),
-        label: Text("还原选中的备份", style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.w600)),
+        label: Text(
+          "还原选中的备份",
+          style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.w600),
+        ),
         style: ButtonStyles.getPrimaryStyle(context).copyWith(
           padding: const WidgetStatePropertyAll(
-            EdgeInsets.symmetric(horizontal: Dimensions.spacingXl, vertical: Dimensions.spacingM),
+            EdgeInsets.symmetric(
+              horizontal: Dimensions.spacingXl,
+              vertical: Dimensions.spacingM,
+            ),
           ),
         ),
-        onPressed: state.selectedBackupIndex >= 0 ? () => _onRestorePressed(context, ref) : null,
+        onPressed: state.selectedBackupIndex >= 0
+            ? () => _onRestorePressed(context, ref)
+            : null,
       ),
     );
   }
 
   Future<void> _onRestorePressed(BuildContext context, WidgetRef ref) async {
-    final result = await ref.read(backupRestoreControllerProvider.notifier).restoreBackup();
+    final result = await ref
+        .read(backupRestoreControllerProvider.notifier)
+        .restoreBackup();
     if (result) {
       // 标记设置完成，备份恢复后不需要再显示引导
       ref.read(firstLaunchControllerProvider.notifier).markSetupComplete();
@@ -99,12 +132,22 @@ class BackupRestoreView extends ConsumerWidget {
           context: context,
           barrierDismissible: false,
           builder: (context) => AlertDialog(
-            icon: Icon(Icons.check_circle_rounded, color: AppColors.getSuccess(context), size: Dimensions.iconSizeXxl),
+            icon: Icon(
+              Icons.check_circle_rounded,
+              color: AppColors.getSuccess(context),
+              size: Dimensions.iconSizeXxl,
+            ),
             title: const Text('备份恢复完成'),
-            content: const Text('您的数据已成功恢复！\n\n为了确保所有数据正常加载，应用将会退出。请重新打开应用以查看恢复的内容。', style: TextStyle(height: 1.5)),
+            content: const Text(
+              '您的数据已成功恢复！\n\n为了确保所有数据正常加载，应用将会退出。请重新打开应用以查看恢复的内容。',
+              style: TextStyle(height: 1.5),
+            ),
             actions: [
               FilledButton.icon(
-                icon: const Icon(Icons.exit_to_app_rounded, size: Dimensions.iconSizeM),
+                icon: const Icon(
+                  Icons.exit_to_app_rounded,
+                  size: Dimensions.iconSizeM,
+                ),
                 label: const Text('确定并退出'),
                 style: ButtonStyles.getPrimaryStyle(context),
                 onPressed: () {
@@ -143,7 +186,9 @@ class _EmptyBackupView extends StatelessWidget {
             width: 100,
             height: 100,
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: Opacities.half),
+              color: colorScheme.surfaceContainerHighest.withValues(
+                alpha: Opacities.half,
+              ),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -155,12 +200,16 @@ class _EmptyBackupView extends StatelessWidget {
           Dimensions.verticalSpacerL,
           Text(
             '暂无备份信息',
-            style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: Opacities.half)),
+            style: textTheme.titleMedium?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: Opacities.half),
+            ),
           ),
           Dimensions.verticalSpacerS,
           Text(
             '请先在备份设置中创建备份',
-            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: Opacities.higher)),
+            style: textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurface.withValues(alpha: Opacities.higher),
+            ),
           ),
         ],
       ),
@@ -179,9 +228,18 @@ class _BackupHeader extends StatelessWidget {
 
     return Row(
       children: [
-        Icon(Icons.folder_open_rounded, size: Dimensions.iconSizeM, color: colorScheme.primary),
+        Icon(
+          Icons.folder_open_rounded,
+          size: Dimensions.iconSizeM,
+          color: colorScheme.primary,
+        ),
         Dimensions.horizontalSpacerS,
-        Text('找到 $count 个备份文件', style: AppTypography.bodyMedium.copyWith(color: colorScheme.onSurfaceVariant)),
+        Text(
+          '找到 $count 个备份文件',
+          style: AppTypography.bodyMedium.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
       ],
     );
   }
@@ -194,7 +252,12 @@ class _BackupItem extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _BackupItem({required this.index, required this.createdAt, required this.isSelected, required this.onTap});
+  const _BackupItem({
+    required this.index,
+    required this.createdAt,
+    required this.isSelected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -205,20 +268,30 @@ class _BackupItem extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Dimensions.radiusS),
-        side: BorderSide(color: isSelected ? primary : colorScheme.outlineVariant, width: isSelected ? 2 : 1),
+        side: BorderSide(
+          color: isSelected ? primary : colorScheme.outlineVariant,
+          width: isSelected ? 2 : 1,
+        ),
       ),
       margin: const EdgeInsets.only(bottom: Dimensions.spacingS),
-      color: isSelected ? primary.withValues(alpha: Opacities.extraLow) : colorScheme.surface,
+      color: isSelected
+          ? primary.withValues(alpha: Opacities.extraLow)
+          : colorScheme.surface,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(Dimensions.radiusS),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Dimensions.spacingM,
+            vertical: Dimensions.spacingS,
+          ),
           child: Row(
             children: [
               // 选中图标
               Icon(
-                isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                isSelected
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
                 color: isSelected ? primary : colorScheme.outline,
                 size: Dimensions.iconSizeL,
               ),
@@ -231,14 +304,18 @@ class _BackupItem extends StatelessWidget {
                     Text(
                       '备份 ${index + 1}',
                       style: AppTypography.titleSmall.copyWith(
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                         color: isSelected ? primary : colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       createdAt ?? '-',
-                      style: AppTypography.bodySmall.copyWith(color: colorScheme.onSurfaceVariant),
+                      style: AppTypography.bodySmall.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],

@@ -21,7 +21,9 @@ class AuthMiddleware {
           return ResponseUtils.unauthorized('未登录或会话已过期');
         }
 
-        final updatedRequest = request.change(context: {'session_id': sessionId, 'isAuthenticated': true});
+        final updatedRequest = request.change(
+          context: {'session_id': sessionId, 'isAuthenticated': true},
+        );
 
         return innerHandler(updatedRequest);
       };
@@ -30,7 +32,9 @@ class AuthMiddleware {
 
   /// 校验 Web 服务访问密码
   static bool verifyPassword(String password) {
-    final expectedPassword = SettingRepository.i.getSetting(SettingService.webServerPasswordKey);
+    final expectedPassword = SettingRepository.i.getSetting(
+      SettingService.webServerPasswordKey,
+    );
     return password == expectedPassword;
   }
 }

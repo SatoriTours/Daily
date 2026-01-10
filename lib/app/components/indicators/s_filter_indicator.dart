@@ -48,7 +48,11 @@ class FilterIndicator extends StatelessWidget {
   });
 
   /// 使用默认参数创建
-  factory FilterIndicator.standard({required String title, required VoidCallback onClear, EdgeInsetsGeometry? margin}) {
+  factory FilterIndicator.standard({
+    required String title,
+    required VoidCallback onClear,
+    EdgeInsetsGeometry? margin,
+  }) {
     return FilterIndicator(
       title: title,
       onClear: onClear,
@@ -75,7 +79,8 @@ class FilterIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: margin ?? const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      padding: padding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding:
+          padding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.getSurfaceContainerHighest(context),
         borderRadius: BorderRadius.circular(Dimensions.radiusS),
@@ -83,13 +88,19 @@ class FilterIndicator extends StatelessWidget {
       child: Row(
         children: [
           if (showIcon) ...[
-            Icon(Icons.filter_alt_outlined, size: Dimensions.iconSizeS, color: AppColors.getOnSurfaceVariant(context)),
+            Icon(
+              Icons.filter_alt_outlined,
+              size: Dimensions.iconSizeS,
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
             Dimensions.horizontalSpacerS,
           ],
           Expanded(
             child: Text(
               '$_prefixText$title',
-              style: AppTypography.labelMedium.copyWith(color: AppColors.getOnSurface(context)),
+              style: AppTypography.labelMedium.copyWith(
+                color: AppColors.getOnSurface(context),
+              ),
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
             ),
@@ -112,7 +123,11 @@ class FilterIndicator extends StatelessWidget {
                   ),
                   if (showIcon) ...[
                     Dimensions.horizontalSpacerXs,
-                    Icon(Icons.close, size: Dimensions.iconSizeXs, color: AppColors.getPrimary(context)),
+                    Icon(
+                      Icons.close,
+                      size: Dimensions.iconSizeXs,
+                      color: AppColors.getPrimary(context),
+                    ),
                   ],
                 ],
               ),

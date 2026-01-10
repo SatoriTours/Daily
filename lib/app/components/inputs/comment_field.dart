@@ -89,10 +89,15 @@ class CommentField extends StatelessWidget {
       hintStyle: AppTypography.bodyMedium.copyWith(
         color: AppColors.getOnSurfaceVariant(context).withValues(alpha: 0.6),
       ),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(Dimensions.radiusM), borderSide: BorderSide.none),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(Dimensions.radiusM),
+        borderSide: BorderSide.none,
+      ),
       contentPadding: contentPadding ?? Dimensions.paddingM,
       filled: true,
-      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+      fillColor: Theme.of(
+        context,
+      ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
     );
   }
 }

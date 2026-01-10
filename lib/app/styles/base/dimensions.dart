@@ -39,39 +39,62 @@ class Dimensions {
   static const EdgeInsets paddingXl = EdgeInsets.all(spacingXl);
 
   /// 页面内边距 (20, 16)
-  static const EdgeInsets paddingPage = EdgeInsets.symmetric(horizontal: 20, vertical: spacingM);
+  static const EdgeInsets paddingPage = EdgeInsets.symmetric(
+    horizontal: 20,
+    vertical: spacingM,
+  );
 
   // 水平内边距预设
   /// 极小水平内边距 (4, 0)
-  static const EdgeInsets paddingHorizontalXs = EdgeInsets.symmetric(horizontal: spacingXs);
+  static const EdgeInsets paddingHorizontalXs = EdgeInsets.symmetric(
+    horizontal: spacingXs,
+  );
 
   /// 小水平内边距 (8, 0)
-  static const EdgeInsets paddingHorizontalS = EdgeInsets.symmetric(horizontal: spacingS);
+  static const EdgeInsets paddingHorizontalS = EdgeInsets.symmetric(
+    horizontal: spacingS,
+  );
 
   /// 中等水平内边距 (16, 0)
-  static const EdgeInsets paddingHorizontalM = EdgeInsets.symmetric(horizontal: spacingM);
+  static const EdgeInsets paddingHorizontalM = EdgeInsets.symmetric(
+    horizontal: spacingM,
+  );
 
   /// 大水平内边距 (24, 0)
-  static const EdgeInsets paddingHorizontalL = EdgeInsets.symmetric(horizontal: spacingL);
+  static const EdgeInsets paddingHorizontalL = EdgeInsets.symmetric(
+    horizontal: spacingL,
+  );
 
   /// 特大水平内边距 (32, 0)
-  static const EdgeInsets paddingHorizontalXl = EdgeInsets.symmetric(horizontal: spacingXl);
+  static const EdgeInsets paddingHorizontalXl = EdgeInsets.symmetric(
+    horizontal: spacingXl,
+  );
 
   // 垂直内边距预设
   /// 极小垂直内边距 (0, 4)
-  static const EdgeInsets paddingVerticalXs = EdgeInsets.symmetric(vertical: spacingXs);
+  static const EdgeInsets paddingVerticalXs = EdgeInsets.symmetric(
+    vertical: spacingXs,
+  );
 
   /// 小垂直内边距 (0, 8)
-  static const EdgeInsets paddingVerticalS = EdgeInsets.symmetric(vertical: spacingS);
+  static const EdgeInsets paddingVerticalS = EdgeInsets.symmetric(
+    vertical: spacingS,
+  );
 
   /// 中等垂直内边距 (0, 16)
-  static const EdgeInsets paddingVerticalM = EdgeInsets.symmetric(vertical: spacingM);
+  static const EdgeInsets paddingVerticalM = EdgeInsets.symmetric(
+    vertical: spacingM,
+  );
 
   /// 大垂直内边距 (0, 24)
-  static const EdgeInsets paddingVerticalL = EdgeInsets.symmetric(vertical: spacingL);
+  static const EdgeInsets paddingVerticalL = EdgeInsets.symmetric(
+    vertical: spacingL,
+  );
 
   /// 特大垂直内边距 (0, 32)
-  static const EdgeInsets paddingVerticalXl = EdgeInsets.symmetric(vertical: spacingXl);
+  static const EdgeInsets paddingVerticalXl = EdgeInsets.symmetric(
+    vertical: spacingXl,
+  );
 
   // 常用组件内边距预设
   /// 卡片内边距 (16)
@@ -81,47 +104,75 @@ class Dimensions {
   static const EdgeInsets paddingDialog = EdgeInsets.all(spacingL);
 
   /// 列表项内边距 (16, 12)
-  static const EdgeInsets paddingListItem = EdgeInsets.symmetric(horizontal: spacingM, vertical: 12);
+  static const EdgeInsets paddingListItem = EdgeInsets.symmetric(
+    horizontal: spacingM,
+    vertical: 12,
+  );
 
   /// 表单项内边距 (16, 16)
   static const EdgeInsets paddingFormItem = EdgeInsets.all(spacingM);
 
   /// 按钮内边距 (16, 12)
-  static const EdgeInsets paddingButton = EdgeInsets.symmetric(horizontal: spacingM, vertical: 12);
+  static const EdgeInsets paddingButton = EdgeInsets.symmetric(
+    horizontal: spacingM,
+    vertical: 12,
+  );
 
   /// 小按钮内边距 (12, 8)
-  static const EdgeInsets paddingButtonSmall = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
+  static const EdgeInsets paddingButtonSmall = EdgeInsets.symmetric(
+    horizontal: 12,
+    vertical: 8,
+  );
 
   /// 图标按钮内边距 (8)
   static const EdgeInsets paddingIconButton = EdgeInsets.all(spacingS);
 
   /// 搜索框内边距 (16, 0)
-  static const EdgeInsets paddingSearchBar = EdgeInsets.symmetric(horizontal: spacingM);
+  static const EdgeInsets paddingSearchBar = EdgeInsets.symmetric(
+    horizontal: spacingM,
+  );
 
   /// 输入框内边距 (16, 12)
-  static const EdgeInsets paddingInput = EdgeInsets.symmetric(horizontal: spacingM, vertical: 12);
+  static const EdgeInsets paddingInput = EdgeInsets.symmetric(
+    horizontal: spacingM,
+    vertical: 12,
+  );
 
   /// 底部表单内边距 (16, 16, 16, 32)
-  static const EdgeInsets paddingBottomForm = EdgeInsets.fromLTRB(spacingM, spacingM, spacingM, spacingXl);
+  static const EdgeInsets paddingBottomForm = EdgeInsets.fromLTRB(
+    spacingM,
+    spacingM,
+    spacingM,
+    spacingXl,
+  );
 
   // 外边距预设
   /// 卡片外边距 (0, 8)
   static const EdgeInsets marginCard = EdgeInsets.symmetric(vertical: spacingS);
 
   /// 列表项外边距 (0, 4)
-  static const EdgeInsets marginListItem = EdgeInsets.symmetric(vertical: spacingXs);
+  static const EdgeInsets marginListItem = EdgeInsets.symmetric(
+    vertical: spacingXs,
+  );
 
   /// 表单项外边距 (0, 12)
   static const EdgeInsets marginFormItem = EdgeInsets.symmetric(vertical: 12);
 
   /// 段落外边距 (0, 8)
-  static const EdgeInsets marginParagraph = EdgeInsets.symmetric(vertical: spacingS);
+  static const EdgeInsets marginParagraph = EdgeInsets.symmetric(
+    vertical: spacingS,
+  );
 
   /// 页面内容外边距 (16, 16)
   static const EdgeInsets marginPage = EdgeInsets.all(spacingM);
 
   /// 底部按钮外边距 (16, 16, 16, 24)
-  static const EdgeInsets marginBottomButton = EdgeInsets.fromLTRB(spacingM, spacingM, spacingM, spacingL);
+  static const EdgeInsets marginBottomButton = EdgeInsets.fromLTRB(
+    spacingM,
+    spacingM,
+    spacingM,
+    spacingL,
+  );
 
   // 圆角常量
   /// 无圆角
@@ -162,10 +213,14 @@ class Dimensions {
   static final BorderRadius borderRadiusL = BorderRadius.circular(radiusL);
 
   /// 上方圆角 (16.0)
-  static const BorderRadius borderRadiusTop = BorderRadius.vertical(top: Radius.circular(radiusL));
+  static const BorderRadius borderRadiusTop = BorderRadius.vertical(
+    top: Radius.circular(radiusL),
+  );
 
   /// 下方圆角 (16.0)
-  static const BorderRadius borderRadiusBottom = BorderRadius.vertical(bottom: Radius.circular(radiusL));
+  static const BorderRadius borderRadiusBottom = BorderRadius.vertical(
+    bottom: Radius.circular(radiusL),
+  );
 
   // UI元素高度
   /// 标准按钮高度 - 48.0
@@ -283,24 +338,31 @@ class Dimensions {
   static const double breakpointDesktop = 1200.0;
 
   /// 获取屏幕宽度
-  static double getScreenWidth(BuildContext context) => MediaQuery.of(context).size.width;
+  static double getScreenWidth(BuildContext context) =>
+      MediaQuery.of(context).size.width;
 
   /// 获取屏幕高度
-  static double getScreenHeight(BuildContext context) => MediaQuery.of(context).size.height;
+  static double getScreenHeight(BuildContext context) =>
+      MediaQuery.of(context).size.height;
 
   /// 获取状态栏高度
-  static double getStatusBarHeight(BuildContext context) => MediaQuery.of(context).padding.top;
+  static double getStatusBarHeight(BuildContext context) =>
+      MediaQuery.of(context).padding.top;
 
   /// 获取底部安全区域高度
-  static double getBottomSafeAreaHeight(BuildContext context) => MediaQuery.of(context).padding.bottom;
+  static double getBottomSafeAreaHeight(BuildContext context) =>
+      MediaQuery.of(context).padding.bottom;
 
   /// 判断是否为手机屏幕
-  static bool isMobile(BuildContext context) => getScreenWidth(context) < breakpointMobile;
+  static bool isMobile(BuildContext context) =>
+      getScreenWidth(context) < breakpointMobile;
 
   /// 判断是否为平板屏幕
   static bool isTablet(BuildContext context) =>
-      getScreenWidth(context) >= breakpointMobile && getScreenWidth(context) < breakpointTablet;
+      getScreenWidth(context) >= breakpointMobile &&
+      getScreenWidth(context) < breakpointTablet;
 
   /// 判断是否为桌面屏幕
-  static bool isDesktop(BuildContext context) => getScreenWidth(context) >= breakpointTablet;
+  static bool isDesktop(BuildContext context) =>
+      getScreenWidth(context) >= breakpointTablet;
 }

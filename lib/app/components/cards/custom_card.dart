@@ -44,7 +44,13 @@ class CustomCard extends StatelessWidget {
   /// [onTap] 点击回调，可选
   /// [padding] 内边距，可选
   /// [elevation] 阴影高度，默认为 2.0
-  const CustomCard({super.key, required this.child, this.onTap, this.padding, this.elevation = 2.0});
+  const CustomCard({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.padding,
+    this.elevation = 2.0,
+  });
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -57,10 +63,17 @@ class CustomCard extends StatelessWidget {
 
   /// 构建卡片内容
   Widget _buildCardContent() {
-    final cardChild = Padding(padding: padding ?? Dimensions.paddingM, child: child);
+    final cardChild = Padding(
+      padding: padding ?? Dimensions.paddingM,
+      child: child,
+    );
     if (onTap == null) {
       return cardChild;
     }
-    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(Dimensions.radiusM), child: cardChild);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Dimensions.radiusM),
+      child: cardChild,
+    );
   }
 }

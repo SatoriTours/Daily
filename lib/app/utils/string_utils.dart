@@ -8,10 +8,15 @@ class StringUtils {
   StringUtils._();
 
   /// 检查文本是否包含中文字符
-  static bool isChinese(String text) => RegExp(r'[\u4e00-\u9fa5]').hasMatch(text);
+  static bool isChinese(String text) =>
+      RegExp(r'[\u4e00-\u9fa5]').hasMatch(text);
 
   /// 获取文本的子串,可指定长度和后缀
-  static String getSubstring(String text, {int length = 50, String suffix = ''}) {
+  static String getSubstring(
+    String text, {
+    int length = 50,
+    String suffix = '',
+  }) {
     if (length < 0) throw ArgumentError('length不能为负数');
     return text.length > length ? '${text.substring(0, length)}$suffix' : text;
   }
@@ -19,7 +24,8 @@ class StringUtils {
   /// 获取文本的第一行
   static String firstLine(String text) => text.split('\n').first;
 
-  static String singleLine(String? text) => text?.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim() ?? '';
+  static String singleLine(String? text) =>
+      text?.replaceAll('\n', ' ').replaceAll(RegExp(r'\s+'), ' ').trim() ?? '';
 
   /// 从主机名获取顶级域名
   static String getTopLevelDomain(String? host) {

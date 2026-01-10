@@ -48,7 +48,11 @@ class SelectionBottomSheet extends StatelessWidget {
   Widget _buildHeader(BuildContext context) {
     return Row(
       children: [
-        Icon(Icons.list_alt, size: Dimensions.iconSizeM, color: AppColors.getPrimary(context)),
+        Icon(
+          Icons.list_alt,
+          size: Dimensions.iconSizeM,
+          color: AppColors.getPrimary(context),
+        ),
         Dimensions.horizontalSpacerM,
         Text(title, style: AppTypography.titleLarge),
       ],
@@ -58,31 +62,52 @@ class SelectionBottomSheet extends StatelessWidget {
   /// 构建选项列表
   Widget _buildItemList(BuildContext context) {
     return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.4),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.4,
+      ),
       child: ListView.builder(
         shrinkWrap: true,
         physics: const ClampingScrollPhysics(),
         padding: EdgeInsets.zero,
         itemCount: items.length,
-        itemBuilder: (context, index) => _buildSelectionItem(context, items[index], items[index] == selectedValue, () {
-          onSelected(index);
-          AppNavigation.back();
-        }),
+        itemBuilder: (context, index) => _buildSelectionItem(
+          context,
+          items[index],
+          items[index] == selectedValue,
+          () {
+            onSelected(index);
+            AppNavigation.back();
+          },
+        ),
       ),
     );
   }
 
   /// 构建单个选项
-  Widget _buildSelectionItem(BuildContext context, String item, bool isSelected, VoidCallback onTap) {
+  Widget _buildSelectionItem(
+    BuildContext context,
+    String item,
+    bool isSelected,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       child: Container(
-        color: isSelected ? AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow) : null,
-        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingS, vertical: Dimensions.spacingM),
+        color: isSelected
+            ? AppColors.getPrimary(
+                context,
+              ).withValues(alpha: Opacities.extraLow)
+            : null,
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.spacingS,
+          vertical: Dimensions.spacingM,
+        ),
         child: Text(
           item,
           style: AppTypography.bodyMedium.copyWith(
-            color: isSelected ? AppColors.getPrimary(context) : AppColors.getOnSurface(context),
+            color: isSelected
+                ? AppColors.getPrimary(context)
+                : AppColors.getOnSurface(context),
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -105,8 +130,16 @@ void showSelectionBottomSheet({
     context: context,
     isScrollControlled: true,
     backgroundColor: AppColors.getSurface(context),
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(Dimensions.radiusL))),
-    builder: (context) =>
-        SelectionBottomSheet(title: title, items: items, selectedValue: selectedValue, onSelected: onSelected),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(Dimensions.radiusL),
+      ),
+    ),
+    builder: (context) => SelectionBottomSheet(
+      title: title,
+      items: items,
+      selectedValue: selectedValue,
+      onSelected: onSelected,
+    ),
   );
 }

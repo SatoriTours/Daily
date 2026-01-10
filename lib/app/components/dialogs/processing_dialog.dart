@@ -35,7 +35,8 @@ class ProcessingDialog {
     required Future<T> Function() onProcess,
   }) async {
     final context = AppNavigation.navigatorKey.currentContext;
-    final displayMessage = message ?? (messageKey?.t ?? 'component.processing'.t);
+    final displayMessage =
+        message ?? (messageKey?.t ?? 'component.processing'.t);
 
     // 无 context 时直接执行，不显示对话框
     if (context == null) {
@@ -79,8 +80,14 @@ class ProcessingDialog {
   ///
   /// [onProcess] 处理函数
   /// [messageKey] 提示消息国际化key
-  static Future<T?> showSimple<T>({required Future<T> Function() onProcess, String? messageKey}) {
-    return show<T>(messageKey: messageKey ?? 'component.processing', onProcess: onProcess);
+  static Future<T?> showSimple<T>({
+    required Future<T> Function() onProcess,
+    String? messageKey,
+  }) {
+    return show<T>(
+      messageKey: messageKey ?? 'component.processing',
+      onProcess: onProcess,
+    );
   }
 }
 
@@ -109,7 +116,9 @@ class _ProcessingDialogWidget extends StatelessWidget {
                 height: 60,
                 child: CircularProgressIndicator(
                   strokeWidth: 4,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.getPrimary(context)),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppColors.getPrimary(context),
+                  ),
                 ),
               ),
               Dimensions.verticalSpacerM,
@@ -117,7 +126,9 @@ class _ProcessingDialogWidget extends StatelessWidget {
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context)),
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.getOnSurface(context),
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),

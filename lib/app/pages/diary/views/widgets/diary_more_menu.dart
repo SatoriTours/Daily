@@ -8,7 +8,11 @@ class DiaryMoreMenu extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  const DiaryMoreMenu({super.key, required this.onEdit, required this.onDelete});
+  const DiaryMoreMenu({
+    super.key,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +33,11 @@ class DiaryMoreMenu extends StatelessWidget {
           value: 'edit',
           child: Row(
             children: [
-              Icon(FeatherIcons.edit2, size: Dimensions.iconSizeXs, color: DiaryStyles.getAccentColor(context)),
+              Icon(
+                FeatherIcons.edit2,
+                size: Dimensions.iconSizeXs,
+                color: DiaryStyles.getAccentColor(context),
+              ),
               Dimensions.horizontalSpacerS,
               const Text('编辑日记'),
             ],
@@ -39,7 +47,11 @@ class DiaryMoreMenu extends StatelessWidget {
           value: 'delete',
           child: Row(
             children: [
-              Icon(FeatherIcons.trash2, size: Dimensions.iconSizeXs, color: Colors.red),
+              Icon(
+                FeatherIcons.trash2,
+                size: Dimensions.iconSizeXs,
+                color: Colors.red,
+              ),
               Dimensions.horizontalSpacerS,
               Text('删除日记', style: TextStyle(color: Colors.red)),
             ],

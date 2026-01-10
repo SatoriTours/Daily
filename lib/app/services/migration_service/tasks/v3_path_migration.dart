@@ -37,7 +37,9 @@ class PathMigrationTask extends MigrationTask {
     final articles = ArticleRepository.i.allModels();
     for (final article in articles) {
       final coverImage = article.coverImage;
-      if (coverImage != null && coverImage.isNotEmpty && coverImage.startsWith('/')) {
+      if (coverImage != null &&
+          coverImage.isNotEmpty &&
+          coverImage.startsWith('/')) {
         return true;
       }
     }
@@ -145,7 +147,11 @@ class PathMigrationTask extends MigrationTask {
           continue;
         }
 
-        final paths = images.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        final paths = images
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
 
         if (paths.isEmpty) {
           counter.skippedCount++;
@@ -192,7 +198,11 @@ class PathMigrationTask extends MigrationTask {
   }
 
   /// 输出迁移进度日志
-  void _logProgress(String type, MigrationCounter counter, {bool isFinal = false}) {
+  void _logProgress(
+    String type,
+    MigrationCounter counter, {
+    bool isFinal = false,
+  }) {
     final prefix = isFinal ? "📊 $type路径迁移完成" : "📊 $type路径迁移进度";
     logInfo(
       "$prefix - 已迁移: ${counter.migratedCount}, "

@@ -87,7 +87,10 @@ class GenericSearchBar extends StatelessWidget {
       padding: padding ?? Dimensions.paddingHorizontalM,
       child: Row(
         children: [
-          if (showFilterButton && onFilterTap != null) ...[_buildFilterButton(context), Dimensions.horizontalSpacerS],
+          if (showFilterButton && onFilterTap != null) ...[
+            _buildFilterButton(context),
+            Dimensions.horizontalSpacerS,
+          ],
           Expanded(
             child: InkWell(
               onTap: onToggleSearch,
@@ -95,17 +98,24 @@ class GenericSearchBar extends StatelessWidget {
               child: Container(
                 height: Dimensions.buttonHeight - 8,
                 decoration: BoxDecoration(
-                  color: backgroundColor ?? AppColors.getSurfaceContainer(context),
+                  color:
+                      backgroundColor ?? AppColors.getSurfaceContainer(context),
                   borderRadius: BorderRadius.circular(Dimensions.radiusXl),
                 ),
                 padding: Dimensions.paddingHorizontalM,
                 child: Row(
                   children: [
-                    Icon(Icons.search, size: Dimensions.iconSizeM, color: AppColors.getOnSurfaceVariant(context)),
+                    Icon(
+                      Icons.search,
+                      size: Dimensions.iconSizeM,
+                      color: AppColors.getOnSurfaceVariant(context),
+                    ),
                     Dimensions.horizontalSpacerS,
                     Text(
                       hintText ?? 'component.search_placeholder'.t,
-                      style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: AppColors.getOnSurfaceVariant(context),
+                      ),
                     ),
                   ],
                 ),
@@ -127,13 +137,17 @@ class GenericSearchBar extends StatelessWidget {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: backgroundColor ?? AppColors.getSurfaceContainer(context),
+                color:
+                    backgroundColor ?? AppColors.getSurfaceContainer(context),
                 borderRadius: BorderRadius.circular(Dimensions.radiusXl),
               ),
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back, size: Dimensions.iconSizeM),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      size: Dimensions.iconSizeM,
+                    ),
                     onPressed: onToggleSearch,
                     tooltip: 'component.tooltip_back'.t,
                   ),
@@ -170,7 +184,10 @@ class GenericSearchBar extends StatelessWidget {
               ),
             ),
           ),
-          if (showFilterButton && onFilterTap != null) ...[Dimensions.horizontalSpacerS, _buildFilterButton(context)],
+          if (showFilterButton && onFilterTap != null) ...[
+            Dimensions.horizontalSpacerS,
+            _buildFilterButton(context),
+          ],
         ],
       ),
     );
@@ -181,7 +198,11 @@ class GenericSearchBar extends StatelessWidget {
     return Tooltip(
       message: 'component.tooltip_filter'.t,
       child: IconButton(
-        icon: Icon(Icons.filter_list, size: Dimensions.iconSizeL, color: AppColors.getPrimary(context)),
+        icon: Icon(
+          Icons.filter_list,
+          size: Dimensions.iconSizeL,
+          color: AppColors.getPrimary(context),
+        ),
         onPressed: onFilterTap,
       ),
     );

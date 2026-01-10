@@ -46,7 +46,9 @@ class ArticleActionBar extends StatelessWidget {
           articleModel.isFavorite ? Icons.favorite : Icons.favorite_border,
           articleModel.isFavorite
               ? colorScheme.error
-              : colorScheme.onSurfaceVariant.withValues(alpha: Opacities.medium),
+              : colorScheme.onSurfaceVariant.withValues(
+                  alpha: Opacities.medium,
+                ),
           onFavoriteToggle,
         ),
         Dimensions.horizontalSpacerS,
@@ -60,7 +62,12 @@ class ArticleActionBar extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton(BuildContext context, IconData icon, Color color, VoidCallback? onTap) {
+  Widget _buildActionButton(
+    BuildContext context,
+    IconData icon,
+    Color color,
+    VoidCallback? onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(Dimensions.radiusL),

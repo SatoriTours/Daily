@@ -7,7 +7,8 @@ import 'package:daily_satori/objectbox.g.dart';
 ///
 /// 继承 `BaseRepository<BookViewpoint, BookViewpointModel>` 获取通用CRUD功能
 /// 使用单例模式，通过 BookViewpointRepository.i 访问
-class BookViewpointRepository extends BaseRepository<BookViewpoint, BookViewpointModel> {
+class BookViewpointRepository
+    extends BaseRepository<BookViewpoint, BookViewpointModel> {
   // 私有构造函数
   BookViewpointRepository._();
 
@@ -59,7 +60,10 @@ class BookViewpointRepository extends BaseRepository<BookViewpoint, BookViewpoin
     final condition = BookViewpoint_.title
         .contains(keyword, caseSensitive: false)
         .or(BookViewpoint_.content.contains(keyword, caseSensitive: false));
-    final query = box.query(condition).order(BookViewpoint_.id, flags: Order.descending).build();
+    final query = box
+        .query(condition)
+        .order(BookViewpoint_.id, flags: Order.descending)
+        .build();
     if (limit != null) {
       query.limit = limit;
     }

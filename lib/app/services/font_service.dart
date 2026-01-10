@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:daily_satori/app/utils/app_info_utils.dart';
 import 'package:daily_satori/app/config/app_config.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
 /// 字体服务类
 ///
@@ -12,7 +13,7 @@ import 'package:daily_satori/app/config/app_config.dart';
 /// - 配置 Google Fonts
 /// - 注册字体许可证
 /// - 管理字体加载行为
-class FontService {
+class FontService extends AppService {
   // 私有构造函数
   FontService._();
 
@@ -25,11 +26,7 @@ class FontService {
   /// 字体许可证文件路径（已迁移至 UrlConfig）
   static String get _fontLicensePath => UrlConfig.fontLicensePath;
 
-  /// 初始化字体服务
-  ///
-  /// 在生产环境下配置字体设置，包括：
-  /// - 禁用运行时字体获取
-  /// - 注册字体许可证
+  @override
   Future<void> init() async {
     if (AppInfoUtils.isProduction) {
       _configureProductionFonts();

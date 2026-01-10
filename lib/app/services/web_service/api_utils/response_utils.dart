@@ -6,13 +6,25 @@ class ResponseUtils {
   /// 成功响应
   static Response success(dynamic data, {int status = 200}) {
     final Map<String, dynamic> body = {'code': 0, 'msg': '成功', 'data': data};
-    return Response(status, body: jsonEncode(body), headers: {'Content-Type': 'application/json; charset=utf-8'});
+    return Response(
+      status,
+      body: jsonEncode(body),
+      headers: {'Content-Type': 'application/json; charset=utf-8'},
+    );
   }
 
   /// 错误响应
   static Response error(String message, {int status = 400, int? code}) {
-    final Map<String, dynamic> body = {'code': code ?? status, 'msg': message, 'data': null};
-    return Response(status, body: jsonEncode(body), headers: {'Content-Type': 'application/json; charset=utf-8'});
+    final Map<String, dynamic> body = {
+      'code': code ?? status,
+      'msg': message,
+      'data': null,
+    };
+    return Response(
+      status,
+      body: jsonEncode(body),
+      headers: {'Content-Type': 'application/json; charset=utf-8'},
+    );
   }
 
   /// 未授权响应

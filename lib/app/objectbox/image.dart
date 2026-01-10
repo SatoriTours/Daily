@@ -21,7 +21,13 @@ class Image implements BaseEntity {
 
   final article = ToOne<Article>();
 
-  Image({this.id = 0, this.url, this.path, DateTime? createdAt, DateTime? updatedAt}) {
+  Image({
+    this.id = 0,
+    this.url,
+    this.path,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
     this.createdAt = createdAt ?? DateTime.now();
     this.updatedAt = updatedAt ?? DateTime.now();
   }

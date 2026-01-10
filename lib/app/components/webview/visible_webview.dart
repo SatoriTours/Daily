@@ -32,7 +32,8 @@ class VisibleWebView extends StatelessWidget {
       initialSettings: _baseWebView.getWebViewSettings(),
       onWebViewCreated: _handleWebViewCreated,
       onPermissionRequest: _baseWebView.handlePermissionRequest,
-      onLoadStart: (controller, url) => _handleLoadStart(context, controller, url),
+      onLoadStart: (controller, url) =>
+          _handleLoadStart(context, controller, url),
       onLoadStop: (controller, url) => _handleLoadStop(context, url),
       onReceivedError: _handleError,
       onProgressChanged: _handleProgressChanged,
@@ -47,7 +48,11 @@ class VisibleWebView extends StatelessWidget {
     onWebViewCreated?.call(controller);
   }
 
-  Future<void> _handleLoadStart(BuildContext context, InAppWebViewController controller, WebUri? url) async {
+  Future<void> _handleLoadStart(
+    BuildContext context,
+    InAppWebViewController controller,
+    WebUri? url,
+  ) async {
     if (!context.mounted) return;
 
     logger.i("开始加载网页 $url");
@@ -73,7 +78,11 @@ class VisibleWebView extends StatelessWidget {
     onProgressChanged?.call(0);
   }
 
-  void _handleError(InAppWebViewController controller, WebResourceRequest request, WebResourceError error) {
+  void _handleError(
+    InAppWebViewController controller,
+    WebResourceRequest request,
+    WebResourceError error,
+  ) {
     onProgressChanged?.call(0);
   }
 
@@ -81,7 +90,10 @@ class VisibleWebView extends StatelessWidget {
     onProgressChanged?.call(progress / 100);
   }
 
-  void _handleConsoleMessage(InAppWebViewController controller, ConsoleMessage message) {
+  void _handleConsoleMessage(
+    InAppWebViewController controller,
+    ConsoleMessage message,
+  ) {
     // if (!isProduction) {
     //   logger.d("浏览器日志: ${message.message}");
     // }

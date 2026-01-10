@@ -72,7 +72,10 @@ class BookSearchResult {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is BookSearchResult && other.title == title && other.author == author && other.isbn == isbn;
+    return other is BookSearchResult &&
+        other.title == title &&
+        other.author == author &&
+        other.isbn == isbn;
   }
 
   @override

@@ -28,7 +28,8 @@ class LoggerService implements AppService {
 
   @override
   Future<void> init() async {
-    PlatformInAppWebViewController.debugLoggingSettings.enabled = !AppInfoUtils.isProduction;
+    PlatformInAppWebViewController.debugLoggingSettings.enabled =
+        !AppInfoUtils.isProduction;
     Logger.level = AppInfoUtils.isProduction ? Level.info : Level.debug;
     logger = Logger(printer: _SatoriPrinter(), output: _SatoriOutput());
   }
@@ -49,19 +50,28 @@ class _SatoriPrinter extends LogPrinter {
   static const _targetColumn = 136; // 调用位置目标列数（用于对齐）
 
   static final _frameRe = RegExp(r'\((?:package:|file:)([^:]+):(\d+):\d+\)');
-  static const _skipPatterns = ['logger_service.dart', 'package:logger/', 'package:get/', 'package:flutter/'];
+  static const _skipPatterns = [
+    'logger_service.dart',
+    'package:logger/',
+    'package:get/',
+    'package:flutter/',
+  ];
 
   @override
   List<String> log(LogEvent event) {
     final tag = _levelTag(event.level);
     final msg = _truncate(event.message.toString(), _maxMessageLength);
     final caller = _extractCaller(event.stackTrace);
-    final pad = (_targetColumn - tag.length - 3 - msg.runes.length).clamp(1, 999);
+    final pad = (_targetColumn - tag.length - 3 - msg.runes.length).clamp(
+      1,
+      999,
+    );
 
     return [
       '[$tag] $msg${' ' * pad}<= $caller',
       if (event.error != null) '↳ error: ${event.error}',
-      if (event.stackTrace != null) '↳ stack: ${event.stackTrace.toString().split('\n').take(3).join('\n')}',
+      if (event.stackTrace != null)
+        '↳ stack: ${event.stackTrace.toString().split('\n').take(3).join('\n')}',
     ];
   }
 
@@ -93,6 +103,9 @@ class _SatoriPrinter extends LogPrinter {
     return '[Unknown+0]';
   }
 
-  String _toPascal(String s) =>
-      s.split(RegExp(r'[_-]+')).where((p) => p.isNotEmpty).map((p) => p[0].toUpperCase() + p.substring(1)).join();
+  String _toPascal(String s) => s
+      .split(RegExp(r'[_-]+'))
+      .where((p) => p.isNotEmpty)
+      .map((p) => p[0].toUpperCase() + p.substring(1))
+      .join();
 }

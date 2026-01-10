@@ -14,7 +14,8 @@ part 'weekly_summary_controller_provider.g.dart';
 
 /// WeeklySummaryController 状态
 @freezed
-abstract class WeeklySummaryControllerState with _$WeeklySummaryControllerState {
+abstract class WeeklySummaryControllerState
+    with _$WeeklySummaryControllerState {
   const factory WeeklySummaryControllerState({
     @Default([]) List<WeeklySummaryModel> summaries,
     WeeklySummaryModel? currentSummary,
@@ -35,16 +36,21 @@ class WeeklySummaryController extends _$WeeklySummaryController {
     // 异步检查是否需要生成新周报
     Future.microtask(() => checkAndGenerate());
 
-    return WeeklySummaryControllerState(summaries: list, currentSummary: list.isNotEmpty ? list.first : null);
+    return WeeklySummaryControllerState(
+      summaries: list,
+      currentSummary: list.isNotEmpty ? list.first : null,
+    );
   }
 
   Future<void> refreshSummaries() => _loadSummaries();
 
-  void selectSummary(WeeklySummaryModel summary) => state = state.copyWith(currentSummary: summary);
+  void selectSummary(WeeklySummaryModel summary) =>
+      state = state.copyWith(currentSummary: summary);
 
   Future<void> checkAndGenerate() async {
     if (state.isGenerating) return;
-    final needGenerate = await WeeklySummaryService.i.checkAndGenerateSummaries();
+    final needGenerate = await WeeklySummaryService.i
+        .checkAndGenerateSummaries();
     if (needGenerate) await _generateLatestSummary();
   }
 
@@ -60,7 +66,9 @@ class WeeklySummaryController extends _$WeeklySummaryController {
       final list = WeeklySummaryService.i.getAllSummaries();
       state = state.copyWith(
         summaries: list,
-        currentSummary: (list.isNotEmpty && state.currentSummary == null) ? list.first : state.currentSummary,
+        currentSummary: (list.isNotEmpty && state.currentSummary == null)
+            ? list.first
+            : state.currentSummary,
         isLoading: false,
       );
     } catch (_) {
@@ -76,14 +84,24 @@ class WeeklySummaryController extends _$WeeklySummaryController {
   }
 
   Future<void> _generateSummary(DateTime weekStart, DateTime weekEnd) async {
-    state = state.copyWith(isGenerating: true, generatingMessage: 'weekly_summary.generating'.t);
+    state = state.copyWith(
+      isGenerating: true,
+      generatingMessage: 'weekly_summary.generating'.t,
+    );
 
     try {
-      final result = await WeeklySummaryService.i.generateWeeklySummary(weekStart, weekEnd);
+      final result = await WeeklySummaryService.i.generateWeeklySummary(
+        weekStart,
+        weekEnd,
+      );
 
       if (result != null) {
         await _loadSummaries();
-        state = state.copyWith(currentSummary: result, isGenerating: false, generatingMessage: '');
+        state = state.copyWith(
+          currentSummary: result,
+          isGenerating: false,
+          generatingMessage: '',
+        );
         UIUtils.showSuccess('weekly_summary.generate_success'.t);
       } else {
         state = state.copyWith(isGenerating: false, generatingMessage: '');

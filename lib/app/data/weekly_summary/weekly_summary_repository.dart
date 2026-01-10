@@ -6,7 +6,8 @@ import 'package:daily_satori/objectbox.g.dart';
 /// 周报仓储类
 ///
 /// 使用单例模式提供周报数据访问功能
-class WeeklySummaryRepository extends BaseRepository<WeeklySummary, WeeklySummaryModel> {
+class WeeklySummaryRepository
+    extends BaseRepository<WeeklySummary, WeeklySummaryModel> {
   // 私有构造函数
   WeeklySummaryRepository._();
 
@@ -25,8 +26,18 @@ class WeeklySummaryRepository extends BaseRepository<WeeklySummary, WeeklySummar
   /// 根据周开始日期查找周报
   WeeklySummaryModel? findByWeekStartDate(DateTime weekStartDate) {
     // 规范化日期（去除时分秒）
-    final normalizedDate = DateTime(weekStartDate.year, weekStartDate.month, weekStartDate.day);
-    final query = box.query(WeeklySummary_.weekStartDate.equals(normalizedDate.millisecondsSinceEpoch)).build();
+    final normalizedDate = DateTime(
+      weekStartDate.year,
+      weekStartDate.month,
+      weekStartDate.day,
+    );
+    final query = box
+        .query(
+          WeeklySummary_.weekStartDate.equals(
+            normalizedDate.millisecondsSinceEpoch,
+          ),
+        )
+        .build();
     final result = executeQueryFirst(query);
     return result != null ? toModel(result) : null;
   }
@@ -42,7 +53,10 @@ class WeeklySummaryRepository extends BaseRepository<WeeklySummary, WeeklySummar
 
   /// 查找所有周报，按周开始日期倒序
   List<WeeklySummaryModel> findAllOrdered() {
-    final query = box.query().order(WeeklySummary_.weekStartDate, flags: Order.descending).build();
+    final query = box
+        .query()
+        .order(WeeklySummary_.weekStartDate, flags: Order.descending)
+        .build();
     return executeQueryModels(query);
   }
 

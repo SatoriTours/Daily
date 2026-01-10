@@ -38,7 +38,11 @@ class DiaryState extends _$DiaryState {
   }
 
   /// 加载日记列表
-  Future<void> loadDiaries({String? keyword, String? tag, DateTime? date}) async {
+  Future<void> loadDiaries({
+    String? keyword,
+    String? tag,
+    DateTime? date,
+  }) async {
     state = state.copyWith(isLoading: true);
     try {
       logger.i('加载日记列表: keyword=$keyword, tag=$tag, date=$date');
@@ -80,7 +84,9 @@ class DiaryState extends _$DiaryState {
 
   /// 从列表中移除日记
   void removeDiaryFromList(int id) {
-    final updatedDiaries = state.diaries.where((item) => item.id != id).toList();
+    final updatedDiaries = state.diaries
+        .where((item) => item.id != id)
+        .toList();
     state = state.copyWith(diaries: updatedDiaries);
     logger.d('从列表移除日记: ID=$id');
   }
@@ -105,7 +111,9 @@ class DiaryState extends _$DiaryState {
   /// 设置活跃日记
   void setActiveDiary(DiaryModel diary) {
     state = state.copyWith(activeDiaryId: diary.id, activeDiary: diary);
-    final content = diary.content.length > 20 ? '${diary.content.substring(0, 20)}...' : diary.content;
+    final content = diary.content.length > 20
+        ? '${diary.content.substring(0, 20)}...'
+        : diary.content;
     logger.i('设置活跃日记: $content (ID: ${diary.id})');
   }
 
@@ -129,7 +137,9 @@ class DiaryState extends _$DiaryState {
 
   /// 设置全局日期过滤
   void setGlobalDateFilter(DateTime? date) {
-    final normalizedDate = date != null ? DateTime(date.year, date.month, date.day) : null;
+    final normalizedDate = date != null
+        ? DateTime(date.year, date.month, date.day)
+        : null;
     state = state.copyWith(globalDateFilter: normalizedDate);
     if (date != null) {
       logger.i('设置全局日期过滤: ${date.year}-${date.month}-${date.day}');

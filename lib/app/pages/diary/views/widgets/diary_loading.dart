@@ -16,7 +16,13 @@ class DiaryLoading extends StatelessWidget {
           CircularProgressIndicator(color: DiaryStyles.getAccentColor(context)),
           if (message != null) ...[
             Dimensions.verticalSpacerM,
-            Text(message!, style: TextStyle(fontSize: 14, color: DiaryStyles.getSecondaryTextColor(context))),
+            Text(
+              message!,
+              style: TextStyle(
+                fontSize: 14,
+                color: DiaryStyles.getSecondaryTextColor(context),
+              ),
+            ),
           ],
         ],
       ),

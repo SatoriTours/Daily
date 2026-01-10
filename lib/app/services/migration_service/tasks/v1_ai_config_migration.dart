@@ -46,12 +46,16 @@ class AIConfigMigrationTask extends MigrationTask {
   /// 获取旧的AI配置数据
   Map<String, String> _getOldAIConfig() {
     return {
-      'apiToken': Settings.getValue<String>(SettingService.openAITokenKey) ?? '',
+      'apiToken':
+          Settings.getValue<String>(SettingService.openAITokenKey) ?? '',
       'apiAddress':
           Settings.getValue<String>(SettingService.openAIAddressKey) ??
           SettingService.defaultSettings[SettingService.openAIAddressKey] ??
           '',
-      'modelName': Settings.getValue<String>('ai_model') ?? SettingService.defaultSettings['ai_model'] ?? '',
+      'modelName':
+          Settings.getValue<String>('ai_model') ??
+          SettingService.defaultSettings['ai_model'] ??
+          '',
     };
   }
 
@@ -63,8 +67,12 @@ class AIConfigMigrationTask extends MigrationTask {
 
     // 如果所有设置都为空或为默认值，则不需要迁移
     return !(apiToken.isEmpty &&
-        (apiAddress.isEmpty || apiAddress == SettingService.defaultSettings[SettingService.openAIAddressKey]) &&
-        (modelName.isEmpty || modelName == SettingService.defaultSettings['ai_model']));
+        (apiAddress.isEmpty ||
+            apiAddress ==
+                SettingService.defaultSettings[SettingService
+                    .openAIAddressKey]) &&
+        (modelName.isEmpty ||
+            modelName == SettingService.defaultSettings['ai_model']));
   }
 
   /// 获取或创建通用AI配置
@@ -88,7 +96,10 @@ class AIConfigMigrationTask extends MigrationTask {
   }
 
   /// 使用旧配置更新通用配置
-  void _updateGeneralConfig(AIConfigModel generalConfig, Map<String, String> oldConfig) {
+  void _updateGeneralConfig(
+    AIConfigModel generalConfig,
+    Map<String, String> oldConfig,
+  ) {
     logInfo("更新通用AI配置");
 
     final apiToken = oldConfig['apiToken'] ?? '';
@@ -100,11 +111,14 @@ class AIConfigMigrationTask extends MigrationTask {
       generalConfig.apiToken = apiToken;
     }
 
-    if (apiAddress.isNotEmpty && apiAddress != SettingService.defaultSettings[SettingService.openAIAddressKey]) {
+    if (apiAddress.isNotEmpty &&
+        apiAddress !=
+            SettingService.defaultSettings[SettingService.openAIAddressKey]) {
       generalConfig.apiAddress = apiAddress;
     }
 
-    if (modelName.isNotEmpty && modelName != SettingService.defaultSettings['ai_model']) {
+    if (modelName.isNotEmpty &&
+        modelName != SettingService.defaultSettings['ai_model']) {
       generalConfig.modelName = modelName;
     }
 

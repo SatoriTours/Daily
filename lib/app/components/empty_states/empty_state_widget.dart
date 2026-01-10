@@ -68,7 +68,13 @@ class EmptyStateWidget extends StatelessWidget {
     Widget? action,
     bool compact = false,
   }) {
-    return EmptyStateWidget(icon: icon, titleKey: titleKey, subtitleKey: subtitleKey, action: action, compact: compact);
+    return EmptyStateWidget(
+      icon: icon,
+      titleKey: titleKey,
+      subtitleKey: subtitleKey,
+      action: action,
+      compact: compact,
+    );
   }
 
   /// 获取主标题文本

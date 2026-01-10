@@ -46,7 +46,9 @@ class LeftBarView extends ConsumerWidget {
           Dimensions.verticalSpacerXs,
           Text(
             '您的个人阅读助手',
-            style: textTheme.bodyMedium?.copyWith(color: AppTheme.getColorScheme(context).onSurfaceVariant),
+            style: textTheme.bodyMedium?.copyWith(
+              color: AppTheme.getColorScheme(context).onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -61,7 +63,13 @@ class LeftBarView extends ConsumerWidget {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: Dimensions.borderRadiusM,
-        boxShadow: [BoxShadow(color: Colors.black.withAlpha(13), blurRadius: 5, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(13),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -76,19 +84,29 @@ class LeftBarView extends ConsumerWidget {
               },
             ),
           ),
-          Container(width: 1, height: Dimensions.spacingL + Dimensions.spacingXs, color: colorScheme.outline),
+          Container(
+            width: 1,
+            height: Dimensions.spacingL + Dimensions.spacingXs,
+            color: colorScheme.outline,
+          ),
           Expanded(
             child: _buildActionButton(
               context,
               icon: Icons.favorite,
               label: '收藏',
               onPressed: () {
-                ref.read(articlesControllerProvider.notifier).toggleFavorite(true);
+                ref
+                    .read(articlesControllerProvider.notifier)
+                    .toggleFavorite(true);
                 AppNavigation.back();
               },
             ),
           ),
-          Container(width: 1, height: Dimensions.spacingL + Dimensions.spacingXs, color: colorScheme.outline),
+          Container(
+            width: 1,
+            height: Dimensions.spacingL + Dimensions.spacingXs,
+            color: colorScheme.outline,
+          ),
           Expanded(
             child: _buildActionButton(
               context,
@@ -121,7 +139,12 @@ class LeftBarView extends ConsumerWidget {
           children: [
             Icon(icon, size: Dimensions.iconSizeL, color: colorScheme.primary),
             Dimensions.verticalSpacerXs,
-            Text(label, style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurface)),
+            Text(
+              label,
+              style: textTheme.labelMedium?.copyWith(
+                color: colorScheme.onSurface,
+              ),
+            ),
           ],
         ),
       ),
@@ -134,13 +157,19 @@ class LeftBarView extends ConsumerWidget {
 
     if (tags.isEmpty) {
       return Center(
-        child: Text('暂无标签', style: TextStyle(color: colorScheme.onSurfaceVariant)),
+        child: Text(
+          '暂无标签',
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
+        ),
       );
     }
 
     return ListView.builder(
       itemCount: tags.length,
-      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS),
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.spacingM,
+        vertical: Dimensions.spacingS,
+      ),
       itemBuilder: (context, index) => _buildTagItem(context, ref, tags[index]),
     );
   }
@@ -151,21 +180,39 @@ class LeftBarView extends ConsumerWidget {
 
     return InkWell(
       onTap: () {
-        ref.read(articlesControllerProvider.notifier).filterByTag(tag.id, tag.name ?? '');
+        ref
+            .read(articlesControllerProvider.notifier)
+            .filterByTag(tag.id, tag.name ?? '');
         AppNavigation.back();
       },
       borderRadius: Dimensions.borderRadiusS,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS + 2),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Dimensions.spacingM,
+          vertical: Dimensions.spacingS + 2,
+        ),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: colorScheme.outline.withAlpha(128), width: 0.5)),
+          border: Border(
+            bottom: BorderSide(
+              color: colorScheme.outline.withAlpha(128),
+              width: 0.5,
+            ),
+          ),
         ),
         child: Row(
           children: [
-            Icon(Icons.tag, size: Dimensions.iconSizeS, color: colorScheme.primary),
+            Icon(
+              Icons.tag,
+              size: Dimensions.iconSizeS,
+              color: colorScheme.primary,
+            ),
             Dimensions.horizontalSpacerM,
             Expanded(child: Text(tag.name ?? '', style: textTheme.bodyMedium)),
-            Icon(Icons.chevron_right, size: Dimensions.iconSizeXs, color: colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.chevron_right,
+              size: Dimensions.iconSizeXs,
+              color: colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       ),

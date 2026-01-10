@@ -7,7 +7,8 @@ import 'package:daily_satori/app/services/service_base.dart';
 /// 负责提供AI配置的业务逻辑
 class AIConfigService implements AppService {
   AIConfigService._privateConstructor();
-  static final AIConfigService _instance = AIConfigService._privateConstructor();
+  static final AIConfigService _instance =
+      AIConfigService._privateConstructor();
   static AIConfigService get i => _instance;
 
   @override
@@ -31,7 +32,8 @@ class AIConfigService implements AppService {
   AIConfigModel? getDefaultConfig(int functionType) {
     try {
       // 获取指定功能的默认配置
-      final defaultConfig = AIConfigRepository.i.getDefaultAIConfigByFunctionType(functionType);
+      final defaultConfig = AIConfigRepository.i
+          .getDefaultAIConfigByFunctionType(functionType);
 
       // 如果配置需要继承自通用配置，则应用继承
       if (defaultConfig != null && defaultConfig.inheritFromGeneral) {

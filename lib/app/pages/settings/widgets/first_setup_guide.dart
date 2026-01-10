@@ -26,16 +26,25 @@ class FirstSetupGuide extends ConsumerWidget {
     final textTheme = AppTheme.getTextTheme(context);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingM),
+      margin: const EdgeInsets.symmetric(
+        horizontal: Dimensions.spacingM,
+        vertical: Dimensions.spacingM,
+      ),
       padding: const EdgeInsets.all(Dimensions.spacingL),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [colorScheme.primary.withValues(alpha: 0.1), colorScheme.secondary.withValues(alpha: 0.1)],
+          colors: [
+            colorScheme.primary.withValues(alpha: 0.1),
+            colorScheme.secondary.withValues(alpha: 0.1),
+          ],
         ),
         borderRadius: BorderRadius.circular(Dimensions.radiusL),
-        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.3), width: 2),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: 0.3),
+          width: 2,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,7 +66,12 @@ class FirstSetupGuide extends ConsumerWidget {
   }
 
   /// 构建标题
-  Widget _buildHeader(BuildContext context, TextTheme textTheme, ColorScheme colorScheme, FirstLaunchState setupState) {
+  Widget _buildHeader(
+    BuildContext context,
+    TextTheme textTheme,
+    ColorScheme colorScheme,
+    FirstLaunchState setupState,
+  ) {
     final isAllComplete = setupState.isSetupComplete;
     final pendingCount = setupState.pendingCount;
 
@@ -73,7 +87,9 @@ class FirstSetupGuide extends ConsumerWidget {
           ),
           child: Icon(
             isAllComplete ? Icons.check_circle_rounded : Icons.info_rounded,
-            color: isAllComplete ? AppColors.getSuccess(context) : colorScheme.primary,
+            color: isAllComplete
+                ? AppColors.getSuccess(context)
+                : colorScheme.primary,
             size: Dimensions.iconSizeL,
           ),
         ),
@@ -84,12 +100,17 @@ class FirstSetupGuide extends ConsumerWidget {
             children: [
               Text(
                 isAllComplete ? '设置已完成' : '欢迎使用 Daily Satori',
-                style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
+                style: textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.primary,
+                ),
               ),
               if (!isAllComplete)
                 Text(
                   '还有 $pendingCount 项必要配置需要完成',
-                  style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.7)),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
                 ),
             ],
           ),
@@ -110,7 +131,10 @@ class FirstSetupGuide extends ConsumerWidget {
       ),
       child: Text(
         '为了让应用正常工作，请先完成 AI 配置（必填）。其他两项为可选配置，可根据需要设置。',
-        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.8), height: 1.5),
+        style: textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onSurface.withValues(alpha: 0.8),
+          height: 1.5,
+        ),
       ),
     );
   }
@@ -265,17 +289,31 @@ class FirstSetupGuide extends ConsumerWidget {
                         title,
                         style: textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: isComplete ? AppColors.getSuccess(context) : colorScheme.onSurface,
+                          color: isComplete
+                              ? AppColors.getSuccess(context)
+                              : colorScheme.onSurface,
                         ),
                       ),
                       if (isRequired) ...[
                         Dimensions.horizontalSpacerXs,
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingXs, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: Dimensions.spacingXs,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
-                            color: AppColors.getError(context).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(Dimensions.radiusXs),
-                            border: Border.all(color: AppColors.getError(context).withValues(alpha: 0.5), width: 1),
+                            color: AppColors.getError(
+                              context,
+                            ).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(
+                              Dimensions.radiusXs,
+                            ),
+                            border: Border.all(
+                              color: AppColors.getError(
+                                context,
+                              ).withValues(alpha: 0.5),
+                              width: 1,
+                            ),
                           ),
                           child: Text(
                             '必填',
@@ -302,7 +340,11 @@ class FirstSetupGuide extends ConsumerWidget {
             ),
             // 状态图标
             if (isComplete)
-              Icon(Icons.check_circle_rounded, color: AppColors.getSuccess(context), size: Dimensions.iconSizeL)
+              Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.getSuccess(context),
+                size: Dimensions.iconSizeL,
+              )
             else
               Icon(
                 Icons.chevron_right_rounded,
@@ -333,11 +375,17 @@ class FirstSetupGuide extends ConsumerWidget {
           children: [
             Text(
               '配置进度',
-              style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.primary),
+              style: textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.primary,
+              ),
             ),
             Text(
               '$completedCount/3',
-              style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
+              style: textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: colorScheme.primary,
+              ),
             ),
           ],
         ),
@@ -349,7 +397,9 @@ class FirstSetupGuide extends ConsumerWidget {
             minHeight: 8,
             backgroundColor: colorScheme.surfaceContainerHighest,
             valueColor: AlwaysStoppedAnimation<Color>(
-              setupState.isSetupComplete ? AppColors.getSuccess(context) : colorScheme.primary,
+              setupState.isSetupComplete
+                  ? AppColors.getSuccess(context)
+                  : colorScheme.primary,
             ),
           ),
         ),
@@ -362,12 +412,17 @@ class FirstSetupGuide extends ConsumerWidget {
     DialogUtils.showInputDialog(
       title: '配置 Google Cloud API Key',
       hintText: '输入您的 Google Cloud API Key',
-      initialValue: SettingRepository.i.getSetting(SettingService.googleCloudApiKeyKey),
+      initialValue: SettingRepository.i.getSetting(
+        SettingService.googleCloudApiKeyKey,
+      ),
       confirmText: '保存',
       cancelText: '取消',
       onConfirm: (value) {
         final apiKey = value.trim();
-        SettingRepository.i.saveSetting(SettingService.googleCloudApiKeyKey, apiKey);
+        SettingRepository.i.saveSetting(
+          SettingService.googleCloudApiKeyKey,
+          apiKey,
+        );
         UIUtils.showSuccess('保存成功');
         // 保存后刷新状态
         ref.invalidate(firstLaunchControllerProvider);

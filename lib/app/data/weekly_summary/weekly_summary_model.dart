@@ -12,7 +12,10 @@ enum WeeklySummaryStatus {
   const WeeklySummaryStatus(this.value);
 
   static WeeklySummaryStatus fromValue(String value) {
-    return WeeklySummaryStatus.values.firstWhere((e) => e.value == value, orElse: () => WeeklySummaryStatus.pending);
+    return WeeklySummaryStatus.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => WeeklySummaryStatus.pending,
+    );
   }
 }
 
@@ -88,7 +91,8 @@ class WeeklySummaryModel extends EntityModel<WeeklySummary> {
   String? get appIdeas => entity.appIdeas;
   set appIdeas(String? value) => entity.appIdeas = value;
 
-  WeeklySummaryStatus get status => WeeklySummaryStatus.fromValue(entity.status);
+  WeeklySummaryStatus get status =>
+      WeeklySummaryStatus.fromValue(entity.status);
   set status(WeeklySummaryStatus value) => entity.status = value.value;
 
   // ==================== 计算属性 ====================
@@ -96,19 +100,31 @@ class WeeklySummaryModel extends EntityModel<WeeklySummary> {
   /// 获取关联的文章ID列表
   List<int> get articleIdList {
     if (articleIds == null || articleIds!.isEmpty) return [];
-    return articleIds!.split(',').map((e) => int.tryParse(e) ?? 0).where((e) => e > 0).toList();
+    return articleIds!
+        .split(',')
+        .map((e) => int.tryParse(e) ?? 0)
+        .where((e) => e > 0)
+        .toList();
   }
 
   /// 获取关联的日记ID列表
   List<int> get diaryIdList {
     if (diaryIds == null || diaryIds!.isEmpty) return [];
-    return diaryIds!.split(',').map((e) => int.tryParse(e) ?? 0).where((e) => e > 0).toList();
+    return diaryIds!
+        .split(',')
+        .map((e) => int.tryParse(e) ?? 0)
+        .where((e) => e > 0)
+        .toList();
   }
 
   /// 获取关联的书籍观点ID列表
   List<int> get viewpointIdList {
     if (viewpointIds == null || viewpointIds!.isEmpty) return [];
-    return viewpointIds!.split(',').map((e) => int.tryParse(e) ?? 0).where((e) => e > 0).toList();
+    return viewpointIds!
+        .split(',')
+        .map((e) => int.tryParse(e) ?? 0)
+        .where((e) => e > 0)
+        .toList();
   }
 
   /// 获取周的显示标题

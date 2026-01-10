@@ -5,9 +5,12 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:daily_satori/app/services/web_service/app_http_server.dart';
 import 'package:daily_satori/app/services/web_service/app_web_socket_tunnel.dart';
 import 'package:daily_satori/app/config/app_config.dart';
+import 'package:daily_satori/app/services/service_base.dart';
 
 /// Web服务管理类，负责HTTP服务器和WebSocket隧道的初始化和管理
-class WebService {
+class WebService extends AppService {
+  @override
+  ServicePriority get priority => ServicePriority.low;
   WebService._();
 
   static final WebService _instance = WebService._();
@@ -22,7 +25,7 @@ class WebService {
   /// Web服务端口号（已迁移至 WebServiceConfig）
   static int get httpPort => WebServiceConfig.httpPort;
 
-  /// 初始化Web服务
+  @override
   Future<void> init() async {
     await _httpServer.start();
     // await _webSocketTunnel.startConnect();
@@ -68,7 +71,8 @@ class WebService {
       // 如果没有找到首选接口，遍历查找任意IPv4地址
       for (var interface in interfaces) {
         for (var address in interface.addresses) {
-          if (address.type == InternetAddressType.IPv4 && !address.address.startsWith('127.')) {
+          if (address.type == InternetAddressType.IPv4 &&
+              !address.address.startsWith('127.')) {
             return address.address;
           }
         }

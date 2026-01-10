@@ -58,14 +58,19 @@ class I18nService implements AppService {
   Future<void> dispose() async {}
 
   /// 切换语言并重启应用
-  Future<void> changeLanguageAndRestart(SupportedLanguage language, BuildContext context) async {
+  Future<void> changeLanguageAndRestart(
+    SupportedLanguage language,
+    BuildContext context,
+  ) async {
     if (currentLanguage == language) return;
 
     try {
       // 保存语言设置
       await _saveLanguage(language);
 
-      logger.i('Language changed to: ${language.displayName}, restarting app...');
+      logger.i(
+        'Language changed to: ${language.displayName}, restarting app...',
+      );
 
       // 确保context依然有效
       if (!context.mounted) return;
@@ -95,7 +100,11 @@ class I18nService implements AppService {
 
       await changeLanguageAndRestart(targetLanguage, context);
     } catch (e, stackTrace) {
-      logger.e('Failed to use system language', error: e, stackTrace: stackTrace);
+      logger.e(
+        'Failed to use system language',
+        error: e,
+        stackTrace: stackTrace,
+      );
       // 出错时尝试使用中文作为默认，获取新的 context 以避免跨 async gap 问题
       final newContext = AppNavigation.navigatorKey.currentContext;
       if (newContext != null && newContext.mounted) {
@@ -107,10 +116,16 @@ class I18nService implements AppService {
   /// 加载翻译文件
   Future<void> _loadTranslations() async {
     try {
-      final String yamlString = await rootBundle.loadString('assets/i18n/${currentLanguage.code}.yaml');
+      final String yamlString = await rootBundle.loadString(
+        'assets/i18n/${currentLanguage.code}.yaml',
+      );
       _translations = loadYaml(yamlString);
     } catch (e, stackTrace) {
-      logger.e('Failed to load translations for ${currentLanguage.code}', error: e, stackTrace: stackTrace);
+      logger.e(
+        'Failed to load translations for ${currentLanguage.code}',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       // 加载失败时使用中文作为备用
       if (currentLanguage != SupportedLanguage.zh) {
@@ -126,7 +141,9 @@ class I18nService implements AppService {
     try {
       final savedLanguageCode = SettingRepository.i.getSetting(_languageKey);
       if (savedLanguageCode.isNotEmpty) {
-        final savedLanguage = SupportedLanguage.values.where((lang) => lang.code == savedLanguageCode).firstOrNull;
+        final savedLanguage = SupportedLanguage.values
+            .where((lang) => lang.code == savedLanguageCode)
+            .firstOrNull;
         if (savedLanguage != null) {
           currentLanguage = savedLanguage;
           return;
@@ -136,7 +153,11 @@ class I18nService implements AppService {
       // 没有保存的语言设置，使用系统语言
       await _useSystemLanguageWithoutRestart();
     } catch (e, stackTrace) {
-      logger.e('Failed to load saved language', error: e, stackTrace: stackTrace);
+      logger.e(
+        'Failed to load saved language',
+        error: e,
+        stackTrace: stackTrace,
+      );
       // 出错时使用系统语言
       await _useSystemLanguageWithoutRestart();
     }
@@ -158,7 +179,11 @@ class I18nService implements AppService {
           break;
       }
     } catch (e, stackTrace) {
-      logger.e('Failed to get system language', error: e, stackTrace: stackTrace);
+      logger.e(
+        'Failed to get system language',
+        error: e,
+        stackTrace: stackTrace,
+      );
       currentLanguage = SupportedLanguage.zh;
     }
   }

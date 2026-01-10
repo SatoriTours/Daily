@@ -8,8 +8,14 @@ class MCPPrompts {
   static String buildSystemPrompt() {
     final now = DateTime.now();
     final today = now.toString().substring(0, 10);
-    final yesterday = now.subtract(const Duration(days: 1)).toString().substring(0, 10);
-    final beforeYesterday = now.subtract(const Duration(days: 2)).toString().substring(0, 10);
+    final yesterday = now
+        .subtract(const Duration(days: 1))
+        .toString()
+        .substring(0, 10);
+    final beforeYesterday = now
+        .subtract(const Duration(days: 2))
+        .toString()
+        .substring(0, 10);
     final currentTime = now.toString().substring(0, 19);
 
     return '''你是一个智能助手，专门帮助用户从他们的个人数据中查找和总结信息。用户的数据包括：

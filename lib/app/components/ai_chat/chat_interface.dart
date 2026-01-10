@@ -119,8 +119,11 @@ class _ChatInterfaceState extends State<ChatInterface> {
     super.didUpdateWidget(oldWidget);
 
     // 消息列表变化时自动滚动到底部
-    if (widget.autoScrollToBottom && widget.messages.length != oldWidget.messages.length) {
-      logger.d('[ChatInterface] 消息数量变化: ${oldWidget.messages.length} -> ${widget.messages.length}');
+    if (widget.autoScrollToBottom &&
+        widget.messages.length != oldWidget.messages.length) {
+      logger.d(
+        '[ChatInterface] 消息数量变化: ${oldWidget.messages.length} -> ${widget.messages.length}',
+      );
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToBottom();
       });
@@ -162,7 +165,9 @@ class _ChatInterfaceState extends State<ChatInterface> {
   /// 处理发送消息
   /// 发送消息后自动滚动到底部
   void _handleSendMessage(String message) {
-    logger.i('[ChatInterface] 发送消息: ${message.substring(0, message.length > 50 ? 50 : message.length)}...');
+    logger.i(
+      '[ChatInterface] 发送消息: ${message.substring(0, message.length > 50 ? 50 : message.length)}...',
+    );
     widget.onSendMessage(message);
     _scrollToBottom();
   }
@@ -188,7 +193,11 @@ class _ChatInterfaceState extends State<ChatInterface> {
       padding: Dimensions.paddingM,
       decoration: BoxDecoration(
         color: AppColors.getSurface(context),
-        border: Border(bottom: BorderSide(color: AppColors.getOutline(context).withValues(alpha: 0.2))),
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.getOutline(context).withValues(alpha: 0.2),
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +208,9 @@ class _ChatInterfaceState extends State<ChatInterface> {
                 padding: Dimensions.paddingS,
                 decoration: BoxDecoration(
                   color: AppColors.getPrimaryContainer(context),
-                  borderRadius: BorderRadius.circular(Dimensions.radiusCircular),
+                  borderRadius: BorderRadius.circular(
+                    Dimensions.radiusCircular,
+                  ),
                 ),
                 child: Icon(
                   Icons.auto_awesome_outlined,
@@ -214,13 +225,17 @@ class _ChatInterfaceState extends State<ChatInterface> {
                   children: [
                     Text(
                       widget.headerTitle ?? 'ai_chat.title'.t,
-                      style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold),
+                      style: AppTypography.titleLarge.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     if (widget.headerSubtitle != null) ...[
                       Dimensions.verticalSpacerXs,
                       Text(
                         widget.headerSubtitle!,
-                        style: AppTypography.bodySmall.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.getOnSurfaceVariant(context),
+                        ),
                       ),
                     ],
                   ],
@@ -245,7 +260,10 @@ class _ChatInterfaceState extends State<ChatInterface> {
       itemCount: widget.messages.length,
       itemBuilder: (context, index) {
         final message = widget.messages[index];
-        return MessageBubble(message: message, onRetry: () => widget.onRetryMessage?.call(message));
+        return MessageBubble(
+          message: message,
+          onRetry: () => widget.onRetryMessage?.call(message),
+        );
       },
     );
   }
@@ -265,19 +283,30 @@ class _ChatInterfaceState extends State<ChatInterface> {
             Container(
               width: 120,
               height: 120,
-              decoration: BoxDecoration(color: AppColors.getPrimaryContainer(context), shape: BoxShape.circle),
-              child: Icon(Icons.chat_bubble_outline, size: 60, color: AppColors.getOnPrimaryContainer(context)),
+              decoration: BoxDecoration(
+                color: AppColors.getPrimaryContainer(context),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline,
+                size: 60,
+                color: AppColors.getOnPrimaryContainer(context),
+              ),
             ),
             Dimensions.verticalSpacerL,
             Text(
               'ai_chat.empty_title'.t,
-              style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold),
+              style: AppTypography.titleLarge.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
               textAlign: TextAlign.center,
             ),
             Dimensions.verticalSpacerS,
             Text(
               'ai_chat.empty_subtitle'.t,
-              style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context)),
+              style: AppTypography.bodyMedium.copyWith(
+                color: AppColors.getOnSurfaceVariant(context),
+              ),
               textAlign: TextAlign.center,
             ),
             Dimensions.verticalSpacerL,
@@ -312,9 +341,16 @@ class _ChatInterfaceState extends State<ChatInterface> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: AppColors.getOutline(context).withValues(alpha: 0.3),
+                ),
               ),
-              child: Text(suggestion, style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurface(context))),
+              child: Text(
+                suggestion,
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.getOnSurface(context),
+                ),
+              ),
             ),
           ),
         );

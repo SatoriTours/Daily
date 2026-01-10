@@ -38,7 +38,10 @@ class ArticleManager {
   }
 
   /// 更新文章与网页内容
-  void updateWithWebContent(ArticleModel article, ExtractedWebContent webContent) {
+  void updateWithWebContent(
+    ArticleModel article,
+    ExtractedWebContent webContent,
+  ) {
     logger.i('[ArticleManager] ▶ 更新文章内容: #${article.id}');
 
     article.title = webContent.title;
@@ -188,7 +191,10 @@ class ArticleManager {
   }
 
   /// 批量更新文章状态
-  Future<void> batchUpdateStatus(List<int> articleIds, ArticleStatus status) async {
+  Future<void> batchUpdateStatus(
+    List<int> articleIds,
+    ArticleStatus status,
+  ) async {
     for (final id in articleIds) {
       markAsCompleted(id);
     }
@@ -225,7 +231,12 @@ class ArticleStats {
   final int completed;
   final int failed;
 
-  ArticleStats({required this.total, required this.pending, required this.completed, required this.failed});
+  ArticleStats({
+    required this.total,
+    required this.pending,
+    required this.completed,
+    required this.failed,
+  });
 
   double get completionRate => total > 0 ? completed / total : 0;
   double get failureRate => total > 0 ? failed / total : 0;
@@ -239,5 +250,10 @@ class WebContent {
   final String htmlContent;
   final String? coverImageUrl;
 
-  WebContent({required this.title, required this.content, required this.htmlContent, this.coverImageUrl});
+  WebContent({
+    required this.title,
+    required this.content,
+    required this.htmlContent,
+    this.coverImageUrl,
+  });
 }

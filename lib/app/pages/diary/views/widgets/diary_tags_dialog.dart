@@ -12,7 +12,12 @@ class DiaryTagsDialog extends StatelessWidget {
   final ValueChanged<String> onTagSelected;
   final VoidCallback onClearFilters;
 
-  const DiaryTagsDialog({super.key, required this.tags, required this.onTagSelected, required this.onClearFilters});
+  const DiaryTagsDialog({
+    super.key,
+    required this.tags,
+    required this.onTagSelected,
+    required this.onClearFilters,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,9 +26,17 @@ class DiaryTagsDialog extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         DiaryTagsDialogHeader(onClose: () => AppNavigation.back()),
-        Divider(height: 1, thickness: 0.5, color: DiaryStyles.getDividerColor(context)),
+        Divider(
+          height: 1,
+          thickness: 0.5,
+          color: DiaryStyles.getDividerColor(context),
+        ),
         DiaryTagsList(tags: tags, onTagSelected: onTagSelected),
-        Divider(height: 1, thickness: 0.5, color: DiaryStyles.getDividerColor(context)),
+        Divider(
+          height: 1,
+          thickness: 0.5,
+          color: DiaryStyles.getDividerColor(context),
+        ),
         DiaryClearFiltersButton(onPressed: onClearFilters),
         const SizedBox(height: 8),
       ],

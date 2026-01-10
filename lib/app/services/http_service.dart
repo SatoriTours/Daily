@@ -98,7 +98,10 @@ class HttpService implements AppService {
   /// [url] 文件URL
   /// [onProgress] 进度回调，参数为 (已下载字节数, 总字节数)
   /// 返回本地保存路径,失败返回空字符串
-  Future<String> downloadFileWithProgress(String url, {void Function(int received, int total)? onProgress}) async {
+  Future<String> downloadFileWithProgress(
+    String url, {
+    void Function(int received, int total)? onProgress,
+  }) async {
     if (url.isEmpty) {
       return '';
     }
@@ -113,7 +116,11 @@ class HttpService implements AppService {
         : FileService.i.getDownloadPath(fileName);
 
     // 使用带进度的下载方法
-    if (await _downloadAnyFileWithProgress(url, savePath, onProgress: onProgress)) {
+    if (await _downloadAnyFileWithProgress(
+      url,
+      savePath,
+      onProgress: onProgress,
+    )) {
       return savePath;
     }
 
@@ -134,7 +141,8 @@ class HttpService implements AppService {
         ),
       );
 
-      final contentType = (response.headers.value('content-type') ?? '').toLowerCase();
+      final contentType = (response.headers.value('content-type') ?? '')
+          .toLowerCase();
 
       // 仅接受图片类型，排除 svg/avif（避免本地解码失败）
       final isImage = contentType.startsWith('image/');
@@ -222,7 +230,8 @@ class HttpService implements AppService {
         final head = await raf.read(64);
         await raf.close();
         final headStr = String.fromCharCodes(head).toLowerCase();
-        if (headStr.contains('<html') || headStr.contains('github') && headStr.contains('error')) {
+        if (headStr.contains('<html') ||
+            headStr.contains('github') && headStr.contains('error')) {
           _safeDelete(savePath);
           logger.i("下载文件失败: 看起来是错误页而非二进制文件");
           return false;

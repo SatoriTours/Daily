@@ -19,7 +19,8 @@ part 'backup_settings_controller_provider.g.dart';
 
 /// BackupSettingsController 状态
 @freezed
-abstract class BackupSettingsControllerState with _$BackupSettingsControllerState {
+abstract class BackupSettingsControllerState
+    with _$BackupSettingsControllerState {
   const factory BackupSettingsControllerState({
     @Default(false) bool isLoading,
     @Default('') String errorMessage,
@@ -67,7 +68,10 @@ class BackupSettingsController extends _$BackupSettingsController {
       );
 
       if (selectedDirectory != null) {
-        SettingRepository.i.saveSetting(SettingService.backupDirKey, selectedDirectory);
+        SettingRepository.i.saveSetting(
+          SettingService.backupDirKey,
+          selectedDirectory,
+        );
         state = state.copyWith(backupDirectory: selectedDirectory);
         UIUtils.showSuccess('backup_settings.path_saved'.t, isTop: true);
       }
@@ -81,7 +85,9 @@ class BackupSettingsController extends _$BackupSettingsController {
   Future<void> performBackup() async {
     state = state.copyWith(isLoading: true);
     try {
-      final success = await BackupService.i.checkAndBackup(immediateBackup: true);
+      final success = await BackupService.i.checkAndBackup(
+        immediateBackup: true,
+      );
       state = state.copyWith(isLoading: false);
       if (success) {
         UIUtils.showSuccess('backup_settings.backup_success'.t);

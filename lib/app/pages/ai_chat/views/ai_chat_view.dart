@@ -22,7 +22,10 @@ class _AIChatViewState extends ConsumerState<AIChatView> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(aIChatControllerProvider.select((s) => s.messages.length), (previous, next) {
+    ref.listen(aIChatControllerProvider.select((s) => s.messages.length), (
+      previous,
+      next,
+    ) {
       if (next > (previous ?? 0)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController.hasClients) {
@@ -40,19 +43,29 @@ class _AIChatViewState extends ConsumerState<AIChatView> {
     return Scaffold(
       backgroundColor: AppColors.getBackground(context),
       appBar: SAppBar(
-        title: Text('ai_chat.title'.t, style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold)),
+        title: Text(
+          'ai_chat.title'.t,
+          style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold),
+        ),
         backgroundColorLight: AppColors.surface,
         backgroundColorDark: AppColors.surfaceDark,
         elevation: 0,
         centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh_rounded, color: AppColors.getOnSurface(context)),
-            onPressed: () => ref.read(aIChatControllerProvider.notifier).clearMessages(),
+            icon: Icon(
+              Icons.refresh_rounded,
+              color: AppColors.getOnSurface(context),
+            ),
+            onPressed: () =>
+                ref.read(aIChatControllerProvider.notifier).clearMessages(),
             tooltip: 'ai_chat.new_chat'.t,
           ),
           IconButton(
-            icon: Icon(Icons.info_outline_rounded, color: AppColors.getOnSurface(context)),
+            icon: Icon(
+              Icons.info_outline_rounded,
+              color: AppColors.getOnSurface(context),
+            ),
             onPressed: () => _showHelpDialog(context),
             tooltip: 'ai_chat.help'.t,
           ),
@@ -60,8 +73,10 @@ class _AIChatViewState extends ConsumerState<AIChatView> {
       ),
       body: ChatInterface(
         messages: state.messages,
-        onSendMessage: (msg) => ref.read(aIChatControllerProvider.notifier).sendMessage(msg),
-        onRetryMessage: (msg) => ref.read(aIChatControllerProvider.notifier).retryMessage(msg),
+        onSendMessage: (msg) =>
+            ref.read(aIChatControllerProvider.notifier).sendMessage(msg),
+        onRetryMessage: (msg) =>
+            ref.read(aIChatControllerProvider.notifier).retryMessage(msg),
         scrollController: _scrollController,
         inputController: _inputController,
         isLoading: state.isProcessing,
@@ -107,7 +122,12 @@ class _AIChatViewState extends ConsumerState<AIChatView> {
             ],
           ),
         ),
-        actions: [TextButton(onPressed: () => AppNavigation.back(), child: Text('ai_chat.got_it'.t))],
+        actions: [
+          TextButton(
+            onPressed: () => AppNavigation.back(),
+            child: Text('ai_chat.got_it'.t),
+          ),
+        ],
       ),
     );
   }
@@ -118,7 +138,11 @@ class _HelpSection extends StatelessWidget {
   final String content;
   final IconData icon;
 
-  const _HelpSection({required this.title, required this.content, required this.icon});
+  const _HelpSection({
+    required this.title,
+    required this.content,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -133,13 +157,27 @@ class _HelpSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: Dimensions.iconSizeM, color: AppColors.getPrimary(context)),
+              Icon(
+                icon,
+                size: Dimensions.iconSizeM,
+                color: AppColors.getPrimary(context),
+              ),
               Dimensions.horizontalSpacerM,
-              Text(title, style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                title,
+                style: AppTypography.titleMedium.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
           Dimensions.verticalSpacerS,
-          Text(content, style: AppTypography.bodyMedium.copyWith(color: AppColors.getOnSurfaceVariant(context))),
+          Text(
+            content,
+            style: AppTypography.bodyMedium.copyWith(
+              color: AppColors.getOnSurfaceVariant(context),
+            ),
+          ),
         ],
       ),
     );

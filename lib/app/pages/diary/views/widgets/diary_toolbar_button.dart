@@ -29,7 +29,9 @@ class DiaryToolbarButton extends StatelessWidget {
           icon: Icon(
             icon,
             size: 16,
-            color: isAccent ? DiaryStyles.getAccentColor(context) : DiaryStyles.getPrimaryTextColor(context),
+            color: isAccent
+                ? DiaryStyles.getAccentColor(context)
+                : DiaryStyles.getPrimaryTextColor(context),
           ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),

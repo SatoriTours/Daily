@@ -20,7 +20,12 @@ class Screenshot implements BaseEntity {
 
   final article = ToOne<Article>();
 
-  Screenshot({this.id = 0, this.path, DateTime? createdAt, DateTime? updatedAt}) {
+  Screenshot({
+    this.id = 0,
+    this.path,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
     this.createdAt = createdAt ?? DateTime.now();
     this.updatedAt = updatedAt ?? DateTime.now();
   }

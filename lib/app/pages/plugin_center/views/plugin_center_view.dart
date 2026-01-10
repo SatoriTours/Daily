@@ -29,7 +29,12 @@ class PluginCenterView extends ConsumerWidget {
   }
 
   /// 构建应用栏
-  PreferredSizeWidget _buildAppBar(BuildContext context, WidgetRef ref, bool hasPlugins, bool isUpdating) {
+  PreferredSizeWidget _buildAppBar(
+    BuildContext context,
+    WidgetRef ref,
+    bool hasPlugins,
+    bool isUpdating,
+  ) {
     return SAppBar(
       title: const Text('插件中心', style: TextStyle(color: Colors.white)),
       centerTitle: true,
@@ -42,10 +47,14 @@ class PluginCenterView extends ConsumerWidget {
         IconButton(
           icon: Icon(
             Icons.refresh_rounded,
-            color: (hasPlugins && !isUpdating) ? Colors.white : Colors.white.withValues(alpha: Opacities.half),
+            color: (hasPlugins && !isUpdating)
+                ? Colors.white
+                : Colors.white.withValues(alpha: Opacities.half),
           ),
           tooltip: '更新所有插件',
-          onPressed: (hasPlugins && !isUpdating) ? () => _updateAllPlugins(ref) : null,
+          onPressed: (hasPlugins && !isUpdating)
+              ? () => _updateAllPlugins(ref)
+              : null,
         ),
         // 服务器设置按钮
         IconButton(
@@ -58,7 +67,12 @@ class PluginCenterView extends ConsumerWidget {
   }
 
   /// 构建主体内容
-  Widget _buildBody(BuildContext context, WidgetRef ref, PluginCenterControllerState state, List<PluginInfo> plugins) {
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    PluginCenterControllerState state,
+    List<PluginInfo> plugins,
+  ) {
     if (state.isLoading && plugins.isEmpty) {
       return StyleGuide.getLoadingState(context);
     }
@@ -83,7 +97,9 @@ class PluginCenterView extends ConsumerWidget {
       child: ListView.separated(
         itemCount: plugins.length,
         padding: Dimensions.paddingPage,
-        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
         separatorBuilder: (context, index) => Dimensions.verticalSpacerM,
         itemBuilder: (context, index) {
           final plugin = plugins[index];
@@ -108,7 +124,10 @@ class PluginCenterView extends ConsumerWidget {
             Container(
               width: Dimensions.iconSizeXxl * 2.5,
               height: Dimensions.iconSizeXxl * 2.5,
-              decoration: BoxDecoration(color: colorScheme.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
               child: Icon(
                 Icons.extension_off_rounded,
                 size: Dimensions.iconSizeXxl + Dimensions.spacingM,
@@ -118,13 +137,20 @@ class PluginCenterView extends ConsumerWidget {
             Dimensions.verticalSpacerL,
 
             // 标题
-            Text('暂无插件', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              '暂无插件',
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             Dimensions.verticalSpacerS,
 
             // 描述
             Text(
               '请检查插件服务器设置或稍后重试',
-              style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
               textAlign: TextAlign.center,
             ),
             Dimensions.verticalSpacerL,
@@ -142,7 +168,10 @@ class PluginCenterView extends ConsumerWidget {
                     // Just force rebuild?
                     (context as Element).markNeedsBuild();
                   },
-                  icon: const Icon(Icons.refresh_rounded, size: Dimensions.iconSizeS),
+                  icon: const Icon(
+                    Icons.refresh_rounded,
+                    size: Dimensions.iconSizeS,
+                  ),
                   label: const Text('刷新'),
                   style: ButtonStyles.getPrimaryStyle(context),
                 ),
@@ -151,7 +180,10 @@ class PluginCenterView extends ConsumerWidget {
                 // 设置按钮
                 OutlinedButton.icon(
                   onPressed: () => ServerUrlDialog.show(context, ref),
-                  icon: const Icon(Icons.settings_rounded, size: Dimensions.iconSizeS),
+                  icon: const Icon(
+                    Icons.settings_rounded,
+                    size: Dimensions.iconSizeS,
+                  ),
                   label: const Text('设置'),
                   style: ButtonStyles.getOutlinedStyle(context),
                 ),

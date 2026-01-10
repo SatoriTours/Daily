@@ -15,7 +15,10 @@ class AccordionStyles {
 
     return BoxDecoration(
       color: isDark ? AppColors.surfaceDark : AppColors.surface,
-      border: Border.all(color: isDark ? AppColors.outlineDark : AppColors.outline, width: 1.0),
+      border: Border.all(
+        color: isDark ? AppColors.outlineDark : AppColors.outline,
+        width: 1.0,
+      ),
       borderRadius: BorderRadius.circular(Dimensions.radiusS),
     );
   }
@@ -36,7 +39,12 @@ class AccordionStyles {
 
     return BoxDecoration(
       color: Colors.transparent,
-      border: Border(bottom: BorderSide(color: isDark ? AppColors.outlineDark : AppColors.outline, width: 1.0)),
+      border: Border(
+        bottom: BorderSide(
+          color: isDark ? AppColors.outlineDark : AppColors.outline,
+          width: 1.0,
+        ),
+      ),
     );
   }
 
@@ -46,12 +54,18 @@ class AccordionStyles {
   }
 
   /// 获取手风琴触发器容器内边距
-  static EdgeInsets getTriggerPadding() =>
-      const EdgeInsets.symmetric(horizontal: Dimensions.spacingM, vertical: Dimensions.spacingS);
+  static EdgeInsets getTriggerPadding() => const EdgeInsets.symmetric(
+    horizontal: Dimensions.spacingM,
+    vertical: Dimensions.spacingS,
+  );
 
   /// 获取手风琴内容容器内边距
-  static EdgeInsets getContentPadding() =>
-      const EdgeInsets.fromLTRB(Dimensions.spacingM, 0, Dimensions.spacingM, Dimensions.spacingM);
+  static EdgeInsets getContentPadding() => const EdgeInsets.fromLTRB(
+    Dimensions.spacingM,
+    0,
+    Dimensions.spacingM,
+    Dimensions.spacingM,
+  );
 
   /// 获取手风琴触发器标题样式
   static TextStyle getTriggerTextStyle(BuildContext context) {
@@ -110,7 +124,9 @@ class AccordionStyles {
                   child: Icon(
                     Icons.keyboard_arrow_down,
                     size: getIconSize(),
-                    color: isDark ? AppColors.onSurfaceVariantDark : AppColors.onSurfaceVariant,
+                    color: isDark
+                        ? AppColors.onSurfaceVariantDark
+                        : AppColors.onSurfaceVariant,
                   ),
                 ),
           ],
@@ -120,11 +136,16 @@ class AccordionStyles {
   }
 
   /// 创建手风琴内容包装器
-  static Widget createContentWrapper({required Widget child, required bool isExpanded}) {
+  static Widget createContentWrapper({
+    required Widget child,
+    required bool isExpanded,
+  }) {
     return AnimatedSize(
       duration: getAnimationDuration(),
       curve: Curves.easeInOut,
-      child: isExpanded ? Padding(padding: getContentPadding(), child: child) : const SizedBox.shrink(),
+      child: isExpanded
+          ? Padding(padding: getContentPadding(), child: child)
+          : const SizedBox.shrink(),
     );
   }
 }

@@ -178,7 +178,12 @@ class ArticlesController extends _$ArticlesController {
   /// 按日期过滤
   void filterByDate(DateTime date) {
     final selectedDay = DateTime(date.year, date.month, date.day);
-    state = state.copyWith(selectedFilterDate: selectedDay, tagId: -1, tagName: '', onlyFavorite: false);
+    state = state.copyWith(
+      selectedFilterDate: selectedDay,
+      tagId: -1,
+      tagName: '',
+      onlyFavorite: false,
+    );
     reloadArticles();
   }
 
@@ -212,7 +217,9 @@ class ArticlesController extends _$ArticlesController {
 
     final isAtTop = scrollController.position.pixels <= 30;
     final lastRefresh = state.lastRefreshTime ?? DateTime.now();
-    final isDataStale = DateTime.now().difference(lastRefresh).inMinutes >= _staleDataThresholdMinutes;
+    final isDataStale =
+        DateTime.now().difference(lastRefresh).inMinutes >=
+        _staleDataThresholdMinutes;
 
     if (isAtTop || isDataStale) {
       await reloadArticles();
@@ -241,7 +248,8 @@ class ArticlesController extends _$ArticlesController {
   }
 
   Future<void> loadMoreArticles() => _loadAdjacentArticles(loadAfter: true);
-  Future<void> loadPreviousArticles() => _loadAdjacentArticles(loadAfter: false);
+  Future<void> loadPreviousArticles() =>
+      _loadAdjacentArticles(loadAfter: false);
 
   Future<void> _loadAdjacentArticles({required bool loadAfter}) async {
     final articles = ref.read(articleStateProvider).articles;
@@ -267,7 +275,9 @@ class ArticlesController extends _$ArticlesController {
   _QueryParams _buildQueryParams() {
     final articleState = ref.read(articleStateProvider);
     return _QueryParams(
-      keyword: articleState.globalSearchQuery.isNotEmpty ? articleState.globalSearchQuery.trim() : null,
+      keyword: articleState.globalSearchQuery.isNotEmpty
+          ? articleState.globalSearchQuery.trim()
+          : null,
       favorite: state.onlyFavorite ? true : null,
       tagIds: state.tagId > 0 ? [state.tagId] : null,
       startDate: state.selectedFilterDate,
@@ -292,7 +302,13 @@ class _QueryParams {
   final DateTime? startDate;
   final DateTime? endDate;
 
-  _QueryParams({this.keyword, this.favorite, this.tagIds, this.startDate, this.endDate});
+  _QueryParams({
+    this.keyword,
+    this.favorite,
+    this.tagIds,
+    this.startDate,
+    this.endDate,
+  });
 }
 
 // 派生 Providers (Derived State)
@@ -303,11 +319,20 @@ String displayTitle(Ref ref) {
   final controllerState = ref.watch(articlesControllerProvider);
   final articleState = ref.watch(articleStateProvider);
   final globalSearchQuery = articleState.globalSearchQuery;
-  return switch (
-    (globalSearchQuery.isNotEmpty, controllerState.tagName.isNotEmpty, controllerState.onlyFavorite, controllerState.selectedFilterDate != null)
-  ) {
-    (true, _, _, _) => 'article.search_result'.t.replaceAll('{query}', globalSearchQuery),
-    (_, true, _, _) => 'article.filter_by_tag'.t.replaceAll('{tag}', controllerState.tagName),
+  return switch ((
+    globalSearchQuery.isNotEmpty,
+    controllerState.tagName.isNotEmpty,
+    controllerState.onlyFavorite,
+    controllerState.selectedFilterDate != null,
+  )) {
+    (true, _, _, _) => 'article.search_result'.t.replaceAll(
+      '{query}',
+      globalSearchQuery,
+    ),
+    (_, true, _, _) => 'article.filter_by_tag'.t.replaceAll(
+      '{tag}',
+      controllerState.tagName,
+    ),
     (_, _, true, _) => 'article.favorite_articles'.t,
     (_, _, _, true) => 'article.filter_by_date'.t,
     _ => 'article.all_articles'.t,
@@ -321,7 +346,7 @@ bool hasFilters(Ref ref) {
   final articleState = ref.watch(articleStateProvider);
   final globalSearchQuery = articleState.globalSearchQuery;
   return globalSearchQuery.isNotEmpty ||
-         controllerState.tagName.isNotEmpty ||
-         controllerState.onlyFavorite ||
-         controllerState.selectedFilterDate != null;
+      controllerState.tagName.isNotEmpty ||
+      controllerState.onlyFavorite ||
+      controllerState.selectedFilterDate != null;
 }

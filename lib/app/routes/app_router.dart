@@ -66,24 +66,56 @@ final GoRouter appRouter = GoRouter(
     return Routes.settings;
   },
   routes: [
-    GoRoute(path: Routes.home, name: Routes.home, builder: (context, state) => const HomeView()),
-    GoRoute(path: Routes.articles, name: Routes.articles, builder: (context, state) => const ArticlesView()),
+    GoRoute(
+      path: Routes.home,
+      name: Routes.home,
+      builder: (context, state) => const HomeView(),
+    ),
+    GoRoute(
+      path: Routes.articles,
+      name: Routes.articles,
+      builder: (context, state) => const ArticlesView(),
+    ),
     GoRoute(
       path: Routes.articleDetail,
       name: Routes.articleDetail,
       builder: (context, state) => const ArticleDetailView(),
     ),
-    GoRoute(path: Routes.diary, name: Routes.diary, builder: (context, state) => const DiaryView()),
-    GoRoute(path: Routes.books, name: Routes.books, builder: (context, state) => const BooksView()),
-    GoRoute(path: Routes.bookSearch, name: Routes.bookSearch, builder: (context, state) => const BookSearchView()),
-    GoRoute(path: Routes.settings, name: Routes.settings, builder: (context, state) => const SettingsView()),
-    GoRoute(path: Routes.aiConfig, name: Routes.aiConfig, builder: (context, state) => const AIConfigView()),
+    GoRoute(
+      path: Routes.diary,
+      name: Routes.diary,
+      builder: (context, state) => const DiaryView(),
+    ),
+    GoRoute(
+      path: Routes.books,
+      name: Routes.books,
+      builder: (context, state) => const BooksView(),
+    ),
+    GoRoute(
+      path: Routes.bookSearch,
+      name: Routes.bookSearch,
+      builder: (context, state) => const BookSearchView(),
+    ),
+    GoRoute(
+      path: Routes.settings,
+      name: Routes.settings,
+      builder: (context, state) => const SettingsView(),
+    ),
+    GoRoute(
+      path: Routes.aiConfig,
+      name: Routes.aiConfig,
+      builder: (context, state) => const AIConfigView(),
+    ),
     GoRoute(
       path: Routes.aiConfigEdit,
       name: Routes.aiConfigEdit,
       builder: (context, state) => const AIConfigEditView(),
     ),
-    GoRoute(path: Routes.aiChat, name: Routes.aiChat, builder: (context, state) => const AIChatView()),
+    GoRoute(
+      path: Routes.aiChat,
+      name: Routes.aiChat,
+      builder: (context, state) => const AIChatView(),
+    ),
     GoRoute(
       path: Routes.weeklySummary,
       name: Routes.weeklySummary,
@@ -109,6 +141,10 @@ final GoRouter appRouter = GoRouter(
       name: Routes.pluginCenter,
       builder: (context, state) => const PluginCenterView(),
     ),
-    GoRoute(path: Routes.leftBar, name: Routes.leftBar, builder: (context, state) => const LeftBarView()),
+    GoRoute(
+      path: Routes.leftBar,
+      name: Routes.leftBar,
+      builder: (context, state) => const LeftBarView(),
+    ),
   ],
 );

@@ -13,7 +13,8 @@ class DiaryCalendarDialog extends ConsumerStatefulWidget {
   const DiaryCalendarDialog({super.key});
 
   @override
-  ConsumerState<DiaryCalendarDialog> createState() => _DiaryCalendarDialogState();
+  ConsumerState<DiaryCalendarDialog> createState() =>
+      _DiaryCalendarDialogState();
 }
 
 class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
@@ -31,7 +32,11 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
   Map<DateTime, int> _getDailyDiaryCounts(List<DiaryModel> diaries) {
     final Map<DateTime, int> counts = {};
     for (final diary in diaries) {
-      final date = DateTime(diary.createdAt.year, diary.createdAt.month, diary.createdAt.day);
+      final date = DateTime(
+        diary.createdAt.year,
+        diary.createdAt.month,
+        diary.createdAt.day,
+      );
       counts[date] = (counts[date] ?? 0) + 1;
     }
     return counts;
@@ -43,15 +48,27 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
     _diaryCountMap = _getDailyDiaryCounts(diaries);
 
     return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildHeader(context),
-          Divider(height: 1, thickness: 0.5, color: DiaryStyles.getDividerColor(context)),
+          Divider(
+            height: 1,
+            thickness: 0.5,
+            color: DiaryStyles.getDividerColor(context),
+          ),
           _buildCalendarHeader(context),
-          Expanded(child: SingleChildScrollView(child: _buildCalendar(context))),
-          Divider(height: 1, thickness: 0.5, color: DiaryStyles.getDividerColor(context)),
+          Expanded(
+            child: SingleChildScrollView(child: _buildCalendar(context)),
+          ),
+          Divider(
+            height: 1,
+            thickness: 0.5,
+            color: DiaryStyles.getDividerColor(context),
+          ),
           _buildAllDiariesButton(context),
           SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
@@ -74,7 +91,11 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
             ),
           ),
           IconButton(
-            icon: Icon(FeatherIcons.x, size: 20, color: DiaryStyles.getSecondaryTextColor(context)),
+            icon: Icon(
+              FeatherIcons.x,
+              size: 20,
+              color: DiaryStyles.getSecondaryTextColor(context),
+            ),
             onPressed: () => AppNavigation.back(),
             splashRadius: 20,
             padding: EdgeInsets.zero,
@@ -95,19 +116,31 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
         children: [
           Text(
             monthFormat.format(_displayedMonth),
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: DiaryStyles.getAccentColor(context)),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: DiaryStyles.getAccentColor(context),
+            ),
           ),
           Row(
             children: [
               _buildIconButton(context, FeatherIcons.chevronLeft, () {
                 setState(() {
-                  _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month - 1, 1);
+                  _displayedMonth = DateTime(
+                    _displayedMonth.year,
+                    _displayedMonth.month - 1,
+                    1,
+                  );
                 });
               }),
               const SizedBox(width: 8),
               _buildIconButton(context, FeatherIcons.chevronRight, () {
                 setState(() {
-                  _displayedMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 1);
+                  _displayedMonth = DateTime(
+                    _displayedMonth.year,
+                    _displayedMonth.month + 1,
+                    1,
+                  );
                 });
               }),
             ],
@@ -117,7 +150,11 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
     );
   }
 
-  Widget _buildIconButton(BuildContext context, IconData icon, VoidCallback onPressed) {
+  Widget _buildIconButton(
+    BuildContext context,
+    IconData icon,
+    VoidCallback onPressed,
+  ) {
     return InkWell(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(20),
@@ -128,14 +165,25 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
           shape: BoxShape.circle,
           border: Border.all(color: DiaryStyles.getDividerColor(context)),
         ),
-        child: Icon(icon, size: 16, color: DiaryStyles.getPrimaryTextColor(context)),
+        child: Icon(
+          icon,
+          size: 16,
+          color: DiaryStyles.getPrimaryTextColor(context),
+        ),
       ),
     );
   }
 
   Widget _buildCalendar(BuildContext context) {
-    final daysInMonth = DateUtils.getDaysInMonth(_displayedMonth.year, _displayedMonth.month);
-    final firstDayOfWeek = DateTime(_displayedMonth.year, _displayedMonth.month, 1).weekday;
+    final daysInMonth = DateUtils.getDaysInMonth(
+      _displayedMonth.year,
+      _displayedMonth.month,
+    );
+    final firstDayOfWeek = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month,
+      1,
+    ).weekday;
 
     // 调整周起始日，让周一为第一天 (1=Mon, 7=Sun)
     // 如果日历显示习惯是周日开始，需要调整逻辑。这里假设周一作为第一列。
@@ -148,7 +196,13 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
     for (var day in weekDays) {
       dayWidgets.add(
         Center(
-          child: Text(day, style: TextStyle(fontSize: 12, color: DiaryStyles.getSecondaryTextColor(context))),
+          child: Text(
+            day,
+            style: TextStyle(
+              fontSize: 12,
+              color: DiaryStyles.getSecondaryTextColor(context),
+            ),
+          ),
         ),
       );
     }
@@ -178,9 +232,15 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
             decoration: BoxDecoration(
               color: isSelected
                   ? DiaryStyles.getAccentColor(context)
-                  : (isToday ? DiaryStyles.getAccentColor(context).withValues(alpha: 0.1) : null),
+                  : (isToday
+                        ? DiaryStyles.getAccentColor(
+                            context,
+                          ).withValues(alpha: 0.1)
+                        : null),
               shape: BoxShape.circle,
-              border: isToday && !isSelected ? Border.all(color: DiaryStyles.getAccentColor(context)) : null,
+              border: isToday && !isSelected
+                  ? Border.all(color: DiaryStyles.getAccentColor(context))
+                  : null,
             ),
             child: Stack(
               alignment: Alignment.center,
@@ -188,8 +248,12 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
                 Text(
                   '$i',
                   style: TextStyle(
-                    color: isSelected ? Colors.white : DiaryStyles.getPrimaryTextColor(context),
-                    fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected
+                        ? Colors.white
+                        : DiaryStyles.getPrimaryTextColor(context),
+                    fontWeight: isToday || isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
                 if (count > 0)
@@ -199,7 +263,9 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
                       width: 4,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: isSelected ? Colors.white : DiaryStyles.getAccentColor(context),
+                        color: isSelected
+                            ? Colors.white
+                            : DiaryStyles.getAccentColor(context),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -234,7 +300,11 @@ class _DiaryCalendarDialogState extends ConsumerState<DiaryCalendarDialog> {
         alignment: Alignment.center,
         child: Text(
           '查看全部日记',
-          style: TextStyle(fontSize: 16, color: DiaryStyles.getAccentColor(context), fontWeight: FontWeight.w500),
+          style: TextStyle(
+            fontSize: 16,
+            color: DiaryStyles.getAccentColor(context),
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );

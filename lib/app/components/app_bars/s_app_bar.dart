@@ -68,7 +68,9 @@ class SAppBar extends StatelessWidget implements PreferredSizeWidget {
       bg = backgroundColorLight ?? AppColors.getSurface(context);
     }
 
-    final titleWidget = onTitleDoubleTap == null ? title : GestureDetector(onDoubleTap: onTitleDoubleTap, child: title);
+    final titleWidget = onTitleDoubleTap == null
+        ? title
+        : GestureDetector(onDoubleTap: onTitleDoubleTap, child: title);
 
     return AppBar(
       backgroundColor: bg,

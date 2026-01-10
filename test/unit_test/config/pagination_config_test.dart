@@ -10,16 +10,28 @@ void main() {
     });
 
     test('defaultPageSize should be within valid range', () {
-      expect(PaginationConfig.defaultPageSize >= PaginationConfig.minPageSize, isTrue);
-      expect(PaginationConfig.defaultPageSize <= PaginationConfig.maxPageSize, isTrue);
+      expect(
+        PaginationConfig.defaultPageSize >= PaginationConfig.minPageSize,
+        isTrue,
+      );
+      expect(
+        PaginationConfig.defaultPageSize <= PaginationConfig.maxPageSize,
+        isTrue,
+      );
     });
 
     test('minPageSize should be less than or equal to default', () {
-      expect(PaginationConfig.minPageSize <= PaginationConfig.defaultPageSize, isTrue);
+      expect(
+        PaginationConfig.minPageSize <= PaginationConfig.defaultPageSize,
+        isTrue,
+      );
     });
 
     test('maxPageSize should be greater than or equal to default', () {
-      expect(PaginationConfig.maxPageSize >= PaginationConfig.defaultPageSize, isTrue);
+      expect(
+        PaginationConfig.maxPageSize >= PaginationConfig.defaultPageSize,
+        isTrue,
+      );
     });
 
     test('should have reasonable values', () {

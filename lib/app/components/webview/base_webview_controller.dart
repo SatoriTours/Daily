@@ -75,8 +75,14 @@ class BaseWebViewController {
   ///
   /// [handlerName] 处理器名称
   /// [callback] 处理器回调函数
-  void addJavaScriptHandler({required String handlerName, required void Function(List<dynamic> args) callback}) {
-    webViewController.addJavaScriptHandler(handlerName: handlerName, callback: callback);
+  void addJavaScriptHandler({
+    required String handlerName,
+    required void Function(List<dynamic> args) callback,
+  }) {
+    webViewController.addJavaScriptHandler(
+      handlerName: handlerName,
+      callback: callback,
+    );
   }
 
   /// 执行 JavaScript 代码
@@ -90,15 +96,21 @@ class BaseWebViewController {
   /// 注入 JavaScript 文件
   ///
   /// [assetFilePath] JavaScript 文件的资源路径
-  Future<void> injectJavascriptFileFromAsset({required String assetFilePath}) async {
-    await webViewController.injectJavascriptFileFromAsset(assetFilePath: assetFilePath);
+  Future<void> injectJavascriptFileFromAsset({
+    required String assetFilePath,
+  }) async {
+    await webViewController.injectJavascriptFileFromAsset(
+      assetFilePath: assetFilePath,
+    );
   }
 
   /// 注入 CSS 文件
   ///
   /// [assetFilePath] CSS 文件的资源路径
   Future<void> injectCSSFileFromAsset({required String assetFilePath}) async {
-    await webViewController.injectCSSFileFromAsset(assetFilePath: assetFilePath);
+    await webViewController.injectCSSFileFromAsset(
+      assetFilePath: assetFilePath,
+    );
   }
 
   /// 注入 CSS 代码
@@ -112,6 +124,8 @@ class BaseWebViewController {
   ///
   /// 使用内置的翻译功能将页面内容翻译为简体中文
   Future<void> translatePage() async {
-    await evaluateJavascript(source: "translate.changeLanguage('chinese_simplified');");
+    await evaluateJavascript(
+      source: "translate.changeLanguage('chinese_simplified');",
+    );
   }
 }

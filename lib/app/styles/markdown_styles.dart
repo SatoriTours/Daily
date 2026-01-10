@@ -31,22 +31,49 @@ class MarkdownStyles {
         height: 1.3,
         color: colorScheme.onSurface,
       ),
-      h3: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600, height: 1.3, color: colorScheme.onSurface),
-      h4: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600, height: 1.3, color: colorScheme.onSurface),
-      h5: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.onSurface),
-      h6: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.onSurface),
+      h3: textTheme.titleLarge?.copyWith(
+        fontWeight: FontWeight.w600,
+        height: 1.3,
+        color: colorScheme.onSurface,
+      ),
+      h4: textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.w600,
+        height: 1.3,
+        color: colorScheme.onSurface,
+      ),
+      h5: textTheme.titleSmall?.copyWith(
+        fontWeight: FontWeight.w600,
+        color: colorScheme.onSurface,
+      ),
+      h6: textTheme.labelLarge?.copyWith(
+        fontWeight: FontWeight.w600,
+        color: colorScheme.onSurface,
+      ),
 
       // 强调样式
       em: TextStyle(fontStyle: FontStyle.italic, color: colorScheme.onSurface),
-      strong: TextStyle(fontWeight: FontWeight.w700, color: colorScheme.onSurface),
+      strong: TextStyle(
+        fontWeight: FontWeight.w700,
+        color: colorScheme.onSurface,
+      ),
 
       // 引用样式
-      blockquote: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface, fontStyle: FontStyle.italic),
+      blockquote: textTheme.bodyMedium?.copyWith(
+        color: colorScheme.onSurface,
+        fontStyle: FontStyle.italic,
+      ),
       blockquoteDecoration: BoxDecoration(
-        border: Border(left: BorderSide(color: colorScheme.primary.withAlpha(70), width: 4)),
+        border: Border(
+          left: BorderSide(color: colorScheme.primary.withAlpha(70), width: 4),
+        ),
         color: colorScheme.surfaceContainerHighest.withAlpha(30),
       ),
-      blockquotePadding: const EdgeInsets.only(left: 16, top: 8, bottom: 8, right: 8),
+      blockquotePadding: const EdgeInsets.only(
+        left: 16,
+        top: 8,
+        bottom: 8,
+        right: 8,
+      ),
 
       // 代码样式
       code: textTheme.bodySmall?.copyWith(
@@ -60,18 +87,32 @@ class MarkdownStyles {
       codeblockPadding: const EdgeInsets.all(12),
 
       // 列表样式
-      listBullet: textTheme.bodyMedium?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.w600),
+      listBullet: textTheme.bodyMedium?.copyWith(
+        color: colorScheme.primary,
+        fontWeight: FontWeight.w600,
+      ),
       listIndent: 24,
 
       // 表格样式
-      tableHead: TextStyle(fontWeight: FontWeight.w700, color: colorScheme.onSurface),
-      tableBorder: TableBorder.all(color: colorScheme.outlineVariant, width: 0.5),
+      tableHead: TextStyle(
+        fontWeight: FontWeight.w700,
+        color: colorScheme.onSurface,
+      ),
+      tableBorder: TableBorder.all(
+        color: colorScheme.outlineVariant,
+        width: 0.5,
+      ),
       tableColumnWidth: const FlexColumnWidth(),
-      tableCellsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      tableCellsPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 8,
+      ),
 
       // 水平线样式
       horizontalRuleDecoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant, width: 1)),
+        border: Border(
+          bottom: BorderSide(color: colorScheme.outlineVariant, width: 1),
+        ),
       ),
 
       // 链接样式

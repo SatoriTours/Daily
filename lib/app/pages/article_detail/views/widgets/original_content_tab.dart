@@ -26,17 +26,25 @@ class OriginalContentTab extends ConsumerWidget {
       return const Center(child: Text('文章不存在'));
     }
 
-    return _hasMarkdownContent ? _buildMarkdownView(context, ref) : _buildHtmlView(context);
+    return _hasMarkdownContent
+        ? _buildMarkdownView(context, ref)
+        : _buildHtmlView(context);
   }
 
   /// 判断是否有Markdown内容
-  bool get _hasMarkdownContent => article?.aiMarkdownContent?.isNotEmpty ?? false;
+  bool get _hasMarkdownContent =>
+      article?.aiMarkdownContent?.isNotEmpty ?? false;
 
   /// 构建Markdown视图
   Widget _buildMarkdownView(BuildContext context, WidgetRef ref) {
     final markdownContent = article?.aiMarkdownContent;
     if (markdownContent == null || markdownContent.isEmpty) {
-      return _buildEmptyState(context, ref, message: "尚未生成Markdown内容", showGenerateButton: true);
+      return _buildEmptyState(
+        context,
+        ref,
+        message: "尚未生成Markdown内容",
+        showGenerateButton: true,
+      );
     }
 
     final textTheme = AppTheme.getTextTheme(context);
@@ -68,7 +76,12 @@ class OriginalContentTab extends ConsumerWidget {
   Widget _buildHtmlView(BuildContext context) {
     final htmlContent = article?.htmlContent;
     if (htmlContent == null || htmlContent.isEmpty) {
-      return _buildEmptyState(context, null, message: "无法加载原文内容", showGenerateButton: false);
+      return _buildEmptyState(
+        context,
+        null,
+        message: "无法加载原文内容",
+        showGenerateButton: false,
+      );
     }
 
     final textTheme = AppTheme.getTextTheme(context);
@@ -97,7 +110,11 @@ class OriginalContentTab extends ConsumerWidget {
   }
 
   /// 构建标题区域
-  Widget _buildTitleSection(BuildContext context, TextTheme textTheme, ColorScheme colorScheme) {
+  Widget _buildTitleSection(
+    BuildContext context,
+    TextTheme textTheme,
+    ColorScheme colorScheme,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(
@@ -110,7 +127,10 @@ class OriginalContentTab extends ConsumerWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [colorScheme.primaryContainer.withAlpha(30), colorScheme.surface],
+          colors: [
+            colorScheme.primaryContainer.withAlpha(30),
+            colorScheme.surface,
+          ],
         ),
       ),
       child: Column(
@@ -129,7 +149,9 @@ class OriginalContentTab extends ConsumerWidget {
             height: 3,
             width: 60,
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [colorScheme.primary, colorScheme.primary.withAlpha(0)]),
+              gradient: LinearGradient(
+                colors: [colorScheme.primary, colorScheme.primary.withAlpha(0)],
+              ),
               borderRadius: BorderRadius.circular(Dimensions.radiusXs),
             ),
           ),
@@ -152,7 +174,11 @@ class OriginalContentTab extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.article_outlined, size: Dimensions.iconSizeXl, color: colorScheme.onSurfaceVariant),
+          Icon(
+            Icons.article_outlined,
+            size: Dimensions.iconSizeXl,
+            color: colorScheme.onSurfaceVariant,
+          ),
           Dimensions.verticalSpacerM,
           Text(message, style: textTheme.bodyLarge),
           if (showGenerateButton) ...[
@@ -206,7 +232,9 @@ class OriginalContentTab extends ConsumerWidget {
 
       // 生成Markdown内容
       if (articleId != null) {
-        await ref.read(articleDetailControllerProvider(articleId!).notifier).generateMarkdownContent();
+        await ref
+            .read(articleDetailControllerProvider(articleId!).notifier)
+            .generateMarkdownContent();
       }
 
       // 关闭加载对话框

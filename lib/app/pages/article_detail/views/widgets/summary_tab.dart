@@ -19,7 +19,9 @@ class SummaryTab extends ConsumerWidget {
       return const Center(child: Text('文章不存在'));
     }
 
-    final controllerState = ref.watch(articleDetailControllerProvider(articleId!));
+    final controllerState = ref.watch(
+      articleDetailControllerProvider(articleId!),
+    );
     final tags = controllerState.tags;
 
     final hasAiTitle = article?.aiTitle?.isNotEmpty ?? false;
@@ -39,11 +41,17 @@ class SummaryTab extends ConsumerWidget {
               Dimensions.spacingL,
               Dimensions.spacingM,
             ),
-            child: _AnimatedText(text: hasAiTitle ? article!.aiTitle! : article!.showTitle(), isAnimated: hasAiTitle),
+            child: _AnimatedText(
+              text: hasAiTitle ? article!.aiTitle! : article!.showTitle(),
+              isAnimated: hasAiTitle,
+            ),
           ),
 
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingL, vertical: Dimensions.spacingM),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Dimensions.spacingL,
+              vertical: Dimensions.spacingM,
+            ),
             child: ArticleTags(tags: tags),
           ),
 
@@ -55,7 +63,9 @@ class SummaryTab extends ConsumerWidget {
               Dimensions.spacingL,
             ),
             child: _AnimatedContent(
-              content: hasAiContent ? article!.aiContent! : article!.showContent(),
+              content: hasAiContent
+                  ? article!.aiContent!
+                  : article!.showContent(),
               isAnimated: hasAiContent,
             ),
           ),
@@ -66,7 +76,9 @@ class SummaryTab extends ConsumerWidget {
     );
   }
 
-  bool get _hasHeaderImage => article!.shouldShowHeaderImage() || (article!.coverImageUrl?.isNotEmpty ?? false);
+  bool get _hasHeaderImage =>
+      article!.shouldShowHeaderImage() ||
+      (article!.coverImageUrl?.isNotEmpty ?? false);
 
   bool get _hasComment => article!.comment?.isNotEmpty ?? false;
 
@@ -89,7 +101,10 @@ class SummaryTab extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('评论', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            '评论',
+            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
           Dimensions.verticalSpacerM,
           Text(article!.comment ?? '', style: textTheme.bodyMedium),
         ],
@@ -108,7 +123,8 @@ class _AnimatedText extends StatefulWidget {
   State<_AnimatedText> createState() => _AnimatedTextState();
 }
 
-class _AnimatedTextState extends State<_AnimatedText> with SingleTickerProviderStateMixin {
+class _AnimatedTextState extends State<_AnimatedText>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
 
@@ -117,8 +133,14 @@ class _AnimatedTextState extends State<_AnimatedText> with SingleTickerProviderS
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(duration: const Duration(milliseconds: 1000), vsync: this);
-    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    );
 
     if (widget.isAnimated) {
       _controller.value = 1.0;
@@ -155,7 +177,10 @@ class _AnimatedTextState extends State<_AnimatedText> with SingleTickerProviderS
       builder: (context, child) {
         return Opacity(opacity: _fadeAnimation.value, child: child);
       },
-      child: Text(widget.text, style: AppTheme.getTextTheme(context).titleLarge),
+      child: Text(
+        widget.text,
+        style: AppTheme.getTextTheme(context).titleLarge,
+      ),
     );
   }
 }
@@ -170,7 +195,8 @@ class _AnimatedContent extends StatefulWidget {
   State<_AnimatedContent> createState() => _AnimatedContentState();
 }
 
-class _AnimatedContentState extends State<_AnimatedContent> with SingleTickerProviderStateMixin {
+class _AnimatedContentState extends State<_AnimatedContent>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
 
@@ -179,8 +205,14 @@ class _AnimatedContentState extends State<_AnimatedContent> with SingleTickerPro
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(duration: const Duration(milliseconds: 1000), vsync: this);
-    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    );
 
     if (widget.isAnimated) {
       _controller.value = 1.0;
@@ -241,26 +273,39 @@ class _AnimatedContentState extends State<_AnimatedContent> with SingleTickerPro
           ),
           if (sections['hasKeyPoints'] == true) Dimensions.verticalSpacerXl,
         ],
-        if (sections['hasKeyPoints'] == true && (sections['keyPoints'] as List).isNotEmpty) ...[
+        if (sections['hasKeyPoints'] == true &&
+            (sections['keyPoints'] as List).isNotEmpty) ...[
           Text(
             '核心观点',
-            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: colorScheme.primary),
+            style: textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: colorScheme.primary,
+            ),
           ),
           Dimensions.verticalSpacerM,
-          ...sections['keyPoints'].asMap().entries.map<Widget>((entry) => _buildKeyPoint(context, entry)),
+          ...sections['keyPoints'].asMap().entries.map<Widget>(
+            (entry) => _buildKeyPoint(context, entry),
+          ),
         ],
         if ((sections['summary']?.isEmpty ?? true) &&
-            (sections['hasKeyPoints'] == false || (sections['keyPoints'] as List).isEmpty)) ...[
+            (sections['hasKeyPoints'] == false ||
+                (sections['keyPoints'] as List).isEmpty)) ...[
           Text(
             content,
-            style: AppTypography.bodyLarge.copyWith(height: 1.8, fontSize: AppTypography.bodyLarge.fontSize! + 1),
+            style: AppTypography.bodyLarge.copyWith(
+              height: 1.8,
+              fontSize: AppTypography.bodyLarge.fontSize! + 1,
+            ),
           ),
         ],
       ],
     );
   }
 
-  Widget _buildKeyPoint(BuildContext context, MapEntry<int, String> indexedPoint) {
+  Widget _buildKeyPoint(
+    BuildContext context,
+    MapEntry<int, String> indexedPoint,
+  ) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
@@ -274,14 +319,23 @@ class _AnimatedContentState extends State<_AnimatedContent> with SingleTickerPro
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            margin: const EdgeInsets.only(top: Dimensions.spacingXs / 2, right: Dimensions.spacingM),
+            margin: const EdgeInsets.only(
+              top: Dimensions.spacingXs / 2,
+              right: Dimensions.spacingM,
+            ),
             width: Dimensions.iconSizeL,
             height: Dimensions.iconSizeL,
-            decoration: BoxDecoration(color: colorScheme.primary, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: colorScheme.primary,
+              shape: BoxShape.circle,
+            ),
             child: Center(
               child: Text(
                 '${index + 1}',
-                style: textTheme.labelLarge?.copyWith(color: colorScheme.onPrimary, fontWeight: FontWeight.bold),
+                style: textTheme.labelLarge?.copyWith(
+                  color: colorScheme.onPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -301,7 +355,11 @@ class _AnimatedContentState extends State<_AnimatedContent> with SingleTickerPro
   }
 
   Map<String, dynamic> _parseContent(String content) {
-    final result = <String, dynamic>{'summary': '', 'keyPoints': <String>[], 'hasKeyPoints': false};
+    final result = <String, dynamic>{
+      'summary': '',
+      'keyPoints': <String>[],
+      'hasKeyPoints': false,
+    };
 
     if (content.contains('## 核心观点') || content.contains('核心观点')) {
       result['hasKeyPoints'] = true;

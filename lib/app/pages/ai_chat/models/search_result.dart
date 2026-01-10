@@ -51,8 +51,18 @@ class SearchResult {
     tags: tags,
   );
 
-  factory SearchResult.fromBook({required int id, required String title, String? summary, DateTime? createdAt}) =>
-      SearchResult(type: SearchResultType.book, id: id, title: title, summary: summary, createdAt: createdAt);
+  factory SearchResult.fromBook({
+    required int id,
+    required String title,
+    String? summary,
+    DateTime? createdAt,
+  }) => SearchResult(
+    type: SearchResultType.book,
+    id: id,
+    title: title,
+    summary: summary,
+    createdAt: createdAt,
+  );
 
   String get typeIcon => switch (type) {
     SearchResultType.article => '📄',

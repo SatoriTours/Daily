@@ -34,7 +34,10 @@ class AIChatController extends _$AIChatController {
       id: 'msg_${sessionId}_${++_messageCounter}',
       content: 'ai_chat.welcome_message'.t,
     );
-    return AIChatControllerState(sessionId: sessionId, messages: [welcomeMessage]);
+    return AIChatControllerState(
+      sessionId: sessionId,
+      messages: [welcomeMessage],
+    );
   }
 
   Future<void> sendMessage(String content) async {
@@ -80,11 +83,16 @@ class AIChatController extends _$AIChatController {
     );
   }
 
-  ChatMessage _createWelcomeMessage() =>
-      ChatMessage.assistant(id: _generateMessageId(), content: 'ai_chat.welcome_message'.t);
+  ChatMessage _createWelcomeMessage() => ChatMessage.assistant(
+    id: _generateMessageId(),
+    content: 'ai_chat.welcome_message'.t,
+  );
 
   void _addUserMessage(String content) {
-    final message = ChatMessage.user(id: _generateMessageId(), content: content);
+    final message = ChatMessage.user(
+      id: _generateMessageId(),
+      content: content,
+    );
     state = state.copyWith(messages: [...state.messages, message]);
   }
 
@@ -96,15 +104,24 @@ class AIChatController extends _$AIChatController {
 
   void _updateMessage(String messageId, String newContent) {
     state = state.copyWith(
-      messages: state.messages.map((msg) => msg.id == messageId ? msg.copyWith(content: newContent) : msg).toList(),
+      messages: state.messages
+          .map(
+            (msg) =>
+                msg.id == messageId ? msg.copyWith(content: newContent) : msg,
+          )
+          .toList(),
     );
   }
 
   void _markLastAssistantAsError() {
-    final index = state.messages.lastIndexWhere((msg) => msg.type == ChatMessageType.assistant);
+    final index = state.messages.lastIndexWhere(
+      (msg) => msg.type == ChatMessageType.assistant,
+    );
     if (index == -1) return;
     final updated = List<ChatMessage>.from(state.messages);
-    updated[index] = updated[index].copyWith(content: 'ai_chat.error_message'.t);
+    updated[index] = updated[index].copyWith(
+      content: 'ai_chat.error_message'.t,
+    );
     state = state.copyWith(messages: updated);
   }
 

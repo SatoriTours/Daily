@@ -19,7 +19,10 @@ class ArticleController {
 
     final authed = const Pipeline().addMiddleware(AuthMiddleware.requireAuth());
 
-    Future<Response> runAuthed(Request request, FutureOr<Response> Function(Request request) handler) async {
+    Future<Response> runAuthed(
+      Request request,
+      FutureOr<Response> Function(Request request) handler,
+    ) async {
       final h = authed.addHandler(handler);
       return await h(request);
     }
@@ -27,9 +30,18 @@ class ArticleController {
     router.get('/', authed.addHandler(_getArticles));
     router.get('/search', authed.addHandler(_searchArticles));
 
-    router.get('/<id>', (request, id) => runAuthed(request, (req) => _getArticle(req, id)));
-    router.put('/<id>', (request, id) => runAuthed(request, (req) => _updateArticle(req, id)));
-    router.delete('/<id>', (request, id) => runAuthed(request, (req) => _deleteArticle(req, id)));
+    router.get(
+      '/<id>',
+      (request, id) => runAuthed(request, (req) => _getArticle(req, id)),
+    );
+    router.put(
+      '/<id>',
+      (request, id) => runAuthed(request, (req) => _updateArticle(req, id)),
+    );
+    router.delete(
+      '/<id>',
+      (request, id) => runAuthed(request, (req) => _deleteArticle(req, id)),
+    );
 
     router.post('/', authed.addHandler(_createArticle));
     router.post('/fetch-webpage', authed.addHandler(_fetchWebpage));
@@ -41,7 +53,11 @@ class ArticleController {
     try {
       final page = _parsePage(request);
 
-      final articles = ArticleRepository.i.allModelsPaginated(page: page, orderBy: Article_.id, descending: true);
+      final articles = ArticleRepository.i.allModelsPaginated(
+        page: page,
+        orderBy: Article_.id,
+        descending: true,
+      );
       final totalItems = ArticleRepository.i.count();
       final totalPages = ArticleRepository.i.totalPages();
 
@@ -68,7 +84,10 @@ class ArticleController {
 
       if (query.isEmpty) return ResponseUtils.validationError('搜索关键词不能为空');
 
-      final articles = ArticleRepository.i.findArticlesPaginated(keyword: query, page: page);
+      final articles = ArticleRepository.i.findArticlesPaginated(
+        keyword: query,
+        page: page,
+      );
       final totalItems = ArticleRepository.i.getSearchCount(query);
       final totalPages = ArticleRepository.i.getSearchTotalPages(query);
 
@@ -108,7 +127,8 @@ class ArticleController {
       final url = body['url'] as String?;
       final comment = body['comment'] as String? ?? '';
 
-      if (url == null || url.isEmpty) return ResponseUtils.validationError('URL不能为空');
+      if (url == null || url.isEmpty)
+        return ResponseUtils.validationError('URL不能为空');
 
       logger.i('[WebService][Articles] 创建文章: $url');
 
@@ -195,16 +215,24 @@ class ArticleController {
 
   void _applyArticlePatch(ArticleModel article, Map<String, dynamic> body) {
     if (body.containsKey('title')) article.title = body['title'] as String?;
-    if (body.containsKey('content')) article.content = body['content'] as String?;
+    if (body.containsKey('content'))
+      article.content = body['content'] as String?;
     if (body.containsKey('url')) article.url = body['url'] as String?;
-    if (body.containsKey('isFavorite')) article.isFavorite = body['isFavorite'] as bool;
-    if (body.containsKey('comment')) article.comment = body['comment'] as String?;
-    if (body.containsKey('coverImage')) article.coverImage = body['coverImage'] as String?;
+    if (body.containsKey('isFavorite'))
+      article.isFavorite = body['isFavorite'] as bool;
+    if (body.containsKey('comment'))
+      article.comment = body['comment'] as String?;
+    if (body.containsKey('coverImage'))
+      article.coverImage = body['coverImage'] as String?;
   }
 
   Map<String, dynamic> _articleToJson(ArticleModel article) {
-    final content = MarkdownImageUtils.convertContentImages(article.showContent());
-    final aiMarkdown = MarkdownImageUtils.convertContentImages(article.aiMarkdownContent ?? '');
+    final content = MarkdownImageUtils.convertContentImages(
+      article.showContent(),
+    );
+    final aiMarkdown = MarkdownImageUtils.convertContentImages(
+      article.aiMarkdownContent ?? '',
+    );
 
     return {
       'id': article.id,
@@ -215,12 +243,16 @@ class ArticleController {
       'isFavorite': article.isFavorite,
       'comment': article.comment,
       'status': article.status.value,
-      'coverImage': FileService.i.convertLocalPathToWebPath(article.coverImage ?? ''),
+      'coverImage': FileService.i.convertLocalPathToWebPath(
+        article.coverImage ?? '',
+      ),
       'coverImageUrl': article.coverImageUrl,
       'pubDate': article.pubDate?.toIso8601String(),
       'updatedAt': article.updatedAt.toIso8601String(),
       'createdAt': article.createdAt.toIso8601String(),
-      'tags': article.tags.map((tag) => {'id': tag.id, 'name': tag.name}).toList(),
+      'tags': article.tags
+          .map((tag) => {'id': tag.id, 'name': tag.name})
+          .toList(),
     };
   }
 }

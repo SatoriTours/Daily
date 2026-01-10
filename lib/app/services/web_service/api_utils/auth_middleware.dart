@@ -24,7 +24,9 @@ class AuthMiddleware {
         }
 
         // 将会话信息添加到请求中
-        final updatedRequest = request.change(context: {'session_id': sessionId, 'isAuthenticated': true});
+        final updatedRequest = request.change(
+          context: {'session_id': sessionId, 'isAuthenticated': true},
+        );
 
         return await innerHandler(updatedRequest);
       };
@@ -33,7 +35,9 @@ class AuthMiddleware {
 
   /// 验证密码
   static bool verifyPassword(String password) {
-    final expectedPassword = SettingRepository.i.getSetting(SettingService.webServerPasswordKey);
+    final expectedPassword = SettingRepository.i.getSetting(
+      SettingService.webServerPasswordKey,
+    );
     return password == expectedPassword;
   }
 }

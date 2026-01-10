@@ -14,12 +14,19 @@ class MCPToolExecutor {
     try {
       return await _dispatchTool(toolName, _parseArguments(arguments));
     } catch (e, stackTrace) {
-      logger.e('[MCPToolExecutor] 工具执行失败: $toolName', error: e, stackTrace: stackTrace);
+      logger.e(
+        '[MCPToolExecutor] 工具执行失败: $toolName',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return _errorResponse('工具执行失败: $e');
     }
   }
 
-  Future<String> _dispatchTool(String toolName, Map<String, dynamic> params) async => switch (toolName) {
+  Future<String> _dispatchTool(
+    String toolName,
+    Map<String, dynamic> params,
+  ) async => switch (toolName) {
     'get_latest_diary' => _getLatestDiary(params),
     'get_diary_by_date' => _getDiaryByDate(params),
     'search_diary_by_content' => _searchDiary(params),
@@ -40,7 +47,9 @@ class MCPToolExecutor {
 
   // 日记工具
   String _getLatestDiary(Map<String, dynamic> params) {
-    final diaries = DiaryRepository.i.findAll().take(_intParam(params, 'limit', 5));
+    final diaries = DiaryRepository.i.findAll().take(
+      _intParam(params, 'limit', 5),
+    );
     return _successResponse({'diaries': diaries.map(_diaryToMap).toList()});
   }
 
@@ -51,7 +60,10 @@ class MCPToolExecutor {
     if (date == null) return _errorResponse('无效日期格式，请使用 YYYY-MM-DD');
     return _successResponse({
       'date': dateStr,
-      'diaries': DiaryRepository.i.findByCreatedDate(date).map(_diaryToMap).toList(),
+      'diaries': DiaryRepository.i
+          .findByCreatedDate(date)
+          .map(_diaryToMap)
+          .toList(),
     });
   }
 
@@ -59,22 +71,37 @@ class MCPToolExecutor {
     final keyword = params['keyword'] as String?;
     if (keyword == null) return _errorResponse('缺少参数: keyword');
     final limit = _intParam(params, 'limit', 20);
-    final results = _searchWithKeywords(keyword, (kw) => DiaryRepository.i.findByContent(kw, limit: 50), limit);
-    return _successResponse({'keyword': keyword, 'diaries': results.map(_diaryToMap).toList()});
+    final results = _searchWithKeywords(
+      keyword,
+      (kw) => DiaryRepository.i.findByContent(kw, limit: 50),
+      limit,
+    );
+    return _successResponse({
+      'keyword': keyword,
+      'diaries': results.map(_diaryToMap).toList(),
+    });
   }
 
   String _getDiaryByTag(Map<String, dynamic> params) {
     final tag = params['tag'] as String?;
     if (tag == null) return _errorResponse('缺少参数: tag');
-    final diaries = DiaryRepository.i.findByTag(tag).take(_intParam(params, 'limit', 10));
-    return _successResponse({'tag': tag, 'diaries': diaries.map(_diaryToMap).toList()});
+    final diaries = DiaryRepository.i
+        .findByTag(tag)
+        .take(_intParam(params, 'limit', 10));
+    return _successResponse({
+      'tag': tag,
+      'diaries': diaries.map(_diaryToMap).toList(),
+    });
   }
 
-  String _getDiaryCount() => _successResponse({'count': DiaryRepository.i.count()});
+  String _getDiaryCount() =>
+      _successResponse({'count': DiaryRepository.i.count()});
 
   // 文章工具
   String _getLatestArticles(Map<String, dynamic> params) {
-    final articles = ArticleRepository.i.findArticles(limit: _intParam(params, 'limit', 5));
+    final articles = ArticleRepository.i.findArticles(
+      limit: _intParam(params, 'limit', 5),
+    );
     return _successResponse({'articles': articles.map(_articleToMap).toList()});
   }
 
@@ -87,15 +114,22 @@ class MCPToolExecutor {
       (kw) => ArticleRepository.i.findArticles(keyword: kw, limit: 50),
       limit,
     );
-    return _successResponse({'keyword': keyword, 'articles': results.map(_articleToMap).toList()});
+    return _successResponse({
+      'keyword': keyword,
+      'articles': results.map(_articleToMap).toList(),
+    });
   }
 
   String _getFavoriteArticles(Map<String, dynamic> params) {
-    final articles = ArticleRepository.i.findArticles(isFavorite: true, limit: _intParam(params, 'limit', 10));
+    final articles = ArticleRepository.i.findArticles(
+      isFavorite: true,
+      limit: _intParam(params, 'limit', 10),
+    );
     return _successResponse({'articles': articles.map(_articleToMap).toList()});
   }
 
-  String _getArticleCount() => _successResponse({'count': ArticleRepository.i.count()});
+  String _getArticleCount() =>
+      _successResponse({'count': ArticleRepository.i.count()});
 
   // 书籍工具
   String _getLatestBooks(Map<String, dynamic> params) {
@@ -116,7 +150,10 @@ class MCPToolExecutor {
       ],
       limit,
     );
-    return _successResponse({'keyword': keyword, 'books': results.map(_bookToMap).toList()});
+    return _successResponse({
+      'keyword': keyword,
+      'books': results.map(_bookToMap).toList(),
+    });
   }
 
   String _getBookViewpoints(Map<String, dynamic> params) {
@@ -127,17 +164,24 @@ class MCPToolExecutor {
     final viewpoints = BookViewpointRepository.i.findByBookIds([bookId]);
     return _successResponse({
       'book': {'id': book.id, 'title': book.title, 'author': book.author},
-      'viewpoints': viewpoints.map((vp) => {'id': vp.id, 'title': vp.title, 'content': vp.content}).toList(),
+      'viewpoints': viewpoints
+          .map((vp) => {'id': vp.id, 'title': vp.title, 'content': vp.content})
+          .toList(),
     });
   }
 
-  String _getBookCount() => _successResponse({'count': BookRepository.i.count()});
+  String _getBookCount() =>
+      _successResponse({'count': BookRepository.i.count()});
 
   String _searchBookNotes(Map<String, dynamic> params) {
     final keyword = params['keyword'] as String?;
     if (keyword == null) return _errorResponse('缺少参数: keyword');
     final limit = _intParam(params, 'limit', 20);
-    final results = _searchWithKeywords(keyword, (kw) => BookViewpointRepository.i.findByContent(kw, limit: 50), limit);
+    final results = _searchWithKeywords(
+      keyword,
+      (kw) => BookViewpointRepository.i.findByContent(kw, limit: 50),
+      limit,
+    );
     final viewpointsWithBooks = results.map((vp) {
       final book = BookRepository.i.find(vp.bookId);
       return {
@@ -162,7 +206,11 @@ class MCPToolExecutor {
   });
 
   // 通用搜索逻辑
-  List<T> _searchWithKeywords<T>(String keyword, List<T> Function(String) searcher, int limit) {
+  List<T> _searchWithKeywords<T>(
+    String keyword,
+    List<T> Function(String) searcher,
+    int limit,
+  ) {
     final keywords = _parseKeywords(keyword);
     if (keywords.isEmpty) return [];
 
@@ -174,7 +222,8 @@ class MCPToolExecutor {
       }
     }
 
-    final results = resultMap.values.toList()..sort((a, b) => _getTime(b).compareTo(_getTime(a)));
+    final results = resultMap.values.toList()
+      ..sort((a, b) => _getTime(b).compareTo(_getTime(a)));
     return results.take(limit).toList();
   }
 
@@ -184,9 +233,11 @@ class MCPToolExecutor {
       .where((k) => k.isNotEmpty && (_containsChinese(k) || k.length >= 2))
       .toList();
 
-  bool _containsChinese(String text) => RegExp(r'[\u4e00-\u9fa5]').hasMatch(text);
+  bool _containsChinese(String text) =>
+      RegExp(r'[\u4e00-\u9fa5]').hasMatch(text);
   int _getId(dynamic item) => item.id as int;
-  int _getTime(dynamic item) => (item.createdAt as DateTime?)?.millisecondsSinceEpoch ?? 0;
+  int _getTime(dynamic item) =>
+      (item.createdAt as DateTime?)?.millisecondsSinceEpoch ?? 0;
 
   // 数据转换
   Map<String, dynamic> _diaryToMap(dynamic d) => {
@@ -233,15 +284,18 @@ class MCPToolExecutor {
     return defaultValue;
   }
 
-  String _formatDate(DateTime? dt) =>
-      dt == null ? '' : '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  String _formatDate(DateTime? dt) => dt == null
+      ? ''
+      : '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
 
-  String _truncate(String text, int max) => text.length <= max ? text : '${text.substring(0, max)}...';
+  String _truncate(String text, int max) =>
+      text.length <= max ? text : '${text.substring(0, max)}...';
 
   String _successResponse(Map<String, dynamic> data) =>
       jsonEncode({'success': true, 'count': _countItems(data), ...data});
 
-  String _errorResponse(String message) => jsonEncode({'success': false, 'error': message});
+  String _errorResponse(String message) =>
+      jsonEncode({'success': false, 'error': message});
 
   int _countItems(Map<String, dynamic> data) {
     for (final key in ['diaries', 'articles', 'books', 'viewpoints', 'notes']) {

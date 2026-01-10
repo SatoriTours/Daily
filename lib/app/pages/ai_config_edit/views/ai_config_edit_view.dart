@@ -1,6 +1,5 @@
 import 'package:go_router/go_router.dart';
 
-
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/pages/ai_config_edit/providers/ai_config_edit_controller_provider.dart';
 import 'package:daily_satori/app/pages/ai_config_edit/views/widgets/form_widgets.dart';
@@ -44,7 +43,9 @@ class _AIConfigEditViewState extends ConsumerState<AIConfigEditView> {
           _apiTokenController.text = config.apiToken;
           _modelNameController.text = config.modelName;
         } else if (functionType != null) {
-          ref.read(aIConfigEditControllerProvider.notifier).updateFunctionType(functionType);
+          ref
+              .read(aIConfigEditControllerProvider.notifier)
+              .updateFunctionType(functionType);
         }
       }
     });
@@ -67,7 +68,10 @@ class _AIConfigEditViewState extends ConsumerState<AIConfigEditView> {
     return Scaffold(
       backgroundColor: AppColors.getSurface(context),
       appBar: SAppBar(
-        title: Text(controller.pageTitle, style: const TextStyle(color: Colors.white)),
+        title: Text(
+          controller.pageTitle,
+          style: const TextStyle(color: Colors.white),
+        ),
         centerTitle: true,
         backgroundColorLight: AppColors.primary,
         backgroundColorDark: AppColors.backgroundDark,
@@ -82,10 +86,15 @@ class _AIConfigEditViewState extends ConsumerState<AIConfigEditView> {
                 context: context,
                 title: "配置名称",
                 icon: Icons.text_fields,
-                child: FormTextField(controller: _nameController, hintText: "输入配置名称", onChanged: controller.updateName),
+                child: FormTextField(
+                  controller: _nameController,
+                  hintText: "输入配置名称",
+                  onChanged: controller.updateName,
+                ),
               ),
 
-            if (controller.isSpecialConfig) _buildInheritOptionField(context, state, controller),
+            if (controller.isSpecialConfig)
+              _buildInheritOptionField(context, state, controller),
 
             _buildApiConfigFields(context, state, controller),
           ],
@@ -108,19 +117,28 @@ class _AIConfigEditViewState extends ConsumerState<AIConfigEditView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InkWell(
-            onTap: () => controller.setInheritFromGeneral(!state.inheritFromGeneral),
+            onTap: () =>
+                controller.setInheritFromGeneral(!state.inheritFromGeneral),
             borderRadius: BorderRadius.circular(Dimensions.radiusS),
             child: Container(
               padding: Dimensions.paddingS,
               decoration: BoxDecoration(
                 color: state.inheritFromGeneral
-                    ? AppColors.getPrimary(context).withValues(alpha: Opacities.extraLow)
-                    : AppColors.getSurfaceContainerHighest(context).withValues(alpha: Opacities.extraLow),
+                    ? AppColors.getPrimary(
+                        context,
+                      ).withValues(alpha: Opacities.extraLow)
+                    : AppColors.getSurfaceContainerHighest(
+                        context,
+                      ).withValues(alpha: Opacities.extraLow),
                 borderRadius: BorderRadius.circular(Dimensions.radiusS),
                 border: Border.all(
                   color: state.inheritFromGeneral
-                      ? AppColors.getPrimary(context).withValues(alpha: Opacities.low)
-                      : AppColors.getOutline(context).withValues(alpha: Opacities.medium),
+                      ? AppColors.getPrimary(
+                          context,
+                        ).withValues(alpha: Opacities.low)
+                      : AppColors.getOutline(
+                          context,
+                        ).withValues(alpha: Opacities.medium),
                   width: 1,
                 ),
               ),
@@ -131,7 +149,9 @@ class _AIConfigEditViewState extends ConsumerState<AIConfigEditView> {
                     size: Dimensions.iconSizeS,
                     color: state.inheritFromGeneral
                         ? AppColors.getPrimary(context)
-                        : AppColors.getOnSurface(context).withValues(alpha: Opacities.medium),
+                        : AppColors.getOnSurface(
+                            context,
+                          ).withValues(alpha: Opacities.medium),
                   ),
                   Dimensions.horizontalSpacerS,
                   Expanded(
@@ -146,7 +166,11 @@ class _AIConfigEditViewState extends ConsumerState<AIConfigEditView> {
                     ),
                   ),
                   if (state.inheritFromGeneral)
-                    Icon(Icons.check, size: Dimensions.iconSizeS, color: AppColors.getPrimary(context)),
+                    Icon(
+                      Icons.check,
+                      size: Dimensions.iconSizeS,
+                      color: AppColors.getPrimary(context),
+                    ),
                 ],
               ),
             ),
@@ -156,7 +180,9 @@ class _AIConfigEditViewState extends ConsumerState<AIConfigEditView> {
             padding: const EdgeInsets.only(left: Dimensions.spacingS),
             child: Text(
               state.inheritFromGeneral ? '将使用通用配置的AI设置' : '可以为此功能设置独立的AI配置',
-              style: AppTypography.bodySmall.copyWith(color: AppColors.getOnSurface(context)),
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.getOnSurface(context),
+              ),
             ),
           ),
         ],
@@ -268,7 +294,12 @@ class _AIConfigEditViewState extends ConsumerState<AIConfigEditView> {
       decoration: BoxDecoration(
         color: AppColors.getSurface(context),
         border: Border(
-          top: BorderSide(color: AppColors.getOutline(context).withValues(alpha: Opacities.extraLow), width: 1),
+          top: BorderSide(
+            color: AppColors.getOutline(
+              context,
+            ).withValues(alpha: Opacities.extraLow),
+            width: 1,
+          ),
         ),
       ),
       child: SafeArea(
@@ -291,12 +322,17 @@ class _AIConfigEditViewState extends ConsumerState<AIConfigEditView> {
             Dimensions.horizontalSpacerM,
             Expanded(
               child: ElevatedButton(
-                onPressed: controller.isFormValid && !state.isSaving ? () => controller.saveConfig() : null,
+                onPressed: controller.isFormValid && !state.isSaving
+                    ? () => controller.saveConfig()
+                    : null,
                 child: state.isSaving
                     ? const SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Text('保存'),
               ),

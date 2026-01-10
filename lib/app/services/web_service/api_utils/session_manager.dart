@@ -16,11 +16,17 @@ class Session {
   DateTime _lastAccessTime;
 
   // 构造函数，用于创建新会话
-  Session(this.id) : _creationTime = DateTime.now(), _lastAccessTime = DateTime.now();
+  Session(this.id)
+    : _creationTime = DateTime.now(),
+      _lastAccessTime = DateTime.now();
 
   /// 从SessionModel创建会话
   factory Session.fromModel(SessionModel model) {
-    final session = Session._fromEntity(model.sessionId, model.createdAt, model.lastAccessedAt);
+    final session = Session._fromEntity(
+      model.sessionId,
+      model.createdAt,
+      model.lastAccessedAt,
+    );
     session.isAuthenticated = model.isAuthenticated;
     session.username = model.username;
     return session;
@@ -132,7 +138,12 @@ class SessionManager {
 
   /// 创建带会话的响应
   static Response createSessionResponse(Response response, Session session) {
-    return response.change(headers: {'Set-Cookie': 'session_id=${session.id}; HttpOnly; Path=/; SameSite=Strict'});
+    return response.change(
+      headers: {
+        'Set-Cookie':
+            'session_id=${session.id}; HttpOnly; Path=/; SameSite=Strict',
+      },
+    );
   }
 
   /// 生成会话ID

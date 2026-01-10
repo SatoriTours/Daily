@@ -43,7 +43,11 @@ class FeatureIcon extends StatelessWidget {
         color: iconColor.withValues(alpha: backgroundOpacity),
         borderRadius: BorderRadius.circular(borderRadius ?? Dimensions.radiusS),
       ),
-      child: Icon(icon, color: iconColor, size: iconSize ?? Dimensions.iconSizeM),
+      child: Icon(
+        icon,
+        color: iconColor,
+        size: iconSize ?? Dimensions.iconSizeM,
+      ),
     );
   }
 }

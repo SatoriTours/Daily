@@ -12,7 +12,10 @@ class DiaryTimestamp extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       _formatDateTime(timestamp),
-      style: TextStyle(fontSize: 11, color: DiaryStyles.getSecondaryTextColor(context)),
+      style: TextStyle(
+        fontSize: 11,
+        color: DiaryStyles.getSecondaryTextColor(context),
+      ),
     );
   }
 

@@ -46,5 +46,6 @@ class MigrationCounter {
   int skippedCount = 0; // 跳过数量
 
   // 计算总处理数量
-  int get totalProcessed => migratedCount + errorCount + noImageCount + skippedCount;
+  int get totalProcessed =>
+      migratedCount + errorCount + noImageCount + skippedCount;
 }

@@ -83,17 +83,18 @@ class SearchTextField extends StatelessWidget {
       margin: margin ?? const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: TextField(
         controller: controller,
-        decoration: InputStyles.getSearchDecoration(context, hintText: hintText).copyWith(
-          suffixIcon: controller.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    controller.clear();
-                    onClear?.call();
-                  },
-                )
-              : null,
-        ),
+        decoration: InputStyles.getSearchDecoration(context, hintText: hintText)
+            .copyWith(
+              suffixIcon: controller.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        controller.clear();
+                        onClear?.call();
+                      },
+                    )
+                  : null,
+            ),
         onSubmitted: onSubmitted,
       ),
     );

@@ -80,7 +80,10 @@ class ImageMigrationTask extends MigrationTask {
   }
 
   /// 处理单个文章的封面图迁移
-  Future<void> _processSingleArticle(ArticleModel article, MigrationCounter counter) async {
+  Future<void> _processSingleArticle(
+    ArticleModel article,
+    MigrationCounter counter,
+  ) async {
     final entity = article.entity;
 
     // 如果已经有封面图，则跳过
@@ -108,7 +111,10 @@ class ImageMigrationTask extends MigrationTask {
   }
 
   /// 处理文章额外的图片（第一张保留作为封面图，其余删除）
-  Future<void> _processExtraImages(List<db_image.Image> images, Article article) async {
+  Future<void> _processExtraImages(
+    List<db_image.Image> images,
+    Article article,
+  ) async {
     // 删除除了第一张之外的图片
     if (images.length > 1) {
       for (final image in images.sublist(1)) {
@@ -143,7 +149,9 @@ class ImageMigrationTask extends MigrationTask {
   /// 检查文件是否被用作封面图
   Future<bool> _isUsedAsCoverImage(String filePath) async {
     final articleBox = ObjectboxService.i.box<Article>();
-    final query = articleBox.query(Article_.coverImage.equals(filePath)).build();
+    final query = articleBox
+        .query(Article_.coverImage.equals(filePath))
+        .build();
     try {
       return query.count() > 0;
     } finally {

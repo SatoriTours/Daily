@@ -40,8 +40,12 @@ class BookModel extends EntityModel<Book> {
       coverImage: json['coverImage'] as String? ?? '',
       introduction: json['introduction'] as String? ?? '',
       hasUpdate: json['hasUpdate'] as bool? ?? false,
-      createAt: json['createAt'] != null ? DateTime.parse(json['createAt'] as String) : null,
-      updateAt: json['updateAt'] != null ? DateTime.parse(json['updateAt'] as String) : null,
+      createAt: json['createAt'] != null
+          ? DateTime.parse(json['createAt'] as String)
+          : null,
+      updateAt: json['updateAt'] != null
+          ? DateTime.parse(json['updateAt'] as String)
+          : null,
     );
   }
 

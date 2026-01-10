@@ -54,7 +54,11 @@ class BookSearchController extends _$BookSearchController {
       return;
     }
 
-    state = state.copyWith(isSearching: true, errorMessage: '', searchKeyword: keyword);
+    state = state.copyWith(
+      isSearching: true,
+      errorMessage: '',
+      searchKeyword: keyword,
+    );
     try {
       // 使用 BookRepository 进行在线搜索
       final results = await BookRepository.i.searchBooks(keyword);
@@ -68,7 +72,11 @@ class BookSearchController extends _$BookSearchController {
 
   /// 清空搜索结果
   void clearSearch() {
-    state = state.copyWith(searchResults: [], searchKeyword: '', errorMessage: '');
+    state = state.copyWith(
+      searchResults: [],
+      searchKeyword: '',
+      errorMessage: '',
+    );
   }
 
   /// 选择书籍并添加到本地，然后返回读书页
