@@ -1,7 +1,5 @@
 /**
  * Markdown Styles
- *
- * Markdown 内容渲染样式覆盖
  */
 
 .markdown-body {
@@ -10,55 +8,11 @@
     color: #24292f;
 }
 
-.markdown-body h1 {
-    font-size: 1.4em;
-    border-bottom: 1px solid #eaecef;
-    padding-bottom: 0.3em;
-    margin-top: 24px;
-    margin-bottom: 16px;
-}
-
-.markdown-body h2 {
-    font-size: 1.25em;
-    border-bottom: 1px solid #eaecef;
-    padding-bottom: 0.3em;
-    margin-top: 24px;
-    margin-bottom: 16px;
-}
-
-.markdown-body h3 {
-    font-size: 1.1em;
-    margin-top: 20px;
-    margin-bottom: 12px;
-}
-
-.markdown-body p {
-    margin-bottom: 16px;
-}
-
-.markdown-body img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 8px;
-}
-
-.markdown-body pre {
-    background: #f6f8fa;
-    padding: 16px;
-    border-radius: 8px;
-    overflow-x: auto;
-}
-
-.markdown-body code {
-    background: #f0f0f0;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 14px;
-}
-
-.markdown-body blockquote {
-    border-left: 4px solid var(--primary-color);
-    padding-left: 16px;
-    color: #666;
-    margin: 16px 0;
-}
+.markdown-body h1 { font-size: 1.4em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; margin: 24px 0 16px; }
+.markdown-body h2 { font-size: 1.25em; border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; margin: 24px 0 16px; }
+.markdown-body h3 { font-size: 1.1em; margin: 20px 0 12px; }
+.markdown-body p { margin-bottom: 16px; }
+.markdown-body img { max-width: 100%; height: auto; border-radius: 8px; }
+.markdown-body pre { background: #f6f8fa; padding: 16px; border-radius: 8px; overflow-x: auto; }
+.markdown-body code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+.markdown-body blockquote { border-left: 4px solid var(--primary-color); padding-left: 16px; color: #666; margin: 16px 0; }
