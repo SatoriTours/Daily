@@ -26,11 +26,11 @@ void main() {
 
   group('AppService', () {
     test(
-      'should have default serviceName from class name (removes Service suffix)',
+      'should have default serviceName from class name',
       () {
         final service = TestService();
-        // 去掉 Service 后缀，TestService -> Test
-        expect(service.serviceName, equals('Test'));
+        // 默认取类名
+        expect(service.serviceName, equals('TestService'));
       },
     );
 
