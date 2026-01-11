@@ -2,7 +2,7 @@
  * Base Styles - CSS Variables, Reset & Utilities
  */
 
-/* CSS Variables */
+/* CSS Variables - Light Mode (Default) */
 :root {
     --primary-color: #6366f1;
     --primary-light: #818cf8;
@@ -14,9 +14,10 @@
     --danger-color: #ef4444;
     --sidebar-width: 240px;
     --header-height: 60px;
-    --bg-primary: #1a1a2e;
-    --bg-secondary: #16213e;
+    --bg-primary: #f8fafc;
+    --bg-secondary: #f1f5f9;
     --bg-card: #ffffff;
+    --bg-hover: #f1f5f9;
     --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --text-primary: #1e293b;
     --text-secondary: #64748b;
@@ -30,6 +31,70 @@
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 24px;
+    --scrollbar-track: #f1f5f9;
+    --scrollbar-thumb: #cbd5e1;
+    --scrollbar-thumb-hover: #94a3b8;
+    --modal-backdrop: rgba(15, 23, 42, 0.5);
+    --input-bg: #ffffff;
+    --table-header-bg: #f8fafc;
+    --table-row-hover: #f8fafc;
+    --gradient-fade: linear-gradient(to bottom, transparent, #ffffff);
+}
+
+/* CSS Variables - Dark Mode */
+[data-theme="dark"] {
+    --primary-color: #818cf8;
+    --primary-light: #a5b4fc;
+    --primary-dark: #6366f1;
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-card: #1e293b;
+    --bg-hover: #334155;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --border-color: #334155;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.5);
+    --scrollbar-track: #1e293b;
+    --scrollbar-thumb: #475569;
+    --scrollbar-thumb-hover: #64748b;
+    --modal-backdrop: rgba(0, 0, 0, 0.7);
+    --input-bg: #0f172a;
+    --table-header-bg: #1e293b;
+    --table-row-hover: #334155;
+    --gradient-fade: linear-gradient(to bottom, transparent, #1e293b);
+}
+
+/* Auto Dark Mode based on system preference */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --primary-color: #818cf8;
+        --primary-light: #a5b4fc;
+        --primary-dark: #6366f1;
+        --bg-primary: #0f172a;
+        --bg-secondary: #1e293b;
+        --bg-card: #1e293b;
+        --bg-hover: #334155;
+        --text-primary: #f1f5f9;
+        --text-secondary: #94a3b8;
+        --text-muted: #64748b;
+        --border-color: #334155;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+        --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+        --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.5);
+        --scrollbar-track: #1e293b;
+        --scrollbar-thumb: #475569;
+        --scrollbar-thumb-hover: #64748b;
+        --modal-backdrop: rgba(0, 0, 0, 0.7);
+        --input-bg: #0f172a;
+        --table-header-bg: #1e293b;
+        --table-row-hover: #334155;
+        --gradient-fade: linear-gradient(to bottom, transparent, #1e293b);
+    }
 }
 
 /* Reset */
@@ -37,20 +102,21 @@
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #f8fafc;
+    background: var(--bg-primary);
     min-height: 100vh;
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
 /* Selection */
-::selection { background: rgba(99, 102, 241, 0.2); color: var(--primary-color); }
+::selection { background: rgba(99, 102, 241, 0.3); color: var(--primary-color); }
 
 /* Utilities */
 .mt-8 { margin-top: 8px; }
@@ -65,3 +131,37 @@ body {
 .flex { display: flex; }
 .flex-shrink-0 { flex-shrink: 0; }
 .flex-1 { flex: 1; }
+
+/* Theme Toggle Button */
+.theme-toggle {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 18px;
+}
+
+.theme-toggle:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* Theme icon states */
+.theme-toggle .bi-sun-fill { display: none; }
+.theme-toggle .bi-moon-fill { display: inline-block; }
+
+[data-theme="dark"] .theme-toggle .bi-sun-fill { display: inline-block; }
+[data-theme="dark"] .theme-toggle .bi-moon-fill { display: none; }
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .theme-toggle .bi-sun-fill { display: inline-block; }
+    :root:not([data-theme="light"]) .theme-toggle .bi-moon-fill { display: none; }
+}

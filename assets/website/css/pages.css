@@ -9,11 +9,9 @@
  * - 周报卡片
  */
 
-/* ========================================================================
-   Weekly Report Card
-   ======================================================================== */
+/* Weekly Report Card */
 .weekly-report-card {
-    background: #ffffff;
+    background: var(--bg-card);
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
     margin-bottom: 16px;
@@ -25,7 +23,7 @@
 
 .weekly-report-header {
     padding: 12px 20px;
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
@@ -60,7 +58,7 @@
     font-size: 12px;
     font-weight: 500;
     color: var(--text-secondary);
-    background: #ffffff;
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 16px;
     cursor: pointer;
@@ -72,18 +70,18 @@
 }
 
 .weekly-report-tab:hover {
-    background: #f1f5f9;
+    background: var(--bg-hover);
     color: var(--text-primary);
 }
 
 .weekly-report-tab.active {
-    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    background: var(--primary-color);
     color: #ffffff;
     border-color: transparent;
 }
 
 .weekly-report-tab.active:hover {
-    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    background: var(--primary-dark);
 }
 
 .weekly-report-tab i {
@@ -135,9 +133,7 @@
     color: #cbd5e1;
 }
 
-/* ========================================================================
-   Article Feed
-   ======================================================================== */
+/* Article Feed */
 .article-feed {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -148,7 +144,7 @@
 .article-card {
     display: flex;
     flex-direction: column;
-    background: #ffffff;
+    background: var(--bg-card);
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
     overflow: hidden;
@@ -157,7 +153,7 @@
 }
 
 .article-card:hover {
-    border-color: #cbd5e1;
+    border-color: var(--primary-color);
     box-shadow: var(--shadow-md);
 }
 
@@ -166,7 +162,7 @@
     height: 160px;
     overflow: hidden;
     flex-shrink: 0;
-    background: #f1f5f9;
+    background: var(--bg-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -234,7 +230,7 @@
     font-size: 12px;
     color: var(--text-muted);
     padding-top: 12px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--border-color);
 }
 
 .article-meta {
@@ -321,13 +317,11 @@
     }
 }
 
-/* ========================================================================
-   Diary Cards
-   ======================================================================== */
+/* Diary Cards */
 .diary-card {
     display: flex;
     flex-direction: column;
-    background: #ffffff;
+    background: var(--bg-card);
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
     overflow: hidden;
@@ -336,7 +330,7 @@
 }
 
 .diary-card:hover {
-    border-color: #cbd5e1;
+    border-color: var(--primary-color);
     box-shadow: var(--shadow-md);
 }
 
@@ -360,7 +354,7 @@
     left: 0;
     right: 0;
     height: 24px;
-    background: linear-gradient(to bottom, transparent, #ffffff);
+    background: var(--gradient-fade);
     pointer-events: none;
 }
 
@@ -375,7 +369,7 @@
     font-size: 12px;
     color: var(--text-muted);
     padding-top: 12px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--border-color);
 }
 
 .diary-meta {
@@ -416,7 +410,7 @@
     width: 60px;
     height: 60px;
     border-radius: 8px;
-    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    background: var(--bg-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -515,7 +509,7 @@
     height: 28px;
     border-radius: 6px;
     border: 1px solid var(--border-color);
-    background: #ffffff;
+    background: var(--bg-card);
     color: var(--text-secondary);
     cursor: pointer;
     display: flex;
@@ -525,15 +519,15 @@
 }
 
 .books-sidebar-actions .icon-btn:hover {
-    background: #f1f5f9;
-    border-color: #cbd5e1;
+    background: var(--bg-hover);
+    border-color: var(--primary-color);
     color: var(--text-primary);
 }
 
 .books-sidebar-count {
     font-size: 11px;
     color: var(--text-muted);
-    background: #f1f5f9;
+    background: var(--bg-secondary);
     padding: 2px 8px;
     border-radius: 10px;
 }
@@ -553,7 +547,7 @@
     align-items: center;
     gap: 10px;
     padding: 10px 12px;
-    background: #ffffff;
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     cursor: pointer;
@@ -561,13 +555,14 @@
 }
 
 .book-tab-item:hover {
-    background: #f8fafc;
-    border-color: #cbd5e1;
+    background: var(--bg-hover);
+    border-color: var(--primary-color);
 }
 
 .book-tab-item.active {
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border-color: #93c5fd;
+    background: var(--bg-hover);
+    border-color: var(--primary-color);
+    border-left: 3px solid var(--primary-color);
 }
 
 .book-tab-icon {
@@ -575,7 +570,7 @@
     height: 32px;
     border-radius: 8px;
     flex-shrink: 0;
-    background: #f1f5f9;
+    background: var(--bg-secondary);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -584,8 +579,8 @@
 }
 
 .book-tab-item.active .book-tab-icon {
-    background: #dbeafe;
-    color: #3b82f6;
+    background: var(--primary-color);
+    color: white;
 }
 
 .book-tab-info {
@@ -628,7 +623,7 @@
 
 /* Book Detail Card */
 .book-detail-card {
-    background: #ffffff;
+    background: var(--bg-card);
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
     overflow: hidden;
@@ -637,7 +632,7 @@
 /* Compact Book Header */
 .book-detail-header-compact {
     padding: 16px 20px;
-    background: linear-gradient(180deg, #fafbfc 0%, #ffffff 100%);
+    background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -726,7 +721,7 @@
 .viewpoints-count {
     font-size: 12px;
     color: var(--text-muted);
-    background: #f1f5f9;
+    background: var(--bg-secondary);
     padding: 4px 10px;
     border-radius: 12px;
 }
@@ -739,7 +734,7 @@
 
 /* Viewpoint Accordion */
 .viewpoint-accordion {
-    background: #ffffff;
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     overflow: hidden;
@@ -747,12 +742,12 @@
 }
 
 .viewpoint-accordion:hover {
-    border-color: #cbd5e1;
+    border-color: var(--primary-color);
 }
 
 .viewpoint-accordion.is-expanded {
-    border-color: #3b82f6;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
 }
 
 .viewpoint-accordion-header {
@@ -762,17 +757,17 @@
     padding: 14px 16px;
     cursor: pointer;
     user-select: none;
-    background: #fafbfc;
+    background: var(--bg-secondary);
     transition: background 0.2s;
 }
 
 .viewpoint-accordion-header:hover {
-    background: #f1f5f9;
+    background: var(--bg-hover);
 }
 
 .viewpoint-accordion.is-expanded .viewpoint-accordion-header {
-    background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
-    border-bottom: 1px solid #e2e8f0;
+    background: var(--bg-hover);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .viewpoint-accordion-title {
@@ -801,7 +796,7 @@
 
 .viewpoint-accordion-body {
     padding: 16px 20px;
-    background: #ffffff;
+    background: var(--bg-card);
 }
 
 .viewpoint-content {
@@ -822,9 +817,9 @@
 .viewpoint-example-section {
     margin-top: 16px;
     padding: 16px;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: var(--bg-secondary);
     border-radius: var(--radius-sm);
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-color);
 }
 
 .viewpoint-example-label {
@@ -857,7 +852,7 @@
     text-align: center;
     padding: 80px 20px;
     color: var(--text-muted);
-    background: #ffffff;
+    background: var(--bg-card);
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
 }
@@ -944,9 +939,7 @@
     }
 }
 
-/* ========================================================================
-   Detail Modal
-   ======================================================================== */
+/* Detail Modal */
 .detail-modal {
     width: 90%;
     max-width: 800px;
@@ -958,7 +951,7 @@
 
 .detail-modal .modal-header {
     flex-shrink: 0;
-    background: #fafbfc;
+    background: var(--bg-secondary);
     border-radius: 16px 16px 0 0;
 }
 
@@ -966,6 +959,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 0;
+    overscroll-behavior: contain;
 }
 
 .detail-modal-content {
@@ -996,7 +990,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #f5f5f5;
+    background: var(--bg-secondary);
     padding: 6px 12px;
     border-radius: 6px;
 }
@@ -1023,7 +1017,7 @@
 .detail-modal .modal-footer {
     flex-shrink: 0;
     justify-content: space-between;
-    background: #fafbfc;
+    background: var(--bg-secondary);
     border-radius: 0 0 16px 16px;
     padding: 16px 24px;
 }
@@ -1066,12 +1060,12 @@
 }
 
 .book-detail-author {
-    color: #666;
+    color: var(--text-secondary);
     margin-bottom: 8px;
 }
 
 .book-detail-publisher {
-    color: #888;
+    color: var(--text-muted);
     font-size: 14px;
     margin-bottom: 8px;
 }
@@ -1084,12 +1078,12 @@
     font-size: 16px;
     font-weight: 600;
     margin-bottom: 12px;
-    color: #333;
+    color: var(--text-primary);
 }
 
 .book-description p {
     line-height: 1.8;
-    color: #555;
+    color: var(--text-secondary);
 }
 
 /* ========================================================================
@@ -1149,9 +1143,7 @@
     transform: translateX(-4px);
 }
 
-/* ========================================================================
-   Connection Status
-   ======================================================================== */
+/* Connection Status */
 .connection-status {
     display: flex;
     align-items: center;
@@ -1163,11 +1155,11 @@
 }
 
 .connection-status.connected {
-    background: #ecfdf5;
-    color: #059669;
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success-color);
 }
 
 .connection-status.disconnected {
-    background: #fef2f2;
-    color: #dc2626;
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger-color);
 }

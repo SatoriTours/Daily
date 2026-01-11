@@ -75,6 +75,10 @@
                 <header class="main-header">
                     <h1>{{ pageTitle }}</h1>
                     <div class="header-actions">
+                        <button class="theme-toggle" @click="toggleTheme" :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'">
+                            <i class="bi bi-sun-fill"></i>
+                            <i class="bi bi-moon-fill"></i>
+                        </button>
                         <span class="connection-status" :class="isConnected ? 'connected' : 'disconnected'">
                             <i class="bi" :class="isConnected ? 'bi-wifi' : 'bi-wifi-off'"></i>
                             {{ isConnected ? '已连接' : '未连接' }}
@@ -435,7 +439,7 @@
                             <span v-if="detailItem.isFavorite"><i class="bi bi-star-fill icon-favorite"></i> 已收藏</span>
                             <span v-if="detailItem.url"><i class="bi bi-link-45deg"></i><a :href="detailItem.url" target="_blank">查看原文</a></span>
                         </div>
-                        <div class="detail-modal-body markdown-body" v-html="formatContent(detailItem.content || detailItem.aiContent || '')"></div>
+                        <div class="detail-modal-body markdown-body" v-html="formatContent(detailItem.content || detailItem.aiMarkdownContent || '')"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -513,10 +517,6 @@
                         <div class="form-group">
                             <label for="diary-tags-input">标签（可选）</label>
                             <input id="diary-tags-input" type="text" v-model="diaryTags" placeholder="多个标签用逗号分隔，如: 生活, 思考, 学习">
-                        </div>
-                        <div class="form-group">
-                            <label for="diary-mood-input">心情（可选）</label>
-                            <input id="diary-mood-input" type="text" v-model="diaryMood" placeholder="如: 开心、平静、忙碌">
                         </div>
                     </div>
                     <div class="modal-footer">

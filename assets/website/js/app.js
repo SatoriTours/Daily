@@ -3,7 +3,7 @@
  * Vue 3 Composition API + Marked.js
  */
 
-const { createApp, ref, computed, onMounted } = Vue;
+const { createApp, ref, computed, onMounted, watch } = Vue;
 
 // ============================================================================
 // 工具函数
@@ -42,6 +42,32 @@ const formatWeekTabLabel = (start, end, index) => {
     return `${d.getMonth() + 1}/${d.getDate()}-${new Date(end).getDate()}`;
 };
 
+// 主题管理
+const getSystemTheme = () => window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+const getSavedTheme = () => localStorage.getItem('theme');
+const saveTheme = (theme) => localStorage.setItem('theme', theme);
+
+const applyTheme = (theme) => {
+    if (theme === 'system') {
+        document.documentElement.removeAttribute('data-theme');
+    } else {
+        document.documentElement.setAttribute('data-theme', theme);
+    }
+};
+
+const initTheme = () => {
+    const saved = getSavedTheme();
+    if (saved && saved !== 'system') {
+        applyTheme(saved);
+        return saved === 'dark';
+    }
+    return getSystemTheme() === 'dark';
+};
+
+// 弹窗滚动控制
+const lockBodyScroll = () => document.body.classList.add('modal-open');
+const unlockBodyScroll = () => document.body.classList.remove('modal-open');
+
 // ============================================================================
 // API 客户端
 // ============================================================================
@@ -73,7 +99,15 @@ createApp({
         const isConnected = ref(true);
         const loading = ref(false);
         const toasts = ref([]);
+        const isDarkMode = ref(initTheme());
         let connectionCheckInterval = null;
+
+        const toggleTheme = () => {
+            isDarkMode.value = !isDarkMode.value;
+            const newTheme = isDarkMode.value ? 'dark' : 'light';
+            applyTheme(newTheme);
+            saveTheme(newTheme);
+        };
 
         const showToast = (message, type = 'success') => {
             const id = Date.now();
@@ -399,6 +433,15 @@ createApp({
         const showDiaryDetailModal = ref(false);
         const showBookDetailModal = ref(false);
 
+        // 监听弹窗状态控制滚动
+        watch([showDetailModal, showDiaryDetailModal, showBookDetailModal, () => showDiaryEditorModal.value, () => showSubmitModal.value, () => showDeleteModal.value, () => showAddBookModal.value], () => {
+            if (showDetailModal.value || showDiaryDetailModal.value || showBookDetailModal.value || showDiaryEditorModal.value || showSubmitModal.value || showDeleteModal.value || showAddBookModal.value) {
+                lockBodyScroll();
+            } else {
+                unlockBodyScroll();
+            }
+        });
+
         const viewArticle = async (article) => {
             showDetailModal.value = true;
             detailLoading.value = true;
@@ -492,7 +535,7 @@ createApp({
 
         // 导出
         return {
-            isLoggedIn, isConnected, password, loading, loginError,
+            isLoggedIn, isConnected, password, loading, loginError, isDarkMode, toggleTheme,
             currentPage, sidebarOpen, pageTitle, toasts,
             stats, recentItems, recentLoading, recentActivityExpanded,
             weeklyReports, currentWeeklyReportIndex, currentWeeklyReport, weeklyReportLoading,

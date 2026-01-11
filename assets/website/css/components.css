@@ -13,13 +13,11 @@
  * - 标签/徽章
  */
 
-/* ========================================================================
-   Buttons
-   ======================================================================== */
+/* Buttons */
 .btn {
-    padding: 10px 20px;
+    padding: 8px 16px;
     border-radius: var(--radius-sm);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     border: none;
@@ -40,24 +38,25 @@
 
 .btn-block {
     width: 100%;
+    justify-content: center;
 }
 
 .btn-danger {
-    background: #c62828;
+    background: var(--danger-color);
     color: white;
 }
 
 .btn-danger:hover {
-    background: #b71c1c;
+    background: #b91c1c;
 }
 
 .btn-secondary {
-    background: #f1f5f9;
+    background: var(--bg-secondary);
     color: var(--text-secondary);
 }
 
 .btn-secondary:hover {
-    background: #e2e8f0;
+    background: var(--bg-hover);
     color: var(--text-primary);
 }
 
@@ -77,12 +76,12 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 10px 16px;
+    padding: 8px 14px;
     background: var(--primary-color);
     color: white;
     border: none;
     border-radius: var(--radius-sm);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
@@ -97,7 +96,7 @@
     height: 36px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    background: #ffffff;
+    background: var(--bg-card);
     color: var(--text-secondary);
     cursor: pointer;
     display: flex;
@@ -108,8 +107,8 @@
 }
 
 .icon-btn:hover {
-    background: #f1f5f9;
-    border-color: #cbd5e1;
+    background: var(--bg-hover);
+    border-color: var(--primary-color);
     color: var(--primary-color);
 }
 
@@ -173,7 +172,8 @@
     border-radius: var(--radius-sm);
     font-size: 14px;
     transition: all 0.2s;
-    background: #ffffff;
+    background: var(--input-bg);
+    color: var(--text-primary);
 }
 
 .form-group textarea {
@@ -185,7 +185,7 @@
 .form-group textarea:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
 .form-hint {
@@ -198,26 +198,33 @@
 .search-box {
     display: flex;
     gap: 8px;
+    align-items: center;
 }
 
 .search-box input {
-    padding: 10px 16px;
+    padding: 8px 14px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
-    font-size: 14px;
-    width: 240px;
-    background: #ffffff;
+    font-size: 13px;
+    width: 200px;
+    background: var(--input-bg);
+    color: var(--text-primary);
     transition: all 0.2s;
 }
 
 .search-box input:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
 .search-box input::placeholder {
     color: var(--text-muted);
+}
+
+.search-box .btn {
+    padding: 8px 14px;
+    font-size: 13px;
 }
 
 .header-actions-right {
@@ -226,15 +233,13 @@
     gap: 12px;
 }
 
-/* ========================================================================
-   Tables
-   ======================================================================== */
+/* Tables */
 .data-table {
     width: 100%;
 }
 
 .data-table th {
-    background: #f8fafc;
+    background: var(--table-header-bg);
     padding: 12px 16px;
     text-align: left;
     font-weight: 600;
@@ -252,7 +257,7 @@
 }
 
 .data-table tr:hover td {
-    background: #f8fafc;
+    background: var(--table-row-hover);
 }
 
 .data-table .title-cell {
@@ -263,11 +268,9 @@
     font-weight: 500;
 }
 
-/* ========================================================================
-   Data Cards
-   ======================================================================== */
+/* Data Cards */
 .data-card {
-    background: #ffffff;
+    background: var(--bg-card);
     border-radius: var(--radius-md);
     overflow: hidden;
     border: 1px solid var(--border-color);
@@ -281,7 +284,7 @@
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 12px;
-    background: #fafbfc;
+    background: var(--bg-secondary);
 }
 
 .data-card-header h3 {
@@ -291,9 +294,7 @@
     color: var(--text-primary);
 }
 
-/* ========================================================================
-   Stats Cards
-   ======================================================================== */
+/* Stats Cards */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -302,7 +303,7 @@
 }
 
 .stat-card {
-    background: #ffffff;
+    background: var(--bg-card);
     border-radius: var(--radius-sm);
     padding: 14px 16px;
     border: 1px solid var(--border-color);
@@ -314,7 +315,7 @@
 
 .stat-card:hover {
     box-shadow: var(--shadow-sm);
-    border-color: #cbd5e1;
+    border-color: var(--primary-color);
 }
 
 .stat-card .stat-icon {
@@ -379,11 +380,9 @@
     }
 }
 
-/* ========================================================================
-   Collapsible Panel
-   ======================================================================== */
+/* Collapsible Panel */
 .collapsible-card {
-    background: #ffffff;
+    background: var(--bg-card);
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
     overflow: hidden;
@@ -392,7 +391,7 @@
 
 .collapsible-header {
     padding: 12px 20px;
-    background: #fafbfc;
+    background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
@@ -403,7 +402,7 @@
 }
 
 .collapsible-header:hover {
-    background: #f1f5f9;
+    background: var(--bg-hover);
 }
 
 .collapsible-header h3 {
@@ -440,22 +439,26 @@
     max-height: 500px;
 }
 
-/* ========================================================================
-   Modal
-   ======================================================================== */
+/* Modal */
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(15, 23, 42, 0.5);
+    background: var(--modal-backdrop);
     backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 2000;
     animation: fadeIn 0.15s ease;
+    overflow: hidden;
+}
+
+/* Prevent body scroll when modal is open */
+body.modal-open {
+    overflow: hidden;
 }
 
 @keyframes fadeIn {
@@ -464,7 +467,7 @@
 }
 
 .modal-content {
-    background: white;
+    background: var(--bg-card);
     border-radius: var(--radius-lg);
     width: 90%;
     max-width: 560px;
@@ -472,6 +475,7 @@
     overflow-y: auto;
     box-shadow: var(--shadow-xl);
     animation: slideUp 0.2s ease;
+    overscroll-behavior: contain;
 }
 
 .modal-content.modal-sm {
@@ -510,7 +514,7 @@
 }
 
 .modal-close {
-    background: #f1f5f9;
+    background: var(--bg-secondary);
     border: none;
     width: 32px;
     height: 32px;
@@ -525,7 +529,7 @@
 }
 
 .modal-close:hover {
-    background: #e2e8f0;
+    background: var(--bg-hover);
     color: var(--text-primary);
 }
 
@@ -539,19 +543,17 @@
     display: flex;
     gap: 12px;
     justify-content: flex-end;
-    background: #fafbfc;
+    background: var(--bg-secondary);
 }
 
-/* ========================================================================
-   Pagination
-   ======================================================================== */
+/* Pagination */
 .pagination-wrapper {
     padding: 16px 20px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     border-top: 1px solid var(--border-color);
-    background: #fafbfc;
+    background: var(--bg-secondary);
 }
 
 .pagination-info {
@@ -568,7 +570,7 @@
     padding: 8px 14px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
-    background: white;
+    background: var(--bg-card);
     cursor: pointer;
     font-size: 13px;
     font-weight: 500;
@@ -579,7 +581,7 @@
 .page-btn:hover:not(:disabled) {
     border-color: var(--primary-color);
     color: var(--primary-color);
-    background: #f5f3ff;
+    background: var(--bg-hover);
 }
 
 .page-btn:disabled {
