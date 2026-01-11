@@ -1,52 +1,32 @@
+import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/http_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/data/data.dart';
 
 /// 图片处理器
-/// 专门负责处理文章图片的下载和存储
 class ImageProcessor {
-  /// 处理文章封面图片
-  Future<void> processCoverImage(ArticleModel article) async {
-    final imageUrl = article.coverImageUrl ?? '';
+  /// 处理封面图片
+  Future<void> processCover(ArticleModel article) async {
+    final url = article.coverImageUrl ?? '';
+    if (url.isEmpty) return;
 
-    if (imageUrl.isEmpty) {
-      logger.w('[图片:封面] 图片URL为空，跳过处理');
-      return;
-    }
-
-    logger.i('[图片:封面] ▶ 开始处理封面图片: $imageUrl');
-
-    try {
-      final imagePath = await HttpService.i.downloadImage(imageUrl);
-
-      if (imagePath.isNotEmpty) {
-        article.coverImage = imagePath;
-        ArticleRepository.i.updateModel(article);
-        logger.i('[图片:封面] ◀ 封面图片处理成功');
-      } else {
-        logger.w('[图片:封面] 图片下载结果为空');
-      }
-    } catch (e) {
-      logger.e('[图片:封面] 处理失败: $e');
-      throw Exception('处理封面图片失败: $e');
+    logger.i('[WebContent] 下载封面: $url');
+    final path = await HttpService.i.downloadImage(url);
+    if (path.isNotEmpty) {
+      article.coverImage = path;
+      ArticleRepository.i.updateModel(article);
+      logger.i('[WebContent] 封面下载成功');
+    } else {
+      logger.w('[WebContent] 封面下载失败');
     }
   }
 
-  /// 批量处理图片
-  Future<List<String>> processImages(List<String> imageUrls) async {
-    final processedImages = <String>[];
-
-    for (final url in imageUrls) {
-      try {
-        final imagePath = await HttpService.i.downloadImage(url);
-        if (imagePath.isNotEmpty) {
-          processedImages.add(imagePath);
-        }
-      } catch (e) {
-        logger.w('[图片:批量] 图片下载失败: $url, 错误: $e');
-      }
+  /// 批量下载图片
+  Future<List<String>> downloadAll(List<String> urls) async {
+    final results = <String>[];
+    for (final url in urls) {
+      final path = await HttpService.i.downloadImage(url);
+      if (path.isNotEmpty) results.add(path);
     }
-
-    return processedImages;
+    return results;
   }
 }
