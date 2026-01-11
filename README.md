@@ -62,6 +62,30 @@
   </tr>
 </table>
 
+### 🖥️ PC 端功能
+
+通过浏览器访问 Daily Satori，支持完整的桌面端体验：
+
+<table>
+  <tr>
+    <td align="center"><b>PC 首页</b></td>
+    <td align="center"><b>PC 文章页</b></td>
+    <td align="center"><b>PC 书籍页</b></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/satori-pc-home.jpg" width="240"/></td>
+    <td><img src="docs/images/satori-pc-article.jpg" width="240"/></td>
+    <td><img src="docs/images/satori-pc-book.jpg" width="240"/></td>
+  </tr>
+</table>
+
+**PC 端特性：**
+- 📱 **响应式布局** - 自动适配不同屏幕尺寸
+- 🌐 **局域网访问** - 同一网络下多设备共享数据
+- 🔐 **密码保护** - Web 服务支持密码验证
+- 📊 **完整功能** - 文章、书籍、日记、AI 对话等全部支持
+- 📖 **阅读模式** - 优化的 Markdown 阅读体验
+
 ## 🚀 快速开始
 
 ### 环境要求
