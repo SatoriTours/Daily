@@ -13,6 +13,6 @@
 .markdown-body h3 { font-size: 1.1em; margin: 20px 0 12px; }
 .markdown-body p { margin-bottom: 16px; }
 .markdown-body img { max-width: 100%; height: auto; border-radius: 8px; }
-.markdown-body pre { background: var(--bg-secondary); padding: 16px; border-radius: 8px; overflow-x: auto; }
+.markdown-body pre { background: var(--bg-secondary); padding: 16px; border-radius: 8px; overflow-x: auto; color: var(--text-primary); }
 .markdown-body code { background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px; font-size: 14px; color: var(--text-primary); }
 .markdown-body blockquote { border-left: 4px solid var(--primary-color); padding-left: 16px; color: var(--text-secondary); margin: 16px 0; background: var(--bg-secondary); padding: 12px 16px; border-radius: 0 8px 8px 0; }

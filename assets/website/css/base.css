@@ -186,3 +186,42 @@ body {
     :root:not([data-theme="light"]) .theme-toggle .bi-sun-fill { display: inline-block; }
     :root:not([data-theme="light"]) .theme-toggle .bi-moon-fill { display: none; }
 }
+
+/* ========================================================================
+   Dark Mode Bootstrap Overrides (Critical)
+   ======================================================================== */
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .modal-body,
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .modal-footer,
+[data-theme="dark"] .card,
+[data-theme="dark"] .card-body,
+[data-theme="dark"] .card-header,
+[data-theme="dark"] .card-footer,
+[data-theme="dark"] .weekly-report-content,
+[data-theme="dark"] .detail-modal-body,
+[data-theme="dark"] .viewpoint-accordion-body,
+[data-theme="dark"] .markdown-body {
+    background-color: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .modal-content,
+    :root:not([data-theme="light"]) .modal-body,
+    :root:not([data-theme="light"]) .modal-header,
+    :root:not([data-theme="light"]) .modal-footer,
+    :root:not([data-theme="light"]) .card,
+    :root:not([data-theme="light"]) .card-body,
+    :root:not([data-theme="light"]) .card-header,
+    :root:not([data-theme="light"]) .card-footer,
+    :root:not([data-theme="light"]) .weekly-report-content,
+    :root:not([data-theme="light"]) .detail-modal-body,
+    :root:not([data-theme="light"]) .viewpoint-accordion-body,
+    :root:not([data-theme="light"]) .markdown-body {
+        background-color: var(--bg-card) !important;
+        color: var(--text-primary) !important;
+        border-color: var(--border-color) !important;
+    }
+}

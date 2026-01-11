@@ -467,7 +467,8 @@ body.modal-open {
 }
 
 .modal-content {
-    background: var(--bg-card);
+    background: var(--bg-card) !important; /* Force override Bootstrap in dark mode */
+    color: var(--text-primary) !important;
     border-radius: var(--radius-lg);
     width: 90%;
     max-width: 560px;
@@ -476,6 +477,7 @@ body.modal-open {
     box-shadow: var(--shadow-xl);
     animation: slideUp 0.2s ease;
     overscroll-behavior: contain;
+    border: 1px solid var(--border-color); /* Add border for better definition */
 }
 
 .modal-content.modal-sm {
@@ -535,6 +537,8 @@ body.modal-open {
 
 .modal-body {
     padding: 28px;
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
 }
 
 .modal-footer {

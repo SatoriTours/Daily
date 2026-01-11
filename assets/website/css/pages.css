@@ -92,6 +92,8 @@
     padding: 16px 20px;
     overflow-y: auto;
     flex: 1;
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
 }
 
 .weekly-report-content .markdown-body {
@@ -536,7 +538,7 @@
 .book-tab-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    /* gap: 6px; Removed gap to match sidebar style closer, but margin handles spacing */
     overflow-y: auto;
     max-height: calc(100vh - 220px);
     padding-right: 4px;
@@ -547,22 +549,36 @@
     align-items: center;
     gap: 10px;
     padding: 10px 12px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
+    /* Remove Card Style */
+    background: transparent;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    /* Match Nav Item */
+    border-radius: var(--radius-sm);
+    margin: 2px 0; /* Tight spacing in list */
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background 0.2s, color 0.2s; /* Only transition bg and color, not border */
+    color: var(--text-secondary);
+    -webkit-tap-highlight-color: transparent; /* Remove mobile tap highlight */
 }
 
 .book-tab-item:hover {
     background: var(--bg-hover);
-    border-color: var(--primary-color);
+    color: var(--text-primary);
 }
 
 .book-tab-item.active {
-    background: var(--bg-hover);
-    border-color: var(--primary-color);
-    border-left: 3px solid var(--primary-color);
+    background: var(--primary-soft);
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.book-tab-item:focus,
+.book-tab-item:active {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
 }
 
 .book-tab-icon {
@@ -579,8 +595,8 @@
 }
 
 .book-tab-item.active .book-tab-icon {
-    background: var(--primary-color);
-    color: white;
+    background: var(--bg-card); /* Distinct from active bg */
+    color: var(--primary-color);
 }
 
 .book-tab-info {
@@ -591,7 +607,7 @@
 .book-tab-title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--text-primary);
+    color: currentColor; /* Inherit form item color */
     margin: 0 0 2px 0;
     white-space: nowrap;
     overflow: hidden;
@@ -796,8 +812,19 @@
 
 .viewpoint-accordion-body {
     padding: 16px 20px;
-    background: var(--bg-card);
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border-top: 1px solid var(--border-color); /* Ensure separation */
 }
+
+/* Ensure markdown content inside cards/modals has correct color */
+.weekly-report-content .markdown-body,
+.article-detail-content.markdown-body,
+.diary-detail-content .markdown-body,
+.viewpoint-accordion-body .markdown-body {
+    color: var(--text-primary);
+}
+
 
 .viewpoint-content {
     font-size: 15px;
@@ -1006,8 +1033,9 @@
 
 .detail-modal-body {
     line-height: 1.8;
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
     font-size: 15px;
+    background: transparent !important;
 }
 
 .detail-modal-body p {
@@ -1124,6 +1152,7 @@
     line-height: 1.9;
     color: var(--text-primary);
     font-size: 15px;
+    background: transparent; /* Ensure no white bg inheritance */
 }
 
 .back-btn {
