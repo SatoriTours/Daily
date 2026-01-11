@@ -47,7 +47,7 @@
 
 .sidebar::-webkit-scrollbar { width: 4px; }
 .sidebar::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 2px; }
-.sidebar-header { padding: 20px; border-bottom: 1px solid var(--border-color); }
+.sidebar-header { height: var(--header-height); padding: 0 20px; display: flex; align-items: center; border-bottom: 1px solid var(--border-color); }
 .sidebar-header h2 { font-size: 18px; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 10px; color: var(--text-primary); }
 .sidebar-header h2 i { font-size: 22px; color: var(--primary-color); }
 .sidebar-nav { padding: 12px; flex: 1; display: flex; flex-direction: column; }
@@ -62,13 +62,14 @@
     transition: all 0.2s ease;
     text-decoration: none;
     border-radius: var(--radius-sm);
-    margin-bottom: 2px;
+    margin: 4px 12px;
     font-weight: 500;
     font-size: 14px;
+    border: 1px solid transparent; /* Prevent layout shift if we add border later */
 }
 
 .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-.nav-item.active { background: var(--bg-hover); color: var(--primary-color); font-weight: 600; border-left: 3px solid var(--primary-color); }
+.nav-item.active { background: var(--primary-soft); color: var(--primary-color); font-weight: 600; border-left: none; }
 .nav-item.active i { color: var(--primary-color); }
 .nav-item i { font-size: 18px; width: 22px; text-align: center; color: var(--text-muted); }
 .nav-item:hover i { color: var(--text-secondary); }

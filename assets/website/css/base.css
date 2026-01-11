@@ -4,6 +4,7 @@
 
 /* CSS Variables - Light Mode (Default) */
 :root {
+    color-scheme: light;
     --primary-color: #6366f1;
     --primary-light: #818cf8;
     --primary-dark: #4f46e5;
@@ -39,10 +40,17 @@
     --table-header-bg: #f8fafc;
     --table-row-hover: #f8fafc;
     --gradient-fade: linear-gradient(to bottom, transparent, #ffffff);
+
+    /* Semantic Accents (Blue) */
+    --accent-bg-soft: #eff6ff;
+    --accent-text: #2563eb;
+    --accent-gradient: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    --primary-soft: #e0e7ff; /* Indigo 50/100 */
 }
 
 /* CSS Variables - Dark Mode */
 [data-theme="dark"] {
+    color-scheme: dark;
     --primary-color: #818cf8;
     --primary-light: #a5b4fc;
     --primary-dark: #6366f1;
@@ -66,11 +74,18 @@
     --table-header-bg: #1e293b;
     --table-row-hover: #334155;
     --gradient-fade: linear-gradient(to bottom, transparent, #1e293b);
+
+    /* Semantic Accents (Blue) */
+    --accent-bg-soft: rgba(59, 130, 246, 0.15);
+    --accent-text: #60a5fa;
+    --accent-gradient: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.2) 100%);
+    --primary-soft: rgba(99, 102, 241, 0.15);
 }
 
 /* Auto Dark Mode based on system preference */
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
+        /* ... existing vars ... */
         --primary-color: #818cf8;
         --primary-light: #a5b4fc;
         --primary-dark: #6366f1;
@@ -94,6 +109,12 @@
         --table-header-bg: #1e293b;
         --table-row-hover: #334155;
         --gradient-fade: linear-gradient(to bottom, transparent, #1e293b);
+
+        /* Semantic Accents (Blue) */
+        --accent-bg-soft: rgba(59, 130, 246, 0.15);
+        --accent-text: #60a5fa;
+        --accent-gradient: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.2) 100%);
+        --primary-soft: rgba(99, 102, 241, 0.15);
     }
 }
 
