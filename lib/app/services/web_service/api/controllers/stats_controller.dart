@@ -1,20 +1,21 @@
 import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/web_service/api/middleware/auth_middleware.dart';
+import 'package:daily_satori/app/services/web_service/api/controllers/base_controller.dart';
 import 'package:daily_satori/app/services/web_service/api/utils/response_utils.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+const _tag = '[WebService][Stats]';
+
 /// 统计 API 控制器（仪表盘数据）
-class StatsController {
+class StatsController extends BaseController {
+  @override
   Router get router {
     final router = Router();
 
-    final authed = const Pipeline().addMiddleware(AuthMiddleware.requireAuth());
-
-    router.get('/overview', authed.addHandler(_getOverview));
-    router.get('/recent', authed.addHandler(_getRecentActivity));
-    router.get('/weekly-report', authed.addHandler(_getWeeklyReport));
+    router.get('/overview', BaseController.authed(_getOverview));
+    router.get('/recent', BaseController.authed(_getRecentActivity));
+    router.get('/weekly-report', BaseController.authed(_getWeeklyReport));
 
     return router;
   }
@@ -51,8 +52,8 @@ class StatsController {
         'today': {'articles': todayArticles, 'diaries': todayDiaries},
         'thisWeek': {'articles': weekArticles, 'diaries': weekDiaries},
       });
-    } catch (e) {
-      logger.e('[WebService][Stats] 获取概览统计失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 获取概览统计失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('获取统计数据时发生错误');
     }
   }
@@ -76,16 +77,12 @@ class StatsController {
       final recentDiaries = DiaryRepository.i.findAllPaginated(1);
       final diariesJson = recentDiaries.take(5).map((d) {
         final firstLine = d.content.split('\n').first.trim();
-        final title = firstLine.length > 50
-            ? '${firstLine.substring(0, 50)}...'
-            : firstLine;
+        final title = firstLine.length > 50 ? '${firstLine.substring(0, 50)}...' : firstLine;
         return {
           'id': d.id,
           'type': 'diary',
           'title': title.isEmpty ? '日记' : title,
-          'content': d.content.length > 100
-              ? '${d.content.substring(0, 100)}...'
-              : d.content,
+          'content': d.content.length > 100 ? '${d.content.substring(0, 100)}...' : d.content,
           'createdAt': d.createdAt.toIso8601String(),
         };
       }).toList();
@@ -104,13 +101,9 @@ class StatsController {
           )
           .toList();
 
-      return ResponseUtils.success({
-        'articles': articlesJson,
-        'diaries': diariesJson,
-        'books': booksJson,
-      });
-    } catch (e) {
-      logger.e('[WebService][Stats] 获取最近活动失败', error: e);
+      return ResponseUtils.success({'articles': articlesJson, 'diaries': diariesJson, 'books': booksJson});
+    } catch (e, s) {
+      logger.e('$_tag 获取最近活动失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('获取最近活动时发生错误');
     }
   }
@@ -138,8 +131,8 @@ class StatsController {
           .toList();
 
       return ResponseUtils.success(reportList);
-    } catch (e) {
-      logger.e('[WebService][Stats] 获取周报失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 获取周报失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('获取周报时发生错误');
     }
   }

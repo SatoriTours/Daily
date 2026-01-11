@@ -3,14 +3,16 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:daily_satori/app/services/file_service.dart';
-import 'package:daily_satori/app/services/web_service/api_controllers/auth_controller.dart';
-import 'package:daily_satori/app/services/web_service/api_controllers/article_controller.dart';
-import 'package:daily_satori/app/services/web_service/api_controllers/book_controller.dart';
-import 'package:daily_satori/app/services/web_service/api_controllers/diary_controller.dart';
-import 'package:daily_satori/app/services/web_service/api_controllers/stats_controller.dart';
-import 'package:daily_satori/app/services/web_service/api_utils/response_utils.dart';
-import 'package:daily_satori/app/services/web_service/api_utils/auth_middleware.dart';
+import 'package:daily_satori/app/services/web_service/api/controllers/auth_controller.dart';
+import 'package:daily_satori/app/services/web_service/api/controllers/article_controller.dart';
+import 'package:daily_satori/app/services/web_service/api/controllers/book_controller.dart';
+import 'package:daily_satori/app/services/web_service/api/controllers/diary_controller.dart';
+import 'package:daily_satori/app/services/web_service/api/controllers/stats_controller.dart';
+import 'package:daily_satori/app/services/web_service/api/utils/response_utils.dart';
+import 'package:daily_satori/app/services/web_service/api/middleware/auth_middleware.dart';
 import 'package:path/path.dart' as path;
+
+const _tag = '[WebService][API]';
 
 /// API控制器主类，集成所有API路由
 class ApiController {
@@ -34,9 +36,7 @@ class ApiController {
     router.mount('/stats', StatsController().router.call);
 
     // 文件上传API
-    final filePipeline = const Pipeline().addMiddleware(
-      AuthMiddleware.requireAuth(),
-    );
+    final filePipeline = const Pipeline().addMiddleware(AuthMiddleware.requireAuth());
     router.post('/upload', filePipeline.addHandler(_handleFileUpload));
 
     // 添加404错误处理
@@ -75,26 +75,13 @@ class ApiController {
         String subDir = 'other';
 
         // 根据文件类型决定存储的子目录
-        if ([
-          '.jpg',
-          '.jpeg',
-          '.png',
-          '.gif',
-          '.svg',
-          '.webp',
-        ].contains(fileExtension)) {
+        if (['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp'].contains(fileExtension)) {
           subDir = 'img';
         } else if (['.css'].contains(fileExtension)) {
           subDir = 'css';
         } else if (['.js'].contains(fileExtension)) {
           subDir = 'js';
-        } else if ([
-          '.ttf',
-          '.woff',
-          '.woff2',
-          '.eot',
-          '.otf',
-        ].contains(fileExtension)) {
+        } else if (['.ttf', '.woff', '.woff2', '.eot', '.otf'].contains(fileExtension)) {
           subDir = 'fonts';
         }
 
@@ -114,17 +101,14 @@ class ApiController {
       }
 
       return ResponseUtils.success(results);
-    } catch (e) {
-      logger.e('处理文件上传请求失败: $e');
+    } catch (e, s) {
+      logger.e('$_tag 处理文件上传请求失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('处理文件上传失败');
     }
   }
 
   /// 解析multipart/form-data (简化版)
-  Future<List<Map<String, dynamic>>> _parseMultipartFormData(
-    List<int> bytes,
-    String contentType,
-  ) async {
+  Future<List<Map<String, dynamic>>> _parseMultipartFormData(List<int> bytes, String contentType) async {
     final result = <Map<String, dynamic>>[];
 
     try {
@@ -163,8 +147,8 @@ class ApiController {
 
         result.add({'filename': filename, 'data': fileData});
       }
-    } catch (e) {
-      logger.e('解析multipart/form-data失败: $e');
+    } catch (e, s) {
+      logger.e('$_tag 解析multipart/form-data失败', error: e, stackTrace: s);
     }
 
     return result;
@@ -172,15 +156,13 @@ class ApiController {
 
   /// 处理未找到的路由
   Response _notFoundHandler(Request request) {
-    logger.w('API请求未找到: ${request.method} ${request.url}');
+    logger.w('$_tag API请求未找到: ${request.method} ${request.url}');
     return ResponseUtils.error('API路径不存在', status: 404);
   }
 
   /// 创建带错误处理的管道
   Handler createHandler() {
-    return const Pipeline()
-        .addMiddleware(_errorHandler())
-        .addHandler(router.call);
+    return const Pipeline().addMiddleware(_errorHandler()).addHandler(router.call);
   }
 
   /// 错误处理中间件
@@ -189,8 +171,8 @@ class ApiController {
       return (Request request) async {
         try {
           return await innerHandler(request);
-        } catch (e, stackTrace) {
-          logger.e('API请求处理错误: $e\n$stackTrace');
+        } catch (e, s) {
+          logger.e('$_tag API请求处理错误', error: e, stackTrace: s);
           return ResponseUtils.serverError('服务器内部错误');
         }
       };

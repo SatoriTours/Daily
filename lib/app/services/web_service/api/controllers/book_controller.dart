@@ -2,63 +2,32 @@ import 'dart:async';
 
 import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/web_service/api/middleware/auth_middleware.dart';
+import 'package:daily_satori/app/services/web_service/api/controllers/base_controller.dart';
 import 'package:daily_satori/app/services/web_service/api/utils/request_utils.dart';
 import 'package:daily_satori/app/services/web_service/api/utils/response_utils.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+const _tag = '[WebService][Books]';
+
 /// 书籍 API 控制器
-class BookController {
+class BookController extends BaseController {
+  @override
   Router get router {
     final router = Router();
 
-    final authed = const Pipeline().addMiddleware(AuthMiddleware.requireAuth());
+    // 书籍 CRUD
+    router.get('/', BaseController.authed(_getBooks));
+    router.get('/<id>', BaseController.authedWithId(_getBook));
+    router.post('/', BaseController.authed(_createBook));
+    router.put('/<id>', BaseController.authedWithId(_updateBook));
+    router.delete('/<id>', BaseController.authedWithId(_deleteBook));
 
-    Future<Response> runAuthed(
-      Request request,
-      FutureOr<Response> Function(Request request) handler,
-    ) async {
-      final h = authed.addHandler(handler);
-      return await h(request);
-    }
-
-    router.get('/', authed.addHandler(_getBooks));
-
-    // 书籍本体
-    router.get(
-      '/<id>',
-      (request, id) => runAuthed(request, (req) => _getBook(req, id)),
-    );
-    router.post('/', authed.addHandler(_createBook));
-    router.put(
-      '/<id>',
-      (request, id) => runAuthed(request, (req) => _updateBook(req, id)),
-    );
-    router.delete(
-      '/<id>',
-      (request, id) => runAuthed(request, (req) => _deleteBook(req, id)),
-    );
-
-    // 观点
-    router.get(
-      '/<id>/viewpoints',
-      (request, id) => runAuthed(request, (req) => _getViewpoints(req, id)),
-    );
-    router.post(
-      '/<id>/viewpoints',
-      (request, id) => runAuthed(request, (req) => _createViewpoint(req, id)),
-    );
-    router.put(
-      '/<id>/viewpoints/<viewpointId>',
-      (request, id, viewpointId) =>
-          runAuthed(request, (req) => _updateViewpoint(req, id, viewpointId)),
-    );
-    router.delete(
-      '/<id>/viewpoints/<viewpointId>',
-      (request, id, viewpointId) =>
-          runAuthed(request, (req) => _deleteViewpoint(req, id, viewpointId)),
-    );
+    // 观点 CRUD
+    router.get('/<id>/viewpoints', BaseController.authedWithId(_getViewpoints));
+    router.post('/<id>/viewpoints', BaseController.authedWithId(_createViewpoint));
+    router.put('/<id>/viewpoints/<viewpointId>', BaseController.authedWithIds(_updateViewpoint));
+    router.delete('/<id>/viewpoints/<viewpointId>', BaseController.authedWithIds(_deleteViewpoint));
 
     return router;
   }
@@ -81,8 +50,8 @@ class BookController {
           'totalPages': totalPages,
         },
       });
-    } catch (e) {
-      logger.e('[WebService][Books] 获取书籍列表失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 获取书籍列表失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('处理书籍列表请求时发生错误');
     }
   }
@@ -95,15 +64,13 @@ class BookController {
       final book = BookRepository.i.find(bookId);
       if (book == null) return ResponseUtils.error('书籍不存在', status: 404);
 
-      final viewpoints = BookViewpointRepository.i.findModelsByBookIds([
-        bookId,
-      ]);
+      final viewpoints = BookViewpointRepository.i.findModelsByBookIds([bookId]);
       final bookJson = _bookToJson(book);
       bookJson['viewpoints'] = viewpoints.map(_viewpointToJson).toList();
 
       return ResponseUtils.success(bookJson);
-    } catch (e) {
-      logger.e('[WebService][Books] 获取书籍失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 获取书籍失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('处理获取书籍请求时发生错误');
     }
   }
@@ -132,8 +99,8 @@ class BookController {
 
       BookRepository.i.save(book);
       return ResponseUtils.success(_bookToJson(book));
-    } catch (e) {
-      logger.e('[WebService][Books] 创建书籍失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 创建书籍失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('创建书籍时发生错误');
     }
   }
@@ -160,8 +127,8 @@ class BookController {
 
       BookRepository.i.save(book);
       return ResponseUtils.success(_bookToJson(book));
-    } catch (e) {
-      logger.e('[WebService][Books] 更新书籍失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 更新书籍失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('更新书籍时发生错误');
     }
   }
@@ -174,19 +141,15 @@ class BookController {
       final book = BookRepository.i.find(bookId);
       if (book == null) return ResponseUtils.error('书籍不存在', status: 404);
 
-      final viewpoints = BookViewpointRepository.i.findModelsByBookIds([
-        bookId,
-      ]);
+      final viewpoints = BookViewpointRepository.i.findModelsByBookIds([bookId]);
       if (viewpoints.isNotEmpty) {
-        BookViewpointRepository.i.removeMany(
-          viewpoints.map((v) => v.id).toList(),
-        );
+        BookViewpointRepository.i.removeMany(viewpoints.map((v) => v.id).toList());
       }
 
       BookRepository.i.remove(bookId);
       return ResponseUtils.success({'deleted': true});
-    } catch (e) {
-      logger.e('[WebService][Books] 删除书籍失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 删除书籍失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('删除书籍时发生错误');
     }
   }
@@ -198,8 +161,8 @@ class BookController {
 
       final viewpoints = BookViewpointRepository.i.findModelsByBookIds([id]);
       return ResponseUtils.success(viewpoints.map(_viewpointToJson).toList());
-    } catch (e) {
-      logger.e('[WebService][Books] 获取观点列表失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 获取观点列表失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('获取观点列表时发生错误');
     }
   }
@@ -222,26 +185,17 @@ class BookController {
         return ResponseUtils.validationError('观点内容不能为空');
       }
 
-      final viewpoint = BookViewpointModel.create(
-        bookId: id,
-        title: title,
-        content: content,
-        example: example,
-      );
+      final viewpoint = BookViewpointModel.create(bookId: id, title: title, content: content, example: example);
 
       BookViewpointRepository.i.save(viewpoint);
       return ResponseUtils.success(_viewpointToJson(viewpoint));
-    } catch (e) {
-      logger.e('[WebService][Books] 创建观点失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 创建观点失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('创建观点时发生错误');
     }
   }
 
-  Future<Response> _updateViewpoint(
-    Request request,
-    String bookId,
-    String viewpointId,
-  ) async {
+  Future<Response> _updateViewpoint(Request request, String bookId, String viewpointId) async {
     try {
       final vpId = int.tryParse(viewpointId);
       if (vpId == null) return ResponseUtils.validationError('无效的观点ID');
@@ -261,17 +215,13 @@ class BookController {
 
       BookViewpointRepository.i.save(viewpoint);
       return ResponseUtils.success(_viewpointToJson(viewpoint));
-    } catch (e) {
-      logger.e('[WebService][Books] 更新观点失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 更新观点失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('更新观点时发生错误');
     }
   }
 
-  Future<Response> _deleteViewpoint(
-    Request request,
-    String bookId,
-    String viewpointId,
-  ) async {
+  Future<Response> _deleteViewpoint(Request request, String bookId, String viewpointId) async {
     try {
       final vpId = int.tryParse(viewpointId);
       if (vpId == null) return ResponseUtils.validationError('无效的观点ID');
@@ -281,8 +231,8 @@ class BookController {
 
       BookViewpointRepository.i.remove(vpId);
       return ResponseUtils.success({'deleted': true});
-    } catch (e) {
-      logger.e('[WebService][Books] 删除观点失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 删除观点失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('删除观点时发生错误');
     }
   }

@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:daily_satori/app/services/logger_service.dart';
 import 'package:shelf/shelf.dart';
 
+const _tag = '[WebService]';
+
 /// Web API 请求工具
 class RequestUtils {
   /// 解析 JSON 请求体
@@ -11,15 +13,14 @@ class RequestUtils {
       final body = await request.readAsString();
       if (body.isEmpty) return {};
       return jsonDecode(body);
-    } catch (e) {
-      logger.e('[WebService] 解析请求体失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 解析请求体失败', error: e, stackTrace: s);
       throw const FormatException('无效的JSON请求体');
     }
   }
 
   /// 解析查询参数
-  static Map<String, String> parseQueryParams(Request request) =>
-      request.url.queryParameters;
+  static Map<String, String> parseQueryParams(Request request) => request.url.queryParameters;
 
   /// 从 Cookie 中获取 session_id
   static String? getSessionId(Request request) {
@@ -44,20 +45,12 @@ class RequestUtils {
   }
 
   /// 校验必填字段存在且不为 null
-  static bool validateRequiredFields(
-    Map<String, dynamic> body,
-    List<String> requiredFields,
-  ) {
-    return requiredFields.every(
-      (field) => body.containsKey(field) && body[field] != null,
-    );
+  static bool validateRequiredFields(Map<String, dynamic> body, List<String> requiredFields) {
+    return requiredFields.every((field) => body.containsKey(field) && body[field] != null);
   }
 
   /// 过滤请求体字段
-  static Map<String, dynamic> filterBodyFields(
-    Map<String, dynamic> body,
-    List<String> allowedFields,
-  ) {
+  static Map<String, dynamic> filterBodyFields(Map<String, dynamic> body, List<String> allowedFields) {
     final filtered = <String, dynamic>{};
     for (final field in allowedFields) {
       if (body.containsKey(field)) filtered[field] = body[field];
@@ -66,6 +59,5 @@ class RequestUtils {
   }
 
   /// 获取 Content-Type
-  static String? getContentType(Request request) =>
-      request.headers['content-type'];
+  static String? getContentType(Request request) => request.headers['content-type'];
 }

@@ -3,43 +3,27 @@ import 'dart:async';
 import 'package:daily_satori/app/data/data.dart';
 import 'package:daily_satori/app/services/file_service.dart';
 import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/services/web_service/api/middleware/auth_middleware.dart';
+import 'package:daily_satori/app/services/web_service/api/controllers/base_controller.dart';
 import 'package:daily_satori/app/services/web_service/api/utils/markdown_image_utils.dart';
 import 'package:daily_satori/app/services/web_service/api/utils/request_utils.dart';
 import 'package:daily_satori/app/services/web_service/api/utils/response_utils.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
+const _tag = '[WebService][Diary]';
+
 /// 日记 API 控制器
-class DiaryController {
+class DiaryController extends BaseController {
+  @override
   Router get router {
     final router = Router();
 
-    final authed = const Pipeline().addMiddleware(AuthMiddleware.requireAuth());
-
-    Future<Response> runAuthed(
-      Request request,
-      FutureOr<Response> Function(Request request) handler,
-    ) async {
-      final h = authed.addHandler(handler);
-      return await h(request);
-    }
-
-    router.get('/', authed.addHandler(_getDiaries));
-    router.get('/search', authed.addHandler(_searchDiaries));
-    router.get(
-      '/<id>',
-      (request, id) => runAuthed(request, (req) => _getDiary(req, id)),
-    );
-    router.post('/', authed.addHandler(_createDiary));
-    router.put(
-      '/<id>',
-      (request, id) => runAuthed(request, (req) => _updateDiary(req, id)),
-    );
-    router.delete(
-      '/<id>',
-      (request, id) => runAuthed(request, (req) => _deleteDiary(req, id)),
-    );
+    router.get('/', BaseController.authed(_getDiaries));
+    router.get('/search', BaseController.authed(_searchDiaries));
+    router.get('/<id>', BaseController.authedWithId(_getDiary));
+    router.post('/', BaseController.authed(_createDiary));
+    router.put('/<id>', BaseController.authedWithId(_updateDiary));
+    router.delete('/<id>', BaseController.authedWithId(_deleteDiary));
 
     return router;
   }
@@ -63,8 +47,8 @@ class DiaryController {
           'totalPages': totalPages,
         },
       });
-    } catch (e) {
-      logger.e('[WebService][Diary] 获取日记列表失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 获取日记列表失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('处理日记列表请求时发生错误');
     }
   }
@@ -91,8 +75,8 @@ class DiaryController {
           'totalPages': totalPages,
         },
       });
-    } catch (e) {
-      logger.e('[WebService][Diary] 搜索日记失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 搜索日记失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('处理日记搜索请求时发生错误');
     }
   }
@@ -107,8 +91,8 @@ class DiaryController {
       if (diary == null) return ResponseUtils.error('日记不存在', status: 404);
 
       return ResponseUtils.success(_diaryToJson(diary));
-    } catch (e) {
-      logger.e('[WebService][Diary] 获取日记失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 获取日记失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('处理获取日记请求时发生错误');
     }
   }
@@ -135,8 +119,8 @@ class DiaryController {
 
       _refreshDiaryList();
       return ResponseUtils.success(_diaryToJson(newDiary), status: 201);
-    } catch (e) {
-      logger.e('[WebService][Diary] 创建日记失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 创建日记失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('处理创建日记请求时发生错误');
     }
   }
@@ -172,8 +156,8 @@ class DiaryController {
 
       _refreshDiaryList();
       return ResponseUtils.success(_diaryToJson(existingDiary));
-    } catch (e) {
-      logger.e('[WebService][Diary] 更新日记失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 更新日记失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('处理更新日记请求时发生错误');
     }
   }
@@ -189,8 +173,8 @@ class DiaryController {
 
       _refreshDiaryList();
       return ResponseUtils.success({'success': true});
-    } catch (e) {
-      logger.e('[WebService][Diary] 删除日记失败', error: e);
+    } catch (e, s) {
+      logger.e('$_tag 删除日记失败', error: e, stackTrace: s);
       return ResponseUtils.serverError('处理删除日记请求时发生错误');
     }
   }
@@ -201,9 +185,7 @@ class DiaryController {
       'content': MarkdownImageUtils.convertContentImages(diary.content),
       'tags': diary.tags,
       'mood': diary.mood,
-      'images': diary.imagesList
-          .map(FileService.i.convertLocalPathToWebPath)
-          .toList(),
+      'images': diary.imagesList.map(FileService.i.convertLocalPathToWebPath).toList(),
       'createdAt': diary.createdAt.toIso8601String(),
       'updatedAt': diary.updatedAt.toIso8601String(),
     };
