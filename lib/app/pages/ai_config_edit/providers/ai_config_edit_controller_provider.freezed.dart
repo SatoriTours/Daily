@@ -5,6 +5,10 @@
 
 part of 'ai_config_edit_controller_provider.dart';
 
+// **************************************************************************
+// FreezedGenerator
+// **************************************************************************
+
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc

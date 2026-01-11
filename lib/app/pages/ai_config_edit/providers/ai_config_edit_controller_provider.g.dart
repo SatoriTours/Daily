@@ -2,6 +2,10 @@
 
 part of 'ai_config_edit_controller_provider.dart';
 
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// AIConfigEditController Provider
@@ -42,7 +46,7 @@ final class AIConfigEditControllerProvider
 }
 
 String _$aIConfigEditControllerHash() =>
-    r'59d03b9fc66b96f475cc24ed87227aeed44317e6';
+    r'e2e66de8e83ad05bf381e38d924d2b4debe649bc';
 
 /// AIConfigEditController Provider
 

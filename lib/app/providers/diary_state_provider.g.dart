@@ -2,6 +2,10 @@
 
 part of 'diary_state_provider.dart';
 
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// 日记状态 Provider

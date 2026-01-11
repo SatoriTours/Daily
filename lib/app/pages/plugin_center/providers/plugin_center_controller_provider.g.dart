@@ -2,6 +2,10 @@
 
 part of 'plugin_center_controller_provider.dart';
 
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// PluginCenterController Provider
@@ -42,7 +46,7 @@ final class PluginCenterControllerProvider
 }
 
 String _$pluginCenterControllerHash() =>
-    r'c81b500a73136d0346b143568c05abae15c8091c';
+    r'bfe48e55ca84ba05fa0558f105c13007dab29634';
 
 /// PluginCenterController Provider
 

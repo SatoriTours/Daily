@@ -2,6 +2,10 @@
 
 part of 'backup_restore_controller_provider.dart';
 
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// BackupRestoreController Provider
@@ -45,7 +49,7 @@ final class BackupRestoreControllerProvider
 }
 
 String _$backupRestoreControllerHash() =>
-    r'1a062a31fc13fa5106b1af43f622a6ad82f93579';
+    r'4346b5aa8d3b0d8c8c2b951e7ab957f713552221';
 
 /// BackupRestoreController Provider
 

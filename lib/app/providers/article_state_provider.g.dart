@@ -2,6 +2,10 @@
 
 part of 'article_state_provider.dart';
 
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// 文章状态 Provider
@@ -46,7 +50,7 @@ final class ArticleStateProvider
   }
 }
 
-String _$articleStateHash() => r'4c3ef1959b0aa64db222906201e4e61a384032ce';
+String _$articleStateHash() => r'915e74bf8989d56ac7aac4ae8be7ba0fb972ae73';
 
 /// 文章状态 Provider
 ///

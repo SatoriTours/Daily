@@ -2,6 +2,10 @@
 
 part of 'app_state_provider.dart';
 
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// 全局应用状态 Provider
@@ -40,7 +44,7 @@ final class AppGlobalStateProvider
   }
 }
 
-String _$appGlobalStateHash() => r'20607c4a5bb18acefda2ad706e904df067906afb';
+String _$appGlobalStateHash() => r'd2e97ce2fa1669446a9265cabfe924260606a6a9';
 
 /// 全局应用状态 Provider
 

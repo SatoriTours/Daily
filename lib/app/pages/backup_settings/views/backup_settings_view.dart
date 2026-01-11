@@ -135,6 +135,8 @@ class BackupSettingsView extends ConsumerWidget {
             icon: Icons.backup_rounded,
             color: AppTheme.getColorScheme(context).primary,
             onTap: () => _onBackupPressed(context, ref),
+            isLoading: state.isBackingUp,
+            progress: state.backupProgress,
           ),
           Dimensions.verticalSpacerM,
           _buildActionButton(
@@ -245,11 +247,13 @@ class BackupSettingsView extends ConsumerWidget {
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    bool isLoading = false,
+    double progress = 0.0,
   }) {
     final textTheme = AppTheme.getTextTheme(context);
 
     return InkWell(
-      onTap: onTap,
+      onTap: isLoading ? null : onTap,
       borderRadius: BorderRadius.circular(Dimensions.radiusM),
       child: Container(
         width: double.infinity,
@@ -262,46 +266,74 @@ class BackupSettingsView extends ConsumerWidget {
             width: 1.5,
           ),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Container(
-              width: Dimensions.iconSizeXxl,
-              height: Dimensions.iconSizeXxl,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: Opacities.mediumLow),
-                borderRadius: BorderRadius.circular(Dimensions.radiusS),
-              ),
-              child: Icon(icon, size: Dimensions.iconSizeXl - 6, color: color),
-            ),
-            Dimensions.horizontalSpacerM,
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: color,
-                    ),
+            Row(
+              children: [
+                Container(
+                  width: Dimensions.iconSizeXxl,
+                  height: Dimensions.iconSizeXxl,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: Opacities.mediumLow),
+                    borderRadius: BorderRadius.circular(Dimensions.radiusS),
                   ),
-                  if (subtitle != null) ...[
-                    Dimensions.verticalSpacerXs,
-                    Text(
-                      subtitle,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: color.withValues(alpha: Opacities.highOpaque),
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(icon, size: Dimensions.iconSizeXl - 6, color: color),
+                ),
+                Dimensions.horizontalSpacerM,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: color,
+                        ),
                       ),
-                    ),
-                  ],
-                ],
+                      if (subtitle != null) ...[
+                        Dimensions.verticalSpacerXs,
+                        Text(
+                          subtitle,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: color.withValues(alpha: Opacities.highOpaque),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (!isLoading)
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: Dimensions.iconSizeM + 2,
+                    color: color.withValues(alpha: Opacities.higherOpaque),
+                  ),
+              ],
+            ),
+            if (isLoading) ...[
+              Dimensions.verticalSpacerM,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(Dimensions.radiusS),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 4,
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                  backgroundColor: color.withValues(alpha: Opacities.low),
+                ),
               ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: Dimensions.iconSizeM + 2,
-              color: color.withValues(alpha: Opacities.higherOpaque),
-            ),
+              Dimensions.verticalSpacerXs,
+              Text(
+                '${(progress * 100).toInt()}%',
+                style: textTheme.labelSmall?.copyWith(color: color),
+              ),
+            ],
           ],
         ),
       ),

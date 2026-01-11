@@ -2,6 +2,10 @@
 
 part of 'article_detail_controller_provider.dart';
 
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// ArticleDetailController Provider
@@ -66,7 +70,7 @@ final class ArticleDetailControllerProvider
 }
 
 String _$articleDetailControllerHash() =>
-    r'0ce2a839fd5804c6fdc7e8e585a9832f61784c36';
+    r'e7329eb036a20a58229085c0f51a39b2070c61bb';
 
 /// ArticleDetailController Provider
 /// 参数为 int 类型的文章 ID

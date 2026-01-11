@@ -19,12 +19,13 @@ part 'backup_settings_controller_provider.g.dart';
 
 /// BackupSettingsController 状态
 @freezed
-abstract class BackupSettingsControllerState
-    with _$BackupSettingsControllerState {
+abstract class BackupSettingsControllerState with _$BackupSettingsControllerState {
   const factory BackupSettingsControllerState({
     @Default(false) bool isLoading,
     @Default('') String errorMessage,
     @Default('') String backupDirectory,
+    @Default(0.0) double backupProgress,
+    @Default(false) bool isBackingUp,
   }) = _BackupSettingsControllerState;
 }
 
@@ -33,12 +34,19 @@ abstract class BackupSettingsControllerState
 class BackupSettingsController extends _$BackupSettingsController {
   @override
   BackupSettingsControllerState build() {
-    // 直接从仓储读取初始值，避免异步调用中访问未初始化的 state
     final path = SettingRepository.i.getSetting(SettingService.backupDirKey);
-    return BackupSettingsControllerState(backupDirectory: path);
+    final state = BackupSettingsControllerState(backupDirectory: path);
+
+    // 监听备份进度变化
+    ref.listen(backupProgressProvider, (_, progress) {
+      if (this.state.isBackingUp) {
+        this.state = this.state.copyWith(backupProgress: progress);
+      }
+    });
+
+    return state;
   }
 
-  /// 重新加载备份设置
   Future<void> loadSettings() async {
     state = state.copyWith(isLoading: true, errorMessage: '');
     try {
@@ -68,10 +76,7 @@ class BackupSettingsController extends _$BackupSettingsController {
       );
 
       if (selectedDirectory != null) {
-        SettingRepository.i.saveSetting(
-          SettingService.backupDirKey,
-          selectedDirectory,
-        );
+        SettingRepository.i.saveSetting(SettingService.backupDirKey, selectedDirectory);
         state = state.copyWith(backupDirectory: selectedDirectory);
         UIUtils.showSuccess('backup_settings.path_saved'.t, isTop: true);
       }
@@ -83,19 +88,45 @@ class BackupSettingsController extends _$BackupSettingsController {
 
   /// 执行备份
   Future<void> performBackup() async {
-    state = state.copyWith(isLoading: true);
+    if (state.isBackingUp) return;
+
+    state = state.copyWith(isBackingUp: true, backupProgress: 0.0);
     try {
       final success = await BackupService.i.backupNow();
-      state = state.copyWith(isLoading: false);
       if (success) {
+        state = state.copyWith(backupProgress: 1.0);
         UIUtils.showSuccess('backup_settings.backup_success'.t);
       } else {
         UIUtils.showError('backup_settings.backup_failed'.t);
       }
     } catch (e) {
       logger.e('[BackupSettingsController] 备份失败', error: e);
-      state = state.copyWith(isLoading: false);
       UIUtils.showError('backup_settings.backup_failed'.t);
+    } finally {
+      state = state.copyWith(isBackingUp: false, backupProgress: 0.0);
     }
+  }
+}
+
+/// 备份进度监听
+@riverpod
+class BackupProgress extends _$BackupProgress {
+  @override
+  double build() {
+    final notifier = BackupService.i.backupProgress;
+
+    // 监听 ValueNotifier 变化
+    void listener() {
+      state = notifier.value;
+    }
+
+    notifier.addListener(listener);
+
+    // Provider 销毁时移除监听
+    ref.onDispose(() {
+      notifier.removeListener(listener);
+    });
+
+    return notifier.value;
   }
 }

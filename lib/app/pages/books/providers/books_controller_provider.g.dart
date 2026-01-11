@@ -2,6 +2,10 @@
 
 part of 'books_controller_provider.dart';
 
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// BooksController Provider
@@ -40,7 +44,7 @@ final class BooksControllerProvider
   }
 }
 
-String _$booksControllerHash() => r'6a78ac95ed01d06a11faecc264dd110824f18fa7';
+String _$booksControllerHash() => r'16b3b736f32858e132c1dbc41c9be30ce9e89c10';
 
 /// BooksController Provider
 

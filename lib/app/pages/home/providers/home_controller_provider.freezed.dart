@@ -5,13 +5,16 @@
 
 part of 'home_controller_provider.dart';
 
+// **************************************************************************
+// FreezedGenerator
+// **************************************************************************
+
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$HomeControllerState implements DiagnosticableTreeMixin {
 
-/// 当前选中的页面索引
-/// 0: 文章  1: 日记  2: 读书  3: AI助手  4: 设置
+/// 当前选中的页面索引 0: 文章  1: 日记  2: 读书  3: AI助手  4: 设置
  int get currentIndex;
 /// Create a copy of HomeControllerState
 /// with the given fields replaced by the non-null parameter values.
@@ -213,8 +216,7 @@ class _HomeControllerState with DiagnosticableTreeMixin implements HomeControlle
   const _HomeControllerState({this.currentIndex = 0});
   
 
-/// 当前选中的页面索引
-/// 0: 文章  1: 日记  2: 读书  3: AI助手  4: 设置
+/// 当前选中的页面索引 0: 文章  1: 日记  2: 读书  3: AI助手  4: 设置
 @override@JsonKey() final  int currentIndex;
 
 /// Create a copy of HomeControllerState

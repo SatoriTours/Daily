@@ -2,23 +2,18 @@
 
 part of 'home_controller_provider.dart';
 
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// HomeController Provider
-///
-/// 管理主页的状态和逻辑
 
 @ProviderFor(HomeController)
 final homeControllerProvider = HomeControllerProvider._();
 
-/// HomeController Provider
-///
-/// 管理主页的状态和逻辑
 final class HomeControllerProvider
     extends $NotifierProvider<HomeController, HomeControllerState> {
-  /// HomeController Provider
-  ///
-  /// 管理主页的状态和逻辑
   HomeControllerProvider._()
     : super(
         from: null,
@@ -46,11 +41,7 @@ final class HomeControllerProvider
   }
 }
 
-String _$homeControllerHash() => r'273562f65e03c916ebe065eb8e4e5b08efea636b';
-
-/// HomeController Provider
-///
-/// 管理主页的状态和逻辑
+String _$homeControllerHash() => r'dd21833263a770e359301cad31f7c20167fdee8f';
 
 abstract class _$HomeController extends $Notifier<HomeControllerState> {
   HomeControllerState build();

@@ -5,12 +5,16 @@
 
 part of 'backup_settings_controller_provider.dart';
 
+// **************************************************************************
+// FreezedGenerator
+// **************************************************************************
+
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$BackupSettingsControllerState {
 
- bool get isLoading; String get errorMessage; String get backupDirectory;
+ bool get isLoading; String get errorMessage; String get backupDirectory; double get backupProgress; bool get isBackingUp;
 /// Create a copy of BackupSettingsControllerState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -21,16 +25,16 @@ $BackupSettingsControllerStateCopyWith<BackupSettingsControllerState> get copyWi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BackupSettingsControllerState&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.backupDirectory, backupDirectory) || other.backupDirectory == backupDirectory));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BackupSettingsControllerState&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.backupDirectory, backupDirectory) || other.backupDirectory == backupDirectory)&&(identical(other.backupProgress, backupProgress) || other.backupProgress == backupProgress)&&(identical(other.isBackingUp, isBackingUp) || other.isBackingUp == isBackingUp));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,isLoading,errorMessage,backupDirectory);
+int get hashCode => Object.hash(runtimeType,isLoading,errorMessage,backupDirectory,backupProgress,isBackingUp);
 
 @override
 String toString() {
-  return 'BackupSettingsControllerState(isLoading: $isLoading, errorMessage: $errorMessage, backupDirectory: $backupDirectory)';
+  return 'BackupSettingsControllerState(isLoading: $isLoading, errorMessage: $errorMessage, backupDirectory: $backupDirectory, backupProgress: $backupProgress, isBackingUp: $isBackingUp)';
 }
 
 
@@ -41,7 +45,7 @@ abstract mixin class $BackupSettingsControllerStateCopyWith<$Res>  {
   factory $BackupSettingsControllerStateCopyWith(BackupSettingsControllerState value, $Res Function(BackupSettingsControllerState) _then) = _$BackupSettingsControllerStateCopyWithImpl;
 @useResult
 $Res call({
- bool isLoading, String errorMessage, String backupDirectory
+ bool isLoading, String errorMessage, String backupDirectory, double backupProgress, bool isBackingUp
 });
 
 
@@ -58,12 +62,14 @@ class _$BackupSettingsControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of BackupSettingsControllerState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? isLoading = null,Object? errorMessage = null,Object? backupDirectory = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? isLoading = null,Object? errorMessage = null,Object? backupDirectory = null,Object? backupProgress = null,Object? isBackingUp = null,}) {
   return _then(_self.copyWith(
 isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
 as bool,errorMessage: null == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
 as String,backupDirectory: null == backupDirectory ? _self.backupDirectory : backupDirectory // ignore: cast_nullable_to_non_nullable
-as String,
+as String,backupProgress: null == backupProgress ? _self.backupProgress : backupProgress // ignore: cast_nullable_to_non_nullable
+as double,isBackingUp: null == isBackingUp ? _self.isBackingUp : isBackingUp // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -148,10 +154,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool isLoading,  String errorMessage,  String backupDirectory)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool isLoading,  String errorMessage,  String backupDirectory,  double backupProgress,  bool isBackingUp)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _BackupSettingsControllerState() when $default != null:
-return $default(_that.isLoading,_that.errorMessage,_that.backupDirectory);case _:
+return $default(_that.isLoading,_that.errorMessage,_that.backupDirectory,_that.backupProgress,_that.isBackingUp);case _:
   return orElse();
 
 }
@@ -169,10 +175,10 @@ return $default(_that.isLoading,_that.errorMessage,_that.backupDirectory);case _
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool isLoading,  String errorMessage,  String backupDirectory)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool isLoading,  String errorMessage,  String backupDirectory,  double backupProgress,  bool isBackingUp)  $default,) {final _that = this;
 switch (_that) {
 case _BackupSettingsControllerState():
-return $default(_that.isLoading,_that.errorMessage,_that.backupDirectory);case _:
+return $default(_that.isLoading,_that.errorMessage,_that.backupDirectory,_that.backupProgress,_that.isBackingUp);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -189,10 +195,10 @@ return $default(_that.isLoading,_that.errorMessage,_that.backupDirectory);case _
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool isLoading,  String errorMessage,  String backupDirectory)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool isLoading,  String errorMessage,  String backupDirectory,  double backupProgress,  bool isBackingUp)?  $default,) {final _that = this;
 switch (_that) {
 case _BackupSettingsControllerState() when $default != null:
-return $default(_that.isLoading,_that.errorMessage,_that.backupDirectory);case _:
+return $default(_that.isLoading,_that.errorMessage,_that.backupDirectory,_that.backupProgress,_that.isBackingUp);case _:
   return null;
 
 }
@@ -204,12 +210,14 @@ return $default(_that.isLoading,_that.errorMessage,_that.backupDirectory);case _
 
 
 class _BackupSettingsControllerState implements BackupSettingsControllerState {
-  const _BackupSettingsControllerState({this.isLoading = false, this.errorMessage = '', this.backupDirectory = ''});
+  const _BackupSettingsControllerState({this.isLoading = false, this.errorMessage = '', this.backupDirectory = '', this.backupProgress = 0.0, this.isBackingUp = false});
   
 
 @override@JsonKey() final  bool isLoading;
 @override@JsonKey() final  String errorMessage;
 @override@JsonKey() final  String backupDirectory;
+@override@JsonKey() final  double backupProgress;
+@override@JsonKey() final  bool isBackingUp;
 
 /// Create a copy of BackupSettingsControllerState
 /// with the given fields replaced by the non-null parameter values.
@@ -221,16 +229,16 @@ _$BackupSettingsControllerStateCopyWith<_BackupSettingsControllerState> get copy
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BackupSettingsControllerState&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.backupDirectory, backupDirectory) || other.backupDirectory == backupDirectory));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BackupSettingsControllerState&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.backupDirectory, backupDirectory) || other.backupDirectory == backupDirectory)&&(identical(other.backupProgress, backupProgress) || other.backupProgress == backupProgress)&&(identical(other.isBackingUp, isBackingUp) || other.isBackingUp == isBackingUp));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,isLoading,errorMessage,backupDirectory);
+int get hashCode => Object.hash(runtimeType,isLoading,errorMessage,backupDirectory,backupProgress,isBackingUp);
 
 @override
 String toString() {
-  return 'BackupSettingsControllerState(isLoading: $isLoading, errorMessage: $errorMessage, backupDirectory: $backupDirectory)';
+  return 'BackupSettingsControllerState(isLoading: $isLoading, errorMessage: $errorMessage, backupDirectory: $backupDirectory, backupProgress: $backupProgress, isBackingUp: $isBackingUp)';
 }
 
 
@@ -241,7 +249,7 @@ abstract mixin class _$BackupSettingsControllerStateCopyWith<$Res> implements $B
   factory _$BackupSettingsControllerStateCopyWith(_BackupSettingsControllerState value, $Res Function(_BackupSettingsControllerState) _then) = __$BackupSettingsControllerStateCopyWithImpl;
 @override @useResult
 $Res call({
- bool isLoading, String errorMessage, String backupDirectory
+ bool isLoading, String errorMessage, String backupDirectory, double backupProgress, bool isBackingUp
 });
 
 
@@ -258,12 +266,14 @@ class __$BackupSettingsControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of BackupSettingsControllerState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? isLoading = null,Object? errorMessage = null,Object? backupDirectory = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? isLoading = null,Object? errorMessage = null,Object? backupDirectory = null,Object? backupProgress = null,Object? isBackingUp = null,}) {
   return _then(_BackupSettingsControllerState(
 isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
 as bool,errorMessage: null == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
 as String,backupDirectory: null == backupDirectory ? _self.backupDirectory : backupDirectory // ignore: cast_nullable_to_non_nullable
-as String,
+as String,backupProgress: null == backupProgress ? _self.backupProgress : backupProgress // ignore: cast_nullable_to_non_nullable
+as double,isBackingUp: null == isBackingUp ? _self.isBackingUp : isBackingUp // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

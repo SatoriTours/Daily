@@ -2,6 +2,10 @@
 
 part of 'first_launch_provider.dart';
 
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// 首次启动状态
@@ -41,7 +45,7 @@ final class FirstLaunchControllerProvider
 }
 
 String _$firstLaunchControllerHash() =>
-    r'88b9b22f44a061b17ed8ab5a1b52590aeab61a59';
+    r'44b575b2ca57938aa649907427205eab7ecdc624';
 
 /// 首次启动状态
 
