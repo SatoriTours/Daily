@@ -345,6 +345,84 @@ createApp({
         };
 
         // ====================================================================
+        // 日记编辑 - 添加/编辑功能
+        // ====================================================================
+        const showDiaryEditorModal = ref(false);  // 编辑弹窗显示状态
+        const editingDiaryId = ref(null);         // 当前编辑的日记ID
+        const diaryContent = ref('');             // 日记内容
+        const diaryTags = ref('');                // 日记标签
+        const diaryMood = ref('');                // 日记心情
+        const savingDiary = ref(false);           // 保存状态
+
+        /** 打日记编辑器（新建模式） */
+        const openDiaryEditor = () => {
+            editingDiaryId.value = null;
+            diaryContent.value = '';
+            diaryTags.value = '';
+            diaryMood.value = '';
+            showDiaryEditorModal.value = true;
+        };
+
+        /** 从详情页编辑日记 */
+        const editDiaryFromDetail = () => {
+            editingDiaryId.value = detailItem.value.id;
+            diaryContent.value = detailItem.value.content || '';
+            diaryTags.value = detailItem.value.tags || '';
+            diaryMood.value = detailItem.value.mood || '';
+            showDiaryDetailModal.value = false;
+            showDiaryEditorModal.value = true;
+        };
+
+        /** 关闭日记编辑器 */
+        const closeDiaryEditor = () => {
+            showDiaryEditorModal.value = false;
+            editingDiaryId.value = null;
+            diaryContent.value = '';
+            diaryTags.value = '';
+            diaryMood.value = '';
+        };
+
+        /** 保存日记（新建或更新） */
+        const saveDiary = async () => {
+            if (!diaryContent.value.trim()) {
+                showToast('请输入日记内容', 'error');
+                return;
+            }
+            savingDiary.value = true;
+            try {
+                if (editingDiaryId.value) {
+                    // 更新日记
+                    await apiRequest(`/diary/${editingDiaryId.value}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            content: diaryContent.value.trim(),
+                            tags: diaryTags.value.trim() || null,
+                            mood: diaryMood.value.trim() || null
+                        })
+                    });
+                    showToast('日记更新成功', 'success');
+                } else {
+                    // 新建日记
+                    await apiRequest('/diary', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            content: diaryContent.value.trim(),
+                            tags: diaryTags.value.trim() || null,
+                            mood: diaryMood.value.trim() || null
+                        })
+                    });
+                    showToast('日记添加成功', 'success');
+                }
+                closeDiaryEditor();
+                // 刷新日记列表
+                loadDiaries(diaryPagination.value.page);
+            } catch (err) {
+                showToast((editingDiaryId.value ? '更新' : '添加') + '失败: ' + err.message, 'error');
+            }
+            savingDiary.value = false;
+        };
+
+        // ====================================================================
         // 书籍管理 - 列表/观点/搜索
         // ====================================================================
         const books = ref([]);
@@ -655,6 +733,10 @@ createApp({
             // 日记管理
             diaries, diariesLoading, diarySearchQuery, diaryPagination,
             loadDiaries, searchDiaries, changeDiaryPage, getDiaryTitle,
+
+            // 日记编辑
+            showDiaryEditorModal, editingDiaryId, diaryContent, diaryTags, diaryMood, savingDiary,
+            openDiaryEditor, editDiaryFromDetail, closeDiaryEditor, saveDiary,
 
             // 书籍管理
             books, booksLoading, bookSearchQuery, bookPagination,

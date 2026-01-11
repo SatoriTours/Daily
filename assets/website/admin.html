@@ -287,6 +287,9 @@
                                 <h3>日记列表</h3>
                                 <div class="header-actions-right">
                                     <button class="icon-btn" @click="loadDiaries(1)" title="刷新列表"><i class="bi bi-arrow-clockwise"></i></button>
+                                    <button class="btn-add" @click="showDiaryEditorModal = true">
+                                        <i class="bi bi-plus-lg"></i> 添加
+                                    </button>
                                     <div class="search-box">
                                         <input type="text" v-model="diarySearchQuery" placeholder="搜索日记..." @keyup.enter="searchDiaries">
                                         <button class="btn btn-primary" @click="searchDiaries">搜索</button>
@@ -520,9 +523,48 @@
                         </button>
                     </div>
                     <div class="right-actions">
+                        <button class="btn btn-primary" @click="editDiaryFromDetail">
+                            <i class="bi bi-pencil"></i> 编辑
+                        </button>
                         <button class="btn btn-secondary" @click="showDiaryDetailModal = false">关闭</button>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- 日记编辑模态框 (Diary Editor Modal) -->
+        <div v-if="showDiaryEditorModal" class="modal-overlay" @click.self="closeDiaryEditor">
+            <div class="modal-content" style="max-width: 700px;">
+                <div class="modal-header">
+                    <h3><i class="bi bi-journal-text"></i> {{ editingDiaryId ? '编辑日记' : '添加日记' }}</h3>
+                    <button class="modal-close" @click="closeDiaryEditor">&times;</button>
+                </div>
+                <form @submit.prevent="saveDiary">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="diary-content-input">日记内容</label>
+                            <textarea id="diary-content-input" v-model="diaryContent" rows="12"
+                                      placeholder="记录今天的所见所想...&#10;&#10;支持 Markdown 格式：&#10;# 标题&#10;**加粗**&#10;*斜体*&#10;- 列表项"
+                                      required style="width: 100%; padding: 12px; border: 1px solid #dee2e6; border-radius: 8px; resize: vertical; font-family: inherit; line-height: 1.6;"></textarea>
+                            <small class="form-hint">支持 Markdown 语法，可以使用 # 标题、**加粗**、*斜体* 等格式</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="diary-tags-input">标签（可选）</label>
+                            <input id="diary-tags-input" type="text" v-model="diaryTags" placeholder="多个标签用逗号分隔，如: 生活, 思考, 学习">
+                        </div>
+                        <div class="form-group">
+                            <label for="diary-mood-input">心情（可选）</label>
+                            <input id="diary-mood-input" type="text" v-model="diaryMood" placeholder="如: 开心、平静、忙碌">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @click="closeDiaryEditor">取消</button>
+                        <button type="submit" class="btn btn-primary" :disabled="savingDiary">
+                            <i class="bi" :class="savingDiary ? 'bi-hourglass-split' : (editingDiaryId ? 'bi-check-lg' : 'bi-plus-circle')"></i>
+                            {{ savingDiary ? '保存中...' : (editingDiaryId ? '保存修改' : '添加日记') }}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 
