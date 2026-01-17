@@ -254,8 +254,6 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
     // 先隐藏键盘
     FocusManager.instance.primaryFocus?.unfocus();
 
-    final controller = ref.read(diaryControllerProvider.notifier);
-
     // 保存图片并获取路径列表
     final List<String> newImagePaths = await _saveImages();
 
@@ -271,20 +269,24 @@ class _DiaryEditorState extends ConsumerState<DiaryEditor> {
 
     if (widget.diary != null) {
       // 更新日记
-      await controller.updateDiary(
-        widget.diary!.id,
-        _contentController.text,
-        images: imagesString,
-        tags: tags,
-      );
+      await ref
+          .read(diaryStateProvider.notifier)
+          .updateDiary(
+            id: widget.diary!.id,
+            content: _contentController.text,
+            images: imagesString,
+            tags: tags,
+          );
     } else {
       // 创建日记
-      await controller.createDiary(
-        _contentController.text,
-        images: imagesString,
-        date: widget.initialDate ?? DateTime.now(),
-        tags: tags,
-      );
+      await ref
+          .read(diaryStateProvider.notifier)
+          .createDiary(
+            content: _contentController.text,
+            images: imagesString,
+            createdAt: widget.initialDate ?? DateTime.now(),
+            tags: tags,
+          );
     }
 
     // 关闭底部弹窗前确保键盘已收起

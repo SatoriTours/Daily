@@ -6,14 +6,27 @@ import 'package:daily_satori/app/pages/diary/views/widgets/diary_editor.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
 /// 读书页面
-class BooksView extends ConsumerWidget {
+class BooksView extends ConsumerStatefulWidget {
   const BooksView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BooksView> createState() => _BooksViewState();
+}
+
+class _BooksViewState extends ConsumerState<BooksView> {
+  final PageController _pageController = PageController();
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: _BooksAppBar(),
-      body: const _BooksBody(),
+      appBar: const _BooksAppBar(),
+      body: _BooksBody(pageController: _pageController),
       floatingActionButton: _buildFab(context, ref),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
@@ -99,6 +112,8 @@ class BooksView extends ConsumerWidget {
 
 /// 应用栏
 class _BooksAppBar extends ConsumerWidget implements PreferredSizeWidget {
+  const _BooksAppBar();
+
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
@@ -170,7 +185,7 @@ class _BooksAppBar extends ConsumerWidget implements PreferredSizeWidget {
           top: Radius.circular(base_dim.Dimensions.radiusL),
         ),
       ),
-      builder: (_) => _BooksFilterDialog(),
+      builder: (_) => const _BooksFilterDialog(),
     );
   }
 
@@ -239,6 +254,8 @@ class _BooksAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
 /// 书籍过滤对话框
 class _BooksFilterDialog extends ConsumerWidget {
+  const _BooksFilterDialog();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final books = ref.watch(booksStateProvider.select((s) => s.allBooks));
@@ -250,7 +267,6 @@ class _BooksFilterDialog extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 标题
         Padding(
           padding: Dimensions.paddingM,
           child: Row(
@@ -265,7 +281,6 @@ class _BooksFilterDialog extends ConsumerWidget {
           ),
         ),
         const Divider(height: 1),
-        // 列表
         Expanded(
           child: ListView.builder(
             padding: Dimensions.paddingVerticalS,
@@ -280,7 +295,6 @@ class _BooksFilterDialog extends ConsumerWidget {
           ),
         ),
         const Divider(height: 1),
-        // 底部
         Padding(
           padding: Dimensions.paddingM,
           child: Center(
@@ -366,7 +380,9 @@ class _BooksFilterDialog extends ConsumerWidget {
 
 /// 页面主体
 class _BooksBody extends ConsumerWidget {
-  const _BooksBody();
+  final PageController pageController;
+
+  const _BooksBody({required this.pageController});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -392,10 +408,9 @@ class _BooksBody extends ConsumerWidget {
     WidgetRef ref,
     List<BookViewpointModel> viewpoints,
   ) {
-    final controllerState = ref.watch(booksControllerProvider);
     final booksNotifier = ref.read(booksStateProvider.notifier);
     return PageView.builder(
-      controller: controllerState.pageController,
+      controller: pageController,
       onPageChanged: (index) =>
           ref.read(booksControllerProvider.notifier).goToViewpointIndex(index),
       itemCount: viewpoints.length,

@@ -1,17 +1,35 @@
 import 'package:daily_satori/app_exports.dart';
 
 import 'package:daily_satori/app/pages/articles/providers/articles_controller_provider.dart';
+import 'package:daily_satori/app/pages/articles/providers/articles_derived_providers.dart';
 
 import 'widgets/articles_tags_dialog.dart';
 import 'widgets/articles_list.dart';
 import 'widgets/article_calendar_dialog.dart';
 
 /// 文章列表页面
-class ArticlesView extends ConsumerWidget {
+class ArticlesView extends ConsumerStatefulWidget {
   const ArticlesView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ArticlesView> createState() => _ArticlesViewState();
+}
+
+class _ArticlesViewState extends ConsumerState<ArticlesView> {
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: const _ArticlesAppBar(),
@@ -43,7 +61,7 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
         onPressed: () => _showCalendarDialog(context, ref, state, controller),
       ),
       title: GestureDetector(
-        onDoubleTap: () => _scrollToTop(state),
+        onDoubleTap: () => _scrollToTop(context),
         child: Text(displayTitle, style: AppTypography.titleLarge),
       ),
       centerTitle: true,
@@ -51,7 +69,6 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
         IconButton(
           icon: const Icon(FeatherIcons.search, color: Colors.white, size: 20),
           onPressed: () {
-            state.searchController?.clear();
             controller.toggleSearchState();
           },
         ),
@@ -59,6 +76,19 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
       ],
       foregroundColor: Colors.white,
     );
+  }
+
+  void _scrollToTop(BuildContext context) {
+    final scrollController = context
+        .findAncestorStateOfType<_ArticlesViewState>()
+        ?._scrollController;
+    if (scrollController != null && scrollController.hasClients) {
+      scrollController.animateTo(
+        0,
+        duration: Animations.durationNormal,
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   Widget _buildMoreMenu(
@@ -93,17 +123,6 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
         ),
       ],
     );
-  }
-
-  void _scrollToTop(ArticlesControllerState state) {
-    final sc = state.scrollController;
-    if (sc != null && sc.hasClients) {
-      sc.animateTo(
-        0,
-        duration: Animations.durationNormal,
-        curve: Curves.easeInOut,
-      );
-    }
   }
 
   void _showTagsDialog(
@@ -164,7 +183,6 @@ class _ArticlesBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(articlesControllerProvider);
     final controller = ref.read(articlesControllerProvider.notifier);
     final articles = ref.watch(articleStateProvider.select((s) => s.articles));
     final isLoading = ref.watch(
@@ -176,45 +194,51 @@ class _ArticlesBody extends ConsumerWidget {
     final hasFilters = ref.watch(hasFiltersProvider);
     final displayTitle = ref.watch(displayTitleProvider);
 
+    final articlesViewState = context
+        .findAncestorStateOfType<_ArticlesViewState>();
+    final scrollController =
+        articlesViewState?._scrollController ?? ScrollController();
+    final searchController =
+        articlesViewState?._searchController ?? TextEditingController();
+    final searchFocusNode = articlesViewState?._searchFocusNode ?? FocusNode();
+
     return Column(
       children: [
-        if (isSearchVisible) _buildSearchBar(state, controller),
+        if (isSearchVisible)
+          GenericSearchBar(
+            controller: searchController,
+            focusNode: searchFocusNode,
+            hintText: 'hint.search_articles'.t,
+            onSearch: (query) => controller.searchArticles(query),
+            onClear: () {
+              controller.clearAllFilters();
+            },
+            isSearchVisible: true,
+            onToggleSearch: controller.toggleSearchState,
+            showFilterButton: false,
+          ),
         if (hasFilters)
           FilterIndicator(
             title: displayTitle,
             onClear: controller.clearAllFilters,
           ),
         Expanded(
-          child: _buildArticlesList(articles, isLoading, state, controller),
+          child: _buildArticlesList(
+            articles,
+            isLoading,
+            controller,
+            scrollController,
+          ),
         ),
       ],
-    );
-  }
-
-  Widget _buildSearchBar(
-    ArticlesControllerState state,
-    ArticlesController controller,
-  ) {
-    return GenericSearchBar(
-      controller: state.searchController!,
-      focusNode: state.searchFocusNode!,
-      hintText: 'hint.search_articles'.t,
-      onSearch: (_) => controller.searchArticles(state.searchController!),
-      onClear: () {
-        state.searchController!.clear();
-        controller.clearAllFilters(state.searchController);
-      },
-      isSearchVisible: true,
-      onToggleSearch: controller.toggleSearchState,
-      showFilterButton: false,
     );
   }
 
   Widget _buildArticlesList(
     List<ArticleModel> articles,
     bool isLoading,
-    ArticlesControllerState state,
     ArticlesController controller,
+    ScrollController scrollController,
   ) {
     if (articles.isEmpty && !isLoading) {
       return const ArticlesEmptyView();
@@ -222,7 +246,7 @@ class _ArticlesBody extends ConsumerWidget {
     return ArticlesList(
       articles: articles,
       isLoading: isLoading,
-      scrollController: state.scrollController!,
+      scrollController: scrollController,
       onRefresh: controller.reloadArticles,
       onArticleTap: (article) =>
           AppNavigation.toNamed(Routes.articleDetail, arguments: article.id),

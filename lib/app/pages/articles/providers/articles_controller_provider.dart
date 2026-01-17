@@ -1,8 +1,6 @@
 /// Articles Controller Provider
 ///
-/// 文章列表控制器，负责文章列表的展示、搜索、过滤、分页加载等功能。
-/// 通过 ArticleState provider 管理文章数据状态。
-
+/// 文章列表页面控制器，管理文章列表的UI状态和用户交互。
 library;
 
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -21,60 +19,25 @@ abstract class ArticlesControllerState with _$ArticlesControllerState {
   const ArticlesControllerState._();
 
   const factory ArticlesControllerState({
-    /// 是否只显示收藏文章
     @Default(false) bool onlyFavorite,
-
-    /// 标签ID（-1表示未选择）
     @Default(-1) int tagId,
-
-    /// 标签名称
     @Default('') String tagName,
-
-    /// 选中的过滤日期
     DateTime? selectedFilterDate,
-
-    /// 最后刷新时间
     DateTime? lastRefreshTime,
-
-    /// ScrollController
-    ScrollController? scrollController,
-
-    /// TextEditingController
-    TextEditingController? searchController,
-
-    /// FocusNode
-    FocusNode? searchFocusNode,
   }) = _ArticlesControllerState;
 }
 
 /// ArticlesController Provider
-///
-/// 管理文章列表页的状态和逻辑
 @riverpod
 class ArticlesController extends _$ArticlesController {
-  // ========================================================================
-  // 常量配置
-  // ========================================================================
-
   static const int _staleDataThresholdMinutes = 60;
-
-  // ========================================================================
-  // 状态管理
-  // ========================================================================
 
   @override
   ArticlesControllerState build() {
     _initialize();
-
-    return ArticlesControllerState(
-      lastRefreshTime: DateTime.now(),
-      scrollController: _createScrollController(),
-      searchController: TextEditingController(),
-      searchFocusNode: FocusNode(),
-    );
+    return ArticlesControllerState(lastRefreshTime: DateTime.now());
   }
 
-  /// 初始化
   void _initialize() {
     ref.listen(articleStateProvider, (prev, next) {
       final prevEvent = prev?.articleUpdateEvent;
@@ -88,25 +51,6 @@ class ArticlesController extends _$ArticlesController {
     });
   }
 
-  ScrollController _createScrollController() {
-    final controller = ScrollController();
-    controller.addListener(() {
-      if (!controller.hasClients) return;
-      final position = controller.position;
-      if (position.pixels == position.maxScrollExtent) {
-        loadMoreArticles();
-      } else if (position.pixels == position.minScrollExtent) {
-        loadPreviousArticles();
-      }
-    });
-    return controller;
-  }
-
-  // ========================================================================
-  // 公开 API - 数据操作
-  // ========================================================================
-
-  /// 重新加载文章列表
   Future<void> reloadArticles() async {
     state = state.copyWith(lastRefreshTime: DateTime.now());
     final query = _buildQueryParams();
@@ -121,61 +65,42 @@ class ArticlesController extends _$ArticlesController {
         );
   }
 
-  /// 从列表中移除文章
   void removeArticle(int id) {
     ref.read(articleStateProvider.notifier).removeArticleFromList(id);
   }
 
-  /// 更新列表中的文章
   void updateArticle(int id) {
     ref.read(articleStateProvider.notifier).updateArticleInList(id);
   }
 
-  /// 合并/插入文章（用于新增或外部更新回写）
   void mergeArticle(ArticleModel model) {
     ref.read(articleStateProvider.notifier).mergeArticle(model);
   }
 
-  // ========================================================================
-  // 公开 API - 搜索功能
-  // ========================================================================
-
-  /// 切换搜索状态
   void toggleSearchState() {
-    final appState = ref.read(appGlobalStateProvider.notifier);
-    appState.toggleSearchBar();
+    ref.read(appGlobalStateProvider.notifier).toggleSearchBar();
   }
 
-  /// 执行搜索
-  Future<void> searchArticles(TextEditingController searchController) async {
-    final query = searchController.text.trim();
-    if (query.isEmpty) {
-      clearAllFilters(searchController);
+  Future<void> searchArticles(String query) async {
+    if (query.trim().isEmpty) {
+      clearAllFilters();
       return;
     }
 
-    final articleState = ref.read(articleStateProvider.notifier);
-    articleState.setGlobalSearch(query);
+    ref.read(articleStateProvider.notifier).setGlobalSearch(query.trim());
     await reloadArticles();
   }
 
-  // ========================================================================
-  // 公开 API - 过滤功能
-  // ========================================================================
-
-  /// 切换收藏过滤
   void toggleFavorite(bool value) {
     state = state.copyWith(onlyFavorite: value);
     reloadArticles();
   }
 
-  /// 按标签过滤
   void filterByTag(int id, String name) {
     state = state.copyWith(tagId: id, tagName: name, selectedFilterDate: null);
     reloadArticles();
   }
 
-  /// 按日期过滤
   void filterByDate(DateTime date) {
     final selectedDay = DateTime(date.year, date.month, date.day);
     state = state.copyWith(
@@ -187,8 +112,7 @@ class ArticlesController extends _$ArticlesController {
     reloadArticles();
   }
 
-  /// 清除所有过滤条件
-  void clearAllFilters([TextEditingController? searchController]) {
+  void clearAllFilters() {
     state = state.copyWith(
       tagId: -1,
       tagName: '',
@@ -196,26 +120,11 @@ class ArticlesController extends _$ArticlesController {
       selectedFilterDate: null,
     );
 
-    searchController?.clear();
-
-    final articleState = ref.read(articleStateProvider.notifier);
-    articleState.clearGlobalSearch();
+    ref.read(articleStateProvider.notifier).clearGlobalSearch();
     reloadArticles();
   }
 
-  // ========================================================================
-  // 公开 API - UI 辅助方法
-  // ========================================================================
-
-  // ========================================================================
-  // 应用生命周期处理
-  // ========================================================================
-
-  /// 处理应用恢复
-  Future<void> handleAppResume(ScrollController? scrollController) async {
-    if (scrollController == null || !scrollController.hasClients) return;
-
-    final isAtTop = scrollController.position.pixels <= 30;
+  Future<void> handleAppResume(bool isAtTop) async {
     final lastRefresh = state.lastRefreshTime ?? DateTime.now();
     final isDataStale =
         DateTime.now().difference(lastRefresh).inMinutes >=
@@ -224,27 +133,6 @@ class ArticlesController extends _$ArticlesController {
     if (isAtTop || isDataStale) {
       await reloadArticles();
     }
-  }
-
-  // ========================================================================
-  // 私有方法
-  // ========================================================================
-
-  /// 处理文章更新事件
-  void _handleArticleUpdateEvent(ArticleUpdateEvent event) {
-    if (event is ArticleUpdateEventNone) return;
-
-    switch (event) {
-      case ArticleUpdateEventCreated(:final article):
-        mergeArticle(article);
-      case ArticleUpdateEventUpdated(:final article):
-        updateArticle(article.id);
-      case ArticleUpdateEventDeleted(:final articleId):
-        removeArticle(articleId);
-      case ArticleUpdateEventNone():
-        break;
-    }
-    ref.read(articleStateProvider.notifier).clearArticleUpdateEvent();
   }
 
   Future<void> loadMoreArticles() => _loadAdjacentArticles(loadAfter: true);
@@ -270,6 +158,22 @@ class ArticlesController extends _$ArticlesController {
           isGreaterThan: !loadAfter,
           pageSize: PaginationConfig.defaultPageSize,
         );
+  }
+
+  void _handleArticleUpdateEvent(ArticleUpdateEvent event) {
+    if (event is ArticleUpdateEventNone) return;
+
+    switch (event) {
+      case ArticleUpdateEventCreated(:final article):
+        mergeArticle(article);
+      case ArticleUpdateEventUpdated(:final article):
+        updateArticle(article.id);
+      case ArticleUpdateEventDeleted(:final articleId):
+        removeArticle(articleId);
+      case ArticleUpdateEventNone():
+        break;
+    }
+    ref.read(articleStateProvider.notifier).clearArticleUpdateEvent();
   }
 
   _QueryParams _buildQueryParams() {
@@ -309,44 +213,4 @@ class _QueryParams {
     this.startDate,
     this.endDate,
   });
-}
-
-// 派生 Providers (Derived State)
-
-/// 计算显示标题
-@riverpod
-String displayTitle(Ref ref) {
-  final controllerState = ref.watch(articlesControllerProvider);
-  final articleState = ref.watch(articleStateProvider);
-  final globalSearchQuery = articleState.globalSearchQuery;
-  return switch ((
-    globalSearchQuery.isNotEmpty,
-    controllerState.tagName.isNotEmpty,
-    controllerState.onlyFavorite,
-    controllerState.selectedFilterDate != null,
-  )) {
-    (true, _, _, _) => 'article.search_result'.t.replaceAll(
-      '{query}',
-      globalSearchQuery,
-    ),
-    (_, true, _, _) => 'article.filter_by_tag'.t.replaceAll(
-      '{tag}',
-      controllerState.tagName,
-    ),
-    (_, _, true, _) => 'article.favorite_articles'.t,
-    (_, _, _, true) => 'article.filter_by_date'.t,
-    _ => 'article.all_articles'.t,
-  };
-}
-
-/// 是否存在筛选条件
-@riverpod
-bool hasFilters(Ref ref) {
-  final controllerState = ref.watch(articlesControllerProvider);
-  final articleState = ref.watch(articleStateProvider);
-  final globalSearchQuery = articleState.globalSearchQuery;
-  return globalSearchQuery.isNotEmpty ||
-      controllerState.tagName.isNotEmpty ||
-      controllerState.onlyFavorite ||
-      controllerState.selectedFilterDate != null;
 }

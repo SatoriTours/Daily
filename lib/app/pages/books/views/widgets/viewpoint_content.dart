@@ -1,7 +1,6 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/pages/books/views/widgets/viewpoint_card.dart';
 import 'package:daily_satori/app/pages/books/providers/books_controller_provider.dart';
-import 'package:daily_satori/app/pages/diary/providers/diary_controller_provider.dart';
 import 'package:daily_satori/app/pages/diary/views/widgets/diary_editor.dart';
 import 'package:daily_satori/app/styles/base/dimensions.dart' as base_dim;
 
@@ -169,9 +168,6 @@ class _ViewpointContentState extends ConsumerState<ViewpointContent> {
     final idx = booksState.currentViewpointIndex;
     if (idx < 0 || idx >= widget.viewpoints.length) return;
     final vp = widget.viewpoints[idx];
-    final diaryState = ref.read(diaryControllerProvider);
-    final contentController = diaryState.contentController;
-    if (contentController == null) return;
 
     final title = vp.title.trim();
     final bookTitle = widget.book.title.trim();
@@ -182,12 +178,8 @@ class _ViewpointContentState extends ConsumerState<ViewpointContent> {
       buffer.writeln('来源：《$bookTitle》${author.isNotEmpty ? ' · $author' : ''}');
     }
     buffer.writeln();
-    // 添加隐藏深链，供来源胶囊识别与回跳使用
     buffer.writeln('[](app://books/viewpoint/${vp.id})');
-    contentController
-      ..clear()
-      ..text = buffer.toString()
-      ..selection = TextSelection.collapsed(offset: buffer.length);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -197,7 +189,10 @@ class _ViewpointContentState extends ConsumerState<ViewpointContent> {
           top: Radius.circular(base_dim.Dimensions.radiusL),
         ),
       ),
-      builder: (context) => const DiaryEditor(),
+      builder: (context) => DiaryEditor(
+        initialContent: buffer.toString(),
+        initialCursorPosition: buffer.length,
+      ),
     );
   }
 
