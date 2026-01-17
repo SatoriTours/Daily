@@ -14,8 +14,7 @@ part 'books_controller_provider.g.dart';
 /// BooksController 状态
 @freezed
 abstract class BooksControllerState with _$BooksControllerState {
-  const factory BooksControllerState({DateTime? lastRefreshTime}) =
-      _BooksControllerState;
+  const factory BooksControllerState({DateTime? lastRefreshTime}) = _BooksControllerState;
 }
 
 /// BooksController Provider
@@ -25,28 +24,23 @@ class BooksController extends _$BooksController {
 
   @override
   BooksControllerState build() {
-    Future.microtask(() => loadAllViewpoints());
+    // 不在这里加载观点，由 BooksState.build() 负责初始加载
     return BooksControllerState(lastRefreshTime: DateTime.now());
   }
 
-  Future<void> loadAllViewpoints() =>
-      ref.read(booksStateProvider.notifier).loadAllViewpoints();
+  Future<void> loadAllViewpoints() => ref.read(booksStateProvider.notifier).loadAllViewpoints();
 
   void previousViewpoint() {
     final current = ref.read(booksStateProvider).currentViewpointIndex;
     if (current > 0) {
-      ref
-          .read(booksStateProvider.notifier)
-          .setCurrentViewpointIndex(current - 1);
+      ref.read(booksStateProvider.notifier).setCurrentViewpointIndex(current - 1);
     }
   }
 
   void nextViewpoint() {
     final state = ref.read(booksStateProvider);
     if (state.currentViewpointIndex < state.viewpoints.length - 1) {
-      ref
-          .read(booksStateProvider.notifier)
-          .setCurrentViewpointIndex(state.currentViewpointIndex + 1);
+      ref.read(booksStateProvider.notifier).setCurrentViewpointIndex(state.currentViewpointIndex + 1);
     }
   }
 
@@ -77,14 +71,11 @@ class BooksController extends _$BooksController {
     }
   }
 
-  void goToViewpointIndex(int index) =>
-      ref.read(booksStateProvider.notifier).setCurrentViewpointIndex(index);
+  void goToViewpointIndex(int index) => ref.read(booksStateProvider.notifier).setCurrentViewpointIndex(index);
 
-  Future<void> deleteBook(int bookId) =>
-      ref.read(booksStateProvider.notifier).deleteBook(bookId);
+  Future<void> deleteBook(int bookId) => ref.read(booksStateProvider.notifier).deleteBook(bookId);
 
-  Future<void> refreshBook(int bookId) =>
-      ref.read(booksStateProvider.notifier).refreshBook(bookId);
+  Future<void> refreshBook(int bookId) => ref.read(booksStateProvider.notifier).refreshBook(bookId);
 
   void openViewpointById(int viewpointId) {
     final viewpoints = ref.read(booksStateProvider).viewpoints;
