@@ -1,99 +1,105 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'package:daily_satori/app/data/data.dart';
+import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/pages/article_detail/views/widgets/article_image_view.dart';
 import 'package:daily_satori/app/pages/article_detail/views/widgets/article_tags.dart';
 import 'package:daily_satori/app/pages/article_detail/providers/article_detail_controller_provider.dart';
-import 'package:daily_satori/app/styles/styles.dart';
 
 class SummaryTab extends ConsumerWidget {
-  final int? articleId;
-  final ArticleModel? article;
+  final int articleId;
 
-  const SummaryTab({super.key, this.articleId, required this.article});
+  const SummaryTab({super.key, required this.articleId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (article == null || articleId == null) {
+    final controllerState = ref.watch(
+      articleDetailControllerProvider(articleId),
+    );
+    final article = controllerState.articleModel;
+
+    if (article == null) {
       return const Center(child: Text('文章不存在'));
     }
 
-    final controllerState = ref.watch(
-      articleDetailControllerProvider(articleId!),
-    );
-    final tags = controllerState.tags;
-
-    final hasAiTitle = article?.aiTitle?.isNotEmpty ?? false;
-    final hasAiContent = article?.aiContent?.isNotEmpty ?? false;
+    final hasAiTitle = article.aiTitle?.isNotEmpty ?? false;
+    final hasAiContent = article.aiContent?.isNotEmpty ?? false;
+    final hasHeaderImage =
+        article.shouldShowHeaderImage() ||
+        (article.coverImageUrl?.isNotEmpty ?? false);
+    final hasComment = article.comment?.isNotEmpty ?? false;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingL),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_hasHeaderImage) _buildHeaderImage(),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              Dimensions.spacingL,
-              Dimensions.spacingL,
-              Dimensions.spacingL,
-              Dimensions.spacingM,
-            ),
-            child: _AnimatedText(
-              text: hasAiTitle ? article!.aiTitle! : article!.showTitle(),
-              isAnimated: hasAiTitle,
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Dimensions.spacingL,
-              vertical: Dimensions.spacingM,
-            ),
-            child: ArticleTags(tags: tags),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              Dimensions.spacingL,
-              Dimensions.spacingM,
-              Dimensions.spacingL,
-              Dimensions.spacingL,
-            ),
-            child: _AnimatedContent(
-              content: hasAiContent
-                  ? article!.aiContent!
-                  : article!.showContent(),
-              isAnimated: hasAiContent,
-            ),
-          ),
-
-          if (_hasComment) _buildCommentSection(context),
+          if (hasHeaderImage) _buildHeaderImage(article),
+          _buildTitle(context, article, hasAiTitle),
+          _buildTags(controllerState.tags),
+          _buildContent(article, hasAiContent),
+          if (hasComment) _buildCommentSection(context, article),
         ],
       ),
     );
   }
 
-  bool get _hasHeaderImage =>
-      article!.shouldShowHeaderImage() ||
-      (article!.coverImageUrl?.isNotEmpty ?? false);
-
-  bool get _hasComment => article!.comment?.isNotEmpty ?? false;
-
-  Widget _buildHeaderImage() {
+  Widget _buildHeaderImage(ArticleModel article) {
     return Padding(
       padding: const EdgeInsets.only(bottom: Dimensions.spacingS),
       child: ArticleImageView(
-        imagePath: article!.getHeaderImagePath(),
+        imagePath: article.getHeaderImagePath(),
         article: article,
-        networkUrl: article!.coverImageUrl,
+        networkUrl: article.coverImageUrl,
       ),
     );
   }
 
-  Widget _buildCommentSection(BuildContext context) {
+  Widget _buildTitle(
+    BuildContext context,
+    ArticleModel article,
+    bool isAnimated,
+  ) {
+    final title = isAnimated ? article.aiTitle! : article.showTitle();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        Dimensions.spacingL,
+        Dimensions.spacingL,
+        Dimensions.spacingL,
+        Dimensions.spacingM,
+      ),
+      child: AnimatedText(
+        text: title,
+        style: AppTheme.getTextTheme(context).titleLarge,
+      ),
+    );
+  }
+
+  Widget _buildTags(String tags) {
+    if (tags.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: Dimensions.spacingL,
+        vertical: Dimensions.spacingM,
+      ),
+      child: ArticleTags(tags: tags),
+    );
+  }
+
+  Widget _buildContent(ArticleModel article, bool isAnimated) {
+    final content = isAnimated ? article.aiContent! : article.showContent();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        Dimensions.spacingL,
+        Dimensions.spacingM,
+        Dimensions.spacingL,
+        Dimensions.spacingL,
+      ),
+      child: AnimatedContent(content: content, isAnimated: isAnimated),
+    );
+  }
+
+  Widget _buildCommentSection(BuildContext context, ArticleModel article) {
     final textTheme = AppTheme.getTextTheme(context);
 
     return Padding(
@@ -106,62 +112,38 @@ class SummaryTab extends ConsumerWidget {
             style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           Dimensions.verticalSpacerM,
-          Text(article!.comment ?? '', style: textTheme.bodyMedium),
+          Text(article.comment ?? '', style: textTheme.bodyMedium),
         ],
       ),
     );
   }
 }
 
-class _AnimatedText extends StatefulWidget {
+/// 动画文本组件
+class AnimatedText extends StatefulWidget {
   final String text;
-  final bool isAnimated;
+  final TextStyle? style;
 
-  const _AnimatedText({required this.text, required this.isAnimated});
+  const AnimatedText({super.key, required this.text, this.style});
 
   @override
-  State<_AnimatedText> createState() => _AnimatedTextState();
+  State<AnimatedText> createState() => _AnimatedTextState();
 }
 
-class _AnimatedTextState extends State<_AnimatedText>
+class _AnimatedTextState extends State<AnimatedText>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-
-  bool _wasAnimated = false;
+  late Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    _fadeAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    );
-
-    if (widget.isAnimated) {
-      _controller.value = 1.0;
-    } else {
-      _controller.value = 1.0;
-    }
-    _wasAnimated = widget.isAnimated;
-  }
-
-  @override
-  void didUpdateWidget(_AnimatedText oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.isAnimated != widget.isAnimated && widget.isAnimated) {
-      _controller.reset();
-      _controller.forward();
-      _wasAnimated = true;
-    } else if (widget.isAnimated && !_wasAnimated) {
-      _controller.reset();
-      _controller.forward();
-      _wasAnimated = true;
-    }
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+    _controller.forward();
   }
 
   @override
@@ -173,66 +155,47 @@ class _AnimatedTextState extends State<_AnimatedText>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _fadeAnimation,
+      animation: _animation,
       builder: (context, child) {
-        return Opacity(opacity: _fadeAnimation.value, child: child);
+        return Opacity(opacity: _animation.value, child: child);
       },
-      child: Text(
-        widget.text,
-        style: AppTheme.getTextTheme(context).titleLarge,
-      ),
+      child: Text(widget.text, style: widget.style),
     );
   }
 }
 
-class _AnimatedContent extends StatefulWidget {
+/// 动画内容组件
+class AnimatedContent extends StatefulWidget {
   final String content;
   final bool isAnimated;
 
-  const _AnimatedContent({required this.content, required this.isAnimated});
+  const AnimatedContent({
+    super.key,
+    required this.content,
+    required this.isAnimated,
+  });
 
   @override
-  State<_AnimatedContent> createState() => _AnimatedContentState();
+  State<AnimatedContent> createState() => _AnimatedContentState();
 }
 
-class _AnimatedContentState extends State<_AnimatedContent>
+class _AnimatedContentState extends State<AnimatedContent>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-
-  bool _wasAnimated = false;
+  late Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _fadeAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    );
-
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
     if (widget.isAnimated) {
-      _controller.value = 1.0;
+      _controller.forward();
     } else {
       _controller.value = 1.0;
-    }
-    _wasAnimated = widget.isAnimated;
-  }
-
-  @override
-  void didUpdateWidget(_AnimatedContent oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.isAnimated != widget.isAnimated && widget.isAnimated) {
-      _controller.reset();
-      _controller.forward();
-      _wasAnimated = true;
-    } else if (widget.isAnimated && !_wasAnimated) {
-      _controller.reset();
-      _controller.forward();
-      _wasAnimated = true;
     }
   }
 
@@ -244,113 +207,103 @@ class _AnimatedContentState extends State<_AnimatedContent>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _fadeAnimation,
-      builder: (context, child) {
-        return Opacity(opacity: _fadeAnimation.value, child: child);
-      },
-      child: _buildFormattedContent(context, widget.content),
-    );
-  }
-
-  Widget _buildFormattedContent(BuildContext context, String content) {
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
 
-    final sections = _parseContent(content);
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Opacity(opacity: _animation.value, child: child);
+      },
+      child: _buildFormattedContent(textTheme, colorScheme),
+    );
+  }
+
+  Widget _buildFormattedContent(TextTheme textTheme, ColorScheme colorScheme) {
+    final sections = _parseContent(widget.content);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (sections['summary']?.isNotEmpty ?? false) ...[
+        if (sections['summary'].isNotEmpty) ...[
           Text(
-            sections['summary']!,
+            sections['summary'],
             style: AppTypography.bodyLarge.copyWith(
               height: 1.8,
               color: colorScheme.onSurface,
-              fontSize: AppTypography.bodyLarge.fontSize! + 1,
             ),
           ),
-          if (sections['hasKeyPoints'] == true) Dimensions.verticalSpacerXl,
         ],
-        if (sections['hasKeyPoints'] == true &&
+        if (sections['hasKeyPoints'] &&
             (sections['keyPoints'] as List).isNotEmpty) ...[
-          Text(
-            '核心观点',
-            style: textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: colorScheme.primary,
-            ),
-          ),
-          Dimensions.verticalSpacerM,
-          ...sections['keyPoints'].asMap().entries.map<Widget>(
-            (entry) => _buildKeyPoint(context, entry),
-          ),
-        ],
-        if ((sections['summary']?.isEmpty ?? true) &&
-            (sections['hasKeyPoints'] == false ||
-                (sections['keyPoints'] as List).isEmpty)) ...[
-          Text(
-            content,
-            style: AppTypography.bodyLarge.copyWith(
-              height: 1.8,
-              fontSize: AppTypography.bodyLarge.fontSize! + 1,
-            ),
-          ),
+          Dimensions.verticalSpacerXl,
+          _buildKeyPointsSection(textTheme, colorScheme, sections['keyPoints']),
         ],
       ],
     );
   }
 
-  Widget _buildKeyPoint(
-    BuildContext context,
-    MapEntry<int, String> indexedPoint,
+  Widget _buildKeyPointsSection(
+    TextTheme textTheme,
+    ColorScheme colorScheme,
+    List<String> keyPoints,
   ) {
-    final textTheme = AppTheme.getTextTheme(context);
-    final colorScheme = AppTheme.getColorScheme(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '核心观点',
+          style: textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: colorScheme.primary,
+          ),
+        ),
+        Dimensions.verticalSpacerM,
+        ...keyPoints.asMap().entries.map<Widget>((entry) {
+          final index = entry.key;
+          final point = entry.value;
+          final cleanPoint = point.replaceFirst(RegExp(r'^\d+\.\s*'), '');
 
-    final index = indexedPoint.key;
-    final point = indexedPoint.value;
-    final cleanPoint = point.replaceFirst(RegExp(r'^\d+\.\s*'), '');
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Dimensions.spacingL),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            margin: const EdgeInsets.only(
-              top: Dimensions.spacingXs / 2,
-              right: Dimensions.spacingM,
-            ),
-            width: Dimensions.iconSizeL,
-            height: Dimensions.iconSizeL,
-            decoration: BoxDecoration(
-              color: colorScheme.primary,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                '${index + 1}',
-                style: textTheme.labelLarge?.copyWith(
-                  color: colorScheme.onPrimary,
-                  fontWeight: FontWeight.bold,
+          return Padding(
+            padding: const EdgeInsets.only(bottom: Dimensions.spacingL),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(
+                    top: Dimensions.spacingXs / 2,
+                    right: Dimensions.spacingM,
+                  ),
+                  width: Dimensions.iconSizeL,
+                  height: Dimensions.iconSizeL,
+                  decoration: BoxDecoration(
+                    color: colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${index + 1}',
+                      style: textTheme.labelLarge?.copyWith(
+                        color: colorScheme.onPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                Expanded(
+                  child: Text(
+                    cleanPoint,
+                    style: AppTypography.bodyLarge.copyWith(
+                      height: 1.8,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          Expanded(
-            child: Text(
-              cleanPoint,
-              style: AppTypography.bodyLarge.copyWith(
-                height: 1.8,
-                color: colorScheme.onSurface,
-                fontSize: AppTypography.bodyLarge.fontSize! + 1,
-              ),
-            ),
-          ),
-        ],
-      ),
+          );
+        }),
+      ],
     );
   }
 

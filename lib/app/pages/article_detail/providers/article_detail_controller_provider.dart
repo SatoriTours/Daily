@@ -136,7 +136,9 @@ class ArticleDetailController extends _$ArticleDetailController {
       logger.i("开始生成Markdown内容");
 
       // 使用AI服务将HTML转换为Markdown
-      final markdown = await AiService.i.htmlToMarkdown(articleModel.htmlContent!);
+      final markdown = await AiService.i.htmlToMarkdown(
+        articleModel.htmlContent!,
+      );
 
       if (markdown.isEmpty) {
         throw Exception("Markdown内容生成失败");
