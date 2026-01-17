@@ -3,8 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:daily_satori/app_exports.dart';
 import 'package:daily_satori/app/pages/share_dialog/providers/share_dialog_controller_provider.dart';
 
-/// 分享页面视图
-/// 用于保存链接或添加/更新文章备注信息
 class ShareDialogView extends ConsumerStatefulWidget {
   const ShareDialogView({super.key});
 
@@ -13,14 +11,35 @@ class ShareDialogView extends ConsumerStatefulWidget {
 }
 
 class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _commentController;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController();
+    _commentController = TextEditingController();
+
+    _titleController.addListener(() {
+      ref
+          .read(shareDialogControllerProvider.notifier)
+          .onTitleChanged(_titleController.text);
+    });
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _commentController.dispose();
+    super.dispose();
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // 从 go_router 获取路由参数
     final state = GoRouterState.of(context);
     final args = state.extra as Map<String, dynamic>?;
     if (args != null) {
-      // 使用 Future.microtask 避免在构建过程中修改状态
       Future.microtask(
         () => ref.read(shareDialogControllerProvider.notifier).initialize(args),
       );
@@ -32,22 +51,25 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
     final controllerState = ref.watch(shareDialogControllerProvider);
     final isUpdate = controllerState.isUpdate;
 
+    if (isUpdate && _titleController.text.isEmpty) {
+      _titleController.text = controllerState.articleTitle;
+    }
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: _buildAppBar(context, isUpdate),
-      body: _buildBody(context, ref, isUpdate),
+      appBar: _buildAppBar(isUpdate),
+      body: _buildBody(isUpdate),
+      bottomNavigationBar: _buildBottomButton(isUpdate),
     );
   }
 
-  // 构建顶部应用栏
-  PreferredSizeWidget _buildAppBar(BuildContext context, bool isUpdate) {
+  PreferredSizeWidget _buildAppBar(bool isUpdate) {
     return SAppBar(
       title: Text(
         isUpdate ? 'ui.updateArticle'.t : 'ui.saveLink'.t,
         style: const TextStyle(color: Colors.white),
       ),
       centerTitle: true,
-      // 更新模式下不显示返回按钮
       leading: isUpdate ? const SizedBox.shrink() : null,
       elevation: 0,
       backgroundColorLight: AppColors.primary,
@@ -56,92 +78,34 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
     );
   }
 
-  // 构建主体内容
-  Widget _buildBody(BuildContext context, WidgetRef ref, bool isUpdate) {
-    return SafeArea(
-      child: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: Dimensions.paddingPage,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildLinkSection(context, ref, isUpdate),
-                  Dimensions.verticalSpacerL,
-                  _buildTitleSection(context, ref, isUpdate),
-                  Dimensions.verticalSpacerL,
-                  _buildCommentSection(context, ref),
-                ],
-              ),
-            ),
-          ),
-          _buildBottomButton(context, ref, isUpdate),
-        ],
-      ),
-    );
-  }
+  Widget _buildBody(bool isUpdate) {
+    final controllerState = ref.watch(shareDialogControllerProvider);
+    final theme = Theme.of(context);
 
-  // 构建底部按钮区域
-  Widget _buildBottomButton(
-    BuildContext context,
-    WidgetRef ref,
-    bool isUpdate,
-  ) {
-    return Container(
-      padding: Dimensions.paddingBottomForm,
-      decoration: BoxDecoration(
-        color: AppColors.getSurface(context),
-        border: AppBorders.getTopBorder(
-          AppColors.getOutline(context),
-          opacity: Opacities.medium,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: Opacities.ultraLow),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: Dimensions.paddingPage,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: OutlinedButton(
-                style: StyleGuide.getOutlinedButtonStyle(context),
-                onPressed: () => AppNavigation.back(),
-                child: Text('ui.cancel'.t, style: AppTypography.buttonText),
-              ),
-            ),
-            Dimensions.horizontalSpacerM,
-            Expanded(
-              flex: 2,
-              child: FilledButton(
-                style: StyleGuide.getPrimaryButtonStyle(context),
-                onPressed: () => ref
-                    .read(shareDialogControllerProvider.notifier)
-                    .onSaveButtonPressed(context),
-                child: Text(
-                  isUpdate ? 'ui.saveChanges'.t : 'ui.save'.t,
-                  style: AppTypography.buttonText.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
+            _buildLinkSection(theme, controllerState, isUpdate),
+            const SizedBox(height: Dimensions.spacingL),
+            _buildTitleSection(theme),
+            const SizedBox(height: Dimensions.spacingL),
+            _buildTagsSection(theme),
+            const SizedBox(height: Dimensions.spacingL),
+            _buildCommentSection(theme),
           ],
         ),
       ),
     );
   }
 
-  // 构建链接区域（简洁版）
-  Widget _buildLinkSection(BuildContext context, WidgetRef ref, bool isUpdate) {
-    final theme = Theme.of(context);
-    final controllerState = ref.watch(shareDialogControllerProvider);
-
+  Widget _buildLinkSection(
+    ThemeData theme,
+    ShareDialogControllerState state,
+    bool isUpdate,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -154,7 +118,7 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
                 alpha: Opacities.highOpaque,
               ),
             ),
-            Dimensions.horizontalSpacerS,
+            const SizedBox(width: Dimensions.spacingS),
             Text(
               'ui.link'.t,
               style: AppTypography.titleSmall.copyWith(
@@ -163,49 +127,10 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
               ),
             ),
             const Spacer(),
-            if (isUpdate) ...[
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.refresh_rounded,
-                    size: Dimensions.iconSizeXs - 2,
-                    color: controllerState.refreshAndAnalyze
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant.withValues(
-                            alpha: Opacities.mediumHigh,
-                          ),
-                  ),
-                  Dimensions.horizontalSpacerXs,
-                  Text(
-                    'ui.aiAnalysis'.t,
-                    style: AppTypography.bodySmall.copyWith(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: controllerState.refreshAndAnalyze
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant.withValues(
-                              alpha: Opacities.highOpaque,
-                            ),
-                    ),
-                  ),
-                  Dimensions.horizontalSpacerS,
-                  Transform.scale(
-                    scale: 0.8,
-                    child: Switch.adaptive(
-                      value: controllerState.refreshAndAnalyze,
-                      onChanged: (v) => ref
-                          .read(shareDialogControllerProvider.notifier)
-                          .toggleRefreshAndAnalyze(v),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            if (isUpdate) _buildAiAnalysisToggle(theme, state),
           ],
         ),
-        Dimensions.verticalSpacerS,
+        const SizedBox(height: Dimensions.spacingS),
         Container(
           width: double.infinity,
           padding: Dimensions.paddingInput,
@@ -222,7 +147,7 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
             ),
           ),
           child: SelectableText(
-            controllerState.shareURL,
+            state.shareURL,
             style: AppTypography.bodySmall.copyWith(
               color: AppColors.getOnSurfaceVariant(context),
               height: 1.4,
@@ -234,17 +159,51 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
     );
   }
 
-  // 构建标题区域
-  Widget _buildTitleSection(
-    BuildContext context,
-    WidgetRef ref,
-    bool isUpdate,
+  Widget _buildAiAnalysisToggle(
+    ThemeData theme,
+    ShareDialogControllerState state,
   ) {
-    final theme = Theme.of(context);
-    final titleController = ref
-        .read(shareDialogControllerProvider.notifier)
-        .titleController;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.refresh_rounded,
+          size: Dimensions.iconSizeXs - 2,
+          color: state.refreshAndAnalyze
+              ? theme.colorScheme.primary
+              : theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: Opacities.mediumHigh,
+                ),
+        ),
+        const SizedBox(width: Dimensions.spacingXs),
+        Text(
+          'ui.aiAnalysis'.t,
+          style: AppTypography.bodySmall.copyWith(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: state.refreshAndAnalyze
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: Opacities.highOpaque,
+                  ),
+          ),
+        ),
+        const SizedBox(width: Dimensions.spacingS),
+        Transform.scale(
+          scale: 0.8,
+          child: Switch.adaptive(
+            value: state.refreshAndAnalyze,
+            onChanged: ref
+                .read(shareDialogControllerProvider.notifier)
+                .toggleRefreshAndAnalyze,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _buildTitleSection(ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -257,7 +216,7 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
                 alpha: Opacities.highOpaque,
               ),
             ),
-            Dimensions.horizontalSpacerS,
+            const SizedBox(width: Dimensions.spacingS),
             Text(
               'ui.title'.t,
               style: AppTypography.titleSmall.copyWith(
@@ -267,9 +226,9 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
             ),
           ],
         ),
-        Dimensions.verticalSpacerS,
+        const SizedBox(height: Dimensions.spacingS),
         TextField(
-          controller: titleController,
+          controller: _titleController,
           maxLines: null,
           minLines: 2,
           style: AppTypography.bodyMedium.copyWith(fontSize: 15, height: 1.5),
@@ -319,13 +278,75 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
     );
   }
 
-  // 构建备注区域
-  Widget _buildCommentSection(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final commentController = ref
-        .read(shareDialogControllerProvider.notifier)
-        .commentController;
+  Widget _buildTagsSection(ThemeData theme) {
+    final state = ref.watch(shareDialogControllerProvider);
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.tag_outlined,
+              size: Dimensions.iconSizeS,
+              color: theme.colorScheme.primary.withValues(
+                alpha: Opacities.highOpaque,
+              ),
+            ),
+            const SizedBox(width: Dimensions.spacingS),
+            Text(
+              'ui.tags'.t,
+              style: AppTypography.titleSmall.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: Dimensions.spacingXs),
+            Text(
+              'ui.optional'.t,
+              style: AppTypography.bodySmall.copyWith(
+                fontSize: 12,
+                color: theme.colorScheme.onSurfaceVariant.withValues(
+                  alpha: Opacities.medium,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: Dimensions.spacingS),
+        _buildTagChips(state.tagList, theme),
+      ],
+    );
+  }
+
+  Widget _buildTagChips(List<String> tags, ThemeData theme) {
+    if (tags.isEmpty) {
+      return Text(
+        'ui.optional'.t,
+        style: AppTypography.bodySmall.copyWith(
+          color: theme.colorScheme.onSurfaceVariant.withValues(
+            alpha: Opacities.medium,
+          ),
+        ),
+      );
+    }
+
+    return Wrap(
+      spacing: Dimensions.spacingS,
+      runSpacing: Dimensions.spacingS,
+      children: tags.map((tag) {
+        return Chip(
+          label: Text(tag),
+          deleteIcon: const Icon(Icons.close, size: 16),
+          onDeleted: () =>
+              ref.read(shareDialogControllerProvider.notifier).removeTag(tag),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildCommentSection(ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -338,7 +359,7 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
                 alpha: Opacities.highOpaque,
               ),
             ),
-            Dimensions.horizontalSpacerS,
+            const SizedBox(width: Dimensions.spacingS),
             Text(
               'ui.comment'.t,
               style: AppTypography.titleSmall.copyWith(
@@ -346,7 +367,7 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            Dimensions.horizontalSpacerXs,
+            const SizedBox(width: Dimensions.spacingXs),
             Text(
               'ui.optional'.t,
               style: AppTypography.bodySmall.copyWith(
@@ -358,9 +379,9 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
             ),
           ],
         ),
-        Dimensions.verticalSpacerS,
+        const SizedBox(height: Dimensions.spacingS),
         TextField(
-          controller: commentController,
+          controller: _commentController,
           maxLines: null,
           minLines: 4,
           style: AppTypography.bodyMedium.copyWith(fontSize: 14, height: 1.6),
@@ -408,5 +429,63 @@ class _ShareDialogViewState extends ConsumerState<ShareDialogView> {
         ),
       ],
     );
+  }
+
+  Widget _buildBottomButton(bool isUpdate) {
+    return Container(
+      padding: Dimensions.paddingBottomForm,
+      decoration: BoxDecoration(
+        color: AppColors.getSurface(context),
+        border: AppBorders.getTopBorder(
+          AppColors.getOutline(context),
+          opacity: Opacities.medium,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: Opacities.ultraLow),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                style: StyleGuide.getOutlinedButtonStyle(context),
+                onPressed: AppNavigation.back,
+                child: Text('ui.cancel'.t, style: AppTypography.buttonText),
+              ),
+            ),
+            const SizedBox(width: Dimensions.spacingM),
+            Expanded(
+              flex: 2,
+              child: FilledButton(
+                style: StyleGuide.getPrimaryButtonStyle(context),
+                onPressed: _onSave,
+                child: Text(
+                  isUpdate ? 'ui.saveChanges'.t : 'ui.save'.t,
+                  style: AppTypography.buttonText.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onSave() {
+    ref
+        .read(shareDialogControllerProvider.notifier)
+        .onSaveButtonPressed(
+          context,
+          title: _titleController.text,
+          comment: _commentController.text,
+        );
   }
 }

@@ -14,17 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ShareDialogControllerState {
 
-/// 分享URL
- String get shareURL;/// 是否是更新模式
- bool get isUpdate;/// 是否从剪切板来的
- bool get fromClipboard;/// 是否从其他app分享来的
- bool get fromShare;/// 文章ID
- int get articleID;/// 文章标题
- String get articleTitle;/// 文章标签
- String get articleTags;/// 标签列表
- List<String> get tagList;/// 是否重新抓取并AI分析
- bool get refreshAndAnalyze;/// 标题是否编辑过
- bool get titleEdited;
+ String get shareURL; bool get isUpdate; bool get fromClipboard; bool get fromShare; int get articleID; String get articleTitle; String get articleTags; List<String> get tagList; bool get refreshAndAnalyze; bool get titleEdited;
 /// Create a copy of ShareDialogControllerState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -228,32 +218,21 @@ class _ShareDialogControllerState implements ShareDialogControllerState {
   const _ShareDialogControllerState({this.shareURL = '', this.isUpdate = false, this.fromClipboard = false, this.fromShare = false, this.articleID = 0, this.articleTitle = '', this.articleTags = '', final  List<String> tagList = const [], this.refreshAndAnalyze = true, this.titleEdited = false}): _tagList = tagList;
   
 
-/// 分享URL
 @override@JsonKey() final  String shareURL;
-/// 是否是更新模式
 @override@JsonKey() final  bool isUpdate;
-/// 是否从剪切板来的
 @override@JsonKey() final  bool fromClipboard;
-/// 是否从其他app分享来的
 @override@JsonKey() final  bool fromShare;
-/// 文章ID
 @override@JsonKey() final  int articleID;
-/// 文章标题
 @override@JsonKey() final  String articleTitle;
-/// 文章标签
 @override@JsonKey() final  String articleTags;
-/// 标签列表
  final  List<String> _tagList;
-/// 标签列表
 @override@JsonKey() List<String> get tagList {
   if (_tagList is EqualUnmodifiableListView) return _tagList;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_tagList);
 }
 
-/// 是否重新抓取并AI分析
 @override@JsonKey() final  bool refreshAndAnalyze;
-/// 标题是否编辑过
 @override@JsonKey() final  bool titleEdited;
 
 /// Create a copy of ShareDialogControllerState

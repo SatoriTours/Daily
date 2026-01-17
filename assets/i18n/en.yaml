@@ -57,6 +57,7 @@ ui:
   aiAnalysis: AI Analysis
   link: Link
   title: Title
+  tags: Tags
   comment: Comment
   optional: Optional
   inputOrModifyArticleTitle: Enter or modify article title
@@ -65,6 +66,7 @@ ui:
   processing: Processing
   selected_tags: Selected Tags
   existing_tags: Existing Tags
+  inputTags: Enter tags, separated by commas
 
 # Navigation
 nav:
