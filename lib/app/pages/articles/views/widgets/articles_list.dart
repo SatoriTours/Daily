@@ -1,17 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:daily_satori/app/styles/styles.dart';
-import 'package:daily_satori/app/data/article/article_model.dart';
-import 'package:daily_satori/app/utils/i18n_extension.dart';
+import 'package:daily_satori/app_exports.dart';
 import 'article_card.dart';
 
 /// 文章列表组件
 ///
-/// 纯展示组件,负责展示文章列表和加载状态
-/// 通过回调函数与外部交互
-class ArticlesList extends StatelessWidget {
+/// 自管理 ScrollController，提供下拉刷新和无限滚动功能
+class ArticlesList extends StatefulWidget {
   final List<ArticleModel> articles;
   final bool isLoading;
-  final ScrollController scrollController;
   final Future<void> Function() onRefresh;
   final void Function(ArticleModel article) onArticleTap;
   final void Function(ArticleModel article) onFavoriteToggle;
@@ -21,33 +16,99 @@ class ArticlesList extends StatelessWidget {
     super.key,
     required this.articles,
     required this.isLoading,
-    required this.scrollController,
     required this.onRefresh,
     required this.onArticleTap,
     required this.onFavoriteToggle,
     required this.onShare,
   });
 
+  static void scrollToTop(BuildContext context) {
+    final state = context.findAncestorStateOfType<_ArticlesListState>();
+    state?._scrollToTop();
+  }
+
+  @override
+  State<ArticlesList> createState() => _ArticlesListState();
+}
+
+class _ArticlesListState extends State<ArticlesList> {
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _setupScrollListener();
+  }
+
+  void _setupScrollListener() {
+    _scrollController.addListener(() {
+      final position = _scrollController.position;
+      if (position.pixels == position.maxScrollExtent) {
+        // TODO: 实现加载更多
+      }
+    });
+  }
+
+  void _scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: Animations.durationNormal,
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isEmpty = widget.articles.isEmpty && !widget.isLoading;
+
+    if (isEmpty) {
+      return _buildEmptyState();
+    }
+
     return RefreshIndicator(
-      onRefresh: onRefresh,
-      color: AppTheme.getColorScheme(context).primary,
+      onRefresh: widget.onRefresh,
+      color: Theme.of(context).colorScheme.primary,
       child: _buildListView(),
     );
   }
 
-  /// 构建列表视图
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.article_outlined, size: 64, color: Colors.grey[400]),
+          const SizedBox(height: 16),
+          Text(
+            'empty.no_articles'.t,
+            style: AppTypography.titleMedium.copyWith(color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildListView() {
-    final itemCount = _calculateItemCount();
+    final articles = widget.articles;
+    final isLoading = widget.isLoading;
+    final itemCount = articles.length + (isLoading ? 1 : 0);
 
     return ListView.builder(
-      controller: scrollController,
-      itemCount: itemCount,
+      controller: _scrollController,
       padding: const EdgeInsets.symmetric(
         horizontal: Dimensions.spacingM - 4,
         vertical: Dimensions.spacingM - 4,
       ),
+      itemCount: itemCount,
       itemBuilder: (context, index) {
         if (index == articles.length) {
           return _buildLoadingIndicator(context);
@@ -61,24 +122,18 @@ class ArticlesList extends StatelessWidget {
           child: ArticleCard(
             key: ValueKey(article.id),
             articleModel: article,
-            onTap: () => onArticleTap(article),
-            onFavoriteToggle: () => onFavoriteToggle(article),
-            onShare: () => onShare(article),
+            onTap: () => widget.onArticleTap(article),
+            onFavoriteToggle: () => widget.onFavoriteToggle(article),
+            onShare: () => widget.onShare(article),
           ),
         );
       },
     );
   }
 
-  /// 计算列表项总数
-  int _calculateItemCount() {
-    return articles.length + (isLoading ? 1 : 0);
-  }
-
-  /// 构建加载指示器
   Widget _buildLoadingIndicator(BuildContext context) {
-    final colorScheme = AppTheme.getColorScheme(context);
-    final textTheme = AppTheme.getTextTheme(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingL - 4),
@@ -93,7 +148,7 @@ class ArticlesList extends StatelessWidget {
               valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
             ),
           ),
-          Dimensions.verticalSpacerS,
+          const SizedBox(height: 8),
           Text(
             'article.loading_more'.t,
             style: textTheme.labelMedium?.copyWith(
