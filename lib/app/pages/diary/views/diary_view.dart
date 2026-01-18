@@ -12,11 +12,24 @@ import 'widgets/diary_search_bar.dart';
 import 'widgets/diary_tags_dialog.dart';
 
 /// 日记页面
-class DiaryView extends ConsumerWidget {
+class DiaryView extends ConsumerStatefulWidget {
   const DiaryView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DiaryView> createState() => _DiaryViewState();
+}
+
+class _DiaryViewState extends ConsumerState<DiaryView> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(diaryControllerProvider);
     final controller = ref.read(diaryControllerProvider.notifier);
     final showSearchBar = state.isSearchVisible || state.searchQuery.isNotEmpty;
@@ -26,8 +39,16 @@ class DiaryView extends ConsumerWidget {
       appBar: _buildAppBar(context, state, controller),
       body: Stack(
         children: [
-          _DiaryContent(state: state, controller: controller),
-          _buildSearchBar(showSearchBar, state, controller),
+          _DiaryContent(
+            controller: controller,
+            scrollController: _scrollController,
+          ),
+          if (showSearchBar)
+            DiarySearchBar(
+              onClose: () => controller.enableSearch(false),
+              onSearch: controller.search,
+              onClearFilters: controller.clearFilters,
+            ),
           _buildFab(context),
         ],
       ),
@@ -53,7 +74,7 @@ class DiaryView extends ConsumerWidget {
         tooltip: '日历',
       ),
       title: Text('我的日记', style: AppTypography.titleLarge),
-      onTitleDoubleTap: () => _scrollToTop(state),
+      onTitleDoubleTap: _scrollToTop,
       actions: [
         IconButton(
           icon: const Icon(
@@ -62,7 +83,6 @@ class DiaryView extends ConsumerWidget {
             size: Dimensions.iconSizeM,
           ),
           onPressed: () {
-            state.searchController?.clear();
             if (state.searchQuery.isNotEmpty) controller.clearFilters();
             controller.enableSearch(true);
           },
@@ -82,26 +102,14 @@ class DiaryView extends ConsumerWidget {
     );
   }
 
-  Widget _buildSearchBar(
-    bool show,
-    DiaryControllerState state,
-    DiaryController controller,
-  ) {
-    return AnimatedPositioned(
-      duration: Animations.durationNormal,
-      curve: Curves.easeInOut,
-      top: show ? 0 : -60,
-      left: 0,
-      right: 0,
-      height: 60,
-      child: DiarySearchBar(
-        searchController: state.searchController ?? TextEditingController(),
-        searchFocusNode: state.searchFocusNode ?? FocusNode(),
-        onClose: () => controller.enableSearch(false),
-        onSearch: controller.search,
-        onClearFilters: controller.clearFilters,
-      ),
-    );
+  void _scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: Animations.durationNormal,
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   Widget _buildFab(BuildContext context) {
@@ -114,17 +122,6 @@ class DiaryView extends ConsumerWidget {
         child: DiaryFab(onPressed: () => _showEditorDialog(context)),
       ),
     );
-  }
-
-  void _scrollToTop(DiaryControllerState state) {
-    final sc = state.scrollController;
-    if (sc != null && sc.hasClients) {
-      sc.animateTo(
-        0,
-        duration: Animations.durationNormal,
-        curve: Curves.easeInOut,
-      );
-    }
   }
 
   void _showEditorDialog(BuildContext context, [DiaryModel? diary]) {
@@ -198,15 +195,19 @@ class DiaryView extends ConsumerWidget {
 
 /// 日记内容区域
 class _DiaryContent extends ConsumerWidget {
-  final DiaryControllerState state;
   final DiaryController controller;
+  final ScrollController scrollController;
 
-  const _DiaryContent({required this.state, required this.controller});
+  const _DiaryContent({
+    required this.controller,
+    required this.scrollController,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(diaryControllerProvider);
     final diaries = ref.watch(diaryStateProvider.select((s) => s.diaries));
-    final filterText = _getFilterText();
+    final filterText = _getFilterText(state);
 
     if (filterText != null) {
       return Column(
@@ -222,14 +223,14 @@ class _DiaryContent extends ConsumerWidget {
               Dimensions.spacingS,
             ),
           ),
-          Expanded(child: _buildList(context, diaries)),
+          Expanded(child: _buildList(context, diaries, controller)),
         ],
       );
     }
-    return _buildList(context, diaries);
+    return _buildList(context, diaries, controller);
   }
 
-  String? _getFilterText() {
+  String? _getFilterText(DiaryControllerState state) {
     if (state.searchQuery.isNotEmpty) return '搜索结果: "${state.searchQuery}"';
     if (state.currentTag.isNotEmpty) return '标签: "#${state.currentTag}"';
     if (state.selectedFilterDate != null) {
@@ -238,17 +239,19 @@ class _DiaryContent extends ConsumerWidget {
     return null;
   }
 
-  Widget _buildList(BuildContext context, List<DiaryModel> diaries) {
+  Widget _buildList(
+    BuildContext context,
+    List<DiaryModel> diaries,
+    DiaryController controller,
+  ) {
     return DiaryList(
       diaries: diaries,
-      isLoading: state.isLoadingDiaries,
-      scrollController: state.scrollController,
-      onEdit: (diary) => _showEditDialog(context, diary),
+      onEdit: (diary) => _openEditor(context, diary),
       onDelete: controller.deleteDiary,
     );
   }
 
-  void _showEditDialog(BuildContext context, DiaryModel diary) {
+  void _openEditor(BuildContext context, DiaryModel diary) {
     FocusManager.instance.primaryFocus?.unfocus();
     showModalBottomSheet(
       context: context,

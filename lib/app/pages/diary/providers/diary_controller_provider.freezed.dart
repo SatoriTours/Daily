@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$DiaryControllerState {
 
- DateTime? get selectedDate; String get searchQuery; bool get isSearchVisible; DateTime? get selectedFilterDate; String get currentTag; List<String> get tags; bool get isLoadingDiaries; ScrollController? get scrollController; TextEditingController? get searchController; FocusNode? get searchFocusNode; TextEditingController? get contentController;
+ DateTime? get selectedDate; String get searchQuery; bool get isSearchVisible; DateTime? get selectedFilterDate; String get currentTag; List<String> get tags;
 /// Create a copy of DiaryControllerState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $DiaryControllerStateCopyWith<DiaryControllerState> get copyWith => _$DiaryContr
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is DiaryControllerState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.searchQuery, searchQuery) || other.searchQuery == searchQuery)&&(identical(other.isSearchVisible, isSearchVisible) || other.isSearchVisible == isSearchVisible)&&(identical(other.selectedFilterDate, selectedFilterDate) || other.selectedFilterDate == selectedFilterDate)&&(identical(other.currentTag, currentTag) || other.currentTag == currentTag)&&const DeepCollectionEquality().equals(other.tags, tags)&&(identical(other.isLoadingDiaries, isLoadingDiaries) || other.isLoadingDiaries == isLoadingDiaries)&&(identical(other.scrollController, scrollController) || other.scrollController == scrollController)&&(identical(other.searchController, searchController) || other.searchController == searchController)&&(identical(other.searchFocusNode, searchFocusNode) || other.searchFocusNode == searchFocusNode)&&(identical(other.contentController, contentController) || other.contentController == contentController));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is DiaryControllerState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.searchQuery, searchQuery) || other.searchQuery == searchQuery)&&(identical(other.isSearchVisible, isSearchVisible) || other.isSearchVisible == isSearchVisible)&&(identical(other.selectedFilterDate, selectedFilterDate) || other.selectedFilterDate == selectedFilterDate)&&(identical(other.currentTag, currentTag) || other.currentTag == currentTag)&&const DeepCollectionEquality().equals(other.tags, tags));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,selectedDate,searchQuery,isSearchVisible,selectedFilterDate,currentTag,const DeepCollectionEquality().hash(tags),isLoadingDiaries,scrollController,searchController,searchFocusNode,contentController);
+int get hashCode => Object.hash(runtimeType,selectedDate,searchQuery,isSearchVisible,selectedFilterDate,currentTag,const DeepCollectionEquality().hash(tags));
 
 @override
 String toString() {
-  return 'DiaryControllerState(selectedDate: $selectedDate, searchQuery: $searchQuery, isSearchVisible: $isSearchVisible, selectedFilterDate: $selectedFilterDate, currentTag: $currentTag, tags: $tags, isLoadingDiaries: $isLoadingDiaries, scrollController: $scrollController, searchController: $searchController, searchFocusNode: $searchFocusNode, contentController: $contentController)';
+  return 'DiaryControllerState(selectedDate: $selectedDate, searchQuery: $searchQuery, isSearchVisible: $isSearchVisible, selectedFilterDate: $selectedFilterDate, currentTag: $currentTag, tags: $tags)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $DiaryControllerStateCopyWith<$Res>  {
   factory $DiaryControllerStateCopyWith(DiaryControllerState value, $Res Function(DiaryControllerState) _then) = _$DiaryControllerStateCopyWithImpl;
 @useResult
 $Res call({
- DateTime? selectedDate, String searchQuery, bool isSearchVisible, DateTime? selectedFilterDate, String currentTag, List<String> tags, bool isLoadingDiaries, ScrollController? scrollController, TextEditingController? searchController, FocusNode? searchFocusNode, TextEditingController? contentController
+ DateTime? selectedDate, String searchQuery, bool isSearchVisible, DateTime? selectedFilterDate, String currentTag, List<String> tags
 });
 
 
@@ -62,7 +62,7 @@ class _$DiaryControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of DiaryControllerState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? selectedDate = freezed,Object? searchQuery = null,Object? isSearchVisible = null,Object? selectedFilterDate = freezed,Object? currentTag = null,Object? tags = null,Object? isLoadingDiaries = null,Object? scrollController = freezed,Object? searchController = freezed,Object? searchFocusNode = freezed,Object? contentController = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? selectedDate = freezed,Object? searchQuery = null,Object? isSearchVisible = null,Object? selectedFilterDate = freezed,Object? currentTag = null,Object? tags = null,}) {
   return _then(_self.copyWith(
 selectedDate: freezed == selectedDate ? _self.selectedDate : selectedDate // ignore: cast_nullable_to_non_nullable
 as DateTime?,searchQuery: null == searchQuery ? _self.searchQuery : searchQuery // ignore: cast_nullable_to_non_nullable
@@ -70,12 +70,7 @@ as String,isSearchVisible: null == isSearchVisible ? _self.isSearchVisible : isS
 as bool,selectedFilterDate: freezed == selectedFilterDate ? _self.selectedFilterDate : selectedFilterDate // ignore: cast_nullable_to_non_nullable
 as DateTime?,currentTag: null == currentTag ? _self.currentTag : currentTag // ignore: cast_nullable_to_non_nullable
 as String,tags: null == tags ? _self.tags : tags // ignore: cast_nullable_to_non_nullable
-as List<String>,isLoadingDiaries: null == isLoadingDiaries ? _self.isLoadingDiaries : isLoadingDiaries // ignore: cast_nullable_to_non_nullable
-as bool,scrollController: freezed == scrollController ? _self.scrollController : scrollController // ignore: cast_nullable_to_non_nullable
-as ScrollController?,searchController: freezed == searchController ? _self.searchController : searchController // ignore: cast_nullable_to_non_nullable
-as TextEditingController?,searchFocusNode: freezed == searchFocusNode ? _self.searchFocusNode : searchFocusNode // ignore: cast_nullable_to_non_nullable
-as FocusNode?,contentController: freezed == contentController ? _self.contentController : contentController // ignore: cast_nullable_to_non_nullable
-as TextEditingController?,
+as List<String>,
   ));
 }
 
@@ -160,10 +155,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( DateTime? selectedDate,  String searchQuery,  bool isSearchVisible,  DateTime? selectedFilterDate,  String currentTag,  List<String> tags,  bool isLoadingDiaries,  ScrollController? scrollController,  TextEditingController? searchController,  FocusNode? searchFocusNode,  TextEditingController? contentController)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( DateTime? selectedDate,  String searchQuery,  bool isSearchVisible,  DateTime? selectedFilterDate,  String currentTag,  List<String> tags)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _DiaryControllerState() when $default != null:
-return $default(_that.selectedDate,_that.searchQuery,_that.isSearchVisible,_that.selectedFilterDate,_that.currentTag,_that.tags,_that.isLoadingDiaries,_that.scrollController,_that.searchController,_that.searchFocusNode,_that.contentController);case _:
+return $default(_that.selectedDate,_that.searchQuery,_that.isSearchVisible,_that.selectedFilterDate,_that.currentTag,_that.tags);case _:
   return orElse();
 
 }
@@ -181,10 +176,10 @@ return $default(_that.selectedDate,_that.searchQuery,_that.isSearchVisible,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( DateTime? selectedDate,  String searchQuery,  bool isSearchVisible,  DateTime? selectedFilterDate,  String currentTag,  List<String> tags,  bool isLoadingDiaries,  ScrollController? scrollController,  TextEditingController? searchController,  FocusNode? searchFocusNode,  TextEditingController? contentController)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( DateTime? selectedDate,  String searchQuery,  bool isSearchVisible,  DateTime? selectedFilterDate,  String currentTag,  List<String> tags)  $default,) {final _that = this;
 switch (_that) {
 case _DiaryControllerState():
-return $default(_that.selectedDate,_that.searchQuery,_that.isSearchVisible,_that.selectedFilterDate,_that.currentTag,_that.tags,_that.isLoadingDiaries,_that.scrollController,_that.searchController,_that.searchFocusNode,_that.contentController);case _:
+return $default(_that.selectedDate,_that.searchQuery,_that.isSearchVisible,_that.selectedFilterDate,_that.currentTag,_that.tags);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -201,10 +196,10 @@ return $default(_that.selectedDate,_that.searchQuery,_that.isSearchVisible,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( DateTime? selectedDate,  String searchQuery,  bool isSearchVisible,  DateTime? selectedFilterDate,  String currentTag,  List<String> tags,  bool isLoadingDiaries,  ScrollController? scrollController,  TextEditingController? searchController,  FocusNode? searchFocusNode,  TextEditingController? contentController)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( DateTime? selectedDate,  String searchQuery,  bool isSearchVisible,  DateTime? selectedFilterDate,  String currentTag,  List<String> tags)?  $default,) {final _that = this;
 switch (_that) {
 case _DiaryControllerState() when $default != null:
-return $default(_that.selectedDate,_that.searchQuery,_that.isSearchVisible,_that.selectedFilterDate,_that.currentTag,_that.tags,_that.isLoadingDiaries,_that.scrollController,_that.searchController,_that.searchFocusNode,_that.contentController);case _:
+return $default(_that.selectedDate,_that.searchQuery,_that.isSearchVisible,_that.selectedFilterDate,_that.currentTag,_that.tags);case _:
   return null;
 
 }
@@ -216,7 +211,7 @@ return $default(_that.selectedDate,_that.searchQuery,_that.isSearchVisible,_that
 
 
 class _DiaryControllerState extends DiaryControllerState {
-  const _DiaryControllerState({this.selectedDate, this.searchQuery = '', this.isSearchVisible = false, this.selectedFilterDate, this.currentTag = '', final  List<String> tags = const [], this.isLoadingDiaries = false, this.scrollController, this.searchController, this.searchFocusNode, this.contentController}): _tags = tags,super._();
+  const _DiaryControllerState({this.selectedDate, this.searchQuery = '', this.isSearchVisible = false, this.selectedFilterDate, this.currentTag = '', final  List<String> tags = const []}): _tags = tags,super._();
   
 
 @override final  DateTime? selectedDate;
@@ -231,11 +226,6 @@ class _DiaryControllerState extends DiaryControllerState {
   return EqualUnmodifiableListView(_tags);
 }
 
-@override@JsonKey() final  bool isLoadingDiaries;
-@override final  ScrollController? scrollController;
-@override final  TextEditingController? searchController;
-@override final  FocusNode? searchFocusNode;
-@override final  TextEditingController? contentController;
 
 /// Create a copy of DiaryControllerState
 /// with the given fields replaced by the non-null parameter values.
@@ -247,16 +237,16 @@ _$DiaryControllerStateCopyWith<_DiaryControllerState> get copyWith => __$DiaryCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _DiaryControllerState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.searchQuery, searchQuery) || other.searchQuery == searchQuery)&&(identical(other.isSearchVisible, isSearchVisible) || other.isSearchVisible == isSearchVisible)&&(identical(other.selectedFilterDate, selectedFilterDate) || other.selectedFilterDate == selectedFilterDate)&&(identical(other.currentTag, currentTag) || other.currentTag == currentTag)&&const DeepCollectionEquality().equals(other._tags, _tags)&&(identical(other.isLoadingDiaries, isLoadingDiaries) || other.isLoadingDiaries == isLoadingDiaries)&&(identical(other.scrollController, scrollController) || other.scrollController == scrollController)&&(identical(other.searchController, searchController) || other.searchController == searchController)&&(identical(other.searchFocusNode, searchFocusNode) || other.searchFocusNode == searchFocusNode)&&(identical(other.contentController, contentController) || other.contentController == contentController));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _DiaryControllerState&&(identical(other.selectedDate, selectedDate) || other.selectedDate == selectedDate)&&(identical(other.searchQuery, searchQuery) || other.searchQuery == searchQuery)&&(identical(other.isSearchVisible, isSearchVisible) || other.isSearchVisible == isSearchVisible)&&(identical(other.selectedFilterDate, selectedFilterDate) || other.selectedFilterDate == selectedFilterDate)&&(identical(other.currentTag, currentTag) || other.currentTag == currentTag)&&const DeepCollectionEquality().equals(other._tags, _tags));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,selectedDate,searchQuery,isSearchVisible,selectedFilterDate,currentTag,const DeepCollectionEquality().hash(_tags),isLoadingDiaries,scrollController,searchController,searchFocusNode,contentController);
+int get hashCode => Object.hash(runtimeType,selectedDate,searchQuery,isSearchVisible,selectedFilterDate,currentTag,const DeepCollectionEquality().hash(_tags));
 
 @override
 String toString() {
-  return 'DiaryControllerState(selectedDate: $selectedDate, searchQuery: $searchQuery, isSearchVisible: $isSearchVisible, selectedFilterDate: $selectedFilterDate, currentTag: $currentTag, tags: $tags, isLoadingDiaries: $isLoadingDiaries, scrollController: $scrollController, searchController: $searchController, searchFocusNode: $searchFocusNode, contentController: $contentController)';
+  return 'DiaryControllerState(selectedDate: $selectedDate, searchQuery: $searchQuery, isSearchVisible: $isSearchVisible, selectedFilterDate: $selectedFilterDate, currentTag: $currentTag, tags: $tags)';
 }
 
 
@@ -267,7 +257,7 @@ abstract mixin class _$DiaryControllerStateCopyWith<$Res> implements $DiaryContr
   factory _$DiaryControllerStateCopyWith(_DiaryControllerState value, $Res Function(_DiaryControllerState) _then) = __$DiaryControllerStateCopyWithImpl;
 @override @useResult
 $Res call({
- DateTime? selectedDate, String searchQuery, bool isSearchVisible, DateTime? selectedFilterDate, String currentTag, List<String> tags, bool isLoadingDiaries, ScrollController? scrollController, TextEditingController? searchController, FocusNode? searchFocusNode, TextEditingController? contentController
+ DateTime? selectedDate, String searchQuery, bool isSearchVisible, DateTime? selectedFilterDate, String currentTag, List<String> tags
 });
 
 
@@ -284,7 +274,7 @@ class __$DiaryControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of DiaryControllerState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? selectedDate = freezed,Object? searchQuery = null,Object? isSearchVisible = null,Object? selectedFilterDate = freezed,Object? currentTag = null,Object? tags = null,Object? isLoadingDiaries = null,Object? scrollController = freezed,Object? searchController = freezed,Object? searchFocusNode = freezed,Object? contentController = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? selectedDate = freezed,Object? searchQuery = null,Object? isSearchVisible = null,Object? selectedFilterDate = freezed,Object? currentTag = null,Object? tags = null,}) {
   return _then(_DiaryControllerState(
 selectedDate: freezed == selectedDate ? _self.selectedDate : selectedDate // ignore: cast_nullable_to_non_nullable
 as DateTime?,searchQuery: null == searchQuery ? _self.searchQuery : searchQuery // ignore: cast_nullable_to_non_nullable
@@ -292,12 +282,7 @@ as String,isSearchVisible: null == isSearchVisible ? _self.isSearchVisible : isS
 as bool,selectedFilterDate: freezed == selectedFilterDate ? _self.selectedFilterDate : selectedFilterDate // ignore: cast_nullable_to_non_nullable
 as DateTime?,currentTag: null == currentTag ? _self.currentTag : currentTag // ignore: cast_nullable_to_non_nullable
 as String,tags: null == tags ? _self._tags : tags // ignore: cast_nullable_to_non_nullable
-as List<String>,isLoadingDiaries: null == isLoadingDiaries ? _self.isLoadingDiaries : isLoadingDiaries // ignore: cast_nullable_to_non_nullable
-as bool,scrollController: freezed == scrollController ? _self.scrollController : scrollController // ignore: cast_nullable_to_non_nullable
-as ScrollController?,searchController: freezed == searchController ? _self.searchController : searchController // ignore: cast_nullable_to_non_nullable
-as TextEditingController?,searchFocusNode: freezed == searchFocusNode ? _self.searchFocusNode : searchFocusNode // ignore: cast_nullable_to_non_nullable
-as FocusNode?,contentController: freezed == contentController ? _self.contentController : contentController // ignore: cast_nullable_to_non_nullable
-as TextEditingController?,
+as List<String>,
   ));
 }
 

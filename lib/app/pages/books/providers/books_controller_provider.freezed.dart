@@ -14,10 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$BooksControllerState {
 
-/// 最后刷新时间
- DateTime? get lastRefreshTime;/// PageController (不在freezed中管理)
- PageController? get pageController;/// TextEditingController for content (不在freezed中管理)
- TextEditingController? get contentController;
+ DateTime? get lastRefreshTime;
 /// Create a copy of BooksControllerState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +25,16 @@ $BooksControllerStateCopyWith<BooksControllerState> get copyWith => _$BooksContr
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is BooksControllerState&&(identical(other.lastRefreshTime, lastRefreshTime) || other.lastRefreshTime == lastRefreshTime)&&(identical(other.pageController, pageController) || other.pageController == pageController)&&(identical(other.contentController, contentController) || other.contentController == contentController));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is BooksControllerState&&(identical(other.lastRefreshTime, lastRefreshTime) || other.lastRefreshTime == lastRefreshTime));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,lastRefreshTime,pageController,contentController);
+int get hashCode => Object.hash(runtimeType,lastRefreshTime);
 
 @override
 String toString() {
-  return 'BooksControllerState(lastRefreshTime: $lastRefreshTime, pageController: $pageController, contentController: $contentController)';
+  return 'BooksControllerState(lastRefreshTime: $lastRefreshTime)';
 }
 
 
@@ -48,7 +45,7 @@ abstract mixin class $BooksControllerStateCopyWith<$Res>  {
   factory $BooksControllerStateCopyWith(BooksControllerState value, $Res Function(BooksControllerState) _then) = _$BooksControllerStateCopyWithImpl;
 @useResult
 $Res call({
- DateTime? lastRefreshTime, PageController? pageController, TextEditingController? contentController
+ DateTime? lastRefreshTime
 });
 
 
@@ -65,12 +62,10 @@ class _$BooksControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of BooksControllerState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? lastRefreshTime = freezed,Object? pageController = freezed,Object? contentController = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? lastRefreshTime = freezed,}) {
   return _then(_self.copyWith(
 lastRefreshTime: freezed == lastRefreshTime ? _self.lastRefreshTime : lastRefreshTime // ignore: cast_nullable_to_non_nullable
-as DateTime?,pageController: freezed == pageController ? _self.pageController : pageController // ignore: cast_nullable_to_non_nullable
-as PageController?,contentController: freezed == contentController ? _self.contentController : contentController // ignore: cast_nullable_to_non_nullable
-as TextEditingController?,
+as DateTime?,
   ));
 }
 
@@ -155,10 +150,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( DateTime? lastRefreshTime,  PageController? pageController,  TextEditingController? contentController)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( DateTime? lastRefreshTime)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _BooksControllerState() when $default != null:
-return $default(_that.lastRefreshTime,_that.pageController,_that.contentController);case _:
+return $default(_that.lastRefreshTime);case _:
   return orElse();
 
 }
@@ -176,10 +171,10 @@ return $default(_that.lastRefreshTime,_that.pageController,_that.contentControll
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( DateTime? lastRefreshTime,  PageController? pageController,  TextEditingController? contentController)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( DateTime? lastRefreshTime)  $default,) {final _that = this;
 switch (_that) {
 case _BooksControllerState():
-return $default(_that.lastRefreshTime,_that.pageController,_that.contentController);case _:
+return $default(_that.lastRefreshTime);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -196,10 +191,10 @@ return $default(_that.lastRefreshTime,_that.pageController,_that.contentControll
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( DateTime? lastRefreshTime,  PageController? pageController,  TextEditingController? contentController)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( DateTime? lastRefreshTime)?  $default,) {final _that = this;
 switch (_that) {
 case _BooksControllerState() when $default != null:
-return $default(_that.lastRefreshTime,_that.pageController,_that.contentController);case _:
+return $default(_that.lastRefreshTime);case _:
   return null;
 
 }
@@ -211,15 +206,10 @@ return $default(_that.lastRefreshTime,_that.pageController,_that.contentControll
 
 
 class _BooksControllerState implements BooksControllerState {
-  const _BooksControllerState({this.lastRefreshTime, this.pageController, this.contentController});
+  const _BooksControllerState({this.lastRefreshTime});
   
 
-/// 最后刷新时间
 @override final  DateTime? lastRefreshTime;
-/// PageController (不在freezed中管理)
-@override final  PageController? pageController;
-/// TextEditingController for content (不在freezed中管理)
-@override final  TextEditingController? contentController;
 
 /// Create a copy of BooksControllerState
 /// with the given fields replaced by the non-null parameter values.
@@ -231,16 +221,16 @@ _$BooksControllerStateCopyWith<_BooksControllerState> get copyWith => __$BooksCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BooksControllerState&&(identical(other.lastRefreshTime, lastRefreshTime) || other.lastRefreshTime == lastRefreshTime)&&(identical(other.pageController, pageController) || other.pageController == pageController)&&(identical(other.contentController, contentController) || other.contentController == contentController));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _BooksControllerState&&(identical(other.lastRefreshTime, lastRefreshTime) || other.lastRefreshTime == lastRefreshTime));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,lastRefreshTime,pageController,contentController);
+int get hashCode => Object.hash(runtimeType,lastRefreshTime);
 
 @override
 String toString() {
-  return 'BooksControllerState(lastRefreshTime: $lastRefreshTime, pageController: $pageController, contentController: $contentController)';
+  return 'BooksControllerState(lastRefreshTime: $lastRefreshTime)';
 }
 
 
@@ -251,7 +241,7 @@ abstract mixin class _$BooksControllerStateCopyWith<$Res> implements $BooksContr
   factory _$BooksControllerStateCopyWith(_BooksControllerState value, $Res Function(_BooksControllerState) _then) = __$BooksControllerStateCopyWithImpl;
 @override @useResult
 $Res call({
- DateTime? lastRefreshTime, PageController? pageController, TextEditingController? contentController
+ DateTime? lastRefreshTime
 });
 
 
@@ -268,12 +258,10 @@ class __$BooksControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of BooksControllerState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? lastRefreshTime = freezed,Object? pageController = freezed,Object? contentController = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? lastRefreshTime = freezed,}) {
   return _then(_BooksControllerState(
 lastRefreshTime: freezed == lastRefreshTime ? _self.lastRefreshTime : lastRefreshTime // ignore: cast_nullable_to_non_nullable
-as DateTime?,pageController: freezed == pageController ? _self.pageController : pageController // ignore: cast_nullable_to_non_nullable
-as PageController?,contentController: freezed == contentController ? _self.contentController : contentController // ignore: cast_nullable_to_non_nullable
-as TextEditingController?,
+as DateTime?,
   ));
 }
 

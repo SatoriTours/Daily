@@ -1,63 +1,50 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:daily_satori/app/utils/utils.dart';
+import 'package:daily_satori/app_exports.dart';
+import 'package:daily_satori/app/pages/article_detail/providers/article_detail_controller_provider.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:daily_satori/app/data/data.dart';
-import 'package:daily_satori/app/pages/article_detail/providers/article_detail_controller_provider.dart';
-import 'package:daily_satori/app/services/logger_service.dart';
-import 'package:daily_satori/app/styles/styles.dart';
-
-/// 文章原始内容标签页
-/// 支持两种内容格式：
-/// 1. Markdown格式（优先显示）
-/// 2. HTML格式
 class OriginalContentTab extends ConsumerWidget {
-  final int? articleId;
-  final ArticleModel? article;
+  final int articleId;
 
-  const OriginalContentTab({super.key, this.articleId, required this.article});
+  const OriginalContentTab({super.key, required this.articleId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final controllerState = ref.watch(
+      articleDetailControllerProvider(articleId),
+    );
+    final article = controllerState.articleModel;
+
     if (article == null) {
       return const Center(child: Text('文章不存在'));
     }
 
-    return _hasMarkdownContent
-        ? _buildMarkdownView(context, ref)
-        : _buildHtmlView(context);
+    final hasMarkdown = article.aiMarkdownContent?.isNotEmpty ?? false;
+
+    return hasMarkdown
+        ? _buildMarkdownView(context, ref, article)
+        : _buildHtmlView(context, article);
   }
 
-  /// 判断是否有Markdown内容
-  bool get _hasMarkdownContent =>
-      article?.aiMarkdownContent?.isNotEmpty ?? false;
-
-  /// 构建Markdown视图
-  Widget _buildMarkdownView(BuildContext context, WidgetRef ref) {
-    final markdownContent = article?.aiMarkdownContent;
-    if (markdownContent == null || markdownContent.isEmpty) {
-      return _buildEmptyState(
-        context,
-        ref,
-        message: "尚未生成Markdown内容",
-        showGenerateButton: true,
-      );
-    }
-
+  Widget _buildMarkdownView(
+    BuildContext context,
+    WidgetRef ref,
+    ArticleModel article,
+  ) {
+    final markdownContent = article.aiMarkdownContent;
     final textTheme = AppTheme.getTextTheme(context);
     final colorScheme = AppTheme.getColorScheme(context);
+
+    if (markdownContent == null || markdownContent.isEmpty) {
+      return _buildEmptyMarkdownState(context, ref);
+    }
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题区域
-          _buildTitleSection(context, textTheme, colorScheme),
-
-          // Markdown内容区域
+          _buildTitleSection(context, textTheme, colorScheme, article),
           Padding(
             padding: Dimensions.paddingPage,
             child: MarkdownBody(
@@ -72,15 +59,45 @@ class OriginalContentTab extends ConsumerWidget {
     );
   }
 
-  /// 构建HTML视图
-  Widget _buildHtmlView(BuildContext context) {
-    final htmlContent = article?.htmlContent;
+  Widget _buildEmptyMarkdownState(BuildContext context, WidgetRef ref) {
+    final textTheme = AppTheme.getTextTheme(context);
+    final colorScheme = AppTheme.getColorScheme(context);
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.article_outlined,
+            size: Dimensions.iconSizeXl,
+            color: colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 16),
+          Text('尚未生成Markdown内容', style: textTheme.bodyLarge),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () => _generateMarkdown(context, ref),
+            icon: const Icon(Icons.auto_awesome),
+            label: const Text('生成Markdown'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHtmlView(BuildContext context, ArticleModel article) {
+    final htmlContent = article.htmlContent;
+
     if (htmlContent == null || htmlContent.isEmpty) {
-      return _buildEmptyState(
-        context,
-        null,
-        message: "无法加载原文内容",
-        showGenerateButton: false,
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.article_outlined, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('无法加载原文内容'),
+          ],
+        ),
       );
     }
 
@@ -91,10 +108,7 @@ class OriginalContentTab extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题区域
-          _buildTitleSection(context, textTheme, colorScheme),
-
-          // HTML内容区域
+          _buildTitleSection(context, textTheme, colorScheme, article),
           Padding(
             padding: Dimensions.paddingPage,
             child: Html(
@@ -109,11 +123,11 @@ class OriginalContentTab extends ConsumerWidget {
     );
   }
 
-  /// 构建标题区域
   Widget _buildTitleSection(
     BuildContext context,
     TextTheme textTheme,
     ColorScheme colorScheme,
+    ArticleModel article,
   ) {
     return Container(
       width: double.infinity,
@@ -137,14 +151,14 @@ class OriginalContentTab extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            article!.showTitle(),
+            article.showTitle(),
             style: textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
               height: 1.3,
               color: colorScheme.onSurface,
             ),
           ),
-          Dimensions.verticalSpacerM,
+          const SizedBox(height: 16),
           Container(
             height: 3,
             width: 60,
@@ -160,48 +174,12 @@ class OriginalContentTab extends ConsumerWidget {
     );
   }
 
-  /// 构建空状态视图
-  Widget _buildEmptyState(
-    BuildContext context,
-    WidgetRef? ref, {
-    required String message,
-    required bool showGenerateButton,
-  }) {
-    final textTheme = AppTheme.getTextTheme(context);
-    final colorScheme = AppTheme.getColorScheme(context);
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.article_outlined,
-            size: Dimensions.iconSizeXl,
-            color: colorScheme.onSurfaceVariant,
-          ),
-          Dimensions.verticalSpacerM,
-          Text(message, style: textTheme.bodyLarge),
-          if (showGenerateButton) ...[
-            Dimensions.verticalSpacerM,
-            ElevatedButton.icon(
-              onPressed: () => _generateMarkdown(context, ref!),
-              icon: const Icon(Icons.article_outlined),
-              label: const Text("生成Markdown"),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// 处理链接点击事件
   void _handleLinkTap(String? text, String? href, String? title) async {
     if (href == null || href.isEmpty) {
       logger.w('链接为空');
       return;
     }
 
-    // 安全检查URL格式
     if (!(href.startsWith('http://') || href.startsWith('https://'))) {
       logger.e('无效链接格式: $href');
       UIUtils.showError('无效链接格式');
@@ -222,30 +200,21 @@ class OriginalContentTab extends ConsumerWidget {
     }
   }
 
-  /// 生成Markdown内容
   Future<void> _generateMarkdown(BuildContext context, WidgetRef ref) async {
-    if (article == null || articleId == null) return;
-
     try {
-      // 显示加载对话框
       DialogUtils.showLoading(tips: '正在生成Markdown内容，请稍候...');
-
-      // 生成Markdown内容
-      if (articleId != null) {
-        await ref
-            .read(articleDetailControllerProvider(articleId!).notifier)
-            .generateMarkdownContent();
-      }
-
-      // 关闭加载对话框
+      await ref
+          .read(articleDetailControllerProvider(articleId).notifier)
+          .generateMarkdownContent();
       DialogUtils.hideLoading();
 
-      // 检查生成结果
-      if (article?.aiMarkdownContent?.isNotEmpty ?? false) {
-        logger.i('Markdown内容生成成功');
+      final controllerState = ref.read(
+        articleDetailControllerProvider(articleId),
+      );
+      if (controllerState.articleModel?.aiMarkdownContent?.isNotEmpty ??
+          false) {
         UIUtils.showSuccess('Markdown内容生成成功');
       } else {
-        logger.e('生成Markdown内容失败');
         UIUtils.showError('生成Markdown内容失败');
       }
     } catch (e) {

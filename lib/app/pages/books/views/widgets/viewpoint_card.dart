@@ -1,12 +1,13 @@
 import 'package:daily_satori/app_exports.dart';
 import 'package:intl/intl.dart';
 
-// ...existing imports...
 /// 观点卡片组件
 class ViewpointCard extends StatelessWidget {
   final BookViewpointModel viewpoint;
   final BookModel? book;
-  const ViewpointCard({super.key, required this.viewpoint, required this.book});
+
+  const ViewpointCard({super.key, required this.viewpoint, this.book});
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -24,27 +25,30 @@ class ViewpointCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Dimensions.verticalSpacerL,
-            _buildTitle(context),
+            _Title(text: viewpoint.title),
             Dimensions.verticalSpacerS,
-            _buildViewpointBookInfo(context, book),
+            _BookInfo(book: book),
             Dimensions.verticalSpacerL,
-            _buildContent(context),
-            if (viewpoint.example.isNotEmpty) ...[
-              Dimensions.verticalSpacerL,
-              _buildExample(context),
-            ],
+            _Content(text: viewpoint.content),
+            if (viewpoint.example.isNotEmpty) ...[Dimensions.verticalSpacerL, _Example(text: viewpoint.example)],
             Dimensions.verticalSpacerL,
-            _buildFooter(context, book),
+            _Footer(date: viewpoint.createdAt),
           ],
         ),
       ),
     );
   }
+}
 
-  /// 构建标题
-  Widget _buildTitle(BuildContext context) {
+class _Title extends StatelessWidget {
+  final String text;
+
+  const _Title({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
     return SelectableText(
-      viewpoint.title,
+      text,
       style: AppTypography.headingMedium.copyWith(
         fontWeight: FontWeight.bold,
         height: 1.3,
@@ -52,11 +56,17 @@ class ViewpointCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  /// 构建内容
-  Widget _buildContent(BuildContext context) {
+class _Content extends StatelessWidget {
+  final String text;
+
+  const _Content({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
     return SelectableText(
-      viewpoint.content,
+      text,
       style: AppTypography.bodyLarge.copyWith(
         height: 1.8,
         letterSpacing: 0.5,
@@ -64,44 +74,40 @@ class ViewpointCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  /// 构建案例
-  Widget _buildExample(BuildContext context) {
+class _Example extends StatelessWidget {
+  final String text;
+
+  const _Example({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = AppColors.getPrimary(context);
+
     return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: Dimensions.spacingM,
-        horizontal: Dimensions.spacingXs,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: Dimensions.spacingM, horizontal: Dimensions.spacingXs),
       decoration: BoxDecoration(
         color: AppColors.getSurfaceVariant(context).withValues(alpha: 0.3),
         borderRadius: Dimensions.borderRadiusM,
-        border: Border.all(
-          color: AppColors.getOutline(context).withValues(alpha: 0.1),
-        ),
+        border: Border.all(color: AppColors.getOutline(context).withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.lightbulb_outline,
-                size: Dimensions.iconSizeS,
-                color: AppColors.getPrimary(context),
-              ),
+              Icon(Icons.lightbulb_outline, size: Dimensions.iconSizeS, color: primary),
               Dimensions.horizontalSpacerS,
               Text(
                 '书籍案例',
-                style: AppTypography.labelLarge.copyWith(
-                  color: AppColors.getPrimary(context),
-                  fontWeight: FontWeight.bold,
-                ),
+                style: AppTypography.labelLarge.copyWith(color: primary, fontWeight: FontWeight.bold),
               ),
             ],
           ),
           Dimensions.verticalSpacerS,
           SelectableText(
-            viewpoint.example,
+            text,
             style: AppTypography.bodyLarge.copyWith(
               height: 1.8,
               letterSpacing: 0.5,
@@ -112,51 +118,43 @@ class ViewpointCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  /// 构建底部
-  Widget _buildFooter(BuildContext context, BookModel? book) {
-    final formattedDate = DateFormat('yyyy-MM-dd').format(viewpoint.createdAt);
+class _BookInfo extends StatelessWidget {
+  final BookModel? book;
+
+  const _BookInfo({this.book});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = book != null ? '《${book!.title}》· ${book!.author}' : '未知书籍';
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Expanded(
-          child: Row(
-            children: [
-              const Icon(
-                Icons.calendar_today,
-                size: Dimensions.iconSizeXs - 2,
-                color: Colors.grey,
-              ),
-              const SizedBox(width: Dimensions.spacingXs + 2),
-              Text(
-                formattedDate,
-                style: AppTypography.labelSmall.copyWith(color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
+        const Icon(Icons.menu_book, size: 12, color: Colors.grey),
+        const SizedBox(width: 6),
+        Text(text, style: AppTypography.bodySmall.copyWith(color: Colors.grey)),
       ],
     );
   }
+}
 
-  /// 构建观点对应的书籍的名字和作者
-  Widget _buildViewpointBookInfo(BuildContext context, BookModel? book) {
+class _Footer extends StatelessWidget {
+  final DateTime date;
+
+  const _Footer({required this.date});
+
+  @override
+  Widget build(BuildContext context) {
+    final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        const Icon(
-          Icons.menu_book,
-          size: Dimensions.iconSizeXs - 2,
-          color: Colors.grey,
-        ),
-        const SizedBox(width: Dimensions.spacingXs + 2),
-        Text(
-          book != null ? '《${book.title}》· ${book.author}' : '未知书籍',
-          style: AppTypography.bodySmall.copyWith(color: Colors.grey),
-        ),
+        const Icon(Icons.calendar_today, size: 12, color: Colors.grey),
+        const SizedBox(width: 6),
+        Text(formattedDate, style: AppTypography.labelSmall.copyWith(color: Colors.grey)),
       ],
     );
   }
-
-  // 已移除底部“记感想”入口，改为在页面顶部/悬浮层提供统一入口
 }

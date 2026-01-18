@@ -25,6 +25,7 @@ import 'package:daily_satori/app/pages/backup_settings/views/backup_settings_vie
 import 'package:daily_satori/app/pages/plugin_center/views/plugin_center_view.dart';
 import 'package:daily_satori/app/pages/left_bar/views/left_bar_view.dart';
 import 'package:daily_satori/app/providers/first_launch_provider.dart';
+import 'package:daily_satori/app/data/data.dart';
 
 /// 全局 Navigator Key
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -79,7 +80,16 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: Routes.articleDetail,
       name: Routes.articleDetail,
-      builder: (context, state) => const ArticleDetailView(),
+      builder: (context, state) {
+        final arguments = state.extra;
+        final articleId = arguments is int
+            ? arguments
+            : (arguments as ArticleModel?)?.id;
+        if (articleId == null) {
+          return const Scaffold(body: Center(child: Text('文章不存在')));
+        }
+        return ArticleDetailView(articleId: articleId);
+      },
     ),
     GoRoute(
       path: Routes.diary,

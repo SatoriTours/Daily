@@ -44,7 +44,7 @@ final class DiaryStateProvider
   }
 }
 
-String _$diaryStateHash() => r'cf42a9631e4b7abc77024c1e66de45b076ec0f6f';
+String _$diaryStateHash() => r'99471b06922d520079fe58533002323521c3c1c2';
 
 /// 日记状态 Provider
 

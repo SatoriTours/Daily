@@ -1,12 +1,18 @@
+/// 文章列表页面
+///
+/// 简洁的状态管理:
+/// - 页面状态 (ArticlesControllerState): 过滤条件、排序等
+/// - 数据状态 (ArticleState): 文章列表、加载状态等
+library;
+
 import 'package:daily_satori/app_exports.dart';
-
 import 'package:daily_satori/app/pages/articles/providers/articles_controller_provider.dart';
+import 'package:daily_satori/app/pages/articles/providers/articles_derived_providers.dart';
 
-import 'widgets/articles_tags_dialog.dart';
 import 'widgets/articles_list.dart';
+import 'widgets/articles_tags_dialog.dart';
 import 'widgets/article_calendar_dialog.dart';
 
-/// 文章列表页面
 class ArticlesView extends ConsumerWidget {
   const ArticlesView({super.key});
 
@@ -14,16 +20,14 @@ class ArticlesView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: const _ArticlesAppBar(),
-      body: const _ArticlesBody(),
+      appBar: const ArticlesAppBar(),
+      body: const ArticlesBody(),
     );
   }
 }
 
-// AppBar 组件
-
-class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
-  const _ArticlesAppBar();
+class ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
+  const ArticlesAppBar({super.key});
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -40,20 +44,19 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
       elevation: 0.5,
       leading: IconButton(
         icon: const Icon(FeatherIcons.calendar, color: Colors.white, size: 20),
-        onPressed: () => _showCalendarDialog(context, ref, state, controller),
+        onPressed: () => _showCalendarDialog(context, ref),
+        tooltip: '日历',
       ),
       title: GestureDetector(
-        onDoubleTap: () => _scrollToTop(state),
+        onDoubleTap: () => ArticlesList.scrollToTop(context),
         child: Text(displayTitle, style: AppTypography.titleLarge),
       ),
       centerTitle: true,
       actions: [
         IconButton(
           icon: const Icon(FeatherIcons.search, color: Colors.white, size: 20),
-          onPressed: () {
-            state.searchController?.clear();
-            controller.toggleSearchState();
-          },
+          onPressed: controller.toggleSearchState,
+          tooltip: '搜索',
         ),
         _buildMoreMenu(context, ref, state, controller),
       ],
@@ -72,7 +75,7 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
       onSelected: (value) {
         switch (value) {
           case 'tags':
-            _showTagsDialog(context, state, controller, ref);
+            _showTagsDialog(context, ref, state);
           case 'favorite':
             controller.toggleFavorite(!state.onlyFavorite);
         }
@@ -95,24 +98,13 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
     );
   }
 
-  void _scrollToTop(ArticlesControllerState state) {
-    final sc = state.scrollController;
-    if (sc != null && sc.hasClients) {
-      sc.animateTo(
-        0,
-        duration: Animations.durationNormal,
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
   void _showTagsDialog(
     BuildContext context,
-    ArticlesControllerState state,
-    ArticlesController controller,
     WidgetRef ref,
+    ArticlesControllerState state,
   ) {
     final tags = ref.read(articleAllTagsProvider);
+    final controller = ref.read(articlesControllerProvider.notifier);
 
     showModalBottomSheet(
       context: context,
@@ -129,16 +121,11 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
     );
   }
 
-  void _showCalendarDialog(
-    BuildContext context,
-    WidgetRef ref,
-    ArticlesControllerState state,
-    ArticlesController controller,
-  ) {
+  void _showCalendarDialog(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(articlesControllerProvider.notifier);
     final hasFilters = ref.read(hasFiltersProvider);
-    if (hasFilters) {
-      controller.clearAllFilters();
-    }
+
+    if (hasFilters) controller.clearAllFilters();
     final articleCountMap = ref.read(articleDailyCountsProvider);
 
     showModalBottomSheet(
@@ -157,15 +144,11 @@ class _ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
   }
 }
 
-// Body 组件
-
-class _ArticlesBody extends ConsumerWidget {
-  const _ArticlesBody();
+class ArticlesBody extends ConsumerWidget {
+  const ArticlesBody({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(articlesControllerProvider);
-    final controller = ref.read(articlesControllerProvider.notifier);
     final articles = ref.watch(articleStateProvider.select((s) => s.articles));
     final isLoading = ref.watch(
       articleStateProvider.select((s) => s.isLoading),
@@ -175,67 +158,86 @@ class _ArticlesBody extends ConsumerWidget {
     );
     final hasFilters = ref.watch(hasFiltersProvider);
     final displayTitle = ref.watch(displayTitleProvider);
+    final controller = ref.read(articlesControllerProvider.notifier);
 
     return Column(
       children: [
-        if (isSearchVisible) _buildSearchBar(state, controller),
+        if (isSearchVisible) const ArticlesSearchBar(),
         if (hasFilters)
           FilterIndicator(
             title: displayTitle,
             onClear: controller.clearAllFilters,
           ),
         Expanded(
-          child: _buildArticlesList(articles, isLoading, state, controller),
+          child: ArticlesList(
+            articles: articles,
+            isLoading: isLoading,
+            onRefresh: controller.reloadArticles,
+            onArticleTap: (article) => AppNavigation.toNamed(
+              Routes.articleDetail,
+              arguments: article.id,
+            ),
+            onFavoriteToggle: (article) {
+              ArticleRepository.i.toggleFavorite(article.id);
+              controller.updateArticle(article.id);
+            },
+            onShare: (article) => SharePlus.instance.share(
+              ShareParams(
+                text: article.url ?? '',
+                subject: article.aiTitle ?? article.title ?? '',
+              ),
+            ),
+          ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildSearchBar(
-    ArticlesControllerState state,
-    ArticlesController controller,
-  ) {
-    return GenericSearchBar(
-      controller: state.searchController!,
-      focusNode: state.searchFocusNode!,
-      hintText: 'hint.search_articles'.t,
-      onSearch: (_) => controller.searchArticles(state.searchController!),
-      onClear: () {
-        state.searchController!.clear();
-        controller.clearAllFilters(state.searchController);
-      },
-      isSearchVisible: true,
-      onToggleSearch: controller.toggleSearchState,
-      showFilterButton: false,
-    );
+class ArticlesSearchBar extends ConsumerStatefulWidget {
+  const ArticlesSearchBar({super.key});
+
+  @override
+  ConsumerState<ArticlesSearchBar> createState() => _ArticlesSearchBarState();
+}
+
+class _ArticlesSearchBarState extends ConsumerState<ArticlesSearchBar> {
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _focusNode = FocusNode();
   }
 
-  Widget _buildArticlesList(
-    List<ArticleModel> articles,
-    bool isLoading,
-    ArticlesControllerState state,
-    ArticlesController controller,
-  ) {
-    if (articles.isEmpty && !isLoading) {
-      return const ArticlesEmptyView();
-    }
-    return ArticlesList(
-      articles: articles,
-      isLoading: isLoading,
-      scrollController: state.scrollController!,
-      onRefresh: controller.reloadArticles,
-      onArticleTap: (article) =>
-          AppNavigation.toNamed(Routes.articleDetail, arguments: article.id),
-      onFavoriteToggle: (article) {
-        ArticleRepository.i.toggleFavorite(article.id);
-        controller.updateArticle(article.id);
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GenericSearchBar(
+      controller: _controller,
+      focusNode: _focusNode,
+      hintText: 'hint.search_articles'.t,
+      onSearch: (query) {
+        ref.read(articlesControllerProvider.notifier).searchArticles(query);
+        _focusNode.unfocus();
       },
-      onShare: (article) => SharePlus.instance.share(
-        ShareParams(
-          text: article.url ?? '',
-          subject: article.aiTitle ?? article.title ?? '',
-        ),
-      ),
+      onClear: () {
+        _controller.clear();
+        ref.read(articlesControllerProvider.notifier).clearAllFilters();
+      },
+      isSearchVisible: true,
+      onToggleSearch: ref
+          .read(articlesControllerProvider.notifier)
+          .toggleSearchState,
+      showFilterButton: false,
     );
   }
 }

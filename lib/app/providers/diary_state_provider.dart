@@ -37,6 +37,40 @@ class DiaryState extends _$DiaryState {
     return const DiaryStateModel();
   }
 
+  /// 创建新日记
+  Future<void> createDiary({
+    required String content,
+    String? tags,
+    String? images,
+    DateTime? createdAt,
+  }) async {
+    final diary = DiaryModel.create(
+      content: content,
+      tags: tags,
+      images: images,
+      createdAt: createdAt ?? DateTime.now(),
+    );
+    await saveDiary(diary);
+  }
+
+  /// 更新日记
+  Future<void> updateDiary({
+    required int id,
+    required String content,
+    String? tags,
+    String? images,
+  }) async {
+    final oldDiary = DiaryRepository.i.find(id);
+    if (oldDiary != null) {
+      oldDiary
+        ..content = content
+        ..tags = tags
+        ..images = images
+        ..updatedAt = DateTime.now();
+      await saveDiary(oldDiary);
+    }
+  }
+
   /// 加载日记列表
   Future<void> loadDiaries({
     String? keyword,

@@ -57,6 +57,7 @@ ui:
   aiAnalysis: AI 分析
   link: 链接
   title: 标题
+  tags: 标签
   comment: 备注
   optional: 选填
   inputOrModifyArticleTitle: 输入或修改文章标题
@@ -65,6 +66,7 @@ ui:
   processing: 处理中
   selected_tags: 已选标签
   existing_tags: 现有标签
+  inputTags: 输入标签，用逗号分隔
 
 # 导航相关
 nav:

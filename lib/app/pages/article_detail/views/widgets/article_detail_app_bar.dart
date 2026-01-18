@@ -9,44 +9,48 @@ class ArticleDetailAppBar extends ConsumerWidget
   final int articleId;
   final ArticleModel? article;
 
-  const ArticleDetailAppBar({
-    super.key,
-    required this.articleId,
-    required this.article,
-  });
-
-  bool get _isProcessing {
-    final st = article?.status ?? ArticleStatus.pending;
-    return st == ArticleStatus.pending || st == ArticleStatus.webContentFetched;
-  }
+  const ArticleDetailAppBar({super.key, required this.articleId, this.article});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final controllerState = ref.watch(
+      articleDetailControllerProvider(articleId),
+    );
+    final currentArticle = article ?? controllerState.articleModel;
     final textTheme = AppTheme.getTextTheme(context);
-    final titleText = article != null
-        ? StringUtils.getTopLevelDomain(Uri.parse(article!.url ?? '').host)
+    final titleText = currentArticle != null
+        ? StringUtils.getTopLevelDomain(
+            Uri.parse(currentArticle.url ?? '').host,
+          )
         : '';
+
+    final isProcessing =
+        currentArticle?.status == ArticleStatus.pending ||
+        currentArticle?.status == ArticleStatus.webContentFetched;
 
     return AppBar(
       title: AnimatedDefaultTextStyle(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
         style:
-            (_isProcessing ? textTheme.titleMedium : textTheme.titleLarge)
+            (isProcessing ? textTheme.titleMedium : textTheme.titleLarge)
                 ?.copyWith(
                   color: Colors.white,
-                  fontSize: _isProcessing ? 16 : null,
+                  fontSize: isProcessing ? 16 : null,
                 ) ??
             const TextStyle(),
         child: Text(titleText),
       ),
       centerTitle: true,
-      actions: [_buildLoadingIndicator(), _buildAppBarActions(context, ref)],
+      actions: [
+        _buildLoadingIndicator(isProcessing),
+        _buildAppBarActions(context, ref, currentArticle),
+      ],
     );
   }
 
-  Widget _buildLoadingIndicator() {
-    if (!_isProcessing) return const SizedBox.shrink();
+  Widget _buildLoadingIndicator(bool isProcessing) {
+    if (!isProcessing) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(right: Dimensions.spacingS),
@@ -61,7 +65,11 @@ class ArticleDetailAppBar extends ConsumerWidget
     );
   }
 
-  Widget _buildAppBarActions(BuildContext context, WidgetRef ref) {
+  Widget _buildAppBarActions(
+    BuildContext context,
+    WidgetRef ref,
+    ArticleModel? currentArticle,
+  ) {
     final colorScheme = AppTheme.getColorScheme(context);
 
     return PopupMenuButton<int>(
@@ -74,7 +82,8 @@ class ArticleDetailAppBar extends ConsumerWidget
         borderRadius: BorderRadius.circular(Dimensions.radiusS),
       ),
       itemBuilder: (context) => _buildPopupMenuItems(context),
-      onSelected: (value) => _handleMenuSelection(context, ref, value),
+      onSelected: (value) =>
+          _handleMenuSelection(context, ref, value, currentArticle),
     );
   }
 
@@ -116,48 +125,53 @@ class ArticleDetailAppBar extends ConsumerWidget
     );
   }
 
-  void _handleMenuSelection(BuildContext context, WidgetRef ref, int value) {
-    if (article == null) return;
-
+  void _handleMenuSelection(
+    BuildContext context,
+    WidgetRef ref,
+    int value,
+    ArticleModel? currentArticle,
+  ) {
     switch (value) {
       case 1:
-        _onShareArticle(context);
+        _onShareArticle(context, currentArticle);
         break;
       case 2:
-        _showDeleteConfirmationDialog(context, ref);
+        _showDeleteConfirmationDialog(context, ref, currentArticle);
         break;
       case 3:
-        _onCopyURL(context);
+        _onCopyURL(context, currentArticle);
         break;
       case 4:
-        _onOpenInBrowser(context);
+        _onOpenInBrowser(context, currentArticle);
         break;
     }
   }
 
-  void _onOpenInBrowser(BuildContext context) {
-    if (article?.url == null) return;
-    launchUrl(Uri.parse(article!.url ?? ''));
+  void _onOpenInBrowser(BuildContext context, ArticleModel? currentArticle) {
+    if (currentArticle?.url == null) return;
+    launchUrl(Uri.parse(currentArticle!.url ?? ''));
   }
 
-  void _onShareArticle(BuildContext context) {
+  void _onShareArticle(BuildContext context, ArticleModel? currentArticle) {
+    if (currentArticle == null) return;
     AppNavigation.toNamed(
       Routes.shareDialog,
-      arguments: {'articleID': article!.id},
+      arguments: {'articleID': currentArticle.id},
     );
   }
 
-  void _onCopyURL(BuildContext context) {
-    if (article?.url == null) return;
-    Clipboard.setData(ClipboardData(text: article!.url ?? ''));
+  void _onCopyURL(BuildContext context, ArticleModel? currentArticle) {
+    if (currentArticle?.url == null) return;
+    Clipboard.setData(ClipboardData(text: currentArticle!.url ?? ''));
     UIUtils.showSuccess('URL已复制到剪贴板');
   }
 
   void _showDeleteConfirmationDialog(
     BuildContext context,
     WidgetRef ref,
+    ArticleModel? currentArticle,
   ) async {
-    if (article == null) return;
+    if (currentArticle == null) return;
 
     await DialogUtils.showConfirm(
       title: "确认删除",

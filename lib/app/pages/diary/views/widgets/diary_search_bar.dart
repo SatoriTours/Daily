@@ -2,27 +2,14 @@ import 'package:daily_satori/app_exports.dart';
 
 /// 日记搜索栏组件
 ///
-/// 纯展示组件,通过参数接收数据和回调函数
+/// 自管理 TextEditingController 和 FocusNode
 class DiarySearchBar extends StatefulWidget {
-  /// 搜索文本控制器
-  final TextEditingController searchController;
-
-  /// 搜索框焦点节点
-  final FocusNode searchFocusNode;
-
-  /// 关闭搜索栏回调
   final VoidCallback onClose;
-
-  /// 执行搜索回调
   final Function(String) onSearch;
-
-  /// 清除过滤回调
   final VoidCallback onClearFilters;
 
   const DiarySearchBar({
     super.key,
-    required this.searchController,
-    required this.searchFocusNode,
     required this.onClose,
     required this.onSearch,
     required this.onClearFilters,
@@ -34,13 +21,18 @@ class DiarySearchBar extends StatefulWidget {
 
 class _DiarySearchBarState extends State<DiarySearchBar>
     with SingleTickerProviderStateMixin {
-  late AnimationController _animController;
-  late Animation<double> _fadeAnimation;
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+  late final AnimationController _animController;
+  late final Animation<double> _fadeAnimation;
   bool _showClearButton = false;
 
   @override
   void initState() {
     super.initState();
+    _controller = TextEditingController();
+    _focusNode = FocusNode();
+
     _animController = AnimationController(
       vsync: this,
       duration: Animations.durationNormal,
@@ -49,22 +41,17 @@ class _DiarySearchBarState extends State<DiarySearchBar>
       parent: _animController,
       curve: Curves.easeInOut,
     );
-
     _animController.forward();
 
-    // 初始化清除按钮状态
-    _showClearButton = widget.searchController.text.isNotEmpty;
-
-    // 添加文本变化监听器
-    widget.searchController.addListener(_onTextChanged);
+    _showClearButton = _controller.text.isNotEmpty;
+    _controller.addListener(_onTextChanged);
 
     logger.d('搜索栏组件初始化');
   }
 
-  /// 文本变化监听器
   void _onTextChanged() {
-    final isTextEmpty = widget.searchController.text.isEmpty;
-    if (_showClearButton == isTextEmpty) {
+    final isTextEmpty = _controller.text.isEmpty;
+    if (_showClearButton != isTextEmpty) {
       setState(() {
         _showClearButton = !isTextEmpty;
       });
@@ -73,15 +60,16 @@ class _DiarySearchBarState extends State<DiarySearchBar>
 
   @override
   void dispose() {
-    widget.searchController.removeListener(_onTextChanged);
+    _controller.removeListener(_onTextChanged);
+    _controller.dispose();
+    _focusNode.dispose();
     _animController.dispose();
     super.dispose();
   }
 
-  /// 执行搜索
   void _performSearch() {
-    logger.d('执行搜索: ${widget.searchController.text}');
-    final query = widget.searchController.text;
+    logger.d('执行搜索: ${_controller.text}');
+    final query = _controller.text;
     widget.onSearch(query);
 
     if (query.trim().isEmpty) {
@@ -89,15 +77,13 @@ class _DiarySearchBarState extends State<DiarySearchBar>
     }
   }
 
-  /// 清空搜索
   void _clearSearch() {
     logger.d('清空搜索');
-    widget.searchController.clear();
+    _controller.clear();
     widget.onClearFilters();
     widget.onClose();
   }
 
-  /// 处理关闭搜索栏
   void _handleClose() {
     logger.d('关闭搜索栏');
     _animController.reverse().then((_) {
@@ -134,7 +120,6 @@ class _DiarySearchBarState extends State<DiarySearchBar>
     );
   }
 
-  /// 构建返回按钮
   Widget _buildBackButton() {
     return IconButton(
       icon: Icon(
@@ -148,7 +133,6 @@ class _DiarySearchBarState extends State<DiarySearchBar>
     );
   }
 
-  /// 构建搜索输入框
   Widget _buildSearchField() {
     return Container(
       height: 36,
@@ -158,8 +142,8 @@ class _DiarySearchBarState extends State<DiarySearchBar>
         borderRadius: BorderRadius.circular(18),
       ),
       child: TextField(
-        controller: widget.searchController,
-        focusNode: widget.searchFocusNode,
+        controller: _controller,
+        focusNode: _focusNode,
         decoration: InputDecoration(
           hintText: '搜索日记内容...',
           hintStyle: TextStyle(
@@ -183,7 +167,6 @@ class _DiarySearchBarState extends State<DiarySearchBar>
     );
   }
 
-  /// 构建搜索按钮
   Widget _buildSearchButton() {
     return IconButton(
       icon: Icon(
@@ -197,7 +180,6 @@ class _DiarySearchBarState extends State<DiarySearchBar>
     );
   }
 
-  /// 构建清除按钮
   Widget _buildClearButton() {
     return AnimatedOpacity(
       opacity: _showClearButton ? 1.0 : 0.0,

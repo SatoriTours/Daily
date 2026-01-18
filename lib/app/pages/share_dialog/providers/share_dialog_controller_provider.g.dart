@@ -46,7 +46,7 @@ final class ShareDialogControllerProvider
 }
 
 String _$shareDialogControllerHash() =>
-    r'3f576a2028a931a413fb175ae07857f232fed5af';
+    r'60f0cac7dffeff0492aedd2f28b43231663c6ff0';
 
 /// ShareDialogController Provider
 

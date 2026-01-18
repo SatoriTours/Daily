@@ -45,17 +45,13 @@ class BookRepository extends BaseRepository<Book, BookModel> {
 
   /// 根据标题查找书籍
   List<Book> findByTitle(String title) {
-    final query = box
-        .query(Book_.title.contains(title, caseSensitive: false))
-        .build();
+    final query = box.query(Book_.title.contains(title, caseSensitive: false)).build();
     return executeQuery(query);
   }
 
   /// 根据作者查找书籍
   List<Book> findByAuthor(String author) {
-    final query = box
-        .query(Book_.author.contains(author, caseSensitive: false))
-        .build();
+    final query = box.query(Book_.author.contains(author, caseSensitive: false)).build();
     return executeQuery(query);
   }
 
@@ -78,9 +74,7 @@ class BookRepository extends BaseRepository<Book, BookModel> {
     // 先删除该书籍的所有观点
     final viewpoints = BookViewpointRepository.i.findByBookIds([bookId]);
     if (viewpoints.isNotEmpty) {
-      BookViewpointRepository.i.removeMany(
-        viewpoints.map((e) => e.id).toList(),
-      );
+      BookViewpointRepository.i.removeMany(viewpoints.map((e) => e.id).toList());
     }
     // 再删除书籍本身
     remove(bookId);
@@ -123,11 +117,7 @@ class BookRepository extends BaseRepository<Book, BookModel> {
       logger.i('添加书籍成功: ${book.title}');
       return book;
     } catch (e, stackTrace) {
-      logger.e(
-        '添加书籍失败: ${searchResult.title}',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      logger.e('添加书籍失败: ${searchResult.title}', error: e, stackTrace: stackTrace);
       return null;
     }
   }
@@ -170,28 +160,18 @@ class BookRepository extends BaseRepository<Book, BookModel> {
       // 更新书籍基础信息
       book.author = bookData['author'] as String? ?? book.author;
       book.category = bookData['category'] as String? ?? book.category;
-      book.introduction =
-          bookData['introduction'] as String? ?? book.introduction;
+      book.introduction = bookData['introduction'] as String? ?? book.introduction;
       book.updatedAt = DateTime.now();
       save(book);
 
       // 解析观点并替换
-      final List<dynamic> viewpointsData =
-          bookData['viewpoints'] as List<dynamic>? ?? [];
+      final List<dynamic> viewpointsData = bookData['viewpoints'] as List<dynamic>? ?? [];
       List<BookViewpointModel> viewpoints = [];
       if (viewpointsData.isNotEmpty) {
-        viewpoints = await _processViewpoints(
-          book.id,
-          book.title,
-          book.author,
-          viewpointsData,
-        );
+        viewpoints = await _processViewpoints(book.id, book.title, book.author, viewpointsData);
       }
 
-      BookViewpointRepository.i.replaceForBook(
-        book.id,
-        viewpoints.map((e) => e.toEntity()).toList(),
-      );
+      BookViewpointRepository.i.replaceForBook(book.id, viewpoints.map((e) => e.toEntity()).toList());
       return true;
     } catch (e, st) {
       logger.e('刷新书籍失败: ${book.title}', error: e, stackTrace: st);
@@ -221,17 +201,13 @@ class BookRepository extends BaseRepository<Book, BookModel> {
       logger.i('开始使用AI创建书籍: $title');
 
       final promptTemplate = _pluginService.bookInfo;
-      logger.d(
-        'Book info template: ${promptTemplate.isNotEmpty ? "已加载" : "为空"}',
-      );
+      logger.d('Book info template: ${promptTemplate.isNotEmpty ? "已加载" : "为空"}');
 
       final prompt = _renderTemplate(promptTemplate, {'title': title});
       logger.d('Generated prompt length: ${prompt.length}');
 
       final response = await _aiService.complete(prompt);
-      logger.d(
-        'AI response received: ${response.isNotEmpty ? response.length : 0} chars',
-      );
+      logger.d('AI response received: ${response.isNotEmpty ? response.length : 0} chars');
 
       if (response.isEmpty) {
         logger.e('AI返回空响应: $title');
@@ -295,20 +271,14 @@ class BookRepository extends BaseRepository<Book, BookModel> {
         rethrow;
       }
 
-      final List<dynamic> viewpointsData =
-          bookData['viewpoints'] as List<dynamic>? ?? [];
+      final List<dynamic> viewpointsData = bookData['viewpoints'] as List<dynamic>? ?? [];
       if (viewpointsData.isEmpty) {
         logger.w('未找到书籍观点数据: ${book.title}');
         return;
       }
 
       logger.i('成功解析 ${viewpointsData.length} 个书籍观点: ${book.title}');
-      final validViewpoints = await _processViewpoints(
-        book.id,
-        book.title,
-        book.author,
-        viewpointsData,
-      );
+      final validViewpoints = await _processViewpoints(book.id, book.title, book.author, viewpointsData);
 
       if (validViewpoints.isNotEmpty) {
         BookViewpointRepository.i.saveMany(validViewpoints);
@@ -328,33 +298,18 @@ class BookRepository extends BaseRepository<Book, BookModel> {
   ) async {
     final List<Future<BookViewpointModel?>> viewpointFutures = viewpointsData
         .take(20) // 限制最多处理20个观点
-        .map(
-          (viewpoint) =>
-              _processViewpoint(bookId, title, author, viewpoint as String),
-        )
+        .map((viewpoint) => _processViewpoint(bookId, title, author, viewpoint as String))
         .toList();
 
     final viewpoints = await Future.wait(viewpointFutures, eagerError: true);
-    return viewpoints
-        .where((v) => v != null)
-        .cast<BookViewpointModel>()
-        .toList();
+    return viewpoints.where((v) => v != null).cast<BookViewpointModel>().toList();
   }
 
   /// 处理单个观点的详细信息
-  Future<BookViewpointModel?> _processViewpoint(
-    int bookId,
-    String title,
-    String author,
-    String viewpoint,
-  ) async {
+  Future<BookViewpointModel?> _processViewpoint(int bookId, String title, String author, String viewpoint) async {
     try {
       final promptTemplate = _pluginService.bookViewpoint;
-      final prompt = _renderTemplate(promptTemplate, {
-        'title': title,
-        'author': author,
-        'viewpoint': viewpoint,
-      });
+      final prompt = _renderTemplate(promptTemplate, {'title': title, 'author': author, 'viewpoint': viewpoint});
 
       final viewpointDetail = await _getViewpointDetailWithRetry(prompt);
 
@@ -365,29 +320,97 @@ class BookRepository extends BaseRepository<Book, BookModel> {
         example: viewpointDetail['example'] as String,
       );
     } catch (e, stackTrace) {
-      logger.e(
-        '处理观点详情失败: $title - $viewpoint',
-        error: e,
-        stackTrace: stackTrace,
-      );
+      logger.e('处理观点详情失败: $title - $viewpoint', error: e, stackTrace: stackTrace);
       return null;
     }
   }
 
   /// 获取观点详情并支持重试
-  Future<Map<String, dynamic>> _getViewpointDetailWithRetry(
-    String prompt,
-  ) async {
+  Future<Map<String, dynamic>> _getViewpointDetailWithRetry(String prompt) async {
     try {
       final response = await _aiService.complete(prompt);
-      final cleanedResponse = _cleanJsonResponse(response);
-      return jsonDecode(cleanedResponse);
+      return _parseJsonSafely(response);
     } catch (e, stackTrace) {
       logger.w('获取观点详情失败，正在重试...', error: e, stackTrace: stackTrace);
       final response = await _aiService.complete(prompt);
-      final cleanedResponse = _cleanJsonResponse(response);
-      return jsonDecode(cleanedResponse);
+      return _parseJsonSafely(response);
     }
+  }
+
+  /// 安全解析 JSON，支持多种容错处理
+  Map<String, dynamic> _parseJsonSafely(String response) {
+    final cleanedResponse = _cleanJsonResponse(response);
+
+    // 尝试直接解析
+    try {
+      return jsonDecode(cleanedResponse) as Map<String, dynamic>;
+    } catch (_) {
+      // 继续尝试修复
+    }
+
+    // 尝试修复未结束的字符串
+    final fixedResponse = _fixUnterminatedString(cleanedResponse);
+    try {
+      return jsonDecode(fixedResponse) as Map<String, dynamic>;
+    } catch (_) {
+      // 继续尝试提取
+    }
+
+    // 最后尝试手动提取字段
+    return _extractFieldsManually(cleanedResponse);
+  }
+
+  /// 修复未结束的 JSON 字符串
+  String _fixUnterminatedString(String json) {
+    var fixed = json.trim();
+
+    // 检查是否以不完整的状态结束
+    if (!fixed.endsWith('}')) {
+      // 尝试找到最后一个完整的字段
+      final lastQuoteIndex = fixed.lastIndexOf('"');
+      if (lastQuoteIndex > 0) {
+        // 检查引号是否已配对
+        final beforeLastQuote = fixed.substring(0, lastQuoteIndex);
+        final quoteCount = beforeLastQuote.split('"').length - 1;
+
+        if (quoteCount % 2 == 0) {
+          // 偶数个引号，说明最后一个引号是值的开始，需要闭合
+          fixed = '$fixed"}';
+        } else {
+          // 奇数个引号，说明最后一个引号是值的结束，只需要闭合对象
+          fixed = '$fixed}';
+        }
+      }
+    }
+
+    return fixed;
+  }
+
+  /// 手动提取 JSON 字段
+  Map<String, dynamic> _extractFieldsManually(String text) {
+    String extractValue(String key) {
+      // 匹配 "key": "value" 或 "key": "value...
+      final pattern = RegExp('"$key"\\s*:\\s*"([^"]*(?:"[^}]*)?)', multiLine: true);
+      final match = pattern.firstMatch(text);
+      if (match != null) {
+        var value = match.group(1) ?? '';
+        // 清理可能的尾部问题
+        if (value.endsWith('",') || value.endsWith('"}')) {
+          value = value.substring(0, value.length - 2);
+        } else if (value.endsWith('"')) {
+          value = value.substring(0, value.length - 1);
+        }
+        return value.trim();
+      }
+      return '';
+    }
+
+    final content = extractValue('content');
+    final example = extractValue('example');
+
+    logger.d('手动提取字段 - content长度: ${content.length}, example长度: ${example.length}');
+
+    return {'content': content.isNotEmpty ? content : '内容解析失败', 'example': example.isNotEmpty ? example : '案例解析失败'};
   }
 
   /// 渲染模板
@@ -425,9 +448,55 @@ class BookRepository extends BaseRepository<Book, BookModel> {
     // 2. 替换省略号为空格（避免 JSON 解析错误）
     response = response.replaceAll('...', ' ');
 
-    // 3. 移除可能导致解析失败的控制字符
-    response = response.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '');
+    // 3. 移除可能导致解析失败的控制字符（保留换行符，稍后处理）
+    response = response.replaceAll(RegExp(r'[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]'), '');
+
+    // 4. 转义字符串值中的换行符
+    response = _escapeNewlinesInStrings(response);
+
+    // 5. 替换中文引号为英文引号
+    response = response.replaceAll('"', '"').replaceAll('"', '"').replaceAll(''', "'")
+        .replaceAll(''', "'");
 
     return response;
+  }
+
+  /// 转义 JSON 字符串值中的换行符
+  String _escapeNewlinesInStrings(String json) {
+    final buffer = StringBuffer();
+    var inString = false;
+    var escaped = false;
+
+    for (var i = 0; i < json.length; i++) {
+      final char = json[i];
+
+      if (escaped) {
+        buffer.write(char);
+        escaped = false;
+        continue;
+      }
+
+      if (char == '\\') {
+        buffer.write(char);
+        escaped = true;
+        continue;
+      }
+
+      if (char == '"') {
+        inString = !inString;
+        buffer.write(char);
+        continue;
+      }
+
+      if (inString && char == '\n') {
+        buffer.write('\\n');
+      } else if (inString && char == '\r') {
+        buffer.write('\\r');
+      } else {
+        buffer.write(char);
+      }
+    }
+
+    return buffer.toString();
   }
 }
