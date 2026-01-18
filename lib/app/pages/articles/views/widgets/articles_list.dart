@@ -8,6 +8,7 @@ class ArticlesList extends StatefulWidget {
   final List<ArticleModel> articles;
   final bool isLoading;
   final Future<void> Function() onRefresh;
+  final Future<void> Function() onLoadMore;
   final void Function(ArticleModel article) onArticleTap;
   final void Function(ArticleModel article) onFavoriteToggle;
   final void Function(ArticleModel article) onShare;
@@ -17,6 +18,7 @@ class ArticlesList extends StatefulWidget {
     required this.articles,
     required this.isLoading,
     required this.onRefresh,
+    required this.onLoadMore,
     required this.onArticleTap,
     required this.onFavoriteToggle,
     required this.onShare,
@@ -41,22 +43,35 @@ class _ArticlesListState extends State<ArticlesList> {
     _setupScrollListener();
   }
 
+  bool _isLoadingMore = false;
+
   void _setupScrollListener() {
     _scrollController.addListener(() {
       final position = _scrollController.position;
-      if (position.pixels == position.maxScrollExtent) {
-        // TODO: 实现加载更多
+      // 距离底部 200px 时开始加载更多
+      if (position.pixels >= position.maxScrollExtent - 200) {
+        _loadMore();
       }
     });
   }
 
+  Future<void> _loadMore() async {
+    // 防止重复加载
+    if (_isLoadingMore || widget.isLoading) return;
+    if (widget.articles.isEmpty) return;
+
+    _isLoadingMore = true;
+    try {
+      logger.i('Loading more articles...');
+      await widget.onLoadMore();
+    } finally {
+      _isLoadingMore = false;
+    }
+  }
+
   void _scrollToTop() {
     if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0,
-        duration: Animations.durationNormal,
-        curve: Curves.easeInOut,
-      );
+      _scrollController.animateTo(0, duration: Animations.durationNormal, curve: Curves.easeInOut);
     }
   }
 
@@ -88,10 +103,7 @@ class _ArticlesListState extends State<ArticlesList> {
         children: [
           Icon(Icons.article_outlined, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
-          Text(
-            'empty.no_articles'.t,
-            style: AppTypography.titleMedium.copyWith(color: Colors.grey[600]),
-          ),
+          Text('empty.no_articles'.t, style: AppTypography.titleMedium.copyWith(color: Colors.grey[600])),
         ],
       ),
     );
@@ -104,10 +116,7 @@ class _ArticlesListState extends State<ArticlesList> {
 
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(
-        horizontal: Dimensions.spacingM - 4,
-        vertical: Dimensions.spacingM - 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: Dimensions.spacingM - 4, vertical: Dimensions.spacingM - 4),
       itemCount: itemCount,
       itemBuilder: (context, index) {
         if (index == articles.length) {
@@ -116,9 +125,7 @@ class _ArticlesListState extends State<ArticlesList> {
 
         final article = articles[index];
         return Padding(
-          padding: EdgeInsets.only(
-            bottom: index < articles.length - 1 ? Dimensions.spacingS : 0,
-          ),
+          padding: EdgeInsets.only(bottom: index < articles.length - 1 ? Dimensions.spacingS : 0),
           child: ArticleCard(
             key: ValueKey(article.id),
             articleModel: article,
@@ -149,12 +156,7 @@ class _ArticlesListState extends State<ArticlesList> {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            'article.loading_more'.t,
-            style: textTheme.labelMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
+          Text('article.loading_more'.t, style: textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         ],
       ),
     );

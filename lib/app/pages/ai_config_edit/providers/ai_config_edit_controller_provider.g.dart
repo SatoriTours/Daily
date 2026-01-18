@@ -46,7 +46,7 @@ final class AIConfigEditControllerProvider
 }
 
 String _$aIConfigEditControllerHash() =>
-    r'e2e66de8e83ad05bf381e38d924d2b4debe649bc';
+    r'f3c25d0b7f56056dcf05f1b047b3128260ac3a7e';
 
 /// AIConfigEditController Provider
 

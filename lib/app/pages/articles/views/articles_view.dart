@@ -81,37 +81,25 @@ class ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
         }
       },
       itemBuilder: (_) => [
-        SPopupMenuItem<String>(
-          value: 'tags',
-          icon: FeatherIcons.tag,
-          text: 'article.filter_tags'.t,
-        ),
+        SPopupMenuItem<String>(value: 'tags', icon: FeatherIcons.tag, text: 'article.filter_tags'.t),
         SPopupMenuItem<String>(
           value: 'favorite',
           icon: state.onlyFavorite ? Icons.favorite : Icons.favorite_border,
-          text: state.onlyFavorite
-              ? 'article.show_all'.t
-              : 'article.show_favorite_only'.t,
+          text: state.onlyFavorite ? 'article.show_all'.t : 'article.show_favorite_only'.t,
           iconColor: state.onlyFavorite ? Colors.red : null,
         ),
       ],
     );
   }
 
-  void _showTagsDialog(
-    BuildContext context,
-    WidgetRef ref,
-    ArticlesControllerState state,
-  ) {
+  void _showTagsDialog(BuildContext context, WidgetRef ref, ArticlesControllerState state) {
     final tags = ref.read(articleAllTagsProvider);
     final controller = ref.read(articlesControllerProvider.notifier);
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: Dimensions.borderRadiusTop,
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
       builder: (_) => ArticlesTagsDialog(
         tags: tags,
         selectedTagId: state.tagId,
@@ -131,9 +119,7 @@ class ArticlesAppBar extends ConsumerWidget implements PreferredSizeWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: Dimensions.borderRadiusTop,
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: Dimensions.borderRadiusTop),
       isScrollControlled: true,
       builder: (_) => ArticleCalendarDialog(
         articleCountMap: articleCountMap,
@@ -150,12 +136,8 @@ class ArticlesBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final articles = ref.watch(articleStateProvider.select((s) => s.articles));
-    final isLoading = ref.watch(
-      articleStateProvider.select((s) => s.isLoading),
-    );
-    final isSearchVisible = ref.watch(
-      appGlobalStateProvider.select((s) => s.isSearchBarVisible),
-    );
+    final isLoading = ref.watch(articleStateProvider.select((s) => s.isLoading));
+    final isSearchVisible = ref.watch(appGlobalStateProvider.select((s) => s.isSearchBarVisible));
     final hasFilters = ref.watch(hasFiltersProvider);
     final displayTitle = ref.watch(displayTitleProvider);
     final controller = ref.read(articlesControllerProvider.notifier);
@@ -163,29 +145,20 @@ class ArticlesBody extends ConsumerWidget {
     return Column(
       children: [
         if (isSearchVisible) const ArticlesSearchBar(),
-        if (hasFilters)
-          FilterIndicator(
-            title: displayTitle,
-            onClear: controller.clearAllFilters,
-          ),
+        if (hasFilters) FilterIndicator(title: displayTitle, onClear: controller.clearAllFilters),
         Expanded(
           child: ArticlesList(
             articles: articles,
             isLoading: isLoading,
             onRefresh: controller.reloadArticles,
-            onArticleTap: (article) => AppNavigation.toNamed(
-              Routes.articleDetail,
-              arguments: article.id,
-            ),
+            onLoadMore: controller.loadMoreArticles,
+            onArticleTap: (article) => AppNavigation.toNamed(Routes.articleDetail, arguments: article.id),
             onFavoriteToggle: (article) {
               ArticleRepository.i.toggleFavorite(article.id);
               controller.updateArticle(article.id);
             },
             onShare: (article) => SharePlus.instance.share(
-              ShareParams(
-                text: article.url ?? '',
-                subject: article.aiTitle ?? article.title ?? '',
-              ),
+              ShareParams(text: article.url ?? '', subject: article.aiTitle ?? article.title ?? ''),
             ),
           ),
         ),
@@ -234,9 +207,7 @@ class _ArticlesSearchBarState extends ConsumerState<ArticlesSearchBar> {
         ref.read(articlesControllerProvider.notifier).clearAllFilters();
       },
       isSearchVisible: true,
-      onToggleSearch: ref
-          .read(articlesControllerProvider.notifier)
-          .toggleSearchState,
+      onToggleSearch: ref.read(articlesControllerProvider.notifier).toggleSearchState,
       showFilterButton: false,
     );
   }

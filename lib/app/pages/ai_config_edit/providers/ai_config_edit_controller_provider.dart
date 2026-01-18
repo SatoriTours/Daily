@@ -58,23 +58,15 @@ class AIConfigEditController extends _$AIConfigEditController {
   }
 
   void updateName(String name) => state = state.copyWith(name: name);
-  void updateApiAddress(String address) =>
-      state = state.copyWith(apiAddress: address);
+  void updateApiAddress(String address) => state = state.copyWith(apiAddress: address);
   void updateApiToken(String token) => state = state.copyWith(apiToken: token);
-  void updateModelName(String modelName) =>
-      state = state.copyWith(modelName: modelName);
-  void updateFunctionType(int type) =>
-      state = state.copyWith(functionType: type);
+  void updateModelName(String modelName) => state = state.copyWith(modelName: modelName);
+  void updateFunctionType(int type) => state = state.copyWith(functionType: type);
 
   void setInheritFromGeneral(bool inherit) {
     if (inherit) {
       // 切换到继承模式时，清空独立配置字段
-      state = state.copyWith(
-        inheritFromGeneral: true,
-        apiAddress: '',
-        apiToken: '',
-        modelName: '',
-      );
+      state = state.copyWith(inheritFromGeneral: true, apiAddress: '', apiToken: '', modelName: '');
     } else {
       state = state.copyWith(inheritFromGeneral: false);
     }
@@ -125,9 +117,7 @@ class AIConfigEditController extends _$AIConfigEditController {
     }
   }
 
-  String get pageTitle => state.config == null
-      ? 'ai_config.create_title'.t
-      : 'ai_config.edit_title'.t;
+  String get pageTitle => state.config == null ? 'ai_config.create_title'.t : 'ai_config.edit_title'.t;
   bool get isSystemConfig => state.functionType == AIConfigTypes.general;
   bool get isSpecialConfig => state.functionType != AIConfigTypes.general;
   bool get isCustomApiAddress => state.apiAddress.isNotEmpty;
@@ -142,36 +132,50 @@ class AIConfigEditController extends _$AIConfigEditController {
     return true;
   }
 
-  List<String> get availableModels => [
-    'gpt-3.5-turbo',
-    'gpt-4',
-    'gpt-4o',
-    'claude-3-opus',
-    'claude-3-sonnet',
-    'gemini-pro',
-  ];
-  List<String> get apiProviderNames => [
-    'OpenAI',
-    'Anthropic',
-    'Google AI',
-    '自定义',
-  ];
-  List<String> get apiPresets => [
-    'https://api.openai.com/v1',
-    'https://api.anthropic.com/v1',
-    'https://generativelanguage.googleapis.com/v1beta',
-    '',
-  ];
+  /// 从 PluginService 获取 AI 模型配置
+  List<AiModel> get _aiModels => PluginService.i.aiModels;
+
+  /// 获取当前选中服务商的可用模型列表
+  List<String> get availableModels {
+    // 根据当前选中的 apiAddress 查找对应的模型列表
+    final currentAddress = state.apiAddress;
+    if (currentAddress.isEmpty) return [];
+
+    for (final model in _aiModels) {
+      if (model.apiAddress == currentAddress) {
+        return model.models;
+      }
+    }
+    return []; // 自定义地址时返回空列表，用户需要手动输入
+  }
+
+  /// 获取所有 AI 服务提供商名称
+  List<String> get apiProviderNames => _aiModels.map((m) => m.name).toList();
+
+  /// 获取所有 AI 服务提供商的 API 地址
+  List<String> get apiPresets => _aiModels.map((m) => m.apiAddress).toList();
 
   String getProviderNameByUrl(String url) {
     if (url.isEmpty) return '选择供应商';
-    final index = apiPresets.indexOf(url);
-    return (index >= 0 && index < apiProviderNames.length)
-        ? apiProviderNames[index]
-        : '自定义';
+    for (final model in _aiModels) {
+      if (model.apiAddress == url) {
+        return model.name;
+      }
+    }
+    return '自定义';
   }
 
-  bool get isCustomApiUrl =>
-      state.apiAddress.isNotEmpty &&
-      !apiPresets.sublist(0, apiPresets.length - 1).contains(state.apiAddress);
+  bool get isCustomApiUrl {
+    if (state.apiAddress.isEmpty) return false;
+    // 检查是否是 "自定义" 供应商（apiAddress 为空的那个）
+    for (final model in _aiModels) {
+      if (model.name == '自定义' && model.apiAddress.isEmpty) {
+        continue; // 跳过 "自定义" 项
+      }
+      if (model.apiAddress == state.apiAddress) {
+        return false; // 找到匹配的预设，不是自定义
+      }
+    }
+    return true; // 没有匹配的预设，是自定义地址
+  }
 }

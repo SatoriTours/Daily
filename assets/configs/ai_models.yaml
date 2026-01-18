@@ -2,8 +2,8 @@ ai_models:
   - name: OpenAI API
     apiAddress: https://api.openai.com/v1
     models:
-      - gpt-3.5-turbo
-      - gpt-4
+      - gpt-5.1-chat-latest
+      - gpt-5.1-turbo
       - gpt-4-turbo
       - gpt-4-vision
   - name: DeepSeek API
@@ -41,10 +41,18 @@ ai_models:
     apiAddress: https://api.moonshot.cn/v1
     models:
       - kimi-k2-turbo-preview
+      - kimi-k2-0905-preview
+      - kimi-k2-thinking-turbo
+      - kimi-k2-thinking
   - name: GLM
     apiAddress: https://open.bigmodel.cn/api/paas/v4
     models:
-      - glm-4.6
+      - glm-4.7
+  - name: MiniMax
+    apiAddress: https://api.minimaxi.com/v1
+    models:
+      - MiniMax-M2.1
+      - MiniMax-M2.1-lightning
   - name: 自定义
     apiAddress: ""
     models: []
