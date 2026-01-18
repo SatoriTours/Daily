@@ -16,7 +16,8 @@ mixin _$ArticleDetailControllerState {
 
 /// 当前文章模型
  ArticleModel? get articleModel;/// 文章标签字符串,以逗号分隔
- String get tags;
+ String get tags;/// 是否应该播放 AI 内容动画（仅在 AI 刚处理完成时为 true）
+ bool get shouldAnimateAiContent;
 /// Create a copy of ArticleDetailControllerState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -27,16 +28,16 @@ $ArticleDetailControllerStateCopyWith<ArticleDetailControllerState> get copyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ArticleDetailControllerState&&(identical(other.articleModel, articleModel) || other.articleModel == articleModel)&&(identical(other.tags, tags) || other.tags == tags));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ArticleDetailControllerState&&(identical(other.articleModel, articleModel) || other.articleModel == articleModel)&&(identical(other.tags, tags) || other.tags == tags)&&(identical(other.shouldAnimateAiContent, shouldAnimateAiContent) || other.shouldAnimateAiContent == shouldAnimateAiContent));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,articleModel,tags);
+int get hashCode => Object.hash(runtimeType,articleModel,tags,shouldAnimateAiContent);
 
 @override
 String toString() {
-  return 'ArticleDetailControllerState(articleModel: $articleModel, tags: $tags)';
+  return 'ArticleDetailControllerState(articleModel: $articleModel, tags: $tags, shouldAnimateAiContent: $shouldAnimateAiContent)';
 }
 
 
@@ -47,7 +48,7 @@ abstract mixin class $ArticleDetailControllerStateCopyWith<$Res>  {
   factory $ArticleDetailControllerStateCopyWith(ArticleDetailControllerState value, $Res Function(ArticleDetailControllerState) _then) = _$ArticleDetailControllerStateCopyWithImpl;
 @useResult
 $Res call({
- ArticleModel? articleModel, String tags
+ ArticleModel? articleModel, String tags, bool shouldAnimateAiContent
 });
 
 
@@ -64,11 +65,12 @@ class _$ArticleDetailControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of ArticleDetailControllerState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? articleModel = freezed,Object? tags = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? articleModel = freezed,Object? tags = null,Object? shouldAnimateAiContent = null,}) {
   return _then(_self.copyWith(
 articleModel: freezed == articleModel ? _self.articleModel : articleModel // ignore: cast_nullable_to_non_nullable
 as ArticleModel?,tags: null == tags ? _self.tags : tags // ignore: cast_nullable_to_non_nullable
-as String,
+as String,shouldAnimateAiContent: null == shouldAnimateAiContent ? _self.shouldAnimateAiContent : shouldAnimateAiContent // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -153,10 +155,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ArticleModel? articleModel,  String tags)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ArticleModel? articleModel,  String tags,  bool shouldAnimateAiContent)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ArticleDetailControllerState() when $default != null:
-return $default(_that.articleModel,_that.tags);case _:
+return $default(_that.articleModel,_that.tags,_that.shouldAnimateAiContent);case _:
   return orElse();
 
 }
@@ -174,10 +176,10 @@ return $default(_that.articleModel,_that.tags);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ArticleModel? articleModel,  String tags)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ArticleModel? articleModel,  String tags,  bool shouldAnimateAiContent)  $default,) {final _that = this;
 switch (_that) {
 case _ArticleDetailControllerState():
-return $default(_that.articleModel,_that.tags);case _:
+return $default(_that.articleModel,_that.tags,_that.shouldAnimateAiContent);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -194,10 +196,10 @@ return $default(_that.articleModel,_that.tags);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ArticleModel? articleModel,  String tags)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ArticleModel? articleModel,  String tags,  bool shouldAnimateAiContent)?  $default,) {final _that = this;
 switch (_that) {
 case _ArticleDetailControllerState() when $default != null:
-return $default(_that.articleModel,_that.tags);case _:
+return $default(_that.articleModel,_that.tags,_that.shouldAnimateAiContent);case _:
   return null;
 
 }
@@ -209,13 +211,15 @@ return $default(_that.articleModel,_that.tags);case _:
 
 
 class _ArticleDetailControllerState extends ArticleDetailControllerState {
-  const _ArticleDetailControllerState({this.articleModel, this.tags = ''}): super._();
+  const _ArticleDetailControllerState({this.articleModel, this.tags = '', this.shouldAnimateAiContent = false}): super._();
   
 
 /// 当前文章模型
 @override final  ArticleModel? articleModel;
 /// 文章标签字符串,以逗号分隔
 @override@JsonKey() final  String tags;
+/// 是否应该播放 AI 内容动画（仅在 AI 刚处理完成时为 true）
+@override@JsonKey() final  bool shouldAnimateAiContent;
 
 /// Create a copy of ArticleDetailControllerState
 /// with the given fields replaced by the non-null parameter values.
@@ -227,16 +231,16 @@ _$ArticleDetailControllerStateCopyWith<_ArticleDetailControllerState> get copyWi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ArticleDetailControllerState&&(identical(other.articleModel, articleModel) || other.articleModel == articleModel)&&(identical(other.tags, tags) || other.tags == tags));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ArticleDetailControllerState&&(identical(other.articleModel, articleModel) || other.articleModel == articleModel)&&(identical(other.tags, tags) || other.tags == tags)&&(identical(other.shouldAnimateAiContent, shouldAnimateAiContent) || other.shouldAnimateAiContent == shouldAnimateAiContent));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,articleModel,tags);
+int get hashCode => Object.hash(runtimeType,articleModel,tags,shouldAnimateAiContent);
 
 @override
 String toString() {
-  return 'ArticleDetailControllerState(articleModel: $articleModel, tags: $tags)';
+  return 'ArticleDetailControllerState(articleModel: $articleModel, tags: $tags, shouldAnimateAiContent: $shouldAnimateAiContent)';
 }
 
 
@@ -247,7 +251,7 @@ abstract mixin class _$ArticleDetailControllerStateCopyWith<$Res> implements $Ar
   factory _$ArticleDetailControllerStateCopyWith(_ArticleDetailControllerState value, $Res Function(_ArticleDetailControllerState) _then) = __$ArticleDetailControllerStateCopyWithImpl;
 @override @useResult
 $Res call({
- ArticleModel? articleModel, String tags
+ ArticleModel? articleModel, String tags, bool shouldAnimateAiContent
 });
 
 
@@ -264,11 +268,12 @@ class __$ArticleDetailControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of ArticleDetailControllerState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? articleModel = freezed,Object? tags = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? articleModel = freezed,Object? tags = null,Object? shouldAnimateAiContent = null,}) {
   return _then(_ArticleDetailControllerState(
 articleModel: freezed == articleModel ? _self.articleModel : articleModel // ignore: cast_nullable_to_non_nullable
 as ArticleModel?,tags: null == tags ? _self.tags : tags // ignore: cast_nullable_to_non_nullable
-as String,
+as String,shouldAnimateAiContent: null == shouldAnimateAiContent ? _self.shouldAnimateAiContent : shouldAnimateAiContent // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

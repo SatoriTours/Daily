@@ -44,7 +44,7 @@ final class BooksControllerProvider
   }
 }
 
-String _$booksControllerHash() => r'90a43a5a19f47aa2bc75f437ddd399bde9e688b3';
+String _$booksControllerHash() => r'8002edba9a0083b836cba73e807087fad5df50c8';
 
 /// BooksController Provider
 

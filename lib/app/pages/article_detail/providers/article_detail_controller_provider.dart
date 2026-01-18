@@ -14,8 +14,7 @@ part 'article_detail_controller_provider.g.dart';
 
 /// ArticleDetailController 状态
 @freezed
-abstract class ArticleDetailControllerState
-    with _$ArticleDetailControllerState {
+abstract class ArticleDetailControllerState with _$ArticleDetailControllerState {
   const ArticleDetailControllerState._();
 
   const factory ArticleDetailControllerState({
@@ -24,6 +23,9 @@ abstract class ArticleDetailControllerState
 
     /// 文章标签字符串,以逗号分隔
     @Default('') String tags,
+
+    /// 是否应该播放 AI 内容动画（仅在 AI 刚处理完成时为 true）
+    @Default(false) bool shouldAnimateAiContent,
   }) = _ArticleDetailControllerState;
 }
 
@@ -56,7 +58,13 @@ class ArticleDetailController extends _$ArticleDetailController {
         switch (event) {
           case ArticleUpdateEventUpdated(:final article):
             final newTags = article.tags.map((tag) => tag.name).join(', ');
-            state = state.copyWith(articleModel: article, tags: newTags);
+            // 检查是否是 AI 内容更新（比较前后 AI 内容是否变化）
+            final prevArticle = state.articleModel;
+            final hasAiContentChanged =
+                prevArticle != null &&
+                ((prevArticle.aiTitle != article.aiTitle && article.aiTitle?.isNotEmpty == true) ||
+                    (prevArticle.aiContent != article.aiContent && article.aiContent?.isNotEmpty == true));
+            state = state.copyWith(articleModel: article, tags: newTags, shouldAnimateAiContent: hasAiContentChanged);
             break;
           case ArticleUpdateEventDeleted():
             // 如果文章被删除，返回上一页
@@ -70,10 +78,7 @@ class ArticleDetailController extends _$ArticleDetailController {
         }
       });
 
-      return ArticleDetailControllerState(
-        articleModel: articleModel,
-        tags: tags,
-      );
+      return ArticleDetailControllerState(articleModel: articleModel, tags: tags);
     }
 
     return const ArticleDetailControllerState();
@@ -92,10 +97,8 @@ class ArticleDetailController extends _$ArticleDetailController {
   /// 检查事件是否影响指定文章
   bool _affectsArticle(ArticleUpdateEvent event, int targetArticleId) {
     return switch (event) {
-      ArticleUpdateEventUpdated(:final article) =>
-        article.id == targetArticleId,
-      ArticleUpdateEventDeleted(:final articleId) =>
-        articleId == targetArticleId,
+      ArticleUpdateEventUpdated(:final article) => article.id == targetArticleId,
+      ArticleUpdateEventDeleted(:final articleId) => articleId == targetArticleId,
       ArticleUpdateEventCreated() => false,
       ArticleUpdateEventNone() => false,
       _ => false,
@@ -126,8 +129,7 @@ class ArticleDetailController extends _$ArticleDetailController {
     }
 
     // 检查是否已经生成过Markdown内容
-    if (articleModel.aiMarkdownContent != null &&
-        articleModel.aiMarkdownContent!.isNotEmpty) {
+    if (articleModel.aiMarkdownContent != null && articleModel.aiMarkdownContent!.isNotEmpty) {
       logger.i("Markdown内容已存在，跳过生成");
       return;
     }
@@ -136,9 +138,7 @@ class ArticleDetailController extends _$ArticleDetailController {
       logger.i("开始生成Markdown内容");
 
       // 使用AI服务将HTML转换为Markdown
-      final markdown = await AiService.i.htmlToMarkdown(
-        articleModel.htmlContent!,
-      );
+      final markdown = await AiService.i.htmlToMarkdown(articleModel.htmlContent!);
 
       if (markdown.isEmpty) {
         throw Exception("Markdown内容生成失败");
@@ -152,9 +152,7 @@ class ArticleDetailController extends _$ArticleDetailController {
       state = state.copyWith(articleModel: articleModel);
 
       // 通知全局状态服务文章已更新
-      ref
-          .read(articleStateProvider.notifier)
-          .notifyArticleUpdated(articleModel);
+      ref.read(articleStateProvider.notifier).notifyArticleUpdated(articleModel);
 
       logger.i("Markdown内容生成并保存成功");
     } catch (e) {
