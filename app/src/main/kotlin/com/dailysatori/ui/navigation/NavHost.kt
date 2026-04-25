@@ -6,11 +6,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.dailysatori.ui.pages.PlaceholderScreen
+import com.dailysatori.ui.pages.home.HomeScreen
 
 @Composable
 fun DailySatoriNavHost(navController: NavHostController) {
     NavHost(navController, startDestination = HomeRoute) {
-        composable<HomeRoute> { PlaceholderScreen("Home") }
+        composable<HomeRoute> { HomeScreen() }
         composable<ArticlesRoute> { PlaceholderScreen("Articles") }
         composable<ArticleDetailRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<ArticleDetailRoute>()
