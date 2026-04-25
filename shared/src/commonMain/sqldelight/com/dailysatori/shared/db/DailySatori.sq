@@ -1,0 +1,395 @@
+-- Articles
+CREATE TABLE article (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
+    ai_title TEXT,
+    content TEXT,
+    ai_content TEXT,
+    html_content TEXT,
+    ai_markdown_content TEXT,
+    url TEXT UNIQUE,
+    is_favorite INTEGER DEFAULT 0,
+    comment TEXT,
+    status TEXT DEFAULT 'pending',
+    cover_image TEXT,
+    cover_image_url TEXT,
+    pub_date INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE tag (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    icon TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE article_tag (
+    article_id INTEGER NOT NULL REFERENCES article(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE,
+    PRIMARY KEY (article_id, tag_id)
+);
+
+CREATE TABLE image (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url TEXT,
+    path TEXT,
+    article_id INTEGER REFERENCES article(id) ON DELETE CASCADE,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Books
+CREATE TABLE book (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    author TEXT NOT NULL,
+    category TEXT NOT NULL,
+    cover_image TEXT NOT NULL,
+    introduction TEXT NOT NULL,
+    has_update INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE book_viewpoint (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_id INTEGER NOT NULL REFERENCES book(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    example TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Diary
+CREATE TABLE diary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content TEXT NOT NULL,
+    tags TEXT,
+    mood TEXT,
+    images TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- AI Config
+CREATE TABLE ai_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    api_address TEXT NOT NULL,
+    api_token TEXT NOT NULL,
+    model_name TEXT NOT NULL,
+    function_type INTEGER DEFAULT 0,
+    inherit_from_general INTEGER DEFAULT 0,
+    is_default INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Settings
+CREATE TABLE setting (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT UNIQUE,
+    value TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Weekly Summary
+CREATE TABLE weekly_summary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    week_start_date INTEGER NOT NULL,
+    week_end_date INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    article_count INTEGER DEFAULT 0,
+    diary_count INTEGER DEFAULT 0,
+    viewpoint_count INTEGER DEFAULT 0,
+    article_ids TEXT,
+    diary_ids TEXT,
+    viewpoint_ids TEXT,
+    app_ideas TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Session
+CREATE TABLE session (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT UNIQUE NOT NULL,
+    is_authenticated INTEGER DEFAULT 0,
+    username TEXT,
+    last_accessed_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Article queries
+selectArticles:
+SELECT * FROM article ORDER BY created_at DESC;
+
+selectArticlesPaginated:
+SELECT * FROM article ORDER BY created_at DESC LIMIT ? OFFSET ?;
+
+selectArticleById:
+SELECT * FROM article WHERE id = ?;
+
+selectArticlesByStatus:
+SELECT * FROM article WHERE status = ? ORDER BY created_at DESC;
+
+selectArticlesByTag:
+SELECT a.* FROM article a
+INNER JOIN article_tag at2 ON a.id = at2.article_id
+WHERE at2.tag_id = ?
+ORDER BY a.created_at DESC;
+
+searchArticles:
+SELECT * FROM article
+WHERE title LIKE '%' || ? || '%'
+   OR ai_title LIKE '%' || ? || '%'
+   OR content LIKE '%' || ? || '%'
+ORDER BY created_at DESC;
+
+selectArticlesByDateRange:
+SELECT * FROM article
+WHERE created_at >= ? AND created_at <= ?
+ORDER BY created_at DESC;
+
+selectFavoriteArticles:
+SELECT * FROM article WHERE is_favorite = 1 ORDER BY created_at DESC;
+
+selectArticleDailyCounts:
+SELECT date(created_at / 1000, 'unixepoch') as day, COUNT(*) as count
+FROM article
+GROUP BY day
+ORDER BY day;
+
+insertArticle:
+INSERT INTO article (title, ai_title, content, ai_content, html_content, ai_markdown_content, url, is_favorite, comment, status, cover_image, cover_image_url, pub_date, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateArticle:
+UPDATE article SET title = ?, ai_title = ?, content = ?, ai_content = ?, html_content = ?, ai_markdown_content = ?, url = ?, is_favorite = ?, comment = ?, status = ?, cover_image = ?, cover_image_url = ?, pub_date = ?, updated_at = ?
+WHERE id = ?;
+
+updateArticleField:
+UPDATE article SET updated_at = ? WHERE id = ?;
+
+deleteArticle:
+DELETE FROM article WHERE id = ?;
+
+toggleFavorite:
+UPDATE article SET is_favorite = CASE WHEN is_favorite = 1 THEN 0 ELSE 1 END, updated_at = ? WHERE id = ?;
+
+articleCount:
+SELECT COUNT(*) FROM article;
+
+-- Tag queries
+selectAllTags:
+SELECT * FROM tag ORDER BY name;
+
+selectTagById:
+SELECT * FROM tag WHERE id = ?;
+
+selectTagByName:
+SELECT * FROM tag WHERE name = ?;
+
+getTagsByArticle:
+SELECT t.* FROM tag t
+INNER JOIN article_tag at2 ON t.id = at2.tag_id
+WHERE at2.article_id = ?;
+
+insertTag:
+INSERT INTO tag (name, icon, created_at, updated_at) VALUES (?, ?, ?, ?);
+
+deleteTag:
+DELETE FROM tag WHERE id = ?;
+
+insertArticleTag:
+INSERT OR IGNORE INTO article_tag (article_id, tag_id) VALUES (?, ?);
+
+deleteArticleTags:
+DELETE FROM article_tag WHERE article_id = ?;
+
+-- Image queries
+selectImagesByArticle:
+SELECT * FROM image WHERE article_id = ?;
+
+insertImage:
+INSERT INTO image (url, path, article_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?);
+
+deleteImagesByArticle:
+DELETE FROM image WHERE article_id = ?;
+
+-- Book queries
+selectAllBooks:
+SELECT * FROM book ORDER BY created_at DESC;
+
+selectBookById:
+SELECT * FROM book WHERE id = ?;
+
+searchBooks:
+SELECT * FROM book
+WHERE title LIKE '%' || ? || '%'
+   OR author LIKE '%' || ? || '%'
+ORDER BY created_at DESC;
+
+insertBook:
+INSERT INTO book (title, author, category, cover_image, introduction, has_update, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+updateBook:
+UPDATE book SET title = ?, author = ?, category = ?, cover_image = ?, introduction = ?, has_update = ?, updated_at = ?
+WHERE id = ?;
+
+deleteBook:
+DELETE FROM book WHERE id = ?;
+
+-- Book viewpoint queries
+selectViewpointsByBook:
+SELECT * FROM book_viewpoint WHERE book_id = ? ORDER BY created_at DESC;
+
+selectAllViewpoints:
+SELECT * FROM book_viewpoint ORDER BY created_at DESC;
+
+selectViewpointById:
+SELECT * FROM book_viewpoint WHERE id = ?;
+
+insertViewpoint:
+INSERT INTO book_viewpoint (book_id, title, content, example, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?);
+
+updateViewpoint:
+UPDATE book_viewpoint SET title = ?, content = ?, example = ?, updated_at = ? WHERE id = ?;
+
+deleteViewpoint:
+DELETE FROM book_viewpoint WHERE id = ?;
+
+deleteViewpointsByBook:
+DELETE FROM book_viewpoint WHERE book_id = ?;
+
+-- Diary queries
+selectAllDiaries:
+SELECT * FROM diary ORDER BY created_at DESC;
+
+selectDiariesPaginated:
+SELECT * FROM diary ORDER BY created_at DESC LIMIT ? OFFSET ?;
+
+selectDiaryById:
+SELECT * FROM diary WHERE id = ?;
+
+searchDiaries:
+SELECT * FROM diary
+WHERE content LIKE '%' || ? || '%'
+   OR tags LIKE '%' || ? || '%'
+ORDER BY created_at DESC;
+
+selectDiariesByDateRange:
+SELECT * FROM diary
+WHERE created_at >= ? AND created_at <= ?
+ORDER BY created_at DESC;
+
+insertDiary:
+INSERT INTO diary (content, tags, mood, images, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?);
+
+updateDiary:
+UPDATE diary SET content = ?, tags = ?, mood = ?, images = ?, updated_at = ? WHERE id = ?;
+
+deleteDiary:
+DELETE FROM diary WHERE id = ?;
+
+diaryCount:
+SELECT COUNT(*) FROM diary;
+
+-- AI Config queries
+selectAllAiConfigs:
+SELECT * FROM ai_config ORDER BY function_type, name;
+
+selectAiConfigById:
+SELECT * FROM ai_config WHERE id = ?;
+
+selectDefaultAiConfig:
+SELECT * FROM ai_config WHERE is_default = 1 AND function_type = ?;
+
+selectGeneralAiConfig:
+SELECT * FROM ai_config WHERE function_type = 0 AND is_default = 1;
+
+insertAiConfig:
+INSERT INTO ai_config (name, api_address, api_token, model_name, function_type, inherit_from_general, is_default, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateAiConfig:
+UPDATE ai_config SET name = ?, api_address = ?, api_token = ?, model_name = ?, function_type = ?, inherit_from_general = ?, is_default = ?, updated_at = ?
+WHERE id = ?;
+
+deleteAiConfig:
+DELETE FROM ai_config WHERE id = ?;
+
+-- Setting queries
+selectSettingByKey:
+SELECT * FROM setting WHERE key = ?;
+
+selectAllSettings:
+SELECT * FROM setting;
+
+insertSetting:
+INSERT INTO setting (key, value, created_at, updated_at) VALUES (?, ?, ?, ?);
+
+updateSetting:
+UPDATE setting SET value = ?, updated_at = ? WHERE key = ?;
+
+upsertSetting:
+INSERT OR REPLACE INTO setting (key, value, created_at, updated_at)
+VALUES (?, ?, ?, ?);
+
+deleteSetting:
+DELETE FROM setting WHERE key = ?;
+
+-- Weekly Summary queries
+selectWeeklySummaries:
+SELECT * FROM weekly_summary ORDER BY week_start_date DESC;
+
+selectLatestWeeklySummary:
+SELECT * FROM weekly_summary ORDER BY week_start_date DESC LIMIT 1;
+
+selectWeeklySummaryByWeekRange:
+SELECT * FROM weekly_summary WHERE week_start_date = ? AND week_end_date = ?;
+
+insertWeeklySummary:
+INSERT INTO weekly_summary (week_start_date, week_end_date, content, article_count, diary_count, viewpoint_count, article_ids, diary_ids, viewpoint_ids, app_ideas, status, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateWeeklySummary:
+UPDATE weekly_summary SET content = ?, article_count = ?, diary_count = ?, viewpoint_count = ?, article_ids = ?, diary_ids = ?, viewpoint_ids = ?, app_ideas = ?, status = ?, updated_at = ?
+WHERE id = ?;
+
+-- Session queries
+selectSessionBySessionId:
+SELECT * FROM session WHERE session_id = ?;
+
+insertSession:
+INSERT INTO session (session_id, is_authenticated, username, last_accessed_at, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?);
+
+updateSessionAccess:
+UPDATE session SET last_accessed_at = ? WHERE session_id = ?;
+
+deleteSession:
+DELETE FROM session WHERE session_id = ?;
+
+deleteExpiredSessions:
+DELETE FROM session WHERE last_accessed_at < ?;
+
+-- Stats
+statsOverview:
+SELECT
+    (SELECT COUNT(*) FROM article) as total_articles,
+    (SELECT COUNT(*) FROM diary) as total_diaries,
+    (SELECT COUNT(*) FROM book) as total_books,
+    (SELECT COUNT(*) FROM book_viewpoint) as total_viewpoints,
+    (SELECT COUNT(*) FROM tag) as total_tags,
+    (SELECT COUNT(*) FROM article WHERE is_favorite = 1) as total_favorites;
