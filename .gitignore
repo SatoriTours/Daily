@@ -46,3 +46,16 @@ app.*.map.json
 
 # Backup files
 .backup
+
+# KMP/Android artifacts (from android branch)
+.gradle/
+.kotlin/
+app/
+shared/
+local.properties
+gradle/
+gradlew
+gradlew.bat
+gradle.properties
+settings.gradle.kts
+build.gradle.kts

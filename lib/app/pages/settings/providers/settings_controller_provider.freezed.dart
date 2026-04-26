@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$SettingsControllerState {
 
- String get webServiceAddress; String get webAccessUrl; bool get isPageLoading; String get appVersion; bool get isWebSocketConnected; bool get isDownloadingImages; int get downloadProgress; int get downloadTotal; int get downloadSuccessCount; int get downloadFailCount;
+ String get webServiceAddress; String get webAccessUrl; bool get isPageLoading; String get appVersion; bool get isWebSocketConnected; bool get isDownloadingImages; int get downloadProgress; int get downloadTotal; int get downloadSuccessCount; int get downloadFailCount; bool get isExporting; double get exportProgress;
 /// Create a copy of SettingsControllerState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -25,16 +25,16 @@ $SettingsControllerStateCopyWith<SettingsControllerState> get copyWith => _$Sett
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SettingsControllerState&&(identical(other.webServiceAddress, webServiceAddress) || other.webServiceAddress == webServiceAddress)&&(identical(other.webAccessUrl, webAccessUrl) || other.webAccessUrl == webAccessUrl)&&(identical(other.isPageLoading, isPageLoading) || other.isPageLoading == isPageLoading)&&(identical(other.appVersion, appVersion) || other.appVersion == appVersion)&&(identical(other.isWebSocketConnected, isWebSocketConnected) || other.isWebSocketConnected == isWebSocketConnected)&&(identical(other.isDownloadingImages, isDownloadingImages) || other.isDownloadingImages == isDownloadingImages)&&(identical(other.downloadProgress, downloadProgress) || other.downloadProgress == downloadProgress)&&(identical(other.downloadTotal, downloadTotal) || other.downloadTotal == downloadTotal)&&(identical(other.downloadSuccessCount, downloadSuccessCount) || other.downloadSuccessCount == downloadSuccessCount)&&(identical(other.downloadFailCount, downloadFailCount) || other.downloadFailCount == downloadFailCount));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SettingsControllerState&&(identical(other.webServiceAddress, webServiceAddress) || other.webServiceAddress == webServiceAddress)&&(identical(other.webAccessUrl, webAccessUrl) || other.webAccessUrl == webAccessUrl)&&(identical(other.isPageLoading, isPageLoading) || other.isPageLoading == isPageLoading)&&(identical(other.appVersion, appVersion) || other.appVersion == appVersion)&&(identical(other.isWebSocketConnected, isWebSocketConnected) || other.isWebSocketConnected == isWebSocketConnected)&&(identical(other.isDownloadingImages, isDownloadingImages) || other.isDownloadingImages == isDownloadingImages)&&(identical(other.downloadProgress, downloadProgress) || other.downloadProgress == downloadProgress)&&(identical(other.downloadTotal, downloadTotal) || other.downloadTotal == downloadTotal)&&(identical(other.downloadSuccessCount, downloadSuccessCount) || other.downloadSuccessCount == downloadSuccessCount)&&(identical(other.downloadFailCount, downloadFailCount) || other.downloadFailCount == downloadFailCount)&&(identical(other.isExporting, isExporting) || other.isExporting == isExporting)&&(identical(other.exportProgress, exportProgress) || other.exportProgress == exportProgress));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,webServiceAddress,webAccessUrl,isPageLoading,appVersion,isWebSocketConnected,isDownloadingImages,downloadProgress,downloadTotal,downloadSuccessCount,downloadFailCount);
+int get hashCode => Object.hash(runtimeType,webServiceAddress,webAccessUrl,isPageLoading,appVersion,isWebSocketConnected,isDownloadingImages,downloadProgress,downloadTotal,downloadSuccessCount,downloadFailCount,isExporting,exportProgress);
 
 @override
 String toString() {
-  return 'SettingsControllerState(webServiceAddress: $webServiceAddress, webAccessUrl: $webAccessUrl, isPageLoading: $isPageLoading, appVersion: $appVersion, isWebSocketConnected: $isWebSocketConnected, isDownloadingImages: $isDownloadingImages, downloadProgress: $downloadProgress, downloadTotal: $downloadTotal, downloadSuccessCount: $downloadSuccessCount, downloadFailCount: $downloadFailCount)';
+  return 'SettingsControllerState(webServiceAddress: $webServiceAddress, webAccessUrl: $webAccessUrl, isPageLoading: $isPageLoading, appVersion: $appVersion, isWebSocketConnected: $isWebSocketConnected, isDownloadingImages: $isDownloadingImages, downloadProgress: $downloadProgress, downloadTotal: $downloadTotal, downloadSuccessCount: $downloadSuccessCount, downloadFailCount: $downloadFailCount, isExporting: $isExporting, exportProgress: $exportProgress)';
 }
 
 
@@ -45,7 +45,7 @@ abstract mixin class $SettingsControllerStateCopyWith<$Res>  {
   factory $SettingsControllerStateCopyWith(SettingsControllerState value, $Res Function(SettingsControllerState) _then) = _$SettingsControllerStateCopyWithImpl;
 @useResult
 $Res call({
- String webServiceAddress, String webAccessUrl, bool isPageLoading, String appVersion, bool isWebSocketConnected, bool isDownloadingImages, int downloadProgress, int downloadTotal, int downloadSuccessCount, int downloadFailCount
+ String webServiceAddress, String webAccessUrl, bool isPageLoading, String appVersion, bool isWebSocketConnected, bool isDownloadingImages, int downloadProgress, int downloadTotal, int downloadSuccessCount, int downloadFailCount, bool isExporting, double exportProgress
 });
 
 
@@ -62,7 +62,7 @@ class _$SettingsControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of SettingsControllerState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? webServiceAddress = null,Object? webAccessUrl = null,Object? isPageLoading = null,Object? appVersion = null,Object? isWebSocketConnected = null,Object? isDownloadingImages = null,Object? downloadProgress = null,Object? downloadTotal = null,Object? downloadSuccessCount = null,Object? downloadFailCount = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? webServiceAddress = null,Object? webAccessUrl = null,Object? isPageLoading = null,Object? appVersion = null,Object? isWebSocketConnected = null,Object? isDownloadingImages = null,Object? downloadProgress = null,Object? downloadTotal = null,Object? downloadSuccessCount = null,Object? downloadFailCount = null,Object? isExporting = null,Object? exportProgress = null,}) {
   return _then(_self.copyWith(
 webServiceAddress: null == webServiceAddress ? _self.webServiceAddress : webServiceAddress // ignore: cast_nullable_to_non_nullable
 as String,webAccessUrl: null == webAccessUrl ? _self.webAccessUrl : webAccessUrl // ignore: cast_nullable_to_non_nullable
@@ -74,7 +74,9 @@ as bool,downloadProgress: null == downloadProgress ? _self.downloadProgress : do
 as int,downloadTotal: null == downloadTotal ? _self.downloadTotal : downloadTotal // ignore: cast_nullable_to_non_nullable
 as int,downloadSuccessCount: null == downloadSuccessCount ? _self.downloadSuccessCount : downloadSuccessCount // ignore: cast_nullable_to_non_nullable
 as int,downloadFailCount: null == downloadFailCount ? _self.downloadFailCount : downloadFailCount // ignore: cast_nullable_to_non_nullable
-as int,
+as int,isExporting: null == isExporting ? _self.isExporting : isExporting // ignore: cast_nullable_to_non_nullable
+as bool,exportProgress: null == exportProgress ? _self.exportProgress : exportProgress // ignore: cast_nullable_to_non_nullable
+as double,
   ));
 }
 
@@ -159,10 +161,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String webServiceAddress,  String webAccessUrl,  bool isPageLoading,  String appVersion,  bool isWebSocketConnected,  bool isDownloadingImages,  int downloadProgress,  int downloadTotal,  int downloadSuccessCount,  int downloadFailCount)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String webServiceAddress,  String webAccessUrl,  bool isPageLoading,  String appVersion,  bool isWebSocketConnected,  bool isDownloadingImages,  int downloadProgress,  int downloadTotal,  int downloadSuccessCount,  int downloadFailCount,  bool isExporting,  double exportProgress)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SettingsControllerState() when $default != null:
-return $default(_that.webServiceAddress,_that.webAccessUrl,_that.isPageLoading,_that.appVersion,_that.isWebSocketConnected,_that.isDownloadingImages,_that.downloadProgress,_that.downloadTotal,_that.downloadSuccessCount,_that.downloadFailCount);case _:
+return $default(_that.webServiceAddress,_that.webAccessUrl,_that.isPageLoading,_that.appVersion,_that.isWebSocketConnected,_that.isDownloadingImages,_that.downloadProgress,_that.downloadTotal,_that.downloadSuccessCount,_that.downloadFailCount,_that.isExporting,_that.exportProgress);case _:
   return orElse();
 
 }
@@ -180,10 +182,10 @@ return $default(_that.webServiceAddress,_that.webAccessUrl,_that.isPageLoading,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String webServiceAddress,  String webAccessUrl,  bool isPageLoading,  String appVersion,  bool isWebSocketConnected,  bool isDownloadingImages,  int downloadProgress,  int downloadTotal,  int downloadSuccessCount,  int downloadFailCount)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String webServiceAddress,  String webAccessUrl,  bool isPageLoading,  String appVersion,  bool isWebSocketConnected,  bool isDownloadingImages,  int downloadProgress,  int downloadTotal,  int downloadSuccessCount,  int downloadFailCount,  bool isExporting,  double exportProgress)  $default,) {final _that = this;
 switch (_that) {
 case _SettingsControllerState():
-return $default(_that.webServiceAddress,_that.webAccessUrl,_that.isPageLoading,_that.appVersion,_that.isWebSocketConnected,_that.isDownloadingImages,_that.downloadProgress,_that.downloadTotal,_that.downloadSuccessCount,_that.downloadFailCount);case _:
+return $default(_that.webServiceAddress,_that.webAccessUrl,_that.isPageLoading,_that.appVersion,_that.isWebSocketConnected,_that.isDownloadingImages,_that.downloadProgress,_that.downloadTotal,_that.downloadSuccessCount,_that.downloadFailCount,_that.isExporting,_that.exportProgress);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +202,10 @@ return $default(_that.webServiceAddress,_that.webAccessUrl,_that.isPageLoading,_
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String webServiceAddress,  String webAccessUrl,  bool isPageLoading,  String appVersion,  bool isWebSocketConnected,  bool isDownloadingImages,  int downloadProgress,  int downloadTotal,  int downloadSuccessCount,  int downloadFailCount)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String webServiceAddress,  String webAccessUrl,  bool isPageLoading,  String appVersion,  bool isWebSocketConnected,  bool isDownloadingImages,  int downloadProgress,  int downloadTotal,  int downloadSuccessCount,  int downloadFailCount,  bool isExporting,  double exportProgress)?  $default,) {final _that = this;
 switch (_that) {
 case _SettingsControllerState() when $default != null:
-return $default(_that.webServiceAddress,_that.webAccessUrl,_that.isPageLoading,_that.appVersion,_that.isWebSocketConnected,_that.isDownloadingImages,_that.downloadProgress,_that.downloadTotal,_that.downloadSuccessCount,_that.downloadFailCount);case _:
+return $default(_that.webServiceAddress,_that.webAccessUrl,_that.isPageLoading,_that.appVersion,_that.isWebSocketConnected,_that.isDownloadingImages,_that.downloadProgress,_that.downloadTotal,_that.downloadSuccessCount,_that.downloadFailCount,_that.isExporting,_that.exportProgress);case _:
   return null;
 
 }
@@ -215,7 +217,7 @@ return $default(_that.webServiceAddress,_that.webAccessUrl,_that.isPageLoading,_
 
 
 class _SettingsControllerState implements SettingsControllerState {
-  const _SettingsControllerState({this.webServiceAddress = '', this.webAccessUrl = '', this.isPageLoading = true, this.appVersion = '', this.isWebSocketConnected = false, this.isDownloadingImages = false, this.downloadProgress = 0, this.downloadTotal = 0, this.downloadSuccessCount = 0, this.downloadFailCount = 0});
+  const _SettingsControllerState({this.webServiceAddress = '', this.webAccessUrl = '', this.isPageLoading = true, this.appVersion = '', this.isWebSocketConnected = false, this.isDownloadingImages = false, this.downloadProgress = 0, this.downloadTotal = 0, this.downloadSuccessCount = 0, this.downloadFailCount = 0, this.isExporting = false, this.exportProgress = 0.0});
   
 
 @override@JsonKey() final  String webServiceAddress;
@@ -228,6 +230,8 @@ class _SettingsControllerState implements SettingsControllerState {
 @override@JsonKey() final  int downloadTotal;
 @override@JsonKey() final  int downloadSuccessCount;
 @override@JsonKey() final  int downloadFailCount;
+@override@JsonKey() final  bool isExporting;
+@override@JsonKey() final  double exportProgress;
 
 /// Create a copy of SettingsControllerState
 /// with the given fields replaced by the non-null parameter values.
@@ -239,16 +243,16 @@ _$SettingsControllerStateCopyWith<_SettingsControllerState> get copyWith => __$S
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SettingsControllerState&&(identical(other.webServiceAddress, webServiceAddress) || other.webServiceAddress == webServiceAddress)&&(identical(other.webAccessUrl, webAccessUrl) || other.webAccessUrl == webAccessUrl)&&(identical(other.isPageLoading, isPageLoading) || other.isPageLoading == isPageLoading)&&(identical(other.appVersion, appVersion) || other.appVersion == appVersion)&&(identical(other.isWebSocketConnected, isWebSocketConnected) || other.isWebSocketConnected == isWebSocketConnected)&&(identical(other.isDownloadingImages, isDownloadingImages) || other.isDownloadingImages == isDownloadingImages)&&(identical(other.downloadProgress, downloadProgress) || other.downloadProgress == downloadProgress)&&(identical(other.downloadTotal, downloadTotal) || other.downloadTotal == downloadTotal)&&(identical(other.downloadSuccessCount, downloadSuccessCount) || other.downloadSuccessCount == downloadSuccessCount)&&(identical(other.downloadFailCount, downloadFailCount) || other.downloadFailCount == downloadFailCount));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SettingsControllerState&&(identical(other.webServiceAddress, webServiceAddress) || other.webServiceAddress == webServiceAddress)&&(identical(other.webAccessUrl, webAccessUrl) || other.webAccessUrl == webAccessUrl)&&(identical(other.isPageLoading, isPageLoading) || other.isPageLoading == isPageLoading)&&(identical(other.appVersion, appVersion) || other.appVersion == appVersion)&&(identical(other.isWebSocketConnected, isWebSocketConnected) || other.isWebSocketConnected == isWebSocketConnected)&&(identical(other.isDownloadingImages, isDownloadingImages) || other.isDownloadingImages == isDownloadingImages)&&(identical(other.downloadProgress, downloadProgress) || other.downloadProgress == downloadProgress)&&(identical(other.downloadTotal, downloadTotal) || other.downloadTotal == downloadTotal)&&(identical(other.downloadSuccessCount, downloadSuccessCount) || other.downloadSuccessCount == downloadSuccessCount)&&(identical(other.downloadFailCount, downloadFailCount) || other.downloadFailCount == downloadFailCount)&&(identical(other.isExporting, isExporting) || other.isExporting == isExporting)&&(identical(other.exportProgress, exportProgress) || other.exportProgress == exportProgress));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,webServiceAddress,webAccessUrl,isPageLoading,appVersion,isWebSocketConnected,isDownloadingImages,downloadProgress,downloadTotal,downloadSuccessCount,downloadFailCount);
+int get hashCode => Object.hash(runtimeType,webServiceAddress,webAccessUrl,isPageLoading,appVersion,isWebSocketConnected,isDownloadingImages,downloadProgress,downloadTotal,downloadSuccessCount,downloadFailCount,isExporting,exportProgress);
 
 @override
 String toString() {
-  return 'SettingsControllerState(webServiceAddress: $webServiceAddress, webAccessUrl: $webAccessUrl, isPageLoading: $isPageLoading, appVersion: $appVersion, isWebSocketConnected: $isWebSocketConnected, isDownloadingImages: $isDownloadingImages, downloadProgress: $downloadProgress, downloadTotal: $downloadTotal, downloadSuccessCount: $downloadSuccessCount, downloadFailCount: $downloadFailCount)';
+  return 'SettingsControllerState(webServiceAddress: $webServiceAddress, webAccessUrl: $webAccessUrl, isPageLoading: $isPageLoading, appVersion: $appVersion, isWebSocketConnected: $isWebSocketConnected, isDownloadingImages: $isDownloadingImages, downloadProgress: $downloadProgress, downloadTotal: $downloadTotal, downloadSuccessCount: $downloadSuccessCount, downloadFailCount: $downloadFailCount, isExporting: $isExporting, exportProgress: $exportProgress)';
 }
 
 
@@ -259,7 +263,7 @@ abstract mixin class _$SettingsControllerStateCopyWith<$Res> implements $Setting
   factory _$SettingsControllerStateCopyWith(_SettingsControllerState value, $Res Function(_SettingsControllerState) _then) = __$SettingsControllerStateCopyWithImpl;
 @override @useResult
 $Res call({
- String webServiceAddress, String webAccessUrl, bool isPageLoading, String appVersion, bool isWebSocketConnected, bool isDownloadingImages, int downloadProgress, int downloadTotal, int downloadSuccessCount, int downloadFailCount
+ String webServiceAddress, String webAccessUrl, bool isPageLoading, String appVersion, bool isWebSocketConnected, bool isDownloadingImages, int downloadProgress, int downloadTotal, int downloadSuccessCount, int downloadFailCount, bool isExporting, double exportProgress
 });
 
 
@@ -276,7 +280,7 @@ class __$SettingsControllerStateCopyWithImpl<$Res>
 
 /// Create a copy of SettingsControllerState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? webServiceAddress = null,Object? webAccessUrl = null,Object? isPageLoading = null,Object? appVersion = null,Object? isWebSocketConnected = null,Object? isDownloadingImages = null,Object? downloadProgress = null,Object? downloadTotal = null,Object? downloadSuccessCount = null,Object? downloadFailCount = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? webServiceAddress = null,Object? webAccessUrl = null,Object? isPageLoading = null,Object? appVersion = null,Object? isWebSocketConnected = null,Object? isDownloadingImages = null,Object? downloadProgress = null,Object? downloadTotal = null,Object? downloadSuccessCount = null,Object? downloadFailCount = null,Object? isExporting = null,Object? exportProgress = null,}) {
   return _then(_SettingsControllerState(
 webServiceAddress: null == webServiceAddress ? _self.webServiceAddress : webServiceAddress // ignore: cast_nullable_to_non_nullable
 as String,webAccessUrl: null == webAccessUrl ? _self.webAccessUrl : webAccessUrl // ignore: cast_nullable_to_non_nullable
@@ -288,7 +292,9 @@ as bool,downloadProgress: null == downloadProgress ? _self.downloadProgress : do
 as int,downloadTotal: null == downloadTotal ? _self.downloadTotal : downloadTotal // ignore: cast_nullable_to_non_nullable
 as int,downloadSuccessCount: null == downloadSuccessCount ? _self.downloadSuccessCount : downloadSuccessCount // ignore: cast_nullable_to_non_nullable
 as int,downloadFailCount: null == downloadFailCount ? _self.downloadFailCount : downloadFailCount // ignore: cast_nullable_to_non_nullable
-as int,
+as int,isExporting: null == isExporting ? _self.isExporting : isExporting // ignore: cast_nullable_to_non_nullable
+as bool,exportProgress: null == exportProgress ? _self.exportProgress : exportProgress // ignore: cast_nullable_to_non_nullable
+as double,
   ));
 }
 

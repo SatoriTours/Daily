@@ -45,7 +45,7 @@ final class SettingsControllerProvider
 }
 
 String _$settingsControllerHash() =>
-    r'7045f0cc8bb792adf8f6c11032ff808e55fab1c8';
+    r'bc9577497f6abd4399e798a5c494a3e69249c3d9';
 
 /// SettingsController Provider
 
