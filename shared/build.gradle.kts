@@ -7,10 +7,8 @@ plugins {
 
 kotlin {
     androidTarget {
-        compilations.all {
-            kotlinOptions {
-                jvmTarget = "17"
-            }
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
     }
 
@@ -38,7 +36,7 @@ kotlin {
 
 android {
     namespace = "com.dailysatori.shared"
-    compileSdk = 35
+    compileSdk = 36
     defaultConfig {
         minSdk = 26
     }
@@ -51,7 +49,8 @@ android {
 sqldelight {
     databases {
         create("DailySatoriDatabase") {
-            packageName = "com.dailysatori.shared.db"
+            packageName.set("com.dailysatori.shared.db")
+            dialect(libs.sqldelight.sqlite.dialect)
         }
     }
 }

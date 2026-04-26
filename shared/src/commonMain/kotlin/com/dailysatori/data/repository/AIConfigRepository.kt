@@ -2,7 +2,7 @@ package com.dailysatori.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
-import com.dailysatori.shared.db.AiConfig
+import com.dailysatori.shared.db.Ai_config
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 class AIConfigRepository(private val db: DailySatoriDatabase) {
     private val q get() = db.dailySatoriQueries
 
-    fun getAll(): Flow<List<AiConfig>> =
+    fun getAll(): Flow<List<Ai_config>> =
         q.selectAllAiConfigs().asFlow().mapToList(Dispatchers.IO)
 
     fun getById(id: Long) = q.selectAiConfigById(id).executeAsOneOrNull()

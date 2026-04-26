@@ -162,10 +162,10 @@ selectFavoriteArticles:
 SELECT * FROM article WHERE is_favorite = 1 ORDER BY created_at DESC;
 
 selectArticleDailyCounts:
-SELECT date(created_at / 1000, 'unixepoch') as day, COUNT(*) as count
+SELECT (created_at / 86400000) AS article_day, COUNT(*) AS article_count
 FROM article
-GROUP BY day
-ORDER BY day;
+GROUP BY article_day
+ORDER BY article_day;
 
 insertArticle:
 INSERT INTO article (title, ai_title, content, ai_content, html_content, ai_markdown_content, url, is_favorite, comment, status, cover_image, cover_image_url, pub_date, created_at, updated_at)
@@ -387,9 +387,12 @@ DELETE FROM session WHERE last_accessed_at < ?;
 -- Stats
 statsOverview:
 SELECT
-    (SELECT COUNT(*) FROM article) as total_articles,
-    (SELECT COUNT(*) FROM diary) as total_diaries,
-    (SELECT COUNT(*) FROM book) as total_books,
-    (SELECT COUNT(*) FROM book_viewpoint) as total_viewpoints,
-    (SELECT COUNT(*) FROM tag) as total_tags,
-    (SELECT COUNT(*) FROM article WHERE is_favorite = 1) as total_favorites;
+    (SELECT COUNT(*) FROM article) AS total_articles,
+    (SELECT COUNT(*) FROM diary) AS total_diaries,
+    (SELECT COUNT(*) FROM book) AS total_books,
+    (SELECT COUNT(*) FROM book_viewpoint) AS total_viewpoints,
+    (SELECT COUNT(*) FROM tag) AS total_tags,
+    (SELECT COUNT(*) FROM article WHERE is_favorite = 1) AS total_favorites;
+
+lastInsertRowId:
+SELECT last_insert_rowid() AS id;

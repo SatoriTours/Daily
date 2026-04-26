@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,6 +50,7 @@ fun SettingsScreen(
     onAiConfig: () -> Unit = {},
     onPluginCenter: () -> Unit = {},
     onBackupSettings: () -> Unit = {},
+    onDataImport: () -> Unit = {},
 ) {
     Scaffold(
         topBar = {
@@ -97,6 +99,7 @@ fun SettingsScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             ) {
                 SettingItem("备份与恢复", "管理数据备份", Icons.Default.Backup, onClick = onBackupSettings)
+                SettingItem("导入数据", "从 Flutter 版本迁移数据", Icons.Default.UploadFile, onClick = onDataImport)
                 SettingItem("下载图片", "下载文章图片到本地", Icons.Default.Download, onClick = {})
                 SettingItem("Web 服务", "本地 HTTP 服务", Icons.Default.Language, onClick = {})
                 SettingItem("检查更新", "v1.0.0", Icons.Default.Update, onClick = {})

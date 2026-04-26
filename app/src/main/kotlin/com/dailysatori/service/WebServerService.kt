@@ -11,7 +11,7 @@ import io.ktor.server.plugins.cors.routing.*
 
 class WebServerService {
     private val log = Logger.withTag("WebServer")
-    private var server: ApplicationEngine? = null
+    private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null
 
     fun start() {
         if (server != null) return

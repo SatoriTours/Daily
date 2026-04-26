@@ -17,3 +17,4 @@ import kotlinx.serialization.Serializable
 @Serializable data object BackupRestoreRoute
 @Serializable data object BackupSettingsRoute
 @Serializable data object PluginCenterRoute
+@Serializable data object DataImportRoute

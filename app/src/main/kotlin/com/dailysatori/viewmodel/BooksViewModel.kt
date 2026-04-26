@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 data class BooksState(
     val books: List<com.dailysatori.shared.db.Book> = emptyList(),
-    val viewpoints: List<com.dailysatori.shared.db.BookViewpoint> = emptyList(),
+    val viewpoints: List<com.dailysatori.shared.db.Book_viewpoint> = emptyList(),
     val currentBookId: Long? = null,
     val currentPage: Int = 0,
     val isLoading: Boolean = false,

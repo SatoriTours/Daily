@@ -34,7 +34,7 @@ class I18nService(private val settingRepo: SettingRepository) {
 
     fun setLanguage(lang: String) {
         currentLang = lang
-        settingRepo.set("app_language", lang)
+        settingRepo.upsert("app_language", lang)
         loadTranslations(lang)
     }
 

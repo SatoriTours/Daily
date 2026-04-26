@@ -22,7 +22,7 @@ fun EmptyState(
     icon: ImageVector,
     title: String,
     subtitle: String? = null,
-    iconSize: Dp = dp(64),
+    iconSize: Dp = 64.dp,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {

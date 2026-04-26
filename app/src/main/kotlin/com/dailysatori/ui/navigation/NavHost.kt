@@ -6,7 +6,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.dailysatori.ui.pages.PlaceholderScreen
+import com.dailysatori.ui.pages.data_import.DataImportScreen
 import com.dailysatori.ui.pages.home.HomeScreen
+import com.dailysatori.ui.pages.settings.SettingsScreen
 
 @Composable
 fun DailySatoriNavHost(navController: NavHostController) {
@@ -23,7 +25,15 @@ fun DailySatoriNavHost(navController: NavHostController) {
         composable<AiChatRoute> { PlaceholderScreen("AI Chat") }
         composable<AiConfigRoute> { PlaceholderScreen("AI Config") }
         composable<AiConfigEditRoute> { PlaceholderScreen("AI Config Edit") }
-        composable<SettingsRoute> { PlaceholderScreen("Settings") }
+        composable<SettingsRoute> {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onAiConfig = { navController.navigate(AiConfigRoute) },
+                onPluginCenter = { navController.navigate(PluginCenterRoute) },
+                onBackupSettings = { navController.navigate(BackupSettingsRoute) },
+                onDataImport = { navController.navigate(DataImportRoute) },
+            )
+        }
         composable<ShareDialogRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<ShareDialogRoute>()
             PlaceholderScreen("Share: ${route.url}")
@@ -32,5 +42,6 @@ fun DailySatoriNavHost(navController: NavHostController) {
         composable<BackupRestoreRoute> { PlaceholderScreen("Backup Restore") }
         composable<BackupSettingsRoute> { PlaceholderScreen("Backup Settings") }
         composable<PluginCenterRoute> { PlaceholderScreen("Plugin Center") }
+        composable<DataImportRoute> { DataImportScreen(onBack = { navController.popBackStack() }) }
     }
 }

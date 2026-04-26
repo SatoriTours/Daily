@@ -29,4 +29,24 @@ actual class FileManager actual constructor() {
     actual fun copyFile(src: String, dest: String) { File(src).copyTo(File(dest), overwrite = true) }
     actual fun fileSize(path: String): Long = File(path).length()
     actual fun createDirectory(path: String): Boolean = File(path).mkdirs()
+
+    actual fun extractZip(zipPath: String, destDir: String) {
+        val dest = File(destDir)
+        if (!dest.exists()) dest.mkdirs()
+        java.util.zip.ZipFile(zipPath).use { zip ->
+            zip.entries().asSequence().forEach { entry ->
+                val file = File(dest, entry.name)
+                if (entry.isDirectory) {
+                    file.mkdirs()
+                } else {
+                    file.parentFile?.mkdirs()
+                    zip.getInputStream(entry).use { input ->
+                        file.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

@@ -2,7 +2,7 @@ package com.dailysatori.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
-import com.dailysatori.shared.db.BookViewpoint
+import com.dailysatori.shared.db.Book_viewpoint
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -11,10 +11,10 @@ import kotlinx.coroutines.flow.Flow
 class BookViewpointRepository(private val db: DailySatoriDatabase) {
     private val q get() = db.dailySatoriQueries
 
-    fun getByBook(bookId: Long): Flow<List<BookViewpoint>> =
+    fun getByBook(bookId: Long): Flow<List<Book_viewpoint>> =
         q.selectViewpointsByBook(bookId).asFlow().mapToList(Dispatchers.IO)
 
-    fun getAll(): Flow<List<BookViewpoint>> =
+    fun getAll(): Flow<List<Book_viewpoint>> =
         q.selectAllViewpoints().asFlow().mapToList(Dispatchers.IO)
 
     fun getById(id: Long) = q.selectViewpointById(id).executeAsOneOrNull()

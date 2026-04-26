@@ -101,7 +101,7 @@ fun MessageBubble(role: String, content: String) {
     val isUser = role == "user"
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.END else Arrangement.Start,
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
     ) {
         Surface(
             shape = RoundedCornerShape(

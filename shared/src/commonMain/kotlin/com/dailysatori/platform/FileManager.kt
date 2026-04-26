@@ -1,6 +1,6 @@
 package com.dailysatori.platform
 
-expect class FileManager {
+expect class FileManager() {
     fun getAppDataDir(): String
     fun getImagesDir(): String
     fun getDiaryImagesDir(): String
@@ -14,4 +14,5 @@ expect class FileManager {
     fun copyFile(src: String, dest: String)
     fun fileSize(path: String): Long
     fun createDirectory(path: String): Boolean
+    fun extractZip(zipPath: String, destDir: String)
 }

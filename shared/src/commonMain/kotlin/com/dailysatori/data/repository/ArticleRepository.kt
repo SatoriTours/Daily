@@ -33,9 +33,9 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     fun getFavorites(): Flow<List<Article>> =
         q.selectFavoriteArticles().asFlow().mapToList(Dispatchers.IO)
 
-    fun getDailyCounts(): Flow<Map<String, Long>> =
+    fun getDailyCounts(): Flow<Map<Long, Long>> =
         q.selectArticleDailyCounts().asFlow().mapToList(Dispatchers.IO)
-            .map { list -> list.associate { it.day to it.count } }
+            .map { list -> list.associate { it.article_day to it.article_count } }
 
     fun getById(id: Long) = q.selectArticleById(id).executeAsOneOrNull()
 
