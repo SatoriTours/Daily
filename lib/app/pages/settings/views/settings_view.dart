@@ -175,6 +175,19 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           color: AppColors.getPrimary(context).withValues(alpha: 0.7),
           onTap: () => AppUpgradeService.i.checkAndDownload(),
         ),
+        _buildSettingItemWithProgress(
+          context: context,
+          title: '导出数据（迁移用）',
+          subtitle: state.isExporting
+              ? '正在导出... ${(state.exportProgress * 100).toInt()}%'
+              : '导出为 JSON 格式，用于迁移到新版本',
+          icon: Icons.upload_file_rounded,
+          color: AppColors.getInfo(context),
+          isLoading: state.isExporting,
+          onTap: state.isExporting
+              ? null
+              : () => ref.read(settingsControllerProvider.notifier).exportData(),
+        ),
       ],
     );
   }

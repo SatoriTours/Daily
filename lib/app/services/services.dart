@@ -29,3 +29,4 @@ export 'i18n_service.dart';
 export 'web_content/web_content_notifier.dart';
 export 'ai_service/ai_article_processor.dart';
 export 'weekly_summary_service.dart';
+export 'export_service.dart';

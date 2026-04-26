@@ -13,7 +13,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path/path.dart' as path;
 import 'package:permission_handler/permission_handler.dart';
+
+import 'package:daily_satori/app/services/export_service.dart';
 
 part 'settings_controller_provider.freezed.dart';
 part 'settings_controller_provider.g.dart';
@@ -32,6 +35,8 @@ abstract class SettingsControllerState with _$SettingsControllerState {
     @Default(0) int downloadTotal,
     @Default(0) int downloadSuccessCount,
     @Default(0) int downloadFailCount,
+    @Default(false) bool isExporting,
+    @Default(0.0) double exportProgress,
   }) = _SettingsControllerState;
 }
 
@@ -257,6 +262,52 @@ class SettingsController extends _$SettingsController {
         '下载完成: 成功 ${state.downloadSuccessCount} 张, 失败 ${state.downloadFailCount} 张';
     logger.i('[SettingsController] $message');
     UIUtils.showSuccess(message);
+  }
+
+  Future<void> exportData() async {
+    if (state.isExporting) return;
+
+    final permission = await Permission.manageExternalStorage.request();
+    if (!permission.isGranted) {
+      UIUtils.showError('请授予应用管理外部存储的权限');
+      return;
+    }
+
+    final directory = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: '选择导出保存位置',
+    );
+    if (directory == null) return;
+
+    state = state.copyWith(isExporting: true, exportProgress: 0.0);
+
+    try {
+      ExportService.i.exportProgress.addListener(_onExportProgress);
+      final ts = DateTime.now().toIso8601String().replaceAll(RegExp('[:.]+'), '-');
+      final outputPath = path.join(directory, 'daily_satori_export_$ts.zip');
+
+      DialogUtils.showLoading(tips: '正在导出数据...');
+
+      final result = await ExportService.i.exportToZip(outputPath);
+
+      DialogUtils.hideLoading();
+
+      if (result != null) {
+        UIUtils.showSuccess('导出成功: $result');
+      } else {
+        UIUtils.showError('导出失败');
+      }
+    } catch (e) {
+      logger.e('[SettingsController] 导出失败', error: e);
+      DialogUtils.hideLoading();
+      UIUtils.showError('导出失败: $e');
+    } finally {
+      ExportService.i.exportProgress.removeListener(_onExportProgress);
+      state = state.copyWith(isExporting: false, exportProgress: 0.0);
+    }
+  }
+
+  void _onExportProgress() {
+    state = state.copyWith(exportProgress: ExportService.i.exportProgress.value);
   }
 }
 
