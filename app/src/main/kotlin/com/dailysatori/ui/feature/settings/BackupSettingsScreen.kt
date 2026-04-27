@@ -20,31 +20,33 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.component.misc.FeatureIcon
 import com.dailysatori.ui.component.scaffold.AppScaffold
-import com.dailysatori.ui.theme.AppColors
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
-    var hasDirectory by remember { mutableStateOf(false) }
+    val viewModel: BackupSettingsViewModel = koinViewModel()
+    val state by viewModel.state.collectAsState()
 
     AppScaffold(title = "备份与恢复", onBack = onBack) { modifier ->
-        if (!hasDirectory) {
+        if (state.backupDirectory.isEmpty()) {
             Box(
                 modifier = modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
@@ -58,7 +60,9 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
                     Spacer(modifier = Modifier.height(Spacing.xl))
                     Text("请选择备份目录", style = MaterialTheme.typography.titleLarge)
                     Spacer(modifier = Modifier.height(Spacing.l))
-                    Button(onClick = { hasDirectory = true }) {
+                    Button(onClick = {
+                        viewModel.startBackup()
+                    }) {
                         Icon(Icons.Default.Folder, contentDescription = null)
                         Spacer(modifier = Modifier.width(Spacing.xs))
                         Text("选择备份目录")
@@ -81,7 +85,7 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
                 Card(
                     shape = RoundedCornerShape(Radius.m),
                     colors = CardDefaults.cardColors(
-                        containerColor = AppColors.secondaryContainer.copy(alpha = 0.3f),
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f),
                     ),
                 ) {
                     Row(
@@ -90,14 +94,14 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
                     ) {
                         FeatureIcon(
                             icon = Icons.Default.Folder,
-                            containerColor = AppColors.secondary.copy(alpha = 0.2f),
-                            iconTint = AppColors.secondary,
+                            containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
+                            iconTint = MaterialTheme.colorScheme.secondary,
                         )
                         Spacer(modifier = Modifier.width(Spacing.m))
                         Column(modifier = Modifier.weight(1f)) {
                             Text("备份位置", style = MaterialTheme.typography.bodySmall)
                             Text(
-                                "/path/to/backups",
+                                state.backupDirectory,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -105,15 +109,27 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
                     }
                 }
 
+                if (state.isBackingUp) {
+                    LinearProgressIndicator(
+                        progress = { state.backupProgress },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(Spacing.l))
 
                 Button(
-                    onClick = { /* backup now */ },
+                    onClick = { viewModel.startBackup() },
                     modifier = Modifier.fillMaxWidth().height(Height.button),
+                    enabled = !state.isBackingUp,
                 ) {
-                    Icon(Icons.Default.Backup, contentDescription = null)
-                    Spacer(modifier = Modifier.width(Spacing.xs))
-                    Text("立即备份")
+                    if (state.isBackingUp) {
+                        CircularProgressIndicator(modifier = Modifier.height(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                    } else {
+                        Icon(Icons.Default.Backup, contentDescription = null)
+                        Spacer(modifier = Modifier.width(Spacing.xs))
+                        Text("立即备份")
+                    }
                 }
                 OutlinedButton(
                     onClick = onRestore,

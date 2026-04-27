@@ -31,6 +31,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +45,7 @@ import com.dailysatori.ui.feature.aiconfig.AiConfigScreen
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import org.koin.androidx.compose.koinViewModel
 
 private enum class SettingsPage {
     MAIN,
@@ -56,10 +58,13 @@ private enum class SettingsPage {
 
 @Composable
 fun SettingsScreen() {
+    val viewModel: SettingsViewModel = koinViewModel()
+    val state by viewModel.state.collectAsState()
+
     var currentPage by remember { mutableStateOf(SettingsPage.MAIN) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showGoogleApiDialog by remember { mutableStateOf(false) }
-    var googleApiKey by remember { mutableStateOf("") }
+    var googleApiKey by remember { mutableStateOf(state.googleBooksApiKey) }
 
     when (currentPage) {
         SettingsPage.MAIN -> {
@@ -67,7 +72,7 @@ fun SettingsScreen() {
                 AlertDialog(
                     onDismissRequest = { showAboutDialog = false },
                     title = { Text("Daily Satori") },
-                    text = { Text("v1.0.0\n个人知识管理与 AI 阅读助手\n基于 KMP + Compose Multiplatform") },
+                    text = { Text("v${state.currentVersion}\n个人知识管理与 AI 阅读助手\n基于 KMP + Compose Multiplatform") },
                     confirmButton = { TextButton(onClick = { showAboutDialog = false }) { Text("确定") } },
                 )
             }
@@ -86,6 +91,7 @@ fun SettingsScreen() {
                     },
                     confirmButton = {
                         TextButton(onClick = {
+                            viewModel.saveGoogleBooksApiKey(googleApiKey)
                             showGoogleApiDialog = false
                         }) { Text("保存") }
                     },
@@ -120,7 +126,10 @@ fun SettingsScreen() {
                     ) {
                         SettingItem("AI 配置", "管理 AI 模型配置", Icons.Default.Star, onClick = { currentPage = SettingsPage.AI_CONFIG })
                         SettingItem("插件中心", "管理 AI 提示词插件", Icons.Default.Settings, onClick = { currentPage = SettingsPage.PLUGIN_CENTER })
-                        SettingItem("Google Books API", "配置图书搜索密钥", Icons.Default.Share, onClick = { showGoogleApiDialog = true })
+                        SettingItem("Google Books API", "配置图书搜索密钥", Icons.Default.Share, onClick = {
+                            googleApiKey = state.googleBooksApiKey
+                            showGoogleApiDialog = true
+                        })
                     }
 
                     Text("系统", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
@@ -131,8 +140,13 @@ fun SettingsScreen() {
                         SettingItem("备份与恢复", "管理数据备份", Icons.Default.Save, onClick = { currentPage = SettingsPage.BACKUP_SETTINGS })
                         SettingItem("导入数据", "从 Flutter 版本迁移数据", Icons.Default.Refresh, onClick = { currentPage = SettingsPage.DATA_IMPORT })
                         SettingItem("下载图片", "下载文章图片到本地", Icons.Default.Dns, onClick = {})
-                        SettingItem("Web 服务", "本地 HTTP 服务", Icons.Default.Share, onClick = {})
-                        SettingItem("检查更新", "v1.0.0", Icons.Default.Refresh, onClick = {})
+                        SettingItem("Web 服务", if (state.webServerRunning) "运行中" else "已停止", Icons.Default.Share, onClick = { viewModel.toggleWebServer() })
+                        SettingItem(
+                            "检查更新",
+                            if (state.isCheckingUpdate) "检查中..." else "v${state.currentVersion}",
+                            Icons.Default.Refresh,
+                            onClick = { viewModel.checkUpdate() },
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(Spacing.xl))

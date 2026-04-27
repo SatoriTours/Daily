@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material.icons.outlined.Title
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -24,16 +25,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun ShareDialogScreen(
@@ -41,13 +42,15 @@ fun ShareDialogScreen(
     isUpdate: Boolean = false,
     onBack: () -> Unit = {},
 ) {
-    var title by remember { mutableStateOf("") }
-    var comment by remember { mutableStateOf("") }
-    var tags by remember { mutableStateOf("") }
-    var aiAnalysis by remember { mutableStateOf(true) }
+    val viewModel: ShareDialogViewModel = koinViewModel()
+    val state by viewModel.state.collectAsState()
+
+    LaunchedEffect(url) {
+        viewModel.initialize(url)
+    }
 
     AppScaffold(
-        title = if (isUpdate) "更新文章" else "保存链接",
+        title = if (state.isUpdate) "更新文章" else "保存链接",
         onBack = onBack,
         bottomBar = {
             Surface(tonalElevation = 3.dp) {
@@ -56,7 +59,17 @@ fun ShareDialogScreen(
                     horizontalArrangement = Arrangement.spacedBy(Spacing.m),
                 ) {
                     OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("取消") }
-                    Button(onClick = { /* save */ }, modifier = Modifier.weight(2f)) { Text(if (isUpdate) "保存更改" else "保存") }
+                    Button(
+                        onClick = { viewModel.save { onBack() } },
+                        modifier = Modifier.weight(2f),
+                        enabled = !state.isSaving,
+                    ) {
+                        if (state.isSaving) {
+                            CircularProgressIndicator(modifier = Modifier.height(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text(if (state.isUpdate) "保存更改" else "保存")
+                        }
+                    }
                 }
             }
         },
@@ -71,11 +84,11 @@ fun ShareDialogScreen(
                     Spacer(modifier = Modifier.width(Spacing.xs))
                     Text("链接", style = MaterialTheme.typography.labelMedium)
                     Spacer(modifier = Modifier.weight(1f))
-                    if (isUpdate) {
+                    if (state.isUpdate) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("AI 分析", style = MaterialTheme.typography.bodySmall)
                             Spacer(modifier = Modifier.width(Spacing.xs))
-                            Switch(checked = aiAnalysis, onCheckedChange = { aiAnalysis = it }, modifier = Modifier.height(24.dp))
+                            Switch(checked = state.aiAnalysis, onCheckedChange = { viewModel.toggleAiAnalysis() }, modifier = Modifier.height(24.dp))
                         }
                     }
                 }
@@ -94,7 +107,7 @@ fun ShareDialogScreen(
                     Text("标题", style = MaterialTheme.typography.labelMedium)
                 }
                 Spacer(modifier = Modifier.height(Spacing.xs))
-                OutlinedTextField(value = title, onValueChange = { title = it }, modifier = Modifier.fillMaxWidth(), minLines = 2, shape = RoundedCornerShape(Radius.s))
+                OutlinedTextField(value = state.title, onValueChange = { viewModel.onTitleChanged(it) }, modifier = Modifier.fillMaxWidth(), minLines = 2, shape = RoundedCornerShape(Radius.s))
             }
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -114,7 +127,7 @@ fun ShareDialogScreen(
                     Text("(可选)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(modifier = Modifier.height(Spacing.xs))
-                OutlinedTextField(value = comment, onValueChange = { comment = it }, modifier = Modifier.fillMaxWidth().height(100.dp), shape = RoundedCornerShape(Radius.s))
+                OutlinedTextField(value = state.comment, onValueChange = { viewModel.onCommentChanged(it) }, modifier = Modifier.fillMaxWidth().height(100.dp), shape = RoundedCornerShape(Radius.s))
             }
         }
     }
