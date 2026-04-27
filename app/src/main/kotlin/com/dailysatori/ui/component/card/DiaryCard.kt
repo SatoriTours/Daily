@@ -58,7 +58,7 @@ fun DiaryCard(
                 )
                 Spacer(modifier = Modifier.width(Spacing.xxs))
                 Text(
-                    text = formatDiaryDateTime(diary.created_at),
+                    text = TimeUtils.formatShortDateTime(diary.created_at),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
@@ -117,11 +117,6 @@ fun DiaryCard(
             }
         }
     }
-}
-
-private fun formatDiaryDateTime(epochMillis: Long): String {
-    val sdf = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
-    return sdf.format(java.util.Date(epochMillis))
 }
 
 private fun moodToEmoji(mood: String): String {
