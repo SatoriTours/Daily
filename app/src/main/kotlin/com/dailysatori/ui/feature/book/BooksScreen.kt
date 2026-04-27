@@ -5,45 +5,38 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.dailysatori.shared.db.Book
 import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.dialog.ConfirmDialog
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
-import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
@@ -121,54 +114,48 @@ fun BooksScreen(
                 subtitle = "搜索并添加一本书开始阅读",
             )
         } else {
-            if (state.books.isNotEmpty()) {
-                ScrollableTabRow(
-                    selectedTabIndex = state.currentPage.coerceIn(0, state.viewpoints.size - 1),
-                    modifier = Modifier.fillMaxWidth(),
-                    edgePadding = Spacing.m,
-                ) {
-                    state.viewpoints.forEachIndexed { _, _ ->
-                        Tab(selected = false, onClick = {}) {
-                            Box(modifier = Modifier.height(1.dp))
-                        }
-                    }
+            val idx = state.currentPage.coerceIn(0, state.viewpoints.size - 1)
+            val vp = state.viewpoints[idx]
+            val book = state.books.find { it.id == state.currentBookId }
+            val bookTitle = if (book != null) "《${book.title}》 · ${book.author}" else ""
+
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                contentPadding = PaddingValues(Spacing.m),
+                verticalArrangement = Arrangement.spacedBy(Spacing.m),
+            ) {
+                item {
+                    ViewpointCard(
+                        title = vp.title,
+                        content = vp.content,
+                        example = vp.example,
+                        bookTitle = bookTitle,
+                    )
                 }
             }
 
-            if (state.viewpoints.isNotEmpty()) {
-                val idx = state.currentPage.coerceIn(0, state.viewpoints.size - 1)
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(Spacing.m),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.m),
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(
+                    onClick = { viewModel.setPage((idx - 1).coerceAtLeast(0)) },
+                    enabled = idx > 0,
                 ) {
-                    val vp = state.viewpoints[idx]
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(Radius.m),
-                        ) {
-                            Column(modifier = Modifier.padding(Spacing.m)) {
-                                val book = state.books.find { it.id == state.currentBookId }
-                                if (book != null) {
-                                    Text("《${book.title}》 · ${book.author}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                                }
-                                Spacer(modifier = Modifier.height(Spacing.s))
-                                Text(vp.title, style = MaterialTheme.typography.titleMedium)
-                                Spacer(modifier = Modifier.height(Spacing.s))
-                                Text(vp.content, style = MaterialTheme.typography.bodyMedium, maxLines = 20, overflow = TextOverflow.Ellipsis)
-                                if (vp.example.isNotBlank()) {
-                                    Spacer(modifier = Modifier.height(Spacing.s))
-                                    Surface(
-                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                        shape = RoundedCornerShape(Radius.s),
-                                    ) {
-                                        Text(vp.example, modifier = Modifier.padding(Spacing.s), style = MaterialTheme.typography.bodySmall)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "上一条")
+                    Text("上一条")
+                }
+                Text(
+                    text = "第 ${idx + 1} / ${state.viewpoints.size} 条",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                TextButton(
+                    onClick = { viewModel.setPage((idx + 1).coerceAtMost(state.viewpoints.size - 1)) },
+                    enabled = idx < state.viewpoints.size - 1,
+                ) {
+                    Text("下一条")
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "下一条")
                 }
             }
         }

@@ -20,7 +20,6 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -39,10 +38,6 @@ fun ArticleDetailScreen(
     val viewModel: ArticleDetailViewModel = koinViewModel { parametersOf(articleId) }
     val state by viewModel.state.collectAsState()
     val scrollState = rememberScrollState()
-
-    LaunchedEffect(articleId) {
-        viewModel.loadArticle()
-    }
 
     AppScaffold(
         title = state.article?.ai_title ?: state.article?.title ?: "文章详情",

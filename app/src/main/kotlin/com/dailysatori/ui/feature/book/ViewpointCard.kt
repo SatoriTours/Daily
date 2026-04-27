@@ -39,7 +39,7 @@ fun ViewpointCard(
             Text(content, style = MaterialTheme.typography.bodyMedium, maxLines = 10, overflow = TextOverflow.Ellipsis)
             if (example.isNotBlank()) {
                 Spacer(modifier = Modifier.height(Spacing.m))
-                Text("Example", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text("示例", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(Spacing.xs))
                 Text(example, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

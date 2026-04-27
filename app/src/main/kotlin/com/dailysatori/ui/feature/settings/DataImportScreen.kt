@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dailysatori.service.import.ImportService
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import kotlinx.coroutines.launch
@@ -106,7 +107,7 @@ fun DataImportScreen(
                 enabled = !state.isImporting,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(Height.button),
                 shape = RoundedCornerShape(Radius.m),
             ) {
                 Icon(

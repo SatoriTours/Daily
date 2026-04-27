@@ -1,26 +1,19 @@
 package com.dailysatori.ui.feature.diary
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
@@ -29,7 +22,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -37,17 +29,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.ui.component.appbar.AppTopBar
+import com.dailysatori.ui.component.card.DiaryCard
 import com.dailysatori.ui.component.dialog.ConfirmDialog
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
-import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
@@ -78,7 +66,7 @@ fun DiaryScreen() {
                         Icon(Icons.Default.Search, contentDescription = "搜索")
                     }
                     var showMenu by remember { mutableStateOf(false) }
-                    androidx.compose.foundation.layout.Box {
+                    Box {
                         IconButton(onClick = { showMenu = true }) {
                             Icon(Icons.Default.FilterList, contentDescription = "筛选")
                         }
@@ -120,7 +108,7 @@ fun DiaryScreen() {
                     verticalArrangement = Arrangement.spacedBy(Spacing.s),
                 ) {
                     items(state.diaries, key = { it.id }) { diary ->
-                        DiaryCardItem(
+                        DiaryCard(
                             diary = diary,
                             onClick = {
                                 editingDiary = diary
@@ -160,51 +148,5 @@ fun DiaryScreen() {
             },
             onDismiss = { showDeleteDialog = null },
         )
-    }
-}
-
-@Composable
-fun DiaryCardItem(diary: Diary, onClick: () -> Unit, onDelete: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.m),
-    ) {
-        Column(modifier = Modifier.padding(Spacing.m)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = TimeUtils.formatDateTime(diary.created_at),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                val mood = diary.mood
-                if (mood != null) {
-                    Text(mood, style = MaterialTheme.typography.labelMedium)
-                }
-            }
-            Spacer(modifier = Modifier.height(Spacing.xs))
-            Text(
-                text = diary.content ?: "",
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 5,
-                overflow = TextOverflow.Ellipsis,
-            )
-            val tags = diary.tags
-            if (!tags.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(Spacing.xs))
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    tags.split(",").take(5).forEach { tag ->
-                        SuggestionChip(
-                            onClick = {},
-                            label = { Text(tag.trim(), style = MaterialTheme.typography.labelSmall) },
-                            modifier = Modifier.height(28.dp),
-                        )
-                    }
-                }
-            }
-        }
     }
 }

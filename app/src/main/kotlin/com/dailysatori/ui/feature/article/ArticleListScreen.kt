@@ -4,25 +4,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -37,17 +29,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import com.dailysatori.core.util.TimeUtils
-import com.dailysatori.shared.db.Article
 import com.dailysatori.ui.component.appbar.AppTopBar
+import com.dailysatori.ui.component.card.ArticleCard
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
-import com.dailysatori.ui.component.media.SmartImage
-import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
@@ -122,56 +108,11 @@ fun ArticleListScreen(
                 verticalArrangement = Arrangement.spacedBy(Spacing.s),
             ) {
                 items(state.articles, key = { it.id }) { article ->
-                    ArticleCardItem(article = article, onClick = { onArticleClick(article.id) })
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ArticleCardItem(article: Article, onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.m),
-    ) {
-        Row(modifier = Modifier.padding(Spacing.m)) {
-            SmartImage(
-                imagePath = article.cover_image ?: article.cover_image_url,
-                modifier = Modifier.padding(end = Spacing.m),
-                size = 80.dp,
-            )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = article.ai_title ?: article.title ?: "无标题",
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                val content = article.ai_content ?: article.content
-                if (!content.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    Text(
-                        text = content,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ArticleCard(
+                        article = article,
+                        onClick = { onArticleClick(article.id) },
+                        onFavoriteClick = {},
                     )
-                }
-                val pubDate = article.pub_date
-                if (pubDate != null) {
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = TimeUtils.formatRelativeTime(pubDate),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
                 }
             }
         }

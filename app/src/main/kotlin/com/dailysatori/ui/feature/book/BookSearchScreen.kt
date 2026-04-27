@@ -31,7 +31,7 @@ fun BookSearchScreen(
     var searchQuery by remember { mutableStateOf("") }
 
     AppScaffold(
-        title = "Search Books",
+        title = "搜索书籍",
         onBack = onBack,
     ) { modifier ->
         Column(modifier = modifier.fillMaxSize()) {
@@ -39,7 +39,7 @@ fun BookSearchScreen(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth().padding(Spacing.m),
-                placeholder = { Text("Enter book title...") },
+                placeholder = { Text("输入书名...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 singleLine = true,
                 shape = RoundedCornerShape(Radius.s),
@@ -48,7 +48,7 @@ fun BookSearchScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Search results will appear here", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("搜索结果将在此显示", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

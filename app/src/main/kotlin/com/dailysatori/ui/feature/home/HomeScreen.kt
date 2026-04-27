@@ -9,12 +9,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.outlined.Article
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.Book
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,7 +47,7 @@ val tabs = listOf(
     TabItem("日记", Icons.Filled.Book, Icons.Outlined.Book),
     TabItem("读书", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
     TabItem("AI", Icons.Filled.SmartToy, Icons.Outlined.SmartToy),
-    TabItem("设置", Icons.Filled.Person, Icons.Outlined.Person),
+    TabItem("设置", Icons.Filled.Settings, Icons.Outlined.Settings),
 )
 
 @Composable
