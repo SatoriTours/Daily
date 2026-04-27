@@ -7,6 +7,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -22,7 +23,7 @@ fun SAppBar(
     onBack: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     backgroundColorLight: Color = AppColors.primary,
-    backgroundColorDark: Color = AppColors.backgroundDark,
+    backgroundColorDark: Color = MaterialTheme.colorScheme.background,
     showBack: Boolean = true,
 ) {
     val isDark = isSystemInDarkTheme()
