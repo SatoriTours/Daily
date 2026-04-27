@@ -2,8 +2,8 @@ package com.dailysatori.ui.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dailysatori.service.AppUpgradeService
-import com.dailysatori.service.WebServerService
+import com.dailysatori.core.service.AppUpgradeService
+import com.dailysatori.core.service.WebServerService
 import com.dailysatori.service.setting.SettingService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
