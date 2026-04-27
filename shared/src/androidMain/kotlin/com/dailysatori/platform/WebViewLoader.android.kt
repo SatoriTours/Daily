@@ -8,7 +8,7 @@ import android.webkit.WebViewClient
 import org.koin.mp.KoinPlatform
 
 actual class WebViewLoader actual constructor() {
-    private val context: Context by lazy { KoinPlatform.getKoin().get<Context>() }
+    private val context: Context by lazy { KoinPlatform.getKoin().get<PlatformContext>().context }
 
     actual fun loadContent(url: String, timeoutMs: Long, callback: (Result<String>) -> Unit) {
         try {

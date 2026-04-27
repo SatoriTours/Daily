@@ -49,4 +49,14 @@ class DiaryRepository(private val db: DailySatoriDatabase) {
     fun delete(id: Long) = q.deleteDiary(id)
 
     fun count(): Long = q.diaryCount().executeAsOne()
+
+    fun getAllSync(): List<Diary> = q.selectAllDiaries().executeAsList()
+
+    fun searchSync(query: String): List<Diary> = q.searchDiaries(query, query).executeAsList()
+
+    fun getByDateRangeSync(startMs: Long, endMs: Long): List<Diary> =
+        q.selectDiariesByDateRange(startMs, endMs).executeAsList()
+
+    fun getLatestSync(limit: Int = 5): List<Diary> =
+        q.selectDiariesPaginated(limit.toLong(), 0).executeAsList()
 }

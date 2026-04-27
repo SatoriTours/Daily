@@ -1,7 +1,9 @@
 package com.dailysatori.ui.pages.home
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Article
@@ -22,12 +24,18 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.dailysatori.ui.pages.PlaceholderScreen
+import com.dailysatori.ui.pages.aichat.AiChatScreen
+import com.dailysatori.ui.pages.articles.ArticlesScreen
+import com.dailysatori.ui.pages.books.BooksScreen
+import com.dailysatori.ui.pages.diary.DiaryScreen
+import com.dailysatori.ui.pages.weekly_summary.WeeklySummaryScreen
+import com.dailysatori.ui.pages.settings.SettingsScreen
 
 data class TabItem(
     val label: String,
@@ -36,18 +44,18 @@ data class TabItem(
 )
 
 val tabs = listOf(
-    TabItem("Articles", Icons.Filled.Article, Icons.Outlined.Article),
-    TabItem("Diary", Icons.Filled.Book, Icons.Outlined.Book),
-    TabItem("Books", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
-    TabItem("AI Chat", Icons.Filled.SmartToy, Icons.Outlined.SmartToy),
-    TabItem("Summary", Icons.Filled.Person, Icons.Outlined.Person),
+    TabItem("文章", Icons.Filled.Article, Icons.Outlined.Article),
+    TabItem("日记", Icons.Filled.Book, Icons.Outlined.Book),
+    TabItem("读书", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
+    TabItem("AI", Icons.Filled.SmartToy, Icons.Outlined.SmartToy),
+    TabItem("设置", Icons.Filled.Person, Icons.Outlined.Person),
 )
 
 @Composable
-fun HomeScreen() {
-    val selectedIndex = rememberSaveable { mutableStateOf(0) }
-    val initializedTabs = rememberSaveable { mutableSetOf(0) }
-    initializedTabs.add(selectedIndex.value)
+fun HomeScreen(
+    onArticleClick: (Long) -> Unit = {},
+) {
+    var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
 
     Scaffold(
         bottomBar = {
@@ -59,13 +67,13 @@ fun HomeScreen() {
                     NavigationBarItem(
                         icon = {
                             Icon(
-                                if (selectedIndex.value == index) tab.selectedIcon else tab.unselectedIcon,
+                                if (selectedIndex == index) tab.selectedIcon else tab.unselectedIcon,
                                 contentDescription = tab.label,
                             )
                         },
                         label = { Text(tab.label, style = MaterialTheme.typography.labelSmall) },
-                        selected = selectedIndex.value == index,
-                        onClick = { selectedIndex.value = index },
+                        selected = selectedIndex == index,
+                        onClick = { selectedIndex = index },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = MaterialTheme.colorScheme.primary,
                             selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -77,19 +85,19 @@ fun HomeScreen() {
                 }
             }
         },
+        contentWindowInsets = WindowInsets.navigationBars,
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentAlignment = Alignment.TopStart,
         ) {
-            when (selectedIndex.value) {
-                0 -> PlaceholderScreen("Articles")
-                1 -> PlaceholderScreen("Diary")
-                2 -> PlaceholderScreen("Books")
-                3 -> PlaceholderScreen("AI Chat")
-                4 -> PlaceholderScreen("Weekly Summary")
+            when (selectedIndex) {
+                0 -> ArticlesScreen(onArticleClick = onArticleClick)
+                1 -> DiaryScreen()
+                2 -> BooksScreen()
+                3 -> AiChatScreen()
+                4 -> SettingsScreen()
             }
         }
     }

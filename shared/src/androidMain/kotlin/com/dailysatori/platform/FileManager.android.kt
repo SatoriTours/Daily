@@ -49,4 +49,26 @@ actual class FileManager actual constructor() {
             }
         }
     }
+
+    actual fun createZip(sourceDir: String, zipPath: String, files: List<String>) {
+        java.util.zip.ZipOutputStream(File(zipPath).outputStream()).use { zos ->
+            files.forEach { filePath ->
+                val file = File(filePath)
+                if (file.exists()) {
+                    val entryName = if (filePath.startsWith(sourceDir)) {
+                        filePath.removePrefix(sourceDir).removePrefix("/")
+                    } else {
+                        file.name
+                    }
+                    zos.putNextEntry(java.util.zip.ZipEntry(entryName))
+                    file.inputStream().use { it.copyTo(zos) }
+                    zos.closeEntry()
+                }
+            }
+        }
+    }
+
+    actual fun readAssetText(filename: String): String {
+        return appContext.assets.open(filename).bufferedReader().readText()
+    }
 }

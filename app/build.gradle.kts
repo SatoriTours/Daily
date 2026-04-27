@@ -61,7 +61,9 @@ dependencies {
     implementation(libs.ktor.server.cors)
     implementation(libs.ktor.server.status.pages)
     implementation(libs.ktor.server.websockets)
+    implementation(libs.ktor.serialization.json)
     implementation(libs.kermit)
-    implementation("androidx.compose.material3:material3:1.3.2")
-    implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    implementation(libs.kotlinx.datetime)
+    implementation(libs.compose.material3)
+    implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
 }

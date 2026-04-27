@@ -53,12 +53,13 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         coverImage: String? = null,
         coverImageUrl: String? = null,
         pubDate: Long? = null,
-    ) {
+    ): Long {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         q.insertArticle(
             title, aiTitle, content, aiContent, htmlContent, aiMarkdownContent,
             url, isFavorite, comment, status, coverImage, coverImageUrl, pubDate, now, now,
         )
+        return q.selectArticles().executeAsList().maxOfOrNull { it.id } ?: 0L
     }
 
     fun update(
@@ -92,4 +93,13 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     }
 
     fun count(): Long = q.articleCount().executeAsOne()
+
+    fun getAllSync(): List<Article> = q.selectArticles().executeAsList()
+
+    fun searchSync(query: String): List<Article> = q.searchArticles(query, query, query).executeAsList()
+
+    fun getFavoritesSync(): List<Article> = q.selectFavoriteArticles().executeAsList()
+
+    fun getLatestSync(limit: Int = 5): List<Article> =
+        q.selectArticlesPaginated(limit.toLong(), 0).executeAsList()
 }

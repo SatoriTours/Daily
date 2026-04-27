@@ -34,6 +34,8 @@ class TagRepository(private val db: DailySatoriDatabase) {
     fun removeArticleTags(articleId: Long) =
         q.deleteArticleTags(articleId)
 
+    fun count(): Long = q.selectAllTags().executeAsList().size.toLong()
+
     fun setTagsForArticle(articleId: Long, tagNames: List<String>) {
         removeArticleTags(articleId)
         tagNames.forEach { name ->

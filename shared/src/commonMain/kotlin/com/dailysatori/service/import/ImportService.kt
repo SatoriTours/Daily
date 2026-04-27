@@ -1,5 +1,6 @@
 package com.dailysatori.service.import
 
+import app.cash.sqldelight.db.QueryResult
 import co.touchlab.kermit.Logger
 import com.dailysatori.platform.FileManager
 import com.dailysatori.shared.db.DailySatoriDatabase
@@ -20,6 +21,7 @@ import kotlinx.serialization.json.longOrNull
 
 class ImportService(
     private val db: DailySatoriDatabase,
+    private val driver: app.cash.sqldelight.db.SqlDriver,
     private val fileManager: FileManager,
 ) {
     private val log = Logger.withTag("Import")
@@ -97,7 +99,20 @@ class ImportService(
 
     private fun insertAndGetNewId(entityType: String, oldId: Long, insertBlock: () -> Unit): Long {
         insertBlock()
-        val newId = db.dailySatoriQueries.lastInsertRowId().executeAsOne()
+        var newId = 0L
+        try {
+            driver.executeQuery<Long>(0, "SELECT last_insert_rowid()", { cursor ->
+                if (cursor.next().value) {
+                    newId = cursor.getLong(0) ?: 0L
+                }
+                QueryResult.Value(newId)
+            }, 0)
+        } catch (e: Exception) {
+            log.e(e) { "Failed to get last insert id for $entityType" }
+        }
+        if (newId == 0L) {
+            log.w { "Could not determine new ID for $entityType (oldId=$oldId)" }
+        }
         idMaps.getOrPut(entityType) { mutableMapOf() }[oldId] = newId
         return newId
     }
@@ -181,7 +196,11 @@ class ImportService(
     }
 
     private fun importArticles(dir: String): Int {
-        val arr = readJsonArray(dir, "articles.json") ?: return 0
+        val arr = readJsonArray(dir, "articles.json")
+        if (arr == null) {
+            log.w { "articles.json not found in import" }
+            return 0
+        }
         var count = 0
         arr.forEach { element ->
             val obj = element.jsonObject
@@ -207,6 +226,7 @@ class ImportService(
             }
             count++
         }
+        log.d { "Imported $count articles" }
         _progress.value = 0.35
         return count
     }

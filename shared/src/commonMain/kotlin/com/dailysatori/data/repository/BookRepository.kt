@@ -45,4 +45,10 @@ class BookRepository(private val db: DailySatoriDatabase) {
     }
 
     fun delete(id: Long) = q.deleteBook(id)
+
+    fun count(): Long = q.selectAllBooks().executeAsList().size.toLong()
+
+    fun getAllSync(): List<Book> = q.selectAllBooks().executeAsList()
+
+    fun searchSync(query: String): List<Book> = q.searchBooks(query, query).executeAsList()
 }

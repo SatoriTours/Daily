@@ -32,4 +32,17 @@ class BookViewpointRepository(private val db: DailySatoriDatabase) {
     fun delete(id: Long) = q.deleteViewpoint(id)
 
     fun deleteByBook(bookId: Long) = q.deleteViewpointsByBook(bookId)
+
+    fun getAllSync(): List<Book_viewpoint> = q.selectAllViewpoints().executeAsList()
+
+    fun getByBookSync(bookId: Long): List<Book_viewpoint> = q.selectViewpointsByBook(bookId).executeAsList()
+
+    fun searchByContentSync(keyword: String): List<Book_viewpoint> {
+        val kw = keyword.lowercase()
+        return q.selectAllViewpoints().executeAsList().filter { vp ->
+            vp.content.lowercase().contains(kw) || vp.title.lowercase().contains(kw)
+        }
+    }
+
+    fun count(): Long = q.selectAllViewpoints().executeAsList().size.toLong()
 }

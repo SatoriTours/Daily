@@ -394,5 +394,3 @@ SELECT
     (SELECT COUNT(*) FROM tag) AS total_tags,
     (SELECT COUNT(*) FROM article WHERE is_favorite = 1) AS total_favorites;
 
-lastInsertRowId:
-SELECT last_insert_rowid() AS id;

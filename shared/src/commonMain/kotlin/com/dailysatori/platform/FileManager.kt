@@ -15,4 +15,6 @@ expect class FileManager() {
     fun fileSize(path: String): Long
     fun createDirectory(path: String): Boolean
     fun extractZip(zipPath: String, destDir: String)
+    fun createZip(sourceDir: String, zipPath: String, files: List<String>)
+    fun readAssetText(filename: String): String
 }
