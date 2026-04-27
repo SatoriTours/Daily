@@ -15,7 +15,7 @@ import com.dailysatori.ui.components.LoadingIndicator
 import com.dailysatori.ui.components.SAppBar
 import com.dailysatori.ui.components.SmartImage
 import com.dailysatori.ui.theme.Spacing
-import com.dailysatori.viewmodel.ArticleDetailViewModel
+import com.dailysatori.ui.feature.article.ArticleDetailViewModel
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 

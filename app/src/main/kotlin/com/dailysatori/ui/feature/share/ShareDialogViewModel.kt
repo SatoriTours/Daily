@@ -1,4 +1,4 @@
-package com.dailysatori.viewmodel
+package com.dailysatori.ui.feature.share
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

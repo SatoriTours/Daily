@@ -21,7 +21,7 @@ import androidx.compose.runtime.collectAsState
 import com.dailysatori.shared.db.Article
 import com.dailysatori.ui.components.*
 import com.dailysatori.ui.theme.*
-import com.dailysatori.viewmodel.ArticlesViewModel
+import com.dailysatori.ui.feature.article.ArticlesViewModel
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)

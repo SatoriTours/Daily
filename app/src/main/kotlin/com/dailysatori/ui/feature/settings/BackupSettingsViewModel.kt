@@ -1,4 +1,4 @@
-package com.dailysatori.viewmodel
+package com.dailysatori.ui.feature.settings
 
 import android.app.Activity
 import android.net.Uri

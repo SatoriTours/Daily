@@ -23,7 +23,7 @@ import com.dailysatori.shared.db.Book
 import com.dailysatori.shared.db.Book_viewpoint
 import com.dailysatori.ui.components.*
 import com.dailysatori.ui.theme.*
-import com.dailysatori.viewmodel.BooksViewModel
+import com.dailysatori.ui.feature.book.BooksViewModel
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
