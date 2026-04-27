@@ -79,7 +79,7 @@ fun AiConfigScreen(
                             modifier = Modifier.fillMaxWidth().padding(Spacing.m),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(viewModel.getFunctionTypeIcon(config.function_type), style = MaterialTheme.typography.titleMedium)
+                            Text(viewModel.getFunctionTypeIcon(config.function_type ?: 0L), style = MaterialTheme.typography.titleMedium)
                             Spacer(modifier = Modifier.width(Spacing.m))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(config.name, style = MaterialTheme.typography.titleSmall)
