@@ -1,4 +1,4 @@
-package com.dailysatori.ui.pages.home
+package com.dailysatori.ui.feature.home
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -30,12 +30,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.dailysatori.ui.pages.aichat.AiChatScreen
-import com.dailysatori.ui.pages.articles.ArticlesScreen
-import com.dailysatori.ui.pages.books.BooksScreen
-import com.dailysatori.ui.pages.diary.DiaryScreen
-import com.dailysatori.ui.pages.weekly_summary.WeeklySummaryScreen
-import com.dailysatori.ui.pages.settings.SettingsScreen
+import com.dailysatori.ui.feature.aichat.AiChatScreen
+import com.dailysatori.ui.feature.article.ArticleListScreen
+import com.dailysatori.ui.feature.book.BooksScreen
+import com.dailysatori.ui.feature.diary.DiaryScreen
+import com.dailysatori.ui.feature.settings.SettingsScreen
 
 data class TabItem(
     val label: String,
@@ -93,7 +92,7 @@ fun HomeScreen(
                 .padding(innerPadding),
         ) {
             when (selectedIndex) {
-                0 -> ArticlesScreen(onArticleClick = onArticleClick)
+                0 -> ArticleListScreen(onArticleClick = onArticleClick)
                 1 -> DiaryScreen()
                 2 -> BooksScreen()
                 3 -> AiChatScreen()

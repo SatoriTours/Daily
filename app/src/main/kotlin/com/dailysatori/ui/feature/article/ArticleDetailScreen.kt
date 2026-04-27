@@ -1,25 +1,35 @@
-package com.dailysatori.ui.pages.article_detail
+package com.dailysatori.ui.feature.article
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import com.dailysatori.ui.components.LoadingIndicator
-import com.dailysatori.ui.components.SAppBar
-import com.dailysatori.ui.components.SmartImage
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.dailysatori.ui.component.media.SmartImage
+import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Spacing
-import com.dailysatori.ui.feature.article.ArticleDetailViewModel
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArticleDetailScreen(
     articleId: Long,
@@ -33,37 +43,34 @@ fun ArticleDetailScreen(
         viewModel.loadArticle()
     }
 
-    Scaffold(
-        topBar = {
-            SAppBar(
-                title = state.article?.ai_title ?: state.article?.title ?: "文章详情",
-                onBack = onBack,
-                actions = {
-                    IconButton(onClick = { viewModel.toggleFavorite() }) {
-                        Icon(
-                            if (state.article?.is_favorite == 1L) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "收藏",
-                        )
-                    }
-                    IconButton(onClick = { /* share */ }) {
-                        Icon(Icons.Default.Share, contentDescription = "分享")
-                    }
-                },
-            )
+    AppScaffold(
+        title = state.article?.ai_title ?: state.article?.title ?: "文章详情",
+        onBack = onBack,
+        actions = {
+            IconButton(onClick = { viewModel.toggleFavorite() }) {
+                Icon(
+                    if (state.article?.is_favorite == 1L) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = "收藏",
+                )
+            }
+            IconButton(onClick = { /* share */ }) {
+                Icon(Icons.Default.Share, contentDescription = "分享")
+            }
         },
-    ) { padding ->
+    ) { modifier ->
         if (state.isLoading && state.article == null) {
-            LoadingIndicator()
+            Box(modifier = modifier.fillMaxSize()) {
+                Text("加载中...", modifier = Modifier.padding(Spacing.m))
+            }
         } else if (state.article == null) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            Box(modifier = modifier.fillMaxSize()) {
                 Text("文章未找到", modifier = Modifier.padding(Spacing.m))
             }
         } else {
             val article = state.article!!
             Column(
-                modifier = Modifier
+                modifier = modifier
                     .fillMaxSize()
-                    .padding(padding)
                     .verticalScroll(scrollState),
             ) {
                 val coverImage = article.cover_image ?: article.cover_image_url

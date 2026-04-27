@@ -1,4 +1,4 @@
-package com.dailysatori.ui.pages.settings
+package com.dailysatori.ui.feature.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,17 +8,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
@@ -26,19 +21,15 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,15 +38,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.dailysatori.ui.components.FeatureIcon
+import com.dailysatori.ui.component.appbar.AppTopBar
+import com.dailysatori.ui.component.misc.FeatureIcon
+import com.dailysatori.ui.feature.aiconfig.AiConfigScreen
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
-import com.dailysatori.ui.pages.aiconfig.AiConfigScreen
-import com.dailysatori.ui.pages.plugin_center.PluginCenterScreen
-import com.dailysatori.ui.pages.backup_settings.BackupSettingsScreen
-import com.dailysatori.ui.pages.backup_restore.BackupRestoreScreen
-import com.dailysatori.ui.pages.data_import.DataImportScreen
 
 private enum class SettingsPage {
     MAIN,
@@ -66,14 +54,12 @@ private enum class SettingsPage {
     DATA_IMPORT,
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen() {
     var currentPage by remember { mutableStateOf(SettingsPage.MAIN) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showGoogleApiDialog by remember { mutableStateOf(false) }
     var googleApiKey by remember { mutableStateOf("") }
-    var showWebServerDialog by remember { mutableStateOf(false) }
 
     when (currentPage) {
         SettingsPage.MAIN -> {
@@ -100,7 +86,6 @@ fun SettingsScreen() {
                     },
                     confirmButton = {
                         TextButton(onClick = {
-                            // Save Google API key
                             showGoogleApiDialog = false
                         }) { Text("保存") }
                     },
@@ -109,25 +94,19 @@ fun SettingsScreen() {
                     },
                 )
             }
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = { Text("设置", color = MaterialTheme.colorScheme.onPrimary) },
-                        colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        actions = {
-                            IconButton(onClick = { showAboutDialog = true }) {
-                                Icon(Icons.Default.Info, contentDescription = "关于", tint = MaterialTheme.colorScheme.onPrimary)
-                            }
-                        },
-                    )
-                },
-            ) { padding ->
+            Column(modifier = Modifier.fillMaxSize()) {
+                AppTopBar(
+                    title = "设置",
+                    showBack = false,
+                    actions = {
+                        IconButton(onClick = { showAboutDialog = true }) {
+                            Icon(Icons.Default.Info, contentDescription = "关于")
+                        }
+                    },
+                )
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
                         .padding(horizontal = Spacing.m)
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(Spacing.m),

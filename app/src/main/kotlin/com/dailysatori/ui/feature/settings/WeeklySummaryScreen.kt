@@ -1,11 +1,11 @@
-package com.dailysatori.ui.pages.weekly_summary
+package com.dailysatori.ui.feature.settings
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,8 +28,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.dailysatori.ui.components.EmptyState
-import com.dailysatori.ui.components.SAppBar
+import com.dailysatori.ui.component.appbar.AppTopBar
+import com.dailysatori.ui.component.indicator.EmptyState
+import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Spacing
 
@@ -40,29 +40,24 @@ fun WeeklySummaryScreen(
 ) {
     var hasContent by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            SAppBar(
-                title = "周报",
-                onBack = null,
-                showBack = false,
-                actions = {
-                    IconButton(onClick = onSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                    IconButton(onClick = { /* history */ }) {
-                        Icon(Icons.Default.History, contentDescription = "History")
-                    }
-                    IconButton(onClick = { /* generate */ }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Generate")
-                    }
-                },
-            )
+    AppScaffold(
+        title = "周报",
+        showBack = false,
+        actions = {
+            IconButton(onClick = onSettings) {
+                Icon(Icons.Default.Settings, contentDescription = "Settings")
+            }
+            IconButton(onClick = { /* history */ }) {
+                Icon(Icons.Default.History, contentDescription = "History")
+            }
+            IconButton(onClick = { /* generate */ }) {
+                Icon(Icons.Default.Refresh, contentDescription = "Generate")
+            }
         },
-    ) { padding ->
+    ) { modifier ->
         if (!hasContent) {
             Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
                 EmptyState(
@@ -75,9 +70,8 @@ fun WeeklySummaryScreen(
             }
         } else {
             Column(
-                modifier = Modifier
+                modifier = modifier
                     .fillMaxSize()
-                    .padding(padding)
                     .padding(Spacing.m)
                     .verticalScroll(rememberScrollState()),
             ) {

@@ -1,4 +1,4 @@
-package com.dailysatori.ui.pages.backup_restore
+package com.dailysatori.ui.feature.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,7 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.dailysatori.ui.components.SAppBar
+import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Spacing
@@ -32,10 +31,11 @@ import com.dailysatori.ui.theme.Spacing
 @Composable
 fun BackupRestoreScreen(onBack: () -> Unit = {}) {
     var selectedIndex by remember { mutableIntStateOf(-1) }
-    val backups = listOf<String>() // Will be loaded from service
+    val backups = listOf<String>()
 
-    Scaffold(
-        topBar = { SAppBar(title = "从备份恢复", onBack = onBack) },
+    AppScaffold(
+        title = "从备份恢复",
+        onBack = onBack,
         bottomBar = {
             if (backups.isNotEmpty()) {
                 Button(
@@ -52,10 +52,10 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
                 }
             }
         },
-    ) { padding ->
+    ) { modifier ->
         if (backups.isEmpty()) {
             Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(

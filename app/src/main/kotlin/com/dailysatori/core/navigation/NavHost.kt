@@ -5,22 +5,22 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
-import com.dailysatori.ui.pages.aichat.AiChatScreen
-import com.dailysatori.ui.pages.aiconfig.AiConfigEditScreen
-import com.dailysatori.ui.pages.aiconfig.AiConfigScreen
-import com.dailysatori.ui.pages.article_detail.ArticleDetailScreen
-import com.dailysatori.ui.pages.articles.ArticlesScreen
-import com.dailysatori.ui.pages.backup_restore.BackupRestoreScreen
-import com.dailysatori.ui.pages.backup_settings.BackupSettingsScreen
-import com.dailysatori.ui.pages.books.BookSearchScreen
-import com.dailysatori.ui.pages.books.BooksScreen
-import com.dailysatori.ui.pages.data_import.DataImportScreen
-import com.dailysatori.ui.pages.diary.DiaryScreen
-import com.dailysatori.ui.pages.home.HomeScreen
-import com.dailysatori.ui.pages.plugin_center.PluginCenterScreen
-import com.dailysatori.ui.pages.settings.SettingsScreen
-import com.dailysatori.ui.pages.share_dialog.ShareDialogScreen
-import com.dailysatori.ui.pages.weekly_summary.WeeklySummaryScreen
+import com.dailysatori.ui.feature.aichat.AiChatScreen
+import com.dailysatori.ui.feature.aiconfig.AiConfigEditScreen
+import com.dailysatori.ui.feature.aiconfig.AiConfigScreen
+import com.dailysatori.ui.feature.article.ArticleDetailScreen
+import com.dailysatori.ui.feature.article.ArticleListScreen
+import com.dailysatori.ui.feature.book.BookSearchScreen
+import com.dailysatori.ui.feature.book.BooksScreen
+import com.dailysatori.ui.feature.diary.DiaryScreen
+import com.dailysatori.ui.feature.home.HomeScreen
+import com.dailysatori.ui.feature.settings.BackupRestoreScreen
+import com.dailysatori.ui.feature.settings.BackupSettingsScreen
+import com.dailysatori.ui.feature.settings.DataImportScreen
+import com.dailysatori.ui.feature.settings.PluginCenterScreen
+import com.dailysatori.ui.feature.settings.SettingsScreen
+import com.dailysatori.ui.feature.share.ShareDialogScreen
+import com.dailysatori.ui.feature.settings.WeeklySummaryScreen
 
 @Composable
 fun DailySatoriNavHost(navController: NavHostController) {
@@ -32,7 +32,7 @@ fun DailySatoriNavHost(navController: NavHostController) {
         }
 
         composable<ArticlesRoute> {
-            ArticlesScreen(
+            ArticleListScreen(
                 onArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
             )
         }

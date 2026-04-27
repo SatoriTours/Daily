@@ -1,4 +1,4 @@
-package com.dailysatori.ui.pages.plugin_center
+package com.dailysatori.ui.feature.settings
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,36 +10,31 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.dailysatori.ui.components.EmptyState
-import com.dailysatori.ui.components.SAppBar
+import com.dailysatori.ui.component.indicator.EmptyState
+import com.dailysatori.ui.component.scaffold.AppScaffold
 
 @Composable
 fun PluginCenterScreen(onBack: () -> Unit = {}) {
-    val plugins = listOf<String>() // Will be loaded from service
+    val plugins = listOf<String>()
 
-    Scaffold(
-        topBar = {
-            SAppBar(
-                title = "插件中心",
-                onBack = onBack,
-                actions = {
-                    IconButton(onClick = { /* refresh */ }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                    }
-                    IconButton(onClick = { /* settings */ }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                },
-            )
+    AppScaffold(
+        title = "插件中心",
+        onBack = onBack,
+        actions = {
+            IconButton(onClick = { /* refresh */ }) {
+                Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+            }
+            IconButton(onClick = { /* settings */ }) {
+                Icon(Icons.Default.Settings, contentDescription = "Settings")
+            }
         },
-    ) { padding ->
+    ) { modifier ->
         if (plugins.isEmpty()) {
             Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
                 EmptyState(

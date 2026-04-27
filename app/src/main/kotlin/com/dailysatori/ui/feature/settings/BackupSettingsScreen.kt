@@ -1,4 +1,4 @@
-package com.dailysatori.ui.pages.backup_settings
+package com.dailysatori.ui.feature.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,11 +19,10 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,8 +31,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.dailysatori.ui.components.FeatureIcon
-import com.dailysatori.ui.components.SAppBar
+import com.dailysatori.ui.component.misc.FeatureIcon
+import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.AppColors
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
@@ -44,10 +43,10 @@ import com.dailysatori.ui.theme.Spacing
 fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
     var hasDirectory by remember { mutableStateOf(false) }
 
-    Scaffold(topBar = { SAppBar(title = "备份与恢复", onBack = onBack) }) { padding ->
+    AppScaffold(title = "备份与恢复", onBack = onBack) { modifier ->
         if (!hasDirectory) {
             Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -68,9 +67,8 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
             }
         } else {
             Column(
-                modifier = Modifier
+                modifier = modifier
                     .fillMaxSize()
-                    .padding(padding)
                     .padding(Spacing.m)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),

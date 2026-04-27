@@ -1,23 +1,34 @@
-package com.dailysatori.ui.pages.aiconfig
+package com.dailysatori.ui.feature.aiconfig
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.dailysatori.ui.components.FeatureIcon
-import com.dailysatori.ui.components.SAppBar
+import com.dailysatori.ui.component.misc.FeatureIcon
+import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiConfigScreen(
     onBack: () -> Unit = {},
@@ -31,21 +42,17 @@ fun AiConfigScreen(
         Icons.Default.Settings,
     )
 
-    Scaffold(
-        topBar = {
-            SAppBar(
-                title = "AI 配置管理",
-                onBack = onBack,
-                actions = {
-                    IconButton(onClick = { /* show info */ }) {
-                        Icon(Icons.Default.Info, contentDescription = "Info")
-                    }
-                },
-            )
+    AppScaffold(
+        title = "AI 配置管理",
+        onBack = onBack,
+        actions = {
+            IconButton(onClick = { /* show info */ }) {
+                Icon(Icons.Default.Info, contentDescription = "Info")
+            }
         },
-    ) { padding ->
+    ) { modifier ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = Spacing.m),
+            modifier = modifier.fillMaxSize().padding(horizontal = Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.s),
             contentPadding = PaddingValues(vertical = Spacing.m),
         ) {

@@ -1,4 +1,4 @@
-package com.dailysatori.ui.pages.data_import
+package com.dailysatori.ui.feature.settings
 
 import android.content.Context
 import android.net.Uri
@@ -25,11 +25,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,7 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dailysatori.service.import.ImportService
-import com.dailysatori.ui.components.SAppBar
+import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import kotlinx.coroutines.launch
@@ -56,7 +54,6 @@ data class ImportState(
     val error: String? = null,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DataImportScreen(
     onBack: () -> Unit = {},
@@ -87,15 +84,13 @@ fun DataImportScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            SAppBar(title = "导入数据", onBack = onBack)
-        },
-    ) { padding ->
+    AppScaffold(
+        title = "导入数据",
+        onBack = onBack,
+    ) { modifier ->
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
-                .padding(padding)
                 .padding(horizontal = Spacing.m)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
