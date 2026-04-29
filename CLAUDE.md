@@ -59,3 +59,15 @@ dart format .
 由于项目使用 freezed 管理的模型中包含非 const 类型的字段（如 ArticleModel、BookModel、DiaryModel 等），
 测试文件中无法对这些模型使用 `const` 构造函数。此限制已在 `analysis_options.yaml` 中配置忽略，
 无需手动修复此类 info 级别警告。
+
+## 📱 Android 构建与部署（每次修改代码后自动执行）
+
+```bash
+# 编译并安装到已连接的设备
+JAVA_HOME=/home/jimxl/.local/share/jdk-21.0.6 ./gradlew :app:installDebug
+
+# 启动 App
+adb shell am start -n com.dailysatori/.MainActivity
+```
+
+**修改代码后必须执行以上步骤，确保变更生效到设备上。**
