@@ -105,57 +105,62 @@ fun BooksScreen(
             },
         )
 
-        if (state.isLoading && state.viewpoints.isEmpty()) {
-            LoadingIndicator()
-        } else if (state.viewpoints.isEmpty()) {
-            EmptyState(
-                icon = Icons.Default.MenuBook,
-                title = "暂无读书观点",
-                subtitle = "搜索并添加一本书开始阅读",
-            )
-        } else {
-            val idx = state.currentPage.coerceIn(0, state.viewpoints.size - 1)
-            val vp = state.viewpoints[idx]
-            val book = state.books.find { it.id == state.currentBookId }
-            val bookTitle = if (book != null) "《${book.title}》 · ${book.author}" else ""
-
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                contentPadding = PaddingValues(Spacing.m),
-                verticalArrangement = Arrangement.spacedBy(Spacing.m),
-            ) {
-                item {
-                    ViewpointCard(
-                        title = vp.title,
-                        content = vp.content,
-                        example = vp.example,
-                        bookTitle = bookTitle,
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(
-                    onClick = { viewModel.setPage((idx - 1).coerceAtLeast(0)) },
-                    enabled = idx > 0,
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "上一条")
-                    Text("上一条")
-                }
-                Text(
-                    text = "第 ${idx + 1} / ${state.viewpoints.size} 条",
-                    style = MaterialTheme.typography.labelMedium,
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            if (state.isLoading && state.viewpoints.isEmpty()) {
+                LoadingIndicator()
+            } else if (state.viewpoints.isEmpty()) {
+                EmptyState(
+                    modifier = Modifier.align(Alignment.Center),
+                    icon = Icons.Default.MenuBook,
+                    title = "暂无读书观点",
+                    subtitle = "搜索并添加一本书开始阅读",
                 )
-                TextButton(
-                    onClick = { viewModel.setPage((idx + 1).coerceAtMost(state.viewpoints.size - 1)) },
-                    enabled = idx < state.viewpoints.size - 1,
-                ) {
-                    Text("下一条")
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "下一条")
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    val idx = state.currentPage.coerceIn(0, state.viewpoints.size - 1)
+                    val vp = state.viewpoints[idx]
+                    val book = state.books.find { it.id == state.currentBookId }
+                    val bookTitle = if (book != null) "《${book.title}》 · ${book.author}" else ""
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        contentPadding = PaddingValues(Spacing.m),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.m),
+                    ) {
+                        item {
+                            ViewpointCard(
+                                title = vp.title,
+                                content = vp.content,
+                                example = vp.example,
+                                bookTitle = bookTitle,
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(
+                            onClick = { viewModel.setPage((idx - 1).coerceAtLeast(0)) },
+                            enabled = idx > 0,
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "上一条")
+                            Text("上一条")
+                        }
+                        Text(
+                            text = "第 ${idx + 1} / ${state.viewpoints.size} 条",
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                        TextButton(
+                            onClick = { viewModel.setPage((idx + 1).coerceAtMost(state.viewpoints.size - 1)) },
+                            enabled = idx < state.viewpoints.size - 1,
+                        ) {
+                            Text("下一条")
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "下一条")
+                        }
+                    }
                 }
             }
         }

@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.ui.component.appbar.AppTopBar
@@ -93,29 +94,32 @@ fun DiaryScreen() {
                 )
             }
 
-            if (state.isLoading && state.diaries.isEmpty()) {
-                LoadingIndicator()
-            } else if (state.diaries.isEmpty()) {
-                EmptyState(
-                    icon = Icons.Default.Edit,
-                    title = "暂无日记",
-                    subtitle = "点击右下角 + 开始写日记",
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(Spacing.m),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.s),
-                ) {
-                    items(state.diaries, key = { it.id }) { diary ->
-                        DiaryCard(
-                            diary = diary,
-                            onClick = {
-                                editingDiary = diary
-                                showEditor = true
-                            },
-                            onDelete = { showDeleteDialog = diary },
-                        )
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                if (state.isLoading && state.diaries.isEmpty()) {
+                    LoadingIndicator()
+                } else if (state.diaries.isEmpty()) {
+                    EmptyState(
+                        modifier = Modifier.align(Alignment.Center),
+                        icon = Icons.Default.Edit,
+                        title = "暂无日记",
+                        subtitle = "点击右下角 + 开始写日记",
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(Spacing.m),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+                    ) {
+                        items(state.diaries, key = { it.id }) { diary ->
+                            DiaryCard(
+                                diary = diary,
+                                onClick = {
+                                    editingDiary = diary
+                                    showEditor = true
+                                },
+                                onDelete = { showDeleteDialog = diary },
+                            )
+                        }
                     }
                 }
             }

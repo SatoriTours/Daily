@@ -391,7 +391,7 @@ class WebpageParserService(
                 val imagesDir = fileManager.getImagesDir()
                 val filePath = "$imagesDir/$fileName"
                 fileManager.writeFile(filePath, bytes)
-                filePath
+                "images/$fileName"
             } catch (e: Exception) {
                 log.e(e) { "Failed to download cover image" }
                 null

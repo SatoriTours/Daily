@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.card.ArticleCard
@@ -93,26 +94,28 @@ fun ArticleListScreen(
             )
         }
 
-        if (state.isLoading && state.articles.isEmpty()) {
-            LoadingIndicator()
-        } else if (state.articles.isEmpty()) {
-            EmptyState(
-                icon = Icons.Default.FilterList,
-                title = "暂无文章",
-                subtitle = "导入数据或保存链接来添加文章",
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(Spacing.m),
-                verticalArrangement = Arrangement.spacedBy(Spacing.s),
-            ) {
-                items(state.articles, key = { it.id }) { article ->
-                    ArticleCard(
-                        article = article,
-                        onClick = { onArticleClick(article.id) },
-                        onFavoriteClick = {},
-                    )
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            if (state.isLoading && state.articles.isEmpty()) {
+                LoadingIndicator()
+            } else if (state.articles.isEmpty()) {
+                EmptyState(
+                    modifier = Modifier.align(Alignment.Center),
+                    icon = Icons.Default.FilterList,
+                    title = "暂无文章",
+                    subtitle = "导入数据或保存链接来添加文章",
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(Spacing.m),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.s),
+                ) {
+                    items(state.articles, key = { it.id }) { article ->
+                        ArticleCard(
+                            article = article,
+                            onClick = { onArticleClick(article.id) },
+                        )
+                    }
                 }
             }
         }

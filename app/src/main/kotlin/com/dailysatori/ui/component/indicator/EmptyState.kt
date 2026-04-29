@@ -22,12 +22,13 @@ fun EmptyState(
     icon: ImageVector,
     title: String,
     subtitle: String? = null,
+    modifier: Modifier = Modifier,
     iconSize: Dp = 64.dp,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
     Column(
-        modifier = Modifier,
+        modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
