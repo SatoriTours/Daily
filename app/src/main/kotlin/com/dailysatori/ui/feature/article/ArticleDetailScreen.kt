@@ -2,7 +2,6 @@ package com.dailysatori.ui.feature.article
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -23,12 +22,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.dailysatori.ui.component.media.SmartImage
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Spacing
+import com.mikepenz.markdown.m3.Markdown
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import java.io.File
 
 @Composable
 fun ArticleDetailScreen(
@@ -39,8 +46,10 @@ fun ArticleDetailScreen(
     val state by viewModel.state.collectAsState()
     val scrollState = rememberScrollState()
 
+    val title = extractDomain(state.article?.url)
+
     AppScaffold(
-        title = state.article?.ai_title ?: state.article?.title ?: "文章详情",
+        title = title,
         onBack = onBack,
         actions = {
             IconButton(onClick = { viewModel.toggleFavorite() }) {
@@ -71,10 +80,9 @@ fun ArticleDetailScreen(
             ) {
                 val coverImage = article.cover_image ?: article.cover_image_url
                 if (!coverImage.isNullOrBlank()) {
-                    SmartImage(
+                    ArticleCoverImage(
                         imagePath = coverImage,
                         modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp),
-                        size = 260.dp,
                     )
                 }
 
@@ -98,9 +106,10 @@ fun ArticleDetailScreen(
                                 ?: article.ai_content
                                 ?: article.content
                                 ?: "暂无摘要内容"
-                            Text(
-                                text = summary,
-                                style = MaterialTheme.typography.bodyLarge,
+                            Markdown(
+                                content = summary,
+                                typography = MarkdownStyles.typography(),
+                                padding = MarkdownStyles.padding(),
                             )
                         }
                         else -> {
@@ -115,4 +124,38 @@ fun ArticleDetailScreen(
             }
         }
     }
+}
+
+private fun extractDomain(url: String?): String {
+    if (url.isNullOrBlank()) return "文章详情"
+    return url.removePrefix("https://")
+        .removePrefix("http://")
+        .substringBefore("/")
+        .removePrefix("www.")
+        .ifBlank { "文章详情" }
+}
+
+@Composable
+private fun ArticleCoverImage(
+    imagePath: String,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val isLocal = !imagePath.startsWith("http://") && !imagePath.startsWith("https://")
+    val resolvedPath = if (isLocal && !imagePath.startsWith("/")) {
+        File(context.filesDir, "DailySatori/$imagePath").absolutePath
+    } else {
+        imagePath
+    }
+    AsyncImage(
+        model = ImageRequest.Builder(context)
+            .data(resolvedPath)
+            .crossfade(true)
+            .build(),
+        placeholder = painterResource(android.R.drawable.ic_menu_gallery),
+        error = painterResource(android.R.drawable.ic_menu_report_image),
+        contentDescription = null,
+        modifier = modifier,
+        contentScale = ContentScale.Crop,
+    )
 }
