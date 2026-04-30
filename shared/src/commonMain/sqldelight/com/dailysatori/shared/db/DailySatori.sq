@@ -425,3 +425,73 @@ SELECT
     (SELECT COUNT(*) FROM tag) AS total_tags,
     (SELECT COUNT(*) FROM article WHERE is_favorite = 1) AS total_favorites;
 
+-- Memory Entry
+CREATE TABLE memory_entry (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    source_type TEXT,
+    source_id INTEGER,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    tags TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Chat Conversation
+CREATE TABLE chat_conversation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    search_results TEXT,
+    steps TEXT,
+    created_at INTEGER NOT NULL
+);
+
+-- Memory queries
+selectMemoryByType:
+SELECT * FROM memory_entry WHERE type = ? ORDER BY created_at DESC;
+
+selectMemoryBySource:
+SELECT * FROM memory_entry WHERE source_type = ? AND source_id = ?;
+
+searchMemory:
+SELECT * FROM memory_entry WHERE title LIKE '%' || ? || '%' OR content LIKE '%' || ? || '%' ORDER BY created_at DESC LIMIT ?;
+
+selectAllMemory:
+SELECT * FROM memory_entry ORDER BY created_at DESC;
+
+insertMemory:
+INSERT INTO memory_entry (type, source_type, source_id, title, content, tags, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+updateMemory:
+UPDATE memory_entry SET title = ?, content = ?, tags = ?, updated_at = ? WHERE id = ?;
+
+deleteMemory:
+DELETE FROM memory_entry WHERE id = ?;
+
+deleteMemoryBySource:
+DELETE FROM memory_entry WHERE source_type = ? AND source_id = ?;
+
+deleteAllMemoryByType:
+DELETE FROM memory_entry WHERE type = ?;
+
+memoryCountByType:
+SELECT COUNT(*) FROM memory_entry WHERE type = ?;
+
+-- Chat conversation queries
+selectChatBySession:
+SELECT * FROM chat_conversation WHERE session_id = ? ORDER BY created_at ASC;
+
+insertChat:
+INSERT INTO chat_conversation (session_id, role, content, search_results, steps, created_at)
+VALUES (?, ?, ?, ?, ?, ?);
+
+deleteChatBySession:
+DELETE FROM chat_conversation WHERE session_id = ?;
+
+selectChatSessions:
+SELECT DISTINCT session_id FROM chat_conversation ORDER BY session_id DESC;
+
