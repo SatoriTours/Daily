@@ -15,17 +15,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.shared.db.Mcp_server
-import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -162,32 +160,30 @@ private fun McpServerEditScreen(
         title = if (serverId != null && serverId > 0) "编辑 MCP 服务" else "添加 MCP 服务",
         onBack = onBack,
         bottomBar = {
-            Surface(tonalElevation = 3.dp) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(Spacing.m),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-                ) {
-                    OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("取消") }
-                    Button(
-                        onClick = {
-                            scope.launch(Dispatchers.IO) {
-                                isSaving = true
-                                try {
-                                    if (serverId != null && serverId > 0) {
-                                        repo.update(serverId, name, serverUrl, apiKey, if (enabled) 1L else 0L)
-                                    } else {
-                                        repo.insert(name, serverUrl, apiKey, if (enabled) 1L else 0L)
-                                    }
-                                } finally {
-                                    isSaving = false
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+            ) {
+                OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("取消") }
+                Button(
+                    onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            isSaving = true
+                            try {
+                                if (serverId != null && serverId > 0) {
+                                    repo.update(serverId, name, serverUrl, apiKey, if (enabled) 1L else 0L)
+                                } else {
+                                    repo.insert(name, serverUrl, apiKey, if (enabled) 1L else 0L)
                                 }
+                            } finally {
+                                isSaving = false
+                                onBack()
                             }
-                            onBack()
-                        },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isSaving && name.isNotBlank() && serverUrl.isNotBlank(),
-                    ) { Text(if (isSaving) "保存中..." else "保存") }
-                }
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    enabled = !isSaving && name.isNotBlank() && serverUrl.isNotBlank(),
+                ) { Text(if (isSaving) "保存中..." else "保存") }
             }
         },
     ) { modifier ->

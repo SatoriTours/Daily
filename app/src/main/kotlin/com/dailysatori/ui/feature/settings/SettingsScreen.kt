@@ -9,18 +9,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -29,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -99,30 +104,81 @@ fun SettingsScreen() {
                 ) {
                     Spacer(modifier = Modifier.height(Spacing.xs))
 
-                    Text("功能", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    // AI & Services section
+                    Text("AI 与服务", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     Card(
                         shape = RoundedCornerShape(Radius.m),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     ) {
-                        SettingItem("AI 配置", "管理 AI 模型配置", Icons.Default.Star, onClick = { currentPage = SettingsPage.AI_CONFIG })
-                        SettingItem("MCP 服务", "管理外部 MCP 工具服务", Icons.Default.Hub, onClick = { currentPage = SettingsPage.MCP_SERVER })
-                        SettingItem("插件中心", "管理 AI 提示词插件", Icons.Default.Settings, onClick = { currentPage = SettingsPage.PLUGIN_CENTER })
+                        SettingItem(
+                            icon = Icons.Default.Star,
+                            title = "AI 配置",
+                            subtitle = "管理模型服务商与 API 密钥",
+                            onClick = { currentPage = SettingsPage.AI_CONFIG },
+                        )
+                        SettingItem(
+                            icon = Icons.Default.Hub,
+                            title = "MCP 服务",
+                            subtitle = "管理外部工具服务连接",
+                            onClick = { currentPage = SettingsPage.MCP_SERVER },
+                        )
+                        SettingItem(
+                            icon = Icons.Default.Settings,
+                            title = "插件中心",
+                            subtitle = "管理 AI 提示词插件",
+                            onClick = { currentPage = SettingsPage.PLUGIN_CENTER },
+                        )
                     }
 
-                    Text("系统", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    // Web & Network section
+                    Text("网络与同步", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     Card(
                         shape = RoundedCornerShape(Radius.m),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     ) {
-                        SettingItem("备份与恢复", "管理数据备份", Icons.Default.Save, onClick = { currentPage = SettingsPage.BACKUP_SETTINGS })
-                        SettingItem("导入数据", "从 Flutter 版本迁移数据", Icons.Default.Refresh, onClick = { currentPage = SettingsPage.DATA_IMPORT })
-                        SettingItem("下载图片", "下载文章图片到本地", Icons.Default.Dns, onClick = {})
-                        SettingItem("Web 服务", if (state.webServerRunning) "运行中" else "已停止", Icons.Default.Share, onClick = { viewModel.toggleWebServer() })
                         SettingItem(
-                            "检查更新",
-                            if (state.isCheckingUpdate) "检查中..." else "v${state.currentVersion}",
-                            Icons.Default.Refresh,
+                            icon = Icons.Default.Language,
+                            title = "Web 服务",
+                            subtitle = if (state.webServerRunning) "运行中" else "已停止",
+                            trailing = {
+                                Switch(
+                                    checked = state.webServerRunning,
+                                    onCheckedChange = { viewModel.toggleWebServer() },
+                                )
+                            },
+                            onClick = { viewModel.toggleWebServer() },
+                        )
+                        SettingItem(
+                            icon = Icons.Default.Refresh,
+                            title = "检查更新",
+                            subtitle = if (state.isCheckingUpdate) "检查中..." else "当前 v${state.currentVersion}",
                             onClick = { viewModel.checkUpdate() },
+                        )
+                    }
+
+                    // Data section
+                    Text("数据管理", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Card(
+                        shape = RoundedCornerShape(Radius.m),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    ) {
+                        SettingItem(
+                            icon = Icons.Default.Save,
+                            title = "备份与恢复",
+                            subtitle = "管理数据备份与还原",
+                            onClick = { currentPage = SettingsPage.BACKUP_SETTINGS },
+                        )
+                        SettingItem(
+                            icon = Icons.Default.FileDownload,
+                            title = "导入数据",
+                            subtitle = "从 Flutter 版本迁移数据",
+                            onClick = { currentPage = SettingsPage.DATA_IMPORT },
+                        )
+                        SettingItem(
+                            icon = Icons.Default.CloudDownload,
+                            title = "下载图片",
+                            subtitle = "下载文章图片到本地",
+                            onClick = {},
                         )
                     }
 
@@ -130,39 +186,41 @@ fun SettingsScreen() {
                 }
             }
         }
-        SettingsPage.AI_CONFIG -> {
-            AiConfigScreen(onBack = { currentPage = SettingsPage.MAIN })
-        }
-        SettingsPage.MCP_SERVER -> {
-            McpServerScreen(onBack = { currentPage = SettingsPage.MAIN })
-        }
-        SettingsPage.PLUGIN_CENTER -> {
-            PluginCenterScreen(onBack = { currentPage = SettingsPage.MAIN })
-        }
-        SettingsPage.BACKUP_SETTINGS -> {
-            BackupSettingsScreen(onBack = { currentPage = SettingsPage.MAIN }, onRestore = { currentPage = SettingsPage.BACKUP_RESTORE })
-        }
-        SettingsPage.BACKUP_RESTORE -> {
-            BackupRestoreScreen(onBack = { currentPage = SettingsPage.BACKUP_SETTINGS })
-        }
-        SettingsPage.DATA_IMPORT -> {
-            DataImportScreen(onBack = { currentPage = SettingsPage.MAIN })
-        }
+        SettingsPage.AI_CONFIG -> AiConfigScreen(onBack = { currentPage = SettingsPage.MAIN })
+        SettingsPage.MCP_SERVER -> McpServerScreen(onBack = { currentPage = SettingsPage.MAIN })
+        SettingsPage.PLUGIN_CENTER -> PluginCenterScreen(onBack = { currentPage = SettingsPage.MAIN })
+        SettingsPage.BACKUP_SETTINGS -> BackupSettingsScreen(onBack = { currentPage = SettingsPage.MAIN }, onRestore = { currentPage = SettingsPage.BACKUP_RESTORE })
+        SettingsPage.BACKUP_RESTORE -> BackupRestoreScreen(onBack = { currentPage = SettingsPage.BACKUP_SETTINGS })
+        SettingsPage.DATA_IMPORT -> DataImportScreen(onBack = { currentPage = SettingsPage.MAIN })
     }
 }
 
 @Composable
-private fun SettingItem(title: String, subtitle: String, icon: ImageVector, onClick: () -> Unit) {
+private fun SettingItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    trailing: @Composable (() -> Unit)? = null,
+) {
     Surface(onClick = onClick) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.m),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FeatureIcon(icon = icon, containerSize = IconSize.xl, iconSize = IconSize.s)
             Spacer(modifier = Modifier.width(Spacing.m))
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleSmall)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (trailing != null) {
+                Spacer(modifier = Modifier.width(Spacing.s))
+                trailing()
             }
         }
     }

@@ -8,13 +8,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -29,6 +32,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -86,9 +92,13 @@ fun AiConfigScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("暂无配置", style = MaterialTheme.typography.titleLarge)
-                Spacer(modifier = Modifier.padding(Spacing.s))
-                Text("点击右下角 + 添加配置", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("暂无 AI 配置", style = MaterialTheme.typography.titleLarge)
+                Spacer(modifier = Modifier.height(Spacing.s))
+                Text(
+                    "点击右下角 + 添加模型配置",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         } else {
             LazyColumn(
@@ -96,7 +106,16 @@ fun AiConfigScreen(
                 contentPadding = PaddingValues(Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.s),
             ) {
+                item {
+                    Text(
+                        "${state.configs.size} 个配置",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = Spacing.xs),
+                    )
+                }
                 items(state.configs, key = { it.id }) { config ->
+                    val isDefault = config.is_default == 1L
                     Card(
                         onClick = {
                             if (onEditConfig != null) {
@@ -107,32 +126,59 @@ fun AiConfigScreen(
                             }
                         },
                         shape = RoundedCornerShape(Radius.m),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDefault)
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                            else
+                                MaterialTheme.colorScheme.surface,
+                        ),
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier.fillMaxWidth().padding(Spacing.m),
-                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(config.name, style = MaterialTheme.typography.titleSmall)
-                                    if (config.is_default == 1L) {
-                                        Spacer(modifier = Modifier.width(Spacing.xs))
-                                        Text("默认", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                    }
-                                }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    "${config.model_name} · ${config.api_address}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    config.name,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.weight(1f),
                                     maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                if (isDefault) {
+                                    Spacer(modifier = Modifier.width(Spacing.xs))
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = "默认",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(Spacing.xs))
+                            Text(
+                                config.model_name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Spacer(modifier = Modifier.height(Spacing.xs))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    config.provider.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(modifier = Modifier.width(Spacing.s))
+                                Text(
+                                    config.api_address,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
-                            Text(
-                                config.provider.uppercase(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
                         }
                     }
                 }
