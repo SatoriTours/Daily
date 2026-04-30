@@ -15,29 +15,37 @@
 
 ## 🚨 核心约束
 
-1. **Riverpod 架构**：`@riverpod` 注解 + `freezed` 状态 + `ConsumerWidget`
-2. **代码质量**：函数 ≤50 行，缩进 ≤3 层
-3. **样式系统**：`import 'package:daily_satori/app/styles/index.dart';`
-4. **质量检查**：修改后执行 `flutter analyze`
+1. **KMP 架构**：Kotlin Multiplatform，共享模块 `shared/` + Android 模块 `app/`
+2. **代码质量**：函数 ≤50 行，缩进 ≤3 层，无重复代码
+3. **样式系统**：`import com.dailysatori.ui.theme.*`，禁止硬编码颜色/间距/字体
+4. **质量检查**：修改后执行 `./gradlew :app:compileDebugKotlin`，确保无编译错误
 
 ## 📂 项目结构
 
 \`\`\`
-lib/app/
-├── pages/       # 页面模块 (views/providers/widgets)
-├── providers/   # 全局状态 Providers
-├── services/    # 全局服务
-├── data/        # 数据层 (模型+仓储)
-├── components/  # 可复用组件
-├── styles/      # 样式系统
-└── routes/      # 路由配置 (go_router)
+shared/                     # KMP 共享模块
+├── commonMain/kotlin/
+│   ├── config/             # 配置常量
+│   ├── data/repository/    # 数据仓库
+│   └── service/            # 共享服务
+└── commonMain/sqldelight/  # 数据库 Schema
+
+app/                        # Android 应用
+└── src/main/kotlin/
+    └── com/dailysatori/
+        ├── core/di/        # 依赖注入 (Koin)
+        ├── core/navigation/# 导航
+        └── ui/
+            ├── feature/    # 功能页面模块
+            ├── component/  # 可复用组件
+            └── theme/      # 样式系统 (Color, Spacing, Typography)
 \`\`\`
 
 ## ⚠️ 禁止事项
 
-- ❌ GetX 模式 (`.obs`, `Obx`, `Get.find`)
 - ❌ 硬编码颜色/间距/字体
 - ❌ 日志输出敏感信息
+- ❌ 修改数据库 Schema 不编写迁移脚本
 
 ## ✅ 代码校验（每次修改后必须执行）
 
@@ -59,6 +67,17 @@ dart format .
 由于项目使用 freezed 管理的模型中包含非 const 类型的字段（如 ArticleModel、BookModel、DiaryModel 等），
 测试文件中无法对这些模型使用 `const` 构造函数。此限制已在 `analysis_options.yaml` 中配置忽略，
 无需手动修复此类 info 级别警告。
+
+## 🗄️ 数据库迁移规则
+
+**每次修改 `DailySatori.sq`（新增/修改表或列）时必须同步编写迁移脚本：**
+
+1. 在 `shared/src/commonMain/kotlin/com/dailysatori/config/Config.kt` 中递增 `currentSchemaVersion`
+2. 在 `shared/src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt` 中：
+   - 在 `runMigrations()` 中添加 `if (currentVersion < N) migrateV(N-1)ToV(N)()`
+   - 实现对应的私有方法，使用 `CREATE TABLE IF NOT EXISTS` 或 `ALTER TABLE ... ADD COLUMN`
+   - 每个迁移用 try/catch 包裹，通过 logger 记录，不因单条失败中断整体流程
+3. 验证迁移：重新安装 App 后不应崩溃
 
 ## 📱 Android 构建与部署（每次修改代码后自动执行）
 
