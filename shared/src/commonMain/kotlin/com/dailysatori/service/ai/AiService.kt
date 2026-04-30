@@ -19,17 +19,17 @@ data class AiSummaryResult(
     val summary: String = "",
 )
 
-private enum class ProviderType { OPENAI, ANTHROPIC }
+private enum class ProviderType { OPENAI, ANTHROPIC, GEMINI }
 
 class AiService(private val client: HttpClient) {
     private val log = Logger.withTag("AI")
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     private fun selectProvider(provider: String): ProviderType {
-        return if (provider.equals("anthropic", ignoreCase = true)) {
-            ProviderType.ANTHROPIC
-        } else {
-            ProviderType.OPENAI
+        return when {
+            provider.equals("anthropic", ignoreCase = true) -> ProviderType.ANTHROPIC
+            provider.equals("gemini", ignoreCase = true) -> ProviderType.GEMINI
+            else -> ProviderType.OPENAI
         }
     }
 
@@ -44,6 +44,7 @@ class AiService(private val client: HttpClient) {
     ): String {
         return when (selectProvider(provider)) {
             ProviderType.ANTHROPIC -> completeAnthropic(prompt, apiAddress, apiToken, modelName, systemPrompt, temperature)
+            ProviderType.GEMINI -> completeGemini(prompt, apiAddress, apiToken, modelName, systemPrompt, temperature)
             ProviderType.OPENAI -> completeOpenAI(prompt, apiAddress, apiToken, modelName, systemPrompt, temperature)
         }
     }
@@ -106,6 +107,53 @@ class AiService(private val client: HttpClient) {
         }
     }
 
+    private suspend fun completeGemini(
+        prompt: String,
+        apiAddress: String,
+        apiToken: String,
+        modelName: String,
+        systemPrompt: String?,
+        temperature: Double,
+    ): String {
+        val contents = buildJsonArray {
+            add(buildJsonObject {
+                put("role", "user")
+                put("parts", buildJsonArray {
+                    add(buildJsonObject { put("text", prompt) })
+                })
+            })
+        }
+        return try {
+            val response = client.post("$apiAddress/v1beta/models/$modelName:generateContent?key=$apiToken") {
+                contentType(ContentType.Application.Json)
+                val body = buildJsonObject {
+                    put("contents", contents)
+                    if (systemPrompt != null) {
+                        put("system_instruction", buildJsonObject {
+                            put("parts", buildJsonArray {
+                                add(buildJsonObject { put("text", systemPrompt) })
+                            })
+                        })
+                    }
+                    put("generationConfig", buildJsonObject {
+                        put("temperature", temperature)
+                    })
+                }
+                setBody(body.toString())
+            }
+            val responseJson = json.parseToJsonElement(response.bodyAsText()).jsonObject
+            responseJson["candidates"]?.jsonArray
+                ?.firstOrNull()?.jsonObject
+                ?.get("content")?.jsonObject
+                ?.get("parts")?.jsonArray
+                ?.firstOrNull()?.jsonObject
+                ?.get("text")?.jsonPrimitive?.content ?: ""
+        } catch (e: Exception) {
+            log.e(e) { "AI completion failed" }
+            ""
+        }
+    }
+
     suspend fun chatCompletion(
         messages: List<JsonObject>,
         apiAddress: String,
@@ -117,6 +165,7 @@ class AiService(private val client: HttpClient) {
     ): JsonObject? {
         return when (selectProvider(provider)) {
             ProviderType.ANTHROPIC -> chatCompletionAnthropic(messages, apiAddress, apiToken, modelName, tools, temperature)
+            ProviderType.GEMINI -> chatCompletionGemini(messages, apiAddress, apiToken, modelName, tools, temperature)
             ProviderType.OPENAI -> chatCompletionOpenAI(messages, apiAddress, apiToken, modelName, tools, temperature)
         }
     }
@@ -302,6 +351,78 @@ class AiService(private val client: HttpClient) {
             put("choices", buildJsonArray {
                 add(buildJsonObject { put("message", message) })
             })
+        }
+    }
+
+    private suspend fun chatCompletionGemini(
+        messages: List<JsonObject>,
+        apiAddress: String,
+        apiToken: String,
+        modelName: String,
+        tools: List<JsonObject>,
+        temperature: Double,
+    ): JsonObject? {
+        val systemPrompt = messages.firstOrNull {
+            it["role"]?.jsonPrimitive?.contentOrNull == "system"
+        }?.get("content")?.jsonPrimitive?.contentOrNull
+
+        val contents = messages.filter {
+            it["role"]?.jsonPrimitive?.contentOrNull != "system"
+        }.map { msg ->
+            val role = when (msg["role"]?.jsonPrimitive?.contentOrNull) {
+                "assistant" -> "model"
+                else -> "user"
+            }
+            buildJsonObject {
+                put("role", role)
+                put("parts", buildJsonArray {
+                    val content = msg["content"]?.jsonPrimitive?.contentOrNull
+                    if (!content.isNullOrBlank()) {
+                        add(buildJsonObject { put("text", content) })
+                    }
+                })
+            }
+        }
+
+        return try {
+            val response = client.post("$apiAddress/v1beta/models/$modelName:generateContent?key=$apiToken") {
+                contentType(ContentType.Application.Json)
+                val body = buildJsonObject {
+                    put("contents", JsonArray(contents))
+                    if (systemPrompt != null) {
+                        put("system_instruction", buildJsonObject {
+                            put("parts", buildJsonArray {
+                                add(buildJsonObject { put("text", systemPrompt) })
+                            })
+                        })
+                    }
+                    put("generationConfig", buildJsonObject {
+                        put("temperature", temperature)
+                    })
+                }
+                setBody(body.toString())
+            }
+            val responseJson = json.parseToJsonElement(response.bodyAsText()).jsonObject
+            val text = responseJson["candidates"]?.jsonArray
+                ?.firstOrNull()?.jsonObject
+                ?.get("content")?.jsonObject
+                ?.get("parts")?.jsonArray
+                ?.firstOrNull()?.jsonObject
+                ?.get("text")?.jsonPrimitive?.content ?: ""
+
+            buildJsonObject {
+                put("choices", buildJsonArray {
+                    add(buildJsonObject {
+                        put("message", buildJsonObject {
+                            put("role", "assistant")
+                            put("content", text)
+                        })
+                    })
+                })
+            }
+        } catch (e: Exception) {
+            log.e(e) { "AI chat completion failed" }
+            null
         }
     }
 

@@ -32,6 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.dailysatori.config.AiModelPreset
+import com.dailysatori.config.modelPresets
 import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
@@ -39,8 +41,6 @@ import com.dailysatori.ui.theme.Spacing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.mp.KoinPlatform
-
-private val providers = listOf("openai" to "OpenAI", "anthropic" to "Anthropic")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +51,8 @@ fun AiConfigEditScreen(
     val scope = rememberCoroutineScope()
     val repo = remember { KoinPlatform.getKoin().get<AIConfigRepository>() }
 
+    var selectedPreset by remember { mutableStateOf<AiModelPreset?>(null) }
+    var presetExpanded by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var provider by remember { mutableStateOf("openai") }
     var apiAddress by remember { mutableStateOf("") }
@@ -58,7 +60,6 @@ fun AiConfigEditScreen(
     var modelName by remember { mutableStateOf("") }
     var isDefault by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
-    var providerExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(configId) {
         if (configId != null) {
@@ -70,6 +71,9 @@ fun AiConfigEditScreen(
                 apiToken = config.api_token
                 modelName = config.model_name
                 isDefault = config.is_default == 1L
+                selectedPreset = modelPresets.find {
+                    it.provider == config.provider && it.modelName == config.model_name
+                }
             }
         }
     }
@@ -89,10 +93,13 @@ fun AiConfigEditScreen(
                             scope.launch(Dispatchers.IO) {
                                 isSaving = true
                                 try {
+                                    val finalName = name.ifBlank {
+                                        selectedPreset?.displayName ?: "$provider / $modelName"
+                                    }
                                     if (configId != null) {
-                                        repo.update(configId, name, provider, apiAddress, apiToken, modelName, if (isDefault) 1L else 0L)
+                                        repo.update(configId, finalName, provider, apiAddress, apiToken, modelName, if (isDefault) 1L else 0L)
                                     } else {
-                                        repo.insert(name, provider, apiAddress, apiToken, modelName, if (isDefault) 1L else 0L)
+                                        repo.insert(finalName, provider, apiAddress, apiToken, modelName, if (isDefault) 1L else 0L)
                                     }
                                 } finally {
                                     isSaving = false
@@ -101,7 +108,7 @@ fun AiConfigEditScreen(
                             onBack()
                         },
                         modifier = Modifier.weight(1f),
-                        enabled = !isSaving && name.isNotBlank() && apiAddress.isNotBlank() && apiToken.isNotBlank() && modelName.isNotBlank(),
+                        enabled = !isSaving && apiToken.isNotBlank() && modelName.isNotBlank() && apiAddress.isNotBlank(),
                     ) { Text(if (isSaving) "保存中..." else "保存") }
                 }
             }
@@ -114,63 +121,42 @@ fun AiConfigEditScreen(
         ) {
             item {
                 Column {
-                    Text("配置名称", style = MaterialTheme.typography.labelMedium)
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(Radius.s),
-                        singleLine = true,
-                    )
-                }
-            }
-            item {
-                Column {
-                    Text("提供商", style = MaterialTheme.typography.labelMedium)
+                    Text("选择模型", style = MaterialTheme.typography.labelMedium)
                     Spacer(modifier = Modifier.height(Spacing.xs))
                     ExposedDropdownMenuBox(
-                        expanded = providerExpanded,
-                        onExpandedChange = { providerExpanded = it },
+                        expanded = presetExpanded,
+                        onExpandedChange = { presetExpanded = it },
                     ) {
                         OutlinedTextField(
-                            value = providers.find { it.first == provider }?.second ?: provider,
+                            value = selectedPreset?.displayName ?: "请选择要使用的模型",
                             onValueChange = {},
                             readOnly = true,
                             modifier = Modifier.fillMaxWidth().menuAnchor(),
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerExpanded) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = presetExpanded) },
                             shape = RoundedCornerShape(Radius.s),
                             singleLine = true,
                         )
                         ExposedDropdownMenu(
-                            expanded = providerExpanded,
-                            onDismissRequest = { providerExpanded = false },
+                            expanded = presetExpanded,
+                            onDismissRequest = { presetExpanded = false },
                         ) {
-                            providers.forEach { (key, label) ->
+                            modelPresets.forEach { preset ->
                                 DropdownMenuItem(
-                                    text = { Text(label) },
+                                    text = { Text(preset.displayName) },
                                     onClick = {
-                                        provider = key
-                                        providerExpanded = false
+                                        selectedPreset = preset
+                                        provider = preset.provider
+                                        apiAddress = preset.apiAddress
+                                        modelName = preset.modelName
+                                        if (name.isBlank()) {
+                                            name = preset.displayName
+                                        }
+                                        presetExpanded = false
                                     },
                                 )
                             }
                         }
                     }
-                }
-            }
-            item {
-                Column {
-                    Text("API 地址", style = MaterialTheme.typography.labelMedium)
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    OutlinedTextField(
-                        value = apiAddress,
-                        onValueChange = { apiAddress = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("https://api.openai.com") },
-                        shape = RoundedCornerShape(Radius.s),
-                        singleLine = true,
-                    )
                 }
             }
             item {
@@ -188,13 +174,40 @@ fun AiConfigEditScreen(
             }
             item {
                 Column {
+                    Text("API 地址", style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    OutlinedTextField(
+                        value = apiAddress,
+                        onValueChange = { apiAddress = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radius.s),
+                        singleLine = true,
+                        enabled = selectedPreset == null || selectedPreset?.id == "custom" || selectedPreset?.id == "ollama-custom",
+                    )
+                }
+            }
+            item {
+                Column {
                     Text("模型名称", style = MaterialTheme.typography.labelMedium)
                     Spacer(modifier = Modifier.height(Spacing.xs))
                     OutlinedTextField(
                         value = modelName,
                         onValueChange = { modelName = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("gpt-4o-mini") },
+                        shape = RoundedCornerShape(Radius.s),
+                        singleLine = true,
+                        enabled = selectedPreset == null || selectedPreset?.id == "custom" || selectedPreset?.id == "ollama-custom",
+                    )
+                }
+            }
+            item {
+                Column {
+                    Text("配置名称", style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(Radius.s),
                         singleLine = true,
                     )
