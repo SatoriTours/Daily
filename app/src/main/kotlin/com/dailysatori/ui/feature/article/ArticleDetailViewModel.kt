@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.TagRepository
+import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Tag
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +25,7 @@ class ArticleDetailViewModel(
     private val articleId: Long,
     private val articleRepo: ArticleRepository,
     private val tagRepo: TagRepository,
+    private val memoryExtractService: MemoryExtractService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ArticleDetailState())
     val state: StateFlow<ArticleDetailState> = _state.asStateFlow()
@@ -53,6 +55,17 @@ class ArticleDetailViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             articleRepo.toggleFavorite(articleId)
             loadArticle()
+            val article = articleRepo.getById(articleId)
+            if (article != null && article.is_favorite == 1L) {
+                val text = article.ai_markdown_content ?: article.content ?: ""
+                val title = article.ai_title ?: article.title ?: "未命名"
+                memoryExtractService.extractAndSave(
+                    sourceType = "article",
+                    sourceId = articleId,
+                    title = title,
+                    content = text,
+                )
+            }
         }
     }
 

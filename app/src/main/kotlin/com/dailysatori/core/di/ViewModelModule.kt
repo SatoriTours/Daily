@@ -14,6 +14,7 @@ import com.dailysatori.core.service.AppUpgradeService
 import com.dailysatori.core.service.WebServerService
 import com.dailysatori.service.backup.BackupService
 import com.dailysatori.service.mcp.McpAgentService
+import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.service.plugin.PluginService
 import com.dailysatori.service.setting.SettingService
 import com.dailysatori.service.weekly.WeeklySummaryService
@@ -46,11 +47,13 @@ val viewModelModule: Module = module {
             articleId = params.get<Long>(),
             articleRepo = get<ArticleRepository>(),
             tagRepo = get<TagRepository>(),
+            memoryExtractService = get<MemoryExtractService>(),
         )
     }
     viewModel {
         DiaryViewModel(
             diaryRepo = get<DiaryRepository>(),
+            memoryExtractService = get<MemoryExtractService>(),
         )
     }
     viewModel {

@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.diary
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.data.repository.DiaryRepository
+import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.shared.db.Diary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -25,6 +26,7 @@ data class DiaryState(
 
 class DiaryViewModel(
     private val diaryRepo: DiaryRepository,
+    private val memoryExtractService: MemoryExtractService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(DiaryState())
     val state: StateFlow<DiaryState> = _state.asStateFlow()
@@ -105,6 +107,14 @@ class DiaryViewModel(
                     diaryRepo.update(existingId, content, tags, mood, images)
                 } else {
                     diaryRepo.insert(content, tags, mood, images)
+                }
+                if (content.isNotBlank()) {
+                    memoryExtractService.extractAndSave(
+                        sourceType = "diary",
+                        sourceId = existingId ?: 0L,
+                        title = "日记",
+                        content = content,
+                    )
                 }
                 refreshAvailableTags()
             } catch (e: Exception) {
