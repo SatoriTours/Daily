@@ -21,7 +21,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -48,17 +47,8 @@ fun DiaryScreen() {
     var editingDiary by remember { mutableStateOf<Diary?>(null) }
     var showDeleteDialog by remember { mutableStateOf<Diary?>(null) }
 
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { editingDiary = null; showEditor = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "新建日记")
-            }
-        },
-    ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
             AppTopBar(
                 title = "我的日记",
                 showBack = false,
@@ -124,18 +114,29 @@ fun DiaryScreen() {
                 }
             }
         }
+
+        FloatingActionButton(
+            onClick = { editingDiary = null; showEditor = true },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(Spacing.m),
+            containerColor = MaterialTheme.colorScheme.primary,
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "新建日记")
+        }
     }
 
     if (showEditor) {
         DiaryEditorSheet(
             existingDiary = editingDiary,
             onDismiss = { showEditor = false; editingDiary = null },
-            onSave = { content, tags, mood ->
-                if (editingDiary != null) {
-                    viewModel.saveDiary(existingId = editingDiary!!.id, content = content, tags = tags, mood = mood)
-                } else {
-                    viewModel.saveDiary(content = content, tags = tags, mood = mood)
-                }
+            onSave = { content, tags, mood, images ->
+                val existingId = editingDiary?.id
+                viewModel.saveDiary(
+                    existingId = existingId,
+                    content = content,
+                    tags = tags,
+                    mood = mood,
+                    images = images,
+                )
                 showEditor = false
                 editingDiary = null
             },

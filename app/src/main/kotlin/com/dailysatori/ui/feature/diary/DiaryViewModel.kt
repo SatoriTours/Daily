@@ -86,15 +86,16 @@ class DiaryViewModel(
         content: String,
         tags: String? = null,
         mood: String? = null,
+        images: String? = null,
         existingId: Long? = null,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isSaving = true, error = null) }
             try {
                 if (existingId != null) {
-                    diaryRepo.update(existingId, content, tags, mood, null)
+                    diaryRepo.update(existingId, content, tags, mood, images)
                 } else {
-                    diaryRepo.insert(content, tags, mood)
+                    diaryRepo.insert(content, tags, mood, images)
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message) }
