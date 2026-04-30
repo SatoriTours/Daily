@@ -50,6 +50,31 @@ import java.io.File
 private const val CONTENT_PREVIEW_LINES = 12
 private const val CONTENT_LONG_THRESHOLD = 300
 
+private fun stripInlineTags(content: String): String {
+    val lines = content.lines().toMutableList()
+    var i = lines.lastIndex
+    while (i >= 0) {
+        val line = lines[i].trim()
+        if (line.isEmpty()) {
+            lines.removeAt(i)
+            i--
+            continue
+        }
+        if (line.all { it == '#' }) break
+        val parts = line.split("\\s+".toRegex()).filter { it.isNotBlank() }
+        if (parts.all { it.startsWith("#") }) {
+            lines.removeAt(i)
+            i--
+        } else {
+            break
+        }
+    }
+    while (lines.isNotEmpty() && lines.last().isBlank()) {
+        lines.removeAt(lines.lastIndex)
+    }
+    return lines.joinToString("\n")
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DiaryCard(
@@ -71,7 +96,7 @@ fun DiaryCard(
         ?.filter { it.isNotBlank() && it != "null" }
         ?: emptyList()
 
-    val contentText = diary.content
+    val contentText = stripInlineTags(diary.content)
     val isLongContent = contentText.length > CONTENT_LONG_THRESHOLD
     var expanded by remember { mutableStateOf(false) }
 

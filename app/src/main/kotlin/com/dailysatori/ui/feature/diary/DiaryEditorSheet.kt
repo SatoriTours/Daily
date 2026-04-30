@@ -9,6 +9,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -85,7 +87,10 @@ fun DiaryEditorSheet(
     onSave: (content: String, tags: String?, mood: String?, images: String?) -> Unit,
     existingDiary: Diary? = null,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { false },
+    )
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -101,7 +106,7 @@ fun DiaryEditorSheet(
         val existingImages = existingDiary?.images
             ?.split(",")
             ?.map { it.trim() }
-            ?.filter { it.isNotBlank() }
+            ?.filter { it.isNotBlank() && it != "null" }
             ?: emptyList()
         mutableStateListOf<String>().apply { addAll(existingImages) }
     }
@@ -264,7 +269,7 @@ fun DiaryEditorSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.85f)
+                .fillMaxHeight(0.92f)
                 .padding(horizontal = Spacing.m, vertical = Spacing.s),
         ) {
             Box(

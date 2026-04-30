@@ -49,7 +49,6 @@ val viewModelModule: Module = module {
     viewModel {
         DiaryViewModel(
             diaryRepo = get<DiaryRepository>(),
-            tagRepo = get<TagRepository>(),
         )
     }
     viewModel {
