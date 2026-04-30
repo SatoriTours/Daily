@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.aiconfig
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,9 +24,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -34,17 +37,43 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun AiConfigScreen(
     onBack: () -> Unit = {},
-    onEditConfig: (Long?) -> Unit = {},
+    onEditConfig: ((Long?) -> Unit)? = null,
 ) {
     val viewModel: AiConfigViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
+
+    var isEditing by remember { mutableStateOf(false) }
+    var editingConfigId by remember { mutableStateOf<Long?>(null) }
+
+    BackHandler(enabled = isEditing) {
+        isEditing = false
+        viewModel.loadConfigs()
+    }
+
+    if (isEditing) {
+        AiConfigEditScreen(
+            configId = editingConfigId,
+            onBack = {
+                isEditing = false
+                viewModel.loadConfigs()
+            },
+        )
+        return
+    }
 
     AppScaffold(
         title = "AI 配置",
         onBack = onBack,
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { onEditConfig(null) },
+                onClick = {
+                    if (onEditConfig != null) {
+                        onEditConfig(null)
+                    } else {
+                        isEditing = true
+                        editingConfigId = null
+                    }
+                },
                 containerColor = MaterialTheme.colorScheme.primary,
             ) {
                 Icon(Icons.Default.Add, contentDescription = "添加配置")
@@ -69,10 +98,16 @@ fun AiConfigScreen(
             ) {
                 items(state.configs, key = { it.id }) { config ->
                     Card(
-                        onClick = { onEditConfig(config.id) },
+                        onClick = {
+                            if (onEditConfig != null) {
+                                onEditConfig(config.id)
+                            } else {
+                                isEditing = true
+                                editingConfigId = config.id
+                            }
+                        },
                         shape = RoundedCornerShape(Radius.m),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(Spacing.m),

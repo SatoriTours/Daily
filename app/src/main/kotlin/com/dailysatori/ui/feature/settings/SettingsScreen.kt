@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,7 +28,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -65,8 +65,10 @@ fun SettingsScreen() {
 
     var currentPage by remember { mutableStateOf(SettingsPage.MAIN) }
     var showAboutDialog by remember { mutableStateOf(false) }
-    var showGoogleApiDialog by remember { mutableStateOf(false) }
-    var googleApiKey by remember { mutableStateOf(state.googleBooksApiKey) }
+
+    BackHandler(enabled = currentPage != SettingsPage.MAIN) {
+        currentPage = SettingsPage.MAIN
+    }
 
     when (currentPage) {
         SettingsPage.MAIN -> {
@@ -76,30 +78,6 @@ fun SettingsScreen() {
                     title = { Text("Daily Satori") },
                     text = { Text("v${state.currentVersion}\n个人知识管理与 AI 阅读助手\n基于 KMP + Compose Multiplatform") },
                     confirmButton = { TextButton(onClick = { showAboutDialog = false }) { Text("确定") } },
-                )
-            }
-            if (showGoogleApiDialog) {
-                AlertDialog(
-                    onDismissRequest = { showGoogleApiDialog = false },
-                    title = { Text("Google Books API Key") },
-                    text = {
-                        OutlinedTextField(
-                            value = googleApiKey,
-                            onValueChange = { googleApiKey = it },
-                            label = { Text("API Key") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            viewModel.saveGoogleBooksApiKey(googleApiKey)
-                            showGoogleApiDialog = false
-                        }) { Text("保存") }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showGoogleApiDialog = false }) { Text("取消") }
-                    },
                 )
             }
             Column(modifier = Modifier.fillMaxSize()) {
@@ -129,10 +107,6 @@ fun SettingsScreen() {
                         SettingItem("AI 配置", "管理 AI 模型配置", Icons.Default.Star, onClick = { currentPage = SettingsPage.AI_CONFIG })
                         SettingItem("MCP 服务", "管理外部 MCP 工具服务", Icons.Default.Hub, onClick = { currentPage = SettingsPage.MCP_SERVER })
                         SettingItem("插件中心", "管理 AI 提示词插件", Icons.Default.Settings, onClick = { currentPage = SettingsPage.PLUGIN_CENTER })
-                        SettingItem("Google Books API", "配置图书搜索密钥", Icons.Default.Share, onClick = {
-                            googleApiKey = state.googleBooksApiKey
-                            showGoogleApiDialog = true
-                        })
                     }
 
                     Text("系统", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)

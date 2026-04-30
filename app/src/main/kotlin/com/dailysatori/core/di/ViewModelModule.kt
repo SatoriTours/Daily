@@ -111,7 +111,6 @@ val viewModelModule: Module = module {
     }
     viewModel {
         SettingsViewModel(
-            settingService = get<SettingService>(),
             webServerService = get<WebServerService>(),
             appUpgradeService = get<AppUpgradeService>(),
         )
