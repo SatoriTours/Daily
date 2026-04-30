@@ -5,6 +5,7 @@ import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.data.repository.DiaryRepository
+import com.dailysatori.data.repository.MemoryRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.book.BookSearchResult
@@ -33,6 +34,7 @@ class McpAgentService(
     private val diaryRepo: DiaryRepository,
     private val bookRepo: BookRepository,
     private val viewpointRepo: BookViewpointRepository,
+    private val memoryRepo: MemoryRepository,
 ) {
     private val log = Logger.withTag("MCPAgent")
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -77,6 +79,18 @@ class McpAgentService(
                 put("role", "system")
                 put("content", buildSystemPrompt())
             })
+
+            val relevantMemories = memoryRepo.search(query, limit = 5)
+            if (relevantMemories.isNotEmpty()) {
+                val memoryContext = relevantMemories.joinToString("\n") { entry ->
+                    "- [${entry.type}] ${entry.title}: ${entry.content.take(300)}"
+                }
+                messages.add(buildJsonObject {
+                    put("role", "system")
+                    put("content", "相关记忆（供参考，优先使用记忆中的信息）:\n$memoryContext")
+                })
+            }
+
             messages.add(buildJsonObject {
                 put("role", "user")
                 put("content", query)
@@ -205,15 +219,18 @@ class McpAgentService(
 - **日记**: 用户的个人日记记录
 - **文章**: 用户收藏的网页文章
 - **书籍**: 用户添加的书籍和读书笔记
+- **记忆**: 用户的记忆库，包含核心偏好、内容摘要和对话关键信息
 
 ## 核心规则
 
 **你只能基于用户的个人数据来回答问题，不要使用你的通用知识来回答。**
+同时优先在记忆库中搜索相关信息。记忆库包含你的核心偏好、所有内容的AI摘要和之前对话的关键信息。
 
 当用户提问时，你必须：
 1. **首先使用搜索工具**查找用户数据中的相关内容
-2. **基于搜索结果**来生成回答
-3. 如果没有找到相关内容，告知用户"在您的数据中没有找到相关信息"
+2. **优先使用 search_memory 工具**在记忆库中搜索
+3. **基于搜索结果**来生成回答
+4. 如果没有找到相关内容，告知用户"在您的数据中没有找到相关信息"
 
 **禁止行为**：
 - 不要直接用你的知识回答问题
@@ -244,6 +261,10 @@ class McpAgentService(
 
 ### 综合
 - `get_statistics`: 获取应用数据统计
+
+### 记忆相关
+- `search_memory`: 搜索你的记忆库（包含核心偏好、内容摘要、对话记忆）。可用于查找你的偏好、过去的内容要点等
+- `get_memory_source`: 获取指定来源的完整记忆内容，可按 source_type (article/diary/book/book_viewpoint/chat) 和 source_id 查询
 
 ## 日期处理规则
 - "今天" → "$today"
@@ -307,6 +328,15 @@ class McpAgentService(
         ), listOf("book_id")),
         buildTool("get_book_count", "获取书籍的总数量"),
         buildTool("get_statistics", "获取应用的综合统计信息"),
+        buildTool("search_memory", "搜索记忆库中的内容。记忆分为三种类型：core(核心偏好/事实)、content(从日记/文章/书中提取的摘要)、chat(对话中提取的关键信息)", mapOf(
+            "query" to buildParam("string", "搜索关键词"),
+            "type" to buildParam("string", "记忆类型过滤: core, content, chat，不传则搜索全部"),
+            "limit" to buildParam("integer", "返回的最大数量，默认为10"),
+        ), listOf("query")),
+        buildTool("get_memory_source", "获取指定来源的记忆内容", mapOf(
+            "source_type" to buildParam("string", "来源类型: article, diary, book, book_viewpoint, chat"),
+            "source_id" to buildParam("integer", "来源ID"),
+        ), listOf("source_type", "source_id")),
     )
 
     private fun buildTool(
@@ -356,6 +386,8 @@ class McpAgentService(
                 "get_book_viewpoints" -> getBookViewpoints(args)
                 "get_book_count" -> getBookCount()
                 "get_statistics" -> getStatistics()
+                "search_memory" -> searchMemory(args)
+                "get_memory_source" -> getMemorySource(args)
                 else -> errorResult("未知工具: $toolName")
             }
         } catch (e: Exception) {
@@ -501,6 +533,53 @@ class McpAgentService(
             put("books", bookRepo.count())
         },
     )
+
+    private fun searchMemory(args: JsonObject): McpToolResult {
+        val query = stringParam(args, "query") ?: return errorResult("缺少query参数")
+        val type = stringParam(args, "type")
+        val limit = intParam(args, "limit", 10)
+
+        val results = if (type != null) {
+            memoryRepo.search(query, limit.toLong()).filter { it.type == type }
+        } else {
+            memoryRepo.search(query, limit.toLong())
+        }
+
+        if (results.isEmpty()) {
+            return successResult("message" to JsonPrimitive("未找到相关记忆"))
+        }
+
+        return successResult(
+            "results" to JsonArray(results.take(limit).map { entry ->
+                buildJsonObject {
+                    put("id", entry.id)
+                    put("type", entry.type)
+                    put("source_type", entry.source_type ?: "")
+                    put("title", entry.title)
+                    put("content", entry.content.take(500))
+                    put("tags", entry.tags ?: "")
+                }
+            }),
+        )
+    }
+
+    private fun getMemorySource(args: JsonObject): McpToolResult {
+        val sourceType = stringParam(args, "source_type") ?: return errorResult("缺少source_type参数")
+        val sourceId = longParam(args, "source_id") ?: return errorResult("缺少source_id参数")
+
+        val entry = memoryRepo.getBySource(sourceType, sourceId)
+        if (entry == null) {
+            return successResult("message" to JsonPrimitive("未找到相关记忆"))
+        }
+
+        return successResult("memory" to buildJsonObject {
+            put("id", entry.id)
+            put("type", entry.type)
+            put("title", entry.title)
+            put("content", entry.content)
+            put("tags", entry.tags ?: "")
+        })
+    }
 
     private fun extractSearchResults(toolName: String, result: McpToolResult): List<McpSearchResult> {
         if (!result.success || result.data == null) return emptyList()
