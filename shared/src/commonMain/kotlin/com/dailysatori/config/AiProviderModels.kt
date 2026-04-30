@@ -18,15 +18,10 @@ val aiProviders = listOf(
         name = "OpenAI",
         apiHost = "https://api.openai.com",
         models = listOf(
+            AiModel("gpt-5.5", "GPT-5.5 (旗舰)"),
             AiModel("gpt-5.4", "GPT-5.4"),
-            AiModel("gpt-5.4-pro", "GPT-5.4 Pro"),
-            AiModel("gpt-5.2", "GPT-5.2"),
-            AiModel("gpt-5.2-pro", "GPT-5.2 Pro"),
-            AiModel("gpt-5.1", "GPT-5.1"),
-            AiModel("gpt-5", "GPT-5"),
-            AiModel("gpt-5-pro", "GPT-5 Pro"),
-            AiModel("gpt-5-chat", "GPT-5 Chat"),
-            AiModel("gpt-image-1", "GPT Image 1"),
+            AiModel("gpt-5.4-mini", "GPT-5.4 Mini"),
+            AiModel("gpt-5.4-nano", "GPT-5.4 Nano"),
         ),
     ),
     AiProvider(
@@ -34,11 +29,9 @@ val aiProviders = listOf(
         name = "Anthropic",
         apiHost = "https://api.anthropic.com",
         models = listOf(
-            AiModel("claude-opus-4-6-20251101", "Claude Opus 4.6"),
-            AiModel("claude-sonnet-4-6-20251101", "Claude Sonnet 4.6"),
-            AiModel("claude-sonnet-4-5-20250929", "Claude Sonnet 4.5"),
-            AiModel("claude-haiku-4-5-20251001", "Claude Haiku 4.5"),
-            AiModel("claude-opus-4-5-20251101", "Claude Opus 4.5"),
+            AiModel("claude-opus-4-7", "Claude Opus 4.7 (旗舰)"),
+            AiModel("claude-sonnet-4-6", "Claude Sonnet 4.6"),
+            AiModel("claude-haiku-4-5", "Claude Haiku 4.5"),
         ),
     ),
     AiProvider(
@@ -47,11 +40,9 @@ val aiProviders = listOf(
         apiHost = "https://generativelanguage.googleapis.com",
         models = listOf(
             AiModel("gemini-3.1-pro-preview", "Gemini 3.1 Pro Preview"),
-            AiModel("gemini-3-pro-preview", "Gemini 3 Pro Preview"),
             AiModel("gemini-3-flash-preview", "Gemini 3 Flash Preview"),
             AiModel("gemini-2.5-pro", "Gemini 2.5 Pro"),
             AiModel("gemini-2.5-flash", "Gemini 2.5 Flash"),
-            AiModel("gemini-2.5-flash-image-preview", "Gemini 2.5 Flash Image"),
         ),
     ),
     AiProvider(
@@ -59,8 +50,9 @@ val aiProviders = listOf(
         name = "DeepSeek",
         apiHost = "https://api.deepseek.com",
         models = listOf(
-            AiModel("deepseek-chat", "DeepSeek Chat (V3)"),
-            AiModel("deepseek-reasoner", "DeepSeek Reasoner (R1)"),
+            AiModel("deepseek-v4-flash", "DeepSeek V4 Flash"),
+            AiModel("deepseek-v4-pro", "DeepSeek V4 Pro"),
+            AiModel("deepseek-chat", "DeepSeek V3 (向下兼容)"),
         ),
     ),
     AiProvider(
@@ -68,10 +60,10 @@ val aiProviders = listOf(
         name = "xAI Grok",
         apiHost = "https://api.x.ai",
         models = listOf(
-            AiModel("grok-4", "Grok 4"),
-            AiModel("grok-4-fast", "Grok 4 Fast"),
-            AiModel("grok-3", "Grok 3"),
-            AiModel("grok-3-fast", "Grok 3 Fast"),
+            AiModel("grok-4.20-0309-reasoning", "Grok 4.20 (推理)"),
+            AiModel("grok-4.20-0309-non-reasoning", "Grok 4.20 (快速)"),
+            AiModel("grok-4-1-fast-reasoning", "Grok 4.1 Fast (推理)"),
+            AiModel("grok-4-1-fast-non-reasoning", "Grok 4.1 Fast (快速)"),
         ),
     ),
     AiProvider(
@@ -79,12 +71,10 @@ val aiProviders = listOf(
         name = "Mistral",
         apiHost = "https://api.mistral.ai",
         models = listOf(
-            AiModel("mistral-large-latest", "Mistral Large"),
-            AiModel("mistral-small-latest", "Mistral Small"),
-            AiModel("pixtral-large-latest", "Pixtral Large"),
-            AiModel("codestral-latest", "Codestral"),
-            AiModel("ministral-8b-latest", "Ministral 8B"),
-            AiModel("ministral-3b-latest", "Ministral 3B"),
+            AiModel("mistral-small-2506", "Mistral Small 3.2"),
+            AiModel("magistral-medium-2507", "Magistral Medium 1.1"),
+            AiModel("codestral-2501", "Codestral"),
+            AiModel("mistral-large-2411", "Mistral Large 2.1"),
         ),
     ),
     AiProvider(
@@ -92,11 +82,9 @@ val aiProviders = listOf(
         name = "ZhipuAI (GLM)",
         apiHost = "https://open.bigmodel.cn/api/paas/v4",
         models = listOf(
-            AiModel("glm-5", "GLM-5"),
-            AiModel("glm-4.7", "GLM-4.7"),
-            AiModel("glm-4.6", "GLM-4.6"),
-            AiModel("glm-4.6v", "GLM-4.6V"),
-            AiModel("glm-4.6v-flash", "GLM-4.6V Flash"),
+            AiModel("GLM-5.1", "GLM-5.1 (旗舰)"),
+            AiModel("GLM-5", "GLM-5"),
+            AiModel("GLM-4.7", "GLM-4.7"),
         ),
     ),
     AiProvider(
@@ -104,7 +92,7 @@ val aiProviders = listOf(
         name = "Moonshot (Kimi)",
         apiHost = "https://api.moonshot.cn",
         models = listOf(
-            AiModel("kimi-k2.5", "Kimi K2.5"),
+            AiModel("kimi-k2.5", "Kimi K2.5 (旗舰)"),
             AiModel("kimi-k2-0905-preview", "Kimi K2 Preview"),
             AiModel("kimi-k2-thinking", "Kimi K2 Thinking"),
         ),
@@ -114,9 +102,9 @@ val aiProviders = listOf(
         name = "Bailian 百炼 (Qwen)",
         apiHost = "https://dashscope.aliyuncs.com/compatible-mode/v1",
         models = listOf(
+            AiModel("qwen3.6-plus", "Qwen3.6 Plus"),
             AiModel("qwen3.5-plus", "Qwen3.5 Plus"),
-            AiModel("qwen3.5-flash", "Qwen3.5 Flash"),
-            AiModel("qwen3-max", "Qwen3 Max"),
+            AiModel("qwen3-flash", "Qwen3 Flash"),
         ),
     ),
     AiProvider(
@@ -126,7 +114,7 @@ val aiProviders = listOf(
         models = listOf(
             AiModel("doubao-seed-2-0-pro-260215", "Seed 2.0 Pro"),
             AiModel("doubao-seed-2-0-lite-260215", "Seed 2.0 Lite"),
-            AiModel("doubao-seed-2-0-code-preview-260215", "Seed 2.0 Code"),
+            AiModel("doubao-seed-1-8-251228", "Seed 1.8"),
         ),
     ),
     AiProvider(
@@ -144,7 +132,7 @@ val aiProviders = listOf(
         name = "StepFun",
         apiHost = "https://api.stepfun.com",
         models = listOf(
-            AiModel("step-1-8k", "Step 1 (8K)"),
+            AiModel("step-3.5-flash", "Step 3.5 Flash"),
             AiModel("step-1-flash", "Step 1 Flash"),
         ),
     ),
@@ -155,7 +143,6 @@ val aiProviders = listOf(
         models = listOf(
             AiModel("llama3-70b-8192", "LLaMA3 70B"),
             AiModel("llama3-8b-8192", "LLaMA3 8B"),
-            AiModel("mistral-saba-24b", "Mistral Saba 24B"),
         ),
     ),
     AiProvider(
@@ -173,7 +160,7 @@ val aiProviders = listOf(
         models = listOf(
             AiModel("google/gemini-2.5-flash-preview", "Gemini 2.5 Flash"),
             AiModel("deepseek/deepseek-chat", "DeepSeek V3"),
-            AiModel("qwen/qwen-2.5-7b-instruct:free", "Qwen 2.5 7B (Free)"),
+            AiModel("qwen/qwen-2.5-7b-instruct:free", "Qwen 2.5 7B (免费)"),
         ),
     ),
     AiProvider(
