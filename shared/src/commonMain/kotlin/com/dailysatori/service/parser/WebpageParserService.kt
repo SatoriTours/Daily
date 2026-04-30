@@ -9,7 +9,6 @@ import com.dailysatori.data.repository.TagRepository
 import com.dailysatori.platform.FileManager
 import com.dailysatori.platform.WebViewLoader
 import com.dailysatori.service.ai.AiConfigService
-import com.dailysatori.service.ai.AIFunctionType
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.shared.db.Article
 import io.ktor.client.HttpClient
@@ -152,17 +151,18 @@ class WebpageParserService(
         _processingStates.value = state
 
         try {
-            val apiAddress = aiConfigService.getApiAddress(AIFunctionType.ARTICLE)
-            val apiToken = aiConfigService.getApiToken(AIFunctionType.ARTICLE)
-            val modelName = aiConfigService.getModelName(AIFunctionType.ARTICLE)
-
-            if (apiAddress.isEmpty() || apiToken.isEmpty()) {
+            val config = aiConfigService.getDefaultConfig()
+            if (config == null || config.api_address.isBlank() || config.api_token.isBlank()) {
                 log.w { "AI config not set, skipping AI processing" }
                 val completedState = mutableMapOf<Long, ArticleProcessingState>()
                 completedState[articleId] = ArticleProcessingState(articleId, "completed")
                 _processingStates.value = completedState
                 return
             }
+            val apiAddress = config.api_address.trimEnd('/')
+            val apiToken = config.api_token
+            val modelName = config.model_name
+            val provider = config.provider
 
             val originalTitle = article.title ?: ""
             var aiTitle = ""
@@ -175,13 +175,13 @@ class WebpageParserService(
                         val translated = aiService.translate(
                             originalTitle.trim(),
                             "Translate the following text to Chinese. Only return the translation, nothing else.",
-                            apiAddress, apiToken, modelName,
+                            apiAddress, apiToken, modelName, provider,
                         )
                         if (translated.length >= AIConfig.longTitleThreshold) {
-                            aiService.summarize(translated, "Summarize the following text in one short line in Chinese.", apiAddress, apiToken, modelName)
+                            aiService.summarize(translated, "Summarize the following text in one short line in Chinese.", apiAddress, apiToken, modelName, provider)
                         } else translated
                     } else if (originalTitle.length >= AIConfig.longTitleThreshold) {
-                        aiService.summarize(originalTitle.trim(), "Summarize the following text in one short line in Chinese.", apiAddress, apiToken, modelName)
+                        aiService.summarize(originalTitle.trim(), "Summarize the following text in one short line in Chinese.", apiAddress, apiToken, modelName, provider)
                     } else originalTitle.trim()
                 } catch (e: Exception) {
                     log.e(e) { "Title generation failed" }
@@ -205,7 +205,7 @@ class WebpageParserService(
                     "- 然后一个 ### 核心观点 小节\n" +
                     "- 核心观点下使用有序列表，每项格式为：N. **标签：** 一句话说明\n" +
                     "- 总字数不超过500字",
-                    apiAddress, apiToken, modelName,
+                    apiAddress, apiToken, modelName, provider,
                 )
                 aiContent = summary
             } catch (e: Exception) {
@@ -224,7 +224,7 @@ class WebpageParserService(
                     aiMarkdownContent = aiService.htmlToMarkdown(
                         htmlContent.take(AIConfig.maxProcessContentLength.toInt()),
                         "",
-                        apiAddress, apiToken, modelName,
+                        apiAddress, apiToken, modelName, provider,
                     )
                 } catch (e: Exception) {
                     log.e(e) { "Markdown conversion failed" }

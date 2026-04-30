@@ -22,6 +22,7 @@ object BackupConfig {
 
 object DatabaseConfig {
     const val name = "daily_satori.db"
+    const val currentSchemaVersion = 2L
 }
 
 object DirectoryConfig {
@@ -94,4 +95,5 @@ object SettingKeys {
     const val deviceId = "device_id"
     const val pluginServerUrl = "plugin_server_url"
     const val isFirstLaunch = "is_first_launch"
+    const val schemaVersion = "schema_version"
 }

@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
@@ -50,6 +51,7 @@ import org.koin.androidx.compose.koinViewModel
 private enum class SettingsPage {
     MAIN,
     AI_CONFIG,
+    MCP_SERVER,
     PLUGIN_CENTER,
     BACKUP_SETTINGS,
     BACKUP_RESTORE,
@@ -125,6 +127,7 @@ fun SettingsScreen() {
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     ) {
                         SettingItem("AI 配置", "管理 AI 模型配置", Icons.Default.Star, onClick = { currentPage = SettingsPage.AI_CONFIG })
+                        SettingItem("MCP 服务", "管理外部 MCP 工具服务", Icons.Default.Hub, onClick = { currentPage = SettingsPage.MCP_SERVER })
                         SettingItem("插件中心", "管理 AI 提示词插件", Icons.Default.Settings, onClick = { currentPage = SettingsPage.PLUGIN_CENTER })
                         SettingItem("Google Books API", "配置图书搜索密钥", Icons.Default.Share, onClick = {
                             googleApiKey = state.googleBooksApiKey
@@ -155,6 +158,9 @@ fun SettingsScreen() {
         }
         SettingsPage.AI_CONFIG -> {
             AiConfigScreen(onBack = { currentPage = SettingsPage.MAIN })
+        }
+        SettingsPage.MCP_SERVER -> {
+            McpServerScreen(onBack = { currentPage = SettingsPage.MAIN })
         }
         SettingsPage.PLUGIN_CENTER -> {
             PluginCenterScreen(onBack = { currentPage = SettingsPage.MAIN })

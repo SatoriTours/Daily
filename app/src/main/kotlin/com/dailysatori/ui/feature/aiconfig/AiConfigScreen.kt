@@ -26,7 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.dailysatori.ui.component.misc.FeatureIcon
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -41,14 +40,14 @@ fun AiConfigScreen(
     val state by viewModel.state.collectAsState()
 
     AppScaffold(
-        title = "AI 配置管理",
+        title = "AI 配置",
         onBack = onBack,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { onEditConfig(null) },
                 containerColor = MaterialTheme.colorScheme.primary,
             ) {
-                Icon(Icons.Default.Add, contentDescription = "新建配置")
+                Icon(Icons.Default.Add, contentDescription = "添加配置")
             }
         },
     ) { modifier ->
@@ -79,10 +78,14 @@ fun AiConfigScreen(
                             modifier = Modifier.fillMaxWidth().padding(Spacing.m),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(viewModel.getFunctionTypeIcon(config.function_type ?: 0L), style = MaterialTheme.typography.titleMedium)
-                            Spacer(modifier = Modifier.width(Spacing.m))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(config.name, style = MaterialTheme.typography.titleSmall)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(config.name, style = MaterialTheme.typography.titleSmall)
+                                    if (config.is_default == 1L) {
+                                        Spacer(modifier = Modifier.width(Spacing.xs))
+                                        Text("默认", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
                                 Text(
                                     "${config.model_name} · ${config.api_address}",
                                     style = MaterialTheme.typography.bodySmall,
@@ -90,9 +93,11 @@ fun AiConfigScreen(
                                     maxLines = 1,
                                 )
                             }
-                            if (config.is_default == 1L) {
-                                Text("默认", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                            }
+                            Text(
+                                config.provider.uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         }
                     }
                 }

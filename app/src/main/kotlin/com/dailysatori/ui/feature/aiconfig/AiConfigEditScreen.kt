@@ -12,6 +12,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -36,37 +40,42 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.mp.KoinPlatform
 
+private val providers = listOf("openai" to "OpenAI", "anthropic" to "Anthropic")
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiConfigEditScreen(
     configId: Long? = null,
-    functionType: Int = 0,
     onBack: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val repo = remember { KoinPlatform.getKoin().get<AIConfigRepository>() }
 
     var name by remember { mutableStateOf("") }
+    var provider by remember { mutableStateOf("openai") }
     var apiAddress by remember { mutableStateOf("") }
     var apiToken by remember { mutableStateOf("") }
     var modelName by remember { mutableStateOf("") }
-    var inheritFromGeneral by remember { mutableStateOf(functionType != 0) }
+    var isDefault by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
+    var providerExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(configId) {
         if (configId != null) {
             val config = repo.getById(configId)
             if (config != null) {
                 name = config.name
+                provider = config.provider
                 apiAddress = config.api_address
                 apiToken = config.api_token
                 modelName = config.model_name
-                inheritFromGeneral = config.inherit_from_general == 1L
+                isDefault = config.is_default == 1L
             }
         }
     }
 
     AppScaffold(
-        title = if (configId != null) "编辑配置" else "新建配置",
+        title = if (configId != null) "编辑配置" else "添加配置",
         onBack = onBack,
         bottomBar = {
             Surface(tonalElevation = 3.dp) {
@@ -81,9 +90,9 @@ fun AiConfigEditScreen(
                                 isSaving = true
                                 try {
                                     if (configId != null) {
-                                        repo.update(configId, name, apiAddress, apiToken, modelName, functionType.toLong(), if (inheritFromGeneral) 1L else 0L, 0L)
+                                        repo.update(configId, name, provider, apiAddress, apiToken, modelName, if (isDefault) 1L else 0L)
                                     } else {
-                                        repo.insert(name, apiAddress, apiToken, modelName, functionType.toLong(), if (inheritFromGeneral) 1L else 0L)
+                                        repo.insert(name, provider, apiAddress, apiToken, modelName, if (isDefault) 1L else 0L)
                                     }
                                 } finally {
                                     isSaving = false
@@ -92,7 +101,7 @@ fun AiConfigEditScreen(
                             onBack()
                         },
                         modifier = Modifier.weight(1f),
-                        enabled = !isSaving && (inheritFromGeneral || (apiAddress.isNotBlank() && apiToken.isNotBlank() && modelName.isNotBlank())),
+                        enabled = !isSaving && name.isNotBlank() && apiAddress.isNotBlank() && apiToken.isNotBlank() && modelName.isNotBlank(),
                     ) { Text(if (isSaving) "保存中..." else "保存") }
                 }
             }
@@ -103,70 +112,98 @@ fun AiConfigEditScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
             contentPadding = PaddingValues(vertical = Spacing.m),
         ) {
-            if (functionType == 0 || !inheritFromGeneral) {
-                item {
-                    Column {
-                        Text("配置名称", style = MaterialTheme.typography.labelMedium)
-                        Spacer(modifier = Modifier.height(Spacing.xs))
+            item {
+                Column {
+                    Text("配置名称", style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radius.s),
+                        singleLine = true,
+                    )
+                }
+            }
+            item {
+                Column {
+                    Text("提供商", style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    ExposedDropdownMenuBox(
+                        expanded = providerExpanded,
+                        onExpandedChange = { providerExpanded = it },
+                    ) {
                         OutlinedTextField(
-                            value = name,
-                            onValueChange = { name = it },
-                            modifier = Modifier.fillMaxWidth(),
+                            value = providers.find { it.first == provider }?.second ?: provider,
+                            onValueChange = {},
+                            readOnly = true,
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = providerExpanded) },
                             shape = RoundedCornerShape(Radius.s),
                             singleLine = true,
                         )
+                        ExposedDropdownMenu(
+                            expanded = providerExpanded,
+                            onDismissRequest = { providerExpanded = false },
+                        ) {
+                            providers.forEach { (key, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        provider = key
+                                        providerExpanded = false
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }
-            if (functionType != 0) {
-                item {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("使用通用配置", modifier = Modifier.weight(1f))
-                        Switch(checked = inheritFromGeneral, onCheckedChange = { inheritFromGeneral = it })
-                    }
+            item {
+                Column {
+                    Text("API 地址", style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    OutlinedTextField(
+                        value = apiAddress,
+                        onValueChange = { apiAddress = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("https://api.openai.com") },
+                        shape = RoundedCornerShape(Radius.s),
+                        singleLine = true,
+                    )
                 }
             }
-            if (!inheritFromGeneral) {
-                item {
-                    Column {
-                        Text("API 地址", style = MaterialTheme.typography.labelMedium)
-                        Spacer(modifier = Modifier.height(Spacing.xs))
-                        OutlinedTextField(
-                            value = apiAddress,
-                            onValueChange = { apiAddress = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("https://api.openai.com") },
-                            shape = RoundedCornerShape(Radius.s),
-                            singleLine = true,
-                        )
-                    }
+            item {
+                Column {
+                    Text("API Token", style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    OutlinedTextField(
+                        value = apiToken,
+                        onValueChange = { apiToken = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Radius.s),
+                        singleLine = true,
+                    )
                 }
-                item {
-                    Column {
-                        Text("API Token", style = MaterialTheme.typography.labelMedium)
-                        Spacer(modifier = Modifier.height(Spacing.xs))
-                        OutlinedTextField(
-                            value = apiToken,
-                            onValueChange = { apiToken = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(Radius.s),
-                            singleLine = true,
-                        )
-                    }
+            }
+            item {
+                Column {
+                    Text("模型名称", style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    OutlinedTextField(
+                        value = modelName,
+                        onValueChange = { modelName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("gpt-4o-mini") },
+                        shape = RoundedCornerShape(Radius.s),
+                        singleLine = true,
+                    )
                 }
-                item {
-                    Column {
-                        Text("模型名称", style = MaterialTheme.typography.labelMedium)
-                        Spacer(modifier = Modifier.height(Spacing.xs))
-                        OutlinedTextField(
-                            value = modelName,
-                            onValueChange = { modelName = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("gpt-4o-mini") },
-                            shape = RoundedCornerShape(Radius.s),
-                            singleLine = true,
-                        )
-                    }
+            }
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("设为默认", modifier = Modifier.weight(1f))
+                    Switch(checked = isDefault, onCheckedChange = { isDefault = it })
                 }
             }
         }

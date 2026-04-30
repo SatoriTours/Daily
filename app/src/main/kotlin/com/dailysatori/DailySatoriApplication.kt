@@ -7,6 +7,7 @@ import com.dailysatori.di.sharedModule
 import com.dailysatori.core.di.viewModelModule
 import com.dailysatori.core.service.I18nInitializer
 import com.dailysatori.service.i18n.I18nService
+import com.dailysatori.service.migration.DatabaseMigration
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -20,6 +21,7 @@ class DailySatoriApplication : Application() {
             androidContext(this@DailySatoriApplication)
             modules(sharedModule, platformModule, appModule, viewModelModule)
         }
+        get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
         I18nInitializer.init(this, get<I18nService>(I18nService::class.java))
     }
 }

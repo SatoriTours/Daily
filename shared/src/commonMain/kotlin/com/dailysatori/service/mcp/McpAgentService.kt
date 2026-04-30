@@ -6,8 +6,8 @@ import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.service.ai.AiConfigService
-import com.dailysatori.service.ai.AIFunctionType
 import com.dailysatori.service.ai.AiService
+import com.dailysatori.service.book.BookSearchResult
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Book
 import com.dailysatori.shared.db.Book_viewpoint
@@ -62,10 +62,10 @@ class McpAgentService(
         }
 
         return try {
-            val config = aiConfigService.getConfigForFunction(AIFunctionType.GENERAL)
+            val config = aiConfigService.getDefaultConfig()
             if (config == null || config.api_address.isBlank() || config.api_token.isBlank()) {
                 return McpAgentResult(
-                    answer = buildErrorResponse("AI 服务未配置，请先在设置中配置 OpenAI API"),
+                    answer = buildErrorResponse("AI 服务未配置，请先在设置中配置 AI 接口"),
                     searchResults = emptyList(),
                 )
             }
@@ -86,6 +86,7 @@ class McpAgentService(
             val apiUrl = config.api_address.trimEnd('/')
             val apiToken = config.api_token
             val modelName = config.model_name
+            val provider = config.provider
             var finalAnswer: String? = null
 
             for (round in 0 until MAX_TOOL_CALL_ROUNDS) {
@@ -94,6 +95,7 @@ class McpAgentService(
                     apiAddress = apiUrl,
                     apiToken = apiToken,
                     modelName = modelName,
+                    provider = provider,
                     tools = tools,
                     temperature = 0.7,
                 )
@@ -159,6 +161,7 @@ class McpAgentService(
                     apiAddress = apiUrl,
                     apiToken = apiToken,
                     modelName = modelName,
+                    provider = provider,
                     temperature = 0.7,
                 )
                 finalAnswer = response?.let {
@@ -794,5 +797,55 @@ $message
         is Book -> item.created_at
         is Book_viewpoint -> item.created_at
         else -> 0L
+    }
+
+    suspend fun searchBookOnline(query: String): List<BookSearchResult> {
+        val config = aiConfigService.getDefaultConfig()
+            ?: return emptyList()
+        if (config.api_token.isBlank()) return emptyList()
+
+        val provider = config.provider
+
+        val systemPrompt = """你是一个书籍搜索引擎。用户想了解关于"$query"的书籍信息。
+请以 JSON 数组格式返回搜索结果，每个元素包含以下字段：
+- title: 书名（字符串）
+- author: 作者（字符串）
+- introduction: 内容简介，200字以内（字符串）
+- coverUrl: 封面图片URL，如果没有则为空字符串
+
+只返回 JSON 数组，不要其他文字。示例格式：
+[{"title":"书籍名称","author":"作者名","introduction":"内容简介...","coverUrl":""}]"""
+
+        val response = aiService.complete(
+            prompt = query,
+            apiAddress = config.api_address,
+            apiToken = config.api_token,
+            modelName = config.model_name,
+            provider = provider,
+            systemPrompt = systemPrompt,
+        )
+
+        return parseBookSearchResults(response)
+    }
+
+    private fun parseBookSearchResults(response: String): List<BookSearchResult> {
+        if (response.isBlank()) return emptyList()
+        return try {
+            val cleaned = response.trim()
+                .removePrefix("```json").removePrefix("```")
+                .removeSuffix("```").trim()
+            val array = json.parseToJsonElement(cleaned).jsonArray
+            array.map { el ->
+                val obj = el.jsonObject
+                BookSearchResult(
+                    title = obj["title"]?.jsonPrimitive?.content ?: "",
+                    author = obj["author"]?.jsonPrimitive?.content ?: "",
+                    introduction = obj["introduction"]?.jsonPrimitive?.content ?: "",
+                    coverUrl = obj["coverUrl"]?.jsonPrimitive?.content ?: "",
+                )
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 }

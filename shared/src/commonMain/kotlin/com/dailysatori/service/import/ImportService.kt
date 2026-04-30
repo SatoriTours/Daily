@@ -46,6 +46,7 @@ class ImportService(
         val bookViewpoints: Int = 0,
         val weeklySummaries: Int = 0,
         val sessions: Int = 0,
+        val mcpServers: Int = 0,
         val imageFilesCopied: Int = 0,
     )
 
@@ -71,6 +72,7 @@ class ImportService(
                 bookViewpoints = importBookViewpoints(tempDir),
                 weeklySummaries = importWeeklySummaries(tempDir),
                 sessions = importSessions(tempDir),
+                mcpServers = importMcpServers(tempDir),
                 imageFilesCopied = copyImageFiles(tempDir),
             )
 
@@ -159,11 +161,10 @@ class ImportService(
             insertAndGetNewId("ai_config", oldId) {
                 db.dailySatoriQueries.insertAiConfig(
                     obj.getString("name") ?: "",
+                    obj.getString("provider") ?: "openai",
                     obj.getString("api_address") ?: "",
                     obj.getString("api_token") ?: "",
                     obj.getString("model_name") ?: "",
-                    obj.getLong("function_type") ?: 0,
-                    obj.getLong("inherit_from_general") ?: 0,
                     obj.getLong("is_default") ?: 0,
                     obj.getEpochMs("created_at") ?: nowMs(),
                     obj.getEpochMs("updated_at") ?: nowMs(),
@@ -399,6 +400,25 @@ class ImportService(
             count++
         }
         _progress.value = 0.95
+        return count
+    }
+
+    private fun importMcpServers(dir: String): Int {
+        val arr = readJsonArray(dir, "mcp_servers.json") ?: return 0
+        var count = 0
+        arr.forEach { element ->
+            val obj = element.jsonObject
+            db.dailySatoriQueries.insertMcpServer(
+                obj.getString("name") ?: "",
+                obj.getString("server_url") ?: "",
+                obj.getString("api_key") ?: "",
+                obj.getLong("enabled") ?: 1,
+                obj.getEpochMs("created_at") ?: nowMs(),
+                obj.getEpochMs("updated_at") ?: nowMs(),
+            )
+            count++
+        }
+        _progress.value = 0.92
         return count
     }
 

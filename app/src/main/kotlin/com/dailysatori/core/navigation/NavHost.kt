@@ -19,6 +19,7 @@ fun DailySatoriNavHost(navController: NavHostController) {
         composable<HomeRoute> {
             HomeScreen(
                 onArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
+                onBookSearchClick = { navController.navigate(BookSearchRoute) },
             )
         }
 
@@ -47,7 +48,6 @@ fun DailySatoriNavHost(navController: NavHostController) {
             val route = backStackEntry.toRoute<AiConfigEditRoute>()
             AiConfigEditScreen(
                 configId = route.configId,
-                functionType = route.functionType,
                 onBack = { navController.popBackStack() },
             )
         }
