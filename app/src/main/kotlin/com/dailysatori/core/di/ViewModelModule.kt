@@ -4,6 +4,7 @@ import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
+import com.dailysatori.data.repository.ChatConversationRepository
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.data.repository.TagRepository
@@ -67,6 +68,7 @@ val viewModelModule: Module = module {
     viewModel {
         AiChatViewModel(
             mcpAgentService = get<McpAgentService>(),
+            chatConversationRepo = get<ChatConversationRepository>(),
         )
     }
     viewModel {
