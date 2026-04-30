@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
@@ -102,22 +103,28 @@ fun ArticleDetailScreen(
                 Box(modifier = Modifier.padding(Spacing.m)) {
                     when (state.selectedTabIndex) {
                         0 -> {
-                            val summary = article.ai_markdown_content
-                                ?: article.ai_content
+                            val summary = article.ai_content
                                 ?: article.content
                                 ?: "暂无摘要内容"
-                            Markdown(
-                                content = summary,
-                                typography = MarkdownStyles.typography(),
-                                padding = MarkdownStyles.padding(),
-                            )
+                            SelectionContainer {
+                                Markdown(
+                                    content = summary,
+                                    typography = MarkdownStyles.typography(),
+                                    padding = MarkdownStyles.padding(),
+                                )
+                            }
                         }
                         else -> {
-                            val original = article.html_content ?: article.content ?: "暂无原文内容"
-                            Text(
-                                text = original,
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
+                            val original = article.ai_markdown_content
+                                ?: article.content
+                                ?: "暂无原文内容"
+                            SelectionContainer {
+                                Markdown(
+                                    content = original,
+                                    typography = MarkdownStyles.typography(),
+                                    padding = MarkdownStyles.padding(),
+                                )
+                            }
                         }
                     }
                 }

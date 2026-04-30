@@ -199,7 +199,12 @@ class WebpageParserService(
             try {
                 val summary = aiService.summarize(
                     content.take(AIConfig.maxProcessContentLength.toInt()),
-                    "",
+                    "请对以下文章进行摘要总结，用中文输出 Markdown 格式：\n\n" +
+                    "格式要求：\n" +
+                    "- 先写一段总体概述\n" +
+                    "- 然后一个 ### 核心观点 小节\n" +
+                    "- 核心观点下使用有序列表，每项格式为：N. **标签：** 一句话说明\n" +
+                    "- 总字数不超过500字",
                     apiAddress, apiToken, modelName,
                 )
                 aiContent = summary
