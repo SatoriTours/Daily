@@ -28,6 +28,9 @@ class DatabaseMigration(
         if (currentVersion < 2) {
             migrateV1ToV2()
         }
+        if (currentVersion < 3) {
+            migrateV2ToV3()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -78,6 +81,51 @@ class DatabaseMigration(
             log.i { "Created mcp_server table" }
         } catch (e: Exception) {
             log.w(e) { "Could not create mcp_server table" }
+        }
+    }
+
+    /**
+     * V2 -> V3: Memory system tables.
+     * - Create memory_entry table
+     * - Create chat_conversation table
+     */
+    private fun migrateV2ToV3() {
+        log.i { "Migration V2 -> V3: Memory system tables" }
+
+        try {
+            runSql("""
+                CREATE TABLE IF NOT EXISTS memory_entry (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    type TEXT NOT NULL,
+                    source_type TEXT,
+                    source_id INTEGER,
+                    title TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    tags TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                )
+            """.trimIndent())
+            log.i { "Created memory_entry table" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not create memory_entry table" }
+        }
+
+        try {
+            runSql("""
+                CREATE TABLE IF NOT EXISTS chat_conversation (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    search_results TEXT,
+                    steps TEXT,
+                    created_at INTEGER NOT NULL
+                )
+            """.trimIndent())
+            log.i { "Created chat_conversation table" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not create chat_conversation table" }
         }
     }
 
