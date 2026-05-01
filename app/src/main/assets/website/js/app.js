@@ -8,6 +8,7 @@ createApp({
         const sidebarCollapsed = ref(localStorage.getItem('ds_sidebar') === '1');
 
         const loginToken = ref('');
+        const authToken = ref(localStorage.getItem('ds_token') || '');
         const loading = ref(false);
         const loginError = ref('');
         const toasts = ref([]);
@@ -48,9 +49,13 @@ createApp({
 
         async function apiReq(endpoint, options) {
             options = options || {};
+            var headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+            if (authToken.value) {
+                headers['Authorization'] = 'Bearer ' + authToken.value;
+            }
             const res = await fetch('/api/v2' + endpoint, Object.assign({}, options, {
                 credentials: 'same-origin',
-                headers: Object.assign({ 'Content-Type': 'application/json' }, options.headers || {})
+                headers: headers
             }));
             const data = await res.json();
             if (res.status === 401) {
@@ -94,7 +99,9 @@ createApp({
                 try { data = JSON.parse(text); } catch (e) { loginError.value = text; return; }
                 if (res.ok && data.code == 0) {
                     isLoggedIn.value = true;
+                    authToken.value = loginToken.value;
                     localStorage.setItem('ds_logged_in', '1');
+                    localStorage.setItem('ds_token', loginToken.value);
                     showToast('登录成功', 'success');
                     await nextTick();
                     checkConnection();
@@ -107,7 +114,8 @@ createApp({
 
         const logout = async function() {
             try { await fetch('/api/v2/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch (e) {}
-            isLoggedIn.value = false; localStorage.removeItem('ds_logged_in'); loginToken.value = '';
+            isLoggedIn.value = false; authToken.value = '';
+            localStorage.removeItem('ds_logged_in'); localStorage.removeItem('ds_token'); loginToken.value = '';
             if (connInterval) { clearInterval(connInterval); connInterval = null; }
         };
 

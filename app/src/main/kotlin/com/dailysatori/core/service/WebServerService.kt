@@ -56,6 +56,14 @@ data class ApiResponse(
     val data: JsonObject? = null,
 )
 
+private fun parseCookie(header: String?, name: String): String? {
+    if (header == null) return null
+    return header.split(";")
+        .map { it.trim().split("=", limit = 2) }
+        .firstOrNull { it.size == 2 && it[0] == name }
+        ?.get(1)
+}
+
 class WebServerService(private val ctx: Context) {
     private val log = Logger.withTag("WebServer")
     private var server: Any? = null
@@ -80,11 +88,14 @@ class WebServerService(private val ctx: Context) {
                 val log = Logger.withTag("ApiAuth")
                 onCall { call ->
                     val path = call.request.path()
+                    val authHeader = call.request.headers["Authorization"]
+                    val cookieHeader = call.request.headers["Cookie"]
+                    log.i { "ApiAuth: path=$path, auth=${authHeader?.take(20)}, cookie=${cookieHeader?.take(30)}" }
                     if (!path.startsWith("/api/v2/")) return@onCall
                     if (path == "/api/v2/auth/login" || path == "/api/v2/auth/status") return@onCall
 
-                    val sessionId = call.request.cookies["session_id"]
-                    val token = call.request.headers["Authorization"]?.removePrefix("Bearer ")
+                    val sessionId = parseCookie(call.request.headers["Cookie"], "session_id")
+                    val token = call.request.headers["Authorization"]?.removePrefix("Bearer ") 
 
                     if (sessionId != null) {
                         try {
@@ -581,7 +592,7 @@ class WebServerService(private val ctx: Context) {
                         val sessionId = Instant.now().toEpochMilli().toString()
                         val sessionRepo = get<SessionRepository>(SessionRepository::class.java)
                         sessionRepo.insert(sessionId = sessionId, username = "admin")
-                        call.response.cookies.append("session_id", sessionId)
+                        call.response.headers.append("Set-Cookie", "session_id=$sessionId; Path=/")
                         call.respondText("""{"code":0,"msg":"ok"}""", ContentType.Application.Json)
                     } else {
                         call.respondText("""{"code":1,"msg":"Invalid token"}""", ContentType.Application.Json, HttpStatusCode.Unauthorized)
@@ -592,12 +603,12 @@ class WebServerService(private val ctx: Context) {
             }
 
             post("/logout") {
-                call.response.cookies.append("session_id", "", maxAge = 0)
+                call.response.headers.append("Set-Cookie", "session_id=; Path=/; Max-Age=0")
                 call.respondText(respondOk(), ContentType.Application.Json)
             }
 
             get("/status") {
-                val sessionId = call.request.cookies["session_id"]
+                val sessionId = parseCookie(call.request.headers["Cookie"], "session_id")
                 val token = call.request.headers["Authorization"]?.removePrefix("Bearer ")
                 val settingRepo = get<SettingRepository>(SettingRepository::class.java)
                 val storedToken = settingRepo.get("web_server_token")
