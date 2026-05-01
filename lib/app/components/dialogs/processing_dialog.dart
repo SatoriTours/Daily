@@ -1,0 +1,141 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:daily_satori/app/routes/app_navigation.dart';
+import 'package:daily_satori/app/services/logger_service.dart';
+import 'package:daily_satori/app/styles/styles.dart';
+import 'package:daily_satori/app/utils/i18n_extension.dart';
+
+/// 处理中对话框
+///
+/// 简化的处理中对话框，显示加载状态和处理消息。
+/// 适合长时间运行的操作，提供用户友好的等待界面。
+///
+/// 使用示例：
+/// ```dart
+/// final result = await ProcessingDialog.show(
+///   messageKey: 'component.ai_analyzing',
+///   onProcess: () async {
+///     return await someAsyncOperation();
+///   },
+/// );
+/// ```
+class ProcessingDialog {
+  /// 显示处理中对话框
+  ///
+  /// [message] 提示消息文本
+  /// [messageKey] 提示消息国际化key
+  /// [barrierDismissible] 是否允许点击空白处关闭对话框
+  /// [timeout] 超时时间（毫秒）
+  /// [onProcess] 处理函数
+  static Future<T?> show<T>({
+    String? message,
+    String? messageKey,
+    bool barrierDismissible = false,
+    int? timeout,
+    required Future<T> Function() onProcess,
+  }) async {
+    final context = AppNavigation.navigatorKey.currentContext;
+    final displayMessage =
+        message ?? (messageKey?.t ?? 'component.processing'.t);
+
+    // 无 context 时直接执行，不显示对话框
+    if (context == null) {
+      logger.w('[ProcessingDialog] 无法显示对话框：context 为空，将直接执行回调');
+      return onProcess();
+    }
+
+    // 关闭对话框
+    void closeDialog() {
+      if (context.mounted) AppNavigation.back();
+    }
+
+    // 显示对话框
+    showDialog(
+      context: context,
+      barrierDismissible: barrierDismissible,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (_) => _ProcessingDialogWidget(message: displayMessage),
+    );
+
+    // 超时处理
+    Timer? timeoutTimer;
+    if (timeout != null) {
+      timeoutTimer = Timer(Duration(milliseconds: timeout), closeDialog);
+    }
+
+    // 执行处理并关闭对话框
+    try {
+      final result = await onProcess();
+      closeDialog();
+      return result;
+    } catch (e) {
+      closeDialog();
+      rethrow;
+    } finally {
+      timeoutTimer?.cancel();
+    }
+  }
+
+  /// 显示简单的处理中对话框（仅显示加载指示器）
+  ///
+  /// [onProcess] 处理函数
+  /// [messageKey] 提示消息国际化key
+  static Future<T?> showSimple<T>({
+    required Future<T> Function() onProcess,
+    String? messageKey,
+  }) {
+    return show<T>(
+      messageKey: messageKey ?? 'component.processing',
+      onProcess: onProcess,
+    );
+  }
+}
+
+/// 处理中对话框组件
+class _ProcessingDialogWidget extends StatelessWidget {
+  final String message;
+
+  const _ProcessingDialogWidget({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: Center(
+        child: Container(
+          width: 180,
+          padding: Dimensions.paddingCard,
+          decoration: StyleGuide.getCardDecoration(context),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 加载指示器
+              SizedBox(
+                width: 60,
+                height: 60,
+                child: CircularProgressIndicator(
+                  strokeWidth: 4,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    AppColors.getPrimary(context),
+                  ),
+                ),
+              ),
+              Dimensions.verticalSpacerM,
+              // 消息文本
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyMedium.copyWith(
+                  color: AppColors.getOnSurface(context),
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

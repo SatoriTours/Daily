@@ -1,0 +1,104 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+// 签名配置：支持 key.properties 或环境变量；缺失 keystore 时回退到 debug 签名
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+def fallbackKeystorePath = "${projectDir}/../release-key.jks"
+def configuredKeystorePath = keystorePropertiesFile.exists() ? keystoreProperties.getProperty('storeFile', fallbackKeystorePath) : fallbackKeystorePath
+def releaseKeystoreFile = file(configuredKeystorePath)
+def hasReleaseKeystore = releaseKeystoreFile.exists()
+
+android {
+    namespace = "tours.satori.daily"
+    compileSdk = flutter.compileSdkVersion
+    // ndkVersion = flutter.ndkVersion
+
+    ndkVersion = "28.2.13676358"
+
+    compileOptions {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    kotlinOptions {
+    jvmTarget = "21"
+    }
+
+    defaultConfig {
+        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        applicationId = "tours.satori.daily"
+        // You can update the following values to match your application needs.
+        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias keystoreProperties.getProperty('keyAlias')
+                keyPassword keystoreProperties.getProperty('keyPassword')
+                storeFile file(keystoreProperties.getProperty('storeFile', fallbackKeystorePath))
+                storePassword keystoreProperties.getProperty('storePassword')
+            } else {
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+                storeFile releaseKeystoreFile
+                storePassword System.getenv("STORE_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // TODO: Add your own signing config for the release build.
+            // Signing with the debug keys for now, so `flutter run --release` works.
+            // 若找不到 release keystore，则使用 debug 签名以避免阻塞构建
+            signingConfig hasReleaseKeystore || keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug
+            minifyEnabled true
+        }
+        debug {
+            // Enable the ObjectBox Android Object Browser for debug builds.
+            // This is useful for debugging your ObjectBox database.
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+            // Disable minification for debug builds to make debugging easier.
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+
+// Tell Gradle to exclude the objectbox-android dependency
+// that is added by objectbox_flutter_libs for debug builds.
+configurations {
+    debugImplementation {
+        exclude group: 'io.objectbox', module: 'objectbox-android'
+    }
+}
+
+dependencies {
+    // Add objectbox-android-objectbrowser only for debug builds.
+    // Replace <version> with the included objectbox-android version,
+    // e.g. check https://github.com/objectbox/objectbox-dart/releases
+    // Warning: when ObjectBox for Dart updates check if <version>
+    // needs to be updated.
+    debugImplementation("io.objectbox:objectbox-android-objectbrowser:5.0.1")
+    releaseImplementation("io.objectbox:objectbox-android:5.0.1")
+
+}
+
+flutter {
+    source = "../.."
+}
+
