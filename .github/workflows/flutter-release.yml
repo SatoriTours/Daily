@@ -69,6 +69,6 @@ jobs:
           tag: ${{ github.ref }}
           name: Release v${{ steps.version.outputs.version }}
           body: ${{ steps.changelog.outputs.changelog }}
-          artifacts: build/app/outputs/apk/release/app-release.apk
+          artifacts: build/app/outputs/flutter-apk/app-release.apk
           artifactContentType: application/vnd.android.package-archive
           makeLatest: true
