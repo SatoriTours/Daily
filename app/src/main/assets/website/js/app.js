@@ -186,6 +186,7 @@ createApp({
         const showDetailModal = ref(false);
         const detailItem = ref({});
         const detailLoading = ref(false);
+        const articleTab = ref('summary');
 
         async function loadArticles(p, search) {
             p = p || 1;
@@ -202,7 +203,7 @@ createApp({
         }
 
         const viewArticle = async function(a) {
-            showDetailModal.value = true; detailLoading.value = true;
+            showDetailModal.value = true; detailLoading.value = true; articleTab.value = 'summary';
             try { detailItem.value = await apiReq('/articles/' + a.id); }
             catch (e) { showToast(e.message, 'error'); showDetailModal.value = false; }
             detailLoading.value = false;
@@ -393,7 +394,7 @@ createApp({
             statsCards, recentItems, recentLoading,
             articles, articlesLoading, pagination, loadArticles, viewArticle,
             showArticleModal, articleUrl, submitting, submitArticle,
-            showDetailModal, detailItem, detailLoading,
+            showDetailModal, detailItem, detailLoading, articleTab,
             diaries, diariesLoading, diaryPagination, loadDiaries, viewDiary,
             showDiaryDetailModal, showDiaryEditorModal, editingDiaryId,
             diaryContent, diaryTags, savingDiary, editDiary, openDiaryEditor, saveDiary,

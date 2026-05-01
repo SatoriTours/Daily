@@ -122,8 +122,8 @@
                                     <span v-else class="no-cover">No Image</span>
                                 </div>
                                 <div class="card-body">
-                                    <h4>{{ a.title || a.aiTitle || '无标题' }}</h4>
-                                    <p>{{ truncate(a.subTitle || a.aiContent || a.content, 120) }}</p>
+                                    <h4>{{ a.aiTitle || a.title || '无标题' }}</h4>
+                                    <p>{{ truncate(a.aiContent || a.content, 120) }}</p>
                                     <div class="card-meta">
                                         <span>{{ formatDate(a.createdAt) }}</span>
                                         <span v-if="a.isFavorite" class="fav">★</span>
@@ -151,6 +151,10 @@
                             <div class="diary-card" v-for="d in diaries" :key="d.id" @click="viewDiary(d)">
                                 <div class="diary-date">{{ formatDate(d.createdAt) }}</div>
                                 <div class="diary-preview markdown-body" v-html="formatContent(truncate(d.content, 200))"></div>
+                                <div class="diary-images" v-if="d.images && d.images.length > 0" @click.stop>
+                                    <img v-for="(img, i) in d.images.slice(0, 3)" :key="i" :src="img" @click="imageViewer = { visible: true, src: img }">
+                                    <span v-if="d.images.length > 3" class="more-images">+{{ d.images.length - 3 }}</span>
+                                </div>
                                 <div class="diary-tags" v-if="d.tags">
                                     <span class="tag" v-for="t in d.tags.split(',')" :key="t">{{ t.trim() }}</span>
                                 </div>
@@ -221,13 +225,18 @@
                     <div v-if="detailLoading" class="loading">加载中...</div>
                     <div v-else>
                         <img v-if="detailItem.coverImage" :src="detailItem.coverImage" class="detail-cover">
-                        <h2>{{ detailItem.title || detailItem.aiTitle || '无标题' }}</h2>
+                        <h2>{{ detailItem.aiTitle || detailItem.title || '无标题' }}</h2>
                         <div class="detail-meta">
                             <span>{{ formatDate(detailItem.createdAt) }}</span>
                             <span v-if="detailItem.isFavorite">★ 已收藏</span>
                             <a v-if="detailItem.url" :href="detailItem.url" target="_blank">原文链接</a>
                         </div>
-                        <div class="markdown-body" v-html="formatContent(detailItem.content || detailItem.aiMarkdownContent)"></div>
+                        <div class="detail-tabs">
+                            <button :class="{ active: articleTab === 'summary' }" @click="articleTab = 'summary'">AI 摘要</button>
+                            <button :class="{ active: articleTab === 'original' }" @click="articleTab = 'original'">原文</button>
+                        </div>
+                        <div class="markdown-body" v-if="articleTab === 'summary'" v-html="formatContent(detailItem.aiContent || detailItem.content || '暂无摘要')"></div>
+                        <div class="markdown-body" v-if="articleTab === 'original'" v-html="formatContent(detailItem.aiMarkdownContent || detailItem.content || '暂无原文')"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -252,6 +261,9 @@
                             <span v-if="detailItem.mood">{{ detailItem.mood }}</span>
                         </div>
                         <div class="markdown-body" v-html="formatContent(detailItem.content)"></div>
+                        <div class="diary-images" v-if="detailItem.images && detailItem.images.length > 0" style="margin-top:16px">
+                            <img v-for="(img, i) in detailItem.images" :key="i" :src="img" @click="imageViewer = { visible: true, src: img }">
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

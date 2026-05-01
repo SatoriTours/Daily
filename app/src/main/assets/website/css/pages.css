@@ -75,6 +75,20 @@
 .diary-preview { font-size: 13px; }
 .diary-tags { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
 
+.diary-images {
+    display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap;
+}
+.diary-images img {
+    width: 80px; height: 80px; object-fit: cover;
+    border-radius: 6px; cursor: pointer; border: 1px solid var(--border);
+}
+.diary-images img:hover { opacity: 0.8; }
+.more-images {
+    width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;
+    background: var(--bg-tertiary); border-radius: 6px;
+    font-size: 14px; color: var(--text-secondary);
+}
+
 .books-layout { display: flex; gap: 0; height: calc(100vh - 140px); }
 .books-sidebar {
     width: 240px; min-width: 240px; border-right: 1px solid var(--border);
@@ -110,6 +124,21 @@
 
 .detail-cover { max-width: 100%; max-height: 300px; border-radius: 8px; margin-bottom: 16px; }
 .detail-meta { display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary); margin: 8px 0 16px; }
+
+.detail-tabs {
+    display: flex; gap: 0; margin-bottom: 16px;
+    border-bottom: 2px solid var(--border);
+}
+.detail-tabs button {
+    padding: 8px 20px; border: none; background: none;
+    color: var(--text-secondary); cursor: pointer; font-size: 14px;
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+    transition: all var(--transition);
+}
+.detail-tabs button:hover { color: var(--text); }
+.detail-tabs button.active {
+    color: var(--primary); border-bottom-color: var(--primary); font-weight: 500;
+}
 
 @media (max-width: 900px) {
     .panels { grid-template-columns: 1fr; }
