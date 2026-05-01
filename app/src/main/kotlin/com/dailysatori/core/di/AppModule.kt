@@ -9,6 +9,6 @@ import org.koin.dsl.module
 
 val appModule: Module = module {
     single { ClipboardMonitorService(androidContext()) }
-    single { WebServerService() }
+    single { WebServerService(androidContext()) }
     single { AppUpgradeService(get()) }
 }
