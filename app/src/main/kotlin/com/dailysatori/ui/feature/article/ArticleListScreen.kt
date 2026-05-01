@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.card.ArticleCard
 import com.dailysatori.ui.component.indicator.EmptyState
@@ -44,6 +45,7 @@ fun ArticleListScreen(
 ) {
     val viewModel: ArticlesViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(
@@ -112,6 +114,15 @@ fun ArticleListScreen(
                         ArticleCard(
                             article = article,
                             onClick = { onArticleClick(article.id) },
+                            onFavoriteClick = { viewModel.toggleFavorite(article.id) },
+                            onShareClick = {
+                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(android.content.Intent.EXTRA_TEXT, article.url ?: article.title ?: "")
+                                    putExtra(android.content.Intent.EXTRA_SUBJECT, article.title ?: "")
+                                }
+                                context.startActivity(android.content.Intent.createChooser(shareIntent, "分享文章"))
+                            },
                         )
                     }
                 }

@@ -86,4 +86,10 @@ class ArticlesViewModel(
     fun toggleSearch() {
         _state.update { it.copy(isSearchVisible = !_state.value.isSearchVisible) }
     }
+
+    fun toggleFavorite(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            articleRepo.toggleFavorite(id)
+        }
+    }
 }
