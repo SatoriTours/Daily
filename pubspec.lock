@@ -437,10 +437,10 @@ packages:
     dependency: transitive
     description:
       name: flat_buffers
-      sha256: "7c1de2d6eb5f3e61e5c50040841109f509deaaf2b12ec0d57b92456d9ea50345"
+      sha256: "380bdcba5664a718bfd4ea20a45d39e13684f5318fcd8883066a55e21f37f4c3"
       url: "https://pub.dev"
     source: hosted
-    version: "25.9.23"
+    version: "23.5.26"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -988,26 +988,26 @@ packages:
     dependency: "direct main"
     description:
       name: objectbox
-      sha256: "83d58e0ab5c4180a2f67086c449a4f2d1475932b31819271923dfc82a76f73c6"
+      sha256: a735ea2ad3bc9af09827588b57c6823a85c54d929290f0c0c0e6da50778311e5
       url: "https://pub.dev"
     source: hosted
-    version: "5.3.1"
+    version: "5.0.1"
   objectbox_flutter_libs:
     dependency: "direct main"
     description:
       name: objectbox_flutter_libs
-      sha256: fd4e8ed03e2b2bfeb8aa965435d7c5523ec7e962f1ffecf6e7da6c1f4d170419
+      sha256: bf974c7fa525f65cd9d671fffb3086c3c2e1983fbce786f911b184b2e63861fd
       url: "https://pub.dev"
     source: hosted
-    version: "5.3.1"
+    version: "5.0.1"
   objectbox_generator:
     dependency: "direct dev"
     description:
       name: objectbox_generator
-      sha256: daa95f21c7140c619ffc1abee2465541d4f0317b8c3bbf2141be1a9e5c507a1d
+      sha256: "861144b5702b77b73f9375aa6bfe942dc1aabfd89eca484bc5e4ca5bd9362e4d"
       url: "https://pub.dev"
     source: hosted
-    version: "5.3.1"
+    version: "5.0.1"
   objective_c:
     dependency: transitive
     description:
