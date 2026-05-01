@@ -67,12 +67,12 @@
     display: flex; flex-direction: column; gap: 8px;
 }
 .toast {
-    padding: 10px 16px; border-radius: var(--radius); background: var(--bg);
-    box-shadow: 0 4px 12px rgba(0,0,0,.15); font-size: 13px;
+    padding: 10px 16px; border-radius: var(--radius); font-size: 13px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.15);
     animation: slideIn .2s ease;
 }
-.toast.success { border-left: 3px solid var(--success); }
-.toast.error { border-left: 3px solid var(--danger); }
+.toast.success { background: #16a34a; color: #fff; }
+.toast.error { background: var(--danger); color: #fff; }
 
 .image-viewer {
     position: fixed; inset: 0; background: rgba(0,0,0,.9); z-index: 300;

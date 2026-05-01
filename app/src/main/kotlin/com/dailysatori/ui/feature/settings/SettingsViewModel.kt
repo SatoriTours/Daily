@@ -82,6 +82,11 @@ class SettingsViewModel(
 
     private fun ensureToken() {
         val settingRepo = get<SettingRepository>(SettingRepository::class.java)
+        if (com.dailysatori.BuildConfig.DEBUG) {
+            settingRepo.upsert("web_server_token", "daily")
+            _state.update { it.copy(webServerToken = "daily") }
+            return
+        }
         val existing = settingRepo.get("web_server_token")
         if (existing == null) {
             val newToken = generateToken()
@@ -91,8 +96,9 @@ class SettingsViewModel(
     }
 
     private fun generateToken(): String {
+        if (com.dailysatori.BuildConfig.DEBUG) return "daily"
         val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-        return (1..32).map { chars.random() }.joinToString("")
+        return (1..10).map { chars.random() }.joinToString("")
     }
 
     private fun getDeviceIp(): String? {

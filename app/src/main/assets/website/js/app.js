@@ -7,7 +7,7 @@ createApp({
         const dark = ref(initDark());
         const sidebarCollapsed = ref(localStorage.getItem('ds_sidebar') === '1');
 
-        const password = ref('');
+        const loginToken = ref('');
         const loading = ref(false);
         const loginError = ref('');
         const toasts = ref([]);
@@ -54,13 +54,9 @@ createApp({
             }));
             const data = await res.json();
             if (res.status === 401) {
-                if (endpoint !== '/auth/status') {
-                    isLoggedIn.value = false;
-                    localStorage.removeItem('ds_logged_in');
-                }
-                throw new Error(data.msg || 'Unauthorized');
+                throw new Error('未登录，请重新登录');
             }
-            if (data.code !== 0) throw new Error(data.msg || 'Request failed');
+            if (data.code !== 0) throw new Error(data.msg || '请求失败');
             return data.data;
         }
 
@@ -91,24 +87,27 @@ createApp({
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ password: password.value })
+                    body: JSON.stringify({ token: loginToken.value })
                 });
-                const data = await res.json();
-                if (res.ok && data.code === 0) {
+                const text = await res.text();
+                let data;
+                try { data = JSON.parse(text); } catch (e) { loginError.value = text; return; }
+                if (res.ok && data.code == 0) {
                     isLoggedIn.value = true;
                     localStorage.setItem('ds_logged_in', '1');
-                    showToast('登录成功');
+                    showToast('登录成功', 'success');
+                    await nextTick();
                     checkConnection();
                     connInterval = setInterval(checkConnection, 10000);
-                    loadPage('dashboard');
-                } else { loginError.value = data.msg || '密码错误'; }
+                    navigate('dashboard');
+                } else { loginError.value = data.msg || 'Token 错误'; }
             } catch (e) { loginError.value = e.message; }
             loading.value = false;
         };
 
         const logout = async function() {
             try { await fetch('/api/v2/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch (e) {}
-            isLoggedIn.value = false; localStorage.removeItem('ds_logged_in'); password.value = '';
+            isLoggedIn.value = false; localStorage.removeItem('ds_logged_in'); loginToken.value = '';
             if (connInterval) { clearInterval(connInterval); connInterval = null; }
         };
 
@@ -388,7 +387,7 @@ createApp({
 
         return {
             isLoggedIn, connected, dark, sidebarCollapsed, toggleTheme,
-            password, loading, loginError, toasts, login, logout,
+            loginToken, loading, loginError, toasts, login, logout,
             page, pageTitle, searchKeyword, doSearch, navigate,
             formatDate, truncate, formatContent,
             statsCards, recentItems, recentLoading,

@@ -511,20 +511,20 @@ class WebServerService(private val ctx: Context) {
             post("/login") {
                 try {
                     val body = call.receive<JsonObject>()
-                    val password = (body["password"] as? JsonPrimitive)?.content ?: ""
+                    val token = (body["token"] as? JsonPrimitive)?.content ?: ""
                     val settingRepo = get<SettingRepository>(SettingRepository::class.java)
-                    val storedPassword = settingRepo.get("web_server_password") ?: "daily_satori"
-                    if (password == storedPassword) {
+                    val storedToken = settingRepo.get("web_server_token") ?: ""
+                    if (token.isNotEmpty() && token == storedToken) {
                         val sessionId = Instant.now().toEpochMilli().toString()
                         val sessionRepo = get<SessionRepository>(SessionRepository::class.java)
                         sessionRepo.insert(sessionId = sessionId, username = "admin")
                         call.response.cookies.append("session_id", sessionId)
-                        call.respond(ApiResponse(0, "Login successful"))
+                        call.respondText("""{"code":0,"msg":"ok"}""", ContentType.Application.Json)
                     } else {
-                        call.respond(HttpStatusCode.Unauthorized, ApiResponse(-1, "Invalid password"))
+                        call.respondText("""{"code":1,"msg":"Invalid token"}""", ContentType.Application.Json, HttpStatusCode.Unauthorized)
                     }
                 } catch (e: Exception) {
-                    call.respond(HttpStatusCode.BadRequest, ApiResponse(-1, e.message ?: "Login failed"))
+                    call.respondText("""{"code":1,"msg":"${e.message}"}""", ContentType.Application.Json, HttpStatusCode.BadRequest)
                 }
             }
 

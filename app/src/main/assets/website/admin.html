@@ -19,8 +19,8 @@
                 </div>
                 <form @submit.prevent="login">
                     <div class="field">
-                        <label>访问密码</label>
-                        <input type="password" v-model="password" placeholder="请输入密码" required autofocus>
+                        <label>访问 Token</label>
+                        <input type="password" v-model="loginToken" placeholder="请输入 Token" required autofocus>
                     </div>
                     <div v-if="loginError" class="alert alert-error">{{ loginError }}</div>
                     <button type="submit" class="btn btn-primary btn-block" :disabled="loading">
