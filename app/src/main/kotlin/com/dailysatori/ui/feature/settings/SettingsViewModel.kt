@@ -4,16 +4,23 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.core.service.AppUpgradeService
 import com.dailysatori.core.service.WebServerService
+import com.dailysatori.data.repository.SettingRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.koin.java.KoinJavaComponent.get
+import java.net.NetworkInterface
 
 data class SettingsState(
     val isPageLoading: Boolean = false,
     val webServerRunning: Boolean = false,
+    val isTogglingWebServer: Boolean = false,
+    val webServerError: String? = null,
+    val webServerAddress: String = "",
+    val webServerToken: String = "",
     val isCheckingUpdate: Boolean = false,
     val updateVersion: String? = null,
     val currentVersion: String = "1.0.0",
@@ -29,14 +36,70 @@ class SettingsViewModel(
     private val _state = MutableStateFlow(SettingsState())
     val state: StateFlow<SettingsState> = _state.asStateFlow()
 
-    fun toggleWebServer() {
-        if (_state.value.webServerRunning) {
-            webServerService.stop()
-            _state.update { it.copy(webServerRunning = false) }
-        } else {
-            webServerService.start()
-            _state.update { it.copy(webServerRunning = true) }
+    init {
+        loadWebServiceInfo()
+    }
+
+    private fun loadWebServiceInfo() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val settingRepo = get<SettingRepository>(SettingRepository::class.java)
+            val token = settingRepo.get("web_server_token") ?: ""
+            val address = getDeviceIp()?.let { "http://$it:8888" } ?: "http://localhost:8888"
+            _state.update { it.copy(webServerToken = token, webServerAddress = address) }
         }
+    }
+
+    fun toggleWebServer() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.update { it.copy(isTogglingWebServer = true, webServerError = null) }
+            try {
+                if (_state.value.webServerRunning) {
+                    webServerService.stop()
+                    _state.update { it.copy(webServerRunning = false) }
+                } else {
+                    ensureToken()
+                    webServerService.start()
+                    val address = getDeviceIp()?.let { "http://$it:8888" } ?: "http://localhost:8888"
+                    _state.update { it.copy(webServerRunning = true, webServerAddress = address) }
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(webServerError = e.message ?: "Unknown error") }
+            }
+            _state.update { it.copy(isTogglingWebServer = false) }
+        }
+    }
+
+    fun refreshToken() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val newToken = generateToken()
+            val settingRepo = get<SettingRepository>(SettingRepository::class.java)
+            settingRepo.upsert("web_server_token", newToken)
+            _state.update { it.copy(webServerToken = newToken) }
+        }
+    }
+
+    private fun ensureToken() {
+        val settingRepo = get<SettingRepository>(SettingRepository::class.java)
+        val existing = settingRepo.get("web_server_token")
+        if (existing == null) {
+            val newToken = generateToken()
+            settingRepo.upsert("web_server_token", newToken)
+            _state.update { it.copy(webServerToken = newToken) }
+        }
+    }
+
+    private fun generateToken(): String {
+        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+        return (1..32).map { chars.random() }.joinToString("")
+    }
+
+    private fun getDeviceIp(): String? {
+        return try {
+            NetworkInterface.getNetworkInterfaces()?.asSequence()
+                ?.flatMap { it.inetAddresses.asSequence() }
+                ?.firstOrNull { !it.isLoopbackAddress && it.hostAddress?.contains(':') == false }
+                ?.hostAddress
+        } catch (_: Exception) { null }
     }
 
     fun checkUpdate() {
@@ -55,7 +118,6 @@ class SettingsViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isExporting = true, exportProgress = 0.5f) }
             try {
-                // Export logic placeholder
                 _state.update { it.copy(isExporting = false, exportProgress = 1f) }
             } catch (e: Exception) {
                 _state.update { it.copy(isExporting = false, error = e.message) }

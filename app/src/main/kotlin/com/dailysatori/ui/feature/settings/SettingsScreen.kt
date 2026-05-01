@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -23,12 +25,14 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -129,15 +133,37 @@ fun SettingsScreen() {
                         SettingsRow(
                             icon = Icons.Default.Language,
                             title = "Web 服务",
-                            subtitle = if (state.webServerRunning) "运行中" else "已停止",
+                            subtitle = when {
+                                state.isTogglingWebServer -> "启动中..."
+                                state.webServerError != null -> "错误: ${state.webServerError}"
+                                state.webServerRunning -> state.webServerAddress
+                                else -> "已停止"
+                            },
                             trailing = {
-                                Switch(
-                                    checked = state.webServerRunning,
-                                    onCheckedChange = { viewModel.toggleWebServer() },
-                                )
+                                if (state.isTogglingWebServer) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                } else {
+                                    Switch(
+                                        checked = state.webServerRunning,
+                                        onCheckedChange = { viewModel.toggleWebServer() },
+                                    )
+                                }
                             },
                             onClick = { viewModel.toggleWebServer() },
                         )
+                        if (state.webServerToken.isNotEmpty()) {
+                            SettingsRow(
+                                icon = Icons.Default.Key,
+                                title = "API Token",
+                                subtitle = state.webServerToken,
+                                trailing = {
+                                    IconButton(onClick = { viewModel.refreshToken() }) {
+                                        Icon(Icons.Default.Refresh, contentDescription = "刷新 Token")
+                                    }
+                                },
+                                onClick = {},
+                            )
+                        }
                         SettingsRow(
                             icon = Icons.Default.Refresh,
                             title = "检查更新",
