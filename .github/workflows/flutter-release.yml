@@ -41,9 +41,6 @@ jobs:
           echo "${{ secrets.KEY_JKS }}" | base64 --decode > ./android/release-key.jks
           flutter build apk --release
 
-      - name: Debug - Find APK
-        run: find build -name "*.apk" -type f
-
       - name: Get current version
         id: version
         run: |
@@ -65,11 +62,13 @@ jobs:
             echo "changelog=" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create Release with APK
-        uses: softprops/action-gh-release@v2
+      - name: Create Release with Changelog
+        uses: ncipollo/release-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref }}
           name: Release v${{ steps.version.outputs.version }}
           body: ${{ steps.changelog.outputs.changelog }}
-          files: build/app/outputs/flutter-apk/app-release.apk
-          make_latest: true
+          artifacts: build/app/outputs/apk/release/app-release.apk
+          artifactContentType: application/vnd.android.package-archive
+          makeLatest: true
