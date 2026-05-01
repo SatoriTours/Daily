@@ -144,10 +144,10 @@ createApp({
                 const recent = await apiReq('/stats/recent');
                 const t = overview.totals || {};
                 statsCards.value = [
-                    { icon: '☰', label: '文章', value: t.articles || 0, color: '#3b82f6' },
-                    { icon: '📓', label: '日记', value: t.diaries || 0, color: '#22c55e' },
-                    { icon: '📚', label: '书籍', value: t.books || 0, color: '#8b5cf6' },
-                    { icon: '★', label: '收藏', value: t.favoriteArticles || 0, color: '#f59e0b' },
+                    { icon: 'globe', label: '文章', value: t.articles || 0, color: 'var(--primary)' },
+                    { icon: 'book-marked', label: '日记', value: t.diaries || 0, color: 'var(--success)' },
+                    { icon: 'book-open', label: '书籍', value: t.books || 0, color: 'var(--warning)' },
+                    { icon: 'star', label: '收藏', value: t.favoriteArticles || 0, color: 'var(--danger)' },
                 ];
                 recentItems.value = (recent.articles || []).concat(recent.diaries || [], recent.books || [])
                     .sort(function(a, b) { return new Date(b.createdAt) - new Date(a.createdAt); })

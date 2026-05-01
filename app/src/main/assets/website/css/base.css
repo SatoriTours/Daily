@@ -1,52 +1,142 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,500;0,600;0,700;1,500&display=swap');
+
 :root {
-    --bg: #fff;
-    --bg-secondary: #f5f6f8;
-    --bg-tertiary: #ebedf0;
-    --text: #1a1a2e;
-    --text-secondary: #64748b;
-    --border: #e2e8f0;
-    --primary: #4f46e5;
-    --primary-hover: #4338ca;
-    --success: #22c55e;
-    --warning: #f59e0b;
-    --danger: #ef4444;
-    --info: #3b82f6;
-    --sidebar-bg: #1e1e2e;
-    --sidebar-text: #cdd6f4;
-    --radius: 8px;
-    --shadow: 0 1px 3px rgba(0,0,0,.08);
-    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    --font-mono: 'SF Mono', 'Fira Code', monospace;
-    --transition: 0.2s ease;
+    --bg: #F4F5F7;
+    --bg-secondary: #FFFFFF;
+    --bg-tertiary: #F1F2F4;
+    --bg-hover: #EDEFF2;
+    --text: #1E293B;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --border: #E2E4E9;
+    --border-light: #EEEFF2;
+    --primary: #4F46E5;
+    --primary-hover: #4338CA;
+    --primary-light: #EEF2FF;
+    --primary-light-hover: #E0E7FF;
+    --success: #059669;
+    --success-light: #ECFDF5;
+    --warning: #D97706;
+    --warning-light: #FFFBEB;
+    --danger: #DC2626;
+    --danger-light: #FEF2F2;
+    --info: #4F46E5;
+    --sidebar-bg: #FFFFFF;
+    --sidebar-text: #64748B;
+    --sidebar-active-bg: #F5F3FF;
+    --sidebar-active-text: #4F46E5;
+    --sidebar-border: #E2E4E9;
+    --radius-xs: 6px;
+    --radius-sm: 8px;
+    --radius: 10px;
+    --radius-md: 14px;
+    --radius-lg: 18px;
+    --radius-xl: 22px;
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --font-heading: 'Lora', Georgia, 'Times New Roman', serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+    --transition: 0.15s ease;
+    --transition-slow: 0.25s ease;
 }
 
 [data-theme="dark"] {
-    --bg: #111118;
-    --bg-secondary: #1a1a25;
-    --bg-tertiary: #252532;
-    --text: #e4e4ef;
-    --text-secondary: #8b8ba0;
-    --border: #2e2e3e;
-    --sidebar-bg: #0d0d16;
-    --sidebar-text: #a6adc8;
-    --shadow: 0 1px 3px rgba(0,0,0,.3);
+    --bg: #0F172A;
+    --bg-secondary: #1E293B;
+    --bg-tertiary: #334155;
+    --bg-hover: #2D3A50;
+    --text: #F1F5F9;
+    --text-secondary: #94A3B8;
+    --text-tertiary: #64748B;
+    --border: #334155;
+    --border-light: #2A3444;
+    --primary: #818CF8;
+    --primary-hover: #6366F1;
+    --primary-light: #1E1B4B;
+    --primary-light-hover: #312E81;
+    --success: #34D399;
+    --success-light: #064E3B;
+    --warning: #FBBF24;
+    --warning-light: #78350F;
+    --danger: #F87171;
+    --danger-light: #7F1D1D;
+    --sidebar-bg: #1E293B;
+    --sidebar-text: #94A3B8;
+    --sidebar-active-bg: #1E1B4B;
+    --sidebar-active-text: #818CF8;
+    --sidebar-border: #334155;
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
 }
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-        --bg: #111118;
-        --bg-secondary: #1a1a25;
-        --bg-tertiary: #252532;
-        --text: #e4e4ef;
-        --text-secondary: #8b8ba0;
-        --border: #2e2e3e;
-        --sidebar-bg: #0d0d16;
-        --sidebar-text: #a6adc8;
-        --shadow: 0 1px 3px rgba(0,0,0,.3);
+        --bg: #0F172A;
+        --bg-secondary: #1E293B;
+        --bg-tertiary: #334155;
+        --bg-hover: #2D3A50;
+        --text: #F1F5F9;
+        --text-secondary: #94A3B8;
+        --text-tertiary: #64748B;
+        --border: #334155;
+        --border-light: #2A3444;
+        --primary: #818CF8;
+        --primary-hover: #6366F1;
+        --primary-light: #1E1B4B;
+        --primary-light-hover: #312E81;
+        --success: #34D399;
+        --success-light: #064E3B;
+        --warning: #FBBF24;
+        --warning-light: #78350F;
+        --danger: #F87171;
+        --danger-light: #7F1D1D;
+        --sidebar-bg: #1E293B;
+        --sidebar-text: #94A3B8;
+        --sidebar-active-bg: #1E1B4B;
+        --sidebar-active-text: #818CF8;
+        --sidebar-border: #334155;
+        --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+        --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
     }
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; font-family: var(--font); font-size: 14px; color: var(--text); background: var(--bg); -webkit-font-smoothing: antialiased; }
-a { color: var(--primary); text-decoration: none; cursor: pointer; }
+
+html, body {
+    height: 100%;
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+a { color: var(--primary); text-decoration: none; cursor: pointer; transition: color var(--transition); }
+a:hover { color: var(--primary-hover); }
 input, textarea, select, button { font-family: inherit; font-size: inherit; }
+h1, h2, h3, h4 { font-family: var(--font-heading); font-weight: 600; line-height: 1.3; color: var(--text); }
+kbd { font-family: var(--font-mono); font-size: 0.8em; }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--text-tertiary); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
