@@ -57,18 +57,21 @@ data class ApiResponse(
 class WebServerService(private val ctx: Context) {
     private val log = Logger.withTag("WebServer")
     private var server: Any? = null
+    private var currentPort: Int = 0
 
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
     }
 
-    fun start() {
-        if (server != null) return
-        log.i { "Starting web server on port ${WebServiceConfig.httpPort}" }
+    fun start(): Int {
+        if (server != null) return currentPort
 
-        val svc = this
-        server = embeddedServer(CIO, port = WebServiceConfig.httpPort, host = "0.0.0.0") {
+        for (port in WebServiceConfig.portRangeStart..WebServiceConfig.portRangeEnd) {
+            try {
+                java.net.ServerSocket(port).use { }
+                val svc = this
+                server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
             install(ContentNegotiation) { registerJson(svc.json) }
             install(CORS) { anyHost() }
             install(createApplicationPlugin(name = "ApiAuth") {
@@ -115,14 +118,25 @@ class WebServerService(private val ctx: Context) {
                     setupAuthRoutes()
                 }
             }
-        }.start(wait = false)
+                }.start(wait = false)
+                currentPort = port
+                log.i { "Web server started on port $port" }
+                return port
+            } catch (_: Exception) {}
+        }
+        throw IllegalStateException(
+            "No available port in range ${WebServiceConfig.portRangeStart}-${WebServiceConfig.portRangeEnd}"
+        )
     }
 
     fun stop() {
         (server as? ApplicationEngine)?.stop(1000, 2000)
         server = null
+        currentPort = 0
         log.i { "Web server stopped" }
     }
+
+    fun getPort(): Int = currentPort
 
     fun isRunning(): Boolean = server != null
 

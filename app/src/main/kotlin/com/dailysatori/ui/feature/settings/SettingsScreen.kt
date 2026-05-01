@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.settings.SettingsRow
@@ -140,13 +142,15 @@ fun SettingsScreen() {
                                 else -> "已停止"
                             },
                             trailing = {
-                                if (state.isTogglingWebServer) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                                } else {
-                                    Switch(
-                                        checked = state.webServerRunning,
-                                        onCheckedChange = { viewModel.toggleWebServer() },
-                                    )
+                                Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                    if (state.isTogglingWebServer) {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Switch(
+                                            checked = state.webServerRunning,
+                                            onCheckedChange = { viewModel.toggleWebServer() },
+                                        )
+                                    }
                                 }
                             },
                             onClick = { viewModel.toggleWebServer() },

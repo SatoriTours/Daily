@@ -1,5 +1,6 @@
 package com.dailysatori.ui.component.settings
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import com.dailysatori.ui.component.misc.FeatureIcon
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Spacing
@@ -34,12 +36,14 @@ fun SettingsRow(
         ) {
             FeatureIcon(icon = icon, containerSize = IconSize.xl, iconSize = IconSize.s)
             Spacer(modifier = Modifier.width(Spacing.m))
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f).animateContentSize()) {
                 Text(title, style = MaterialTheme.typography.titleSmall)
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             if (trailing != null) {

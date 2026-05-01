@@ -72,7 +72,8 @@ object SessionConfig {
 }
 
 object WebServiceConfig {
-    const val httpPort = 8888
+    const val portRangeStart = 51980
+    const val portRangeEnd = 51999
 }
 
 object WebViewConfig {

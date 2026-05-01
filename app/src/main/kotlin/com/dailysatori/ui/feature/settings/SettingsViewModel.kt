@@ -44,7 +44,10 @@ class SettingsViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val settingRepo = get<SettingRepository>(SettingRepository::class.java)
             val token = settingRepo.get("web_server_token") ?: ""
-            val address = getDeviceIp()?.let { "http://$it:8888" } ?: "http://localhost:8888"
+            val port = webServerService.getPort()
+            val address = if (webServerService.isRunning() && port > 0) {
+                getDeviceIp()?.let { "http://$it:$port" } ?: "http://localhost:$port"
+            } else ""
             _state.update { it.copy(webServerToken = token, webServerAddress = address) }
         }
     }
@@ -55,17 +58,16 @@ class SettingsViewModel(
             try {
                 if (_state.value.webServerRunning) {
                     webServerService.stop()
-                    _state.update { it.copy(webServerRunning = false) }
+                    _state.update { it.copy(webServerRunning = false, isTogglingWebServer = false, webServerAddress = "") }
                 } else {
                     ensureToken()
-                    webServerService.start()
-                    val address = getDeviceIp()?.let { "http://$it:8888" } ?: "http://localhost:8888"
-                    _state.update { it.copy(webServerRunning = true, webServerAddress = address) }
+                    val port = webServerService.start()
+                    val address = getDeviceIp()?.let { "http://$it:$port" } ?: "http://localhost:$port"
+                    _state.update { it.copy(webServerRunning = true, isTogglingWebServer = false, webServerAddress = address) }
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(webServerError = e.message ?: "Unknown error") }
+                _state.update { it.copy(isTogglingWebServer = false, webServerError = e.message ?: "Unknown error") }
             }
-            _state.update { it.copy(isTogglingWebServer = false) }
         }
     }
 
