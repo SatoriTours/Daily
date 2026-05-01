@@ -87,7 +87,7 @@ class ExportService {
   }
 
   void _addJsonData(arch.Archive archive, String name, List<Map<String, dynamic>> data) {
-    _addJsonFile(archive, name, JsonEncoder.withIndent('  ').convert(data));
+    _addJsonFile(archive, name, const JsonEncoder.withIndent('  ').convert(data));
   }
 
   List<Map<String, dynamic>> _serializeArticles(List<ArticleModel> articles) {
@@ -353,6 +353,6 @@ class ExportService {
         'sessions': sessions,
       },
     };
-    return JsonEncoder.withIndent('  ').convert(manifest);
+    return const JsonEncoder.withIndent('  ').convert(manifest);
   }
 }

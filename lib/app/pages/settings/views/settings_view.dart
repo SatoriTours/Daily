@@ -952,7 +952,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
         ),
         const Spacer(),
-        if (action != null) action,
+        ?action,
       ],
     );
   }

@@ -41,7 +41,6 @@ linter:
     - avoid_empty_else
     - avoid_print
     - avoid_relative_lib_imports
-    - avoid_returning_null_for_future
     - avoid_types_as_parameter_names
     - avoid_web_libraries_in_flutter
     - cancel_subscriptions
