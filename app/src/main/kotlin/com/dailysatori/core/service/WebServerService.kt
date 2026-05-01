@@ -16,12 +16,15 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json as registerJson
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
+import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.request.header
+import io.ktor.server.request.path
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
@@ -68,6 +71,34 @@ class WebServerService(private val ctx: Context) {
         server = embeddedServer(CIO, port = WebServiceConfig.httpPort, host = "0.0.0.0") {
             install(ContentNegotiation) { registerJson(svc.json) }
             install(CORS) { anyHost() }
+            install(createApplicationPlugin(name = "ApiAuth") {
+                val log = Logger.withTag("ApiAuth")
+                onCall { call ->
+                    val path = call.request.path()
+                    if (!path.startsWith("/api/v2/")) return@onCall
+                    if (path == "/api/v2/auth/login" || path == "/api/v2/auth/status") return@onCall
+
+                    val sessionId = call.request.cookies["session_id"]
+                    val token = call.request.headers["Authorization"]?.removePrefix("Bearer ")
+
+                    if (sessionId != null) {
+                        try {
+                            val sessionRepo = get<SessionRepository>(SessionRepository::class.java)
+                            if (sessionRepo.getBySessionId(sessionId) != null) return@onCall
+                        } catch (_: Exception) {}
+                    }
+
+                    if (token != null) {
+                        try {
+                            val settingRepo = get<SettingRepository>(SettingRepository::class.java)
+                            val storedToken = settingRepo.get("web_server_token")
+                            if (storedToken != null && token == storedToken) return@onCall
+                        } catch (_: Exception) {}
+                    }
+
+                    call.respond(HttpStatusCode.Unauthorized, ApiResponse(-1, "Authentication required"))
+                }
+            })
             routing {
                 get("/ping") {
                     call.respondText("pong", ContentType.Text.Plain)
