@@ -48,6 +48,7 @@ class ImportService(
         val sessions: Int = 0,
         val mcpServers: Int = 0,
         val imageFilesCopied: Int = 0,
+        val legacyImagesMigrated: Int = 0,
     )
 
     suspend fun importFromZip(zipPath: String): ImportResult = withContext(Dispatchers.IO) {
@@ -74,6 +75,7 @@ class ImportService(
                 sessions = importSessions(tempDir),
                 mcpServers = importMcpServers(tempDir),
                 imageFilesCopied = copyImageFiles(tempDir),
+                legacyImagesMigrated = migrateLegacyImages(),
             )
 
             cleanup(tempDir)
@@ -210,9 +212,7 @@ class ImportService(
                 db.dailySatoriQueries.insertArticle(
                     obj.getString("title"),
                     obj.getString("ai_title"),
-                    obj.getString("content"),
-                    obj.getString("ai_content"),
-                    obj.getString("html_content"),
+                    obj.getString("ai_content") ?: obj.getString("content"),
                     obj.getString("ai_markdown_content"),
                     obj.getString("url"),
                     obj.getLong("is_favorite") ?: 0,
@@ -445,6 +445,35 @@ class ImportService(
             }
         }
 
+        return count
+    }
+
+    private fun migrateLegacyImages(): Int {
+        val legacyDir = fileManager.getLegacyFlutterDir() ?: return 0
+        log.i { "Migrating legacy images from $legacyDir" }
+        var count = 0
+        val targetDirs = mapOf(
+            "images" to fileManager.getImagesDir(),
+            "diary_images" to fileManager.getDiaryImagesDir(),
+        )
+        targetDirs.forEach { (sub, target) ->
+            val srcDir = "$legacyDir/$sub"
+            if (fileManager.exists(srcDir)) {
+                fileManager.listFiles(srcDir).forEach { src ->
+                    val name = src.substringAfterLast("/")
+                    val dest = "$target/$name"
+                    if (!fileManager.exists(dest)) {
+                        try {
+                            fileManager.copyFile(src, dest)
+                            count++
+                        } catch (e: Exception) {
+                            log.w(e) { "Failed to migrate legacy image: $name" }
+                        }
+                    }
+                }
+            }
+        }
+        log.i { "Migrated $count legacy images" }
         return count
     }
 

@@ -186,8 +186,24 @@ class WebServerService(private val ctx: Context) {
             call.respond(HttpStatusCode.NotFound)
             return
         }
-        val file = File(ctx.filesDir, "DailySatori/$path")
-        if (file.exists() && file.isFile) {
+
+        val root = File(ctx.filesDir, "DailySatori")
+        val legacyRoot = File(ctx.filesDir.parentFile, "app_flutter")
+        val base = path.substringBeforeLast('.')
+        val candidates = mutableListOf(File(root, path))
+        candidates.addAll(listOf("jpg", "jpeg", "png", "webp", "gif").map { File(root, "$base.$it") })
+        candidates.add(File(legacyRoot, path))
+        candidates.addAll(listOf("jpg", "jpeg", "png", "webp", "gif").map { File(legacyRoot, "$base.$it") })
+        if (!path.contains("/")) {
+            val imgs = listOf("images", "diary_images")
+            candidates.addAll(imgs.flatMap { d -> listOf("jpg", "jpeg", "png", "webp", "gif").map { File(root, "$d/$base.$it") } })
+            candidates.addAll(imgs.map { File(root, "$it/$path") })
+            candidates.addAll(imgs.flatMap { d -> listOf("jpg", "jpeg", "png", "webp", "gif").map { File(legacyRoot, "$d/$base.$it") } })
+            candidates.addAll(imgs.map { File(legacyRoot, "$it/$path") })
+        }
+
+        val file = candidates.firstOrNull { it.exists() && it.isFile }
+        if (file != null) {
             val contentType = when {
                 path.endsWith(".png") -> ContentType.Image.PNG
                 path.endsWith(".jpg") || path.endsWith(".jpeg") -> ContentType.Image.JPEG
@@ -203,14 +219,17 @@ class WebServerService(private val ctx: Context) {
     }
 
     private fun fileUrl(path: String?): String {
-        if (path.isNullOrEmpty()) return ""
+        if (path.isNullOrEmpty() || path == "null" || path.endsWith("/null")) return ""
         if (path.startsWith("http://") || path.startsWith("https://")) return path
         return "/files/$path"
     }
 
     private fun diaryImagesToJson(images: String?): JsonArray {
         if (images.isNullOrBlank()) return JsonArray(emptyList())
-        val list = images.split(",").mapNotNull { it.trim().takeIf { it.isNotEmpty() }?.let { fileUrl(it) } }
+        val list = images.split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && it != "null" && !it.endsWith("/null") }
+            .map { fileUrl(it) }
         return JsonArray(list.map { JsonPrimitive(it) })
     }
 
@@ -271,7 +290,6 @@ class WebServerService(private val ctx: Context) {
                         put("id", JsonPrimitive(a.id))
                         put("title", JsonPrimitive(a.title ?: ""))
                         put("url", JsonPrimitive(a.url ?: ""))
-                        put("content", JsonPrimitive(a.content ?: ""))
                         put("aiContent", JsonPrimitive(a.ai_content ?: ""))
                         put("aiMarkdownContent", JsonPrimitive(a.ai_markdown_content ?: ""))
                         put("aiTitle", JsonPrimitive(a.ai_title ?: ""))

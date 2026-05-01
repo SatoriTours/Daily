@@ -84,9 +84,7 @@ class WebpageParserService(
                 id = articleId,
                 title = extracted.title ?: article.title,
                 aiTitle = article.ai_title,
-                content = extracted.content,
                 aiContent = article.ai_content,
-                htmlContent = extracted.htmlContent,
                 aiMarkdownContent = article.ai_markdown_content,
                 url = article.url,
                 isFavorite = article.is_favorite ?: 0L,
@@ -103,7 +101,7 @@ class WebpageParserService(
 
             tags?.let { tagRepo.setTagsForArticle(articleId, it) }
 
-            processAiTasksAsync(articleId)
+            processAiTasksAsync(articleId, extracted)
 
             log.i { "saveWebpage completed: articleId=$articleId" }
             return articleId
@@ -113,9 +111,7 @@ class WebpageParserService(
                 id = articleId,
                 title = article.title,
                 aiTitle = article.ai_title,
-                content = article.content,
                 aiContent = e.message ?: "Extraction failed",
-                htmlContent = article.html_content,
                 aiMarkdownContent = article.ai_markdown_content,
                 url = article.url,
                 isFavorite = article.is_favorite ?: 0L,
@@ -132,17 +128,17 @@ class WebpageParserService(
         }
     }
 
-    fun processAiTasksAsync(articleId: Long) {
+    fun processAiTasksAsync(articleId: Long, extracted: ExtractedContent? = null) {
         scope.launch {
             try {
-                processAiTasks(articleId)
+                processAiTasks(articleId, extracted)
             } catch (e: Exception) {
                 log.e(e) { "Async AI processing failed: articleId=$articleId" }
             }
         }
     }
 
-    suspend fun processAiTasks(articleId: Long) {
+    suspend fun processAiTasks(articleId: Long, extracted: ExtractedContent? = null) {
         val article = articleRepo.getById(articleId) ?: return
         log.i { "processAiTasks: articleId=$articleId" }
 
@@ -193,7 +189,8 @@ class WebpageParserService(
             state2[articleId] = ArticleProcessingState(articleId, "aiProcessing", "Generating summary")
             _processingStates.value = state2
 
-            val content = (article.content ?: article.html_content) ?: ""
+            val content = extracted?.content ?: ""
+            val htmlContent = extracted?.htmlContent ?: ""
             var aiContent = ""
             var tags = ""
             try {
@@ -210,7 +207,7 @@ class WebpageParserService(
                 aiContent = summary
             } catch (e: Exception) {
                 log.e(e) { "Summary generation failed" }
-                aiContent = article.content ?: ""
+                aiContent = "Summary failed: ${e.message}"
             }
 
             val state3 = mutableMapOf<Long, ArticleProcessingState>()
@@ -218,7 +215,6 @@ class WebpageParserService(
             _processingStates.value = state3
 
             var aiMarkdownContent = ""
-            val htmlContent = article.html_content ?: ""
             if (htmlContent.isNotBlank()) {
                 try {
                     aiMarkdownContent = aiService.htmlToMarkdown(
@@ -250,9 +246,7 @@ class WebpageParserService(
                 id = articleId,
                 title = article.title,
                 aiTitle = aiTitle,
-                content = article.content,
                 aiContent = aiContent,
-                htmlContent = article.html_content,
                 aiMarkdownContent = aiMarkdownContent,
                 url = article.url,
                 isFavorite = article.is_favorite ?: 0L,
@@ -323,8 +317,7 @@ class WebpageParserService(
         val article = articleRepo.getById(articleId) ?: throw Exception("Article not found: $articleId")
         articleRepo.update(
             id = articleId, title = article.title, aiTitle = "",
-            content = article.content, aiContent = "",
-            htmlContent = article.html_content, aiMarkdownContent = "",
+            aiContent = "", aiMarkdownContent = "",
             url = article.url, isFavorite = article.is_favorite ?: 0L, comment = article.comment,
             status = "webContentFetched", coverImage = article.cover_image,
             coverImageUrl = article.cover_image_url, pubDate = article.pub_date,

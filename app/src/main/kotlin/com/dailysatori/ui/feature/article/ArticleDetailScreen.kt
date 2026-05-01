@@ -104,7 +104,6 @@ fun ArticleDetailScreen(
                     when (state.selectedTabIndex) {
                         0 -> {
                             val summary = article.ai_content
-                                ?: article.content
                                 ?: "暂无摘要内容"
                             SelectionContainer {
                                 Markdown(
@@ -116,7 +115,6 @@ fun ArticleDetailScreen(
                         }
                         else -> {
                             val original = article.ai_markdown_content
-                                ?: article.content
                                 ?: "暂无原文内容"
                             SelectionContainer {
                                 Markdown(

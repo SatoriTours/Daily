@@ -57,7 +57,7 @@ class ArticleDetailViewModel(
             loadArticle()
             val article = articleRepo.getById(articleId)
             if (article != null && article.is_favorite == 1L) {
-                val text = article.ai_markdown_content ?: article.content ?: ""
+                val text = article.ai_markdown_content ?: ""
                 val title = article.ai_title ?: article.title ?: "未命名"
                 memoryExtractService.extractAndSave(
                     sourceType = "article",

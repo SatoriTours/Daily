@@ -31,6 +31,9 @@ class DatabaseMigration(
         if (currentVersion < 3) {
             migrateV2ToV3()
         }
+        if (currentVersion < 4) {
+            migrateV3ToV4()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -126,6 +129,48 @@ class DatabaseMigration(
             log.i { "Created chat_conversation table" }
         } catch (e: Exception) {
             log.w(e) { "Could not create chat_conversation table" }
+        }
+    }
+
+    /**
+     * V3 -> V4: Remove content and html_content columns from article table.
+     * Uses table recreation since DROP COLUMN requires SQLite 3.35+.
+     */
+    private fun migrateV3ToV4() {
+        log.i { "Migration V3 -> V4: Remove content/html_content from article" }
+        try {
+            runSql("""
+                CREATE TABLE article_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT,
+                    ai_title TEXT,
+                    ai_content TEXT,
+                    ai_markdown_content TEXT,
+                    url TEXT UNIQUE,
+                    is_favorite INTEGER DEFAULT 0,
+                    comment TEXT,
+                    status TEXT DEFAULT 'pending',
+                    cover_image TEXT,
+                    cover_image_url TEXT,
+                    pub_date INTEGER,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                )
+            """.trimIndent())
+            runSql("""
+                INSERT INTO article_new (id, title, ai_title, ai_content, ai_markdown_content,
+                    url, is_favorite, comment, status, cover_image, cover_image_url,
+                    pub_date, created_at, updated_at)
+                SELECT id, title, ai_title, ai_content, ai_markdown_content,
+                    url, is_favorite, comment, status, cover_image, cover_image_url,
+                    pub_date, created_at, updated_at
+                FROM article
+            """.trimIndent())
+            runSql("DROP TABLE article")
+            runSql("ALTER TABLE article_new RENAME TO article")
+            log.i { "Migrated article table to V4" }
+        } catch (e: Exception) {
+            log.w(e) { "Migration V3->V4 failed" }
         }
     }
 

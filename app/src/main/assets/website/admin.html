@@ -118,12 +118,12 @@
                         <div v-else class="article-grid">
                             <div class="article-card" v-for="a in articles" :key="a.id" @click="viewArticle(a)">
                                 <div class="card-cover">
-                                    <img v-if="a.coverImage" :src="a.coverImage">
+                                    <img v-if="a.coverImage" :src="a.coverImage" @error="e => e.target.style.display='none'">
                                     <span v-else class="no-cover">No Image</span>
                                 </div>
                                 <div class="card-body">
                                     <h4>{{ a.aiTitle || a.title || '无标题' }}</h4>
-                                    <p>{{ truncate(a.aiContent || a.content, 120) }}</p>
+                                    <p>{{ truncate(a.aiContent, 120) }}</p>
                                     <div class="card-meta">
                                         <span>{{ formatDate(a.createdAt) }}</span>
                                         <span v-if="a.isFavorite" class="fav">★</span>
@@ -152,7 +152,7 @@
                                 <div class="diary-date">{{ formatDate(d.createdAt) }}</div>
                                 <div class="diary-preview markdown-body" v-html="formatContent(truncate(d.content, 200))"></div>
                                 <div class="diary-images" v-if="d.images && d.images.length > 0" @click.stop>
-                                    <img v-for="(img, i) in d.images.slice(0, 3)" :key="i" :src="img" @click="imageViewer = { visible: true, src: img }">
+                                    <img v-for="(img, i) in d.images.slice(0, 3)" :key="i" :src="img" @click="imageViewer = { visible: true, src: img }" @error="e => e.target.style.display='none'">
                                     <span v-if="d.images.length > 3" class="more-images">+{{ d.images.length - 3 }}</span>
                                 </div>
                                 <div class="diary-tags" v-if="d.tags">
@@ -224,7 +224,7 @@
                 <div class="modal-body">
                     <div v-if="detailLoading" class="loading">加载中...</div>
                     <div v-else>
-                        <img v-if="detailItem.coverImage" :src="detailItem.coverImage" class="detail-cover">
+                        <img v-if="detailItem.coverImage" :src="detailItem.coverImage" class="detail-cover" @error="e => e.target.style.display='none'">
                         <h2>{{ detailItem.aiTitle || detailItem.title || '无标题' }}</h2>
                         <div class="detail-meta">
                             <span>{{ formatDate(detailItem.createdAt) }}</span>
@@ -235,8 +235,8 @@
                             <button :class="{ active: articleTab === 'summary' }" @click="articleTab = 'summary'">AI 摘要</button>
                             <button :class="{ active: articleTab === 'original' }" @click="articleTab = 'original'">原文</button>
                         </div>
-                        <div class="markdown-body" v-if="articleTab === 'summary'" v-html="formatContent(detailItem.aiContent || detailItem.content || '暂无摘要')"></div>
-                        <div class="markdown-body" v-if="articleTab === 'original'" v-html="formatContent(detailItem.aiMarkdownContent || detailItem.content || '暂无原文')"></div>
+                        <div class="markdown-body" v-if="articleTab === 'summary'" v-html="formatContent(detailItem.aiContent || '暂无摘要')"></div>
+                        <div class="markdown-body" v-if="articleTab === 'original'" v-html="formatContent(detailItem.aiMarkdownContent || '暂无原文')"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -262,7 +262,7 @@
                         </div>
                         <div class="markdown-body" v-html="formatContent(detailItem.content)"></div>
                         <div class="diary-images" v-if="detailItem.images && detailItem.images.length > 0" style="margin-top:16px">
-                            <img v-for="(img, i) in detailItem.images" :key="i" :src="img" @click="imageViewer = { visible: true, src: img }">
+                            <img v-for="(img, i) in detailItem.images" :key="i" :src="img" @click="imageViewer = { visible: true, src: img }" @error="e => e.target.style.display='none'">
                         </div>
                     </div>
                 </div>

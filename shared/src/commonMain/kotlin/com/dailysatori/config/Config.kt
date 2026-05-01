@@ -17,12 +17,12 @@ object AIConfig {
 object BackupConfig {
     const val productionIntervalHours = 6L
     const val developmentIntervalHours = 24L
-    const val fileExtension = ".zip"
+    const val fileExtension = ".enc"
 }
 
 object DatabaseConfig {
     const val name = "daily_satori.db"
-    const val currentSchemaVersion = 3L
+    const val currentSchemaVersion = 4L
 }
 
 object DirectoryConfig {
@@ -97,4 +97,5 @@ object SettingKeys {
     const val pluginServerUrl = "plugin_server_url"
     const val isFirstLaunch = "is_first_launch"
     const val schemaVersion = "schema_version"
+    const val backupPassword = "backup_password"
 }

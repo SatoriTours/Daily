@@ -34,7 +34,7 @@ fun ArticleCard(
     modifier: Modifier = Modifier,
 ) {
     val title = article.title.orEmpty()
-    val content = article.content.orEmpty()
+    val content = article.ai_content.orEmpty()
     val pubDate = article.pub_date
     val coverImage = article.cover_image ?: article.cover_image_url
 

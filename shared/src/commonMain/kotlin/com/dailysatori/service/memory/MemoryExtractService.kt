@@ -103,7 +103,7 @@ class MemoryExtractService(
             val articles = articleRepo.getAllSync()
             articles.forEachIndexed { index, article ->
                 onProgress("处理文章 (${index + 1}/${articles.size})...")
-                val text = article.ai_markdown_content ?: article.content ?: ""
+                val text = article.ai_markdown_content ?: ""
                 val t = article.ai_title ?: article.title ?: "未命名"
                 extractAndSave("article", article.id, t, text)
             }

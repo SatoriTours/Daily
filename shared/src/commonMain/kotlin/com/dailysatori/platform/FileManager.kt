@@ -6,6 +6,7 @@ expect class FileManager() {
     fun getDiaryImagesDir(): String
     fun getBackupDir(): String
     fun getCacheDir(): String
+    fun getLegacyFlutterDir(): String?
     fun writeFile(path: String, data: ByteArray)
     fun readFile(path: String): ByteArray
     fun deleteFile(path: String): Boolean
@@ -17,4 +18,6 @@ expect class FileManager() {
     fun extractZip(zipPath: String, destDir: String)
     fun createZip(sourceDir: String, zipPath: String, files: List<String>)
     fun readAssetText(filename: String): String
+    fun encryptFile(inputPath: String, outputPath: String, password: String)
+    fun decryptFile(inputPath: String, outputPath: String, password: String)
 }

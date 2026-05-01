@@ -348,7 +348,7 @@ class McpToolRegistry(
         buildJsonObject {
             put("id", article.id)
             put("title", article.ai_title ?: article.title ?: "无标题")
-            put("content", truncate(article.ai_content ?: article.content ?: "", 800))
+            put("content", truncate(article.ai_content ?: "", 800))
             put("comment", article.comment ?: "")
             put("url", article.url ?: "")
             put("isFavorite", article.is_favorite ?: 0L)

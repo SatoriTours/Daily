@@ -3,9 +3,7 @@ CREATE TABLE article (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT,
     ai_title TEXT,
-    content TEXT,
     ai_content TEXT,
-    html_content TEXT,
     ai_markdown_content TEXT,
     url TEXT UNIQUE,
     is_favorite INTEGER DEFAULT 0,
@@ -160,7 +158,7 @@ searchArticles:
 SELECT * FROM article
 WHERE title LIKE '%' || ? || '%'
    OR ai_title LIKE '%' || ? || '%'
-   OR content LIKE '%' || ? || '%'
+   OR ai_content LIKE '%' || ? || '%'
 ORDER BY created_at DESC;
 
 selectArticlesByDateRange:
@@ -178,11 +176,11 @@ GROUP BY article_day
 ORDER BY article_day;
 
 insertArticle:
-INSERT INTO article (title, ai_title, content, ai_content, html_content, ai_markdown_content, url, is_favorite, comment, status, cover_image, cover_image_url, pub_date, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO article (title, ai_title, ai_content, ai_markdown_content, url, is_favorite, comment, status, cover_image, cover_image_url, pub_date, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateArticle:
-UPDATE article SET title = ?, ai_title = ?, content = ?, ai_content = ?, html_content = ?, ai_markdown_content = ?, url = ?, is_favorite = ?, comment = ?, status = ?, cover_image = ?, cover_image_url = ?, pub_date = ?, updated_at = ?
+UPDATE article SET title = ?, ai_title = ?, ai_content = ?, ai_markdown_content = ?, url = ?, is_favorite = ?, comment = ?, status = ?, cover_image = ?, cover_image_url = ?, pub_date = ?, updated_at = ?
 WHERE id = ?;
 
 updateArticleField:
