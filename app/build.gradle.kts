@@ -36,6 +36,16 @@ android {
             pickFirsts += "/META-INF/versions/9/OSGI-INF/MANIFEST.MF"
         }
     }
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+        }
+    }
 }
 
 dependencies {

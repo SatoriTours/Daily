@@ -24,6 +24,7 @@ import com.dailysatori.service.book.WebSearchEngine
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.import.ImportService
 import com.dailysatori.service.mcp.McpAgentService
+import com.dailysatori.service.mcp.McpToolRegistry
 import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.service.migration.DatabaseMigration
 import com.dailysatori.service.parser.WebpageParserService
@@ -89,6 +90,9 @@ val sharedModule: Module = module {
     // Import service
     single { ImportService(get(), get(), get()) }
 
+    // MCP Tool registry
+    single { McpToolRegistry(get(), get(), get(), get(), get()) }
+
     // MCP Agent service
-    single { McpAgentService(get(), get(), get(), get(), get(), get(), get()) }
+    single { McpAgentService(get(), get(), get()) }
 }

@@ -5,41 +5,20 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddPhotoAlternate
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.FormatBold
-import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
-import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.FormatListNumbered
-import androidx.compose.material.icons.filled.Tag
-import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -56,17 +35,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
-import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.crossfade
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.Radius
@@ -139,10 +112,7 @@ fun DiaryEditorSheet(
         val replacement = prefix + selected + suffix
         val newText = text.substring(0, sel.start) + replacement + text.substring(sel.end)
         val cursorPos = sel.start + replacement.length
-        content = content.copy(
-            text = newText,
-            selection = TextRange(cursorPos),
-        )
+        content = content.copy(text = newText, selection = TextRange(cursorPos))
     }
 
     fun insertLineStart(prefix: String) {
@@ -152,10 +122,7 @@ fun DiaryEditorSheet(
         val lineStart = text.lastIndexOf('\n', cursorPos - 1) + 1
         val newText = text.substring(0, lineStart) + prefix + text.substring(lineStart)
         val newCursor = cursorPos + prefix.length
-        content = content.copy(
-            text = newText,
-            selection = TextRange(newCursor),
-        )
+        content = content.copy(text = newText, selection = TextRange(newCursor))
     }
 
     fun saveMedia(uri: Uri, ext: String) {
@@ -171,9 +138,7 @@ fun DiaryEditorSheet(
             val diaryImagesDir = File(context.filesDir, "DailySatori/diary_images").apply { mkdirs() }
             val destFile = File(diaryImagesDir, fileName)
             context.contentResolver.openInputStream(uri)?.use { input ->
-                destFile.outputStream().use { output ->
-                    input.copyTo(output)
-                }
+                destFile.outputStream().use { output -> input.copyTo(output) }
             }
             images.add("diary_images/$fileName")
         } catch (_: Exception) { }
@@ -192,21 +157,15 @@ fun DiaryEditorSheet(
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
-    ) { success ->
-        if (success) saveMedia(tempPhotoUri, ".jpg")
-    }
+    ) { success -> if (success) saveMedia(tempPhotoUri, ".jpg") }
 
     val videoLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CaptureVideo(),
-    ) { success ->
-        if (success) saveMedia(tempVideoUri, ".mp4")
-    }
+    ) { success -> if (success) saveMedia(tempVideoUri, ".mp4") }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents(),
-    ) { uris: List<Uri> ->
-        uris.forEach { uri -> saveMedia(uri, "") }
-    }
+    ) { uris: List<Uri> -> uris.forEach { uri -> saveMedia(uri, "") } }
 
     fun appendTag() {
         val tag = tagInput.trim()
@@ -230,23 +189,14 @@ fun DiaryEditorSheet(
             title = { Text("添加媒体") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                    TextButton(
-                        onClick = { showMediaPicker = false; cameraLauncher.launch(tempPhotoUri) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("拍照", modifier = Modifier.weight(1f))
+                    MediaPickerButton("拍照") {
+                        showMediaPicker = false; cameraLauncher.launch(tempPhotoUri)
                     }
-                    TextButton(
-                        onClick = { showMediaPicker = false; videoLauncher.launch(tempVideoUri) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("录像", modifier = Modifier.weight(1f))
+                    MediaPickerButton("录像") {
+                        showMediaPicker = false; videoLauncher.launch(tempVideoUri)
                     }
-                    TextButton(
-                        onClick = { showMediaPicker = false; galleryLauncher.launch("*/*") },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("从相册选择", modifier = Modifier.weight(1f))
+                    MediaPickerButton("从相册选择") {
+                        showMediaPicker = false; galleryLauncher.launch("*/*")
                     }
                 }
             },
@@ -282,10 +232,7 @@ fun DiaryEditorSheet(
             ) {
                 BasicTextField(
                     value = content,
-                    onValueChange = {
-                        pushUndo()
-                        content = it
-                    },
+                    onValueChange = { pushUndo(); content = it },
                     modifier = Modifier.fillMaxWidth().fillMaxHeight(),
                     textStyle = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.onSurface,
@@ -304,46 +251,7 @@ fun DiaryEditorSheet(
                 )
             }
 
-            if (images.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(Spacing.xs))
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-                    contentPadding = PaddingValues(vertical = Spacing.xs),
-                ) {
-                    items(images.toList(), key = { it }) { imagePath ->
-                        Box(modifier = Modifier.size(103.dp)) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(context)
-                                    .data(File(context.filesDir, "DailySatori/$imagePath"))
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(103.dp)
-                                    .clip(RoundedCornerShape(Radius.l)),
-                                contentScale = ContentScale.Crop,
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(top = 4.dp, end = 4.dp)
-                                    .size(18.dp)
-                                    .clip(RoundedCornerShape(topEnd = Radius.m, bottomStart = Radius.xs))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
-                                    .clickable { images.remove(imagePath) },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    Icons.Default.Clear,
-                                    contentDescription = "删除",
-                                    modifier = Modifier.size(12.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            DiaryImageRow(images = images, onRemove = { images.remove(it) })
 
             if (showTagInput) {
                 Spacer(modifier = Modifier.height(Spacing.xs))
@@ -372,75 +280,32 @@ fun DiaryEditorSheet(
 
             Spacer(modifier = Modifier.height(Spacing.xs))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()).weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.xxs),
-                ) {
-                    IconButton(onClick = { insertLineStart("# ") }, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Title, contentDescription = "标题", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(onClick = { insertFormat("**", "**") }, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.FormatBold, contentDescription = "加粗", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(onClick = { insertLineStart("1. ") }, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.FormatListNumbered, contentDescription = "有序列表", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(onClick = { insertLineStart("- ") }, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.AutoMirrored.Filled.FormatListBulleted, contentDescription = "无序列表", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(
-                        onClick = { performUndo() },
-                        modifier = Modifier.size(36.dp),
-                        enabled = undoStack.isNotEmpty(),
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "撤销", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(
-                        onClick = { performRedo() },
-                        modifier = Modifier.size(36.dp),
-                        enabled = redoStack.isNotEmpty(),
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "重做", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.xxs),
-                ) {
-                    IconButton(onClick = { showMediaPicker = true }, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.AddPhotoAlternate, contentDescription = "添加媒体", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(onClick = { showTagInput = !showTagInput }, modifier = Modifier.size(36.dp)) {
-                        Icon(Icons.Default.Tag, contentDescription = "添加标签", modifier = Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(
-                        onClick = {
-                            onSave(
-                                content.text,
-                                null,
-                                null,
-                                images.joinToString(",").ifBlank { null },
-                            )
-                        },
-                        modifier = Modifier.size(36.dp),
-                        enabled = content.text.isNotBlank(),
-                    ) {
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = "保存",
-                            modifier = Modifier.size(24.dp),
-                            tint = if (content.text.isNotBlank()) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        )
-                    }
-                }
-            }
+            DiaryEditorToolbar(
+                onTitle = { insertLineStart("# ") },
+                onBold = { insertFormat("**", "**") },
+                onOrderedList = { insertLineStart("1. ") },
+                onUnorderedList = { insertLineStart("- ") },
+                onUndo = { performUndo() },
+                onRedo = { performRedo() },
+                onMedia = { showMediaPicker = true },
+                onTag = { showTagInput = !showTagInput },
+                onSave = {
+                    onSave(content.text, null, null, images.joinToString(",").ifBlank { null })
+                },
+                canUndo = undoStack.isNotEmpty(),
+                canRedo = redoStack.isNotEmpty(),
+                canSave = content.text.isNotBlank(),
+            )
 
             Spacer(modifier = Modifier.height(Spacing.s))
         }
     }
 }
+
+@Composable
+private fun MediaPickerButton(label: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Text(label, modifier = Modifier.weight(1f))
+    }
+}
+
