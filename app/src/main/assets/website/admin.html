@@ -1,40 +1,28 @@
 <!DOCTYPE html>
-<!--
-  Daily Satori 管理后台
-  功能: 仪表盘、文章/日记/书籍管理、用户认证
-  技术栈: Vue.js 3 + Bootstrap 5 + Marked.js
--->
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="system">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Satori - 管理后台</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="/website/css/base.css" rel="stylesheet">
     <link href="/website/css/layout.css" rel="stylesheet">
     <link href="/website/css/components.css" rel="stylesheet">
     <link href="/website/css/pages.css" rel="stylesheet">
-    <link href="/website/css/markdown.css" rel="stylesheet">
 </head>
 <body>
     <div id="app">
-        <!-- 登录页面 -->
-        <div v-if="!isLoggedIn" class="login-container">
+        <div v-if="!isLoggedIn" class="login-page">
             <div class="login-card">
-                <div class="login-logo">
-                    <h1><i class="bi bi-journal-richtext"></i> Daily Satori</h1>
-                    <p>每日顿悟 · 管理后台</p>
+                <div class="login-header">
+                    <h1>Daily Satori</h1>
+                    <p>管理后台</p>
                 </div>
                 <form @submit.prevent="login">
-                    <div class="form-group">
-                        <label for="password-input">访问密码</label>
-                        <input id="password-input" type="password" v-model="password" placeholder="请输入密码" required>
+                    <div class="field">
+                        <label>访问密码</label>
+                        <input type="password" v-model="password" placeholder="请输入密码" required autofocus>
                     </div>
-                    <div v-if="loginError" class="login-error">
-                        <i class="bi bi-exclamation-circle"></i> {{ loginError }}
-                    </div>
+                    <div v-if="loginError" class="alert alert-error">{{ loginError }}</div>
                     <button type="submit" class="btn btn-primary btn-block" :disabled="loading">
                         {{ loading ? '登录中...' : '登录' }}
                     </button>
@@ -42,367 +30,77 @@
             </div>
         </div>
 
-        <!-- 主应用容器 -->
-        <div v-else class="app-container">
-            <!-- 侧边栏 -->
-            <aside class="sidebar" :class="{ open: sidebarOpen }">
-                <div class="sidebar-header">
-                    <h2><i class="bi bi-journal-richtext"></i> Daily Satori</h2>
+        <div v-else class="app-layout">
+            <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
+                <div class="sidebar-brand" @click="navigate('dashboard')">
+                    <span class="brand-icon">◆</span>
+                    <span class="brand-text">Daily Satori</span>
                 </div>
                 <nav class="sidebar-nav">
-                    <a class="nav-item" :class="{ active: currentPage === 'dashboard' }" @click="navigate('dashboard')">
-                        <i class="bi bi-speedometer2"></i><span>仪表盘</span>
+                    <a :class="{ active: page === 'dashboard' }" @click="navigate('dashboard')" title="仪表盘">
+                        <span class="nav-icon">◫</span><span class="nav-text">仪表盘</span>
                     </a>
-                    <a class="nav-item" :class="{ active: currentPage === 'articles' }" @click="navigate('articles')">
-                        <i class="bi bi-file-text"></i><span>文章管理</span>
+                    <a :class="{ active: page === 'articles' }" @click="navigate('articles')" title="文章">
+                        <span class="nav-icon">☰</span><span class="nav-text">文章</span>
                     </a>
-                    <a class="nav-item" :class="{ active: currentPage === 'diary' }" @click="navigate('diary')">
-                        <i class="bi bi-journal"></i><span>日记管理</span>
+                    <a :class="{ active: page === 'diary' }" @click="navigate('diary')" title="日记">
+                        <span class="nav-icon">📓</span><span class="nav-text">日记</span>
                     </a>
-                    <a class="nav-item" :class="{ active: currentPage === 'books' }" @click="navigate('books')">
-                        <i class="bi bi-book"></i><span>书籍管理</span>
+                    <a :class="{ active: page === 'books' }" @click="navigate('books')" title="书籍">
+                        <span class="nav-icon">📚</span><span class="nav-text">书籍</span>
                     </a>
-                    <div class="nav-footer">
-                        <a class="nav-item" @click="logout">
-                            <i class="bi bi-box-arrow-right"></i><span>退出登录</span>
-                        </a>
-                    </div>
                 </nav>
+                <div class="sidebar-footer">
+                    <button class="theme-btn" @click="toggleTheme" :title="dark ? '浅色模式' : '深色模式'">
+                        {{ dark ? '☀' : '☾' }}
+                    </button>
+                    <button class="sidebar-toggle" @click="sidebarCollapsed = !sidebarCollapsed" :title="sidebarCollapsed ? '展开' : '收起'">
+                        {{ sidebarCollapsed ? '▶' : '◀' }}
+                    </button>
+                    <a class="sidebar-logout" @click="logout" title="退出">⇥</a>
+                </div>
             </aside>
 
-            <!-- 主内容区域 -->
-            <main class="main-content">
-                <header class="main-header">
-                    <h1>{{ pageTitle }}</h1>
-                    <div class="header-actions">
-                        <button class="theme-toggle" @click="toggleTheme" :title="isDarkMode ? '切换到浅色模式' : '切换到深色模式'">
-                            <i class="bi bi-sun-fill"></i>
-                            <i class="bi bi-moon-fill"></i>
-                        </button>
-                        <span class="connection-status" :class="isConnected ? 'connected' : 'disconnected'">
-                            <i class="bi" :class="isConnected ? 'bi-wifi' : 'bi-wifi-off'"></i>
-                            {{ isConnected ? '已连接' : '未连接' }}
-                        </span>
+            <main class="main">
+                <header class="topbar">
+                    <div class="topbar-left">
+                        <h2>{{ pageTitle }}</h2>
+                        <span class="connection-dot" :class="{ on: connected }" :title="connected ? '已连接' : '未连接'"></span>
+                    </div>
+                    <div class="topbar-right">
+                        <div class="search-wrap">
+                            <input type="text" class="search-input" v-model="searchKeyword" @keyup.enter="doSearch" placeholder="搜索 (Ctrl+K)">
+                            <kbd>Ctrl+K</kbd>
+                        </div>
                     </div>
                 </header>
 
-                <div class="content-area">
-                    <!-- 仪表盘 -->
-                    <template v-if="currentPage === 'dashboard'">
-                        <div class="dashboard-layout">
-                            <div class="dashboard-main">
-                                <!-- 统计卡片网格 -->
-                                <div class="stats-grid">
-                                    <div class="stat-card">
-                                        <div class="stat-icon blue"><i class="bi bi-file-text"></i></div>
-                                        <div class="stat-info">
-                                            <div class="stat-value">{{ stats.totals?.articles || 0 }}</div>
-                                            <div class="stat-label">文章总数</div>
-                                        </div>
-                                    </div>
-                                    <div class="stat-card">
-                                        <div class="stat-icon green"><i class="bi bi-journal"></i></div>
-                                        <div class="stat-info">
-                                            <div class="stat-value">{{ stats.totals?.diaries || 0 }}</div>
-                                            <div class="stat-label">日记总数</div>
-                                        </div>
-                                    </div>
-                                    <div class="stat-card">
-                                        <div class="stat-icon purple"><i class="bi bi-book"></i></div>
-                                        <div class="stat-info">
-                                            <div class="stat-value">{{ stats.totals?.books || 0 }}</div>
-                                            <div class="stat-label">书籍总数</div>
-                                        </div>
-                                    </div>
-                                    <div class="stat-card">
-                                        <div class="stat-icon orange"><i class="bi bi-star"></i></div>
-                                        <div class="stat-info">
-                                            <div class="stat-value">{{ stats.totals?.favoriteArticles || 0 }}</div>
-                                            <div class="stat-label">收藏文章</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- 周报卡片 -->
-                                <div class="weekly-report-card">
-                                    <div class="weekly-report-header">
-                                        <h3><i class="bi bi-calendar-week"></i> 周报总结</h3>
-                                        <div v-if="weeklyReports.length > 0" class="weekly-report-tabs">
-                                            <div v-for="(report, index) in weeklyReports" :key="report.id"
-                                                 class="weekly-report-tab"
-                                                 :class="{ active: currentWeeklyReportIndex === index }"
-                                                 @click="currentWeeklyReportIndex = index">
-                                                <i class="bi bi-calendar-range"></i>
-                                                {{ formatWeekTabLabel(report.weekStart, report.weekEnd, index) }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div v-if="weeklyReportLoading" class="loading loading-sm">
-                                        <div class="spinner"></div>
-                                        <span>加载中...</span>
-                                    </div>
-                                    <div v-else-if="currentWeeklyReport && currentWeeklyReport.content" class="weekly-report-content">
-                                        <div class="markdown-body" v-html="formatContent(currentWeeklyReport.content)"></div>
-                                    </div>
-                                    <div v-else class="weekly-report-empty">
-                                        <i class="bi bi-journal-text"></i>
-                                        <p>暂无周报总结</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 最近活动 - 可折叠面板 -->
-                            <div class="collapsible-card">
-                                <div class="collapsible-header" @click="recentActivityExpanded = !recentActivityExpanded">
-                                    <h3><i class="bi bi-clock-history"></i> 最近活动</h3>
-                                    <div class="collapsible-toggle" :class="{ expanded: recentActivityExpanded }">
-                                        <i class="bi bi-chevron-down"></i>
-                                    </div>
-                                </div>
-                                <div class="collapsible-content" :class="{ expanded: recentActivityExpanded }">
-                                    <div v-if="recentLoading" class="loading loading-md">
-                                        <div class="spinner"></div><span>加载中...</span>
-                                    </div>
-                                    <table v-else class="data-table">
-                                        <thead>
-                                            <tr><th>类型</th><th>标题</th><th>时间</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr v-for="item in recentItems" :key="item.type + '-' + item.id">
-                                                <td><span class="badge" :class="getBadgeClass(item.type)">{{ getTypeName(item.type) }}</span></td>
-                                                <td class="title-cell">{{ item.title || item.content }}</td>
-                                                <td>{{ formatDate(item.createdAt) }}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                <div class="content">
+                    <template v-if="page === 'dashboard'">
+                        <div class="stats-grid">
+                            <div class="stat" v-for="s in statsCards" :key="s.label">
+                                <div class="stat-icon" :style="{ background: s.color }">{{ s.icon }}</div>
+                                <div class="stat-body">
+                                    <div class="stat-value">{{ s.value }}</div>
+                                    <div class="stat-label">{{ s.label }}</div>
                                 </div>
                             </div>
                         </div>
-                    </template>
-
-                    <!-- 文章管理 -->
-                    <template v-if="currentPage === 'articles'">
-                        <div class="data-card">
-                            <div class="data-card-header">
-                                <h3>文章列表</h3>
-                                <div class="header-actions-right">
-                                    <button class="icon-btn" @click="loadArticles(1)" title="刷新列表">
-                                        <i class="bi bi-arrow-clockwise"></i>
-                                    </button>
-                                    <button class="btn-add" @click="showSubmitModal = true">
-                                        <i class="bi bi-plus-lg"></i> 添加
-                                    </button>
-                                    <div class="search-box">
-                                        <input type="text" v-model="searchQuery" placeholder="搜索文章..." @keyup.enter="searchArticles">
-                                        <button class="btn btn-primary" @click="searchArticles">搜索</button>
-                                    </div>
-                                </div>
+                        <div class="panels">
+                            <div class="panel panel-main">
+                                <div class="panel-header"><h3>📊 内容趋势</h3></div>
+                                <div class="panel-body"><canvas ref="trendChart" height="240"></canvas></div>
                             </div>
-                            <div v-if="articlesLoading" class="loading">
-                                <div class="spinner"></div>
-                                <span>加载中...</span>
-                            </div>
-                            <template v-else>
-                                <div v-if="articles.length === 0" class="empty-state">
-                                    <i class="bi bi-inbox"></i>
-                                    <p>暂无文章</p>
-                                </div>
-                                <div v-else class="article-feed">
-                                    <div class="article-card" v-for="article in articles" :key="article.id" @click="viewArticle(article)">
-                                        <div class="article-thumb">
-                                            <img v-if="article.coverImage" :src="article.coverImage" :alt="article.title">
-                                            <i v-else class="bi bi-image no-image"></i>
-                                        </div>
-                                        <div class="article-body">
-                                            <div class="article-header">
-                                                <h4 class="article-title">
-                                                    {{ article.title || article.aiTitle || '无标题' }}
-                                                </h4>
-                                            </div>
-                                            <p class="article-excerpt">
-                                                {{ truncate(article.subTitle || article.aiContent || article.content || '', 120) }}
-                                            </p>
-                                            <div class="article-footer">
-                                                <div class="article-meta">
-                                                    <span>
-                                                        <i class="bi bi-calendar3"></i>
-                                                        {{ formatDate(article.createdAt) }}
-                                                    </span>
-                                                    <span v-if="article.isFavorite">
-                                                        <i class="bi bi-star-fill"></i> 已收藏
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="pagination-wrapper">
-                                    <div class="pagination-info">
-                                        共 {{ pagination.totalItems }} 条，第 {{ pagination.page }} / {{ pagination.totalPages }} 页
-                                    </div>
-                                    <div class="pagination-controls">
-                                        <button class="page-btn" @click="changePage(1)" :disabled="pagination.page <= 1">首页</button>
-                                        <button class="page-btn" @click="changePage(pagination.page - 1)" :disabled="pagination.page <= 1">上一页</button>
-                                        <button class="page-btn" @click="changePage(pagination.page + 1)" :disabled="pagination.page >= pagination.totalPages">下一页</button>
-                                        <button class="page-btn" @click="changePage(pagination.totalPages)" :disabled="pagination.page >= pagination.totalPages">末页</button>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                    </template>
-
-                    <!-- 日记管理 -->
-                    <template v-if="currentPage === 'diary'">
-                        <div class="data-card">
-                            <div class="data-card-header">
-                                <h3>日记列表</h3>
-                                <div class="header-actions-right">
-                                    <button class="icon-btn" @click="loadDiaries(1)" title="刷新列表"><i class="bi bi-arrow-clockwise"></i></button>
-                                    <button class="btn-add" @click="showDiaryEditorModal = true">
-                                        <i class="bi bi-plus-lg"></i> 添加
-                                    </button>
-                                    <div class="search-box">
-                                        <input type="text" v-model="diarySearchQuery" placeholder="搜索日记..." @keyup.enter="searchDiaries">
-                                        <button class="btn btn-primary" @click="searchDiaries">搜索</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- 加载状态 -->
-                            <div v-if="diariesLoading" class="loading">
-                                <div class="spinner"></div><span>加载中...</span>
-                            </div>
-                            <template v-else>
-                                <!-- 空状态 -->
-                                <div v-if="diaries.length === 0" class="empty-state">
-                                    <i class="bi bi-journal"></i><p>暂无日记</p>
-                                </div>
-                                <!-- 日记卡片列表 -->
-                                <div v-else class="article-feed">
-                                    <div class="diary-card" v-for="diary in diaries" :key="diary.id" @click="viewDiary(diary)">
-                                        <div class="diary-body">
-                                            <div class="diary-content markdown-body" v-html="formatContent(diary.content)"></div>
-                                            <div class="diary-bottom">
-                                                <!-- 图片预览（最多显示3张） -->
-                                                <div v-if="diary.images && diary.images.length > 0" class="diary-images-preview" @click.stop>
-                                                    <img v-for="(img, index) in diary.images.slice(0, 3)" :key="index" :src="img" @click="openImageViewer(img)" :alt="'图片 ' + (index + 1)">
-                                                    <div v-if="diary.images.length > 3" class="more-images">+{{ diary.images.length - 3 }}</div>
-                                                </div>
-                                                <div class="diary-footer">
-                                                    <div class="diary-meta">
-                                                        <span><i class="bi bi-calendar3"></i> {{ formatDate(diary.createdAt) }}</span>
-                                                        <span v-if="diary.images && diary.images.length > 0">
-                                                            <i class="bi bi-image"></i> {{ diary.images.length }} 张图片
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- 分页控件 -->
-                                <div class="pagination-wrapper">
-                                    <div class="pagination-info">共 {{ diaryPagination.totalItems }} 条，第 {{ diaryPagination.page }} / {{ diaryPagination.totalPages }} 页</div>
-                                    <div class="pagination-controls">
-                                        <button class="page-btn" @click="changeDiaryPage(1)" :disabled="diaryPagination.page <= 1">首页</button>
-                                        <button class="page-btn" @click="changeDiaryPage(diaryPagination.page - 1)" :disabled="diaryPagination.page <= 1">上一页</button>
-                                        <button class="page-btn" @click="changeDiaryPage(diaryPagination.page + 1)" :disabled="diaryPagination.page >= diaryPagination.totalPages">下一页</button>
-                                        <button class="page-btn" @click="changeDiaryPage(diaryPagination.totalPages)" :disabled="diaryPagination.page >= diaryPagination.totalPages">末页</button>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                    </template>
-
-                    <!-- 书籍管理 -->
-                    <template v-if="currentPage === 'books'">
-                        <div class="books-page">
-                            <!-- 加载状态 -->
-                            <div v-if="booksLoading" class="loading loading-lg">
-                                <div class="spinner"></div><span>加载中...</span>
-                            </div>
-                            <!-- 空状态 -->
-                            <div v-else-if="books.length === 0" class="books-empty-state">
-                                <i class="bi bi-book"></i><p>暂无书籍</p>
-                                <button class="btn btn-primary mt-16" @click="showAddBookModal = true">
-                                    <i class="bi bi-plus-lg"></i> 添加书籍
-                                </button>
-                            </div>
-                            <!-- 书籍布局：左侧书架 + 右侧观点 -->
-                            <div v-else class="books-layout">
-                                <!-- 左侧书籍列表 -->
-                                <div class="books-sidebar">
-                                    <div class="books-sidebar-header">
-                                        <h3><i class="bi bi-book"></i> 书架</h3>
-                                        <div class="books-sidebar-actions">
-                                            <span class="books-sidebar-count">{{ books.length }}</span>
-                                            <button class="icon-btn" @click="showAddBookModal = true" title="添加书籍"><i class="bi bi-plus-lg"></i></button>
-                                            <button class="icon-btn" @click="loadBooks()" title="刷新"><i class="bi bi-arrow-clockwise"></i></button>
-                                        </div>
-                                    </div>
-                                    <!-- 书籍Tab列表 -->
-                                    <div class="book-tab-list">
-                                        <div v-for="(book, index) in books" :key="book.id"
-                                             class="book-tab-item" :class="{ active: currentBookIndex === index }"
-                                             @click="selectBook(index)">
-                                            <div class="book-tab-icon"><i class="bi bi-book"></i></div>
-                                            <div class="book-tab-info">
-                                                <h5 class="book-tab-title">{{ book.title || '未知书名' }}</h5>
-                                                <div class="book-tab-author" v-if="book.author">{{ book.author }}</div>
-                                            </div>
-                                            <span v-if="currentBookViewpoints.length > 0 && currentBookIndex === index" class="book-tab-viewpoints">{{ currentBookViewpoints.length }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- 右侧观点内容 -->
-                                <div class="books-content">
-                                    <div class="book-detail-card" v-if="currentBook">
-                                        <!-- 书籍信息头部 -->
-                                        <div class="book-detail-header-compact">
-                                            <div class="book-header-main">
-                                                <i class="bi bi-book book-icon-sm"></i>
-                                                <span class="book-title-inline">{{ currentBook.title || '未知书名' }}</span>
-                                                <span v-if="currentBook.author" class="book-author-inline">{{ currentBook.author }}</span>
-                                                <span v-if="currentBook.category" class="book-tag-inline">{{ currentBook.category }}</span>
-                                                <span class="book-date-inline">{{ formatDate(currentBook.createdAt) }}</span>
-                                            </div>
-                                            <div v-if="currentBook.introduction" class="book-intro-inline" :title="currentBook.introduction">{{ currentBook.introduction }}</div>
-                                        </div>
-
-                                        <!-- 观点列表 -->
-                                        <div class="viewpoints-section">
-                                            <div class="viewpoints-header">
-                                                <h4><i class="bi bi-lightbulb"></i> 读书感悟</h4>
-                                                <span class="viewpoints-count">{{ currentBookViewpoints.length }} 条</span>
-                                            </div>
-                                            <!-- 观点加载状态 -->
-                                            <div v-if="bookViewpointsLoading" class="loading loading-md">
-                                                <div class="spinner"></div><span>加载中...</span>
-                                            </div>
-                                            <!-- 观点空状态 -->
-                                            <div v-else-if="currentBookViewpoints.length === 0" class="viewpoints-empty">
-                                                <i class="bi bi-lightbulb"></i><p>暂无感悟，请在 App 中添加</p>
-                                            </div>
-                                            <!-- 观点手风琴列表 -->
-                                            <div v-else class="viewpoint-list">
-                                                <div v-for="(viewpoint, index) in currentBookViewpoints" :key="viewpoint.id"
-                                                     class="viewpoint-accordion" :class="{ 'is-expanded': expandedViewpointIndex === index }">
-                                                    <div class="viewpoint-accordion-header" @click="toggleViewpoint(index)">
-                                                        <div class="viewpoint-accordion-title">
-                                                            <i class="bi" :class="expandedViewpointIndex === index ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
-                                                            <span>{{ viewpoint.title || '无标题' }}</span>
-                                                        </div>
-                                                        <span class="viewpoint-accordion-date">{{ formatDate(viewpoint.createdAt) }}</span>
-                                                    </div>
-                                                    <div class="viewpoint-accordion-body" v-show="expandedViewpointIndex === index">
-                                                        <div class="viewpoint-content markdown-body" v-html="formatContent(viewpoint.content)"></div>
-                                                        <div v-if="viewpoint.example" class="viewpoint-example-section">
-                                                            <div class="viewpoint-example-label"><i class="bi bi-bookmark"></i> 书籍案例</div>
-                                                            <div class="viewpoint-example-text">{{ viewpoint.example }}</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
+                            <div class="panel panel-side">
+                                <div class="panel-header"><h3>🕐 最近活动</h3></div>
+                                <div class="panel-body">
+                                    <div v-if="recentLoading" class="loading">加载中...</div>
+                                    <div v-else-if="recentItems.length === 0" class="empty">暂无活动</div>
+                                    <div v-else class="activity-list">
+                                        <div v-for="item in recentItems" :key="item.type + item.id" class="activity-item">
+                                            <span class="dot" :class="item.type"></span>
+                                            <span class="title">{{ item.title || item.content }}</span>
+                                            <span class="time">{{ formatDate(item.createdAt) }}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -410,263 +108,256 @@
                         </div>
                     </template>
 
+                    <template v-if="page === 'articles'">
+                        <div class="table-toolbar">
+                            <div class="toolbar-left"><span class="count">{{ pagination.totalItems }} 篇文章</span></div>
+                            <div class="toolbar-right"><button class="btn btn-sm" @click="showArticleModal = true">+ 添加</button></div>
+                        </div>
+                        <div v-if="articlesLoading" class="loading">加载中...</div>
+                        <div v-else-if="articles.length === 0" class="empty">暂无文章</div>
+                        <div v-else class="article-grid">
+                            <div class="article-card" v-for="a in articles" :key="a.id" @click="viewArticle(a)">
+                                <div class="card-cover">
+                                    <img v-if="a.coverImage" :src="a.coverImage">
+                                    <span v-else class="no-cover">No Image</span>
+                                </div>
+                                <div class="card-body">
+                                    <h4>{{ a.title || a.aiTitle || '无标题' }}</h4>
+                                    <p>{{ truncate(a.subTitle || a.aiContent || a.content, 120) }}</p>
+                                    <div class="card-meta">
+                                        <span>{{ formatDate(a.createdAt) }}</span>
+                                        <span v-if="a.isFavorite" class="fav">★</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pagination" v-if="pagination.totalPages > 1">
+                            <button :disabled="pagination.page <= 1" @click="loadArticles(1)">«</button>
+                            <button :disabled="pagination.page <= 1" @click="loadArticles(pagination.page - 1)">‹</button>
+                            <span class="page-info">{{ pagination.page }} / {{ pagination.totalPages }}</span>
+                            <button :disabled="pagination.page >= pagination.totalPages" @click="loadArticles(pagination.page + 1)">›</button>
+                            <button :disabled="pagination.page >= pagination.totalPages" @click="loadArticles(pagination.totalPages)">»</button>
+                        </div>
+                    </template>
+
+                    <template v-if="page === 'diary'">
+                        <div class="table-toolbar">
+                            <div class="toolbar-left"><span class="count">{{ diaryPagination.totalItems }} 篇日记</span></div>
+                            <div class="toolbar-right"><button class="btn btn-sm" @click="openDiaryEditor()">+ 添加</button></div>
+                        </div>
+                        <div v-if="diariesLoading" class="loading">加载中...</div>
+                        <div v-else-if="diaries.length === 0" class="empty">暂无日记</div>
+                        <div v-else class="diary-list">
+                            <div class="diary-card" v-for="d in diaries" :key="d.id" @click="viewDiary(d)">
+                                <div class="diary-date">{{ formatDate(d.createdAt) }}</div>
+                                <div class="diary-preview markdown-body" v-html="formatContent(truncate(d.content, 200))"></div>
+                                <div class="diary-tags" v-if="d.tags">
+                                    <span class="tag" v-for="t in d.tags.split(',')" :key="t">{{ t.trim() }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pagination" v-if="diaryPagination.totalPages > 1">
+                            <button :disabled="diaryPagination.page <= 1" @click="loadDiaries(1)">«</button>
+                            <button :disabled="diaryPagination.page <= 1" @click="loadDiaries(diaryPagination.page - 1)">‹</button>
+                            <span class="page-info">{{ diaryPagination.page }} / {{ diaryPagination.totalPages }}</span>
+                            <button :disabled="diaryPagination.page >= diaryPagination.totalPages" @click="loadDiaries(diaryPagination.page + 1)">›</button>
+                            <button :disabled="diaryPagination.page >= diaryPagination.totalPages" @click="loadDiaries(diaryPagination.totalPages)">»</button>
+                        </div>
+                    </template>
+
+                    <template v-if="page === 'books'">
+                        <div class="books-layout">
+                            <div class="books-sidebar">
+                                <div class="books-sidebar-header">
+                                    <h3>书架</h3>
+                                    <button class="btn btn-sm" @click="showAddBookModal = true">+</button>
+                                </div>
+                                <div class="book-list">
+                                    <div v-for="(b, i) in books" :key="b.id" class="book-item" :class="{ active: currentBookIndex === i }" @click="selectBook(i)">
+                                        <span>{{ b.title }}</span>
+                                        <small>{{ b.author }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="books-main">
+                                <div v-if="booksLoading" class="loading">加载中...</div>
+                                <div v-else-if="!currentBook" class="empty">选择一本书查看</div>
+                                <div v-else class="book-detail">
+                                    <div class="book-info">
+                                        <h3>{{ currentBook.title }}</h3>
+                                        <p v-if="currentBook.author">作者: {{ currentBook.author }}</p>
+                                        <span v-if="currentBook.category" class="tag">{{ currentBook.category }}</span>
+                                    </div>
+                                    <div class="viewpoints">
+                                        <h4>读书感悟</h4>
+                                        <div v-if="bookViewpointsLoading" class="loading">加载中...</div>
+                                        <div v-else-if="currentBookViewpoints.length === 0" class="empty">暂无感悟</div>
+                                        <div v-else class="viewpoint-list">
+                                            <details v-for="vp in currentBookViewpoints" :key="vp.id" class="viewpoint-item">
+                                                <summary>
+                                                    <span>{{ vp.title || '无标题' }}</span>
+                                                    <small>{{ formatDate(vp.createdAt) }}</small>
+                                                </summary>
+                                                <div class="viewpoint-body markdown-body" v-html="formatContent(vp.content)"></div>
+                                            </details>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </main>
         </div>
 
-        <!-- 模态弹窗 -->
-
-        <!-- 文章详情弹窗 -->
+        <!-- Modal: Article Detail -->
         <div v-if="showDetailModal" class="modal-overlay" @click.self="showDetailModal = false">
-            <div class="modal-content detail-modal">
+            <div class="modal modal-lg">
                 <div class="modal-header">
-                    <h3><i class="bi bi-file-text"></i> 文章详情</h3>
+                    <h3>文章详情</h3>
                     <button class="modal-close" @click="showDetailModal = false">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <div v-if="detailLoading" class="loading">
-                        <div class="spinner"></div><span>加载中...</span>
-                    </div>
-                    <div v-else class="detail-modal-content">
-                        <!-- 封面图片（可点击放大） -->
-                        <div v-if="detailItem.coverImage" class="article-cover-wrapper" @click="openImageViewer(detailItem.coverImage)">
-                            <img :src="detailItem.coverImage" :alt="detailItem.title || '文章封面'" class="article-cover-image">
-                            <div class="article-cover-overlay"><i class="bi bi-zoom-in"></i></div>
+                    <div v-if="detailLoading" class="loading">加载中...</div>
+                    <div v-else>
+                        <img v-if="detailItem.coverImage" :src="detailItem.coverImage" class="detail-cover">
+                        <h2>{{ detailItem.title || detailItem.aiTitle || '无标题' }}</h2>
+                        <div class="detail-meta">
+                            <span>{{ formatDate(detailItem.createdAt) }}</span>
+                            <span v-if="detailItem.isFavorite">★ 已收藏</span>
+                            <a v-if="detailItem.url" :href="detailItem.url" target="_blank">原文链接</a>
                         </div>
-                        <h2 class="detail-modal-title">{{ detailItem.title || detailItem.aiTitle || '无标题' }}</h2>
-                        <div class="detail-modal-meta">
-                            <span><i class="bi bi-calendar3"></i> {{ formatDate(detailItem.createdAt) }}</span>
-                            <span v-if="detailItem.isFavorite"><i class="bi bi-star-fill icon-favorite"></i> 已收藏</span>
-                            <span v-if="detailItem.url"><i class="bi bi-link-45deg"></i><a :href="detailItem.url" target="_blank">查看原文</a></span>
-                        </div>
-                        <div class="detail-modal-body markdown-body" v-html="formatContent(detailItem.content || detailItem.aiMarkdownContent || '')"></div>
+                        <div class="markdown-body" v-html="formatContent(detailItem.content || detailItem.aiMarkdownContent)"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <div class="left-actions">
-                        <button class="btn btn-ghost-danger" @click="confirmDeleteFromDetail"><i class="bi bi-trash"></i> 删除文章</button>
-                    </div>
-                    <div class="right-actions">
-                        <button class="btn btn-secondary" @click="showDetailModal = false">关闭</button>
-                    </div>
+                    <button class="btn btn-danger" @click="confirmDelete('article', detailItem.id)">删除</button>
+                    <button class="btn" @click="showDetailModal = false">关闭</button>
                 </div>
             </div>
         </div>
 
-        <!-- 日记详情弹窗 -->
+        <!-- Modal: Diary Detail -->
         <div v-if="showDiaryDetailModal" class="modal-overlay" @click.self="showDiaryDetailModal = false">
-            <div class="modal-content detail-modal">
+            <div class="modal modal-lg">
                 <div class="modal-header">
-                    <h3><i class="bi bi-journal-text"></i> 日记详情</h3>
+                    <h3>日记详情</h3>
                     <button class="modal-close" @click="showDiaryDetailModal = false">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <div v-if="detailLoading" class="loading">
-                        <div class="spinner"></div>
-                        <span>加载中...</span>
-                    </div>
-                    <div v-else class="detail-modal-content">
-                        <div class="detail-modal-meta">
-                            <span><i class="bi bi-calendar3"></i> {{ formatDate(detailItem.createdAt) }}</span>
-                            <span v-if="detailItem.updatedAt && detailItem.updatedAt !== detailItem.createdAt">
-                                <i class="bi bi-pencil"></i> 更新于 {{ formatDate(detailItem.updatedAt) }}
-                            </span>
-                            <span v-if="detailItem.images && detailItem.images.length > 0">
-                                <i class="bi bi-image"></i> {{ detailItem.images.length }} 张图片
-                            </span>
+                    <div v-if="detailLoading" class="loading">加载中...</div>
+                    <div v-else>
+                        <div class="detail-meta">
+                            <span>{{ formatDate(detailItem.createdAt) }}</span>
+                            <span v-if="detailItem.mood">{{ detailItem.mood }}</span>
                         </div>
-                        <div class="detail-modal-body markdown-body" v-html="formatContent(detailItem.content || '')"></div>
-                        <!-- 日记图片画廊 -->
-                        <div v-if="detailItem.images && detailItem.images.length > 0" class="diary-images-gallery">
-                            <img v-for="(img, index) in detailItem.images" :key="index" :src="img" @click="openImageViewer(img)" :alt="'图片 ' + (index + 1)">
-                        </div>
+                        <div class="markdown-body" v-html="formatContent(detailItem.content)"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <div class="left-actions">
-                        <button class="btn btn-ghost-danger" @click="confirmDeleteFromDiaryDetail">
-                            <i class="bi bi-trash"></i> 删除日记
-                        </button>
-                    </div>
-                    <div class="right-actions">
-                        <button class="btn btn-primary" @click="editDiaryFromDetail">
-                            <i class="bi bi-pencil"></i> 编辑
-                        </button>
-                        <button class="btn btn-secondary" @click="showDiaryDetailModal = false">关闭</button>
-                    </div>
+                    <button class="btn btn-primary" @click="editDiary(detailItem)">编辑</button>
+                    <button class="btn btn-danger" @click="confirmDelete('diary', detailItem.id)">删除</button>
+                    <button class="btn" @click="showDiaryDetailModal = false">关闭</button>
                 </div>
             </div>
         </div>
 
-        <!-- 日记编辑弹窗 -->
-        <div v-if="showDiaryEditorModal" class="modal-overlay" @click.self="closeDiaryEditor">
-            <div class="modal-content" style="max-width: 700px;">
+        <!-- Modal: Diary Editor -->
+        <div v-if="showDiaryEditorModal" class="modal-overlay" @click.self="showDiaryEditorModal = false">
+            <div class="modal">
                 <div class="modal-header">
-                    <h3><i class="bi bi-journal-text"></i> {{ editingDiaryId ? '编辑日记' : '添加日记' }}</h3>
-                    <button class="modal-close" @click="closeDiaryEditor">&times;</button>
+                    <h3>{{ editingDiaryId ? '编辑' : '新建' }}日记</h3>
+                    <button class="modal-close" @click="showDiaryEditorModal = false">&times;</button>
                 </div>
                 <form @submit.prevent="saveDiary">
                     <div class="modal-body">
-                        <div class="form-group">
-                            <label for="diary-content-input">日记内容</label>
-                            <textarea id="diary-content-input" v-model="diaryContent" rows="12"
-                                      placeholder="记录今天的所见所想...&#10;&#10;支持 Markdown 格式：&#10;# 标题&#10;**加粗**&#10;*斜体*&#10;- 列表项"
-                                      required style="width: 100%; padding: 12px; border: 1px solid #dee2e6; border-radius: 8px; resize: vertical; font-family: inherit; line-height: 1.6;"></textarea>
-                            <small class="form-hint">支持 Markdown 语法，可以使用 # 标题、**加粗**、*斜体* 等格式</small>
+                        <div class="field">
+                            <label>内容</label>
+                            <textarea v-model="diaryContent" rows="12" placeholder="记录今天的所见所想...&#10;支持 Markdown" required></textarea>
                         </div>
-                        <div class="form-group">
-                            <label for="diary-tags-input">标签（可选）</label>
-                            <input id="diary-tags-input" type="text" v-model="diaryTags" placeholder="多个标签用逗号分隔，如: 生活, 思考, 学习">
+                        <div class="field">
+                            <label>标签</label>
+                            <input type="text" v-model="diaryTags" placeholder="逗号分隔">
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @click="closeDiaryEditor">取消</button>
-                        <button type="submit" class="btn btn-primary" :disabled="savingDiary">
-                            <i class="bi" :class="savingDiary ? 'bi-hourglass-split' : (editingDiaryId ? 'bi-check-lg' : 'bi-plus-circle')"></i>
-                            {{ savingDiary ? '保存中...' : (editingDiaryId ? '保存修改' : '添加日记') }}
-                        </button>
+                        <button type="button" class="btn" @click="showDiaryEditorModal = false">取消</button>
+                        <button type="submit" class="btn btn-primary" :disabled="savingDiary">{{ savingDiary ? '保存中...' : '保存' }}</button>
                     </div>
                 </form>
             </div>
         </div>
 
-        <!-- 书籍详情弹窗 -->
-        <div v-if="showBookDetailModal" class="modal-overlay" @click.self="showBookDetailModal = false">
-            <div class="modal-content detail-modal">
+        <!-- Modal: Add Article -->
+        <div v-if="showArticleModal" class="modal-overlay" @click.self="showArticleModal = false">
+            <div class="modal">
                 <div class="modal-header">
-                    <h3><i class="bi bi-book"></i> 书籍详情</h3>
-                    <button class="modal-close" @click="showBookDetailModal = false">&times;</button>
+                    <h3>添加文章</h3>
+                    <button class="modal-close" @click="showArticleModal = false">&times;</button>
                 </div>
-                <div class="modal-body">
-                    <div v-if="detailLoading" class="loading">
-                        <div class="spinner"></div>
-                        <span>加载中...</span>
-                    </div>
-                    <div v-else class="detail-modal-content">
-                        <div class="book-detail-layout">
-                            <div v-if="detailItem.coverImage" class="book-detail-cover">
-                                <img :src="detailItem.coverImage" :alt="detailItem.title">
-                            </div>
-                            <div class="book-detail-info">
-                                <h2 class="detail-modal-title">{{ detailItem.title || '未知书名' }}</h2>
-                                <p v-if="detailItem.author" class="book-detail-author"><i class="bi bi-person"></i> {{ detailItem.author }}</p>
-                                <p v-if="detailItem.publisher" class="book-detail-publisher"><i class="bi bi-building"></i> {{ detailItem.publisher }}</p>
-                                <span v-if="detailItem.category" class="tag">{{ detailItem.category }}</span>
-                            </div>
-                        </div>
-                        <div class="detail-modal-meta">
-                            <span><i class="bi bi-calendar3"></i> 添加于 {{ formatDate(detailItem.createdAt) }}</span>
-                            <span v-if="detailItem.isbn"><i class="bi bi-upc"></i> ISBN: {{ detailItem.isbn }}</span>
-                        </div>
-                        <div v-if="detailItem.description" class="detail-modal-body book-description">
-                            <h4>简介</h4>
-                            <p>{{ detailItem.description }}</p>
+                <form @submit.prevent="submitArticle">
+                    <div class="modal-body">
+                        <div class="field">
+                            <label>文章 URL</label>
+                            <input type="url" v-model="articleUrl" placeholder="https://..." required>
                         </div>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <div class="left-actions">
-                        <button class="btn btn-ghost-danger" @click="confirmDeleteFromBookDetail">
-                            <i class="bi bi-trash"></i> 删除书籍
-                        </button>
+                    <div class="modal-footer">
+                        <button type="button" class="btn" @click="showArticleModal = false">取消</button>
+                        <button type="submit" class="btn btn-primary" :disabled="submitting">{{ submitting ? '提交中...' : '提交' }}</button>
                     </div>
-                    <div class="right-actions">
-                        <button class="btn btn-secondary" @click="showBookDetailModal = false">关闭</button>
-                    </div>
-                </div>
+                </form>
             </div>
         </div>
 
-        <!-- 删除确认弹窗 -->
-        <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
-            <div class="modal-content">
+        <!-- Modal: Add Book -->
+        <div v-if="showAddBookModal" class="modal-overlay" @click.self="showAddBookModal = false">
+            <div class="modal modal-sm">
                 <div class="modal-header">
-                    <h3>确认删除</h3>
-                    <button class="modal-close" @click="showDeleteModal = false">&times;</button>
+                    <h3>添加书籍</h3>
+                    <button class="modal-close" @click="showAddBookModal = false">&times;</button>
                 </div>
-                <div class="modal-body">
-                    <p>确定要删除这条记录吗？此操作不可撤销。</p>
-                </div>
+                <form @submit.prevent="submitNewBook">
+                    <div class="modal-body">
+                        <div class="field">
+                            <label>书名</label>
+                            <input type="text" v-model="newBookTitle" placeholder="请输入书名" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn" @click="showAddBookModal = false">取消</button>
+                        <button type="submit" class="btn btn-primary" :disabled="addingBook">{{ addingBook ? '添加中...' : '添加' }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal: Delete Confirm -->
+        <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
+            <div class="modal modal-sm">
+                <div class="modal-header"><h3>确认删除</h3></div>
+                <div class="modal-body"><p>确定要删除这条记录吗？此操作不可撤销。</p></div>
                 <div class="modal-footer">
-                    <button class="btn btn-secondary" @click="showDeleteModal = false">取消</button>
+                    <button class="btn" @click="showDeleteModal = false">取消</button>
                     <button class="btn btn-danger" @click="executeDelete">确认删除</button>
                 </div>
             </div>
         </div>
 
-        <!-- 添加文章弹窗 -->
-        <div v-if="showSubmitModal" class="modal-overlay" @click.self="showSubmitModal = false">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3><i class="bi bi-plus-circle"></i> 添加文章</h3>
-                    <button class="modal-close" @click="showSubmitModal = false">&times;</button>
-                </div>
-                <form @submit.prevent="submitArticle">
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label for="submit-url-input">文章 URL</label>
-                            <input id="submit-url-input" type="url" v-model="submitUrl" placeholder="https://example.com/article" required>
-                            <small class="form-hint">
-                                输入文章的网页链接，系统将自动解析文章内容
-                            </small>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @click="showSubmitModal = false">取消</button>
-                        <button type="submit" class="btn btn-primary" :disabled="submitting">
-                            <i class="bi" :class="submitting ? 'bi-hourglass-split' : 'bi-cloud-upload'"></i>
-                            {{ submitting ? '提交中...' : '提交文章' }}
-                        </button>
-                    </div>
-                </form>
-            </div>
+        <!-- Image Viewer -->
+        <div v-if="imageViewer.visible" class="image-viewer" @click="imageViewer.visible = false">
+            <img :src="imageViewer.src" @click.stop>
         </div>
 
-        <!-- 添加书籍弹窗 -->
-        <div v-if="showAddBookModal" class="modal-overlay" @click.self="showAddBookModal = false">
-            <div class="modal-content modal-sm">
-                <div class="modal-header">
-                    <h3><i class="bi bi-book"></i> 添加书籍</h3>
-                    <button class="modal-close" @click="showAddBookModal = false">&times;</button>
-                </div>
-                <form @submit.prevent="submitNewBook">
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label for="book-title-input">书名</label>
-                            <input id="book-title-input" type="text" v-model="newBook.title" placeholder="请输入书名" required autofocus>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" @click="showAddBookModal = false">取消</button>
-                        <button type="submit" class="btn btn-primary" :disabled="addingBook">
-                            <i class="bi" :class="addingBook ? 'bi-hourglass-split' : 'bi-plus-circle'"></i>
-                            {{ addingBook ? '添加中...' : '添加' }}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- Toast 通知 -->
-        <div class="toast-container">
-            <div v-for="toast in toasts" :key="toast.id" class="toast" :class="toast.type">
-                <i class="bi" :class="toast.type === 'success' ? 'bi-check-circle' : 'bi-x-circle'"></i>
-                {{ toast.message }}
-            </div>
-        </div>
-
-        <!-- 图片查看器 -->
-        <div v-if="showImageViewer" class="image-viewer-overlay" @click="closeImageViewer">
-            <button class="image-viewer-close" @click="closeImageViewer">
-                <i class="bi bi-x-lg"></i>
-            </button>
-            <img :src="currentViewImage" @click.stop alt="图片预览">
+        <!-- Toast -->
+        <div class="toasts">
+            <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">{{ t.msg }}</div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.5.1/github-markdown-light.min.css">
+    <script src="/website/js/lib/vue.global.prod.min.js"></script>
+    <script src="/website/js/lib/marked.min.js"></script>
+    <script src="/website/js/lib/chart.umd.min.js"></script>
     <script src="/website/js/app.js"></script>
 </body>
 </html>
