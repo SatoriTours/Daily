@@ -101,7 +101,7 @@ fun SettingsScreen() {
                     Spacer(modifier = Modifier.height(Spacing.xs))
 
                     // AI & Services section
-                    Text("AI 与服务", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("AI 与服务", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                     Card(
                         shape = RoundedCornerShape(Radius.m),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -127,7 +127,7 @@ fun SettingsScreen() {
                     }
 
                     // Web & Network section
-                    Text("网络与同步", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("网络与同步", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                     Card(
                         shape = RoundedCornerShape(Radius.m),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -177,7 +177,7 @@ fun SettingsScreen() {
                     }
 
                     // Data section
-                    Text("数据管理", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("数据管理", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                     Card(
                         shape = RoundedCornerShape(Radius.m),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

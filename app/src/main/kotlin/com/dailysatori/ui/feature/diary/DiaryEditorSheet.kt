@@ -14,11 +14,16 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -30,7 +35,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,12 +43,12 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
-import kotlinx.coroutines.launch
 import java.io.File
 import java.util.UUID
 
@@ -64,7 +68,6 @@ fun DiaryEditorSheet(
         skipPartiallyExpanded = true,
         confirmValueChange = { false },
     )
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     var content by remember(existingDiary) {
@@ -208,13 +211,18 @@ fun DiaryEditorSheet(
     }
 
     ModalBottomSheet(
-        onDismissRequest = {
-            scope.launch { sheetState.hide() }.invokeOnCompletion {
-                if (!sheetState.isVisible) onDismiss()
-            }
-        },
+        onDismissRequest = onDismiss,
         sheetState = sheetState,
-        dragHandle = null,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(vertical = Spacing.s)
+                    .width(32.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+            )
+        },
     ) {
         Column(
             modifier = Modifier
@@ -222,6 +230,20 @@ fun DiaryEditorSheet(
                 .fillMaxHeight(0.92f)
                 .padding(horizontal = Spacing.m, vertical = Spacing.s),
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = if (existingDiary != null) "编辑日记" else "新建日记",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "关闭", modifier = Modifier.size(20.dp))
+                }
+            }
+            Spacer(modifier = Modifier.height(Spacing.xs))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

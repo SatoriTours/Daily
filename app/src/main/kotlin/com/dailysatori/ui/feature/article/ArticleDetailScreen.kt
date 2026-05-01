@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.dailysatori.ui.component.indicator.EmptyState
+import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Spacing
@@ -65,13 +68,14 @@ fun ArticleDetailScreen(
         },
     ) { modifier ->
         if (state.isLoading && state.article == null) {
-            Box(modifier = modifier.fillMaxSize()) {
-                Text("加载中...", modifier = Modifier.padding(Spacing.m))
-            }
+            LoadingIndicator(modifier = modifier)
         } else if (state.article == null) {
-            Box(modifier = modifier.fillMaxSize()) {
-                Text("文章未找到", modifier = Modifier.padding(Spacing.m))
-            }
+            EmptyState(
+                modifier = modifier,
+                icon = Icons.Default.Favorite,
+                title = "文章未找到",
+                subtitle = "该文章可能已被删除",
+            )
         } else {
             val article = state.article!!
             Column(

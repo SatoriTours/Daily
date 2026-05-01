@@ -21,7 +21,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -35,6 +34,7 @@ import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.card.ArticleCard
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
+import com.dailysatori.ui.component.input.SearchBar
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
@@ -84,13 +84,11 @@ fun ArticleListScreen(
         )
 
         if (state.isSearchVisible) {
-            OutlinedTextField(
-                value = state.searchQuery,
-                onValueChange = { viewModel.search(it) },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.xs),
-                placeholder = { Text("搜索文章...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                singleLine = true,
+            SearchBar(
+                query = state.searchQuery,
+                onQueryChange = { viewModel.search(it) },
+                onSearch = { viewModel.search(it) },
+                onClose = { viewModel.toggleSearch() },
             )
         }
 

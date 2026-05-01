@@ -1,16 +1,11 @@
 package com.dailysatori.ui.feature.aichat
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -37,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.component.appbar.AppTopBar
+import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -92,7 +88,12 @@ fun AiChatScreen() {
         }
 
         if (state.messages.isEmpty()) {
-            AiChatEmptyState(modifier = Modifier.fillMaxSize().padding(padding))
+            EmptyState(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                icon = Icons.Default.AutoAwesome,
+                title = "AI 助手",
+                subtitle = "基于你的知识库和记忆回答",
+            )
         } else {
             LazyColumn(
                 state = listState,
@@ -114,28 +115,6 @@ fun AiChatScreen() {
 
     if (showMemorySheet) {
         MemorySearchSheet(onDismiss = { showMemorySheet = false })
-    }
-}
-
-@Composable
-private fun AiChatEmptyState(modifier: Modifier = Modifier) {
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                Icons.Default.AutoAwesome,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(modifier = Modifier.height(Spacing.m))
-            Text("AI 助手", style = MaterialTheme.typography.headlineMedium)
-            Spacer(modifier = Modifier.height(Spacing.s))
-            Text(
-                "基于你的知识库和记忆回答",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
     }
 }
 

@@ -198,12 +198,12 @@ fun DiaryCard(
                     tags.forEach { tag ->
                         Text(
                             text = "#$tag",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(Radius.xxs))
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                .padding(horizontal = Spacing.xs, vertical = 2.dp),
+                                .padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
                         )
                     }
                 }
