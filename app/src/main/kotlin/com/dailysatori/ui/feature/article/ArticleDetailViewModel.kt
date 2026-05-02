@@ -56,6 +56,9 @@ class ArticleDetailViewModel(
                             processingProgress = processing.progress,
                         )
                     }
+                    if (shouldReloadArticleAfterProcessingState(processing.status)) {
+                        loadArticle()
+                    }
                 }
             }
         }

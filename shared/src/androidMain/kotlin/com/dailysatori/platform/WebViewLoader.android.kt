@@ -38,15 +38,17 @@ actual class WebViewLoader actual constructor() {
                         .replace("\\u003C", "<")
                         .replace("\\u003E", ">")
                         .replace("\\u0026", "&")
+                        .replace("\\/", "/")
                         .replace("\\\"", "\"")
                         .replace("\\n", "\n")
+                        .replace("\\r", "")
                         .replace("\\t", "\t")
                         .replace("\\\\", "\\")
                 }
 
                 fun pollHtmlUntilStable() {
                     if (finished) return
-                    webView.evaluateJavascript("document.documentElement.outerHTML") { html ->
+                    webView.evaluateJavascript(PARSE_CONTENT_SCRIPT) { html ->
                         if (finished) return@evaluateJavascript
 
                         val currentHtml = decodeJavascriptString(html)
@@ -89,5 +91,48 @@ actual class WebViewLoader actual constructor() {
 
     private companion object {
         const val STABILITY_CHECK_INTERVAL_MS = 2_000L
+        const val PARSE_CONTENT_SCRIPT = """
+            (function() {
+                const clone = document.documentElement.cloneNode(true);
+                const originalImages = Array.from(document.images || []);
+                const clonedImages = Array.from(clone.getElementsByTagName('img'));
+
+                function absoluteUrl(value) {
+                    if (!value) return '';
+                    try { return new URL(value, document.baseURI).href; } catch (e) { return value; }
+                }
+
+                function imageSource(img) {
+                    return img.currentSrc || img.src || img.getAttribute('data-src') ||
+                        img.getAttribute('data-original') || img.getAttribute('data-lazy-src') ||
+                        img.getAttribute('data-url') || '';
+                }
+
+                function imageWidth(img) {
+                    const attrWidth = parseInt(img.getAttribute('width') || '0', 10) || 0;
+                    return img.naturalWidth || img.clientWidth || img.width || attrWidth || 0;
+                }
+
+                originalImages.forEach(function(img, index) {
+                    const clonedImg = clonedImages[index];
+                    if (!clonedImg) return;
+                    const resolvedSrc = absoluteUrl(imageSource(img));
+                    const resolvedWidth = imageWidth(img);
+                    if (!resolvedSrc || resolvedWidth < 300) {
+                        clonedImg.remove();
+                        return;
+                    }
+                    clonedImg.setAttribute('src', resolvedSrc);
+                    clonedImg.setAttribute('width', String(resolvedWidth));
+                    clonedImg.removeAttribute('srcset');
+                    clonedImg.removeAttribute('data-src');
+                    clonedImg.removeAttribute('data-original');
+                    clonedImg.removeAttribute('data-lazy-src');
+                    clonedImg.removeAttribute('data-url');
+                });
+
+                return clone.outerHTML;
+            })();
+        """
     }
 }

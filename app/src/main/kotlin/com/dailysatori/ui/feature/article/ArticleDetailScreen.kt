@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Refresh
@@ -49,6 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import com.dailysatori.ui.component.dialog.ConfirmDialog
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
@@ -71,6 +73,7 @@ fun ArticleDetailScreen(
     val density = LocalDensity.current
     var showMenu by remember { mutableStateOf(false) }
     var showRefreshConfirm by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     var coverHeightDp by remember { mutableIntStateOf(articleCoverMaxHeightDp) }
     val pagerState = rememberPagerState(pageCount = { 2 })
     val coroutineScope = rememberCoroutineScope()
@@ -126,6 +129,20 @@ fun ArticleDetailScreen(
                         onClick = {
                             showMenu = false
                             openArticleUrl(context, state.article?.url)
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("删除文章", color = MaterialTheme.colorScheme.error) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            showDeleteConfirm = true
                         },
                     )
                 }
@@ -256,7 +273,24 @@ fun ArticleDetailScreen(
             },
         )
     }
+
+    if (showDeleteConfirm) {
+        ConfirmDialog(
+            title = articleDeleteDialogTitle(),
+            message = articleDeleteDialogMessage(),
+            onConfirm = {
+                showDeleteConfirm = false
+                viewModel.deleteArticle()
+                onBack()
+            },
+            onDismiss = { showDeleteConfirm = false },
+        )
+    }
 }
+
+internal fun articleDeleteDialogTitle(): String = "删除文章"
+
+internal fun articleDeleteDialogMessage(): String = "确定要删除这篇文章吗？"
 
 @Composable
 private fun ArticleTabRow(

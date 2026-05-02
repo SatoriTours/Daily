@@ -15,6 +15,11 @@ internal fun isArticleProcessing(status: String?): Boolean = when (status) {
     else -> false
 }
 
+internal fun shouldReloadArticleAfterProcessingState(status: String?): Boolean = when (status) {
+    "completed", "error" -> true
+    else -> false
+}
+
 internal fun articleProcessingStepIndex(status: String?, progress: String? = null): Int = when (status) {
     "pending" -> 0
     "webContentFetched" -> 1

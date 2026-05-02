@@ -36,6 +36,14 @@ class ArticleProcessingUiTextTest {
     }
 
     @Test
+    fun reloadsArticleWhenProcessingReachesTerminalState() {
+        assertTrue(shouldReloadArticleAfterProcessingState("completed"))
+        assertTrue(shouldReloadArticleAfterProcessingState("error"))
+        assertFalse(shouldReloadArticleAfterProcessingState("aiProcessing"))
+        assertFalse(shouldReloadArticleAfterProcessingState(null))
+    }
+
+    @Test
     fun ignoresUnknownBlankAndCompletedStatusForPersistentCardMessage() {
         assertNull(articleProcessingCardMessage("completed"))
         assertNull(articleProcessingCardMessage("error"))
