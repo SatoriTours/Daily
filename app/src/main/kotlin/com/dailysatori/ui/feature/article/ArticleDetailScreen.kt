@@ -4,14 +4,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -31,12 +31,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,8 +68,10 @@ fun ArticleDetailScreen(
     val viewModel: ArticleDetailViewModel = koinViewModel { parametersOf(articleId) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val density = LocalDensity.current
     var showMenu by remember { mutableStateOf(false) }
     var showRefreshConfirm by remember { mutableStateOf(false) }
+    var coverHeightDp by remember { mutableIntStateOf(articleCoverMaxHeightDp) }
     val pagerState = rememberPagerState(pageCount = { 2 })
     val coroutineScope = rememberCoroutineScope()
 
@@ -145,27 +153,19 @@ fun ArticleDetailScreen(
                 }
                 val article = state.article ?: return@Column
                 val coverImage = article.cover_image ?: article.cover_image_url
-                if (!coverImage.isNullOrBlank()) {
-                    ArticleCoverImage(
-                        imagePath = coverImage,
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp),
-                    )
-                }
-
-                TabRow(selectedTabIndex = state.selectedTabIndex, modifier = Modifier.fillMaxWidth()) {
-                    Tab(
-                        selected = state.selectedTabIndex == 0,
-                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
-                        text = { Text("AI 摘要") },
-                    )
-                    Tab(
-                        selected = state.selectedTabIndex == 1,
-                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
-                        text = { Text("原文") },
-                    )
-                }
+                val hasCover = !coverImage.isNullOrBlank()
 
                 if (state.isRefreshing) {
+                    if (hasCover) {
+                        ArticleCoverImage(
+                            imagePath = coverImage.orEmpty(),
+                            modifier = Modifier.fillMaxWidth().height(articleCoverMaxHeightDp.dp),
+                        )
+                    }
+                    ArticleTabRow(
+                        selectedTabIndex = state.selectedTabIndex,
+                        onTabSelected = { index -> coroutineScope.launch { pagerState.animateScrollToPage(index) } },
+                    )
                     ArticleProcessingStepper(
                         status = state.processingStage,
                         progress = state.processingProgress,
@@ -177,20 +177,56 @@ fun ArticleDetailScreen(
                         modifier = Modifier.weight(1f),
                         beyondViewportPageCount = 1,
                     ) { page ->
-                        val pageScrollState = rememberScrollState()
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(pageScrollState)
-                                .padding(Spacing.m),
-                        ) {
-                            ArticleMarkdownContent(
-                                articleDetailPageContent(
-                                    page = page,
-                                    summary = article.ai_content,
-                                    original = article.ai_markdown_content,
-                                ),
+                        val listState = rememberLazyListState()
+                        val nestedScrollConnection = remember(listState, hasCover, density) {
+                            object : NestedScrollConnection {
+                                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                                    if (!hasCover) return Offset.Zero
+                                    val deltaDp = with(density) { available.y.toDp().value.toInt() }
+                                    val contentAtTop = listState.firstVisibleItemIndex == 0 &&
+                                        listState.firstVisibleItemScrollOffset == 0
+                                    val nextHeight = articleCoverHeightAfterScroll(
+                                        currentHeightDp = coverHeightDp,
+                                        scrollDeltaDp = deltaDp,
+                                        contentAtTop = contentAtTop,
+                                    )
+                                    if (nextHeight == coverHeightDp) return Offset.Zero
+
+                                    val consumedDp = nextHeight - coverHeightDp
+                                    coverHeightDp = nextHeight
+                                    return Offset(x = 0f, y = with(density) { consumedDp.dp.toPx() })
+                                }
+                            }
+                        }
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            if (hasCover && coverHeightDp > 0) {
+                                ArticleCoverImage(
+                                    imagePath = coverImage.orEmpty(),
+                                    modifier = Modifier.fillMaxWidth().height(coverHeightDp.dp),
+                                )
+                            }
+                            ArticleTabRow(
+                                selectedTabIndex = state.selectedTabIndex,
+                                onTabSelected = { index -> coroutineScope.launch { pagerState.animateScrollToPage(index) } },
                             )
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .nestedScroll(nestedScrollConnection),
+                            ) {
+                                item(key = "content-$page") {
+                                    Box(modifier = Modifier.padding(Spacing.m)) {
+                                        ArticleMarkdownContent(
+                                            articleDetailPageContent(
+                                                page = page,
+                                                summary = article.ai_content,
+                                                original = article.ai_markdown_content,
+                                            ),
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -218,6 +254,25 @@ fun ArticleDetailScreen(
                     Text("取消")
                 }
             },
+        )
+    }
+}
+
+@Composable
+private fun ArticleTabRow(
+    selectedTabIndex: Int,
+    onTabSelected: (Int) -> Unit,
+) {
+    TabRow(selectedTabIndex = selectedTabIndex, modifier = Modifier.fillMaxWidth()) {
+        Tab(
+            selected = selectedTabIndex == 0,
+            onClick = { onTabSelected(0) },
+            text = { Text("AI 摘要") },
+        )
+        Tab(
+            selected = selectedTabIndex == 1,
+            onClick = { onTabSelected(1) },
+            text = { Text("原文") },
         )
     }
 }
