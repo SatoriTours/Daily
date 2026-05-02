@@ -15,6 +15,7 @@ import com.dailysatori.core.service.WebServerService
 import com.dailysatori.service.backup.BackupService
 import com.dailysatori.service.mcp.McpAgentService
 import com.dailysatori.service.memory.MemoryExtractService
+import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.service.plugin.PluginService
 import com.dailysatori.service.setting.SettingService
 import com.dailysatori.service.weekly.WeeklySummaryService
@@ -40,6 +41,7 @@ val viewModelModule: Module = module {
         ArticlesViewModel(
             articleRepo = get<ArticleRepository>(),
             tagRepo = get<TagRepository>(),
+            webpageParserService = get<WebpageParserService>(),
         )
     }
     viewModel { params ->
@@ -48,6 +50,7 @@ val viewModelModule: Module = module {
             articleRepo = get<ArticleRepository>(),
             tagRepo = get<TagRepository>(),
             memoryExtractService = get<MemoryExtractService>(),
+            webpageParserService = get<WebpageParserService>(),
         )
     }
     viewModel {

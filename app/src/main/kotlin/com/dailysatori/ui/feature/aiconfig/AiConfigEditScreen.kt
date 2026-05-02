@@ -36,11 +36,13 @@ import com.dailysatori.config.AiProvider
 import com.dailysatori.config.aiProviders
 import com.dailysatori.config.findProvider
 import com.dailysatori.data.repository.AIConfigRepository
+import com.dailysatori.service.ai.AiService
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.mp.KoinPlatform
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,6 +53,7 @@ fun AiConfigEditScreen(
 ) {
     val scope = rememberCoroutineScope()
     val repo = remember { KoinPlatform.getKoin().get<AIConfigRepository>() }
+    val aiService = remember { KoinPlatform.getKoin().get<AiService>() }
 
     var selectedProvider by remember { mutableStateOf<AiProvider?>(null) }
     var selectedModel by remember { mutableStateOf<AiModel?>(null) }
@@ -61,6 +64,9 @@ fun AiConfigEditScreen(
     var customModelName by remember { mutableStateOf("") }
     var isDefault by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
+    var isTesting by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<String?>(null) }
+    var testSuccess by remember { mutableStateOf<Boolean?>(null) }
 
     val models = selectedProvider?.models ?: emptyList()
     val isCustomModel = selectedProvider != null && models.isEmpty()
@@ -226,6 +232,49 @@ fun AiConfigEditScreen(
             }
 
             item {
+                OutlinedButton(
+                    onClick = {
+                        val provider = selectedProvider ?: return@OutlinedButton
+                        val modelId = currentModelId(isCustomModel, customModelName, selectedModel) ?: return@OutlinedButton
+                        scope.launch {
+                            isTesting = true
+                            testResult = null
+                            testSuccess = null
+                            val result = withContext(Dispatchers.IO) {
+                                aiService.testConnection(
+                                    apiAddress = provider.apiHost,
+                                    apiToken = apiToken,
+                                    modelName = modelId,
+                                    provider = provider.id,
+                                )
+                            }
+                            testSuccess = result.isSuccess
+                            testResult = result.fold(
+                                onSuccess = { "连接成功：${it.take(80)}" },
+                                onFailure = { it.message ?: "连接失败" },
+                            )
+                            isTesting = false
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isTesting && selectedProvider != null && apiToken.isNotBlank() &&
+                        currentModelId(isCustomModel, customModelName, selectedModel) != null,
+                ) { Text(if (isTesting) "测试中..." else "测试连接") }
+                if (testResult != null) {
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    Text(
+                        text = testResult ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (testSuccess == true) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        },
+                    )
+                }
+            }
+
+            item {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = Spacing.m),
                     horizontalArrangement = Arrangement.spacedBy(Spacing.m),
@@ -263,6 +312,18 @@ fun AiConfigEditScreen(
 
             item { Spacer(modifier = Modifier.height(Spacing.xl)) }
         }
+    }
+}
+
+private fun currentModelId(
+    isCustomModel: Boolean,
+    customModelName: String,
+    selectedModel: AiModel?,
+): String? {
+    return when {
+        isCustomModel && customModelName.isNotBlank() -> customModelName.trim()
+        selectedModel != null -> selectedModel.id
+        else -> null
     }
 }
 

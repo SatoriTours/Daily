@@ -27,9 +27,18 @@ kotlin {
             implementation(libs.kermit)
             implementation(libs.kaml)
         }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
         androidMain.dependencies {
             implementation(libs.sqldelight.android.driver)
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.langchain4j.open.ai)
+            implementation(libs.langchain4j.anthropic)
+            implementation(libs.langchain4j.google.ai.gemini)
+            implementation("dev.langchain4j:langchain4j-http-client-okhttp:${libs.versions.langchain4j.http.client.okhttp.get()}") {
+                exclude(group = "com.squareup.okhttp3", module = "okhttp-jvm")
+            }
         }
     }
 }

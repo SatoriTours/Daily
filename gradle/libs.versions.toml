@@ -15,6 +15,8 @@ kotlinx-datetime = "0.6.2"
 kotlinx-coroutines = "1.10.2"
 kermit = "2.0.5"
 kaml = "0.81.0"
+langchain4j = "1.14.0"
+langchain4j-http-client-okhttp = "1.14.0-beta24"
 
 [libraries]
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
@@ -65,6 +67,10 @@ markdown-renderer-m3 = { group = "com.mikepenz", name = "multiplatform-markdown-
 
 kermit = { group = "co.touchlab", name = "kermit", version.ref = "kermit" }
 kaml = { group = "com.charleskorn.kaml", name = "kaml", version.ref = "kaml" }
+langchain4j-open-ai = { group = "dev.langchain4j", name = "langchain4j-open-ai", version.ref = "langchain4j" }
+langchain4j-anthropic = { group = "dev.langchain4j", name = "langchain4j-anthropic", version.ref = "langchain4j" }
+langchain4j-google-ai-gemini = { group = "dev.langchain4j", name = "langchain4j-google-ai-gemini", version.ref = "langchain4j" }
+langchain4j-http-client-okhttp = { group = "dev.langchain4j", name = "langchain4j-http-client-okhttp", version.ref = "langchain4j-http-client-okhttp" }
 
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version = "1.16.0" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version = "1.7.0" }

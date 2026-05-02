@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.TagRepository
+import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Tag
 import kotlinx.coroutines.Dispatchers
@@ -23,11 +24,13 @@ data class ArticlesState(
     val isSearchVisible: Boolean = false,
     val tags: List<Tag> = emptyList(),
     val dailyCounts: Map<Long, Long> = emptyMap(),
+    val isAddingArticle: Boolean = false,
 )
 
 class ArticlesViewModel(
     private val articleRepo: ArticleRepository,
     private val tagRepo: TagRepository,
+    private val webpageParserService: WebpageParserService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ArticlesState())
     val state: StateFlow<ArticlesState> = _state.asStateFlow()
@@ -90,6 +93,17 @@ class ArticlesViewModel(
     fun toggleFavorite(id: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             articleRepo.toggleFavorite(id)
+        }
+    }
+
+    fun addArticle(url: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.update { it.copy(isAddingArticle = true) }
+            try {
+                webpageParserService.saveWebpage(url = url, comment = null, title = null, tags = null)
+            } catch (_: Exception) {
+            }
+            _state.update { it.copy(isAddingArticle = false) }
         }
     }
 }

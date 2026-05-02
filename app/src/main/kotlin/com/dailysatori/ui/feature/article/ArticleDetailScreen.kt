@@ -13,9 +13,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -56,6 +59,13 @@ fun ArticleDetailScreen(
         title = title,
         onBack = onBack,
         actions = {
+            if (state.isRefreshing) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            } else {
+                IconButton(onClick = { viewModel.refreshArticle() }) {
+                    Icon(Icons.Default.Refresh, contentDescription = "刷新")
+                }
+            }
             IconButton(onClick = { viewModel.toggleFavorite() }) {
                 Icon(
                     if (state.article?.is_favorite == 1L) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -69,7 +79,7 @@ fun ArticleDetailScreen(
     ) { modifier ->
         if (state.isLoading && state.article == null) {
             LoadingIndicator(modifier = modifier)
-        } else if (state.article == null) {
+        } else if (state.article == null && !state.isRefreshing) {
             EmptyState(
                 modifier = modifier,
                 icon = Icons.Default.Favorite,
@@ -77,12 +87,31 @@ fun ArticleDetailScreen(
                 subtitle = "该文章可能已被删除",
             )
         } else {
-            val article = state.article!!
             Column(
                 modifier = modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState),
             ) {
+                if (state.isRefreshing) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    if (state.processingStatus.isNotBlank()) {
+                        Text(
+                            state.processingStatus,
+                            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+                if (state.refreshError != null) {
+                    Text(
+                        state.refreshError ?: "",
+                        modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                val article = state.article ?: return@Column
                 val coverImage = article.cover_image ?: article.cover_image_url
                 if (!coverImage.isNullOrBlank()) {
                     ArticleCoverImage(

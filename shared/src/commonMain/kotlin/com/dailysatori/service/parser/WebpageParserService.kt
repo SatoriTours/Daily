@@ -40,6 +40,31 @@ data class ArticleProcessingState(
     val progress: String = "",
 )
 
+internal data class NormalizedAiConfigValues(
+    val apiAddress: String,
+    val apiToken: String,
+    val modelName: String,
+    val provider: String,
+)
+
+internal fun normalizeAiConfigValues(
+    apiAddress: String,
+    apiToken: String,
+    modelName: String,
+    provider: String,
+): NormalizedAiConfigValues = NormalizedAiConfigValues(
+    apiAddress = apiAddress.trim().trimEnd('/'),
+    apiToken = apiToken.trim(),
+    modelName = modelName.trim(),
+    provider = provider.trim(),
+)
+
+internal fun generatedOrExisting(generated: String, existing: String?, fieldName: String): String {
+    if (generated.isNotBlank()) return generated
+    if (!existing.isNullOrBlank()) return existing
+    throw IllegalStateException("AI $fieldName generation returned empty result")
+}
+
 class WebpageParserService(
     private val articleRepo: ArticleRepository,
     private val tagRepo: TagRepository,
@@ -149,16 +174,18 @@ class WebpageParserService(
         try {
             val config = aiConfigService.getDefaultConfig()
             if (config == null || config.api_address.isBlank() || config.api_token.isBlank()) {
-                log.w { "AI config not set, skipping AI processing" }
-                val completedState = mutableMapOf<Long, ArticleProcessingState>()
-                completedState[articleId] = ArticleProcessingState(articleId, "completed")
-                _processingStates.value = completedState
-                return
+                throw IllegalStateException("AI config not set")
             }
-            val apiAddress = config.api_address.trimEnd('/')
-            val apiToken = config.api_token
-            val modelName = config.model_name
-            val provider = config.provider
+            val normalizedConfig = normalizeAiConfigValues(
+                apiAddress = config.api_address,
+                apiToken = config.api_token,
+                modelName = config.model_name,
+                provider = config.provider,
+            )
+            val apiAddress = normalizedConfig.apiAddress
+            val apiToken = normalizedConfig.apiToken
+            val modelName = normalizedConfig.modelName
+            val provider = normalizedConfig.provider
 
             val originalTitle = article.title ?: ""
             var aiTitle = ""
@@ -204,10 +231,10 @@ class WebpageParserService(
                     "- 总字数不超过500字",
                     apiAddress, apiToken, modelName, provider,
                 )
-                aiContent = summary
+                aiContent = generatedOrExisting(summary, article.ai_content, "summary")
             } catch (e: Exception) {
                 log.e(e) { "Summary generation failed" }
-                aiContent = "Summary failed: ${e.message}"
+                aiContent = generatedOrExisting("", article.ai_content, "summary")
             }
 
             val state3 = mutableMapOf<Long, ArticleProcessingState>()
@@ -222,10 +249,13 @@ class WebpageParserService(
                         "",
                         apiAddress, apiToken, modelName, provider,
                     )
+                    aiMarkdownContent = generatedOrExisting(aiMarkdownContent, article.ai_markdown_content, "markdown")
                 } catch (e: Exception) {
                     log.e(e) { "Markdown conversion failed" }
-                    aiMarkdownContent = htmlContent
+                    aiMarkdownContent = generatedOrExisting("", article.ai_markdown_content, "markdown")
                 }
+            } else {
+                aiMarkdownContent = generatedOrExisting("", article.ai_markdown_content, "markdown")
             }
 
             val state4 = mutableMapOf<Long, ArticleProcessingState>()
@@ -263,9 +293,24 @@ class WebpageParserService(
             log.i { "AI processing completed: articleId=$articleId" }
         } catch (e: Exception) {
             log.e(e) { "AI processing failed: articleId=$articleId" }
+            articleRepo.update(
+                id = articleId,
+                title = article.title,
+                aiTitle = article.ai_title,
+                aiContent = article.ai_content,
+                aiMarkdownContent = article.ai_markdown_content,
+                url = article.url,
+                isFavorite = article.is_favorite ?: 0L,
+                comment = article.comment,
+                status = "error",
+                coverImage = article.cover_image,
+                coverImageUrl = article.cover_image_url,
+                pubDate = article.pub_date,
+            )
             val errorState = mutableMapOf<Long, ArticleProcessingState>()
             errorState[articleId] = ArticleProcessingState(articleId, "error", e.message ?: "")
             _processingStates.value = errorState
+            throw e
         }
     }
 
@@ -310,6 +355,80 @@ class WebpageParserService(
                     ExtractedContent(null, null, null, null)
                 }
             }
+        }
+    }
+
+    suspend fun refreshArticle(articleId: Long) {
+        val article = articleRepo.getById(articleId)
+            ?: throw Exception("Article not found: $articleId")
+        val url = article.url ?: throw Exception("Article has no URL")
+
+        log.i { "refreshArticle: articleId=$articleId, url=$url" }
+
+        articleRepo.update(
+            id = articleId,
+            title = "正在加载...",
+            aiTitle = article.ai_title,
+            aiContent = article.ai_content,
+            aiMarkdownContent = article.ai_markdown_content,
+            url = article.url,
+            isFavorite = article.is_favorite ?: 0L,
+            comment = article.comment,
+            status = "pending",
+            coverImage = article.cover_image,
+            coverImageUrl = article.cover_image_url,
+            pubDate = article.pub_date,
+        )
+
+        val state = mutableMapOf<Long, ArticleProcessingState>()
+        state[articleId] = ArticleProcessingState(articleId, "pending")
+        _processingStates.value = state
+
+        try {
+            val extracted = extractContent(url)
+
+            articleRepo.update(
+                id = articleId,
+                title = extracted.title ?: article.title,
+                aiTitle = article.ai_title,
+                aiContent = article.ai_content,
+                aiMarkdownContent = article.ai_markdown_content,
+                url = article.url,
+                isFavorite = article.is_favorite ?: 0L,
+                comment = article.comment,
+                status = "webContentFetched",
+                coverImage = article.cover_image,
+                coverImageUrl = extracted.coverImageUrl ?: article.cover_image_url,
+                pubDate = article.pub_date,
+            )
+
+            val updatedState = mutableMapOf<Long, ArticleProcessingState>()
+            updatedState[articleId] = ArticleProcessingState(articleId, "webContentFetched")
+            _processingStates.value = updatedState
+
+            processAiTasks(articleId, extracted)
+
+            log.i { "refreshArticle completed: articleId=$articleId" }
+        } catch (e: Exception) {
+            log.e(e) { "refreshArticle failed: articleId=$articleId" }
+            articleRepo.update(
+                id = articleId,
+                title = article.title,
+                aiTitle = article.ai_title,
+                aiContent = article.ai_content,
+                aiMarkdownContent = article.ai_markdown_content,
+                url = article.url,
+                isFavorite = article.is_favorite ?: 0L,
+                comment = article.comment,
+                status = "error",
+                coverImage = article.cover_image,
+                coverImageUrl = article.cover_image_url,
+                pubDate = article.pub_date,
+            )
+            val errorState = mutableMapOf<Long, ArticleProcessingState>()
+            errorState[articleId] = ArticleProcessingState(articleId, "error", e.message ?: "")
+            _processingStates.value = errorState
+            throw e
         }
     }
 
@@ -397,4 +516,3 @@ class WebpageParserService(
         }
     }
 }
-

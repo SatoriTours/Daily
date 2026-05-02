@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.TagRepository
 import com.dailysatori.service.memory.MemoryExtractService
+import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Tag
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,9 @@ data class ArticleDetailState(
     val tags: List<Tag> = emptyList(),
     val isLoading: Boolean = false,
     val selectedTabIndex: Int = 0,
+    val isRefreshing: Boolean = false,
+    val processingStatus: String = "",
+    val refreshError: String? = null,
 )
 
 class ArticleDetailViewModel(
@@ -26,6 +30,7 @@ class ArticleDetailViewModel(
     private val articleRepo: ArticleRepository,
     private val tagRepo: TagRepository,
     private val memoryExtractService: MemoryExtractService,
+    private val webpageParserService: WebpageParserService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ArticleDetailState())
     val state: StateFlow<ArticleDetailState> = _state.asStateFlow()
@@ -35,6 +40,21 @@ class ArticleDetailViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             tagRepo.getByArticle(articleId).collect { tags ->
                 _state.update { it.copy(tags = tags) }
+            }
+        }
+        viewModelScope.launch(Dispatchers.Default) {
+            webpageParserService.processingStates.collect { states ->
+                states[articleId]?.let { processing ->
+                    val statusText = when (processing.status) {
+                        "pending" -> "正在解析网页..."
+                        "webContentFetched" -> "正在提取内容..."
+                        "aiProcessing" -> "AI 处理中: ${processing.progress}"
+                        "completed" -> "处理完成"
+                        "error" -> "处理失败: ${processing.progress}"
+                        else -> processing.progress
+                    }
+                    _state.update { it.copy(processingStatus = statusText) }
+                }
             }
         }
     }
@@ -72,6 +92,37 @@ class ArticleDetailViewModel(
     fun deleteArticle() {
         viewModelScope.launch(Dispatchers.IO) {
             articleRepo.delete(articleId)
+        }
+    }
+
+    fun refreshArticle() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.update { it.copy(isRefreshing = true, processingStatus = "", refreshError = null) }
+            try {
+                webpageParserService.refreshArticle(articleId)
+            } catch (e: Exception) {
+                val article = articleRepo.getById(articleId)
+                _state.update {
+                    it.copy(
+                        isRefreshing = false,
+                        article = article,
+                        refreshError = e.message ?: "刷新失败",
+                    )
+                }
+                return@launch
+            }
+            val article = articleRepo.getById(articleId)
+            if (article != null && article.status == "error") {
+                _state.update {
+                    it.copy(
+                        isRefreshing = false,
+                        article = article,
+                        refreshError = article.ai_content ?: "处理失败",
+                    )
+                }
+            } else {
+                _state.update { it.copy(isRefreshing = false, article = article, refreshError = null) }
+            }
         }
     }
 }

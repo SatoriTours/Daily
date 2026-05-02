@@ -9,19 +9,25 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,6 +42,7 @@ import com.dailysatori.ui.component.card.ArticleCard
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.input.SearchBar
+import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
@@ -46,12 +53,17 @@ fun ArticleListScreen(
     val viewModel: ArticlesViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    var showAddDialog by remember { mutableStateOf(false) }
+    var addUrlInput by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(
             title = "文章",
             showBack = false,
             actions = {
+                IconButton(onClick = { showAddDialog = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "添加文章")
+                }
                 IconButton(onClick = { viewModel.toggleSearch() }) {
                     Icon(Icons.Default.Search, contentDescription = "搜索")
                 }
@@ -128,5 +140,49 @@ fun ArticleListScreen(
                 }
             }
         }
+    }
+
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showAddDialog = false
+                addUrlInput = ""
+            },
+            title = { Text("添加文章") },
+            text = {
+                OutlinedTextField(
+                    value = addUrlInput,
+                    onValueChange = { addUrlInput = it },
+                    label = { Text("文章链接") },
+                    placeholder = { Text("https://...") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Radius.s),
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val url = addUrlInput.trim()
+                        if (url.isNotBlank()) {
+                            viewModel.addArticle(url)
+                            showAddDialog = false
+                            addUrlInput = ""
+                        }
+                    },
+                    enabled = addUrlInput.isNotBlank() && !state.isAddingArticle,
+                ) {
+                    Text(if (state.isAddingArticle) "添加中..." else "确定")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showAddDialog = false
+                    addUrlInput = ""
+                }) {
+                    Text("取消")
+                }
+            },
+        )
     }
 }
