@@ -52,6 +52,7 @@ fun ArticleDetailScreen(
     val viewModel: ArticleDetailViewModel = koinViewModel { parametersOf(articleId) }
     val state by viewModel.state.collectAsState()
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
 
     val title = extractDomain(state.article?.url)
 
@@ -72,7 +73,7 @@ fun ArticleDetailScreen(
                     contentDescription = "收藏",
                 )
             }
-            IconButton(onClick = { /* share */ }) {
+            IconButton(onClick = { openArticleUrl(context, state.article?.url) }) {
                 Icon(Icons.Default.Share, contentDescription = "分享")
             }
         },

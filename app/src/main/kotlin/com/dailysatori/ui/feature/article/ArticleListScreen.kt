@@ -128,12 +128,7 @@ fun ArticleListScreen(
                             onClick = { onArticleClick(article.id) },
                             onFavoriteClick = { viewModel.toggleFavorite(article.id) },
                             onShareClick = {
-                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(android.content.Intent.EXTRA_TEXT, article.url ?: article.title ?: "")
-                                    putExtra(android.content.Intent.EXTRA_SUBJECT, article.title ?: "")
-                                }
-                                context.startActivity(android.content.Intent.createChooser(shareIntent, "分享文章"))
+                                openArticleUrl(context, article.url)
                             },
                         )
                     }
