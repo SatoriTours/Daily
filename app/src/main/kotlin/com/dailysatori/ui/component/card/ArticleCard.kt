@@ -38,6 +38,9 @@ import coil3.request.ImageRequest
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Article
 import com.dailysatori.ui.component.chip.TagChipRow
+import com.dailysatori.ui.feature.article.articleCardContentVerticalPaddingDp
+import com.dailysatori.ui.feature.article.articleCardHeightDp
+import com.dailysatori.ui.feature.article.articleCardSummaryMaxLines
 import com.dailysatori.ui.feature.article.articleProcessingCardMessage
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -64,7 +67,7 @@ fun ArticleCard(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
     ) {
-        Row(modifier = Modifier.height(100.dp)) {
+        Row(modifier = Modifier.height(articleCardHeightDp.dp)) {
             if (!coverImage.isNullOrBlank()) {
                 ArticleCoverImage(
                     imagePath = coverImage,
@@ -74,7 +77,7 @@ fun ArticleCard(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = Spacing.m, vertical = Spacing.s),
+                    .padding(horizontal = Spacing.m, vertical = articleCardContentVerticalPaddingDp.dp),
             ) {
                 if (title.isNotBlank()) {
                     Text(
@@ -90,7 +93,7 @@ fun ArticleCard(
                     Text(
                         text = content,
                         style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
+                        maxLines = articleCardSummaryMaxLines,
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

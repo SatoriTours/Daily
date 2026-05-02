@@ -47,6 +47,7 @@ import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.input.SearchBar
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import androidx.compose.ui.unit.dp
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -129,7 +130,7 @@ fun ArticleListScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(Spacing.m),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+                        verticalArrangement = Arrangement.spacedBy(articleListItemSpacingDp.dp),
                     ) {
                         items(
                             items = state.articles,
