@@ -25,6 +25,7 @@ data class ArticlesState(
     val tags: List<Tag> = emptyList(),
     val dailyCounts: Map<Long, Long> = emptyMap(),
     val isAddingArticle: Boolean = false,
+    val isRefreshing: Boolean = false,
 )
 
 class ArticlesViewModel(
@@ -67,6 +68,23 @@ class ArticlesViewModel(
             flow.collect { articles ->
                 android.util.Log.d("ArticlesVM", "Got ${articles.size} articles")
                 _state.update { it.copy(articles = articles, isLoading = false) }
+            }
+        }
+    }
+
+    fun refreshArticles() {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch(Dispatchers.IO) {
+            _state.update { it.copy(isRefreshing = true) }
+            val currentState = _state.value
+            val flow = when {
+                currentState.searchQuery.isNotBlank() -> articleRepo.search(currentState.searchQuery)
+                currentState.selectedTagId != null -> articleRepo.getByTag(currentState.selectedTagId!!)
+                currentState.showFavoritesOnly -> articleRepo.getFavorites()
+                else -> articleRepo.getAll()
+            }
+            flow.collect { articles ->
+                _state.update { it.copy(articles = articles, isRefreshing = false, isLoading = false) }
             }
         }
     }

@@ -77,4 +77,5 @@ dependencies {
     implementation(libs.kotlinx.datetime)
     implementation(libs.compose.material3)
     implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
+    testImplementation(kotlin("test"))
 }

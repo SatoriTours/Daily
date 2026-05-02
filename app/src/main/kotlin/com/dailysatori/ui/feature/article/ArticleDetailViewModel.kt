@@ -22,6 +22,8 @@ data class ArticleDetailState(
     val selectedTabIndex: Int = 0,
     val isRefreshing: Boolean = false,
     val processingStatus: String = "",
+    val processingStage: String = "",
+    val processingProgress: String = "",
     val refreshError: String? = null,
 )
 
@@ -45,15 +47,15 @@ class ArticleDetailViewModel(
         viewModelScope.launch(Dispatchers.Default) {
             webpageParserService.processingStates.collect { states ->
                 states[articleId]?.let { processing ->
-                    val statusText = when (processing.status) {
-                        "pending" -> "正在解析网页..."
-                        "webContentFetched" -> "正在提取内容..."
-                        "aiProcessing" -> "AI 处理中: ${processing.progress}"
-                        "completed" -> "处理完成"
-                        "error" -> "处理失败: ${processing.progress}"
-                        else -> processing.progress
+                    val statusText = articleProcessingMessage(processing.status, processing.progress).orEmpty()
+                    _state.update {
+                        it.copy(
+                            isRefreshing = isArticleProcessing(processing.status),
+                            processingStatus = statusText,
+                            processingStage = processing.status,
+                            processingProgress = processing.progress,
+                        )
                     }
-                    _state.update { it.copy(processingStatus = statusText) }
                 }
             }
         }
@@ -63,7 +65,19 @@ class ArticleDetailViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true) }
             val article = articleRepo.getById(articleId)
-            _state.update { it.copy(article = article, isLoading = false) }
+            val processing = webpageParserService.processingStates.value[articleId]
+            val stage = processing?.status ?: article?.status.orEmpty()
+            val progress = processing?.progress.orEmpty()
+            _state.update {
+                it.copy(
+                    article = article,
+                    isLoading = false,
+                    isRefreshing = isArticleProcessing(stage),
+                    processingStatus = articleProcessingMessage(stage, progress).orEmpty(),
+                    processingStage = stage,
+                    processingProgress = progress,
+                )
+            }
         }
     }
 
@@ -97,7 +111,15 @@ class ArticleDetailViewModel(
 
     fun refreshArticle() {
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isRefreshing = true, processingStatus = "", refreshError = null) }
+            _state.update {
+                it.copy(
+                    isRefreshing = true,
+                    processingStatus = "正在打开网页...",
+                    processingStage = "pending",
+                    processingProgress = "",
+                    refreshError = null,
+                )
+            }
             try {
                 webpageParserService.refreshArticle(articleId)
             } catch (e: Exception) {

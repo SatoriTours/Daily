@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -37,6 +38,7 @@ import coil3.request.crossfade
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Article
 import com.dailysatori.ui.component.chip.TagChipRow
+import com.dailysatori.ui.feature.article.articleProcessingCardMessage
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import java.io.File
@@ -56,6 +58,7 @@ fun ArticleCard(
     val domain = extractDomain(article.url)
     val createdAt = TimeUtils.formatRelativeTime(article.created_at)
     val isFavorite = article.is_favorite == 1L
+    val processingMessage = articleProcessingCardMessage(article.status)
 
     CustomCard(
         onClick = onClick,
@@ -91,6 +94,22 @@ fun ArticleCard(
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+                if (!processingMessage.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    Surface(
+                        shape = MaterialTheme.shapes.extraSmall,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    ) {
+                        Text(
+                            text = processingMessage,
+                            modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 Row(

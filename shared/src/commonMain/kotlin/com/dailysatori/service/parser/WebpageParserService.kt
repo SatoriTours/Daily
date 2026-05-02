@@ -254,6 +254,7 @@ class WebpageParserService(
         val state = mutableMapOf<Long, ArticleProcessingState>()
         state[articleId] = ArticleProcessingState(articleId, "aiProcessing", "Starting AI tasks")
         _processingStates.value = state
+        updateArticleStatus(article, "aiProcessing")
 
         try {
             val config = aiConfigService.getDefaultConfig()
@@ -277,6 +278,7 @@ class WebpageParserService(
                 val titleState = mutableMapOf<Long, ArticleProcessingState>()
                 titleState[articleId] = ArticleProcessingState(articleId, "aiProcessing", "Generating title")
                 _processingStates.value = titleState
+                updateArticleStatus(article, "aiProcessing")
                 try {
                     aiTitle = if (!containsChinese(originalTitle)) {
                         val translated = aiService.translate(
@@ -299,6 +301,7 @@ class WebpageParserService(
             val state2 = mutableMapOf<Long, ArticleProcessingState>()
             state2[articleId] = ArticleProcessingState(articleId, "aiProcessing", "Generating summary")
             _processingStates.value = state2
+            updateArticleStatus(article, "aiProcessing")
 
             val content = extracted?.content ?: ""
             val htmlContent = extracted?.htmlContent ?: ""
@@ -319,6 +322,7 @@ class WebpageParserService(
             val state3 = mutableMapOf<Long, ArticleProcessingState>()
             state3[articleId] = ArticleProcessingState(articleId, "aiProcessing", "Converting to Markdown")
             _processingStates.value = state3
+            updateArticleStatus(article, "aiProcessing")
 
             var aiMarkdownContent = ""
             if (htmlContent.isNotBlank()) {
@@ -340,6 +344,7 @@ class WebpageParserService(
             val state4 = mutableMapOf<Long, ArticleProcessingState>()
             state4[articleId] = ArticleProcessingState(articleId, "aiProcessing", "Downloading cover image")
             _processingStates.value = state4
+            updateArticleStatus(article, "aiProcessing")
 
             var coverImage: String? = article.cover_image
             val coverImageUrl = article.cover_image_url
@@ -524,6 +529,23 @@ class WebpageParserService(
         state[articleId] = ArticleProcessingState(articleId, "webContentFetched")
         _processingStates.value = state
         processAiTasksAsync(articleId)
+    }
+
+    private suspend fun updateArticleStatus(article: Article, status: String) {
+        articleRepo.update(
+            id = article.id,
+            title = article.title,
+            aiTitle = article.ai_title,
+            aiContent = article.ai_content,
+            aiMarkdownContent = article.ai_markdown_content,
+            url = article.url,
+            isFavorite = article.is_favorite ?: 0L,
+            comment = article.comment,
+            status = status,
+            coverImage = article.cover_image,
+            coverImageUrl = article.cover_image_url,
+            pubDate = article.pub_date,
+        )
     }
 
     private fun extractTitle(html: String): String? {

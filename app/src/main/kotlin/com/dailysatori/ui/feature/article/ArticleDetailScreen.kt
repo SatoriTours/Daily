@@ -8,29 +8,39 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -43,6 +53,7 @@ import com.mikepenz.markdown.m3.Markdown
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.io.File
+import androidx.compose.runtime.rememberCoroutineScope
 
 @Composable
 fun ArticleDetailScreen(
@@ -53,28 +64,65 @@ fun ArticleDetailScreen(
     val state by viewModel.state.collectAsState()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
+    var showMenu by remember { mutableStateOf(false) }
+    var showRefreshConfirm by remember { mutableStateOf(false) }
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val coroutineScope = rememberCoroutineScope()
 
     val title = extractDomain(state.article?.url)
+
+    LaunchedEffect(pagerState.currentPage) {
+        if (state.selectedTabIndex != pagerState.currentPage) {
+            viewModel.selectTab(pagerState.currentPage)
+        }
+    }
+
+    LaunchedEffect(state.selectedTabIndex) {
+        if (pagerState.currentPage != state.selectedTabIndex) {
+            pagerState.animateScrollToPage(state.selectedTabIndex)
+        }
+    }
 
     AppScaffold(
         title = title,
         onBack = onBack,
         actions = {
-            if (state.isRefreshing) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-            } else {
-                IconButton(onClick = { viewModel.refreshArticle() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "刷新")
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "更多操作")
                 }
-            }
-            IconButton(onClick = { viewModel.toggleFavorite() }) {
-                Icon(
-                    if (state.article?.is_favorite == 1L) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = "收藏",
-                )
-            }
-            IconButton(onClick = { openArticleUrl(context, state.article?.url) }) {
-                Icon(Icons.Default.Share, contentDescription = "分享")
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("刷新文章") },
+                        leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) },
+                        enabled = !state.isRefreshing,
+                        onClick = {
+                            showMenu = false
+                            showRefreshConfirm = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (state.article?.is_favorite == 1L) "取消收藏" else "收藏") },
+                        leadingIcon = {
+                            Icon(
+                                if (state.article?.is_favorite == 1L) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            viewModel.toggleFavorite()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("在浏览器打开") },
+                        leadingIcon = { Icon(Icons.Default.OpenInBrowser, contentDescription = null) },
+                        onClick = {
+                            showMenu = false
+                            openArticleUrl(context, state.article?.url)
+                        },
+                    )
+                }
             }
         },
     ) { modifier ->
@@ -93,17 +141,6 @@ fun ArticleDetailScreen(
                     .fillMaxSize()
                     .verticalScroll(scrollState),
             ) {
-                if (state.isRefreshing) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    if (state.processingStatus.isNotBlank()) {
-                        Text(
-                            state.processingStatus,
-                            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
                 if (state.refreshError != null) {
                     Text(
                         state.refreshError ?: "",
@@ -124,44 +161,68 @@ fun ArticleDetailScreen(
                 TabRow(selectedTabIndex = state.selectedTabIndex, modifier = Modifier.fillMaxWidth()) {
                     Tab(
                         selected = state.selectedTabIndex == 0,
-                        onClick = { viewModel.selectTab(0) },
+                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
                         text = { Text("AI 摘要") },
                     )
                     Tab(
                         selected = state.selectedTabIndex == 1,
-                        onClick = { viewModel.selectTab(1) },
+                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
                         text = { Text("原文") },
                     )
                 }
 
-                Box(modifier = Modifier.padding(Spacing.m)) {
-                    when (state.selectedTabIndex) {
-                        0 -> {
-                            val summary = article.ai_content
-                                ?: "暂无摘要内容"
-                            SelectionContainer {
-                                Markdown(
-                                    content = summary,
-                                    typography = MarkdownStyles.typography(),
-                                    padding = MarkdownStyles.padding(),
-                                )
-                            }
-                        }
-                        else -> {
-                            val original = article.ai_markdown_content
-                                ?: "暂无原文内容"
-                            SelectionContainer {
-                                Markdown(
-                                    content = original,
-                                    typography = MarkdownStyles.typography(),
-                                    padding = MarkdownStyles.padding(),
-                                )
+                if (state.isRefreshing) {
+                    ArticleProcessingStepper(
+                        status = state.processingStage,
+                        progress = state.processingProgress,
+                        modifier = Modifier.padding(Spacing.m),
+                    )
+                } else {
+                    HorizontalPager(state = pagerState) { page ->
+                        Box(modifier = Modifier.padding(Spacing.m)) {
+                            when (page) {
+                                0 -> ArticleMarkdownContent(article.ai_content ?: "暂无摘要内容")
+                                else -> ArticleMarkdownContent(article.ai_markdown_content ?: "暂无原文内容")
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    if (showRefreshConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRefreshConfirm = false },
+            title = { Text("刷新文章？") },
+            text = { Text("刷新会重新获取网页内容并重新生成摘要，已有 AI 摘要和原文可能被覆盖。确定刷新吗？") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showRefreshConfirm = false
+                        viewModel.refreshArticle()
+                    },
+                ) {
+                    Text("刷新")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRefreshConfirm = false }) {
+                    Text("取消")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun ArticleMarkdownContent(content: String) {
+    SelectionContainer {
+        Markdown(
+            content = content,
+            typography = MarkdownStyles.typography(),
+            padding = MarkdownStyles.padding(),
+        )
     }
 }
 

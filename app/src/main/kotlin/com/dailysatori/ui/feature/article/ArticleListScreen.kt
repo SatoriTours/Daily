@@ -26,6 +26,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -46,6 +48,7 @@ import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArticleListScreen(
     onArticleClick: (Long) -> Unit = {},
@@ -106,31 +109,37 @@ fun ArticleListScreen(
             )
         }
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            if (state.isLoading && state.articles.isEmpty()) {
-                LoadingIndicator()
-            } else if (state.articles.isEmpty()) {
-                EmptyState(
-                    modifier = Modifier.align(Alignment.Center),
-                    icon = Icons.Default.FilterList,
-                    title = "暂无文章",
-                    subtitle = "导入数据或保存链接来添加文章",
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(Spacing.m),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.s),
-                ) {
-                    items(state.articles, key = { it.id }) { article ->
-                        ArticleCard(
-                            article = article,
-                            onClick = { onArticleClick(article.id) },
-                            onFavoriteClick = { viewModel.toggleFavorite(article.id) },
-                            onShareClick = {
-                                openArticleUrl(context, article.url)
-                            },
-                        )
+        PullToRefreshBox(
+            isRefreshing = state.isRefreshing,
+            onRefresh = { viewModel.refreshArticles() },
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (state.isLoading && state.articles.isEmpty()) {
+                    LoadingIndicator()
+                } else if (state.articles.isEmpty()) {
+                    EmptyState(
+                        modifier = Modifier.align(Alignment.Center),
+                        icon = Icons.Default.FilterList,
+                        title = "暂无文章",
+                        subtitle = "导入数据或保存链接来添加文章",
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(Spacing.m),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+                    ) {
+                        items(state.articles, key = { it.id }) { article ->
+                            ArticleCard(
+                                article = article,
+                                onClick = { onArticleClick(article.id) },
+                                onFavoriteClick = { viewModel.toggleFavorite(article.id) },
+                                onShareClick = {
+                                    openArticleUrl(context, article.url)
+                                },
+                            )
+                        }
                     }
                 }
             }
