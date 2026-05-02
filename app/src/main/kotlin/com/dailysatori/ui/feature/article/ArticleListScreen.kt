@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.card.ArticleCard
 import com.dailysatori.ui.component.indicator.EmptyState
@@ -54,7 +55,7 @@ fun ArticleListScreen(
     onArticleClick: (Long) -> Unit = {},
 ) {
     val viewModel: ArticlesViewModel = koinViewModel()
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showAddDialog by remember { mutableStateOf(false) }
     var addUrlInput by remember { mutableStateOf("") }
@@ -130,7 +131,11 @@ fun ArticleListScreen(
                         contentPadding = PaddingValues(Spacing.m),
                         verticalArrangement = Arrangement.spacedBy(Spacing.s),
                     ) {
-                        items(state.articles, key = { it.id }) { article ->
+                        items(
+                            items = state.articles,
+                            key = { it.id },
+                            contentType = { "article" },
+                        ) { article ->
                             ArticleCard(
                                 article = article,
                                 onClick = { onArticleClick(article.id) },

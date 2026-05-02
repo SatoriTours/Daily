@@ -21,6 +21,9 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     fun getByStatus(status: String): Flow<List<Article>> =
         q.selectArticlesByStatus(status).asFlow().mapToList(Dispatchers.IO)
 
+    fun getRecoverableForProcessingSync(): List<Article> =
+        q.selectRecoverableArticles().executeAsList()
+
     fun getByTag(tagId: Long): Flow<List<Article>> =
         q.selectArticlesByTag(tagId).asFlow().mapToList(Dispatchers.IO)
 

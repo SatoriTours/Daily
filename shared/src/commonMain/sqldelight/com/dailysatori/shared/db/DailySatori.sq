@@ -148,6 +148,11 @@ SELECT * FROM article WHERE id = ?;
 selectArticlesByStatus:
 SELECT * FROM article WHERE status = ? ORDER BY created_at DESC;
 
+selectRecoverableArticles:
+SELECT * FROM article
+WHERE status IN ('pending', 'webContentFetched', 'aiProcessing')
+ORDER BY updated_at ASC;
+
 selectArticlesByTag:
 SELECT a.* FROM article a
 INNER JOIN article_tag at2 ON a.id = at2.article_id
@@ -492,4 +497,3 @@ DELETE FROM chat_conversation WHERE session_id = ?;
 
 selectChatSessions:
 SELECT DISTINCT session_id FROM chat_conversation ORDER BY session_id DESC;
-

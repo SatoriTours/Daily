@@ -10,6 +10,7 @@ import com.dailysatori.core.service.WebServerService
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.migration.DatabaseMigration
+import com.dailysatori.service.parser.WebpageParserService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -27,6 +28,9 @@ class DailySatoriApplication : Application() {
             modules(sharedModule, platformModule, appModule, viewModelModule)
         }
         get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
+        GlobalScope.launch(Dispatchers.IO) {
+            get<WebpageParserService>(WebpageParserService::class.java).resumeInterruptedProcessing()
+        }
         I18nInitializer.init(this, get<I18nService>(I18nService::class.java))
         if (com.dailysatori.BuildConfig.DEBUG) {
             GlobalScope.launch(Dispatchers.IO) {

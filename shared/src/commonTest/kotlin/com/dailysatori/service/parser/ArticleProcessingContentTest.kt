@@ -59,4 +59,16 @@ class ArticleProcessingContentTest {
         assertEquals(true, prompt.contains("不输出摘要"))
         assertEquals(true, prompt.contains("返回内容翻译成流畅的中文"))
     }
+
+    @Test
+    fun onlyInterruptedArticleStatusesAreRecoverable() {
+        assertEquals(true, isRecoverableArticleStatus("pending"))
+        assertEquals(true, isRecoverableArticleStatus("webContentFetched"))
+        assertEquals(true, isRecoverableArticleStatus("aiProcessing"))
+
+        assertEquals(false, isRecoverableArticleStatus("completed"))
+        assertEquals(false, isRecoverableArticleStatus("error"))
+        assertEquals(false, isRecoverableArticleStatus(""))
+        assertEquals(false, isRecoverableArticleStatus("unknown"))
+    }
 }

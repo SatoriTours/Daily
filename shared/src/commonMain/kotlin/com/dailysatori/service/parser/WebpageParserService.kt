@@ -17,6 +17,7 @@ import io.ktor.client.statement.bodyAsBytes
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -63,6 +64,11 @@ internal fun generatedOrExisting(generated: String, existing: String?, fieldName
     if (generated.isNotBlank()) return generated
     if (!existing.isNullOrBlank()) return existing
     throw IllegalStateException("AI $fieldName generation returned empty result")
+}
+
+internal fun isRecoverableArticleStatus(status: String?): Boolean = when (status) {
+    "pending", "webContentFetched", "aiProcessing" -> true
+    else -> false
 }
 
 internal fun articleSummaryPrompt(): String = """
@@ -161,9 +167,21 @@ class WebpageParserService(
 ) {
     private val log = Logger.withTag("WebpageParser")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val queueLock = Any()
+    private val pendingProcessingIds = ArrayDeque<Long>()
+    private val activeProcessingIds = mutableSetOf<Long>()
 
     private val _processingStates = MutableStateFlow<Map<Long, ArticleProcessingState>>(emptyMap())
     val processingStates: StateFlow<Map<Long, ArticleProcessingState>> = _processingStates
+
+    fun resumeInterruptedProcessing() {
+        scope.launch(Dispatchers.IO) {
+            val articles = articleRepo.getRecoverableForProcessingSync()
+            articles.forEach { article ->
+                if (isRecoverableArticleStatus(article.status)) enqueueArticleProcessing(article.id)
+            }
+        }
+    }
 
     suspend fun saveWebpage(
         url: String,
@@ -238,13 +256,79 @@ class WebpageParserService(
     }
 
     fun processAiTasksAsync(articleId: Long, extracted: ExtractedContent? = null) {
+        if (extracted == null) {
+            enqueueArticleProcessing(articleId)
+            return
+        }
+
+        if (!markArticleActive(articleId)) {
+            enqueueArticleProcessing(articleId)
+            return
+        }
+
         scope.launch {
             try {
                 processAiTasks(articleId, extracted)
             } catch (e: Exception) {
                 log.e(e) { "Async AI processing failed: articleId=$articleId" }
+            } finally {
+                finishQueuedArticle(articleId)
             }
         }
+    }
+
+    private fun enqueueArticleProcessing(articleId: Long) {
+        val shouldDrain = synchronized(queueLock) {
+            if (activeProcessingIds.contains(articleId) || pendingProcessingIds.contains(articleId)) {
+                false
+            } else {
+                pendingProcessingIds.addLast(articleId)
+                true
+            }
+        }
+        if (shouldDrain) drainProcessingQueue()
+    }
+
+    private fun drainProcessingQueue() {
+        val articleIds = mutableListOf<Long>()
+        synchronized(queueLock) {
+            while (activeProcessingIds.size < MAX_CONCURRENT_PROCESSING && pendingProcessingIds.isNotEmpty()) {
+                val articleId = pendingProcessingIds.removeFirst()
+                if (activeProcessingIds.add(articleId)) articleIds.add(articleId)
+            }
+        }
+        articleIds.forEach { articleId ->
+            scope.launch {
+                try {
+                    val article = articleRepo.getById(articleId)
+                    if (article != null && isRecoverableArticleStatus(article.status)) {
+                        val extracted = article.url?.let { extractContent(it) }
+                        processAiTasks(articleId, extracted)
+                    }
+                } catch (e: Exception) {
+                    log.e(e) { "Queued article processing failed: articleId=$articleId" }
+                } finally {
+                    finishQueuedArticle(articleId)
+                }
+            }
+        }
+    }
+
+    private fun markArticleActive(articleId: Long): Boolean = synchronized(queueLock) {
+        if (activeProcessingIds.size >= MAX_CONCURRENT_PROCESSING || activeProcessingIds.contains(articleId)) {
+            false
+        } else {
+            pendingProcessingIds.remove(articleId)
+            activeProcessingIds.add(articleId)
+            true
+        }
+    }
+
+    private fun finishQueuedArticle(articleId: Long) {
+        synchronized(queueLock) {
+            activeProcessingIds.remove(articleId)
+        }
+        drainProcessingQueue()
     }
 
     suspend fun processAiTasks(articleId: Long, extracted: ExtractedContent? = null) {
@@ -615,5 +699,9 @@ class WebpageParserService(
                 null
             }
         }
+    }
+
+    private companion object {
+        const val MAX_CONCURRENT_PROCESSING = 5
     }
 }

@@ -29,7 +29,6 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,10 +39,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import coil3.request.crossfade
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
@@ -61,8 +60,7 @@ fun ArticleDetailScreen(
     onBack: () -> Unit = {},
 ) {
     val viewModel: ArticleDetailViewModel = koinViewModel { parametersOf(articleId) }
-    val state by viewModel.state.collectAsState()
-    val scrollState = rememberScrollState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
     var showRefreshConfirm by remember { mutableStateOf(false) }
@@ -136,11 +134,7 @@ fun ArticleDetailScreen(
                 subtitle = "该文章可能已被删除",
             )
         } else {
-            Column(
-                modifier = modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState),
-            ) {
+            Column(modifier = modifier.fillMaxSize()) {
                 if (state.refreshError != null) {
                     Text(
                         state.refreshError ?: "",
@@ -178,12 +172,25 @@ fun ArticleDetailScreen(
                         modifier = Modifier.padding(Spacing.m),
                     )
                 } else {
-                    HorizontalPager(state = pagerState) { page ->
-                        Box(modifier = Modifier.padding(Spacing.m)) {
-                            when (page) {
-                                0 -> ArticleMarkdownContent(article.ai_content ?: "暂无摘要内容")
-                                else -> ArticleMarkdownContent(article.ai_markdown_content ?: "暂无原文内容")
-                            }
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.weight(1f),
+                        beyondViewportPageCount = 1,
+                    ) { page ->
+                        val pageScrollState = rememberScrollState()
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(pageScrollState)
+                                .padding(Spacing.m),
+                        ) {
+                            ArticleMarkdownContent(
+                                articleDetailPageContent(
+                                    page = page,
+                                    summary = article.ai_content,
+                                    original = article.ai_markdown_content,
+                                ),
+                            )
                         }
                     }
                 }
@@ -247,11 +254,13 @@ private fun ArticleCoverImage(
     } else {
         imagePath
     }
-    AsyncImage(
-        model = ImageRequest.Builder(context)
+    val imageRequest = remember(context, resolvedPath) {
+        ImageRequest.Builder(context)
             .data(resolvedPath)
-            .crossfade(true)
-            .build(),
+            .build()
+    }
+    AsyncImage(
+        model = imageRequest,
         placeholder = painterResource(android.R.drawable.ic_menu_gallery),
         error = painterResource(android.R.drawable.ic_menu_report_image),
         contentDescription = null,

@@ -24,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,7 +35,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import coil3.request.crossfade
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Article
 import com.dailysatori.ui.component.chip.TagChipRow
@@ -55,8 +55,8 @@ fun ArticleCard(
     val title = article.title.orEmpty()
     val content = article.ai_content.orEmpty()
     val coverImage = article.cover_image ?: article.cover_image_url
-    val domain = extractDomain(article.url)
-    val createdAt = TimeUtils.formatRelativeTime(article.created_at)
+    val domain = remember(article.url) { extractDomain(article.url) }
+    val createdAt = remember(article.created_at) { TimeUtils.formatRelativeTime(article.created_at) }
     val isFavorite = article.is_favorite == 1L
     val processingMessage = articleProcessingCardMessage(article.status)
 
@@ -204,12 +204,14 @@ private fun ArticleCoverImage(
     } else {
         imagePath
     }
+    val imageRequest = remember(context, resolvedPath) {
+        ImageRequest.Builder(context)
+            .data(resolvedPath)
+            .build()
+    }
     Box(modifier = modifier.clip(RoundedCornerShape(topStart = Radius.m, bottomStart = Radius.m))) {
         AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(resolvedPath)
-                .crossfade(true)
-                .build(),
+            model = imageRequest,
             placeholder = painterResource(android.R.drawable.ic_menu_gallery),
             error = painterResource(android.R.drawable.ic_menu_report_image),
             contentDescription = null,
