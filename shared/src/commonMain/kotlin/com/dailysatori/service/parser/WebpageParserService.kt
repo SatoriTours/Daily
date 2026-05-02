@@ -72,6 +72,13 @@ internal fun generatedOrExisting(generated: String, existing: String?, fieldName
     throw IllegalStateException("AI $fieldName generation returned empty result")
 }
 
+internal fun generatedMarkdownOrFallback(generated: String, existing: String?, extractedContent: String?): String {
+    if (generated.isNotBlank()) return generated
+    if (!existing.isNullOrBlank()) return existing
+    if (!extractedContent.isNullOrBlank()) return extractedContent.trim()
+    return ""
+}
+
 internal fun isRecoverableArticleStatus(status: String?): Boolean = when (status) {
     "pending", "webContentFetched", "aiProcessing" -> true
     else -> false
@@ -190,6 +197,7 @@ class WebpageParserService(
             articleRepo.getRecoverableForProcessingSync()
                 .filter { isRecoverableArticleStatus(it.status) }
                 .forEach { article ->
+                    if (!markArticleActive(article.id)) return@forEach
                     try {
                         val extracted = article.url?.let { extractContent(it) }
                         if (extracted != null) {
@@ -211,6 +219,8 @@ class WebpageParserService(
                         processAiTasks(article.id, extracted)
                     } catch (e: Exception) {
                         log.e(e) { "Interrupted article processing failed: articleId=${article.id}" }
+                    } finally {
+                        finishQueuedArticle(article.id)
                     }
                 }
         }
@@ -233,6 +243,11 @@ class WebpageParserService(
         )
 
         val article = articleRepo.getById(articleId) ?: throw Exception("Failed to create article")
+        val ownsProcessing = markArticleActive(articleId)
+        if (!ownsProcessing) {
+            log.i { "saveWebpage skipped active article processing: articleId=$articleId" }
+            return articleId
+        }
         val state = mutableMapOf<Long, ArticleProcessingState>()
         state[articleId] = ArticleProcessingState(articleId, "pending")
         _processingStates.value = state
@@ -285,6 +300,8 @@ class WebpageParserService(
             errorState[articleId] = ArticleProcessingState(articleId, "error", e.message ?: "")
             _processingStates.value = errorState
             throw e
+        } finally {
+            if (ownsProcessing) finishQueuedArticle(articleId)
         }
     }
 
@@ -451,13 +468,13 @@ class WebpageParserService(
                         htmlToReadableMarkdownPrompt(),
                         apiAddress, apiToken, modelName, provider,
                     )
-                    aiMarkdownContent = generatedOrExisting(aiMarkdownContent, article.ai_markdown_content, "markdown")
+                    aiMarkdownContent = generatedMarkdownOrFallback(aiMarkdownContent, article.ai_markdown_content, extracted?.content)
                 } catch (e: Exception) {
                     log.e(e) { "Markdown conversion failed" }
-                    aiMarkdownContent = generatedOrExisting("", article.ai_markdown_content, "markdown")
+                    aiMarkdownContent = generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content)
                 }
             } else {
-                aiMarkdownContent = generatedOrExisting("", article.ai_markdown_content, "markdown")
+                aiMarkdownContent = generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content)
             }
 
             val state4 = mutableMapOf<Long, ArticleProcessingState>()

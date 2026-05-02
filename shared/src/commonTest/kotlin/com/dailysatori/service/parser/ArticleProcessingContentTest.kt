@@ -27,6 +27,18 @@ class ArticleProcessingContentTest {
     }
 
     @Test
+    fun fallsBackToExtractedContentWhenMarkdownGenerationIsBlank() {
+        assertEquals(
+            "网页正文",
+            generatedMarkdownOrFallback("", existing = null, extractedContent = "网页正文"),
+        )
+        assertEquals(
+            "old markdown",
+            generatedMarkdownOrFallback("", existing = "old markdown", extractedContent = "网页正文"),
+        )
+    }
+
+    @Test
     fun rejectsBlankGeneratedOutputWhenNoExistingContentExists() {
         assertFailsWith<IllegalStateException> {
             generatedOrExisting("", null, "summary")

@@ -1,8 +1,14 @@
 package com.dailysatori.core.worker
 
 import android.content.Context
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.pm.ServiceInfo
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ForegroundInfo
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -73,6 +79,7 @@ class ArticleProcessingWorker(
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
+        setForeground(createForegroundInfo())
         val parser = GlobalContext.get().get<WebpageParserService>()
         return try {
             when (inputData.getString(KEY_MODE)) {
@@ -100,11 +107,40 @@ class ArticleProcessingWorker(
         }
     }
 
+    private fun createForegroundInfo(): ForegroundInfo {
+        createNotificationChannel()
+        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle("Daily Satori")
+            .setContentText("正在保存文章...")
+            .setOngoing(true)
+            .setSilent(true)
+            .build()
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ForegroundInfo(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            ForegroundInfo(NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "文章处理",
+            NotificationManager.IMPORTANCE_LOW,
+        )
+        manager.createNotificationChannel(channel)
+    }
+
     companion object {
         const val KEY_MODE = "mode"
         const val KEY_URL = "url"
         const val KEY_NORMALIZED_URL = "normalizedUrl"
         const val MODE_SAVE = "save"
         const val MODE_RESUME = "resume"
+        private const val CHANNEL_ID = "article_processing"
+        private const val NOTIFICATION_ID = 1001
     }
 }
