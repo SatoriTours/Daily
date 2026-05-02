@@ -1,6 +1,7 @@
 package com.dailysatori.core.di
 
 import com.dailysatori.data.repository.AIConfigRepository
+import com.dailysatori.AppUrlIntakeViewModel
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
@@ -38,10 +39,17 @@ import org.koin.dsl.module
 
 val viewModelModule: Module = module {
     viewModel {
+        AppUrlIntakeViewModel(
+            articleRepo = get<ArticleRepository>(),
+            clipboardMonitorService = get(),
+            articleProcessingScheduler = get(),
+        )
+    }
+    viewModel {
         ArticlesViewModel(
             articleRepo = get<ArticleRepository>(),
             tagRepo = get<TagRepository>(),
-            webpageParserService = get<WebpageParserService>(),
+            articleProcessingScheduler = get(),
         )
     }
     viewModel { params ->

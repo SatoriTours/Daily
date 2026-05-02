@@ -185,12 +185,34 @@ class WebpageParserService(
     private val _processingStates = MutableStateFlow<Map<Long, ArticleProcessingState>>(emptyMap())
     val processingStates: StateFlow<Map<Long, ArticleProcessingState>> = _processingStates
 
-    fun resumeInterruptedProcessing() {
-        scope.launch(Dispatchers.IO) {
-            val articles = articleRepo.getRecoverableForProcessingSync()
-            articles.forEach { article ->
-                if (isRecoverableArticleStatus(article.status)) enqueueArticleProcessing(article.id)
-            }
+    suspend fun resumeInterruptedProcessing() {
+        withContext(Dispatchers.IO) {
+            articleRepo.getRecoverableForProcessingSync()
+                .filter { isRecoverableArticleStatus(it.status) }
+                .forEach { article ->
+                    try {
+                        val extracted = article.url?.let { extractContent(it) }
+                        if (extracted != null) {
+                            articleRepo.update(
+                                id = article.id,
+                                title = extracted.title ?: article.title,
+                                aiTitle = article.ai_title,
+                                aiContent = article.ai_content,
+                                aiMarkdownContent = article.ai_markdown_content,
+                                url = article.url,
+                                isFavorite = article.is_favorite ?: 0L,
+                                comment = article.comment,
+                                status = "webContentFetched",
+                                coverImage = article.cover_image,
+                                coverImageUrl = extracted.coverImageUrl ?: article.cover_image_url,
+                                pubDate = article.pub_date,
+                            )
+                        }
+                        processAiTasks(article.id, extracted)
+                    } catch (e: Exception) {
+                        log.e(e) { "Interrupted article processing failed: articleId=${article.id}" }
+                    }
+                }
         }
     }
 
@@ -239,7 +261,7 @@ class WebpageParserService(
 
             tags?.let { tagRepo.setTagsForArticle(articleId, it) }
 
-            processAiTasksAsync(articleId, extracted)
+            processAiTasks(articleId, extracted)
 
             log.i { "saveWebpage completed: articleId=$articleId" }
             return articleId
