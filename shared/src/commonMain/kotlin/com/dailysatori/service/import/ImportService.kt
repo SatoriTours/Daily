@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -131,11 +134,7 @@ class ImportService(
 
     private fun JsonObject.getEpochMs(key: String): Long? {
         val str = getString(key) ?: return null
-        return try {
-            Instant.parse(str).toEpochMilliseconds()
-        } catch (_: Exception) {
-            str.toLongOrNull()
-        }
+        return parseImportEpochMs(str)
     }
 
     private fun importSettings(dir: String): Int {
@@ -486,4 +485,22 @@ class ImportService(
     }
 
     private fun nowMs(): Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+}
+
+internal fun parseImportEpochMs(
+    value: String,
+    localTimeZone: TimeZone = TimeZone.currentSystemDefault(),
+): Long? {
+    value.toLongOrNull()?.let { return it }
+    return try {
+        Instant.parse(value).toEpochMilliseconds()
+    } catch (_: Exception) {
+        parseLocalImportEpochMs(value, localTimeZone)
+    }
+}
+
+private fun parseLocalImportEpochMs(value: String, timeZone: TimeZone): Long? = try {
+    LocalDateTime.parse(value).toInstant(timeZone).toEpochMilliseconds()
+} catch (_: Exception) {
+    null
 }
