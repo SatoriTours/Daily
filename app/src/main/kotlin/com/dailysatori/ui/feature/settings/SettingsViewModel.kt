@@ -1,7 +1,11 @@
 package com.dailysatori.ui.feature.settings
 
+import android.content.Context
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailysatori.BuildConfig
+import com.dailysatori.core.service.AppRelease
 import com.dailysatori.core.service.AppUpgradeService
 import com.dailysatori.core.service.WebServerService
 import com.dailysatori.data.repository.SettingRepository
@@ -22,8 +26,12 @@ data class SettingsState(
     val webServerAddress: String = "",
     val webServerToken: String = "",
     val isCheckingUpdate: Boolean = false,
-    val updateVersion: String? = null,
-    val currentVersion: String = "1.0.0",
+    val availableRelease: AppRelease? = null,
+    val showUpdateDialog: Boolean = false,
+    val updateMessage: String? = null,
+    val downloadId: Long? = null,
+    val pendingInstallFilePath: String? = null,
+    val currentVersion: String = BuildConfig.VERSION_NAME,
     val isExporting: Boolean = false,
     val exportProgress: Float = 0f,
     val error: String? = null,
@@ -114,12 +122,81 @@ class SettingsViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isCheckingUpdate = true, error = null) }
             try {
-                val latest = appUpgradeService.checkForUpdate(_state.value.currentVersion)
-                _state.update { it.copy(isCheckingUpdate = false, updateVersion = latest) }
+                val release = appUpgradeService.checkForUpdate(
+                    currentVersion = _state.value.currentVersion,
+                    suppressErrors = false,
+                )
+                _state.update { current ->
+                    current.copy(
+                        isCheckingUpdate = false,
+                        availableRelease = release,
+                        showUpdateDialog = release != null,
+                        updateMessage = if (release == null) "已经是最新版" else null,
+                    )
+                }
             } catch (e: Exception) {
-                _state.update { it.copy(isCheckingUpdate = false, error = e.message) }
+                _state.update { it.copy(isCheckingUpdate = false, updateMessage = e.message ?: "检查更新失败") }
             }
         }
+    }
+
+    fun checkUpdateAutomatically() {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (_state.value.isCheckingUpdate || _state.value.availableRelease != null) return@launch
+            val release = appUpgradeService.checkForUpdate(_state.value.currentVersion)
+            if (release != null) {
+                _state.update { it.copy(availableRelease = release, showUpdateDialog = true) }
+            }
+        }
+    }
+
+    fun startUpdateDownload(context: Context) {
+        val release = _state.value.availableRelease ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val download = appUpgradeService.enqueueApkDownload(context.applicationContext, release)
+                _state.update {
+                    it.copy(
+                        showUpdateDialog = false,
+                        updateMessage = "正在下载更新...",
+                        downloadId = download.id,
+                        pendingInstallFilePath = download.filePath,
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(showUpdateDialog = false, updateMessage = e.message ?: "下载更新失败") }
+            }
+        }
+    }
+
+    fun createInstallIntentForDownload(context: Context, completedId: Long): Intent? {
+        if (!appUpgradeService.hasPendingDownload(completedId)) return null
+        return appUpgradeService.createInstallIntentForDownload(context, completedId)
+            ?: run {
+                _state.update { it.copy(updateMessage = "下载失败，请重试", downloadId = null, pendingInstallFilePath = null) }
+                null
+            }
+    }
+
+    fun createPendingInstallIntent(context: Context): Intent? {
+        return appUpgradeService.createPendingInstallIntent(context)
+    }
+
+    fun dismissUpdateDialog() {
+        _state.update { it.copy(showUpdateDialog = false) }
+    }
+
+    fun clearUpdateMessage() {
+        _state.update { it.copy(updateMessage = null) }
+    }
+
+    fun markInstallLaunched() {
+        appUpgradeService.clearPendingDownload()
+        _state.update { it.copy(downloadId = null, pendingInstallFilePath = null) }
+    }
+
+    fun notifyInstallPermissionRequired() {
+        _state.update { it.copy(updateMessage = "请允许安装未知来源应用，返回后将继续安装") }
     }
 
     fun exportData() {
