@@ -37,10 +37,25 @@ android {
             pickFirsts += "/META-INF/versions/9/OSGI-INF/MANIFEST.MF"
         }
     }
+    val releaseStoreFile = System.getenv("KEYSTORE_FILE")
+    val releaseStorePassword = System.getenv("STORE_PASSWORD")
+    val releaseKeyAlias = System.getenv("KEY_ALIAS")
+    val releaseKeyPassword = System.getenv("KEY_PASSWORD")
+    signingConfigs {
+        create("release") {
+            storeFile = releaseStoreFile?.let { file(it) }
+            storePassword = releaseStorePassword
+            keyAlias = releaseKeyAlias
+            keyPassword = releaseKeyPassword
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            if (!releaseStoreFile.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
