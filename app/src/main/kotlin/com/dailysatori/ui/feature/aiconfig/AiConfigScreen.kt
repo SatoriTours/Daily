@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.aiconfig
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,13 +19,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,9 +43,16 @@ import androidx.compose.ui.unit.dp
 import com.dailysatori.service.ai.aiConfigDisplayName
 import com.dailysatori.service.ai.canDeleteAiConfig
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
+
+internal const val aiConfigDeleteActionSizeDp = 32
+internal const val aiConfigDeleteIconSizeDp = 18
+internal const val aiConfigDefaultCardBorderAlpha = 0.28f
+internal const val aiConfigDefaultIconAlpha = 0.82f
+internal const val aiConfigDeleteIconAlpha = 0.62f
 
 @Composable
 fun AiConfigScreen(
@@ -135,10 +144,18 @@ fun AiConfigScreen(
                         shape = RoundedCornerShape(Radius.m),
                         colors = CardDefaults.cardColors(
                             containerColor = if (isDefault)
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                                MaterialTheme.colorScheme.surfaceContainerLow
                             else
                                 MaterialTheme.colorScheme.surface,
                         ),
+                        border = if (isDefault) {
+                            BorderStroke(
+                                BorderWidth.s,
+                                MaterialTheme.colorScheme.primary.copy(alpha = aiConfigDefaultCardBorderAlpha),
+                            )
+                        } else {
+                            null
+                        },
                     ) {
                         Column(
                             modifier = Modifier.fillMaxWidth().padding(Spacing.m),
@@ -157,9 +174,23 @@ fun AiConfigScreen(
                                     Icon(
                                         Icons.Default.CheckCircle,
                                         contentDescription = "默认",
-                                        tint = MaterialTheme.colorScheme.primary,
+                                        tint = MaterialTheme.colorScheme.primary.copy(alpha = aiConfigDefaultIconAlpha),
                                         modifier = Modifier.size(18.dp),
                                     )
+                                }
+                                if (canDelete) {
+                                    Spacer(modifier = Modifier.width(Spacing.xs))
+                                    IconButton(
+                                        onClick = { deletingConfigId = config.id },
+                                        modifier = Modifier.size(aiConfigDeleteActionSizeDp.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "删除配置",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = aiConfigDeleteIconAlpha),
+                                            modifier = Modifier.size(aiConfigDeleteIconSizeDp.dp),
+                                        )
+                                    }
                                 }
                             }
                             Spacer(modifier = Modifier.height(Spacing.xs))
@@ -185,15 +216,6 @@ fun AiConfigScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
-                            }
-                            if (canDelete) {
-                                Spacer(modifier = Modifier.height(Spacing.s))
-                                OutlinedButton(
-                                    onClick = { deletingConfigId = config.id },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text("删除")
-                                }
                             }
                         }
                     }
