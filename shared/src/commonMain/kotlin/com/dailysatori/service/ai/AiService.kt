@@ -1,60 +1,55 @@
 package com.dailysatori.service.ai
 
 import co.touchlab.kermit.Logger
-import io.ktor.client.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.*
+import io.ktor.client.HttpClient
+import kotlinx.serialization.json.JsonObject
 
-@Serializable
-data class ChatMessage(val role: String, val content: String)
-
-@Serializable
-data class AiSummaryResult(
-    val title: String = "",
-    val keyPoints: List<String> = emptyList(),
-    val tags: List<String> = emptyList(),
-    val summary: String = "",
-)
-
-class AiService(private val client: HttpClient) {
+class AiService(@Suppress("UNUSED_PARAMETER") client: HttpClient) {
     private val log = Logger.withTag("AI")
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+    private val langChainClient = LangChainAiClient()
 
     suspend fun complete(
         prompt: String,
         apiAddress: String,
         apiToken: String,
         modelName: String,
+        provider: String = "openai",
         systemPrompt: String? = null,
         temperature: Double = 0.5,
     ): String {
-        val messages = mutableListOf<JsonObject>()
-        systemPrompt?.let {
-            messages.add(buildJsonObject { put("role", "system"); put("content", it) })
-        }
-        messages.add(buildJsonObject { put("role", "user"); put("content", prompt) })
-
-        val requestBody = buildJsonObject {
-            put("model", modelName)
-            put("messages", JsonArray(messages))
-            put("temperature", temperature)
-        }
-
-        return try {
-            val response = client.post("$apiAddress/v1/chat/completions") {
-                contentType(ContentType.Application.Json)
-                header("Authorization", "Bearer $apiToken")
-                setBody(requestBody.toString())
-            }
-            val responseJson = json.parseToJsonElement(response.bodyAsText()).jsonObject
-            val choices = responseJson["choices"]?.jsonArray
-            choices?.firstOrNull()?.jsonObject?.get("message")?.jsonObject?.get("content")?.jsonPrimitive?.content ?: ""
+        val response = try {
+            langChainClient.complete(
+                prompt = prompt,
+                apiAddress = apiAddress.trim().trimEnd('/'),
+                apiToken = apiToken.trim(),
+                modelName = modelName.trim(),
+                provider = provider.trim(),
+                systemPrompt = systemPrompt,
+                temperature = temperature,
+            )
         } catch (e: Exception) {
             log.e(e) { "AI completion failed" }
-            ""
+            throw e
+        }
+        if (response.isBlank()) throw IllegalStateException("AI returned empty response")
+        return response
+    }
+
+    suspend fun testConnection(
+        apiAddress: String,
+        apiToken: String,
+        modelName: String,
+        provider: String,
+    ): Result<String> {
+        return runCatching {
+            complete(
+                prompt = "请只回复 OK",
+                apiAddress = apiAddress,
+                apiToken = apiToken,
+                modelName = modelName,
+                provider = provider,
+                temperature = 0.0,
+            )
         }
     }
 
@@ -63,41 +58,56 @@ class AiService(private val client: HttpClient) {
         apiAddress: String,
         apiToken: String,
         modelName: String,
+        provider: String = "openai",
         tools: List<JsonObject> = emptyList(),
         temperature: Double = 0.7,
     ): JsonObject? {
-        val requestBody = buildJsonObject {
-            put("model", modelName)
-            put("messages", JsonArray(messages))
-            put("temperature", temperature)
-            if (tools.isNotEmpty()) {
-                put("tools", JsonArray(tools))
-                put("tool_choice", "auto")
-            }
-        }
-
         return try {
-            val response = client.post("$apiAddress/v1/chat/completions") {
-                contentType(ContentType.Application.Json)
-                header("Authorization", "Bearer $apiToken")
-                setBody(requestBody.toString())
-            }
-            json.parseToJsonElement(response.bodyAsText()).jsonObject
+            langChainClient.chatCompletion(
+                messages = messages,
+                apiAddress = apiAddress.trim().trimEnd('/'),
+                apiToken = apiToken.trim(),
+                modelName = modelName.trim(),
+                provider = provider.trim(),
+                tools = tools,
+                temperature = temperature,
+            )
         } catch (e: Exception) {
             log.e(e) { "AI chat completion failed" }
             null
         }
     }
 
-    suspend fun translate(text: String, systemPrompt: String, apiAddress: String, apiToken: String, modelName: String): String {
-        return complete(text, apiAddress, apiToken, modelName, systemPrompt)
+    suspend fun translate(
+        text: String,
+        systemPrompt: String,
+        apiAddress: String,
+        apiToken: String,
+        modelName: String,
+        provider: String = "openai",
+    ): String {
+        return complete(text, apiAddress, apiToken, modelName, provider, systemPrompt)
     }
 
-    suspend fun summarize(content: String, systemPrompt: String, apiAddress: String, apiToken: String, modelName: String): String {
-        return complete(content, apiAddress, apiToken, modelName, systemPrompt)
+    suspend fun summarize(
+        content: String,
+        systemPrompt: String,
+        apiAddress: String,
+        apiToken: String,
+        modelName: String,
+        provider: String = "openai",
+    ): String {
+        return complete(content, apiAddress, apiToken, modelName, provider, systemPrompt)
     }
 
-    suspend fun htmlToMarkdown(html: String, systemPrompt: String, apiAddress: String, apiToken: String, modelName: String): String {
-        return complete(html, apiAddress, apiToken, modelName, systemPrompt)
+    suspend fun htmlToMarkdown(
+        html: String,
+        systemPrompt: String,
+        apiAddress: String,
+        apiToken: String,
+        modelName: String,
+        provider: String = "openai",
+    ): String {
+        return complete(html, apiAddress, apiToken, modelName, provider, systemPrompt)
     }
 }

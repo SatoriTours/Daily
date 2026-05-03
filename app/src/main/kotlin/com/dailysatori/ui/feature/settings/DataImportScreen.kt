@@ -249,6 +249,7 @@ private fun ResultCard(result: ImportService.ImportResult) {
                 "读书观点" to result.bookViewpoints,
                 "周报" to result.weeklySummaries,
                 "会话" to result.sessions,
+                "MCP 服务" to result.mcpServers,
                 "图片文件" to result.imageFilesCopied,
             )
 

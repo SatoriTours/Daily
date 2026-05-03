@@ -75,7 +75,7 @@ fun SearchBar(
                 }
             },
             singleLine = true,
-            shape = RoundedCornerShape(Radius.m),
+            shape = RoundedCornerShape(Radius.circular),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,

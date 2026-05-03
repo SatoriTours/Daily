@@ -3,9 +3,7 @@ CREATE TABLE article (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT,
     ai_title TEXT,
-    content TEXT,
     ai_content TEXT,
-    html_content TEXT,
     ai_markdown_content TEXT,
     url TEXT UNIQUE,
     is_favorite INTEGER DEFAULT 0,
@@ -79,12 +77,22 @@ CREATE TABLE diary (
 CREATE TABLE ai_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'openai',
     api_address TEXT NOT NULL,
     api_token TEXT NOT NULL,
     model_name TEXT NOT NULL,
-    function_type INTEGER DEFAULT 0,
-    inherit_from_general INTEGER DEFAULT 0,
     is_default INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- MCP Server
+CREATE TABLE mcp_server (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    server_url TEXT NOT NULL,
+    api_key TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 1,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
@@ -140,6 +148,11 @@ SELECT * FROM article WHERE id = ?;
 selectArticlesByStatus:
 SELECT * FROM article WHERE status = ? ORDER BY created_at DESC;
 
+selectRecoverableArticles:
+SELECT * FROM article
+WHERE status IN ('pending', 'webContentFetched', 'aiProcessing')
+ORDER BY updated_at ASC;
+
 selectArticlesByTag:
 SELECT a.* FROM article a
 INNER JOIN article_tag at2 ON a.id = at2.article_id
@@ -150,7 +163,7 @@ searchArticles:
 SELECT * FROM article
 WHERE title LIKE '%' || ? || '%'
    OR ai_title LIKE '%' || ? || '%'
-   OR content LIKE '%' || ? || '%'
+   OR ai_content LIKE '%' || ? || '%'
 ORDER BY created_at DESC;
 
 selectArticlesByDateRange:
@@ -168,11 +181,11 @@ GROUP BY article_day
 ORDER BY article_day;
 
 insertArticle:
-INSERT INTO article (title, ai_title, content, ai_content, html_content, ai_markdown_content, url, is_favorite, comment, status, cover_image, cover_image_url, pub_date, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO article (title, ai_title, ai_content, ai_markdown_content, url, is_favorite, comment, status, cover_image, cover_image_url, pub_date, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateArticle:
-UPDATE article SET title = ?, ai_title = ?, content = ?, ai_content = ?, html_content = ?, ai_markdown_content = ?, url = ?, is_favorite = ?, comment = ?, status = ?, cover_image = ?, cover_image_url = ?, pub_date = ?, updated_at = ?
+UPDATE article SET title = ?, ai_title = ?, ai_content = ?, ai_markdown_content = ?, url = ?, is_favorite = ?, comment = ?, status = ?, cover_image = ?, cover_image_url = ?, pub_date = ?, updated_at = ?
 WHERE id = ?;
 
 updateArticleField:
@@ -307,27 +320,48 @@ SELECT COUNT(*) FROM diary;
 
 -- AI Config queries
 selectAllAiConfigs:
-SELECT * FROM ai_config ORDER BY function_type, name;
+SELECT * FROM ai_config ORDER BY name;
 
 selectAiConfigById:
 SELECT * FROM ai_config WHERE id = ?;
 
 selectDefaultAiConfig:
-SELECT * FROM ai_config WHERE is_default = 1 AND function_type = ?;
-
-selectGeneralAiConfig:
-SELECT * FROM ai_config WHERE function_type = 0 AND is_default = 1;
+SELECT * FROM ai_config WHERE is_default = 1 LIMIT 1;
 
 insertAiConfig:
-INSERT INTO ai_config (name, api_address, api_token, model_name, function_type, inherit_from_general, is_default, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO ai_config (name, provider, api_address, api_token, model_name, is_default, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 updateAiConfig:
-UPDATE ai_config SET name = ?, api_address = ?, api_token = ?, model_name = ?, function_type = ?, inherit_from_general = ?, is_default = ?, updated_at = ?
+UPDATE ai_config SET name = ?, provider = ?, api_address = ?, api_token = ?, model_name = ?, is_default = ?, updated_at = ?
 WHERE id = ?;
 
 deleteAiConfig:
 DELETE FROM ai_config WHERE id = ?;
+
+clearDefaultAiConfig:
+UPDATE ai_config SET is_default = 0;
+
+-- MCP Server queries
+selectAllMcpServers:
+SELECT * FROM mcp_server ORDER BY name;
+
+selectMcpServerById:
+SELECT * FROM mcp_server WHERE id = ?;
+
+selectEnabledMcpServers:
+SELECT * FROM mcp_server WHERE enabled = 1;
+
+insertMcpServer:
+INSERT INTO mcp_server (name, server_url, api_key, enabled, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?);
+
+updateMcpServer:
+UPDATE mcp_server SET name = ?, server_url = ?, api_key = ?, enabled = ?, updated_at = ?
+WHERE id = ?;
+
+deleteMcpServer:
+DELETE FROM mcp_server WHERE id = ?;
 
 -- Setting queries
 selectSettingByKey:
@@ -394,3 +428,72 @@ SELECT
     (SELECT COUNT(*) FROM tag) AS total_tags,
     (SELECT COUNT(*) FROM article WHERE is_favorite = 1) AS total_favorites;
 
+-- Memory Entry
+CREATE TABLE memory_entry (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    source_type TEXT,
+    source_id INTEGER,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    tags TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+-- Chat Conversation
+CREATE TABLE chat_conversation (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    search_results TEXT,
+    steps TEXT,
+    created_at INTEGER NOT NULL
+);
+
+-- Memory queries
+selectMemoryByType:
+SELECT * FROM memory_entry WHERE type = ? ORDER BY created_at DESC;
+
+selectMemoryBySource:
+SELECT * FROM memory_entry WHERE source_type = ? AND source_id = ?;
+
+searchMemory:
+SELECT * FROM memory_entry WHERE title LIKE '%' || ? || '%' OR content LIKE '%' || ? || '%' ORDER BY created_at DESC LIMIT ?;
+
+selectAllMemory:
+SELECT * FROM memory_entry ORDER BY created_at DESC;
+
+insertMemory:
+INSERT INTO memory_entry (type, source_type, source_id, title, content, tags, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+updateMemory:
+UPDATE memory_entry SET title = ?, content = ?, tags = ?, updated_at = ? WHERE id = ?;
+
+deleteMemory:
+DELETE FROM memory_entry WHERE id = ?;
+
+deleteMemoryBySource:
+DELETE FROM memory_entry WHERE source_type = ? AND source_id = ?;
+
+deleteAllMemoryByType:
+DELETE FROM memory_entry WHERE type = ?;
+
+memoryCountByType:
+SELECT COUNT(*) FROM memory_entry WHERE type = ?;
+
+-- Chat conversation queries
+selectChatBySession:
+SELECT * FROM chat_conversation WHERE session_id = ? ORDER BY created_at ASC;
+
+insertChat:
+INSERT INTO chat_conversation (session_id, role, content, search_results, steps, created_at)
+VALUES (?, ?, ?, ?, ?, ?);
+
+deleteChatBySession:
+DELETE FROM chat_conversation WHERE session_id = ?;
+
+selectChatSessions:
+SELECT DISTINCT session_id FROM chat_conversation ORDER BY session_id DESC;

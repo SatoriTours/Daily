@@ -16,54 +16,34 @@ class AIConfigRepository(private val db: DailySatoriDatabase) {
 
     fun getById(id: Long) = q.selectAiConfigById(id).executeAsOneOrNull()
 
-    fun getDefaultByType(functionType: Long) =
-        q.selectDefaultAiConfig(functionType).executeAsOneOrNull()
-
-    fun getGeneralConfig() =
-        q.selectGeneralAiConfig().executeAsOneOrNull()
+    fun getDefault() = q.selectDefaultAiConfig().executeAsOneOrNull()
 
     fun insert(
         name: String,
+        provider: String,
         apiAddress: String,
         apiToken: String,
         modelName: String,
-        functionType: Long = 0,
-        inheritFromGeneral: Long = 0,
         isDefault: Long = 0,
     ) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
-        q.insertAiConfig(
-            name, apiAddress, apiToken, modelName,
-            functionType, inheritFromGeneral, isDefault, now, now,
-        )
+        if (isDefault == 1L) q.clearDefaultAiConfig()
+        q.insertAiConfig(name, provider, apiAddress, apiToken, modelName, isDefault, now, now)
     }
 
     fun update(
         id: Long,
         name: String,
+        provider: String,
         apiAddress: String,
         apiToken: String,
         modelName: String,
-        functionType: Long,
-        inheritFromGeneral: Long,
         isDefault: Long,
     ) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
-        q.updateAiConfig(
-            name, apiAddress, apiToken, modelName,
-            functionType, inheritFromGeneral, isDefault, now, id,
-        )
+        if (isDefault == 1L) q.clearDefaultAiConfig()
+        q.updateAiConfig(name, provider, apiAddress, apiToken, modelName, isDefault, now, id)
     }
 
     fun delete(id: Long) = q.deleteAiConfig(id)
-
-    fun initDefaultConfigs() {
-        val types = listOf(0L, 1L, 2L, 3L)
-        val names = listOf("通用配置", "文章分析", "书籍解读", "日记总结")
-        types.forEachIndexed { index, type ->
-            if (getDefaultByType(type) == null) {
-                insert(names[index], "", "", "", type, if (type == 0L) 0L else 1L, 1L)
-            }
-        }
-    }
 }

@@ -59,7 +59,7 @@ fun SmartImage(
                 imagePath
             }
         }
-        Box(modifier = modifier.size(size)) {
+        Box(modifier = Modifier.size(size).then(modifier)) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(resolvedPath)

@@ -1,9 +1,11 @@
 package com.dailysatori.core.di
 
 import com.dailysatori.data.repository.AIConfigRepository
+import com.dailysatori.AppUrlIntakeViewModel
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
+import com.dailysatori.data.repository.ChatConversationRepository
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.data.repository.TagRepository
@@ -13,6 +15,8 @@ import com.dailysatori.core.service.AppUpgradeService
 import com.dailysatori.core.service.WebServerService
 import com.dailysatori.service.backup.BackupService
 import com.dailysatori.service.mcp.McpAgentService
+import com.dailysatori.service.memory.MemoryExtractService
+import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.service.plugin.PluginService
 import com.dailysatori.service.setting.SettingService
 import com.dailysatori.service.weekly.WeeklySummaryService
@@ -22,6 +26,7 @@ import com.dailysatori.ui.feature.article.ArticleDetailViewModel
 import com.dailysatori.ui.feature.article.ArticlesViewModel
 import com.dailysatori.ui.feature.settings.BackupRestoreViewModel
 import com.dailysatori.ui.feature.settings.BackupSettingsViewModel
+import com.dailysatori.ui.feature.book.BookSearchViewModel
 import com.dailysatori.ui.feature.book.BooksViewModel
 import com.dailysatori.ui.feature.diary.DiaryViewModel
 import com.dailysatori.ui.feature.settings.PluginCenterViewModel
@@ -34,9 +39,17 @@ import org.koin.dsl.module
 
 val viewModelModule: Module = module {
     viewModel {
+        AppUrlIntakeViewModel(
+            articleRepo = get<ArticleRepository>(),
+            clipboardMonitorService = get(),
+            articleProcessingScheduler = get(),
+        )
+    }
+    viewModel {
         ArticlesViewModel(
             articleRepo = get<ArticleRepository>(),
             tagRepo = get<TagRepository>(),
+            articleProcessingScheduler = get(),
         )
     }
     viewModel { params ->
@@ -44,12 +57,14 @@ val viewModelModule: Module = module {
             articleId = params.get<Long>(),
             articleRepo = get<ArticleRepository>(),
             tagRepo = get<TagRepository>(),
+            memoryExtractService = get<MemoryExtractService>(),
+            webpageParserService = get<WebpageParserService>(),
         )
     }
     viewModel {
         DiaryViewModel(
             diaryRepo = get<DiaryRepository>(),
-            tagRepo = get<TagRepository>(),
+            memoryExtractService = get<MemoryExtractService>(),
         )
     }
     viewModel {
@@ -59,8 +74,15 @@ val viewModelModule: Module = module {
         )
     }
     viewModel {
+        BookSearchViewModel(
+            mcpAgentService = get(),
+            bookRepo = get<BookRepository>(),
+        )
+    }
+    viewModel {
         AiChatViewModel(
             mcpAgentService = get<McpAgentService>(),
+            chatConversationRepo = get<ChatConversationRepository>(),
         )
     }
     viewModel {
@@ -100,7 +122,6 @@ val viewModelModule: Module = module {
     }
     viewModel {
         SettingsViewModel(
-            settingService = get<SettingService>(),
             webServerService = get<WebServerService>(),
             appUpgradeService = get<AppUpgradeService>(),
         )

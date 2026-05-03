@@ -49,3 +49,8 @@ app/build/
 shared/build/
 build/
 local.properties
+
+# Flutter related
+.dart_tool/
+.flutter-plugins-dependencies
+android/

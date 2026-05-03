@@ -6,6 +6,9 @@ on:
       - 'v*.*.*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,36 +19,52 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up JDK 25
+      - name: Ensure tag belongs to main branch
+        run: |
+          git fetch origin main --depth=1
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/main"; then
+            echo "Tag commit $GITHUB_SHA is not contained in origin/main"
+            exit 1
+          fi
+
+      - name: Set up JDK 21
         uses: actions/setup-java@v4.5.0
         with:
-          distribution: 'adopt'
-          java-version: '25'
+          distribution: 'temurin'
+          java-version: '21'
 
-      - name: Install Flutter
-        uses: subosito/flutter-action@v2.14.0
-        with:
-          flutter-version: "3.38.5"
-          channel: 'stable'
-          cache: true
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
 
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Build APK
+      - name: Validate signing secrets
         env:
+          KEY_JKS: ${{ secrets.KEY_JKS }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
         run: |
-          echo "${{ secrets.KEY_JKS }}" | base64 --decode > ./android/release-key.jks
-          flutter build apk --release
+          test -n "$KEY_JKS" || { echo "KEY_JKS secret is missing"; exit 1; }
+          test -n "$KEY_ALIAS" || { echo "KEY_ALIAS secret is missing"; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo "KEY_PASSWORD secret is missing"; exit 1; }
+          test -n "$STORE_PASSWORD" || { echo "STORE_PASSWORD secret is missing"; exit 1; }
+
+      - name: Build signed release APK
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/release-key.jks
+          KEY_JKS: ${{ secrets.KEY_JKS }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        run: |
+          printf '%s' "$KEY_JKS" | base64 --decode > "$KEYSTORE_FILE"
+          ./gradlew :app:assembleRelease
 
       - name: Get current version
         id: version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Read changelog
         id: changelog
@@ -53,22 +72,26 @@ jobs:
           VERSION=${{ steps.version.outputs.version }}
           CHANGELOG_PATH="docs/versions/changelog_${VERSION}.md"
           if [ -f "$CHANGELOG_PATH" ]; then
-            CHANGELOG=$(cat "$CHANGELOG_PATH")
-            echo "changelog<<EOF" >> $GITHUB_OUTPUT
-            echo "$CHANGELOG" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            {
+              echo "body<<EOF"
+              cat "$CHANGELOG_PATH"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
           else
-            echo "Changelog file not found: $CHANGELOG_PATH"
-            echo "changelog=" >> $GITHUB_OUTPUT
+            echo "body=Release ${{ steps.version.outputs.tag }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create Release with Changelog
-        uses: ncipollo/release-action@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.ref }}
-          name: Release v${{ steps.version.outputs.version }}
-          body: ${{ steps.changelog.outputs.changelog }}
-          artifacts: build/app/outputs/apk/release/app-release.apk
-          artifactContentType: application/vnd.android.package-archive
-          makeLatest: true
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_NAME: Release ${{ steps.version.outputs.tag }}
+          RELEASE_BODY: ${{ steps.changelog.outputs.body }}
+          APK_PATH: app/build/outputs/apk/release/app-release.apk
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_NAME" --notes "$RELEASE_BODY" --latest
+          else
+            gh release create "$RELEASE_TAG" --title "$RELEASE_NAME" --notes "$RELEASE_BODY" --latest
+          fi
+          gh release upload "$RELEASE_TAG" "$APK_PATH#daily-satori-${RELEASE_TAG}.apk" --clobber

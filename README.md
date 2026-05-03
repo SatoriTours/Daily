@@ -1,43 +1,40 @@
 <div align="center">
 
-# 📚 Daily Satori
+# Daily Satori
 
-**本地优先的智能知识管理工具**
+**本地优先的智能知识管理 Android 应用**
 
-快速收集 · AI 整理 · 智能搜索 · 知识沉淀
+快速收集 · AI 整理 · Markdown 阅读 · 局域网访问 · 知识沉淀
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Flutter](https://img.shields.io/badge/Flutter-%3E%3D3.0-blue.svg)](https://flutter.dev/)
-[![Version](https://img.shields.io/badge/Version-3.6.85-brightgreen.svg)](https://github.com/SatoriTours/Daily/releases)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/SatoriTours/Daily/pulls)
+[![Kotlin](https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF.svg)](https://kotlinlang.org/docs/multiplatform.html)
+[![Android](https://img.shields.io/badge/Android-26%2B-3DDC84.svg)](https://developer.android.com/)
+[![Release](https://img.shields.io/github/v/release/SatoriTours/Daily?label=Release)](https://github.com/SatoriTours/Daily/releases)
 [![Unit Tests](https://github.com/SatoriTours/Daily/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/SatoriTours/Daily/actions/workflows/unit-tests.yml)
 
-[功能特性](#-功能特性) · [快速开始](#-快速开始) · [更新日志](#-更新日志) · [参与贡献](#-参与贡献)
+[功能特性](#功能特性) · [快速开始](#快速开始) · [项目结构](#项目结构) · [发布流程](#发布流程) · [贡献](#贡献)
 
 </div>
 
 ---
 
-## 🎯 为什么选择 Daily Satori？
+## 项目简介
 
-- 🔒 **隐私第一** - 所有数据本地存储，零云依赖(除自定义大模型外)
-- 🤖 **AI 增强** - 智能摘要、搜索、总结，让信息流动起来
-- 🚀 **现代体验** - Flutter 构建，流畅优雅的原生体验
-- 🧩 **高度可扩展** - 插件机制、自定义提示词、多语言支持
+Daily Satori 是一个本地优先的 Android 知识管理工具，用于收集网页、整理文章、管理书籍与日记，并通过用户自配置的 AI 服务生成摘要和结构化内容。
 
-## ✨ 功能特性
+项目当前主线是 Kotlin Multiplatform + Android 原生实现：共享业务逻辑位于 `shared/`，Android 应用位于 `app/`。以后 `main` 分支作为主要开发分支使用。
 
-- 📝 **内容收集** - 分享导入、剪切板监控、智能解析网页
-- 🔍 **全文搜索** - 毫秒级检索，支持标签和分类
-- 🤖 **AI 智能助手** - 智能对话、语义搜索、自动总结
-- ✍️ **日记** - 轻松记录、标签分类、快捷搜索
-- 📚 **书籍管理** - 智能搜索、OpenLibrary 集成、AI 核心观点
-- 📊 **周报总结** - 基于日记自动生成周报
-- 📖 **阅读体验** - Markdown 渲染、深色模式、离线可用
-- 🌐 **多端访问** - 局域网 Web 服务、数据备份
-- 🧩 **插件扩展** - 自定义提示词、多语言支持
+## 功能特性
 
-## 📸 界面预览
+- 内容收集：通过分享入口保存网页链接，并在后台解析网页正文。
+- AI 处理：支持兼容 OpenAI API 的模型，用于摘要、Markdown 转换、标签和分类生成。
+- 阅读体验：文章详情支持 Markdown 渲染、封面图、阅读进度和本地离线访问。
+- 书籍管理：记录书籍信息、阅读状态和 AI 核心观点。
+- 日记与周报：记录日常内容，并基于日记生成周期总结。
+- 局域网服务：在同一网络下通过浏览器访问应用数据。
+- 本地优先：数据存储在设备本地，AI 功能仅在用户配置后调用外部服务。
+
+## 界面预览
 
 <table>
   <tr>
@@ -62,186 +59,128 @@
   </tr>
 </table>
 
-### 🖥️ PC 端功能
-
-通过浏览器访问 Daily Satori，支持完整的桌面端体验：
-
-<table>
-  <tr>
-    <td align="center"><b>PC 首页</b></td>
-    <td align="center"><b>PC 文章页</b></td>
-    <td align="center"><b>PC 书籍页</b></td>
-  </tr>
-  <tr>
-    <td><img src="docs/images/satori-pc-home.jpg" width="240"/></td>
-    <td><img src="docs/images/satori-pc-article.jpg" width="240"/></td>
-    <td><img src="docs/images/satori-pc-book.jpg" width="240"/></td>
-  </tr>
-</table>
-
-**PC 端特性：**
-- 📱 **响应式布局** - 自动适配不同屏幕尺寸
-- 🌐 **局域网访问** - 同一网络下多设备共享数据
-- 🔐 **密码保护** - Web 服务支持密码验证
-- 📊 **完整功能** - 文章、书籍、日记、AI 对话等全部支持
-- 📖 **阅读模式** - 优化的 Markdown 阅读体验
-
-## 🚀 快速开始
+## 快速开始
 
 ### 环境要求
-```
-Flutter SDK >= 3.0
-Dart SDK >= 2.17
-```
 
-### 安装运行
+- JDK 21
+- Android SDK，包含项目使用的 `compileSdk = 36`
+- Gradle Wrapper，使用仓库内的 `./gradlew`
+
+### 构建与运行
 
 ```bash
 # 克隆仓库
 git clone https://github.com/SatoriTours/Daily.git
 cd Daily
 
-# 安装依赖
-flutter pub get
+# 编译检查
+./gradlew :app:compileDebugKotlin
 
-# 代码生成
-flutter pub run build_runner build --delete-conflicting-outputs
+# 构建 Debug APK
+./gradlew :app:assembleDebug
 
-# 运行应用
-flutter run
+# 安装到已连接的 Android 设备
+./gradlew :app:installDebug
 ```
 
-### 初始配置
-1. 进入"设置"页面
-2. （可选）配置 AI Key 和 API Base URL
-3. 配置 Web 服务（端口和密码）
-4. 开始使用！
+### 启动应用
 
-> 💡 提示：未配置 AI 时仍可作为纯内容管理工具使用
-
-## 🏗️ 技术栈
-
-```
-框架：Flutter + Riverpod + GoRouter
-数据库：ObjectBox
-网络：Dio
-AI：openai_dart
-书籍搜索：Google Cloud API
-Web 服务：shelf + WebSocket
-样式：Material Design 3
-其他：ADBlock 过滤、插件化架构、Riverpod 状态管理
+```bash
+adb shell am start -n com.dailysatori/.MainActivity
 ```
 
-## 📂 项目结构
+## 技术栈
 
+- Kotlin Multiplatform：共享配置、服务、仓储和数据库逻辑。
+- Android + Compose Multiplatform：Android UI 与应用入口。
+- SQLDelight：本地数据库 Schema 和类型安全查询。
+- Koin：依赖注入和 ViewModel 装配。
+- WorkManager：后台文章处理和恢复任务。
+- Ktor：局域网 Web 服务。
+- Jsoup：网页内容解析。
+- Kermit：跨平台日志。
+
+## 项目结构
+
+```text
+shared/
+├── commonMain/kotlin/com/dailysatori/
+│   ├── config/             # 配置常量
+│   ├── data/repository/    # 数据仓储
+│   ├── platform/           # expect 平台接口
+│   └── service/            # AI、解析、迁移等共享服务
+└── commonMain/sqldelight/  # SQLDelight 数据库 Schema
+
+app/src/main/kotlin/com/dailysatori/
+├── core/di/                # Koin 模块
+├── core/navigation/        # Compose Navigation
+├── core/worker/            # WorkManager 后台任务
+└── ui/
+    ├── component/          # 可复用组件
+    ├── feature/            # 功能页面
+    └── theme/              # 颜色、间距、字体等样式系统
 ```
-lib/app/
-├── components/     # 可复用组件
-├── config/         # 配置文件
-├── data/           # 数据层（模型+仓储）
-├── pages/          # 页面模块
-│   ├── home/       # 首页
-│   ├── articles/   # 文章管理
-│   ├── article_detail/  # 文章详情
-│   ├── diary/      # 日记
-│   ├── books/      # 书籍管理
-│   ├── ai_chat/    # AI 助手
-│   ├── ai_config/  # AI 配置
-│   ├── share_dialog/   # 分享对话框
-│   ├── settings/   # 设置
-│   ├── backup_*/   # 备份相关
-│   ├── plugin_center/  # 插件中心
-│   └── weekly_summary/ # 周报总结
-├── providers/      # 全局状态 Providers
-├── routes/         # 路由配置
-├── services/       # 全局服务
-├── styles/         # 样式系统
-└── utils/          # 工具类
+
+## 开发规范
+
+- 样式必须使用 `com.dailysatori.ui.theme.*`，避免硬编码颜色、间距和字体。
+- 修改数据库 Schema 时必须同步增加迁移逻辑。
+- 修改代码后至少运行 `./gradlew :app:compileDebugKotlin`。
+- 发布前建议运行 `./gradlew test`。
+
+更多约束见 `CLAUDE.md` 和 `docs/` 目录。
+
+## 发布流程
+
+GitHub Actions 会在推送 `v*.*.*` tag 时构建签名 Release APK，并上传到 GitHub Release。
+
+发布条件：tag 指向的 commit 必须属于 `main` 分支历史。签名使用仓库 GitHub Secrets：
+
+- `KEY_JKS`：base64 编码后的 keystore
+- `KEY_ALIAS`：签名 alias
+- `KEY_PASSWORD`：key 密码
+- `STORE_PASSWORD`：keystore 密码
+
+示例：
+
+```bash
+git checkout main
+git pull
+git tag v1.2.3
+git push origin main v1.2.3
 ```
 
-## 📋 更新日志
+## 贡献
 
-### v3.6.85 (2026-01-04)
+提交改动前请运行：
 
-**🎨 界面优化**
-- 优化文章详情页面处理效果
-- 改进详情页动画过渡
-- 简化文章页参数处理逻辑
+```bash
+./gradlew :app:compileDebugKotlin
+```
 
-**🔧 技术改进**
-- 简化路由名称，统一 Routes 管理
-- 优化代码结构和代码质量
-- 去除对话框相关的 context 参数依赖
-- 修正原生路由跳转问题，统一使用 go_router
+如果改动影响共享逻辑或数据库，请同时运行相关单元测试或完整测试：
 
-### v3.6.83 (2025-12)
+```bash
+./gradlew test
+```
 
-**🔧 功能改进**
-- 优化日志输出
-- 修复失败文章自动重新处理
-- 优化路由代码
+## 隐私说明
 
-**✨ 新功能**
-- 完成应用首次启动配置界面
-- 完成首次使用设置引导功能
+- 数据默认保存在设备本地。
+- 不内置强制云同步。
+- AI 功能仅在用户配置 API 后调用外部模型服务。
+- 请勿在日志或 issue 中提交 API Key、数据库文件或 keystore。
 
-### v3.6.82 (2025-12)
-
-**📚 书籍管理**
-- 优化书籍搜索逻辑
-- 优化书籍相关服务
-
-**⚡ 性能优化**
-- 优化页面性能
-- 优化代码性能
-
-[查看完整更新日志](https://github.com/SatoriTours/Daily/releases)
-
-## 🤝 参与贡献
-
-欢迎各种形式的贡献！
-
-- 🐛 报告 Bug
-- 💡 提出新功能建议
-- 🔧 提交代码改进
-- 📝 完善文档
-
-提交 PR 前请：
-1. 阅读 [编码规范](./docs/01-coding-standards.md)
-2. 运行 `flutter analyze` 检查代码
-3. 运行 `dart format .` 格式化代码
-
-## ❓ 常见问题
-
-**数据会上传云端吗？**
-不会。所有数据存储在本地，仅在配置 AI 时调用外部 API。
-
-**必须配置 AI 吗？**
-不是必须的。未配置时可作为纯内容收集工具使用, 但很多功能用不了。
-
-**支持哪些 AI 模型？**
-支持所有兼容 OpenAI API 的模型和服务。
-
-**如何添加新语言？**
-修改 `assets/i18n/` 目录下的配置文件即可。
-
-## 🔒 隐私声明
-
-- ✅ 本地优先 - 数据存储在设备本地
-- ✅ 无云依赖 - 不依赖任何云服务
-- ✅ 可选 AI - AI 功能仅在配置后启用
-- ✅ 零追踪 - 不收集任何用户行为数据
-
-## 📄 开源协议
+## 开源协议
 
 [MIT License](LICENSE)
 
-## 🔗 相关链接
+## 相关链接
 
-- 📦 [发行版本](https://github.com/SatoriTours/Daily/releases)
-- 🐛 [问题反馈](https://github.com/SatoriTours/Daily/issues)
-- 💬 [讨论交流](https://github.com/SatoriTours/Daily/discussions)
-- 🧩 [插件示例](https://github.com/SatoriTours/plugin)
+- [发行版本](https://github.com/SatoriTours/Daily/releases)
+- [问题反馈](https://github.com/SatoriTours/Daily/issues)
+- [讨论交流](https://github.com/SatoriTours/Daily/discussions)
 
 ---
 
@@ -249,8 +188,6 @@ lib/app/
 
 **让信息收集更轻松，知识沉淀更高效**
 
-Made with ❤️ by [SatoriTours](https://github.com/SatoriTours)
-
-⭐ 如果这个项目对你有帮助，请给个 Star 支持一下！
+Made by [SatoriTours](https://github.com/SatoriTours)
 
 </div>

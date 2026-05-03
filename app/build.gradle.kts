@@ -28,12 +28,38 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1,INDEX.LIST,*.SF,*.DSA,*.RSA}"
             excludes += "META-INF/io.netty.versions.properties"
             pickFirsts += "/META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        }
+    }
+    val releaseStoreFile = System.getenv("KEYSTORE_FILE")
+    val releaseStorePassword = System.getenv("STORE_PASSWORD")
+    val releaseKeyAlias = System.getenv("KEY_ALIAS")
+    val releaseKeyPassword = System.getenv("KEY_PASSWORD")
+    signingConfigs {
+        create("release") {
+            storeFile = releaseStoreFile?.let { file(it) }
+            storePassword = releaseStorePassword
+            keyAlias = releaseKeyAlias
+            keyPassword = releaseKeyPassword
+        }
+    }
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            if (!releaseStoreFile.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }
@@ -46,6 +72,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
     implementation(libs.koin.compose)
@@ -55,7 +82,7 @@ dependencies {
     implementation(libs.markdown.renderer.m3)
     implementation(libs.jsoup)
     implementation(libs.ktor.server.core)
-    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.cio)
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.server.auth)
     implementation(libs.ktor.server.cors)
@@ -66,4 +93,5 @@ dependencies {
     implementation(libs.kotlinx.datetime)
     implementation(libs.compose.material3)
     implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
+    testImplementation(kotlin("test"))
 }

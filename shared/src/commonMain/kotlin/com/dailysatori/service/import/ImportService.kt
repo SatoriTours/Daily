@@ -46,7 +46,9 @@ class ImportService(
         val bookViewpoints: Int = 0,
         val weeklySummaries: Int = 0,
         val sessions: Int = 0,
+        val mcpServers: Int = 0,
         val imageFilesCopied: Int = 0,
+        val legacyImagesMigrated: Int = 0,
     )
 
     suspend fun importFromZip(zipPath: String): ImportResult = withContext(Dispatchers.IO) {
@@ -71,7 +73,9 @@ class ImportService(
                 bookViewpoints = importBookViewpoints(tempDir),
                 weeklySummaries = importWeeklySummaries(tempDir),
                 sessions = importSessions(tempDir),
+                mcpServers = importMcpServers(tempDir),
                 imageFilesCopied = copyImageFiles(tempDir),
+                legacyImagesMigrated = migrateLegacyImages(),
             )
 
             cleanup(tempDir)
@@ -159,11 +163,10 @@ class ImportService(
             insertAndGetNewId("ai_config", oldId) {
                 db.dailySatoriQueries.insertAiConfig(
                     obj.getString("name") ?: "",
+                    obj.getString("provider") ?: "openai",
                     obj.getString("api_address") ?: "",
                     obj.getString("api_token") ?: "",
                     obj.getString("model_name") ?: "",
-                    obj.getLong("function_type") ?: 0,
-                    obj.getLong("inherit_from_general") ?: 0,
                     obj.getLong("is_default") ?: 0,
                     obj.getEpochMs("created_at") ?: nowMs(),
                     obj.getEpochMs("updated_at") ?: nowMs(),
@@ -209,9 +212,7 @@ class ImportService(
                 db.dailySatoriQueries.insertArticle(
                     obj.getString("title"),
                     obj.getString("ai_title"),
-                    obj.getString("content"),
-                    obj.getString("ai_content"),
-                    obj.getString("html_content"),
+                    obj.getString("ai_content") ?: obj.getString("content"),
                     obj.getString("ai_markdown_content"),
                     obj.getString("url"),
                     obj.getLong("is_favorite") ?: 0,
@@ -402,6 +403,25 @@ class ImportService(
         return count
     }
 
+    private fun importMcpServers(dir: String): Int {
+        val arr = readJsonArray(dir, "mcp_servers.json") ?: return 0
+        var count = 0
+        arr.forEach { element ->
+            val obj = element.jsonObject
+            db.dailySatoriQueries.insertMcpServer(
+                obj.getString("name") ?: "",
+                obj.getString("server_url") ?: "",
+                obj.getString("api_key") ?: "",
+                obj.getLong("enabled") ?: 1,
+                obj.getEpochMs("created_at") ?: nowMs(),
+                obj.getEpochMs("updated_at") ?: nowMs(),
+            )
+            count++
+        }
+        _progress.value = 0.92
+        return count
+    }
+
     private fun copyImageFiles(tempDir: String): Int {
         val imagesDir = "$tempDir/images"
         val diaryImagesDir = "$tempDir/diary_images"
@@ -425,6 +445,35 @@ class ImportService(
             }
         }
 
+        return count
+    }
+
+    private fun migrateLegacyImages(): Int {
+        val legacyDir = fileManager.getLegacyFlutterDir() ?: return 0
+        log.i { "Migrating legacy images from $legacyDir" }
+        var count = 0
+        val targetDirs = mapOf(
+            "images" to fileManager.getImagesDir(),
+            "diary_images" to fileManager.getDiaryImagesDir(),
+        )
+        targetDirs.forEach { (sub, target) ->
+            val srcDir = "$legacyDir/$sub"
+            if (fileManager.exists(srcDir)) {
+                fileManager.listFiles(srcDir).forEach { src ->
+                    val name = src.substringAfterLast("/")
+                    val dest = "$target/$name"
+                    if (!fileManager.exists(dest)) {
+                        try {
+                            fileManager.copyFile(src, dest)
+                            count++
+                        } catch (e: Exception) {
+                            log.w(e) { "Failed to migrate legacy image: $name" }
+                        }
+                    }
+                }
+            }
+        }
+        log.i { "Migrated $count legacy images" }
         return count
     }
 

@@ -1,45 +1,59 @@
 package com.dailysatori.ui.feature.book
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import com.dailysatori.shared.db.Book
 import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.dialog.ConfirmDialog
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
+import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun BooksScreen(
     onSearchClick: () -> Unit = {},
@@ -47,29 +61,15 @@ fun BooksScreen(
     val viewModel: BooksViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<Book?>(null) }
+    var showBookSheet by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(
             title = "读书",
             showBack = false,
             actions = {
-                var showBookMenu by remember { mutableStateOf(false) }
-                Box {
-                    IconButton(onClick = { showBookMenu = true }) {
-                        Icon(Icons.Default.MenuBook, contentDescription = "筛选书籍")
-                    }
-                    DropdownMenu(expanded = showBookMenu, onDismissRequest = { showBookMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text("所有书籍") },
-                            onClick = { viewModel.selectBook(null); showBookMenu = false },
-                        )
-                        state.books.forEach { book ->
-                            DropdownMenuItem(
-                                text = { Text(book.title) },
-                                onClick = { viewModel.selectBook(book.id); showBookMenu = false },
-                            )
-                        }
-                    }
+                IconButton(onClick = { showBookSheet = true }) {
+                    Icon(Icons.Default.MenuBook, contentDescription = "选择书籍")
                 }
                 IconButton(onClick = onSearchClick) {
                     Icon(Icons.Default.Search, contentDescription = "搜索书籍")
@@ -84,11 +84,6 @@ fun BooksScreen(
                             text = { Text("随机") },
                             leadingIcon = { Icon(Icons.Default.Refresh, null) },
                             onClick = { viewModel.shuffle(); showMenu = false },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("刷新") },
-                            leadingIcon = { Icon(Icons.Default.Refresh, null) },
-                            onClick = { viewModel.refresh(); showMenu = false },
                         )
                         if (state.currentBookId != null) {
                             DropdownMenuItem(
@@ -116,51 +111,119 @@ fun BooksScreen(
                     subtitle = "搜索并添加一本书开始阅读",
                 )
             } else {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    val idx = state.currentPage.coerceIn(0, state.viewpoints.size - 1)
-                    val vp = state.viewpoints[idx]
+                val pagerState = rememberPagerState(
+                    initialPage = state.currentPage,
+                    pageCount = { state.viewpoints.size },
+                )
+
+                LaunchedEffect(state.currentBookId) {
+                    pagerState.scrollToPage(0)
+                }
+
+                LaunchedEffect(pagerState.currentPage) {
+                    viewModel.setPage(pagerState.currentPage)
+                }
+
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                ) { page ->
+                    val vp = state.viewpoints[page]
                     val book = state.books.find { it.id == state.currentBookId }
                     val bookTitle = if (book != null) "《${book.title}》 · ${book.author}" else ""
 
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth().weight(1f),
-                        contentPadding = PaddingValues(Spacing.m),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.m),
+                    ViewpointCard(
+                        title = vp.title,
+                        content = vp.content,
+                        example = vp.example,
+                        bookTitle = bookTitle,
+                        modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.m),
+                    )
+                }
+            }
+        }
+    }
+
+    if (showBookSheet) {
+        val sheetState = rememberModalBottomSheetState()
+        val scope = rememberCoroutineScope()
+
+        ModalBottomSheet(
+            onDismissRequest = {
+                scope.launch { sheetState.hide() }.invokeOnCompletion {
+                    if (!sheetState.isVisible) showBookSheet = false
+                }
+            },
+            sheetState = sheetState,
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = Spacing.s)
+                        .width(32.dp)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                )
+            },
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.m)
+                    .padding(bottom = Spacing.xxl),
+            ) {
+                Text(
+                    "选择书籍",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = Spacing.m),
+                )
+
+                state.books.forEach { book ->
+                    val isSelected = book.id == state.currentBookId
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(Radius.s))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surface,
+                            )
+                            .clickable {
+                                viewModel.selectBook(book.id)
+                                scope.launch {
+                                    sheetState.hide()
+                                }.invokeOnCompletion {
+                                    if (!sheetState.isVisible) showBookSheet = false
+                                }
+                            }
+                            .padding(Spacing.m),
                     ) {
-                        item {
-                            ViewpointCard(
-                                title = vp.title,
-                                content = vp.content,
-                                example = vp.example,
-                                bookTitle = bookTitle,
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                book.title,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            )
+                            if (book.author.isNotBlank()) {
+                                Text(
+                                    book.author,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        if (isSelected) {
+                            Spacer(modifier = Modifier.height(Spacing.xs))
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
                             )
                         }
                     }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        TextButton(
-                            onClick = { viewModel.setPage((idx - 1).coerceAtLeast(0)) },
-                            enabled = idx > 0,
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "上一条")
-                            Text("上一条")
-                        }
-                        Text(
-                            text = "第 ${idx + 1} / ${state.viewpoints.size} 条",
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                        TextButton(
-                            onClick = { viewModel.setPage((idx + 1).coerceAtMost(state.viewpoints.size - 1)) },
-                            enabled = idx < state.viewpoints.size - 1,
-                        ) {
-                            Text("下一条")
-                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "下一条")
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(Spacing.xs))
                 }
             }
         }

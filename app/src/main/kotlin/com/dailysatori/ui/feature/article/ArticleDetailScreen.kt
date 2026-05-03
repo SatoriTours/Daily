@@ -2,33 +2,65 @@ package com.dailysatori.ui.feature.article
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.dailysatori.ui.component.media.SmartImage
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import com.dailysatori.ui.component.dialog.ConfirmDialog
+import com.dailysatori.ui.component.indicator.EmptyState
+import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Spacing
+import com.mikepenz.markdown.m3.Markdown
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import java.io.File
+import androidx.compose.runtime.rememberCoroutineScope
 
 @Composable
 fun ArticleDetailScreen(
@@ -36,83 +68,292 @@ fun ArticleDetailScreen(
     onBack: () -> Unit = {},
 ) {
     val viewModel: ArticleDetailViewModel = koinViewModel { parametersOf(articleId) }
-    val state by viewModel.state.collectAsState()
-    val scrollState = rememberScrollState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    var showMenu by remember { mutableStateOf(false) }
+    var showRefreshConfirm by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var coverHeightDp by remember { mutableIntStateOf(articleCoverMaxHeightDp) }
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val coroutineScope = rememberCoroutineScope()
+
+    val title = extractDomain(state.article?.url)
+
+    LaunchedEffect(pagerState.currentPage) {
+        if (state.selectedTabIndex != pagerState.currentPage) {
+            viewModel.selectTab(pagerState.currentPage)
+        }
+    }
+
+    LaunchedEffect(state.selectedTabIndex) {
+        if (pagerState.currentPage != state.selectedTabIndex) {
+            pagerState.animateScrollToPage(state.selectedTabIndex)
+        }
+    }
 
     AppScaffold(
-        title = state.article?.ai_title ?: state.article?.title ?: "文章详情",
+        title = title,
         onBack = onBack,
         actions = {
-            IconButton(onClick = { viewModel.toggleFavorite() }) {
-                Icon(
-                    if (state.article?.is_favorite == 1L) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = "收藏",
-                )
-            }
-            IconButton(onClick = { /* share */ }) {
-                Icon(Icons.Default.Share, contentDescription = "分享")
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "更多操作")
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("刷新文章") },
+                        leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) },
+                        enabled = !state.isRefreshing,
+                        onClick = {
+                            showMenu = false
+                            showRefreshConfirm = true
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(if (state.article?.is_favorite == 1L) "取消收藏" else "收藏") },
+                        leadingIcon = {
+                            Icon(
+                                if (state.article?.is_favorite == 1L) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            viewModel.toggleFavorite()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("在浏览器打开") },
+                        leadingIcon = { Icon(Icons.Default.OpenInBrowser, contentDescription = null) },
+                        onClick = {
+                            showMenu = false
+                            openArticleUrl(context, state.article?.url)
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("删除文章", color = MaterialTheme.colorScheme.error) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            showDeleteConfirm = true
+                        },
+                    )
+                }
             }
         },
     ) { modifier ->
         if (state.isLoading && state.article == null) {
-            Box(modifier = modifier.fillMaxSize()) {
-                Text("加载中...", modifier = Modifier.padding(Spacing.m))
-            }
-        } else if (state.article == null) {
-            Box(modifier = modifier.fillMaxSize()) {
-                Text("文章未找到", modifier = Modifier.padding(Spacing.m))
-            }
+            LoadingIndicator(modifier = modifier)
+        } else if (state.article == null && !state.isRefreshing) {
+            EmptyState(
+                modifier = modifier,
+                icon = Icons.Default.Favorite,
+                title = "文章未找到",
+                subtitle = "该文章可能已被删除",
+            )
         } else {
-            val article = state.article!!
-            Column(
-                modifier = modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState),
-            ) {
+            Column(modifier = modifier.fillMaxSize()) {
+                if (state.refreshError != null) {
+                    Text(
+                        state.refreshError ?: "",
+                        modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                val article = state.article ?: return@Column
                 val coverImage = article.cover_image ?: article.cover_image_url
-                if (!coverImage.isNullOrBlank()) {
-                    SmartImage(
-                        imagePath = coverImage,
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp),
-                        size = 260.dp,
-                    )
-                }
+                val hasCover = !coverImage.isNullOrBlank()
 
-                TabRow(selectedTabIndex = state.selectedTabIndex, modifier = Modifier.fillMaxWidth()) {
-                    Tab(
-                        selected = state.selectedTabIndex == 0,
-                        onClick = { viewModel.selectTab(0) },
-                        text = { Text("AI 摘要") },
+                if (state.isRefreshing) {
+                    if (hasCover) {
+                        ArticleCoverImage(
+                            imagePath = coverImage.orEmpty(),
+                            modifier = Modifier.fillMaxWidth().height(articleCoverMaxHeightDp.dp),
+                        )
+                    }
+                    ArticleTabRow(
+                        selectedTabIndex = state.selectedTabIndex,
+                        onTabSelected = { index -> coroutineScope.launch { pagerState.animateScrollToPage(index) } },
                     )
-                    Tab(
-                        selected = state.selectedTabIndex == 1,
-                        onClick = { viewModel.selectTab(1) },
-                        text = { Text("原文") },
+                    ArticleProcessingStepper(
+                        status = state.processingStage,
+                        progress = state.processingProgress,
+                        modifier = Modifier.padding(Spacing.m),
                     )
-                }
+                } else {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.weight(1f),
+                        beyondViewportPageCount = 1,
+                    ) { page ->
+                        val listState = rememberLazyListState()
+                        val nestedScrollConnection = remember(listState, hasCover, density) {
+                            object : NestedScrollConnection {
+                                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                                    if (!hasCover) return Offset.Zero
+                                    val deltaDp = with(density) { available.y.toDp().value.toInt() }
+                                    val contentAtTop = listState.firstVisibleItemIndex == 0 &&
+                                        listState.firstVisibleItemScrollOffset == 0
+                                    val nextHeight = articleCoverHeightAfterScroll(
+                                        currentHeightDp = coverHeightDp,
+                                        scrollDeltaDp = deltaDp,
+                                        contentAtTop = contentAtTop,
+                                    )
+                                    if (nextHeight == coverHeightDp) return Offset.Zero
 
-                Box(modifier = Modifier.padding(Spacing.m)) {
-                    when (state.selectedTabIndex) {
-                        0 -> {
-                            val summary = article.ai_markdown_content
-                                ?: article.ai_content
-                                ?: article.content
-                                ?: "暂无摘要内容"
-                            Text(
-                                text = summary,
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
+                                    val consumedDp = nextHeight - coverHeightDp
+                                    coverHeightDp = nextHeight
+                                    return Offset(x = 0f, y = with(density) { consumedDp.dp.toPx() })
+                                }
+                            }
                         }
-                        else -> {
-                            val original = article.html_content ?: article.content ?: "暂无原文内容"
-                            Text(
-                                text = original,
-                                style = MaterialTheme.typography.bodyLarge,
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            if (hasCover && coverHeightDp > 0) {
+                                ArticleCoverImage(
+                                    imagePath = coverImage.orEmpty(),
+                                    modifier = Modifier.fillMaxWidth().height(coverHeightDp.dp),
+                                )
+                            }
+                            ArticleTabRow(
+                                selectedTabIndex = state.selectedTabIndex,
+                                onTabSelected = { index -> coroutineScope.launch { pagerState.animateScrollToPage(index) } },
                             )
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .nestedScroll(nestedScrollConnection),
+                            ) {
+                                item(key = "content-$page") {
+                                    Box(modifier = Modifier.padding(Spacing.m)) {
+                                        ArticleMarkdownContent(
+                                            articleDetailPageContent(
+                                                page = page,
+                                                summary = article.ai_content,
+                                                original = article.ai_markdown_content,
+                                            ),
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
+
+    if (showRefreshConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRefreshConfirm = false },
+            title = { Text("刷新文章？") },
+            text = { Text("刷新会重新获取网页内容并重新生成摘要，已有 AI 摘要和原文可能被覆盖。确定刷新吗？") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showRefreshConfirm = false
+                        viewModel.refreshArticle()
+                    },
+                ) {
+                    Text("刷新")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRefreshConfirm = false }) {
+                    Text("取消")
+                }
+            },
+        )
+    }
+
+    if (showDeleteConfirm) {
+        ConfirmDialog(
+            title = articleDeleteDialogTitle(),
+            message = articleDeleteDialogMessage(),
+            onConfirm = {
+                showDeleteConfirm = false
+                viewModel.deleteArticle()
+                onBack()
+            },
+            onDismiss = { showDeleteConfirm = false },
+        )
+    }
+}
+
+internal fun articleDeleteDialogTitle(): String = "删除文章"
+
+internal fun articleDeleteDialogMessage(): String = "确定要删除这篇文章吗？"
+
+@Composable
+private fun ArticleTabRow(
+    selectedTabIndex: Int,
+    onTabSelected: (Int) -> Unit,
+) {
+    TabRow(selectedTabIndex = selectedTabIndex, modifier = Modifier.fillMaxWidth()) {
+        Tab(
+            selected = selectedTabIndex == 0,
+            onClick = { onTabSelected(0) },
+            text = { Text("AI 摘要") },
+        )
+        Tab(
+            selected = selectedTabIndex == 1,
+            onClick = { onTabSelected(1) },
+            text = { Text("原文") },
+        )
+    }
+}
+
+@Composable
+private fun ArticleMarkdownContent(content: String) {
+    SelectionContainer {
+        Markdown(
+            content = content,
+            typography = MarkdownStyles.typography(),
+            padding = MarkdownStyles.padding(),
+        )
+    }
+}
+
+private fun extractDomain(url: String?): String {
+    if (url.isNullOrBlank()) return "文章详情"
+    return url.removePrefix("https://")
+        .removePrefix("http://")
+        .substringBefore("/")
+        .removePrefix("www.")
+        .ifBlank { "文章详情" }
+}
+
+@Composable
+private fun ArticleCoverImage(
+    imagePath: String,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val isLocal = !imagePath.startsWith("http://") && !imagePath.startsWith("https://")
+    val resolvedPath = if (isLocal && !imagePath.startsWith("/")) {
+        File(context.filesDir, "DailySatori/$imagePath").absolutePath
+    } else {
+        imagePath
+    }
+    val imageRequest = remember(context, resolvedPath) {
+        ImageRequest.Builder(context)
+            .data(resolvedPath)
+            .build()
+    }
+    AsyncImage(
+        model = imageRequest,
+        placeholder = painterResource(android.R.drawable.ic_menu_gallery),
+        error = painterResource(android.R.drawable.ic_menu_report_image),
+        contentDescription = null,
+        modifier = modifier,
+        contentScale = ContentScale.Crop,
+    )
 }

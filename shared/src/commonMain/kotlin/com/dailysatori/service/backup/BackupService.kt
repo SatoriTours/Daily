@@ -3,6 +3,7 @@ package com.dailysatori.service.backup
 import co.touchlab.kermit.Logger
 import com.dailysatori.config.BackupConfig
 import com.dailysatori.config.DatabaseConfig
+import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.platform.FileManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,9 +82,16 @@ class BackupService(
             _lastMessage.value = "Creating ZIP archive (${filesToBackup.size} files)..."
             _progress.value = 0.6
 
-            // Create ZIP archive
             val appDataDir = fileManager.getAppDataDir()
             fileManager.createZip(appDataDir, zipPath, filesToBackup)
+
+            _progress.value = 0.7
+            _lastMessage.value = "Encrypting backup..."
+
+            val encPath = "$zipPath.enc"
+            val password = settingRepo.get(SettingKeys.backupPassword) ?: "daily_satori_backup"
+            fileManager.encryptFile(zipPath, encPath, password)
+            fileManager.deleteFile(zipPath)
 
             _progress.value = 0.9
 
@@ -98,8 +106,8 @@ class BackupService(
             }
 
             _progress.value = 1.0
-            _lastMessage.value = "Backup completed: $zipName (${fileManager.fileSize(zipPath)} bytes)"
-            log.i { "Backup completed: $zipPath" }
+            _lastMessage.value = "Backup completed: ${zipName}.enc (${fileManager.fileSize(encPath)} bytes)"
+            log.i { "Backup completed: $encPath" }
             true
         } catch (e: Exception) {
             log.e(e) { "Backup failed" }
@@ -115,19 +123,26 @@ class BackupService(
         _progress.value = 0.0
         return try {
             val backupDir = fileManager.getBackupDir()
-            val zipPath = "$backupDir/$name"
-            if (!fileManager.exists(zipPath)) {
-                log.w { "Backup file not found: $zipPath" }
+            val encPath = "$backupDir/$name"
+            if (!fileManager.exists(encPath)) {
+                log.w { "Backup file not found: $encPath" }
                 return false
             }
 
             _progress.value = 0.1
-            _lastMessage.value = "Extracting backup..."
+            _lastMessage.value = "Decrypting backup..."
 
             val tempDir = "${fileManager.getAppDataDir()}/restore_temp"
             fileManager.createDirectory(tempDir)
-            fileManager.extractZip(zipPath, tempDir)
-            _progress.value = 0.5
+            val tempZip = "$tempDir/backup.zip"
+            val password = settingRepo.get(SettingKeys.backupPassword) ?: "daily_satori_backup"
+            fileManager.decryptFile(encPath, tempZip, password)
+            _progress.value = 0.4
+            _lastMessage.value = "Extracting backup..."
+
+            fileManager.extractZip(tempZip, tempDir)
+            fileManager.deleteFile(tempZip)
+            _progress.value = 0.6
 
             // Move database file
             val dbSrc = "$tempDir/${DatabaseConfig.name}"

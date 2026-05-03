@@ -10,7 +10,7 @@ import kotlinx.serialization.json.*
 @Serializable
 data class BookSearchResult(
     val title: String,
-    val author: String,
+    val author: String = "",
     val category: String = "",
     val introduction: String = "",
     val isbn: String = "",
@@ -21,40 +21,32 @@ interface BookSearchEngine {
     suspend fun search(query: String, limit: Int = 10): List<BookSearchResult>
 }
 
-class GoogleBooksSearchEngine(private val client: HttpClient) : BookSearchEngine {
-    override suspend fun search(query: String, limit: Int): List<BookSearchResult> {
-        return try {
-            val encodedQuery = query.encodeURLParameter()
-            val response = client.get("https://www.googleapis.com/books/v1/volumes?q=$encodedQuery&maxResults=$limit")
-            val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-            json["items"]?.jsonArray?.mapNotNull { item ->
-                val info = item.jsonObject["volumeInfo"]?.jsonObject ?: return@mapNotNull null
-                BookSearchResult(
-                    title = info["title"]?.jsonPrimitive?.content ?: "",
-                    author = info["authors"]?.jsonArray?.joinToString(", ") { it.jsonPrimitive.content } ?: "",
-                    introduction = info["description"]?.jsonPrimitive?.content ?: "",
-                    coverUrl = info["imageLinks"]?.jsonObject?.get("thumbnail")?.jsonPrimitive?.content ?: "",
-                )
-            } ?: emptyList()
-        } catch (_: Exception) { emptyList() }
-    }
-}
+class WebSearchEngine(private val client: HttpClient) : BookSearchEngine {
 
-class OpenLibrarySearchEngine(private val client: HttpClient) : BookSearchEngine {
     override suspend fun search(query: String, limit: Int): List<BookSearchResult> {
-        return try {
-            val encodedQuery = query.encodeURLParameter()
-            val response = client.get("https://openlibrary.org/search.json?q=$encodedQuery&limit=$limit")
-            val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-            json["docs"]?.jsonArray?.map { doc ->
-                BookSearchResult(
-                    title = doc.jsonObject["title"]?.jsonPrimitive?.content ?: "",
-                    author = doc.jsonObject["author_name"]?.jsonArray?.joinToString(", ") { it.jsonPrimitive.content } ?: "",
-                    introduction = "",
-                    coverUrl = doc.jsonObject["cover_i"]?.jsonPrimitive?.longOrNull?.let { "https://covers.openlibrary.org/b/id/$it-M.jpg" } ?: "",
-                )
-            } ?: emptyList()
-        } catch (_: Exception) { emptyList() }
+        val encoded = query.encodeURLParameter()
+        val json = try {
+            val url = "https://en.wikipedia.org/w/api.php?action=query" +
+                "&generator=search&gsrsearch=$encoded&gsrlimit=$limit" +
+                "&prop=extracts|pageimages&exintro&explaintext" +
+                "&piprop=thumbnail&pithumbsize=120&format=json"
+            client.get(url).bodyAsText()
+        } catch (_: Exception) { return emptyList() }
+
+        return parseResults(json)
+    }
+
+    private fun parseResults(jsonText: String): List<BookSearchResult> {
+        val root = Json.parseToJsonElement(jsonText).jsonObject
+        val pages = root["query"]?.jsonObject?.get("pages")?.jsonObject ?: return emptyList()
+        return pages.entries.mapNotNull { (_, pageObj) ->
+            val page = pageObj.jsonObject
+            BookSearchResult(
+                title = page["title"]?.jsonPrimitive?.content ?: return@mapNotNull null,
+                introduction = page["extract"]?.jsonPrimitive?.content ?: "",
+                coverUrl = page["thumbnail"]?.jsonObject?.get("source")?.jsonPrimitive?.content ?: "",
+            )
+        }
     }
 }
 

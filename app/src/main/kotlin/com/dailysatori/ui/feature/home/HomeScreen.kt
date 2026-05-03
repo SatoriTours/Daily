@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.home
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -55,6 +56,7 @@ val tabs = listOf(
 @Composable
 fun HomeScreen(
     onArticleClick: (Long) -> Unit = {},
+    onBookSearchClick: () -> Unit = {},
 ) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
 
@@ -91,12 +93,14 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            when (selectedIndex) {
-                0 -> ArticleListScreen(onArticleClick = onArticleClick)
-                1 -> DiaryScreen()
-                2 -> BooksScreen()
-                3 -> AiChatScreen()
-                4 -> SettingsScreen()
+            Crossfade(targetState = selectedIndex) { index ->
+                when (index) {
+                    0 -> ArticleListScreen(onArticleClick = onArticleClick)
+                    1 -> DiaryScreen()
+                    2 -> BooksScreen(onSearchClick = onBookSearchClick)
+                    3 -> AiChatScreen()
+                    4 -> SettingsScreen()
+                }
             }
         }
     }

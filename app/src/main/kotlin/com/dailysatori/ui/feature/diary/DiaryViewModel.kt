@@ -3,9 +3,8 @@ package com.dailysatori.ui.feature.diary
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.data.repository.DiaryRepository
-import com.dailysatori.data.repository.TagRepository
+import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.shared.db.Diary
-import com.dailysatori.shared.db.Tag
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,15 +18,15 @@ data class DiaryState(
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
     val searchQuery: String = "",
-    val selectedTagId: Long? = null,
+    val selectedTag: String? = null,
     val isSearchVisible: Boolean = false,
-    val tags: List<Tag> = emptyList(),
+    val availableTags: List<String> = emptyList(),
     val error: String? = null,
 )
 
 class DiaryViewModel(
     private val diaryRepo: DiaryRepository,
-    private val tagRepo: TagRepository,
+    private val memoryExtractService: MemoryExtractService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(DiaryState())
     val state: StateFlow<DiaryState> = _state.asStateFlow()
@@ -37,10 +36,23 @@ class DiaryViewModel(
     init {
         loadDiaries()
         viewModelScope.launch(Dispatchers.IO) {
-            tagRepo.getAll().collect { tags ->
-                _state.update { it.copy(tags = tags) }
-            }
+            refreshAvailableTags()
         }
+    }
+
+    private fun refreshAvailableTags() {
+        val allDiaries = diaryRepo.getAllSync()
+        val tags = allDiaries
+            .flatMap { diary ->
+                diary.tags
+                    ?.split(",")
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotBlank() && it != "null" }
+                    ?: emptyList()
+            }
+            .distinct()
+            .sorted()
+        _state.update { it.copy(availableTags = tags) }
     }
 
     fun loadDiaries() {
@@ -53,9 +65,8 @@ class DiaryViewModel(
                 else -> diaryRepo.getAll()
             }
             flow.collect { diaries ->
-                val filtered = if (currentState.selectedTagId != null) {
-                    val tagName = currentState.tags.find { it.id == currentState.selectedTagId }?.name
-                    diaries.filter { d -> d.tags?.contains(tagName ?: "") == true }
+                val filtered = if (currentState.selectedTag != null) {
+                    diaries.filter { d -> d.tags?.contains(currentState.selectedTag) == true }
                 } else {
                     diaries
                 }
@@ -69,8 +80,8 @@ class DiaryViewModel(
         loadDiaries()
     }
 
-    fun filterByTag(tagId: Long?) {
-        _state.update { it.copy(selectedTagId = tagId) }
+    fun filterByTag(tag: String?) {
+        _state.update { it.copy(selectedTag = if (_state.value.selectedTag == tag) null else tag) }
         loadDiaries()
     }
 
@@ -86,16 +97,26 @@ class DiaryViewModel(
         content: String,
         tags: String? = null,
         mood: String? = null,
+        images: String? = null,
         existingId: Long? = null,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isSaving = true, error = null) }
             try {
                 if (existingId != null) {
-                    diaryRepo.update(existingId, content, tags, mood, null)
+                    diaryRepo.update(existingId, content, tags, mood, images)
                 } else {
-                    diaryRepo.insert(content, tags, mood)
+                    diaryRepo.insert(content, tags, mood, images)
                 }
+                if (content.isNotBlank()) {
+                    memoryExtractService.extractAndSave(
+                        sourceType = "diary",
+                        sourceId = existingId ?: 0L,
+                        title = "日记",
+                        content = content,
+                    )
+                }
+                refreshAvailableTags()
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message) }
             } finally {
@@ -108,6 +129,7 @@ class DiaryViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 diaryRepo.delete(id)
+                refreshAvailableTags()
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message) }
             }

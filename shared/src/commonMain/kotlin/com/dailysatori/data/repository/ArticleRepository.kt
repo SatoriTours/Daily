@@ -21,6 +21,9 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     fun getByStatus(status: String): Flow<List<Article>> =
         q.selectArticlesByStatus(status).asFlow().mapToList(Dispatchers.IO)
 
+    fun getRecoverableForProcessingSync(): List<Article> =
+        q.selectRecoverableArticles().executeAsList()
+
     fun getByTag(tagId: Long): Flow<List<Article>> =
         q.selectArticlesByTag(tagId).asFlow().mapToList(Dispatchers.IO)
 
@@ -42,9 +45,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     fun insert(
         title: String? = null,
         aiTitle: String? = null,
-        content: String? = null,
         aiContent: String? = null,
-        htmlContent: String? = null,
         aiMarkdownContent: String? = null,
         url: String? = null,
         isFavorite: Long = 0,
@@ -56,7 +57,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     ): Long {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         q.insertArticle(
-            title, aiTitle, content, aiContent, htmlContent, aiMarkdownContent,
+            title, aiTitle, aiContent, aiMarkdownContent,
             url, isFavorite, comment, status, coverImage, coverImageUrl, pubDate, now, now,
         )
         return q.selectArticles().executeAsList().maxOfOrNull { it.id } ?: 0L
@@ -66,9 +67,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         id: Long,
         title: String?,
         aiTitle: String?,
-        content: String?,
         aiContent: String?,
-        htmlContent: String?,
         aiMarkdownContent: String?,
         url: String?,
         isFavorite: Long,
@@ -80,7 +79,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     ) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         q.updateArticle(
-            title, aiTitle, content, aiContent, htmlContent, aiMarkdownContent,
+            title, aiTitle, aiContent, aiMarkdownContent,
             url, isFavorite, comment, status, coverImage, coverImageUrl, pubDate, now, id,
         )
     }

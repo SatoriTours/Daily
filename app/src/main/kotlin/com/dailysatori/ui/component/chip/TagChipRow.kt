@@ -35,7 +35,7 @@ fun TagChipRow(
                 label = {
                     Text(
                         text = tag,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
                     )
                 },

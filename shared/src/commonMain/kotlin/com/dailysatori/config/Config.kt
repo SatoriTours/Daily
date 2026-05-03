@@ -17,11 +17,12 @@ object AIConfig {
 object BackupConfig {
     const val productionIntervalHours = 6L
     const val developmentIntervalHours = 24L
-    const val fileExtension = ".zip"
+    const val fileExtension = ".enc"
 }
 
 object DatabaseConfig {
     const val name = "daily_satori.db"
+    const val currentSchemaVersion = 4L
 }
 
 object DirectoryConfig {
@@ -71,7 +72,8 @@ object SessionConfig {
 }
 
 object WebServiceConfig {
-    const val httpPort = 8888
+    const val portRangeStart = 51980
+    const val portRangeEnd = 51999
 }
 
 object WebViewConfig {
@@ -94,4 +96,6 @@ object SettingKeys {
     const val deviceId = "device_id"
     const val pluginServerUrl = "plugin_server_url"
     const val isFirstLaunch = "is_first_launch"
+    const val schemaVersion = "schema_version"
+    const val backupPassword = "backup_password"
 }

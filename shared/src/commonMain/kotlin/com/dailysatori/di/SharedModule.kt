@@ -4,8 +4,11 @@ import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
+import com.dailysatori.data.repository.ChatConversationRepository
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.ImageRepository
+import com.dailysatori.data.repository.McpServerRepository
+import com.dailysatori.data.repository.MemoryRepository
 import com.dailysatori.data.repository.SessionRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.data.repository.TagRepository
@@ -17,11 +20,13 @@ import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.backup.BackupService
 import com.dailysatori.service.book.BookSearchService
-import com.dailysatori.service.book.GoogleBooksSearchEngine
-import com.dailysatori.service.book.OpenLibrarySearchEngine
+import com.dailysatori.service.book.WebSearchEngine
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.import.ImportService
 import com.dailysatori.service.mcp.McpAgentService
+import com.dailysatori.service.mcp.McpToolRegistry
+import com.dailysatori.service.memory.MemoryExtractService
+import com.dailysatori.service.migration.DatabaseMigration
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.service.plugin.PluginService
 import com.dailysatori.service.setting.SettingService
@@ -38,8 +43,10 @@ val sharedModule: Module = module {
     single { AIConfigRepository(get()) }
     single { BookRepository(get()) }
     single { BookViewpointRepository(get()) }
+    single { ChatConversationRepository(get()) }
     single { DiaryRepository(get()) }
     single { ImageRepository(get()) }
+    single { MemoryRepository(get()) }
     single { SessionRepository(get()) }
     single { SettingRepository(get()) }
     single { TagRepository(get()) }
@@ -52,6 +59,7 @@ val sharedModule: Module = module {
     single { AiService(get()) }
     single { BackupService(get(), get()) }
     single { PluginService(get(), get()) }
+    single { MemoryExtractService(get(), get(), get()) }
 
     // AdBlock service (loads EasyList rules from assets via FileManager)
     single {
@@ -66,17 +74,25 @@ val sharedModule: Module = module {
     // Webpage parser service (content processing pipeline)
     single { WebpageParserService(get(), get(), get(), get(), get(), get(), get(), get()) }
 
-    // Book search engines
-    single { GoogleBooksSearchEngine(get()) }
-    single { OpenLibrarySearchEngine(get()) }
-    single { BookSearchService(listOf(get<GoogleBooksSearchEngine>(), get<OpenLibrarySearchEngine>())) }
+    // Book search service
+    single { WebSearchEngine(get()) }
+    single { BookSearchService(listOf(get<WebSearchEngine>())) }
 
     // Weekly summary service
     single { WeeklySummaryService(get(), get(), get(), get(), get(), get()) }
 
+    // MCP server config
+    single { McpServerRepository(get()) }
+
+    // Migration
+    single { DatabaseMigration(get(), get()) }
+
     // Import service
     single { ImportService(get(), get(), get()) }
 
+    // MCP Tool registry
+    single { McpToolRegistry(get(), get(), get(), get(), get()) }
+
     // MCP Agent service
-    single { McpAgentService(get(), get(), get(), get(), get(), get()) }
+    single { McpAgentService(get(), get(), get()) }
 }

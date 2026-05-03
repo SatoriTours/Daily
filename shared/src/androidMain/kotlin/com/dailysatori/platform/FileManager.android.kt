@@ -1,6 +1,16 @@
 package com.dailysatori.platform
 
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.security.SecureRandom
+import javax.crypto.Cipher
+import javax.crypto.CipherInputStream
+import javax.crypto.CipherOutputStream
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.PBEKeySpec
+import javax.crypto.spec.SecretKeySpec
 
 actual class FileManager actual constructor() {
     private lateinit var appContext: android.content.Context
@@ -16,6 +26,10 @@ actual class FileManager actual constructor() {
     actual fun getDiaryImagesDir(): String = File(appDir(), "diary_images").apply { mkdirs() }.absolutePath
     actual fun getBackupDir(): String = File(appDir(), "backups").apply { mkdirs() }.absolutePath
     actual fun getCacheDir(): String = appContext.cacheDir.absolutePath
+    actual fun getLegacyFlutterDir(): String? {
+        val dir = File(appContext.filesDir.parentFile, "app_flutter")
+        return if (dir.exists()) dir.absolutePath else null
+    }
 
     actual fun writeFile(path: String, data: ByteArray) {
         File(path).apply { parentFile?.mkdirs() }.writeBytes(data)
@@ -70,5 +84,43 @@ actual class FileManager actual constructor() {
 
     actual fun readAssetText(filename: String): String {
         return appContext.assets.open(filename).bufferedReader().readText()
+    }
+
+    actual fun encryptFile(inputPath: String, outputPath: String, password: String) {
+        val salt = ByteArray(16).also { SecureRandom().nextBytes(it) }
+        val iv = ByteArray(12).also { SecureRandom().nextBytes(it) }
+        val key = deriveKey(password, salt)
+
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(128, iv))
+
+        val output = FileOutputStream(outputPath)
+        output.write(salt)  // header: salt
+        output.write(iv)     // header: iv
+        val cos = CipherOutputStream(output, cipher)
+        FileInputStream(File(inputPath)).use { it.copyTo(cos) }
+        cos.close()
+    }
+
+    actual fun decryptFile(inputPath: String, outputPath: String, password: String) {
+        val input = FileInputStream(inputPath)
+        val salt = ByteArray(16); input.read(salt)
+        val iv = ByteArray(12); input.read(iv)
+        val key = deriveKey(password, salt)
+
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, iv))
+
+        val cos = FileOutputStream(outputPath)
+        val cis = CipherInputStream(input, cipher)
+        cis.copyTo(cos)
+        cis.close()
+        cos.close()
+    }
+
+    private fun deriveKey(password: String, salt: ByteArray): SecretKeySpec {
+        val spec = PBEKeySpec(password.toCharArray(), salt, 10000, 256)
+        val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+        return SecretKeySpec(factory.generateSecret(spec).encoded, "AES")
     }
 }
