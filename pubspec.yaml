@@ -4,7 +4,7 @@ description: "Daily Satori Tours"
 publish_to: 'none'
 
 
-version: 3.6.100
+version: 5.0.0
 
 environment:
   sdk: ^3.10.3

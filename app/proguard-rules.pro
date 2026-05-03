@@ -29,6 +29,9 @@
 -keep class io.ktor.** { *; }
 -dontwarn io.ktor.**
 
+# LangChain4j ships a JDK HTTP client that references java.net.http, but Android uses OkHttp.
+-dontwarn java.net.http.**
+
 # General
 -keepattributes Signature
 -keepattributes *Annotation*
