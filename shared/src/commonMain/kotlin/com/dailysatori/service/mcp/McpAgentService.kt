@@ -80,17 +80,16 @@ class McpAgentService(
             var finalAnswer: String? = null
 
             for (round in 0 until MAX_TOOL_CALL_ROUNDS) {
-                val response = aiService.chatCompletion(
+                val response = requestChatCompletionWithRetry(
                     messages = messages,
-                    apiAddress = apiUrl,
+                    apiUrl = apiUrl,
                     apiToken = apiToken,
                     modelName = modelName,
                     provider = provider,
                     tools = tools,
-                    temperature = 0.7,
                 ) ?: return McpAgentResult(
                     answer = if (collectedResults.isNotEmpty()) {
-                        buildFallbackAnswer(collectedResults)
+                        buildFallbackAnswer(query, collectedResults)
                     } else {
                         buildErrorResponse("AI 请求失败，请稍后重试")
                     },
@@ -122,7 +121,7 @@ class McpAgentService(
             }
 
             val filteredResults = filterRelevantResults(collectedResults, finalAnswer ?: "")
-            val cleanAnswer = removeRefsTag(finalAnswer ?: buildFallbackAnswer(collectedResults))
+            val cleanAnswer = removeRefsTag(finalAnswer ?: buildFallbackAnswer(query, collectedResults))
             McpAgentResult(answer = cleanAnswer, searchResults = filteredResults)
         } catch (e: Exception) {
             log.e(e) { "MCP Agent processing failed" }
@@ -176,15 +175,48 @@ class McpAgentService(
         modelName: String,
         provider: String,
     ): String? {
-        val response = aiService.chatCompletion(
-            messages = messages, apiAddress = apiUrl, apiToken = apiToken,
-            modelName = modelName, provider = provider, temperature = 0.7,
+        val response = requestChatCompletionWithRetry(
+            messages = messages,
+            apiUrl = apiUrl,
+            apiToken = apiToken,
+            modelName = modelName,
+            provider = provider,
+            tools = emptyList(),
         )
         return response?.let {
             it["choices"]?.jsonArray?.firstOrNull()?.jsonObject
                 ?.get("message")?.jsonObject
                 ?.get("content")?.jsonPrimitive?.contentOrNull
         }
+    }
+
+    private suspend fun requestChatCompletionWithRetry(
+        messages: List<JsonObject>,
+        apiUrl: String,
+        apiToken: String,
+        modelName: String,
+        provider: String,
+        tools: List<JsonObject>,
+    ): JsonObject? {
+        var lastError: Exception? = null
+        for (attempt in aiSummaryRetryAttempts()) {
+            try {
+                return aiService.chatCompletion(
+                    messages = messages,
+                    apiAddress = apiUrl,
+                    apiToken = apiToken,
+                    modelName = modelName,
+                    provider = provider,
+                    tools = tools,
+                    temperature = 0.7,
+                )
+            } catch (e: Exception) {
+                lastError = e
+                log.w(e) { "AI assistant request failed, attempt $attempt/${aiSummaryRetryAttempts().size}" }
+            }
+        }
+        log.e(lastError) { "AI assistant request failed after retries" }
+        return null
     }
 
     private fun buildSystemPrompt(): String {

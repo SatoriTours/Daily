@@ -74,7 +74,7 @@ class AiService(@Suppress("UNUSED_PARAMETER") client: HttpClient) {
             )
         } catch (e: Exception) {
             log.e(e) { "AI chat completion failed" }
-            null
+            throw e
         }
     }
 
