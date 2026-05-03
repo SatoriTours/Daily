@@ -29,7 +29,7 @@ import com.mikepenz.markdown.m3.Markdown
 @Composable
 fun MessageBubble(
     message: ChatMessageUi,
-    onArticleClick: (Long) -> Unit = {},
+    onReferenceClick: (McpSearchResult) -> Unit = {},
 ) {
     val isUser = message.role == "user"
     Column(
@@ -75,7 +75,7 @@ fun MessageBubble(
         }
 
         if (!isUser && message.searchResults.isNotEmpty()) {
-            SearchResultsSection(message.searchResults, onArticleClick)
+            SearchResultsSection(message.searchResults, onReferenceClick)
         }
     }
 }
@@ -83,7 +83,7 @@ fun MessageBubble(
 @Composable
 private fun SearchResultsSection(
     results: List<McpSearchResult>,
-    onArticleClick: (Long) -> Unit,
+    onReferenceClick: (McpSearchResult) -> Unit,
 ) {
     Spacer(modifier = Modifier.height(Spacing.xs))
     Column(
@@ -106,7 +106,7 @@ private fun SearchResultsSection(
             )
         }
         results.take(3).forEach { result ->
-            SearchResultCard(result, onArticleClick)
+            SearchResultCard(result, onReferenceClick)
         }
     }
 }
@@ -114,7 +114,7 @@ private fun SearchResultsSection(
 @Composable
 private fun SearchResultCard(
     result: McpSearchResult,
-    onArticleClick: (Long) -> Unit,
+    onReferenceClick: (McpSearchResult) -> Unit,
 ) {
     val canOpen = canOpenSearchResult(result.type)
     Surface(
@@ -123,7 +123,7 @@ private fun SearchResultCard(
         tonalElevation = 1.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (canOpen) Modifier.clickable { onArticleClick(result.id) } else Modifier),
+            .then(if (canOpen) Modifier.clickable { onReferenceClick(result) } else Modifier),
     ) {
         Column(
             modifier = Modifier.padding(Spacing.m),
@@ -170,7 +170,7 @@ private fun SearchResultCard(
             }
             if (canOpen) {
                 Text(
-                    text = "点击查看文章",
+                    text = "点击查看详情",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium,

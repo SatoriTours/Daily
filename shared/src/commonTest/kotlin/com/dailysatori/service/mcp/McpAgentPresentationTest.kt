@@ -50,10 +50,19 @@ class McpAgentPresentationTest {
     }
 
     @Test
-    fun onlyArticleSearchResultsCanOpenDetails() {
+    fun articleDiaryAndBookSearchResultsCanOpenDetails() {
         assertEquals(true, canOpenSearchResult("article"))
-        assertEquals(false, canOpenSearchResult("diary"))
-        assertEquals(false, canOpenSearchResult("book"))
+        assertEquals(true, canOpenSearchResult("diary"))
+        assertEquals(true, canOpenSearchResult("book"))
+        assertEquals(false, canOpenSearchResult("unknown"))
+    }
+
+    @Test
+    fun mapsSearchResultsToOpenTargets() {
+        assertEquals(SearchResultOpenTarget.Article, searchResultOpenTarget("article"))
+        assertEquals(SearchResultOpenTarget.Diary, searchResultOpenTarget("diary"))
+        assertEquals(SearchResultOpenTarget.Book, searchResultOpenTarget("book"))
+        assertEquals(null, searchResultOpenTarget("unknown"))
     }
 
     @Test

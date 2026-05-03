@@ -82,6 +82,7 @@ fun DiaryCard(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
+    showDelete: Boolean = true,
 ) {
     val context = LocalContext.current
     val tags = diary.tags
@@ -124,16 +125,18 @@ fun DiaryCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     modifier = Modifier.weight(1f),
                 )
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(24.dp),
-                ) {
-                    Icon(
-                        Icons.Filled.Delete,
-                        contentDescription = "删除",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        modifier = Modifier.size(14.dp),
-                    )
+                if (showDelete) {
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(24.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.Delete,
+                            contentDescription = "删除",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
                 }
             }
 

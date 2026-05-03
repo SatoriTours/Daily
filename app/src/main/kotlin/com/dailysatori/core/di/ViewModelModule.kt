@@ -21,6 +21,7 @@ import com.dailysatori.service.plugin.PluginService
 import com.dailysatori.service.setting.SettingService
 import com.dailysatori.service.weekly.WeeklySummaryService
 import com.dailysatori.ui.feature.aichat.AiChatViewModel
+import com.dailysatori.ui.feature.aichat.AiReferenceDetailViewModel
 import com.dailysatori.ui.feature.aiconfig.AiConfigViewModel
 import com.dailysatori.ui.feature.article.ArticleDetailViewModel
 import com.dailysatori.ui.feature.article.ArticlesViewModel
@@ -83,6 +84,13 @@ val viewModelModule: Module = module {
         AiChatViewModel(
             mcpAgentService = get<McpAgentService>(),
             chatConversationRepo = get<ChatConversationRepository>(),
+        )
+    }
+    viewModel {
+        AiReferenceDetailViewModel(
+            diaryRepo = get<DiaryRepository>(),
+            bookRepo = get<BookRepository>(),
+            viewpointRepo = get<BookViewpointRepository>(),
         )
     }
     viewModel {

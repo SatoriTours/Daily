@@ -31,6 +31,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.dailysatori.service.mcp.McpSearchResult
+import com.dailysatori.service.mcp.SearchResultOpenTarget
+import com.dailysatori.service.mcp.searchResultOpenTarget
 import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.theme.Radius
@@ -40,14 +43,29 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun AiChatScreen(onArticleClick: (Long) -> Unit = {}) {
     val viewModel: AiChatViewModel = koinViewModel()
+    val referenceDetailViewModel: AiReferenceDetailViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
+    val referenceDetailState by referenceDetailViewModel.state.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     var showMemorySheet by remember { mutableStateOf(false) }
+    var showReferenceSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) {
             listState.animateScrollToItem(state.messages.size - 1)
+        }
+    }
+
+    fun openReference(result: McpSearchResult) {
+        when (searchResultOpenTarget(result.type)) {
+            SearchResultOpenTarget.Article -> onArticleClick(result.id)
+            SearchResultOpenTarget.Diary,
+            SearchResultOpenTarget.Book -> {
+                showReferenceSheet = true
+                referenceDetailViewModel.load(result)
+            }
+            null -> Unit
         }
     }
 
@@ -101,7 +119,7 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}) {
                 contentPadding = PaddingValues(vertical = Spacing.m),
             ) {
                 items(state.messages, key = { it.id }) { message ->
-                    MessageBubble(message = message, onArticleClick = onArticleClick)
+                    MessageBubble(message = message, onReferenceClick = ::openReference)
                 }
                 if (state.isProcessing) {
                     item(key = "thinking") {
@@ -114,6 +132,16 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}) {
 
     if (showMemorySheet) {
         MemorySearchSheet(onDismiss = { showMemorySheet = false })
+    }
+
+    if (showReferenceSheet) {
+        AiReferenceDetailSheet(
+            state = referenceDetailState,
+            onDismiss = {
+                showReferenceSheet = false
+                referenceDetailViewModel.clear()
+            },
+        )
     }
 }
 

@@ -7,7 +7,20 @@ fun searchResultTypeLabel(type: String): String = when (type) {
     else -> "内容"
 }
 
-fun canOpenSearchResult(type: String): Boolean = type == "article"
+enum class SearchResultOpenTarget {
+    Article,
+    Diary,
+    Book,
+}
+
+fun searchResultOpenTarget(type: String): SearchResultOpenTarget? = when (type) {
+    "article" -> SearchResultOpenTarget.Article
+    "diary" -> SearchResultOpenTarget.Diary
+    "book" -> SearchResultOpenTarget.Book
+    else -> null
+}
+
+fun canOpenSearchResult(type: String): Boolean = searchResultOpenTarget(type) != null
 
 fun aiSummaryRetryAttempts(): List<Int> = listOf(1, 2, 3)
 
