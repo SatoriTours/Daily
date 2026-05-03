@@ -35,4 +35,10 @@ class AiConfigViewModel(
     fun loadConfigs() {
         _state.update { it.copy(isLoading = true) }
     }
+
+    fun deleteConfig(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repo.delete(id)
+        }
+    }
 }

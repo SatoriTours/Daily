@@ -89,7 +89,11 @@ class McpAgentService(
                     tools = tools,
                     temperature = 0.7,
                 ) ?: return McpAgentResult(
-                    answer = buildErrorResponse("AI 请求失败，请稍后重试"),
+                    answer = if (collectedResults.isNotEmpty()) {
+                        buildFallbackAnswer(collectedResults)
+                    } else {
+                        buildErrorResponse("AI 请求失败，请稍后重试")
+                    },
                     searchResults = collectedResults,
                 )
 
@@ -118,7 +122,7 @@ class McpAgentService(
             }
 
             val filteredResults = filterRelevantResults(collectedResults, finalAnswer ?: "")
-            val cleanAnswer = removeRefsTag(finalAnswer ?: buildErrorResponse("无法生成回答"))
+            val cleanAnswer = removeRefsTag(finalAnswer ?: buildFallbackAnswer(collectedResults))
             McpAgentResult(answer = cleanAnswer, searchResults = filteredResults)
         } catch (e: Exception) {
             log.e(e) { "MCP Agent processing failed" }
@@ -248,10 +252,14 @@ class McpAgentService(
 - "前天" → "$beforeYesterday"
 
 ## 回答格式要求
-1. 用自然语言总结，不要返回原始 JSON
-2. 重要信息用 **加粗**
-3. 无结果时友好告知
-4. 在回答末尾用特定格式标注引用来源：
+1. 必须使用 Markdown，并按以下结构回答：
+   - `## 结论`：1-2 句话直接回答问题
+   - `## 重点内容`：用 2-5 个短项目符号列出关键发现
+   - `## 可继续查看`：说明哪些来源值得点开继续看
+2. 不要返回原始 JSON
+3. 重要信息用 **加粗**
+4. 无结果时友好告知
+5. 在回答末尾用特定格式标注引用来源：
 ```
 <!-- refs: article_123, diary_456, book_789 -->
 ```

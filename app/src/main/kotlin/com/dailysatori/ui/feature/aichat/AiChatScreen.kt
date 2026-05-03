@@ -38,7 +38,7 @@ import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun AiChatScreen() {
+fun AiChatScreen(onArticleClick: (Long) -> Unit = {}) {
     val viewModel: AiChatViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     var inputText by remember { mutableStateOf("") }
@@ -92,7 +92,6 @@ fun AiChatScreen() {
                 modifier = Modifier.fillMaxSize().padding(padding),
                 icon = Icons.Default.AutoAwesome,
                 title = "AI 助手",
-                subtitle = "基于你的知识库和记忆回答",
             )
         } else {
             LazyColumn(
@@ -102,7 +101,7 @@ fun AiChatScreen() {
                 contentPadding = PaddingValues(vertical = Spacing.m),
             ) {
                 items(state.messages, key = { it.id }) { message ->
-                    MessageBubble(message = message)
+                    MessageBubble(message = message, onArticleClick = onArticleClick)
                 }
                 if (state.isProcessing) {
                     item(key = "thinking") {

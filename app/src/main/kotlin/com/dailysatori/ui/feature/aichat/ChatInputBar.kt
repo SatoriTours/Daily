@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.aichat
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,9 +23,14 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -36,30 +42,43 @@ fun ChatInputBar(
     onSend: () -> Unit,
     enabled: Boolean,
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+    val inputShape = RoundedCornerShape(Radius.l)
     Surface(
-        shadowElevation = 8.dp,
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = Spacing.m, vertical = Spacing.s)
+                .padding(horizontal = Spacing.m, vertical = Spacing.xs)
                 .imePadding(),
         ) {
             Surface(
-                shape = RoundedCornerShape(Radius.circular),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                tonalElevation = 0.dp,
-                modifier = Modifier.fillMaxWidth(),
+                shape = inputShape,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                tonalElevation = 1.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = if (isFocused) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.outlineVariant
+                        },
+                        shape = inputShape,
+                    ),
             ) {
                 Row(
-                    modifier = Modifier.padding(start = Spacing.m, end = Spacing.xs),
+                    modifier = Modifier.padding(start = Spacing.s, end = Spacing.xs, top = Spacing.xxs, bottom = Spacing.xxs),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextField(
                         value = inputText,
                         onValueChange = onInputChange,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .onFocusChanged { isFocused = it.isFocused },
                         placeholder = {
                             Text(
                                 "问我任何问题...",
@@ -76,14 +95,14 @@ fun ChatInputBar(
                             disabledIndicatorColor = Color.Transparent,
                         ),
                         textStyle = MaterialTheme.typography.bodyMedium,
-                        maxLines = 6,
+                        maxLines = 4,
                         enabled = enabled,
                     )
                     Spacer(modifier = Modifier.width(Spacing.xs))
                     FilledIconButton(
                         onClick = onSend,
                         enabled = inputText.isNotBlank() && enabled,
-                        modifier = Modifier.size(40.dp),
+                        modifier = Modifier.size(36.dp),
                         shape = CircleShape,
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
@@ -95,17 +114,11 @@ fun ChatInputBar(
                         Icon(
                             Icons.AutoMirrored.Filled.Send,
                             contentDescription = "发送",
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.size(16.dp),
                         )
                     }
                 }
             }
-            Text(
-                "基于你的知识库和记忆回答",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.padding(top = Spacing.xs, start = Spacing.s),
-            )
         }
     }
 }

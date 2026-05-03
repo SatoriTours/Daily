@@ -76,7 +76,6 @@ CREATE TABLE diary (
 -- AI Config
 CREATE TABLE ai_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
     provider TEXT NOT NULL DEFAULT 'openai',
     api_address TEXT NOT NULL,
     api_token TEXT NOT NULL,
@@ -320,7 +319,7 @@ SELECT COUNT(*) FROM diary;
 
 -- AI Config queries
 selectAllAiConfigs:
-SELECT * FROM ai_config ORDER BY name;
+SELECT * FROM ai_config ORDER BY provider, model_name;
 
 selectAiConfigById:
 SELECT * FROM ai_config WHERE id = ?;
@@ -329,11 +328,11 @@ selectDefaultAiConfig:
 SELECT * FROM ai_config WHERE is_default = 1 LIMIT 1;
 
 insertAiConfig:
-INSERT INTO ai_config (name, provider, api_address, api_token, model_name, is_default, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO ai_config (provider, api_address, api_token, model_name, is_default, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 updateAiConfig:
-UPDATE ai_config SET name = ?, provider = ?, api_address = ?, api_token = ?, model_name = ?, is_default = ?, updated_at = ?
+UPDATE ai_config SET provider = ?, api_address = ?, api_token = ?, model_name = ?, is_default = ?, updated_at = ?
 WHERE id = ?;
 
 deleteAiConfig:

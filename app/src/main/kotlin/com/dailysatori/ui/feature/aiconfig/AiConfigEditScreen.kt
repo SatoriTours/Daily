@@ -59,10 +59,10 @@ fun AiConfigEditScreen(
     var selectedModel by remember { mutableStateOf<AiModel?>(null) }
     var providerExpanded by remember { mutableStateOf(false) }
     var modelExpanded by remember { mutableStateOf(false) }
-    var name by remember { mutableStateOf("") }
     var apiToken by remember { mutableStateOf("") }
     var customModelName by remember { mutableStateOf("") }
     var isDefault by remember { mutableStateOf(false) }
+    var wasDefault by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var isTesting by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
@@ -75,9 +75,9 @@ fun AiConfigEditScreen(
         if (configId != null) {
             val config = repo.getById(configId)
             if (config != null) {
-                name = config.name
                 apiToken = config.api_token
                 isDefault = config.is_default == 1L
+                wasDefault = config.is_default == 1L
                 selectedProvider = findProvider(config.provider)
                 selectedModel = selectedProvider?.models?.find { it.id == config.model_name }
                 if (selectedModel == null && config.model_name.isNotBlank()) {
@@ -123,7 +123,6 @@ fun AiConfigEditScreen(
                                     selectedProvider = provider
                                     selectedModel = null
                                     customModelName = ""
-                                    if (name.isBlank()) name = provider.name
                                     providerExpanded = false
                                 },
                             )
@@ -190,9 +189,6 @@ fun AiConfigEditScreen(
                                     text = { Text(model.name) },
                                     onClick = {
                                         selectedModel = model
-                                        if (name == selectedProvider?.name || name.isBlank()) {
-                                            name = "${selectedProvider?.name} / ${model.name}"
-                                        }
                                         modelExpanded = false
                                     },
                                 )
@@ -203,17 +199,6 @@ fun AiConfigEditScreen(
             }
 
             item {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("配置名称") },
-                    shape = RoundedCornerShape(Radius.s),
-                    singleLine = true,
-                )
-            }
-
-            item {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
                     verticalAlignment = Alignment.CenterVertically,
@@ -221,13 +206,17 @@ fun AiConfigEditScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("设为默认配置", style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            "服务将使用此配置调用 AI",
+                            if (wasDefault) "默认配置不能取消，只能将其他配置设为默认" else "日记、读书和 AI 助手都将使用此模型",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Spacer(modifier = Modifier.width(Spacing.m))
-                    Switch(checked = isDefault, onCheckedChange = { isDefault = it })
+                    Switch(
+                        checked = isDefault,
+                        onCheckedChange = { isDefault = it },
+                        enabled = !wasDefault,
+                    )
                 }
             }
 
@@ -291,11 +280,10 @@ fun AiConfigEditScreen(
                                         selectedModel != null -> selectedModel!!.id
                                         else -> return@launch
                                     }
-                                    val finalName = name.ifBlank { "${provider.name} / ${getModelDisplayName(modelId)}" }
                                     if (configId != null) {
-                                        repo.update(configId, finalName, provider.id, provider.apiHost, apiToken, modelId, if (isDefault) 1L else 0L)
+                                        repo.update(configId, provider.id, provider.apiHost, apiToken, modelId, if (isDefault) 1L else 0L)
                                     } else {
-                                        repo.insert(finalName, provider.id, provider.apiHost, apiToken, modelId, if (isDefault) 1L else 0L)
+                                        repo.insert(provider.id, provider.apiHost, apiToken, modelId, if (isDefault) 1L else 0L)
                                     }
                                 } finally {
                                     isSaving = false
@@ -325,8 +313,4 @@ private fun currentModelId(
         selectedModel != null -> selectedModel.id
         else -> null
     }
-}
-
-private fun getModelDisplayName(modelId: String): String {
-    return aiProviders.flatMap { it.models }.find { it.id == modelId }?.name ?: modelId
 }

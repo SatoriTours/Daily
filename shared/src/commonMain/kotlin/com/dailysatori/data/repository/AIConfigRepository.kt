@@ -2,6 +2,7 @@ package com.dailysatori.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import com.dailysatori.service.ai.canDeleteAiConfig
 import com.dailysatori.shared.db.Ai_config
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +20,6 @@ class AIConfigRepository(private val db: DailySatoriDatabase) {
     fun getDefault() = q.selectDefaultAiConfig().executeAsOneOrNull()
 
     fun insert(
-        name: String,
         provider: String,
         apiAddress: String,
         apiToken: String,
@@ -28,12 +28,11 @@ class AIConfigRepository(private val db: DailySatoriDatabase) {
     ) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         if (isDefault == 1L) q.clearDefaultAiConfig()
-        q.insertAiConfig(name, provider, apiAddress, apiToken, modelName, isDefault, now, now)
+        q.insertAiConfig(provider, apiAddress, apiToken, modelName, isDefault, now, now)
     }
 
     fun update(
         id: Long,
-        name: String,
         provider: String,
         apiAddress: String,
         apiToken: String,
@@ -42,8 +41,11 @@ class AIConfigRepository(private val db: DailySatoriDatabase) {
     ) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         if (isDefault == 1L) q.clearDefaultAiConfig()
-        q.updateAiConfig(name, provider, apiAddress, apiToken, modelName, isDefault, now, id)
+        q.updateAiConfig(provider, apiAddress, apiToken, modelName, isDefault, now, id)
     }
 
-    fun delete(id: Long) = q.deleteAiConfig(id)
+    fun delete(id: Long) {
+        val config = getById(id) ?: return
+        if (canDeleteAiConfig(config.is_default)) q.deleteAiConfig(id)
+    }
 }

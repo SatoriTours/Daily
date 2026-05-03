@@ -34,6 +34,9 @@ class DatabaseMigration(
         if (currentVersion < 4) {
             migrateV3ToV4()
         }
+        if (currentVersion < 5) {
+            migrateV4ToV5()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -171,6 +174,39 @@ class DatabaseMigration(
             log.i { "Migrated article table to V4" }
         } catch (e: Exception) {
             log.w(e) { "Migration V3->V4 failed" }
+        }
+    }
+
+    /**
+     * V4 -> V5: Remove manual name from AI config.
+     */
+    private fun migrateV4ToV5() {
+        log.i { "Migration V4 -> V5: Remove ai_config.name" }
+        try {
+            runSql("""
+                CREATE TABLE ai_config_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    provider TEXT NOT NULL DEFAULT 'openai',
+                    api_address TEXT NOT NULL,
+                    api_token TEXT NOT NULL,
+                    model_name TEXT NOT NULL,
+                    is_default INTEGER DEFAULT 0,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                )
+            """.trimIndent())
+            runSql("""
+                INSERT INTO ai_config_new (id, provider, api_address, api_token, model_name,
+                    is_default, created_at, updated_at)
+                SELECT id, provider, api_address, api_token, model_name,
+                    is_default, created_at, updated_at
+                FROM ai_config
+            """.trimIndent())
+            runSql("DROP TABLE ai_config")
+            runSql("ALTER TABLE ai_config_new RENAME TO ai_config")
+            log.i { "Migrated ai_config table to V5" }
+        } catch (e: Exception) {
+            log.w(e) { "Migration V4->V5 failed" }
         }
     }
 

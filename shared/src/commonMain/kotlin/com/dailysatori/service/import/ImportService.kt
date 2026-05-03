@@ -162,7 +162,6 @@ class ImportService(
             val oldId = obj.getLong("id") ?: return@forEach
             insertAndGetNewId("ai_config", oldId) {
                 db.dailySatoriQueries.insertAiConfig(
-                    obj.getString("name") ?: "",
                     obj.getString("provider") ?: "openai",
                     obj.getString("api_address") ?: "",
                     obj.getString("api_token") ?: "",

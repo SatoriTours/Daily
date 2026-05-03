@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.aichat
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,16 +15,22 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.dailysatori.service.mcp.canOpenSearchResult
 import com.dailysatori.service.mcp.McpSearchResult
+import com.dailysatori.service.mcp.searchResultTypeLabel
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
-import com.mikepenz.markdown.compose.Markdown
+import com.mikepenz.markdown.m3.Markdown
 
 @Composable
-fun MessageBubble(message: ChatMessageUi) {
+fun MessageBubble(
+    message: ChatMessageUi,
+    onArticleClick: (Long) -> Unit = {},
+) {
     val isUser = message.role == "user"
     Column(
         modifier = Modifier
@@ -56,43 +63,117 @@ fun MessageBubble(message: ChatMessageUi) {
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 } else {
-                    Markdown(
-                        content = message.content,
-                        colors = com.mikepenz.markdown.m3.markdownColor(),
-                        typography = MarkdownStyles.cardTypography(),
-                        padding = MarkdownStyles.cardPadding(),
-                        modifier = Modifier.padding(
-                            start = Spacing.m, end = Spacing.m,
-                            top = Spacing.m, bottom = Spacing.s,
-                        ),
-                    )
+                    Column(modifier = Modifier.padding(Spacing.m)) {
+                        Markdown(
+                            content = message.content,
+                            typography = MarkdownStyles.cardTypography(),
+                            padding = MarkdownStyles.cardPadding(),
+                        )
+                    }
                 }
             }
         }
 
         if (!isUser && message.searchResults.isNotEmpty()) {
-            SearchResultsSection(message.searchResults)
+            SearchResultsSection(message.searchResults, onArticleClick)
         }
     }
 }
 
 @Composable
-private fun SearchResultsSection(results: List<McpSearchResult>) {
-    Spacer(modifier = Modifier.height(Spacing.xxs))
-    Surface(
-        shape = RoundedCornerShape(Radius.s),
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.5f),
-        modifier = Modifier.padding(start = Spacing.s),
+private fun SearchResultsSection(
+    results: List<McpSearchResult>,
+    onArticleClick: (Long) -> Unit,
+) {
+    Spacer(modifier = Modifier.height(Spacing.xs))
+    Column(
+        modifier = Modifier
+            .fillMaxWidth(0.86f)
+            .padding(start = Spacing.s),
+        verticalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
-        Column(modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs)) {
-            results.take(3).forEach { result ->
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "引用来源",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = " · ${results.size} 条",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        results.take(3).forEach { result ->
+            SearchResultCard(result, onArticleClick)
+        }
+    }
+}
+
+@Composable
+private fun SearchResultCard(
+    result: McpSearchResult,
+    onArticleClick: (Long) -> Unit,
+) {
+    val canOpen = canOpenSearchResult(result.type)
+    Surface(
+        shape = RoundedCornerShape(Radius.l),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 1.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (canOpen) Modifier.clickable { onArticleClick(result.id) } else Modifier),
+    ) {
+        Column(
+            modifier = Modifier.padding(Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "\uD83D\uDCC4 ${result.type}: ${result.title}",
+                    text = searchResultTypeLabel(result.type),
                     style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                result.createdAt?.takeIf { it.isNotBlank() }?.let { createdAt ->
+                    Text(
+                        text = " · ${createdAt.take(10)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (result.isFavorite == true) {
+                    Text(
+                        text = " · 已收藏",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+            Text(
+                text = result.title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            result.summary?.takeIf { it.isNotBlank() }?.let { summary ->
+                Text(
+                    text = summary,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(vertical = 2.dp),
+                )
+            }
+            if (canOpen) {
+                Text(
+                    text = "点击查看文章",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
                 )
             }
         }

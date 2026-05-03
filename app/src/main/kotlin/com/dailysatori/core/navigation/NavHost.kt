@@ -35,6 +35,7 @@ fun DailySatoriNavHost(navController: NavHostController) {
             HomeScreen(
                 onArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
                 onBookSearchClick = { navController.navigate(BookSearchRoute) },
+                onAiArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
             )
 }
 

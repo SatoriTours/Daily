@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.data.repository.ChatConversationRepository
 import com.dailysatori.service.mcp.McpAgentService
 import com.dailysatori.service.mcp.McpSearchResult
+import com.dailysatori.service.mcp.decodeMcpSearchResults
+import com.dailysatori.service.mcp.encodeMcpSearchResults
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,6 +57,8 @@ class AiChatViewModel(
                                 role = msg.role,
                                 content = msg.content ?: "",
                                 timestamp = msg.created_at,
+                                searchResults = decodeMcpSearchResults(msg.search_results),
+                                steps = decodeSteps(msg.steps),
                             )
                         },
                     ) }
@@ -124,6 +128,8 @@ class AiChatViewModel(
                     sessionId = _state.value.sessionId,
                     role = message.role,
                     content = message.content,
+                    searchResults = encodeMcpSearchResults(message.searchResults),
+                    steps = encodeSteps(message.steps),
                 )
             } catch (_: Exception) { }
         }
@@ -134,4 +140,8 @@ class AiChatViewModel(
         val r = (0..9999).random()
         return "${ts}_${r}"
     }
+
+    private fun encodeSteps(steps: List<String>): String? = steps.takeIf { it.isNotEmpty() }?.joinToString("\n")
+
+    private fun decodeSteps(value: String?): List<String> = value?.lines()?.filter { it.isNotBlank() }.orEmpty()
 }

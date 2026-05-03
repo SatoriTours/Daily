@@ -18,11 +18,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -35,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.dailysatori.service.ai.aiConfigDisplayName
+import com.dailysatori.service.ai.canDeleteAiConfig
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -50,6 +55,7 @@ fun AiConfigScreen(
 
     var isEditing by remember { mutableStateOf(false) }
     var editingConfigId by remember { mutableStateOf<Long?>(null) }
+    var deletingConfigId by remember { mutableStateOf<Long?>(null) }
 
     BackHandler(enabled = isEditing) {
         isEditing = false
@@ -67,7 +73,7 @@ fun AiConfigScreen(
         return
     }
 
-    AppScaffold(
+        AppScaffold(
         title = "AI 配置",
         onBack = onBack,
         floatingActionButton = {
@@ -116,6 +122,7 @@ fun AiConfigScreen(
                 }
                 items(state.configs, key = { it.id }) { config ->
                     val isDefault = config.is_default == 1L
+                    val canDelete = canDeleteAiConfig(config.is_default)
                     Card(
                         onClick = {
                             if (onEditConfig != null) {
@@ -138,7 +145,7 @@ fun AiConfigScreen(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    config.name,
+                                    aiConfigDisplayName(config.provider, config.model_name),
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.weight(1f),
@@ -157,7 +164,7 @@ fun AiConfigScreen(
                             }
                             Spacer(modifier = Modifier.height(Spacing.xs))
                             Text(
-                                config.model_name,
+                                if (isDefault) "默认模型" else "备用模型",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -179,10 +186,39 @@ fun AiConfigScreen(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
+                            if (canDelete) {
+                                Spacer(modifier = Modifier.height(Spacing.s))
+                                OutlinedButton(
+                                    onClick = { deletingConfigId = config.id },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text("删除")
+                                }
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    val targetDeleteId = deletingConfigId
+    if (targetDeleteId != null) {
+        AlertDialog(
+            onDismissRequest = { deletingConfigId = null },
+            title = { Text("删除 AI 配置") },
+            text = { Text("确定删除这个非默认模型配置吗？") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteConfig(targetDeleteId)
+                        deletingConfigId = null
+                    },
+                ) { Text("删除") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingConfigId = null }) { Text("取消") }
+            },
+        )
     }
 }

@@ -57,6 +57,7 @@ val tabs = listOf(
 fun HomeScreen(
     onArticleClick: (Long) -> Unit = {},
     onBookSearchClick: () -> Unit = {},
+    onAiArticleClick: (Long) -> Unit = {},
 ) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
 
@@ -98,7 +99,7 @@ fun HomeScreen(
                     0 -> ArticleListScreen(onArticleClick = onArticleClick)
                     1 -> DiaryScreen()
                     2 -> BooksScreen(onSearchClick = onBookSearchClick)
-                    3 -> AiChatScreen()
+                    3 -> AiChatScreen(onArticleClick = onAiArticleClick)
                     4 -> SettingsScreen()
                 }
             }
