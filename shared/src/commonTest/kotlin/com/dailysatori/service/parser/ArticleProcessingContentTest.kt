@@ -195,4 +195,35 @@ class ArticleProcessingContentTest {
             extractCoverImageUrl(html, "https://x.com/0xMulight/status/2050393928340488265"),
         )
     }
+
+    @Test
+    fun parsesTweetApiPayloadIntoCompactArticleContent() {
+        val json = """
+            {
+              "tweet": {
+                "text": "三只松鼠2025年干了101.89亿的营收，\n最后落到自己口袋的净利润只剩1.55亿。",
+                "author": { "name": "Ruken", "screen_name": "rukenyang1024" },
+                "media": {
+                  "photos": [
+                    {
+                      "url": "https://pbs.twimg.com/media/HHZk9oQbcAAe0WN.jpg?name=orig",
+                      "width": 1080,
+                      "height": 608
+                    }
+                  ]
+                }
+              }
+            }
+        """.trimIndent()
+
+        val extracted = parseFxTwitterTweetPayload(
+            json,
+            "https://x.com/rukenyang1024/status/2050938638931018064",
+        )
+
+        assertEquals("三只松鼠2025年干了101.89亿的营收，", extracted?.title)
+        assertEquals("https://pbs.twimg.com/media/HHZk9oQbcAAe0WN.jpg?name=large", extracted?.coverImageUrl)
+        assertEquals(listOf("https://pbs.twimg.com/media/HHZk9oQbcAAe0WN.jpg?name=large"), extracted?.imageUrls)
+        assertEquals(true, extracted?.htmlContent?.contains("abs.twimg.com/responsive-web") == false)
+    }
 }
