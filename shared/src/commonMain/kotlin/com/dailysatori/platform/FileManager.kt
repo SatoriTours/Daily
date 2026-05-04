@@ -20,4 +20,9 @@ expect class FileManager() {
     fun readAssetText(filename: String): String
     fun encryptFile(inputPath: String, outputPath: String, password: String)
     fun decryptFile(inputPath: String, outputPath: String, password: String)
+    fun displayNameForUri(uri: String): String
+    fun listBackupFilesInDirectory(uri: String): List<String>
+    fun writeFileToDirectory(uri: String, name: String, sourcePath: String): String
+    fun readFileFromDirectory(uri: String, name: String, destPath: String): Boolean
+    fun deleteFileFromDirectory(uri: String, name: String): Boolean
 }

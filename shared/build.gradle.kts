@@ -32,6 +32,7 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.sqldelight.android.driver)
+            implementation(libs.androidx.documentfile)
             implementation(libs.ktor.client.okhttp)
             implementation(libs.langchain4j.open.ai)
             implementation(libs.langchain4j.anthropic)

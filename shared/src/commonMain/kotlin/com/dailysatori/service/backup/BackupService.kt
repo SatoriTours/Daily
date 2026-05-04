@@ -17,9 +17,21 @@ data class BackupEntry(
     val size: Long,
 )
 
+const val MinBackupPasswordLength = 10
+
+internal fun backupFileName(timestamp: String, password: String): String {
+    val hint = password.takeLast(3)
+    return "daily_satori_backup_${timestamp}_hint_${hint}.zip.enc"
+}
+
+fun backupPasswordHint(name: String): String? {
+    return Regex("""_hint_([^./]{3})\.zip\.enc$""").find(name)?.groupValues?.get(1)
+}
+
 class BackupService(
     private val fileManager: FileManager,
     private val settingRepo: SettingRepository,
+    private val passwordStore: BackupPasswordStore,
 ) {
     private val log = Logger.withTag("Backup")
     private val _isBackingUp = MutableStateFlow(false)
@@ -34,11 +46,13 @@ class BackupService(
         _isBackingUp.value = true
         _progress.value = 0.0
         return try {
-            val backupDir = fileManager.getBackupDir()
+            val backupDir = selectedBackupDir() ?: return failBackup("请先选择备份目录")
+            val password = currentBackupPassword() ?: return failBackup("请先设置备份密码")
             val timestamp = Clock.System.now().toString().replace(Regex("[:T]"), "-").take(19)
             val zipName = "daily_satori_backup_$timestamp.zip"
-            val zipPath = "$backupDir/$zipName"
-            val tempDir = "$backupDir/temp_$timestamp"
+            val tempRoot = fileManager.getBackupDir()
+            val zipPath = "$tempRoot/$zipName"
+            val tempDir = "$tempRoot/temp_$timestamp"
             fileManager.createDirectory(tempDir)
 
             _progress.value = 0.05
@@ -88,10 +102,12 @@ class BackupService(
             _progress.value = 0.7
             _lastMessage.value = "Encrypting backup..."
 
-            val encPath = "$zipPath.enc"
-            val password = settingRepo.get(SettingKeys.backupPassword) ?: "daily_satori_backup"
+            val finalName = backupFileName(timestamp, password)
+            val encPath = "$tempRoot/$finalName"
             fileManager.encryptFile(zipPath, encPath, password)
             fileManager.deleteFile(zipPath)
+            fileManager.writeFileToDirectory(backupDir, finalName, encPath)
+            fileManager.deleteFile(encPath)
 
             _progress.value = 0.9
 
@@ -102,12 +118,12 @@ class BackupService(
             val allBackups = listBackups()
             if (allBackups.size > 10) {
                 val toDelete = allBackups.sortedByDescending { it.timestamp }.drop(10)
-                toDelete.forEach { fileManager.deleteFile(it.path) }
+                toDelete.forEach { fileManager.deleteFileFromDirectory(backupDir, it.name) }
             }
 
             _progress.value = 1.0
-            _lastMessage.value = "Backup completed: ${zipName}.enc (${fileManager.fileSize(encPath)} bytes)"
-            log.i { "Backup completed: $encPath" }
+            _lastMessage.value = "Backup completed: $finalName"
+            log.i { "Backup completed: $finalName" }
             true
         } catch (e: Exception) {
             log.e(e) { "Backup failed" }
@@ -118,25 +134,26 @@ class BackupService(
         }
     }
 
-    suspend fun restore(name: String): Boolean {
+    suspend fun restore(name: String, password: String): Boolean {
         _isBackingUp.value = true
         _progress.value = 0.0
         return try {
-            val backupDir = fileManager.getBackupDir()
-            val encPath = "$backupDir/$name"
-            if (!fileManager.exists(encPath)) {
-                log.w { "Backup file not found: $encPath" }
-                return false
-            }
+            val backupDir = selectedBackupDir() ?: return failRestore("请先选择备份目录")
+            if (password.isBlank()) return failRestore("请输入备份密码")
 
             _progress.value = 0.1
             _lastMessage.value = "Decrypting backup..."
 
             val tempDir = "${fileManager.getAppDataDir()}/restore_temp"
             fileManager.createDirectory(tempDir)
+            val encPath = "$tempDir/$name"
+            if (!fileManager.readFileFromDirectory(backupDir, name, encPath)) {
+                log.w { "Backup file not found: $name" }
+                return failRestore("备份文件不存在")
+            }
             val tempZip = "$tempDir/backup.zip"
-            val password = settingRepo.get(SettingKeys.backupPassword) ?: "daily_satori_backup"
             fileManager.decryptFile(encPath, tempZip, password)
+            fileManager.deleteFile(encPath)
             _progress.value = 0.4
             _lastMessage.value = "Extracting backup..."
 
@@ -192,17 +209,15 @@ class BackupService(
 
     fun listBackups(): List<BackupEntry> {
         return try {
-            val backupDir = fileManager.getBackupDir()
-            if (!fileManager.exists(backupDir)) return emptyList()
-            fileManager.listFiles(backupDir)
+            val backupDir = selectedBackupDir() ?: return emptyList()
+            fileManager.listBackupFilesInDirectory(backupDir)
                 .filter { it.endsWith(BackupConfig.fileExtension) }
-                .map { path ->
-                    val name = path.substringAfterLast("/")
+                .map { name ->
                     BackupEntry(
                         name = name,
                         timestamp = name.removePrefix("daily_satori_backup_").removeSuffix(BackupConfig.fileExtension),
-                        path = path,
-                        size = fileManager.fileSize(path),
+                        path = name,
+                        size = 0L,
                     )
                 }
                 .sortedByDescending { it.timestamp }
@@ -214,10 +229,8 @@ class BackupService(
 
     fun deleteBackup(name: String): Boolean {
         return try {
-            val backupDir = fileManager.getBackupDir()
-            val path = "$backupDir/$name"
-            if (fileManager.exists(path)) {
-                fileManager.deleteFile(path)
+            val backupDir = selectedBackupDir() ?: return false
+            if (fileManager.deleteFileFromDirectory(backupDir, name)) {
                 log.i { "Deleted backup: $name" }
             }
             true
@@ -232,5 +245,24 @@ class BackupService(
             fileManager.listFiles(dir).forEach { fileManager.deleteFile(it) }
             fileManager.deleteFile(dir)
         } catch (_: Exception) {}
+    }
+
+    private fun selectedBackupDir(): String? = settingRepo.get(SettingKeys.backupDir)?.takeIf { it.isNotBlank() }
+
+    private fun currentBackupPassword(): String? {
+        val password = passwordStore.get()?.takeIf { it.length >= MinBackupPasswordLength }
+        return password
+    }
+
+    private fun failBackup(message: String): Boolean {
+        _lastMessage.value = message
+        _isBackingUp.value = false
+        return false
+    }
+
+    private fun failRestore(message: String): Boolean {
+        _lastMessage.value = message
+        _isBackingUp.value = false
+        return false
     }
 }

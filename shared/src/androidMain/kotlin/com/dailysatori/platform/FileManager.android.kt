@@ -1,5 +1,7 @@
 package com.dailysatori.platform
 
+import android.net.Uri
+import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -118,9 +120,48 @@ actual class FileManager actual constructor() {
         cos.close()
     }
 
+    actual fun displayNameForUri(uri: String): String {
+        return directory(uri)?.name ?: uri
+    }
+
+    actual fun listBackupFilesInDirectory(uri: String): List<String> {
+        return directory(uri)?.listFiles()
+            ?.mapNotNull { it.name }
+            ?.filter { it.endsWith(".enc") }
+            ?.sortedDescending()
+            ?: emptyList()
+    }
+
+    actual fun writeFileToDirectory(uri: String, name: String, sourcePath: String): String {
+        val dir = directory(uri) ?: error("Backup directory unavailable")
+        dir.findFile(name)?.delete()
+        val target = dir.createFile("application/octet-stream", name)
+            ?: error("Unable to create backup file")
+        val output = appContext.contentResolver.openOutputStream(target.uri)
+            ?: error("Unable to open backup file")
+        FileInputStream(sourcePath).use { input -> output.use { input.copyTo(it) } }
+        return target.name ?: name
+    }
+
+    actual fun readFileFromDirectory(uri: String, name: String, destPath: String): Boolean {
+        val file = directory(uri)?.findFile(name) ?: return false
+        val input = appContext.contentResolver.openInputStream(file.uri) ?: return false
+        File(destPath).parentFile?.mkdirs()
+        input.use { source -> FileOutputStream(destPath).use { source.copyTo(it) } }
+        return true
+    }
+
+    actual fun deleteFileFromDirectory(uri: String, name: String): Boolean {
+        return directory(uri)?.findFile(name)?.delete() ?: false
+    }
+
     private fun deriveKey(password: String, salt: ByteArray): SecretKeySpec {
         val spec = PBEKeySpec(password.toCharArray(), salt, 10000, 256)
         val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
         return SecretKeySpec(factory.generateSecret(spec).encoded, "AES")
+    }
+
+    private fun directory(uri: String): DocumentFile? {
+        return DocumentFile.fromTreeUri(appContext, Uri.parse(uri))?.takeIf { it.isDirectory }
     }
 }

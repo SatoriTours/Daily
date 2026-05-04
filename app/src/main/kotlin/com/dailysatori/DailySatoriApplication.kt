@@ -8,6 +8,7 @@ import com.dailysatori.di.sharedModule
 import com.dailysatori.core.service.I18nInitializer
 import com.dailysatori.core.service.WebServerService
 import com.dailysatori.core.worker.ArticleProcessingScheduler
+import com.dailysatori.core.worker.BackupScheduler
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.migration.DatabaseMigration
@@ -29,6 +30,7 @@ class DailySatoriApplication : Application() {
         }
         get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
         get<ArticleProcessingScheduler>(ArticleProcessingScheduler::class.java).enqueueResume()
+        BackupScheduler(this).ensureScheduled()
         I18nInitializer.init(this, get<I18nService>(I18nService::class.java))
         if (com.dailysatori.BuildConfig.DEBUG) {
             GlobalScope.launch(Dispatchers.IO) {

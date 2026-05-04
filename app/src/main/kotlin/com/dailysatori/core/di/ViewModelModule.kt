@@ -114,12 +114,12 @@ val viewModelModule: Module = module {
             settingService = get<SettingService>(),
             backupService = get<BackupService>(),
             fileManager = get<FileManager>(),
+            passwordStore = get(),
         )
     }
     viewModel {
         BackupRestoreViewModel(
-            settingService = get<SettingService>(),
-            fileManager = get<FileManager>(),
+            backupService = get<BackupService>(),
         )
     }
     viewModel {

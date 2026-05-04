@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.settings
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,19 +20,27 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Height
@@ -46,6 +55,8 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
     val viewModel: BackupRestoreViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     val scope = rememberCoroutineScope()
+    var showPasswordDialog by remember { mutableStateOf(false) }
+    var restorePassword by remember { mutableStateOf("") }
 
     AppScaffold(
         title = "从备份恢复",
@@ -54,9 +65,7 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
             if (state.backupList.isNotEmpty()) {
                 Button(
                     onClick = {
-                        scope.launch {
-                            viewModel.restoreBackup()
-                        }
+                        showPasswordDialog = true
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -75,6 +84,22 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
             }
         },
     ) { modifier ->
+        if (showPasswordDialog) {
+            RestorePasswordDialog(
+                password = restorePassword,
+                hint = viewModel.getPasswordHint(state.backupList.getOrNull(state.selectedBackupIndex).orEmpty()),
+                onPasswordChange = { restorePassword = it },
+                onDismiss = { showPasswordDialog = false },
+                onConfirm = {
+                    scope.launch {
+                        if (viewModel.restoreBackup(restorePassword)) {
+                            restorePassword = ""
+                            showPasswordDialog = false
+                        }
+                    }
+                },
+            )
+        }
         if (state.backupList.isEmpty()) {
             Box(
                 modifier = modifier.fillMaxSize(),
@@ -143,7 +168,7 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
                                     style = MaterialTheme.typography.titleSmall,
                                 )
                                 Text(
-                                    path.substringAfterLast("/"),
+                                    "密码提示：末尾 ${viewModel.getPasswordHint(path)}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -161,4 +186,33 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
             }
         }
     }
+}
+
+@Composable
+private fun RestorePasswordDialog(
+    password: String,
+    hint: String,
+    onPasswordChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("输入备份密码") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                Text("密码提示：末尾 $hint")
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = onPasswordChange,
+                    label = { Text("此备份文件的密码") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("恢复") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
 }

@@ -19,6 +19,7 @@ import com.dailysatori.service.adblock.AdBlockService
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.backup.BackupService
+import com.dailysatori.service.backup.BackupPasswordStore
 import com.dailysatori.service.book.BookSearchService
 import com.dailysatori.service.book.WebSearchEngine
 import com.dailysatori.service.i18n.I18nService
@@ -57,7 +58,8 @@ val sharedModule: Module = module {
     single { I18nService(get()) }
     single { AiConfigService(get()) }
     single { AiService(get()) }
-    single { BackupService(get(), get()) }
+    single { BackupPasswordStore(get()) }
+    single { BackupService(get(), get(), get()) }
     single { PluginService(get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }
 

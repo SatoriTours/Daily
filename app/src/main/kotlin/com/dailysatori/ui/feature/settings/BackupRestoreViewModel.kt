@@ -2,8 +2,8 @@ package com.dailysatori.ui.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dailysatori.platform.FileManager
-import com.dailysatori.service.setting.SettingService
+import com.dailysatori.service.backup.BackupService
+import com.dailysatori.service.backup.backupPasswordHint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,8 +20,7 @@ data class BackupRestoreState(
 )
 
 class BackupRestoreViewModel(
-    private val settingService: SettingService,
-    private val fileManager: FileManager,
+    private val backupService: BackupService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(BackupRestoreState())
     val state: StateFlow<BackupRestoreState> = _state.asStateFlow()
@@ -34,15 +33,9 @@ class BackupRestoreViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isLoading = true, errorMessage = "") }
             try {
-                val backupDirPath = settingService.getString("backup_directory")
-                if (backupDirPath.isNullOrEmpty()) {
-                    _state.update { it.copy(isLoading = false, errorMessage = "请先在备份设置中选择备份目录") }
-                    return@launch
-                }
-                val dirs = fileManager.listFiles(backupDirPath)
-                    .filter { it.contains("daily_satori_backup_") }
-                    .sortedDescending()
-                _state.update { it.copy(backupList = dirs, isLoading = false) }
+                val backups = backupService.listBackups().map { it.name }
+                val message = if (backups.isEmpty()) "暂无备份信息" else ""
+                _state.update { it.copy(backupList = backups, isLoading = false, errorMessage = message) }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, errorMessage = e.message ?: "加载失败") }
             }
@@ -57,16 +50,18 @@ class BackupRestoreViewModel(
         return try {
             val parts = path.split("daily_satori_backup_")
             if (parts.size >= 2) {
-                parts[1].replace("T", " ").take(19)
+                parts[1].substringBefore("_hint_")
             } else {
-                path.substringAfterLast("/")
+                path
             }
         } catch (_: Exception) {
-            path.substringAfterLast("/")
+            path
         }
     }
 
-    suspend fun restoreBackup(): Boolean {
+    fun getPasswordHint(path: String): String = backupPasswordHint(path) ?: "无提示"
+
+    suspend fun restoreBackup(password: String): Boolean {
         _state.update { it.copy(isRestoring = true) }
         return try {
             val index = _state.value.selectedBackupIndex
@@ -74,16 +69,15 @@ class BackupRestoreViewModel(
                 _state.update { it.copy(isRestoring = false, errorMessage = "未选择备份文件") }
                 return false
             }
-            val backupPath = _state.value.backupList[index]
-            val dbSource = "$backupPath/database.db"
-            if (!fileManager.exists(dbSource)) {
-                _state.update { it.copy(isRestoring = false, errorMessage = "备份文件不存在") }
+            if (password.isBlank()) {
+                _state.update { it.copy(isRestoring = false, errorMessage = "请输入备份密码") }
                 return false
             }
-            val dbPath = "${fileManager.getAppDataDir()}/daily_satori.db"
-            fileManager.copyFile(dbSource, dbPath)
+            val backupName = _state.value.backupList[index]
+            val success = backupService.restore(backupName, password)
+            if (!success) _state.update { it.copy(errorMessage = "恢复失败，请检查密码") }
             _state.update { it.copy(isRestoring = false) }
-            true
+            success
         } catch (e: Exception) {
             _state.update { it.copy(isRestoring = false, errorMessage = e.message ?: "恢复失败") }
             false
