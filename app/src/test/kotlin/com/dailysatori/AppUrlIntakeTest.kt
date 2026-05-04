@@ -57,6 +57,16 @@ class AppUrlIntakeTest {
     }
 
     @Test
+    fun suppressesRepeatedReadsForSameClipboardContent() {
+        val gate = ClipboardReadGate()
+
+        assertEquals(true, gate.shouldRead(100L))
+        gate.markRead(100L)
+        assertEquals(false, gate.shouldRead(100L))
+        assertEquals(true, gate.shouldRead(101L))
+    }
+
+    @Test
     fun visibleMessagesExplainClipboardPromptAndDuplicateSnackbar() {
         assertEquals("链接已存在", duplicateUrlSnackbarMessage())
         assertEquals("检测到剪切板链接", clipboardPromptTitle())

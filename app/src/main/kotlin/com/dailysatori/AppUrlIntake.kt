@@ -64,3 +64,13 @@ internal class ClipboardCheckGate {
         return false
     }
 }
+
+internal class ClipboardReadGate {
+    private var lastReadTimestamp: Long? = null
+
+    fun shouldRead(timestamp: Long): Boolean = lastReadTimestamp != timestamp
+
+    fun markRead(timestamp: Long) {
+        lastReadTimestamp = timestamp
+    }
+}
