@@ -25,6 +25,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -55,11 +56,18 @@ val tabs = listOf(
 
 @Composable
 fun HomeScreen(
+    selectedBookId: Long? = null,
+    bookAnalysisMessage: String? = null,
+    onSelectedBookConsumed: () -> Unit = {},
     onArticleClick: (Long) -> Unit = {},
     onBookSearchClick: () -> Unit = {},
     onAiArticleClick: (Long) -> Unit = {},
 ) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
+
+    LaunchedEffect(selectedBookId) {
+        if (selectedBookId != null) selectedIndex = 2
+    }
 
     Scaffold(
         bottomBar = {
@@ -98,7 +106,12 @@ fun HomeScreen(
                 when (index) {
                     0 -> ArticleListScreen(onArticleClick = onArticleClick)
                     1 -> DiaryScreen()
-                    2 -> BooksScreen(onSearchClick = onBookSearchClick)
+                    2 -> BooksScreen(
+                        onSearchClick = onBookSearchClick,
+                        selectedBookId = selectedBookId,
+                        bookAnalysisMessage = bookAnalysisMessage,
+                        onSelectedBookConsumed = onSelectedBookConsumed,
+                    )
                     3 -> AiChatScreen(onArticleClick = onAiArticleClick)
                     4 -> SettingsScreen()
                 }

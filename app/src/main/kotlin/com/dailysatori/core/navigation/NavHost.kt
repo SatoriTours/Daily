@@ -6,6 +6,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,6 +21,8 @@ import com.dailysatori.ui.feature.settings.SettingsScreen
 import com.dailysatori.ui.feature.share.ShareDialogScreen
 
 private const val ANIM_DURATION = 350
+private const val SELECTED_BOOK_ID_KEY = "selectedBookId"
+private const val BOOK_ANALYSIS_MESSAGE_KEY = "bookAnalysisMessage"
 
 @Composable
 fun DailySatoriNavHost(navController: NavHostController) {
@@ -31,13 +35,26 @@ fun DailySatoriNavHost(navController: NavHostController) {
                     targetOffsetX = { -it },
                 ) + fadeOut(animationSpec = tween(ANIM_DURATION))
             },
-        ) {
+        ) { backStackEntry ->
+            val selectedBookId by backStackEntry.savedStateHandle
+                .getStateFlow<Long?>(SELECTED_BOOK_ID_KEY, null)
+                .collectAsState()
+            val bookAnalysisMessage by backStackEntry.savedStateHandle
+                .getStateFlow<String?>(BOOK_ANALYSIS_MESSAGE_KEY, null)
+                .collectAsState()
+
             HomeScreen(
+                selectedBookId = selectedBookId,
+                bookAnalysisMessage = bookAnalysisMessage,
+                onSelectedBookConsumed = { backStackEntry.savedStateHandle[SELECTED_BOOK_ID_KEY] = null },
                 onArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
-                onBookSearchClick = { navController.navigate(BookSearchRoute) },
+                onBookSearchClick = {
+                    backStackEntry.savedStateHandle[BOOK_ANALYSIS_MESSAGE_KEY] = null
+                    navController.navigate(BookSearchRoute)
+                },
                 onAiArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
             )
-}
+        }
 
         composable<ArticleDetailRoute>(
             enterTransition = {
@@ -76,6 +93,11 @@ fun DailySatoriNavHost(navController: NavHostController) {
         ) {
             BookSearchScreen(
                 onBack = { navController.popBackStack() },
+                onBookAdded = { bookId, message ->
+                    navController.previousBackStackEntry?.savedStateHandle?.set(SELECTED_BOOK_ID_KEY, bookId)
+                    navController.previousBackStackEntry?.savedStateHandle?.set(BOOK_ANALYSIS_MESSAGE_KEY, message)
+                    navController.popBackStack()
+                },
             )
         }
 

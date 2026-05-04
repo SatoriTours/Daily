@@ -4,6 +4,7 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 
@@ -15,6 +16,7 @@ data class BookSearchResult(
     val introduction: String = "",
     val isbn: String = "",
     val coverUrl: String = "",
+    val sourceSummary: String = "",
 )
 
 interface BookSearchEngine {
@@ -31,13 +33,18 @@ class WebSearchEngine(private val client: HttpClient) : BookSearchEngine {
                 "&prop=extracts|pageimages&exintro&explaintext" +
                 "&piprop=thumbnail&pithumbsize=120&format=json"
             client.get(url).bodyAsText()
-        } catch (_: Exception) { return emptyList() }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            return emptyList()
+        }
 
         return parseResults(json)
     }
 
     private fun parseResults(jsonText: String): List<BookSearchResult> {
-        val root = Json.parseToJsonElement(jsonText).jsonObject
+        val root = runCatching { Json.parseToJsonElement(jsonText).jsonObject }.getOrNull()
+            ?: return emptyList()
         val pages = root["query"]?.jsonObject?.get("pages")?.jsonObject ?: return emptyList()
         return pages.entries.mapNotNull { (_, pageObj) ->
             val page = pageObj.jsonObject

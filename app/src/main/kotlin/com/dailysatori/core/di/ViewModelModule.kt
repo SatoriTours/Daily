@@ -76,8 +76,9 @@ val viewModelModule: Module = module {
     }
     viewModel {
         BookSearchViewModel(
-            mcpAgentService = get(),
+            bookIntelligenceService = get(),
             bookRepo = get<BookRepository>(),
+            viewpointRepo = get<BookViewpointRepository>(),
         )
     }
     viewModel {

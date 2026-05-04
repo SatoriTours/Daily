@@ -31,6 +31,18 @@ class BookRepository(private val db: DailySatoriDatabase) {
         q.insertBook(title, author, category, coverImage, introduction, hasUpdate, now, now)
     }
 
+    fun insertAndReturnId(
+        title: String,
+        author: String,
+        category: String,
+        coverImage: String,
+        introduction: String,
+        hasUpdate: Long = 0,
+    ): Long = q.transactionWithResult {
+        insert(title, author, category, coverImage, introduction, hasUpdate)
+        q.selectLastInsertedBookId().executeAsOne()
+    }
+
     fun update(
         id: Long,
         title: String,

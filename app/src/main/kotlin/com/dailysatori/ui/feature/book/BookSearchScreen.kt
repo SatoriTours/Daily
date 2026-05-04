@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -45,9 +46,14 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun BookSearchScreen(
     onBack: () -> Unit = {},
+    onBookAdded: (Long, String?) -> Unit = { _, _ -> },
 ) {
     val viewModel: BookSearchViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
+
+    LaunchedEffect(state.addedBookId) {
+        state.addedBookId?.let { onBookAdded(it, state.analysisMessage) }
+    }
 
     AppScaffold(
         title = "搜索书籍",
@@ -98,10 +104,21 @@ fun BookSearchScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                     ) {
+                        if (state.isAnalyzing || state.analysisMessage != null) {
+                            item {
+                                AnalysisStatus(
+                                    isAnalyzing = state.isAnalyzing,
+                                    step = state.analysisStep,
+                                    message = state.analysisMessage,
+                                    modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs),
+                                )
+                            }
+                        }
                         items(state.results) { result ->
                             SearchResultItem(
                                 result = result,
-                                onAdd = { viewModel.addBook(result) },
+                                isAnalyzing = state.isAnalyzing,
+                                onAdd = { viewModel.addAndAnalyzeBook(result) },
                                 modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs),
                             )
                         }
@@ -149,6 +166,7 @@ fun BookSearchScreen(
 @Composable
 private fun SearchResultItem(
     result: BookSearchResult,
+    isAnalyzing: Boolean,
     onAdd: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -196,10 +214,21 @@ private fun SearchResultItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (result.sourceSummary.isNotBlank()) {
+                Spacer(modifier = Modifier.height(Spacing.xs))
+                Text(
+                    result.sourceSummary,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
         Spacer(modifier = Modifier.width(Spacing.s))
         FilledTonalButton(
             onClick = onAdd,
+            enabled = !isAnalyzing,
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                 horizontal = Spacing.m,
                 vertical = Spacing.xs,
@@ -211,7 +240,42 @@ private fun SearchResultItem(
                 modifier = Modifier.size(16.dp),
             )
             Spacer(modifier = Modifier.width(Spacing.xxs))
-            Text("添加")
+            Text(bookSearchPrimaryActionText(isAnalyzing))
         }
     }
 }
+
+@Composable
+private fun AnalysisStatus(
+    isAnalyzing: Boolean,
+    step: String,
+    message: String?,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radius.m))
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f))
+            .padding(Spacing.m),
+    ) {
+        if (isAnalyzing) {
+            Text(
+                step.ifBlank { "正在分析书籍" },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        if (message != null) {
+            if (isAnalyzing) Spacer(modifier = Modifier.height(Spacing.xs))
+            Text(
+                message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+fun bookSearchPrimaryActionText(isAnalyzing: Boolean): String =
+    if (isAnalyzing) "分析中..." else "添加并分析"

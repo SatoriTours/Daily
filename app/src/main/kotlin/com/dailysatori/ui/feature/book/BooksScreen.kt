@@ -57,11 +57,21 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun BooksScreen(
     onSearchClick: () -> Unit = {},
+    selectedBookId: Long? = null,
+    bookAnalysisMessage: String? = null,
+    onSelectedBookConsumed: () -> Unit = {},
 ) {
     val viewModel: BooksViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<Book?>(null) }
     var showBookSheet by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedBookId) {
+        selectedBookId?.let {
+            viewModel.selectBook(it)
+            onSelectedBookConsumed()
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(
@@ -100,6 +110,18 @@ fun BooksScreen(
             },
         )
 
+        if (bookAnalysisMessage != null) {
+            Text(
+                text = bookAnalysisMessage,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
+                    .padding(horizontal = Spacing.m, vertical = Spacing.s),
+            )
+        }
+
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             if (state.isLoading && state.viewpoints.isEmpty()) {
                 LoadingIndicator()
@@ -108,7 +130,7 @@ fun BooksScreen(
                     modifier = Modifier.align(Alignment.Center),
                     icon = Icons.Default.MenuBook,
                     title = "暂无读书观点",
-                    subtitle = "搜索并添加一本书开始阅读",
+                    subtitle = booksEmptyStateSubtitle(state.currentBookId != null),
                 )
             } else {
                 val pagerState = rememberPagerState(
@@ -241,3 +263,6 @@ fun BooksScreen(
         )
     }
 }
+
+fun booksEmptyStateSubtitle(hasCurrentBook: Boolean): String =
+    if (hasCurrentBook) "这本书还没有观点，点击搜索重新添加并分析" else "搜索并添加一本书开始阅读"

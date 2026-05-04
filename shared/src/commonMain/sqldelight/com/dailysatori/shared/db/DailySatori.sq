@@ -257,6 +257,9 @@ insertBook:
 INSERT INTO book (title, author, category, cover_image, introduction, has_update, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
+selectLastInsertedBookId:
+SELECT id FROM book ORDER BY id DESC LIMIT 1;
+
 updateBook:
 UPDATE book SET title = ?, author = ?, category = ?, cover_image = ?, introduction = ?, has_update = ?, updated_at = ?
 WHERE id = ?;

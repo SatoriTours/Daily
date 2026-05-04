@@ -20,12 +20,14 @@ import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.backup.BackupService
 import com.dailysatori.service.backup.BackupPasswordStore
+import com.dailysatori.service.book.BookIntelligenceService
 import com.dailysatori.service.book.BookSearchService
 import com.dailysatori.service.book.WebSearchEngine
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.import.ImportService
 import com.dailysatori.service.mcp.McpAgentService
 import com.dailysatori.service.mcp.McpToolRegistry
+import com.dailysatori.service.mcp.RemoteMcpClient
 import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.service.migration.DatabaseMigration
 import com.dailysatori.service.parser.WebpageParserService
@@ -79,6 +81,8 @@ val sharedModule: Module = module {
     // Book search service
     single { WebSearchEngine(get()) }
     single { BookSearchService(listOf(get<WebSearchEngine>())) }
+    single { RemoteMcpClient(get()) }
+    single { BookIntelligenceService(get(), get(), get(), get(), get()) }
 
     // Weekly summary service
     single { WeeklySummaryService(get(), get(), get(), get(), get(), get()) }
