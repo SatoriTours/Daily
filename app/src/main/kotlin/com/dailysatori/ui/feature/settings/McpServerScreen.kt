@@ -11,13 +11,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,15 +41,30 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.dailysatori.config.McpProvider
+import com.dailysatori.config.McpTemplate
+import com.dailysatori.config.McpTemplateType
+import com.dailysatori.config.filterNewMcpTemplates
+import com.dailysatori.config.mcpProviders
+import com.dailysatori.config.mcpTemplateDisplayName
+import com.dailysatori.config.renderMcpConfigJson
 import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.shared.db.Mcp_server
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.mp.KoinPlatform
+
+internal enum class McpScreenMode { LIST, PRESET_ADD, MANUAL_ADD }
+
+internal data class McpBatchSaveResult(val added: Int, val skipped: Int)
 
 @Composable
 fun McpServerScreen(
@@ -51,6 +73,7 @@ fun McpServerScreen(
     val scope = rememberCoroutineScope()
     val repo = remember { KoinPlatform.getKoin().get<McpServerRepository>() }
     var servers by remember { mutableStateOf<List<Mcp_server>>(emptyList()) }
+    var mode by remember { mutableStateOf(McpScreenMode.LIST) }
     var showEdit by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(Unit) {
@@ -65,12 +88,32 @@ fun McpServerScreen(
         return
     }
 
+    when (mode) {
+        McpScreenMode.PRESET_ADD -> {
+            McpServerPresetAddScreen(
+                repo = repo,
+                existingServerUrls = servers.map { it.server_url }.toSet(),
+                onBack = { mode = McpScreenMode.LIST },
+                onManualAdd = { mode = McpScreenMode.MANUAL_ADD },
+            )
+            return
+        }
+        McpScreenMode.MANUAL_ADD -> {
+            McpServerEditScreen(
+                serverId = -1L,
+                onBack = { mode = McpScreenMode.LIST },
+            )
+            return
+        }
+        McpScreenMode.LIST -> Unit
+    }
+
     AppScaffold(
         title = "MCP 服务",
         onBack = onBack,
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { showEdit = -1L },
+                onClick = { mode = McpScreenMode.PRESET_ADD },
                 containerColor = MaterialTheme.colorScheme.primary,
             ) {
                 Icon(Icons.Default.Add, contentDescription = "添加 MCP 服务")
@@ -130,6 +173,255 @@ fun McpServerScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun McpServerPresetAddScreen(
+    repo: McpServerRepository,
+    existingServerUrls: Set<String>,
+    onBack: () -> Unit,
+    onManualAdd: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    var selectedProvider by remember { mutableStateOf<McpProvider?>(null) }
+    var providerExpanded by remember { mutableStateOf(false) }
+    var apiKey by remember { mutableStateOf("") }
+    var selectedTemplateIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var isSaving by remember { mutableStateOf(false) }
+    var saveMessage by remember { mutableStateOf<String?>(null) }
+    val groupedTemplates = selectedProvider?.let { selectableMcpTemplatesByType(it, existingServerUrls) }.orEmpty()
+    val selectedTemplates = groupedTemplates.values.flatten().filter { it.id in selectedTemplateIds }
+    val canSave = selectedProvider != null && apiKey.isNotBlank() && selectedTemplates.isNotEmpty() && !isSaving
+
+    AppScaffold(
+        title = "添加 MCP 服务",
+        onBack = onBack,
+        bottomBar = {
+            McpPresetAddActions(
+                canSave = canSave,
+                isSaving = isSaving,
+                onManualAdd = onManualAdd,
+                onSave = {
+                    val provider = selectedProvider ?: return@McpPresetAddActions
+                    scope.launch {
+                        isSaving = true
+                        try {
+                            val result = withContext(Dispatchers.IO) {
+                                saveSelectedMcpTemplates(repo, provider, selectedTemplates, apiKey)
+                            }
+                            saveMessage = mcpBatchSaveResultMessage(result)
+                            selectedTemplateIds = emptySet()
+                        } catch (error: Exception) {
+                            if (error is CancellationException) throw error
+                            saveMessage = mcpBatchSaveFailureMessage()
+                        } finally {
+                            isSaving = false
+                        }
+                    }
+                },
+            )
+        },
+    ) { modifier ->
+        McpPresetAddContent(
+            modifier = modifier,
+            selectedProvider = selectedProvider,
+            providerExpanded = providerExpanded,
+            apiKey = apiKey,
+            saveMessage = saveMessage,
+            groupedTemplates = groupedTemplates,
+            selectedTemplateIds = selectedTemplateIds,
+            onProviderExpandedChange = { providerExpanded = it },
+            onProviderSelected = { provider ->
+                selectedProvider = provider
+                selectedTemplateIds = emptySet()
+                saveMessage = null
+                providerExpanded = false
+            },
+            onApiKeyChange = { apiKey = it; saveMessage = null },
+            onSelectionChange = { selectedTemplateIds = it },
+        )
+    }
+}
+
+@Composable
+private fun McpPresetAddContent(
+    modifier: Modifier,
+    selectedProvider: McpProvider?,
+    providerExpanded: Boolean,
+    apiKey: String,
+    saveMessage: String?,
+    groupedTemplates: Map<McpTemplateType, List<McpTemplate>>,
+    selectedTemplateIds: Set<String>,
+    onProviderExpandedChange: (Boolean) -> Unit,
+    onProviderSelected: (McpProvider) -> Unit,
+    onApiKeyChange: (String) -> Unit,
+    onSelectionChange: (Set<String>) -> Unit,
+) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize().padding(horizontal = Spacing.m),
+        verticalArrangement = Arrangement.spacedBy(Spacing.m),
+        contentPadding = PaddingValues(vertical = Spacing.m),
+    ) {
+        item { McpProviderDropdown(selectedProvider, providerExpanded, onProviderExpandedChange, onProviderSelected) }
+        item { McpApiKeyField(selectedProvider, apiKey, onApiKeyChange) }
+        saveMessage?.let { item { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary) } }
+        mcpTemplateSection(McpTemplateType.NORMAL, groupedTemplates, selectedTemplateIds, onSelectionChange)
+        mcpTemplateSection(McpTemplateType.CODING_PLAN, groupedTemplates, selectedTemplateIds, onSelectionChange)
+    }
+}
+
+@Composable
+private fun McpPresetAddActions(
+    canSave: Boolean,
+    isSaving: Boolean,
+    onManualAdd: () -> Unit,
+    onSave: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+    ) {
+        OutlinedButton(onClick = onManualAdd, modifier = Modifier.weight(1f)) { Text("手动添加") }
+        Button(onClick = onSave, modifier = Modifier.weight(1f), enabled = canSave) {
+            Text(if (isSaving) "添加中..." else "添加选中 MCP")
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun McpProviderDropdown(
+    selectedProvider: McpProvider?,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onProviderSelected: (McpProvider) -> Unit,
+) {
+    Column {
+        Text("选择服务商", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(Spacing.xs))
+        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = onExpandedChange) {
+            OutlinedTextField(
+                value = selectedProvider?.name ?: "请选择 MCP 服务商",
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                shape = RoundedCornerShape(Radius.s),
+                singleLine = true,
+            )
+            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
+                mcpProviders.forEach { provider ->
+                    DropdownMenuItem(text = { Text(provider.name) }, onClick = { onProviderSelected(provider) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun McpApiKeyField(
+    selectedProvider: McpProvider?,
+    apiKey: String,
+    onApiKeyChange: (String) -> Unit,
+) {
+    Column {
+        Text("API Key", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(Spacing.xs))
+        OutlinedTextField(
+            value = apiKey,
+            onValueChange = onApiKeyChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text(selectedProvider?.apiKeyPlaceholder ?: "请先选择服务商") },
+            shape = RoundedCornerShape(Radius.s),
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            singleLine = true,
+        )
+    }
+}
+
+private fun LazyListScope.mcpTemplateSection(
+    type: McpTemplateType,
+    groupedTemplates: Map<McpTemplateType, List<McpTemplate>>,
+    selectedTemplateIds: Set<String>,
+    onSelectionChange: (Set<String>) -> Unit,
+) {
+    val templates = groupedTemplates[type].orEmpty()
+    if (templates.isEmpty()) return
+    item { Text(type.displayName, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary) }
+    items(templates, key = { it.id }) { template ->
+        McpTemplateCard(
+            template = template,
+            checked = template.id in selectedTemplateIds,
+            onCheckedChange = { checked ->
+                onSelectionChange(if (checked) selectedTemplateIds + template.id else selectedTemplateIds - template.id)
+            },
+        )
+    }
+}
+
+@Composable
+private fun McpTemplateCard(
+    template: McpTemplate,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Card(
+        onClick = { onCheckedChange(!checked) },
+        shape = RoundedCornerShape(Radius.m),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+            Spacer(modifier = Modifier.width(Spacing.s))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text(template.name, style = MaterialTheme.typography.titleSmall)
+                Text(template.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(template.serverUrl, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            }
+        }
+    }
+}
+
+internal fun selectableMcpTemplatesByType(
+    provider: McpProvider,
+    existingServerUrls: Set<String>,
+): Map<McpTemplateType, List<McpTemplate>> = McpTemplateType.entries.associateWith { type ->
+    filterNewMcpTemplates(provider.templates.filter { it.type == type }, existingServerUrls)
+}
+
+internal fun mcpBatchSaveResultMessage(result: McpBatchSaveResult): String =
+    "已添加 ${result.added} 个 MCP，跳过 ${result.skipped} 个已存在服务"
+
+internal fun mcpBatchSaveFailureMessage(): String = "添加 MCP 失败，请稍后重试"
+
+private fun saveSelectedMcpTemplates(
+    repo: McpServerRepository,
+    provider: McpProvider,
+    templates: List<McpTemplate>,
+    apiKey: String,
+): McpBatchSaveResult {
+    var added = 0
+    var skipped = 0
+    templates.forEach { template ->
+        if (repo.getByServerUrl(template.serverUrl) != null) {
+            skipped += 1
+        } else {
+            repo.insertPreset(
+                name = mcpTemplateDisplayName(provider, template),
+                serverUrl = template.serverUrl,
+                apiKey = apiKey,
+                provider = provider.id,
+                templateId = template.id,
+                templateType = template.type.name.lowercase(),
+                configJson = renderMcpConfigJson(template),
+            )
+            added += 1
+        }
+    }
+    return McpBatchSaveResult(added = added, skipped = skipped)
+}
+
 @Composable
 private fun McpServerEditScreen(
     serverId: Long?,
@@ -167,13 +459,15 @@ private fun McpServerEditScreen(
                 OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("取消") }
                 Button(
                     onClick = {
-                        scope.launch(Dispatchers.IO) {
+                        scope.launch {
                             isSaving = true
                             try {
-                                if (serverId != null && serverId > 0) {
-                                    repo.update(serverId, name, serverUrl, apiKey, if (enabled) 1L else 0L)
-                                } else {
-                                    repo.insert(name, serverUrl, apiKey, if (enabled) 1L else 0L)
+                                withContext(Dispatchers.IO) {
+                                    if (serverId != null && serverId > 0) {
+                                        repo.update(serverId, name, serverUrl, apiKey, if (enabled) 1L else 0L)
+                                    } else {
+                                        repo.insert(name, serverUrl, apiKey, if (enabled) 1L else 0L)
+                                    }
                                 }
                             } finally {
                                 isSaving = false

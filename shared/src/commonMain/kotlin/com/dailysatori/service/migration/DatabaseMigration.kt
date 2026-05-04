@@ -37,6 +37,9 @@ class DatabaseMigration(
         if (currentVersion < 5) {
             migrateV4ToV5()
         }
+        if (currentVersion < 6) {
+            migrateV5ToV6()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -207,6 +210,27 @@ class DatabaseMigration(
             log.i { "Migrated ai_config table to V5" }
         } catch (e: Exception) {
             log.w(e) { "Migration V4->V5 failed" }
+        }
+    }
+
+    /**
+     * V5 -> V6: Add MCP provider preset metadata.
+     */
+    private fun migrateV5ToV6() {
+        log.i { "Migration V5 -> V6: MCP preset metadata" }
+        val columns = listOf(
+            "provider TEXT NOT NULL DEFAULT ''",
+            "template_id TEXT NOT NULL DEFAULT ''",
+            "template_type TEXT NOT NULL DEFAULT ''",
+            "config_json TEXT NOT NULL DEFAULT ''",
+        )
+        columns.forEach { column ->
+            try {
+                runSql("ALTER TABLE mcp_server ADD COLUMN $column")
+                log.i { "Added mcp_server column: $column" }
+            } catch (e: Exception) {
+                log.w(e) { "Could not add mcp_server column: $column" }
+            }
         }
     }
 

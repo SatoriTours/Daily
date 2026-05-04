@@ -16,6 +16,8 @@ class McpServerRepository(private val db: DailySatoriDatabase) {
 
     fun getById(id: Long) = q.selectMcpServerById(id).executeAsOneOrNull()
 
+    fun getByServerUrl(serverUrl: String) = q.selectMcpServerByUrl(serverUrl).executeAsOneOrNull()
+
     fun getEnabled() = q.selectEnabledMcpServers().executeAsList()
 
     fun insert(
@@ -37,6 +39,31 @@ class McpServerRepository(private val db: DailySatoriDatabase) {
     ) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         q.updateMcpServer(name, serverUrl, apiKey, enabled, now, id)
+    }
+
+    fun insertPreset(
+        name: String,
+        serverUrl: String,
+        apiKey: String,
+        provider: String,
+        templateId: String,
+        templateType: String,
+        configJson: String,
+        enabled: Long = 1,
+    ) {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        q.insertMcpServerPreset(
+            name,
+            serverUrl,
+            apiKey,
+            enabled,
+            provider,
+            templateId,
+            templateType,
+            configJson,
+            now,
+            now,
+        )
     }
 
     fun delete(id: Long) = q.deleteMcpServer(id)

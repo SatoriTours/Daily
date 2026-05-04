@@ -92,6 +92,10 @@ CREATE TABLE mcp_server (
     server_url TEXT NOT NULL,
     api_key TEXT NOT NULL DEFAULT '',
     enabled INTEGER NOT NULL DEFAULT 1,
+    provider TEXT NOT NULL DEFAULT '',
+    template_id TEXT NOT NULL DEFAULT '',
+    template_type TEXT NOT NULL DEFAULT '',
+    config_json TEXT NOT NULL DEFAULT '',
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
@@ -348,12 +352,19 @@ SELECT * FROM mcp_server ORDER BY name;
 selectMcpServerById:
 SELECT * FROM mcp_server WHERE id = ?;
 
+selectMcpServerByUrl:
+SELECT * FROM mcp_server WHERE server_url = ? LIMIT 1;
+
 selectEnabledMcpServers:
 SELECT * FROM mcp_server WHERE enabled = 1;
 
 insertMcpServer:
 INSERT INTO mcp_server (name, server_url, api_key, enabled, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?);
+
+insertMcpServerPreset:
+INSERT INTO mcp_server (name, server_url, api_key, enabled, provider, template_id, template_type, config_json, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateMcpServer:
 UPDATE mcp_server SET name = ?, server_url = ?, api_key = ?, enabled = ?, updated_at = ?
