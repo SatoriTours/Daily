@@ -57,10 +57,10 @@ val tabs = listOf(
 @Composable
 fun HomeScreen(
     selectedBookId: Long? = null,
+    selectedViewpointId: Long? = null,
     bookAnalysisMessage: String? = null,
     onSelectedBookConsumed: () -> Unit = {},
     onArticleClick: (Long) -> Unit = {},
-    onBookSearchClick: () -> Unit = {},
     onAiArticleClick: (Long) -> Unit = {},
 ) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -107,8 +107,8 @@ fun HomeScreen(
                     0 -> ArticleListScreen(onArticleClick = onArticleClick)
                     1 -> DiaryScreen()
                     2 -> BooksScreen(
-                        onSearchClick = onBookSearchClick,
                         selectedBookId = selectedBookId,
+                        selectedViewpointId = selectedViewpointId,
                         bookAnalysisMessage = bookAnalysisMessage,
                         onSelectedBookConsumed = onSelectedBookConsumed,
                     )

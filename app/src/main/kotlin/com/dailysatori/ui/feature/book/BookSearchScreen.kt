@@ -41,6 +41,7 @@ import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -53,6 +54,14 @@ fun BookSearchScreen(
 
     LaunchedEffect(state.addedBookId) {
         state.addedBookId?.let { onBookAdded(it, state.analysisMessage) }
+    }
+
+    LaunchedEffect(state.query) {
+        val query = state.query.trim()
+        if (query.isNotBlank()) {
+            delay(500)
+            if (state.query.trim() == query) viewModel.search()
+        }
     }
 
     AppScaffold(
@@ -69,19 +78,21 @@ fun BookSearchScreen(
                 OutlinedTextField(
                     value = state.query,
                     onValueChange = { viewModel.updateQuery(it) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("输入书名...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     singleLine = true,
                     shape = RoundedCornerShape(Radius.s),
                 )
-                Spacer(modifier = Modifier.width(Spacing.s))
-                IconButton(
-                    onClick = { viewModel.search() },
-                    enabled = state.query.isNotBlank(),
-                ) {
-                    Icon(Icons.Default.Search, contentDescription = "搜索")
-                }
+            }
+
+            if (bookAnalysisStatusVisible(state.isAnalyzing, state.analysisMessage)) {
+                AnalysisStatus(
+                    isAnalyzing = state.isAnalyzing,
+                    step = state.analysisStep,
+                    message = state.analysisMessage,
+                    modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs),
+                )
             }
 
             when {
@@ -100,21 +111,11 @@ fun BookSearchScreen(
                         )
                     }
                 }
-                state.results.isNotEmpty() -> {
+                state.visibleResults.isNotEmpty() -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                     ) {
-                        if (state.isAnalyzing || state.analysisMessage != null) {
-                            item {
-                                AnalysisStatus(
-                                    isAnalyzing = state.isAnalyzing,
-                                    step = state.analysisStep,
-                                    message = state.analysisMessage,
-                                    modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.xs),
-                                )
-                            }
-                        }
-                        items(state.results) { result ->
+                        items(state.visibleResults) { result ->
                             SearchResultItem(
                                 result = result,
                                 isAnalyzing = state.isAnalyzing,
@@ -240,13 +241,13 @@ private fun SearchResultItem(
                 modifier = Modifier.size(16.dp),
             )
             Spacer(modifier = Modifier.width(Spacing.xxs))
-            Text(bookSearchPrimaryActionText(isAnalyzing))
+            Text(compactBookAddActionText(isAnalyzing), style = MaterialTheme.typography.labelSmall)
         }
     }
 }
 
 @Composable
-private fun AnalysisStatus(
+fun AnalysisStatus(
     isAnalyzing: Boolean,
     step: String,
     message: String?,
@@ -260,11 +261,15 @@ private fun AnalysisStatus(
             .padding(Spacing.m),
     ) {
         if (isAnalyzing) {
-            Text(
-                step.ifBlank { "正在分析书籍" },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LoadingIndicator(modifier = Modifier.size(20.dp), size = 20.dp, strokeWidth = 2.dp)
+                Spacer(modifier = Modifier.width(Spacing.xs))
+                Text(
+                    step.ifBlank { "正在分析书籍" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
         if (message != null) {
             if (isAnalyzing) Spacer(modifier = Modifier.height(Spacing.xs))
@@ -279,3 +284,5 @@ private fun AnalysisStatus(
 
 fun bookSearchPrimaryActionText(isAnalyzing: Boolean): String =
     if (isAnalyzing) "分析中..." else "添加并分析"
+
+fun bookAnalysisShowsProgressIndicator(isAnalyzing: Boolean): Boolean = isAnalyzing

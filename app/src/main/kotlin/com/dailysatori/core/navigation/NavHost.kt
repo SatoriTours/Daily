@@ -15,6 +15,7 @@ import androidx.navigation.toRoute
 import com.dailysatori.ui.feature.aiconfig.AiConfigEditScreen
 import com.dailysatori.ui.feature.aiconfig.AiConfigScreen
 import com.dailysatori.ui.feature.article.ArticleDetailScreen
+import com.dailysatori.ui.feature.book.BookContentSearchScreen
 import com.dailysatori.ui.feature.book.BookSearchScreen
 import com.dailysatori.ui.feature.home.HomeScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
@@ -22,6 +23,7 @@ import com.dailysatori.ui.feature.share.ShareDialogScreen
 
 private const val ANIM_DURATION = 350
 private const val SELECTED_BOOK_ID_KEY = "selectedBookId"
+private const val SELECTED_VIEWPOINT_ID_KEY = "selectedViewpointId"
 private const val BOOK_ANALYSIS_MESSAGE_KEY = "bookAnalysisMessage"
 
 @Composable
@@ -42,16 +44,19 @@ fun DailySatoriNavHost(navController: NavHostController) {
             val bookAnalysisMessage by backStackEntry.savedStateHandle
                 .getStateFlow<String?>(BOOK_ANALYSIS_MESSAGE_KEY, null)
                 .collectAsState()
+            val selectedViewpointId by backStackEntry.savedStateHandle
+                .getStateFlow<Long?>(SELECTED_VIEWPOINT_ID_KEY, null)
+                .collectAsState()
 
             HomeScreen(
                 selectedBookId = selectedBookId,
+                selectedViewpointId = selectedViewpointId,
                 bookAnalysisMessage = bookAnalysisMessage,
-                onSelectedBookConsumed = { backStackEntry.savedStateHandle[SELECTED_BOOK_ID_KEY] = null },
-                onArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
-                onBookSearchClick = {
-                    backStackEntry.savedStateHandle[BOOK_ANALYSIS_MESSAGE_KEY] = null
-                    navController.navigate(BookSearchRoute)
+                onSelectedBookConsumed = {
+                    backStackEntry.savedStateHandle[SELECTED_BOOK_ID_KEY] = null
+                    backStackEntry.savedStateHandle[SELECTED_VIEWPOINT_ID_KEY] = null
                 },
+                onArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
                 onAiArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
             )
         }
@@ -92,11 +97,45 @@ fun DailySatoriNavHost(navController: NavHostController) {
             },
         ) {
             BookSearchScreen(
-                onBack = { navController.popBackStack() },
+                onBack = { if (shouldNavigateHomeAfterPop(navController.popBackStack())) navController.navigate(HomeRoute) },
                 onBookAdded = { bookId, message ->
-                    navController.previousBackStackEntry?.savedStateHandle?.set(SELECTED_BOOK_ID_KEY, bookId)
-                    navController.previousBackStackEntry?.savedStateHandle?.set(BOOK_ANALYSIS_MESSAGE_KEY, message)
-                    navController.popBackStack()
+                    val targetEntry = navController.previousBackStackEntry
+                    targetEntry?.savedStateHandle?.set(SELECTED_BOOK_ID_KEY, bookId)
+                    targetEntry?.savedStateHandle?.set(BOOK_ANALYSIS_MESSAGE_KEY, message)
+                    if (shouldNavigateHomeAfterPop(navController.popBackStack())) {
+                        navController.navigate(HomeRoute)
+                        navController.currentBackStackEntry?.savedStateHandle?.set(SELECTED_BOOK_ID_KEY, bookId)
+                        navController.currentBackStackEntry?.savedStateHandle?.set(BOOK_ANALYSIS_MESSAGE_KEY, message)
+                    }
+                },
+            )
+        }
+
+        composable<BookContentSearchRoute>(
+            enterTransition = {
+                slideInHorizontally(
+                    animationSpec = tween(ANIM_DURATION),
+                    initialOffsetX = { it },
+                ) + fadeIn(animationSpec = tween(ANIM_DURATION))
+            },
+            exitTransition = {
+                slideOutHorizontally(
+                    animationSpec = tween(ANIM_DURATION),
+                    targetOffsetX = { it },
+                ) + fadeOut(animationSpec = tween(ANIM_DURATION))
+            },
+        ) {
+            BookContentSearchScreen(
+                onBack = { if (shouldNavigateHomeAfterPop(navController.popBackStack())) navController.navigate(HomeRoute) },
+                onResultClick = { bookId, viewpointId ->
+                    val targetEntry = navController.previousBackStackEntry
+                    targetEntry?.savedStateHandle?.set(SELECTED_BOOK_ID_KEY, bookId)
+                    targetEntry?.savedStateHandle?.set(SELECTED_VIEWPOINT_ID_KEY, viewpointId)
+                    if (shouldNavigateHomeAfterPop(navController.popBackStack())) {
+                        navController.navigate(HomeRoute)
+                        navController.currentBackStackEntry?.savedStateHandle?.set(SELECTED_BOOK_ID_KEY, bookId)
+                        navController.currentBackStackEntry?.savedStateHandle?.set(SELECTED_VIEWPOINT_ID_KEY, viewpointId)
+                    }
                 },
             )
         }
@@ -181,3 +220,5 @@ fun DailySatoriNavHost(navController: NavHostController) {
         }
     }
 }
+
+fun shouldNavigateHomeAfterPop(popBackStackSucceeded: Boolean): Boolean = !popBackStackSucceeded

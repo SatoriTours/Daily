@@ -28,6 +28,7 @@ import com.dailysatori.ui.feature.article.ArticlesViewModel
 import com.dailysatori.ui.feature.settings.BackupRestoreViewModel
 import com.dailysatori.ui.feature.settings.BackupSettingsViewModel
 import com.dailysatori.ui.feature.book.BookSearchViewModel
+import com.dailysatori.ui.feature.book.BookContentSearchViewModel
 import com.dailysatori.ui.feature.book.BooksViewModel
 import com.dailysatori.ui.feature.diary.DiaryViewModel
 import com.dailysatori.ui.feature.settings.PluginCenterViewModel
@@ -78,6 +79,11 @@ val viewModelModule: Module = module {
         BookSearchViewModel(
             bookIntelligenceService = get(),
             bookRepo = get<BookRepository>(),
+            viewpointRepo = get<BookViewpointRepository>(),
+        )
+    }
+    viewModel {
+        BookContentSearchViewModel(
             viewpointRepo = get<BookViewpointRepository>(),
         )
     }

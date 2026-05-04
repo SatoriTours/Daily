@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.book
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -29,9 +30,11 @@ fun ViewpointCard(
     example: String,
     bookTitle: String,
     modifier: Modifier = Modifier,
+    fillAvailableHeight: Boolean = false,
 ) {
+    val cardModifier = if (fillAvailableHeight) modifier.fillMaxWidth().fillMaxHeight() else modifier.fillMaxWidth()
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = cardModifier,
         shape = RoundedCornerShape(Radius.m),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -75,3 +78,7 @@ fun ViewpointCard(
         }
     }
 }
+
+fun viewpointCardFillsAvailableHeight(fillAvailableHeight: Boolean): Boolean = fillAvailableHeight
+
+fun viewpointCardContentStartsAtTop(): Boolean = true

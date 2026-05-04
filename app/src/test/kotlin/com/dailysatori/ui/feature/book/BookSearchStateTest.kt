@@ -18,4 +18,19 @@ class BookSearchStateTest {
     fun formatsAnalysisSuccessMessage() {
         assertEquals("已生成 10 个观点", bookAnalysisSuccessMessage())
     }
+
+    @Test
+    fun formatsVisibleAddAndCompletionStatus() {
+        assertEquals("正在添加《供应链架构师》", bookAnalysisStartStep("供应链架构师"))
+        assertEquals("正在生成观点卡片", bookAnalysisGeneratingStep())
+        assertEquals("《供应链架构师》已添加，10 个观点已生成", bookAnalysisCompletionNotice("供应链架构师", 10))
+        assertEquals(true, bookAnalysisShowsProgressIndicator(isAnalyzing = true))
+    }
+
+    @Test
+    fun analysisStatusStaysVisibleWithoutSearchResults() {
+        assertEquals(true, bookAnalysisStatusVisible(isAnalyzing = true, analysisMessage = null))
+        assertEquals(true, bookAnalysisStatusVisible(isAnalyzing = false, analysisMessage = "《供应链架构师》已添加，10 个观点已生成"))
+        assertEquals(false, bookAnalysisStatusVisible(isAnalyzing = false, analysisMessage = null))
+    }
 }

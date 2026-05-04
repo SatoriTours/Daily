@@ -277,6 +277,24 @@ SELECT * FROM book_viewpoint ORDER BY created_at DESC;
 selectViewpointById:
 SELECT * FROM book_viewpoint WHERE id = ?;
 
+searchBookContent:
+SELECT
+    book_viewpoint.id AS viewpoint_id,
+    book_viewpoint.book_id AS book_id,
+    book.title AS book_title,
+    book.author AS author,
+    book_viewpoint.title AS viewpoint_title,
+    book_viewpoint.content AS content,
+    book_viewpoint.example AS example
+FROM book_viewpoint
+JOIN book ON book.id = book_viewpoint.book_id
+WHERE book.title LIKE '%' || ? || '%'
+   OR book.author LIKE '%' || ? || '%'
+   OR book_viewpoint.title LIKE '%' || ? || '%'
+   OR book_viewpoint.content LIKE '%' || ? || '%'
+   OR book_viewpoint.example LIKE '%' || ? || '%'
+ORDER BY book_viewpoint.created_at DESC;
+
 insertViewpoint:
 INSERT INTO book_viewpoint (book_id, title, content, example, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?);
