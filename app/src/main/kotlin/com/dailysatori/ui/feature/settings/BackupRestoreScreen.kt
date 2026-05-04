@@ -25,11 +25,13 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +59,9 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     var showPasswordDialog by remember { mutableStateOf(false) }
     var restorePassword by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        viewModel.loadBackupFiles()
+    }
 
     AppScaffold(
         title = "从备份恢复",
@@ -91,10 +96,10 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
                 onPasswordChange = { restorePassword = it },
                 onDismiss = { showPasswordDialog = false },
                 onConfirm = {
+                    showPasswordDialog = false
                     scope.launch {
                         if (viewModel.restoreBackup(restorePassword)) {
                             restorePassword = ""
-                            showPasswordDialog = false
                         }
                     }
                 },
@@ -132,57 +137,88 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
                 }
             }
         } else {
-            LazyColumn(
-                modifier = modifier.fillMaxSize().padding(Spacing.m),
-                verticalArrangement = Arrangement.spacedBy(Spacing.s),
-            ) {
-                itemsIndexed(state.backupList) { index, path ->
-                    val selected = index == state.selectedBackupIndex
-                    Card(
-                        shape = RoundedCornerShape(Radius.m),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (selected) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.surface
-                            },
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(Radius.m))
-                            .clickable { viewModel.selectBackupIndex(index) },
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(Spacing.m),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                Icons.Default.Restore,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Spacer(modifier = Modifier.width(Spacing.m))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    viewModel.getBackupTime(path),
-                                    style = MaterialTheme.typography.titleSmall,
-                                )
-                                Text(
-                                    "密码提示：末尾 ${viewModel.getPasswordHint(path)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            if (selected) {
-                                Icon(
-                                    Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                        }
+            Column(modifier = modifier.fillMaxSize().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                RestoreFeedback(state)
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                    itemsIndexed(state.backupList) { index, path ->
+                        BackupFileCard(
+                            path = path,
+                            selected = index == state.selectedBackupIndex,
+                            time = viewModel.getBackupTime(path),
+                            passwordHint = viewModel.getPasswordHint(path),
+                            onClick = { if (!state.isRestoring) viewModel.selectBackupIndex(index) },
+                        )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RestoreFeedback(state: BackupRestoreState) {
+    if (state.isRestoring) {
+        LinearProgressIndicator(progress = { state.restoreProgress }, modifier = Modifier.fillMaxWidth())
+        Text(
+            state.statusMessage.ifBlank { "正在恢复备份..." },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+    if (state.errorMessage.isNotBlank()) {
+        Text(state.errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+    }
+    if (state.successMessage.isNotBlank()) {
+        Text(state.successMessage, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun BackupFileCard(
+    path: String,
+    selected: Boolean,
+    time: String,
+    passwordHint: String,
+    onClick: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(Radius.m),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Radius.m))
+            .clickable { onClick() },
+    ) {
+        Row(
+            modifier = Modifier.padding(Spacing.m),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.Restore,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(modifier = Modifier.width(Spacing.m))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(time, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "密码提示：末尾 $passwordHint",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (selected) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
             }
         }
     }

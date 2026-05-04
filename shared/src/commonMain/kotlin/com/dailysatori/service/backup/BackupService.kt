@@ -61,11 +61,12 @@ class BackupService(
             val filesToBackup = mutableListOf<String>()
 
             // Database file
-            val dbPath = "${fileManager.getAppDataDir()}/${DatabaseConfig.name}"
+            val dbPath = fileManager.getDatabasePath()
             if (fileManager.exists(dbPath)) {
                 filesToBackup.add(dbPath)
             } else {
                 log.w { "Database file not found: $dbPath" }
+                return failBackup("数据库文件不存在，无法创建完整备份")
             }
             _progress.value = 0.1
 
@@ -145,6 +146,7 @@ class BackupService(
             _lastMessage.value = "Decrypting backup..."
 
             val tempDir = "${fileManager.getAppDataDir()}/restore_temp"
+            deleteRecursive(tempDir)
             fileManager.createDirectory(tempDir)
             val encPath = "$tempDir/$name"
             if (!fileManager.readFileFromDirectory(backupDir, name, encPath)) {
@@ -163,9 +165,11 @@ class BackupService(
 
             // Move database file
             val dbSrc = "$tempDir/${DatabaseConfig.name}"
-            val dbDest = "${fileManager.getAppDataDir()}/${DatabaseConfig.name}"
+            val dbDest = fileManager.getDatabasePath()
             if (fileManager.exists(dbSrc)) {
                 fileManager.copyFile(dbSrc, dbDest)
+            } else {
+                return failRestore("备份中未找到数据库文件")
             }
             _progress.value = 0.7
 
@@ -197,6 +201,7 @@ class BackupService(
             _progress.value = 1.0
             _lastMessage.value = "Restore completed: $name"
             log.i { "Restore completed: $name" }
+            fileManager.restartApp()
             true
         } catch (e: Exception) {
             log.e(e) { "Restore failed" }

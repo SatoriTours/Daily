@@ -2,6 +2,7 @@ package com.dailysatori.platform
 
 expect class FileManager() {
     fun getAppDataDir(): String
+    fun getDatabasePath(): String
     fun getImagesDir(): String
     fun getDiaryImagesDir(): String
     fun getBackupDir(): String
@@ -25,4 +26,5 @@ expect class FileManager() {
     fun writeFileToDirectory(uri: String, name: String, sourcePath: String): String
     fun readFileFromDirectory(uri: String, name: String, destPath: String): Boolean
     fun deleteFileFromDirectory(uri: String, name: String): Boolean
+    fun restartApp()
 }
