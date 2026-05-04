@@ -1,0 +1,66 @@
+<h2>书籍添加/搜索弹层方向</h2>
+<p class="subtitle">这不是最终视觉稿，只用来确认交互结构：搜索时怎么提示、结果怎么展示、怎么关闭。</p>
+
+<div class="cards">
+  <div class="card" data-choice="bottom-sheet" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:26px;padding:14px;width:260px;margin:auto;color:#164e63;font-family:system-ui;">
+        <div style="height:4px;width:42px;background:#cbd5e1;border-radius:99px;margin:0 auto 14px"></div>
+        <div style="font-weight:700;font-size:17px;margin-bottom:10px">添加书籍</div>
+        <div style="background:white;border:1px solid #bae6fd;border-radius:14px;padding:10px;color:#64748b;margin-bottom:12px">搜索书名、作者...</div>
+        <div style="background:#ecfeff;border-radius:14px;padding:12px;margin-bottom:10px">
+          <div style="font-weight:700">正在搜索全网书籍资料</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px">会优先中文资料，可能需要 5-10 秒</div>
+        </div>
+        <div style="display:flex;gap:10px;background:white;border:1px solid #e2e8f0;border-radius:16px;padding:10px">
+          <div style="width:48px;height:66px;background:#dbeafe;border-radius:8px"></div>
+          <div style="flex:1">
+            <div style="font-weight:700">原则</div>
+            <div style="font-size:12px;color:#64748b">Ray Dalio</div>
+            <div style="font-size:11px;color:#64748b;margin-top:5px">关于生活与工作的原则...</div>
+            <div style="font-size:11px;color:#0891b2;margin-top:5px">豆瓣介绍 ↗</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. 半屏 Bottom Sheet</h3>
+      <p>推荐。符合移动端习惯，输入框再点一次图标关闭，也可下滑/点遮罩关闭。结果卡片可以放封面、简介、豆瓣链接。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="full-screen-dialog" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0f172a;border-radius:26px;padding:14px;width:260px;margin:auto;color:white;font-family:system-ui;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:14px"><b>搜索读书内容</b><span>×</span></div>
+        <div style="background:#1e293b;border-radius:14px;padding:10px;color:#94a3b8;margin-bottom:12px">观点、书名、作者...</div>
+        <div style="background:#1e293b;border-radius:16px;padding:12px;margin-bottom:10px">
+          <div style="font-weight:700">长期主义</div>
+          <div style="font-size:12px;color:#94a3b8">《原则》 · Ray Dalio</div>
+          <div style="font-size:11px;color:#cbd5e1;margin-top:6px">观点摘要：建立可重复的决策机制...</div>
+          <div style="font-size:11px;color:#64748b;margin-top:5px">例子：团队复盘时...</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. 全屏搜索页</h3>
+      <p>空间最大，适合复杂筛选和长文本。但会打断阅读，比你说的“弹出一个层”更重。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="inline-panel" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:14px;width:260px;margin:auto;color:#164e63;font-family:system-ui;">
+        <div style="background:#f1f5f9;border-radius:14px;padding:10px;margin-bottom:10px">搜索书名...</div>
+        <div style="font-size:12px;color:#64748b">正在搜索书籍...</div>
+        <div style="height:120px;background:#f8fafc;border-radius:14px;margin-top:10px"></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. 当前 inline 面板加强</h3>
+      <p>改动最小，但它会挤压阅读内容，关闭语义不如弹层清晰，也不太适合展示封面和长简介。</p>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle">我的建议是 A：半屏 Bottom Sheet，兼顾轻量、可关闭、结果信息密度和阅读上下文。</p>

@@ -16,6 +16,7 @@ fun AppScaffold(
     onBack: (() -> Unit)? = null,
     showBack: Boolean = onBack != null,
     actions: @Composable RowScope.() -> Unit = {},
+    snackbarHost: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
     floatingActionButton: @Composable () -> Unit = {},
     floatingActionButtonPosition: FabPosition = FabPosition.End,
@@ -30,6 +31,7 @@ fun AppScaffold(
                 actions = actions,
             )
         },
+        snackbarHost = snackbarHost,
         bottomBar = bottomBar,
         floatingActionButton = floatingActionButton,
         floatingActionButtonPosition = floatingActionButtonPosition,

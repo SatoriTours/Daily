@@ -31,7 +31,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
@@ -48,7 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.dailysatori.ui.component.appbar.AppTopBar
+import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.component.settings.SettingsRow
 import com.dailysatori.ui.feature.aiconfig.AiConfigScreen
 import com.dailysatori.ui.theme.Radius
@@ -119,23 +118,22 @@ private fun SettingsMainPage(
 ) {
     AboutDialog(showAboutDialog, state.currentVersion, onDismissAbout)
     UpdateDialog(state, viewModel, context)
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-        ) {
-            AppTopBar(
-                title = "设置",
-                showBack = false,
-                actions = {
-                    IconButton(onClick = onShowAbout) {
-                        Icon(Icons.Default.Info, contentDescription = "关于")
-                    }
-                },
-            )
-            SettingsList(state, viewModel, onNavigate)
-        }
+    AppScaffold(
+        title = "设置",
+        showBack = false,
+        actions = {
+            IconButton(onClick = onShowAbout) {
+                Icon(Icons.Default.Info, contentDescription = "关于")
+            }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { modifier ->
+        SettingsList(
+            state = state,
+            viewModel = viewModel,
+            onNavigate = onNavigate,
+            modifier = modifier,
+        )
     }
 }
 
@@ -168,9 +166,10 @@ private fun SettingsList(
     state: SettingsState,
     viewModel: SettingsViewModel,
     onNavigate: (SettingsPage) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .padding(horizontal = Spacing.m)
             .verticalScroll(rememberScrollState()),
