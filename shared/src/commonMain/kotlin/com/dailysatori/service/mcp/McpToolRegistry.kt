@@ -4,6 +4,7 @@ import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.data.repository.DiaryRepository
+import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.data.repository.MemoryRepository
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Book
@@ -16,12 +17,15 @@ class McpToolRegistry(
     private val bookRepo: BookRepository,
     private val viewpointRepo: BookViewpointRepository,
     private val memoryRepo: MemoryRepository,
+    private val localSqlQueryService: LocalSqlQueryService,
+    private val mcpServerRepo: McpServerRepository,
+    private val remoteMcpClient: RemoteMcpClient,
 ) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     fun buildToolDefinitions(): List<JsonObject> = listOf(
-        buildTool("get_latest_diary", "获取最新的日记条目", mapOf(
-            "limit" to buildParam("integer", "返回的日记数量，默认为5，最大为20"),
+        buildTool("get_latest_diary", "按时间倒序获取最近日记。用户问倒数第二近/第二近日记时，请用 limit=2 并只引用第二条；问倒数第三近时用 limit=3 并只引用第三条。", mapOf(
+            "limit" to buildParam("integer", "返回的日记数量，默认为5，最大为20。按时间倒序排列，第一条最新，第二条为倒数第二近。"),
         )),
         buildTool("get_diary_by_date", "获取指定日期的日记", mapOf(
             "date" to buildParam("string", "日期，格式为YYYY-MM-DD或相对日期如today,yesterday"),
@@ -62,6 +66,13 @@ class McpToolRegistry(
         ), listOf("book_id")),
         buildTool("get_book_count", "获取书籍的总数量"),
         buildTool("get_statistics", "获取应用的综合统计信息"),
+        buildTool("query_local_database", "用只读 SQL 查询本地数据库，适合回答用户个人数据统计、趋势、频率、排序和聚合问题。只能使用允许的本地表。", mapOf(
+            "sql" to buildParam("string", "只读 SELECT SQL。必须只查询允许表，并尽量使用聚合而不是返回大量原始记录。"),
+            "columns" to buildParam("array", "SQL 返回列名数组，必须与 SELECT 列顺序一致，例如 [\"count\", \"first_date\"]"),
+        ), listOf("sql", "columns")),
+        buildTool("search_web_with_mcp", "通过已启用的远程 MCP 联网搜索或读取网页，适合解释日记/文章中出现的外部概念、最新资料和背景知识。", mapOf(
+            "query" to buildParam("string", "要联网搜索或读取的外部概念/问题"),
+        ), listOf("query")),
         buildTool("search_memory", "搜索记忆库中的内容。记忆分为三种类型：core(核心偏好/事实)、content(从日记/文章/书中提取的摘要)、chat(对话中提取的关键信息)", mapOf(
             "query" to buildParam("string", "搜索关键词"),
             "type" to buildParam("string", "记忆类型过滤: core, content, chat，不传则搜索全部"),
@@ -73,7 +84,7 @@ class McpToolRegistry(
         ), listOf("source_type", "source_id")),
     )
 
-    fun executeTool(toolName: String, argumentsStr: String): McpToolResult {
+    suspend fun executeTool(toolName: String, argumentsStr: String): McpToolResult {
         val args = try {
             json.parseToJsonElement(argumentsStr).jsonObject
         } catch (_: Exception) {
@@ -97,6 +108,8 @@ class McpToolRegistry(
                 "get_book_viewpoints" -> getBookViewpoints(args)
                 "get_book_count" -> getBookCount()
                 "get_statistics" -> getStatistics()
+                "query_local_database" -> queryLocalDatabase(args)
+                "search_web_with_mcp" -> searchWebWithMcp(args)
                 "search_memory" -> searchMemory(args)
                 "get_memory_source" -> getMemorySource(args)
                 else -> errorResult("未知工具: $toolName")
@@ -265,6 +278,26 @@ class McpToolRegistry(
             put("books", bookRepo.count())
         },
     )
+
+    private fun queryLocalDatabase(args: JsonObject): McpToolResult {
+        val sql = stringParam(args, "sql") ?: return errorResult("缺少参数: sql")
+        val columns = args["columns"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty()
+        val result = localSqlQueryService.query(sql, columns)
+        return if (result.success) McpToolResult(true, result.toJson())
+        else McpToolResult(false, result.toJson())
+    }
+
+    private suspend fun searchWebWithMcp(args: JsonObject): McpToolResult {
+        val query = stringParam(args, "query") ?: return errorResult("缺少参数: query")
+        val servers = mcpServerRepo.getEnabled().filter { it.server_url.startsWith("http") }
+        if (servers.isEmpty()) return errorResult("未配置可用的远程 MCP")
+        val notes = remoteMcpClient.collectWebSearchNotes(servers, query)
+        if (notes.isBlank()) return errorResult("远程 MCP 未返回可用结果")
+        return successResult(
+            "query" to JsonPrimitive(query),
+            "results" to JsonPrimitive(notes),
+        )
+    }
 
     private fun searchMemory(args: JsonObject): McpToolResult {
         val query = stringParam(args, "query") ?: return errorResult("缺少query参数")

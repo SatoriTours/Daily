@@ -12,11 +12,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -32,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dailysatori.service.mcp.McpSearchResult
-import com.dailysatori.service.mcp.SearchResultOpenTarget
 import com.dailysatori.service.mcp.searchResultOpenTarget
 import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.indicator.EmptyState
@@ -58,14 +55,9 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}) {
     }
 
     fun openReference(result: McpSearchResult) {
-        when (searchResultOpenTarget(result.type)) {
-            SearchResultOpenTarget.Article -> onArticleClick(result.id)
-            SearchResultOpenTarget.Diary,
-            SearchResultOpenTarget.Book -> {
-                showReferenceSheet = true
-                referenceDetailViewModel.load(result)
-            }
-            null -> Unit
+        if (searchResultOpenTarget(result.type) != null) {
+            showReferenceSheet = true
+            referenceDetailViewModel.load(result)
         }
     }
 
@@ -77,12 +69,6 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}) {
                 actions = {
                     IconButton(onClick = { showMemorySheet = true }) {
                         Icon(Icons.Default.Search, contentDescription = "记忆搜索")
-                    }
-                    IconButton(
-                        onClick = { viewModel.clearMessages() },
-                        enabled = state.messages.isNotEmpty(),
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "新对话")
                     }
                 },
             )
@@ -97,14 +83,11 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}) {
                         inputText = ""
                     }
                 },
-                enabled = !state.isProcessing,
+                onStop = viewModel::stopGeneration,
+                isProcessing = state.isProcessing,
             )
         },
     ) { padding ->
-        if (state.isProcessing && state.currentStep.isNotBlank()) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(padding))
-        }
-
         if (state.messages.isEmpty()) {
             EmptyState(
                 modifier = Modifier.fillMaxSize().padding(padding),
@@ -119,11 +102,21 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}) {
                 contentPadding = PaddingValues(vertical = Spacing.m),
             ) {
                 items(state.messages, key = { it.id }) { message ->
-                    MessageBubble(message = message, onReferenceClick = ::openReference)
+                    MessageBubble(
+                        message = message,
+                        onReferenceClick = ::openReference,
+                        onDelete = viewModel::deleteMessage,
+                        onReAsk = viewModel::reAsk,
+                    )
                 }
                 if (state.isProcessing) {
                     item(key = "thinking") {
                         ThinkingIndicator()
+                    }
+                }
+                if (!state.isProcessing && state.currentStep == aiChatStoppedStatusText()) {
+                    item(key = "stopped") {
+                        AssistantStatusCard(text = state.currentStep)
                     }
                 }
             }
@@ -141,9 +134,18 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}) {
                 showReferenceSheet = false
                 referenceDetailViewModel.clear()
             },
+            onArticleClick = { articleId ->
+                showReferenceSheet = false
+                referenceDetailViewModel.clear()
+                onArticleClick(articleId)
+            },
         )
     }
 }
+
+fun aiChatShowsTopProgressIndicator(isProcessing: Boolean, currentStep: String): Boolean = false
+
+fun aiChatShowsThinkingBubble(isProcessing: Boolean): Boolean = isProcessing
 
 @Composable
 private fun ThinkingIndicator() {
@@ -161,6 +163,27 @@ private fun ThinkingIndicator() {
         ) {
             Text(
                 text = "思考中...",
+                modifier = Modifier.padding(Spacing.m),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AssistantStatusCard(text: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Start,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(Radius.m),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            modifier = Modifier.fillMaxWidth(0.8f),
+        ) {
+            Text(
+                text = text,
                 modifier = Modifier.padding(Spacing.m),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

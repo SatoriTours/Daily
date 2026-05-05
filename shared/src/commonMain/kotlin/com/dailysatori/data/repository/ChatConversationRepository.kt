@@ -18,11 +18,14 @@ class ChatConversationRepository(private val db: DailySatoriDatabase) {
         content: String,
         searchResults: String? = null,
         steps: String? = null,
+        createdAt: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
     ) {
-        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
-        q.insertChat(sessionId, role, content, searchResults, steps, now)
+        q.insertChat(sessionId, role, content, searchResults, steps, createdAt)
     }
 
     fun deleteBySession(sessionId: String) =
         q.deleteChatBySession(sessionId)
+
+    fun deleteMessage(sessionId: String, role: String, content: String, createdAt: Long) =
+        q.deleteChatMessage(sessionId, role, content, createdAt)
 }

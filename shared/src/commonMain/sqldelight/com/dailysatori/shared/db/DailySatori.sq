@@ -526,5 +526,8 @@ VALUES (?, ?, ?, ?, ?, ?);
 deleteChatBySession:
 DELETE FROM chat_conversation WHERE session_id = ?;
 
+deleteChatMessage:
+DELETE FROM chat_conversation WHERE session_id = ? AND role = ? AND content = ? AND created_at = ?;
+
 selectChatSessions:
 SELECT DISTINCT session_id FROM chat_conversation ORDER BY session_id DESC;

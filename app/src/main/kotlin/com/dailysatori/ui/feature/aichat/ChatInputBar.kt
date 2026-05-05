@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -35,15 +36,29 @@ import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 
+enum class ChatInputAction { Send, Stop }
+
+fun chatInputAction(isProcessing: Boolean): ChatInputAction =
+    if (isProcessing) ChatInputAction.Stop else ChatInputAction.Send
+
+fun chatInputActionDescription(action: ChatInputAction): String = when (action) {
+    ChatInputAction.Send -> "发送"
+    ChatInputAction.Stop -> "停止生成"
+}
+
+fun chatInputUsesImePadding(): Boolean = true
+
 @Composable
 fun ChatInputBar(
     inputText: String,
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
-    enabled: Boolean,
+    onStop: () -> Unit,
+    isProcessing: Boolean,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val inputShape = RoundedCornerShape(Radius.l)
+    val action = chatInputAction(isProcessing)
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
@@ -96,12 +111,17 @@ fun ChatInputBar(
                         ),
                         textStyle = MaterialTheme.typography.bodyMedium,
                         maxLines = 4,
-                        enabled = enabled,
+                        enabled = true,
                     )
                     Spacer(modifier = Modifier.width(Spacing.xs))
                     FilledIconButton(
-                        onClick = onSend,
-                        enabled = inputText.isNotBlank() && enabled,
+                        onClick = {
+                            when (action) {
+                                ChatInputAction.Send -> onSend()
+                                ChatInputAction.Stop -> onStop()
+                            }
+                        },
+                        enabled = action == ChatInputAction.Stop || inputText.isNotBlank(),
                         modifier = Modifier.size(36.dp),
                         shape = CircleShape,
                         colors = IconButtonDefaults.filledIconButtonColors(
@@ -112,8 +132,11 @@ fun ChatInputBar(
                         ),
                     ) {
                         Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "发送",
+                            imageVector = when (action) {
+                                ChatInputAction.Send -> Icons.AutoMirrored.Filled.Send
+                                ChatInputAction.Stop -> Icons.Default.Stop
+                            },
+                            contentDescription = chatInputActionDescription(action),
                             modifier = Modifier.size(16.dp),
                         )
                     }

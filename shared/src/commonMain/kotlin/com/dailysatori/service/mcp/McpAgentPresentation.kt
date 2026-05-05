@@ -22,6 +22,27 @@ fun searchResultOpenTarget(type: String): SearchResultOpenTarget? = when (type) 
 
 fun canOpenSearchResult(type: String): Boolean = searchResultOpenTarget(type) != null
 
+fun orderedDiaryIndexFromQuery(query: String): Int? {
+    if (!query.contains("日记")) return null
+    val normalized = query.replace("倒数第", "第")
+    return when {
+        normalized.contains("第二近") || normalized.contains("第二篇") || normalized.contains("第二个") -> 1
+        normalized.contains("第三近") || normalized.contains("第三篇") || normalized.contains("第三个") -> 2
+        normalized.contains("第四近") || normalized.contains("第四篇") || normalized.contains("第四个") -> 3
+        normalized.contains("第五近") || normalized.contains("第五篇") || normalized.contains("第五个") -> 4
+        else -> null
+    }
+}
+
+fun preciseSearchResultsForQuery(
+    query: String,
+    results: List<McpSearchResult>,
+): List<McpSearchResult> {
+    val orderedDiaryIndex = orderedDiaryIndexFromQuery(query) ?: return results
+    val diaries = results.filter { it.type == "diary" }
+    return diaries.getOrNull(orderedDiaryIndex)?.let { listOf(it) } ?: results
+}
+
 fun aiSummaryRetryAttempts(): List<Int> = listOf(1, 2, 3)
 
 fun buildFallbackAnswer(query: String, results: List<McpSearchResult>): String {

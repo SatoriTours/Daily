@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.aichat
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,12 +10,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -26,12 +37,32 @@ import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import com.mikepenz.markdown.m3.Markdown
 
+fun visibleReferenceCount(totalCount: Int, expanded: Boolean): Int =
+    if (expanded) totalCount else totalCount.coerceAtMost(3)
+
+fun visibleReferenceCount(totalCount: Int, sectionExpanded: Boolean, listExpanded: Boolean): Int =
+    if (!sectionExpanded) 0 else visibleReferenceCount(totalCount, listExpanded)
+
+fun referenceSectionActionText(expanded: Boolean): String = if (expanded) "收起引用" else "点击展开"
+
+fun referenceExpansionText(totalCount: Int, expanded: Boolean): String? {
+    if (totalCount <= 3) return null
+    return if (expanded) "收起引用" else "展开剩余 ${totalCount - 3} 条"
+}
+
 @Composable
 fun MessageBubble(
     message: ChatMessageUi,
     onReferenceClick: (McpSearchResult) -> Unit = {},
+    onDelete: (ChatMessageUi) -> Unit = {},
+    onReAsk: (ChatMessageUi) -> Unit = {},
 ) {
     val isUser = message.role == "user"
+    val assistantContent = message.content.trim()
+    val clipboard = LocalClipboardManager.current
+    var showActions by remember(message.id) { mutableStateOf(false) }
+    if (!isUser && assistantContent.isBlank() && message.searchResults.isEmpty()) return
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -53,21 +84,52 @@ fun MessageBubble(
                     message.isError -> MaterialTheme.colorScheme.errorContainer
                     else -> MaterialTheme.colorScheme.surfaceContainer
                 },
-                modifier = Modifier.fillMaxWidth(0.85f),
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .pointerInput(message.id) {
+                        detectTapGestures(onLongPress = { showActions = true })
+                    },
             ) {
-                if (isUser) {
-                    Text(
-                        text = message.content,
-                        modifier = Modifier.padding(Spacing.m),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                } else {
-                    Column(modifier = Modifier.padding(Spacing.m)) {
-                        Markdown(
-                            content = message.content,
-                            typography = MarkdownStyles.cardTypography(),
-                            padding = MarkdownStyles.cardPadding(),
+                Column {
+                    if (isUser) {
+                        Text(
+                            text = message.content,
+                            modifier = Modifier.padding(Spacing.m),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    } else {
+                        if (assistantContent.isNotBlank()) {
+                            Column(modifier = Modifier.padding(Spacing.m)) {
+                                Markdown(
+                                    content = assistantContent,
+                                    typography = MarkdownStyles.cardTypography(),
+                                    padding = MarkdownStyles.cardPadding(),
+                                )
+                            }
+                        }
+                    }
+                    DropdownMenu(expanded = showActions, onDismissRequest = { showActions = false }) {
+                        DropdownMenuItem(
+                            text = { Text("复制") },
+                            onClick = {
+                                clipboard.setText(AnnotatedString(message.content))
+                                showActions = false
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("删除") },
+                            onClick = {
+                                showActions = false
+                                onDelete(message)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("重问") },
+                            onClick = {
+                                showActions = false
+                                onReAsk(message)
+                            },
                         )
                     }
                 }
@@ -85,6 +147,9 @@ private fun SearchResultsSection(
     results: List<McpSearchResult>,
     onReferenceClick: (McpSearchResult) -> Unit,
 ) {
+    var sectionExpanded by remember(results) { mutableStateOf(false) }
+    var listExpanded by remember(results) { mutableStateOf(false) }
+    val visibleCount = visibleReferenceCount(results.size, sectionExpanded, listExpanded)
     Spacer(modifier = Modifier.height(Spacing.xs))
     Column(
         modifier = Modifier
@@ -92,21 +157,35 @@ private fun SearchResultsSection(
             .padding(start = Spacing.s),
         verticalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "引用来源",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                text = " · ${results.size} 条",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Surface(
+            shape = RoundedCornerShape(Radius.l),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            modifier = Modifier.clickable { sectionExpanded = !sectionExpanded },
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "引用来源",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = " · ${results.size} 条 · ${referenceSectionActionText(sectionExpanded)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        results.take(3).forEach { result ->
+        results.take(visibleCount).forEach { result ->
             SearchResultCard(result, onReferenceClick)
+        }
+        if (sectionExpanded) referenceExpansionText(results.size, listExpanded)?.let { actionText ->
+            TextButton(onClick = { listExpanded = !listExpanded }) {
+                Text(actionText)
+            }
         }
     }
 }

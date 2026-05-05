@@ -54,6 +54,10 @@ val tabs = listOf(
     TabItem("设置", Icons.Filled.Settings, Icons.Outlined.Settings),
 )
 
+const val AI_CHAT_TAB_INDEX = 3
+
+fun homeBottomBarVisibleForTab(index: Int): Boolean = index != AI_CHAT_TAB_INDEX
+
 @Composable
 fun HomeScreen(
     selectedBookId: Long? = null,
@@ -71,27 +75,29 @@ fun HomeScreen(
 
     Scaffold(
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-            ) {
-                tabs.forEachIndexed { index, tab ->
-                    NavigationBarItem(
-                        icon = {
-                            Icon(
-                                if (selectedIndex == index) tab.selectedIcon else tab.unselectedIcon,
-                                contentDescription = tab.label,
-                                modifier = Modifier.size(28.dp),
-                            )
-                        },
-                        selected = selectedIndex == index,
-                        onClick = { selectedIndex = index },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            indicatorColor = Color.Transparent,
-                        ),
-                    )
+            if (homeBottomBarVisibleForTab(selectedIndex)) {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ) {
+                    tabs.forEachIndexed { index, tab ->
+                        NavigationBarItem(
+                            icon = {
+                                Icon(
+                                    if (selectedIndex == index) tab.selectedIcon else tab.unselectedIcon,
+                                    contentDescription = tab.label,
+                                    modifier = Modifier.size(28.dp),
+                                )
+                            },
+                            selected = selectedIndex == index,
+                            onClick = { selectedIndex = index },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                indicatorColor = Color.Transparent,
+                            ),
+                        )
+                    }
                 }
             }
         },
@@ -112,7 +118,7 @@ fun HomeScreen(
                         bookAnalysisMessage = bookAnalysisMessage,
                         onSelectedBookConsumed = onSelectedBookConsumed,
                     )
-                    3 -> AiChatScreen(onArticleClick = onAiArticleClick)
+                    AI_CHAT_TAB_INDEX -> AiChatScreen(onArticleClick = onAiArticleClick)
                     4 -> SettingsScreen()
                 }
             }

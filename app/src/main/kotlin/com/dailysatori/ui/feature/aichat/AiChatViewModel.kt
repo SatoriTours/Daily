@@ -7,7 +7,9 @@ import com.dailysatori.service.mcp.McpAgentService
 import com.dailysatori.service.mcp.McpSearchResult
 import com.dailysatori.service.mcp.decodeMcpSearchResults
 import com.dailysatori.service.mcp.encodeMcpSearchResults
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,12 +33,65 @@ data class ChatMessageUi(
     val steps: List<String> = emptyList(),
 )
 
+enum class ChatMessageAction { Copy, Delete, ReAsk }
+
+fun chatMessageActions(message: ChatMessageUi): List<ChatMessageAction> =
+    listOf(ChatMessageAction.Copy, ChatMessageAction.Delete, ChatMessageAction.ReAsk)
+
+fun deleteChatMessage(messages: List<ChatMessageUi>, messageId: String): List<ChatMessageUi> =
+    messages.filterNot { it.id == messageId }
+
+fun reAskContentForMessage(messages: List<ChatMessageUi>, message: ChatMessageUi): String? {
+    if (message.role == "user") return message.content
+    val index = messages.indexOfFirst { it.id == message.id }
+    if (index <= 0) return null
+    return messages.take(index).lastOrNull { it.role == "user" }?.content
+}
+
+fun aiChatStoppedStatusText(): String = "已停止生成"
+
+fun aiChatBlankResponseMessage(): String = "这次没有生成有效回复，请稍后重试。"
+
+fun AiChatState.stoppedGeneration(): AiChatState = copy(
+    isProcessing = false,
+    currentStep = aiChatStoppedStatusText(),
+)
+
+fun aiChatShowsRefreshAction(): Boolean = false
+
+fun aiChatShowsMemorySearchAction(): Boolean = true
+
+fun buildAssistantMessageOrNull(
+    answer: String,
+    searchResults: List<McpSearchResult>,
+    steps: List<String>,
+    now: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+): ChatMessageUi? {
+    val content = answer.trim()
+    if (content.isBlank()) return null
+    return ChatMessageUi(
+        id = generateChatMessageId(now),
+        role = "assistant",
+        content = content,
+        timestamp = now,
+        isError = content.startsWith("😔 **出现问题**") || content == aiChatBlankResponseMessage(),
+        searchResults = searchResults,
+        steps = steps,
+    )
+}
+
+fun generateChatMessageId(now: Long): String {
+    val r = (0..9999).random()
+    return "${now}_${r}"
+}
+
 class AiChatViewModel(
     private val mcpAgentService: McpAgentService,
     private val chatConversationRepo: ChatConversationRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(AiChatState())
     val state: StateFlow<AiChatState> = _state.asStateFlow()
+    private var activeRequestJob: Job? = null
 
     init {
         loadLatestSession()
@@ -68,6 +123,7 @@ class AiChatViewModel(
     }
 
     fun sendMessage(content: String) {
+        if (_state.value.isProcessing) return
         val userMessage = ChatMessageUi(
             id = generateId(),
             role = "user",
@@ -81,32 +137,58 @@ class AiChatViewModel(
         ) }
         persistMessage(userMessage)
 
-        viewModelScope.launch(Dispatchers.IO) {
-            val steps = mutableListOf<String>()
-            val result = mcpAgentService.processQuery(
-                query = content,
-                onStep = { step, status ->
-                    _state.update { it.copy(currentStep = step) }
-                    if (status == "completed") steps.add(step)
-                },
-            )
-
-            val assistantMessage = ChatMessageUi(
-                id = generateId(),
-                role = "assistant",
-                content = result.answer,
-                timestamp = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
-                isError = result.answer.startsWith("\uD83D\uDE14 **出现问题**"),
-                searchResults = result.searchResults,
-                steps = steps,
-            )
-            _state.update { it.copy(
-                messages = it.messages + assistantMessage,
-                isProcessing = false,
-                currentStep = "",
-            ) }
-            persistMessage(assistantMessage)
+        activeRequestJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val steps = mutableListOf<String>()
+                val result = mcpAgentService.processQuery(
+                    query = content,
+                    onStep = { step, status ->
+                        _state.update { it.copy(currentStep = step) }
+                        if (status == "completed") steps.add(step)
+                    },
+                )
+                val assistantMessage = buildAssistantMessageOrNull(
+                    answer = result.answer.ifBlank { aiChatBlankResponseMessage() },
+                    searchResults = result.searchResults,
+                    steps = steps,
+                )
+                _state.update { current ->
+                    current.copy(
+                        messages = assistantMessage?.let { current.messages + it } ?: current.messages,
+                        isProcessing = false,
+                        currentStep = "",
+                    )
+                }
+                assistantMessage?.let { persistMessage(it) }
+            } catch (_: CancellationException) {
+                _state.update { it.stoppedGeneration() }
+            } finally {
+                activeRequestJob = null
+            }
         }
+    }
+
+    fun stopGeneration() {
+        activeRequestJob?.cancel()
+        activeRequestJob = null
+        _state.update { it.stoppedGeneration() }
+    }
+
+    fun deleteMessage(message: ChatMessageUi) {
+        _state.update { it.copy(messages = deleteChatMessage(it.messages, message.id)) }
+        viewModelScope.launch(Dispatchers.IO) {
+            chatConversationRepo.deleteMessage(
+                sessionId = _state.value.sessionId,
+                role = message.role,
+                content = message.content,
+                createdAt = message.timestamp,
+            )
+        }
+    }
+
+    fun reAsk(message: ChatMessageUi) {
+        val content = reAskContentForMessage(_state.value.messages, message) ?: return
+        sendMessage(content)
     }
 
     fun clearMessages() {
@@ -130,16 +212,14 @@ class AiChatViewModel(
                     content = message.content,
                     searchResults = encodeMcpSearchResults(message.searchResults),
                     steps = encodeSteps(message.steps),
+                    createdAt = message.timestamp,
                 )
             } catch (_: Exception) { }
         }
     }
 
-    private fun generateId(): String {
-        val ts = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
-        val r = (0..9999).random()
-        return "${ts}_${r}"
-    }
+    private fun generateId(): String =
+        generateChatMessageId(kotlinx.datetime.Clock.System.now().toEpochMilliseconds())
 
     private fun encodeSteps(steps: List<String>): String? = steps.takeIf { it.isNotEmpty() }?.joinToString("\n")
 

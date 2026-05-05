@@ -16,6 +16,14 @@ class RemoteMcpClientTest {
     }
 
     @Test
+    fun detectsGenericWebSearchTools() {
+        assertTrue(isLikelyWebSearchTool("webSearchPrime", "Search web pages"))
+        assertTrue(isLikelyWebSearchTool("webReader", "Read webpage content"))
+        assertTrue(isLikelyWebSearchTool("search", "Search the internet"))
+        assertFalse(isLikelyWebSearchTool("get_weather", "Weather forecast"))
+    }
+
+    @Test
     fun buildsQueryArgumentsFromSchema() {
         val schema = buildJsonObject {
             put("properties", buildJsonObject {

@@ -33,6 +33,12 @@ class RemoteMcpClient(private val client: HttpClient) {
             .take(3)
             .joinToString("\n")
 
+    suspend fun collectWebSearchNotes(servers: List<Mcp_server>, query: String): String =
+        servers.filter { it.enabled == 1L && it.server_url.startsWith("http") }
+            .mapNotNull { server -> callWebSearchTool(server, query) }
+            .take(3)
+            .joinToString("\n")
+
     private suspend fun callSearchTool(server: Mcp_server, query: String): String? = try {
         val sessionId = initialize(server)
         sendInitialized(server, sessionId)
@@ -50,6 +56,29 @@ class RemoteMcpClient(private val client: HttpClient) {
         )
         val text = extractMcpTextContent(result.body).take(1200)
         if (text.isBlank()) null else "远程 MCP ${server.name}/${tool.name}: $text"
+    } catch (error: CancellationException) {
+        throw error
+    } catch (_: Exception) {
+        null
+    }
+
+    private suspend fun callWebSearchTool(server: Mcp_server, query: String): String? = try {
+        val sessionId = initialize(server)
+        sendInitialized(server, sessionId)
+        val tool = listTools(server, sessionId).firstOrNull {
+            isLikelyWebSearchTool(it.name, it.description)
+        } ?: return null
+        val result = postJsonRpc(
+            server = server,
+            sessionId = sessionId,
+            method = "tools/call",
+            params = buildJsonObject {
+                put("name", JsonPrimitive(tool.name))
+                put("arguments", buildMcpToolArguments(tool.inputSchema, query))
+            },
+        )
+        val text = extractMcpTextContent(result.body).take(2000)
+        if (text.isBlank()) null else "外部 MCP ${server.name}/${tool.name}: $text"
     } catch (error: CancellationException) {
         throw error
     } catch (_: Exception) {
@@ -143,6 +172,14 @@ fun isLikelyBookSearchTool(name: String, description: String): Boolean {
     val canSearch = listOf("search", "query", "find", "web").any { it in text }
     val relevant = listOf("book", "books", "isbn", "web", "google", "wiki").any { it in text }
     return canSearch && relevant
+}
+
+fun isLikelyWebSearchTool(name: String, description: String): Boolean {
+    val text = "$name $description".lowercase()
+    val canSearch = listOf("search", "query", "find", "web", "reader", "read").any { it in text }
+    val relevant = listOf("web", "internet", "page", "url", "search", "reader").any { it in text }
+    val irrelevant = listOf("weather", "balance", "model", "image", "video", "audio").any { it in text }
+    return canSearch && relevant && !irrelevant
 }
 
 fun buildMcpToolArguments(inputSchema: JsonObject, query: String): JsonObject {

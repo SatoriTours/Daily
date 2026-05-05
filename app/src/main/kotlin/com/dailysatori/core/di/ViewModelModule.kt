@@ -95,6 +95,7 @@ val viewModelModule: Module = module {
     }
     viewModel {
         AiReferenceDetailViewModel(
+            articleRepo = get<ArticleRepository>(),
             diaryRepo = get<DiaryRepository>(),
             bookRepo = get<BookRepository>(),
             viewpointRepo = get<BookViewpointRepository>(),

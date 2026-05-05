@@ -27,6 +27,7 @@ import com.dailysatori.service.book.WebSearchEngine
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.import.ImportService
 import com.dailysatori.service.mcp.McpAgentService
+import com.dailysatori.service.mcp.LocalSqlQueryService
 import com.dailysatori.service.mcp.McpToolRegistry
 import com.dailysatori.service.mcp.RemoteMcpClient
 import com.dailysatori.service.memory.MemoryExtractService
@@ -84,6 +85,7 @@ val sharedModule: Module = module {
     single { WebSearchEngine(get()) }
     single { BookSearchService(listOf(get<DoubanSuggestSearchEngine>(), get<WebSearchEngine>())) }
     single { RemoteMcpClient(get()) }
+    single { LocalSqlQueryService(get()) }
     single { BookIntelligenceService(get(), get(), get(), get(), get()) }
 
     // Weekly summary service
@@ -99,7 +101,7 @@ val sharedModule: Module = module {
     single { ImportService(get(), get(), get()) }
 
     // MCP Tool registry
-    single { McpToolRegistry(get(), get(), get(), get(), get()) }
+    single { McpToolRegistry(get(), get(), get(), get(), get(), get(), get(), get()) }
 
     // MCP Agent service
     single { McpAgentService(get(), get(), get()) }

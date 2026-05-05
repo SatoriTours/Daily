@@ -4,6 +4,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class McpAgentPresentationTest {
     @Test
@@ -42,6 +46,25 @@ class McpAgentPresentationTest {
     }
 
     @Test
+    fun detectsSecondLatestDiaryQueries() {
+        assertEquals(1, orderedDiaryIndexFromQuery("我倒数第二近的日记是什么"))
+        assertEquals(1, orderedDiaryIndexFromQuery("第二近的日记是什么"))
+        assertEquals(2, orderedDiaryIndexFromQuery("倒数第三篇日记是什么"))
+        assertEquals(null, orderedDiaryIndexFromQuery("最近的文章是什么"))
+    }
+
+    @Test
+    fun reducesOrderedDiaryReferencesToOneResult() {
+        val results = listOf(
+            McpSearchResult(11, "diary", "最新日记", "one", "2026-05-03"),
+            McpSearchResult(10, "diary", "倒数第二篇", "two", "2026-05-02"),
+            McpSearchResult(9, "diary", "倒数第三篇", "three", "2026-05-01"),
+        )
+
+        assertEquals(listOf(results[1]), preciseSearchResultsForQuery("倒数第二近的日记", results))
+    }
+
+    @Test
     fun mapsSearchResultTypesToReadableLabels() {
         assertEquals("文章", searchResultTypeLabel("article"))
         assertEquals("日记", searchResultTypeLabel("diary"))
@@ -68,5 +91,28 @@ class McpAgentPresentationTest {
     @Test
     fun retriesAiSummaryThreeTimesBeforeFallback() {
         assertEquals(listOf(1, 2, 3), aiSummaryRetryAttempts())
+    }
+
+    @Test
+    fun assistantToolMessagePreservesReasoningContent() {
+        val message = buildJsonObject {
+            put("role", JsonPrimitive("assistant"))
+            put("content", JsonPrimitive(""))
+            put("reasoning_content", JsonPrimitive("thinking trace"))
+            put("tool_calls", buildJsonArray {
+                add(buildJsonObject {
+                    put("id", JsonPrimitive("call_1"))
+                    put("type", JsonPrimitive("function"))
+                    put("function", buildJsonObject {
+                        put("name", JsonPrimitive("query_local_database"))
+                        put("arguments", JsonPrimitive("{}"))
+                    })
+                })
+            })
+        }
+
+        val assistantMessage = buildAssistantToolMessage(message)
+
+        assertEquals("thinking trace", assistantMessage["reasoning_content"]?.jsonPrimitive?.content)
     }
 }

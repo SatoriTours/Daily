@@ -2,12 +2,14 @@ package com.dailysatori.ui.feature.aichat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.service.mcp.McpSearchResult
 import com.dailysatori.service.mcp.SearchResultOpenTarget
 import com.dailysatori.service.mcp.searchResultOpenTarget
+import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Book
 import com.dailysatori.shared.db.Book_viewpoint
 import com.dailysatori.shared.db.Diary
@@ -19,6 +21,7 @@ import kotlinx.coroutines.launch
 
 data class AiReferenceDetailState(
     val isLoading: Boolean = false,
+    val article: Article? = null,
     val diary: Diary? = null,
     val book: Book? = null,
     val viewpoint: Book_viewpoint? = null,
@@ -26,6 +29,7 @@ data class AiReferenceDetailState(
 )
 
 class AiReferenceDetailViewModel(
+    private val articleRepo: ArticleRepository,
     private val diaryRepo: DiaryRepository,
     private val bookRepo: BookRepository,
     private val viewpointRepo: BookViewpointRepository,
@@ -37,6 +41,7 @@ class AiReferenceDetailViewModel(
         _state.value = AiReferenceDetailState(isLoading = true)
         viewModelScope.launch(Dispatchers.IO) {
             _state.value = when (searchResultOpenTarget(result.type)) {
+                SearchResultOpenTarget.Article -> loadArticle(result.id)
                 SearchResultOpenTarget.Diary -> loadDiary(result.id)
                 SearchResultOpenTarget.Book -> loadBook(result.id)
                 else -> AiReferenceDetailState(error = MISSING_CONTENT_MESSAGE)
@@ -54,6 +59,15 @@ class AiReferenceDetailViewModel(
             AiReferenceDetailState(error = MISSING_CONTENT_MESSAGE)
         } else {
             AiReferenceDetailState(diary = diary)
+        }
+    }
+
+    private fun loadArticle(id: Long): AiReferenceDetailState {
+        val article = articleRepo.getById(id)
+        return if (article == null) {
+            AiReferenceDetailState(error = MISSING_CONTENT_MESSAGE)
+        } else {
+            AiReferenceDetailState(article = article)
         }
     }
 

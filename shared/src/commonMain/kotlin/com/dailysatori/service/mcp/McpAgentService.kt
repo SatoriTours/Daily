@@ -73,6 +73,7 @@ class McpAgentService(
             })
 
             val tools = toolRegistry.buildToolDefinitions()
+            val privacyMasker = PrivacyMasker()
             val apiUrl = config.api_address.trimEnd('/')
             val apiToken = config.api_token
             val modelName = config.model_name
@@ -104,8 +105,8 @@ class McpAgentService(
 
                 if (toolCalls != null && toolCalls.isNotEmpty()) {
                     updateStep("正在查询数据...", "processing")
-                    messages.add(buildAssistantMessage(message, toolCalls))
-                    executeToolCalls(toolCalls, messages, collectedResults)
+                    messages.add(buildAssistantToolMessage(message))
+                    executeToolCalls(toolCalls, messages, collectedResults, privacyMasker)
                     updateStep("正在生成回答...", "processing")
                 } else {
                     finalAnswer = message["content"]?.jsonPrimitive?.contentOrNull
@@ -121,8 +122,9 @@ class McpAgentService(
             }
 
             val filteredResults = filterRelevantResults(collectedResults, finalAnswer ?: "")
-            val cleanAnswer = removeRefsTag(finalAnswer ?: buildFallbackAnswer(query, collectedResults))
-            McpAgentResult(answer = cleanAnswer, searchResults = filteredResults)
+            val preciseResults = preciseSearchResultsForQuery(query, filteredResults)
+            val cleanAnswer = privacyMasker.restore(removeRefsTag(finalAnswer ?: buildFallbackAnswer(query, collectedResults)))
+            McpAgentResult(answer = cleanAnswer, searchResults = preciseResults)
         } catch (e: Exception) {
             log.e(e) { "MCP Agent processing failed" }
             if (currentStepName != null) onStep(currentStepName!!, "error")
@@ -134,17 +136,11 @@ class McpAgentService(
         }
     }
 
-    private fun buildAssistantMessage(message: JsonObject, toolCalls: kotlinx.serialization.json.JsonArray): JsonObject =
-        buildJsonObject {
-            put("role", "assistant")
-            put("content", message["content"]?.jsonPrimitive?.contentOrNull ?: "")
-            put("tool_calls", toolCalls)
-        }
-
     private suspend fun executeToolCalls(
         toolCalls: kotlinx.serialization.json.JsonArray,
         messages: MutableList<JsonObject>,
         collectedResults: MutableList<McpSearchResult>,
+        privacyMasker: PrivacyMasker,
     ) {
         for (toolCall in toolCalls) {
             val tc = toolCall.jsonObject
@@ -163,7 +159,7 @@ class McpAgentService(
             messages.add(buildJsonObject {
                 put("role", "tool")
                 put("tool_call_id", toolCallId)
-                put("content", resultContent)
+                put("content", privacyMasker.mask(resultContent))
             })
         }
     }
@@ -273,6 +269,8 @@ class McpAgentService(
 
 ### 综合
 - `get_statistics`: 获取应用数据统计
+- `query_local_database`: 用只读 SQL 查询本地数据库。适合回答关于“我的数据”的统计、趋势、频率、排序、聚合问题，例如多久写一篇日记、哪个月最活跃、哪本书观点最多。必须只生成 SELECT，并提供 columns 数组。
+- `search_web_with_mcp`: 通过已启用的远程 MCP 联网搜索/读取外部资料。适合解释日记、文章或书籍里出现的外部概念、最新进展和背景知识。
 
 ### 记忆相关
 - `search_memory`: 搜索你的记忆库（包含核心偏好、内容摘要、对话记忆）。可用于查找你的偏好、过去的内容要点等
@@ -296,6 +294,15 @@ class McpAgentService(
 <!-- refs: article_123, diary_456, book_789 -->
 ```
 如果没有引用任何内容，标注 `<!-- refs: none -->`
+
+## 工具选择策略
+- 问“我的/我写的/我的文章/我的日记/我的读书/多久/频率/最多/趋势/统计”时，优先使用 `query_local_database`，直接基于 SQL 结果回答，不要把原始记录列表当作答案。
+- 问“这个概念是什么/网上怎么说/最新资料/外部解释/继续解释某个概念”时，优先使用 `search_web_with_mcp`。
+- 如果问题既涉及用户本地内容又涉及外部概念，先用本地工具找到上下文，再用 `search_web_with_mcp` 补充外部解释。
+- 统计类 SQL 结果通常不需要逐条本地引用；如果没有具体引用，使用 `<!-- refs: none -->`。
+
+## 本地 SQL 可用 Schema
+${localSqlToolSchemaText()}
 
 当前时间: $currentTime
 """
@@ -529,4 +536,10 @@ $message
             }
         } catch (_: Exception) { emptyList() }
     }
+}
+
+fun buildAssistantToolMessage(message: JsonObject): JsonObject = buildJsonObject {
+    message.forEach { (key, value) -> put(key, value) }
+    put("role", JsonPrimitive("assistant"))
+    if (message["content"] == null) put("content", JsonPrimitive(""))
 }
