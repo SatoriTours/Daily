@@ -1,7 +1,12 @@
 package com.dailysatori
 
+import androidx.work.OutOfQuotaPolicy
+import com.dailysatori.core.worker.buildArticleSaveWorkRequest
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class AppUrlIntakeTest {
     @Test
@@ -76,6 +81,25 @@ class AppUrlIntakeTest {
     fun shareReceiverMessagesUseToastText() {
         assertEquals("已开始保存文章", shareSaveStartedToastMessage())
         assertEquals("未找到链接", shareInvalidUrlToastMessage())
+    }
+
+    @Test
+    fun shareSaveWorkRunsAsExpeditedUserInitiatedBackgroundWork() {
+        val request = buildArticleSaveWorkRequest(
+            url = "https://example.com/a",
+            normalizedUrl = "https://example.com/a",
+        )
+
+        assertEquals(true, request.workSpec.expedited)
+        assertEquals(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST, request.workSpec.outOfQuotaPolicy)
+    }
+
+    @Test
+    fun articleProcessingWorkerDoesNotStartForegroundServiceInsideDoWork() {
+        val source = File("src/main/kotlin/com/dailysatori/core/worker/ArticleProcessingWorker.kt").readText()
+
+        assertTrue(source.contains("override suspend fun getForegroundInfo(): ForegroundInfo"))
+        assertFalse(source.contains("setForeground(createForegroundInfo())"))
     }
 
     @Test

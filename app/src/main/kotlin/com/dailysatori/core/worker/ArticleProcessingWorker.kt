@@ -10,6 +10,8 @@ import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OneTimeWorkRequest
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -23,15 +25,7 @@ class ArticleProcessingScheduler(private val context: Context) {
         val normalizedUrl = normalizeArticleUrl(url)
         if (normalizedUrl.isBlank()) return
         markSavePending(normalizedUrl)
-        val request = OneTimeWorkRequestBuilder<ArticleProcessingWorker>()
-            .setInputData(
-                workDataOf(
-                    ArticleProcessingWorker.KEY_MODE to ArticleProcessingWorker.MODE_SAVE,
-                    ArticleProcessingWorker.KEY_URL to url,
-                    ArticleProcessingWorker.KEY_NORMALIZED_URL to normalizedUrl,
-                ),
-            )
-            .build()
+        val request = buildArticleSaveWorkRequest(url, normalizedUrl)
         WorkManager.getInstance(context).enqueueUniqueWork(
             saveWorkName(normalizedUrl),
             ExistingWorkPolicy.KEEP,
@@ -74,12 +68,26 @@ class ArticleProcessingScheduler(private val context: Context) {
     }
 }
 
+internal fun buildArticleSaveWorkRequest(url: String, normalizedUrl: String): OneTimeWorkRequest {
+    return OneTimeWorkRequestBuilder<ArticleProcessingWorker>()
+        .setInputData(
+            workDataOf(
+                ArticleProcessingWorker.KEY_MODE to ArticleProcessingWorker.MODE_SAVE,
+                ArticleProcessingWorker.KEY_URL to url,
+                ArticleProcessingWorker.KEY_NORMALIZED_URL to normalizedUrl,
+            ),
+        )
+        .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+        .build()
+}
+
 class ArticleProcessingWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
+    override suspend fun getForegroundInfo(): ForegroundInfo = createForegroundInfo()
+
     override suspend fun doWork(): Result {
-        setForeground(createForegroundInfo())
         val parser = GlobalContext.get().get<WebpageParserService>()
         return try {
             when (inputData.getString(KEY_MODE)) {
