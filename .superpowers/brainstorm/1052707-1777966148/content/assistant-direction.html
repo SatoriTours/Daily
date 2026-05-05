@@ -1,0 +1,33 @@
+<h2>AI 助手的近期定位</h2>
+<p class="subtitle">先确定这个入口的体验重心，再决定聊天状态、历史、暂停、刷新这些交互怎么落地。</p>
+
+<div class="options">
+  <div class="option" data-choice="knowledge" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>知识库问答助手</h3>
+      <p>优先修好稳定回答、引用来源、历史保留、失败重试。适合把它做成个人知识检索入口。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="action" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>个人行动助理</h3>
+      <p>除问答外，更强调继续追问、整理任务、生成计划、把回答转成行动。</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>综合个人助手</h3>
+      <p>近期先把聊天基础体验做扎实，同时为记忆、工具、插件、行动能力预留入口。我倾向这个方向。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="label">当前已发现的问题</p>
+  <p>现在代码里“刷新”实际是删除当前会话；发送时输入框被禁用，没有取消/暂停；AI 回复如果为空仍会渲染一个 assistant 气泡，所以会出现深色空块。</p>
+</div>
