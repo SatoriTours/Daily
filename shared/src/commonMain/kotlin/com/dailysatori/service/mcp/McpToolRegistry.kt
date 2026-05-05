@@ -341,23 +341,6 @@ class McpToolRegistry(
 
     // --- Helpers ---
 
-    private fun successResult(vararg pairs: Pair<String, JsonElement>): McpToolResult {
-        val obj = buildJsonObject {
-            put("success", true)
-            for ((key, value) in pairs) { put(key, value) }
-            val countFields = setOf("diaries", "articles", "books", "viewpoints", "notes")
-            for ((key, value) in pairs) {
-                if (key in countFields && value is JsonArray) put("count", value.size)
-            }
-        }
-        return McpToolResult(true, obj)
-    }
-
-    private fun errorResult(message: String): McpToolResult {
-        val obj = buildJsonObject { put("success", false); put("error", message) }
-        return McpToolResult(false, obj)
-    }
-
     private fun intParam(args: JsonObject, key: String, default: Int): Int =
         args[key]?.jsonPrimitive?.intOrNull ?: default
 
@@ -366,46 +349,6 @@ class McpToolRegistry(
 
     private fun longParam(args: JsonObject, key: String): Long? =
         args[key]?.jsonPrimitive?.longOrNull
-
-    private fun diaryListToJson(diaries: List<Diary>): JsonArray = JsonArray(diaries.map { diary ->
-        buildJsonObject {
-            put("id", diary.id)
-            put("content", truncate(diary.content, 500))
-            put("tags", diary.tags ?: "")
-            put("mood", diary.mood ?: "")
-            put("createdAt", formatDate(diary.created_at))
-        }
-    })
-
-    private fun articleListToJson(articles: List<Article>): JsonArray = JsonArray(articles.map { article ->
-        buildJsonObject {
-            put("id", article.id)
-            put("title", article.ai_title ?: article.title ?: "无标题")
-            put("content", truncate(article.ai_content ?: "", 800))
-            put("comment", article.comment ?: "")
-            put("url", article.url ?: "")
-            put("isFavorite", article.is_favorite ?: 0L)
-            put("createdAt", formatDate(article.created_at))
-        }
-    })
-
-    private fun bookListToJson(books: List<Book>): JsonArray = JsonArray(books.map { book ->
-        buildJsonObject {
-            put("id", book.id)
-            put("title", book.title)
-            put("author", book.author)
-            put("category", book.category)
-            put("createdAt", formatDate(book.created_at))
-        }
-    })
-
-    private fun formatDate(timestampMs: Long): String {
-        val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(timestampMs)
-        return instant.toString().substring(0, 10)
-    }
-
-    private fun truncate(text: String, maxLen: Int): String =
-        if (text.length <= maxLen) text else text.substring(0, maxLen) + "..."
 
     private fun parseDate(dateStr: String): kotlinx.datetime.Instant? {
         return try {

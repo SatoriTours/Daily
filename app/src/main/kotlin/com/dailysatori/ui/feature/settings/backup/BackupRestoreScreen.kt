@@ -1,4 +1,4 @@
-package com.dailysatori.ui.feature.settings
+package com.dailysatori.ui.feature.settings.backup
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions

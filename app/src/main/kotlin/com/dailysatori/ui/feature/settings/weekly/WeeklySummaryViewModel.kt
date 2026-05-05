@@ -1,4 +1,4 @@
-package com.dailysatori.ui.feature.settings
+package com.dailysatori.ui.feature.settings.weekly
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

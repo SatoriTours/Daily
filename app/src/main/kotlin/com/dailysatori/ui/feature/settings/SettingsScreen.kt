@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDownload
@@ -25,8 +24,6 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,8 +46,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.component.settings.SettingsRow
+import com.dailysatori.ui.component.settings.SettingsSectionCard
 import com.dailysatori.ui.feature.aiconfig.AiConfigScreen
-import com.dailysatori.ui.theme.Radius
+import com.dailysatori.ui.feature.settings.backup.BackupRestoreScreen
+import com.dailysatori.ui.feature.settings.backup.BackupSettingsScreen
+import com.dailysatori.ui.feature.settings.importing.DataImportScreen
+import com.dailysatori.ui.feature.settings.mcp.McpServerScreen
+import com.dailysatori.ui.feature.settings.plugin.PluginCenterScreen
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
@@ -185,8 +187,7 @@ private fun SettingsList(
 
 @Composable
 private fun AiServicesSection(onNavigate: (SettingsPage) -> Unit) {
-    Text("AI 与服务", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-    Card(shape = RoundedCornerShape(Radius.m), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    SettingsSectionCard("AI 与服务") {
         SettingsRow(Icons.Default.Star, "AI 配置", "管理模型服务商与 API 密钥", onClick = { onNavigate(SettingsPage.AI_CONFIG) })
         SettingsRow(Icons.Default.Hub, "MCP 服务", "管理外部工具服务连接", onClick = { onNavigate(SettingsPage.MCP_SERVER) })
         SettingsRow(Icons.Default.Settings, "插件中心", "管理 AI 提示词插件", onClick = { onNavigate(SettingsPage.PLUGIN_CENTER) })
@@ -195,8 +196,7 @@ private fun AiServicesSection(onNavigate: (SettingsPage) -> Unit) {
 
 @Composable
 private fun NetworkSection(state: SettingsState, viewModel: SettingsViewModel) {
-    Text("网络与同步", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-    Card(shape = RoundedCornerShape(Radius.m), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    SettingsSectionCard("网络与同步") {
         WebServerRow(state, viewModel)
         if (state.webServerToken.isNotEmpty()) ApiTokenRow(state, viewModel)
         SettingsRow(
@@ -241,8 +241,7 @@ private fun ApiTokenRow(state: SettingsState, viewModel: SettingsViewModel) {
 
 @Composable
 private fun DataSection(onNavigate: (SettingsPage) -> Unit) {
-    Text("数据管理", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-    Card(shape = RoundedCornerShape(Radius.m), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    SettingsSectionCard("数据管理") {
         SettingsRow(Icons.Default.Save, "备份与恢复", "管理数据备份与还原", onClick = { onNavigate(SettingsPage.BACKUP_SETTINGS) })
         SettingsRow(Icons.Default.FileDownload, "导入数据", "从 Flutter 版本迁移数据", onClick = { onNavigate(SettingsPage.DATA_IMPORT) })
         SettingsRow(Icons.Default.CloudDownload, "下载图片", "下载文章图片到本地", onClick = {})

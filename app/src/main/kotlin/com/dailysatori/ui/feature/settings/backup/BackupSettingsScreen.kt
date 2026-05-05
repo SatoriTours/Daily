@@ -1,4 +1,4 @@
-package com.dailysatori.ui.feature.settings
+package com.dailysatori.ui.feature.settings.backup
 
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult

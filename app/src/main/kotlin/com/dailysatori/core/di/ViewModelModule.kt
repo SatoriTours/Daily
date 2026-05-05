@@ -25,16 +25,17 @@ import com.dailysatori.ui.feature.aichat.AiReferenceDetailViewModel
 import com.dailysatori.ui.feature.aiconfig.AiConfigViewModel
 import com.dailysatori.ui.feature.article.ArticleDetailViewModel
 import com.dailysatori.ui.feature.article.ArticlesViewModel
-import com.dailysatori.ui.feature.settings.BackupRestoreViewModel
-import com.dailysatori.ui.feature.settings.BackupSettingsViewModel
+import com.dailysatori.ui.feature.settings.backup.BackupRestoreViewModel
+import com.dailysatori.ui.feature.settings.backup.BackupSettingsViewModel
 import com.dailysatori.ui.feature.book.BookSearchViewModel
 import com.dailysatori.ui.feature.book.BookContentSearchViewModel
 import com.dailysatori.ui.feature.book.BooksViewModel
 import com.dailysatori.ui.feature.diary.DiaryViewModel
-import com.dailysatori.ui.feature.settings.PluginCenterViewModel
+import com.dailysatori.ui.feature.settings.plugin.PluginCenterViewModel
 import com.dailysatori.ui.feature.settings.SettingsViewModel
+import com.dailysatori.ui.feature.settings.mcp.McpServerViewModel
 import com.dailysatori.ui.feature.share.ShareDialogViewModel
-import com.dailysatori.ui.feature.settings.WeeklySummaryViewModel
+import com.dailysatori.ui.feature.settings.weekly.WeeklySummaryViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -142,4 +143,5 @@ val viewModelModule: Module = module {
             appUpgradeService = get<AppUpgradeService>(),
         )
     }
+    viewModel { McpServerViewModel(get()) }
 }

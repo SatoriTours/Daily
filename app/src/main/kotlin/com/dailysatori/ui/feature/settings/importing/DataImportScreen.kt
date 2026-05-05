@@ -1,4 +1,4 @@
-package com.dailysatori.ui.feature.settings
+package com.dailysatori.ui.feature.settings.importing
 
 import android.content.Context
 import android.net.Uri

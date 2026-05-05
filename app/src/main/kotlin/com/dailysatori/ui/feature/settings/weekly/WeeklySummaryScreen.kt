@@ -1,4 +1,4 @@
-package com.dailysatori.ui.feature.settings
+package com.dailysatori.ui.feature.settings.weekly
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column

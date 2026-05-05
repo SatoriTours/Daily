@@ -1,4 +1,4 @@
-package com.dailysatori.ui.feature.settings
+package com.dailysatori.ui.feature.settings.mcp
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,6 +34,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,39 +50,32 @@ import com.dailysatori.config.McpTemplate
 import com.dailysatori.config.McpTemplateType
 import com.dailysatori.config.filterNewMcpTemplates
 import com.dailysatori.config.mcpProviders
-import com.dailysatori.config.mcpTemplateDisplayName
-import com.dailysatori.config.renderMcpConfigJson
-import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.shared.db.Mcp_server
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.koin.mp.KoinPlatform
+import org.koin.androidx.compose.koinViewModel
 
 internal enum class McpScreenMode { LIST, PRESET_ADD, MANUAL_ADD }
-
-internal data class McpBatchSaveResult(val added: Int, val skipped: Int)
 
 @Composable
 fun McpServerScreen(
     onBack: () -> Unit = {},
 ) {
-    val scope = rememberCoroutineScope()
-    val repo = remember { KoinPlatform.getKoin().get<McpServerRepository>() }
-    var servers by remember { mutableStateOf<List<Mcp_server>>(emptyList()) }
+    val viewModel: McpServerViewModel = koinViewModel()
+    val state by viewModel.state.collectAsState()
     var mode by remember { mutableStateOf(McpScreenMode.LIST) }
     var showEdit by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(Unit) {
-        repo.getAll().collect { servers = it }
+        viewModel.observeServers()
     }
 
     if (showEdit != null) {
         McpServerEditScreen(
+            viewModel = viewModel,
+            state = state,
             serverId = showEdit,
             onBack = { showEdit = null },
         )
@@ -91,8 +85,9 @@ fun McpServerScreen(
     when (mode) {
         McpScreenMode.PRESET_ADD -> {
             McpServerPresetAddScreen(
-                repo = repo,
-                existingServerUrls = servers.map { it.server_url }.toSet(),
+                viewModel = viewModel,
+                state = state,
+                existingServerUrls = state.servers.map { it.server_url }.toSet(),
                 onBack = { mode = McpScreenMode.LIST },
                 onManualAdd = { mode = McpScreenMode.MANUAL_ADD },
             )
@@ -100,6 +95,8 @@ fun McpServerScreen(
         }
         McpScreenMode.MANUAL_ADD -> {
             McpServerEditScreen(
+                viewModel = viewModel,
+                state = state,
                 serverId = -1L,
                 onBack = { mode = McpScreenMode.LIST },
             )
@@ -120,7 +117,7 @@ fun McpServerScreen(
             }
         },
     ) { modifier ->
-        if (servers.isEmpty()) {
+        if (state.servers.isEmpty()) {
             Column(
                 modifier = modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Center,
@@ -136,7 +133,7 @@ fun McpServerScreen(
                 contentPadding = PaddingValues(Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.s),
             ) {
-                items(servers, key = { it.id }) { server ->
+                items(state.servers, key = { it.id }) { server ->
                     Card(
                         onClick = { showEdit = server.id },
                         shape = RoundedCornerShape(Radius.m),
@@ -160,9 +157,7 @@ fun McpServerScreen(
                             Switch(
                                 checked = server.enabled == 1L,
                                 onCheckedChange = { enabled ->
-                                    scope.launch(Dispatchers.IO) {
-                                        repo.update(server.id, server.name, server.server_url, server.api_key, if (enabled) 1L else 0L)
-                                    }
+                                    viewModel.toggleServerEnabled(server, enabled)
                                 },
                             )
                         }
@@ -176,7 +171,8 @@ fun McpServerScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun McpServerPresetAddScreen(
-    repo: McpServerRepository,
+    viewModel: McpServerViewModel,
+    state: McpServerUiState,
     existingServerUrls: Set<String>,
     onBack: () -> Unit,
     onManualAdd: () -> Unit,
@@ -186,11 +182,17 @@ private fun McpServerPresetAddScreen(
     var providerExpanded by remember { mutableStateOf(false) }
     var apiKey by remember { mutableStateOf("") }
     var selectedTemplateIds by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var isSaving by remember { mutableStateOf(false) }
     var saveMessage by remember { mutableStateOf<String?>(null) }
     val groupedTemplates = selectedProvider?.let { selectableMcpTemplatesByType(it, existingServerUrls) }.orEmpty()
     val selectedTemplates = groupedTemplates.values.flatten().filter { it.id in selectedTemplateIds }
-    val canSave = selectedProvider != null && apiKey.isNotBlank() && selectedTemplates.isNotEmpty() && !isSaving
+    val canSave = selectedProvider != null && apiKey.isNotBlank() && selectedTemplates.isNotEmpty() && !state.isSaving
+
+    LaunchedEffect(state.error) {
+        if (state.error != null) {
+            saveMessage = mcpBatchSaveFailureMessage()
+            viewModel.clearError()
+        }
+    }
 
     AppScaffold(
         title = "添加 MCP 服务",
@@ -198,23 +200,15 @@ private fun McpServerPresetAddScreen(
         bottomBar = {
             McpPresetAddActions(
                 canSave = canSave,
-                isSaving = isSaving,
+                isSaving = state.isSaving,
                 onManualAdd = onManualAdd,
                 onSave = {
                     val provider = selectedProvider ?: return@McpPresetAddActions
                     scope.launch {
-                        isSaving = true
-                        try {
-                            val result = withContext(Dispatchers.IO) {
-                                saveSelectedMcpTemplates(repo, provider, selectedTemplates, apiKey)
-                            }
+                        val result = viewModel.saveSelectedTemplates(provider, selectedTemplates, apiKey)
+                        if (result != null) {
                             saveMessage = mcpBatchSaveResultMessage(result)
                             selectedTemplateIds = emptySet()
-                        } catch (error: Exception) {
-                            if (error is CancellationException) throw error
-                            saveMessage = mcpBatchSaveFailureMessage()
-                        } finally {
-                            isSaving = false
                         }
                     }
                 },
@@ -234,9 +228,10 @@ private fun McpServerPresetAddScreen(
                 selectedProvider = provider
                 selectedTemplateIds = emptySet()
                 saveMessage = null
+                viewModel.clearError()
                 providerExpanded = false
             },
-            onApiKeyChange = { apiKey = it; saveMessage = null },
+            onApiKeyChange = { apiKey = it; saveMessage = null; viewModel.clearError() },
             onSelectionChange = { selectedTemplateIds = it },
         )
     }
@@ -395,51 +390,22 @@ internal fun mcpBatchSaveResultMessage(result: McpBatchSaveResult): String =
 
 internal fun mcpBatchSaveFailureMessage(): String = "添加 MCP 失败，请稍后重试"
 
-private fun saveSelectedMcpTemplates(
-    repo: McpServerRepository,
-    provider: McpProvider,
-    templates: List<McpTemplate>,
-    apiKey: String,
-): McpBatchSaveResult {
-    var added = 0
-    var skipped = 0
-    templates.forEach { template ->
-        if (repo.getByServerUrl(template.serverUrl) != null) {
-            skipped += 1
-        } else {
-            repo.insertPreset(
-                name = mcpTemplateDisplayName(provider, template),
-                serverUrl = template.serverUrl,
-                apiKey = apiKey,
-                provider = provider.id,
-                templateId = template.id,
-                templateType = template.type.name.lowercase(),
-                configJson = renderMcpConfigJson(template),
-            )
-            added += 1
-        }
-    }
-    return McpBatchSaveResult(added = added, skipped = skipped)
-}
-
 @Composable
 private fun McpServerEditScreen(
+    viewModel: McpServerViewModel,
+    state: McpServerUiState,
     serverId: Long?,
     onBack: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val repo = remember { KoinPlatform.getKoin().get<McpServerRepository>() }
-
     var name by remember { mutableStateOf("") }
     var serverUrl by remember { mutableStateOf("") }
     var apiKey by remember { mutableStateOf("") }
     var enabled by remember { mutableStateOf(true) }
-    var isSaving by remember { mutableStateOf(false) }
 
     LaunchedEffect(serverId) {
         if (serverId != null && serverId > 0) {
-            val server = repo.getById(serverId)
-            if (server != null) {
+            viewModel.loadServer(serverId) { server ->
                 name = server.name
                 serverUrl = server.server_url
                 apiKey = server.api_key
@@ -460,24 +426,14 @@ private fun McpServerEditScreen(
                 Button(
                     onClick = {
                         scope.launch {
-                            isSaving = true
-                            try {
-                                withContext(Dispatchers.IO) {
-                                    if (serverId != null && serverId > 0) {
-                                        repo.update(serverId, name, serverUrl, apiKey, if (enabled) 1L else 0L)
-                                    } else {
-                                        repo.insert(name, serverUrl, apiKey, if (enabled) 1L else 0L)
-                                    }
-                                }
-                            } finally {
-                                isSaving = false
+                            if (viewModel.saveServer(serverId, name, serverUrl, apiKey, enabled)) {
                                 onBack()
                             }
                         }
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = !isSaving && name.isNotBlank() && serverUrl.isNotBlank(),
-                ) { Text(if (isSaving) "保存中..." else "保存") }
+                    enabled = !state.isSaving && name.isNotBlank() && serverUrl.isNotBlank(),
+                ) { Text(if (state.isSaving) "保存中..." else "保存") }
             }
         },
     ) { modifier ->
@@ -486,6 +442,15 @@ private fun McpServerEditScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
             contentPadding = PaddingValues(vertical = Spacing.m),
         ) {
+            state.error?.let { error ->
+                item {
+                    Text(
+                        text = error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
             item {
                 Column {
                     Text("服务名称", style = MaterialTheme.typography.labelMedium)
