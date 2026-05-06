@@ -83,8 +83,8 @@ jobs:
           APK_PATH: app/build/outputs/apk/release/app-release.apk
         run: |
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" --title "$RELEASE_NAME" --notes "$RELEASE_BODY" --latest
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_NAME" --notes "$RELEASE_BODY" --draft=false
           else
-            gh release create "$RELEASE_TAG" --title "$RELEASE_NAME" --notes "$RELEASE_BODY" --latest
+            gh release create "$RELEASE_TAG" --title "$RELEASE_NAME" --notes "$RELEASE_BODY"
           fi
           gh release upload "$RELEASE_TAG" "$APK_PATH#daily-satori-${RELEASE_TAG}.apk" --clobber
