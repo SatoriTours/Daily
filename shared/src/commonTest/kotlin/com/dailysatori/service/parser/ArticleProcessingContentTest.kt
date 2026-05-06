@@ -39,6 +39,18 @@ class ArticleProcessingContentTest {
     }
 
     @Test
+    fun fallsBackToExtractedContentWhenSummaryGenerationIsBlank() {
+        assertEquals(
+            "网页正文",
+            generatedSummaryOrFallback("", existing = null, extractedContent = "网页正文"),
+        )
+        assertEquals(
+            "old summary",
+            generatedSummaryOrFallback("", existing = "old summary", extractedContent = "网页正文"),
+        )
+    }
+
+    @Test
     fun rejectsBlankGeneratedOutputWhenNoExistingContentExists() {
         assertFailsWith<IllegalStateException> {
             generatedOrExisting("", null, "summary")
@@ -52,12 +64,13 @@ class ArticleProcessingContentTest {
         assertEquals(true, prompt.contains("# 标题"))
         assertEquals(true, prompt.contains("## 核心内容"))
         assertEquals(true, prompt.contains("## 核心观点"))
-        assertEquals(true, prompt.contains("COVER_IMAGE_URL"))
         assertEquals(true, prompt.contains("15-25 字"))
         assertEquals(true, prompt.contains("50-80 字"))
         assertEquals(true, prompt.contains("2-5 个"))
         assertEquals(true, prompt.contains("越少越好"))
         assertEquals(true, prompt.contains("不要使用代码块包裹"))
+        assertEquals(false, prompt.contains("网页 HTML"))
+        assertEquals(false, prompt.contains("COVER_IMAGE_URL"))
     }
 
     @Test
@@ -122,6 +135,22 @@ class ArticleProcessingContentTest {
     }
 
     @Test
+    fun articleSummaryInputUsesExtractedTextInsteadOfFullHtml() {
+        val html = "<html>${"x".repeat(20_000)}</html>"
+        val extracted = ExtractedContent(
+            title = "标题",
+            content = "正文内容".repeat(4_000),
+            htmlContent = html,
+            coverImageUrl = null,
+        )
+
+        val input = articleSummaryInput(extracted, "gpt-5")
+
+        assertEquals(10_000, input.length)
+        assertEquals(false, input.contains("<html>"))
+    }
+
+    @Test
     fun onlyInterruptedArticleStatusesAreRecoverable() {
         assertEquals(true, isRecoverableArticleStatus("pending"))
         assertEquals(true, isRecoverableArticleStatus("webContentFetched"))
@@ -172,6 +201,26 @@ class ArticleProcessingContentTest {
 
         assertEquals(
             "https://example.com/article/main.jpg",
+            extractCoverImageUrl(html, "https://example.com/posts/123"),
+        )
+    }
+
+    @Test
+    fun skipsPlaceholderAndBlankImagesWhenChoosingCover() {
+        val html = """
+            <html>
+              <head>
+                <meta property="og:image" content="https://example.com/default-placeholder.jpg" />
+              </head>
+              <body>
+                <img src="https://example.com/blank.png" width="1200" height="800" />
+                <img src="https://example.com/article-cover.jpg" width="640" height="360" />
+              </body>
+            </html>
+        """.trimIndent()
+
+        assertEquals(
+            "https://example.com/article-cover.jpg",
             extractCoverImageUrl(html, "https://example.com/posts/123"),
         )
     }

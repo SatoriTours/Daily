@@ -62,7 +62,13 @@ private fun String.shouldSkipImage(): Boolean {
 }
 
 private fun String.hasSkippedKeyword(): Boolean {
-    return contains("logo", ignoreCase = true) || contains("avatar", ignoreCase = true) || contains("icon", ignoreCase = true)
+    return contains("logo", ignoreCase = true) ||
+        contains("avatar", ignoreCase = true) ||
+        contains("icon", ignoreCase = true) ||
+        contains("placeholder", ignoreCase = true) ||
+        contains("default", ignoreCase = true) ||
+        contains("blank", ignoreCase = true) ||
+        contains("transparent", ignoreCase = true)
 }
 
 private fun String.toAbsoluteUrl(sourceUrl: String?): String {

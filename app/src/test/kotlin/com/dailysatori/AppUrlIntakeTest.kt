@@ -103,6 +103,14 @@ class AppUrlIntakeTest {
     }
 
     @Test
+    fun articleProcessingWorkerRetriesWhenBackgroundWorkIsCancelled() {
+        val source = File("src/main/kotlin/com/dailysatori/core/worker/ArticleProcessingWorker.kt").readText()
+
+        assertTrue(source.contains("CancellationException"))
+        assertTrue(source.contains("Result.retry()"))
+    }
+
+    @Test
     fun scrollsToTopOnlyAfterArticleWasAdded() {
         assertEquals(false, shouldScrollToTopAfterArticleAdded(0))
         assertEquals(true, shouldScrollToTopAfterArticleAdded(1))

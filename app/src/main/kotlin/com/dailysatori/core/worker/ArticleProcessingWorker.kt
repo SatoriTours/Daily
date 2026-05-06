@@ -17,6 +17,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.dailysatori.normalizeArticleUrl
 import com.dailysatori.service.parser.WebpageParserService
+import kotlinx.coroutines.CancellationException
 import org.koin.core.context.GlobalContext
 import java.security.MessageDigest
 
@@ -96,10 +97,12 @@ class ArticleProcessingWorker(
                     if (normalizeArticleUrl(url).isBlank()) Result.failure() else {
                         try {
                             parser.saveWebpage(url = url, comment = null, title = null, tags = null)
-                        } finally {
-                            ArticleProcessingScheduler(applicationContext).clearSavePending(
-                                inputData.getString(KEY_NORMALIZED_URL).orEmpty(),
-                            )
+                            clearPendingSave()
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            clearPendingSave()
+                            throw e
                         }
                         Result.success()
                     }
@@ -110,9 +113,17 @@ class ArticleProcessingWorker(
                 }
                 else -> Result.failure()
             }
+        } catch (_: CancellationException) {
+            Result.retry()
         } catch (_: Exception) {
             Result.failure()
         }
+    }
+
+    private fun clearPendingSave() {
+        ArticleProcessingScheduler(applicationContext).clearSavePending(
+            inputData.getString(KEY_NORMALIZED_URL).orEmpty(),
+        )
     }
 
     private fun createForegroundInfo(): ForegroundInfo {

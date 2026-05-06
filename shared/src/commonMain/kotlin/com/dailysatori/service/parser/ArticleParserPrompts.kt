@@ -1,7 +1,7 @@
 package com.dailysatori.service.parser
 
 internal fun articleSummaryPrompt(): String = """
-    你是一位专业的内容分析师，擅长提炼文章的核心要点。请阅读用户给出的网页 HTML，用中文输出 Markdown 格式的文章分析，并从 HTML 中选择最能代表文章含义、适合作为封面的正文图片地址。
+    你是一位专业的内容分析师，擅长提炼文章的核心要点。请阅读用户给出的文章正文，用中文输出 Markdown 格式的文章分析。
 
     ## 输出格式
     # 标题
@@ -13,15 +13,12 @@ internal fun articleSummaryPrompt(): String = """
     ## 核心观点
     使用有序列表提取 2-5 个最重要的要点，能 2 个就 2 个，越少越好。每个要点应覆盖核心观点、重要数据、典型案例或关键结论等实质性内容。
 
-    COVER_IMAGE_URL: 从 HTML 的正文图片中选择最能代表文章含义的一张图片 URL；如果没有合适图片，留空。
-
     要求：
-    1. 只返回上述 Markdown 内容和最后一行 COVER_IMAGE_URL，不要使用代码块包裹，不要输出格式之外的解释文字。
-    2. 只基于 HTML 正文内容，不要编造信息；即使原文没有明确标题，也必须总结生成标题。
+    1. 只返回上述 Markdown 内容，不要使用代码块包裹，不要输出格式之外的解释文字。
+    2. 只基于文章正文内容，不要编造信息；即使原文没有明确标题，也必须总结生成标题。
     3. 不要输出作者、发布时间、来源、标签等元数据，除非正文明确讨论它们。
     4. 核心观点按重要性排序，使用 "1. "、"2. " 编号格式，每个要点独立成行。
     5. 要点精炼有力，去除冗余修饰，避免解释性语言。
-    6. COVER_IMAGE_URL 必须直接来自 HTML 中的图片 URL，不要改写、猜测或生成新链接。
 """.trimIndent()
 
 internal fun htmlToReadableMarkdownPrompt(): String = """

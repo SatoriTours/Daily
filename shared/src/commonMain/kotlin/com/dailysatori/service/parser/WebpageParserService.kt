@@ -79,6 +79,13 @@ internal fun generatedMarkdownOrFallback(generated: String, existing: String?, e
     return ""
 }
 
+internal fun generatedSummaryOrFallback(generated: String, existing: String?, extractedContent: String?): String {
+    if (generated.isNotBlank()) return generated
+    if (!existing.isNullOrBlank()) return existing
+    if (!extractedContent.isNullOrBlank()) return extractedContent.trim().take(AIConfig.maxSummaryLength)
+    throw IllegalStateException("AI summary generation returned empty result")
+}
+
 internal fun isRecoverableArticleStatus(status: String?): Boolean = when (status) {
     "pending", "webContentFetched", "aiProcessing" -> true
     else -> false
@@ -354,16 +361,16 @@ class WebpageParserService(
             var aiCoverImageUrl: String? = null
             try {
                 val summary = aiService.summarize(
-                    htmlForAiModel(htmlContent, modelName),
+                    articleSummaryInput(extracted, modelName),
                     articleSummaryPrompt(),
                     apiAddress, apiToken, modelName, provider,
                 )
                 val parsedSummary = parseArticleSummaryOutput(summary)
                 aiCoverImageUrl = validatedCoverImageUrl(parsedSummary.coverImageUrl, extracted?.imageUrls.orEmpty())
-                aiContent = generatedOrExisting(parsedSummary.summary, article.ai_content, "summary")
+                aiContent = generatedSummaryOrFallback(parsedSummary.summary, article.ai_content, extracted?.content)
             } catch (e: Exception) {
                 log.e(e) { "Summary generation failed" }
-                aiContent = generatedOrExisting("", article.ai_content, "summary")
+                aiContent = generatedSummaryOrFallback("", article.ai_content, extracted?.content)
             }
 
             val state3 = mutableMapOf<Long, ArticleProcessingState>()
@@ -684,6 +691,12 @@ internal fun validatedCoverImageUrl(candidate: String?, imageUrls: List<String>)
 internal fun htmlForAiModel(html: String, modelName: String, fallbackLimit: Int = 180_000): String {
     val limit = aiHtmlCharLimit(modelName, fallbackLimit)
     return if (html.length <= limit) html else html.take(limit)
+}
+
+internal fun articleSummaryInput(extracted: ExtractedContent?, modelName: String): String {
+    val textContent = extracted?.content?.trim().orEmpty()
+    if (textContent.isNotBlank()) return textContent.take(AIConfig.maxContentLength.toInt())
+    return htmlForAiModel(extracted?.htmlContent.orEmpty(), modelName)
 }
 
 private fun aiHtmlCharLimit(modelName: String, fallbackLimit: Int): Int {
