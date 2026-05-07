@@ -104,7 +104,7 @@ fun ArticleDetailScreen(
                     DropdownMenuItem(
                         text = { Text("刷新文章") },
                         leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) },
-                        enabled = !state.isRefreshing,
+                        enabled = canManuallyRefreshArticle(state.isRefreshing, state.article?.status),
                         onClick = {
                             showMenu = false
                             showRefreshConfirm = true

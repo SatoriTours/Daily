@@ -9,6 +9,7 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -30,15 +31,17 @@ class AiService(private val client: HttpClient) {
         temperature: Double = 0.5,
     ): String {
         val response = try {
-            langChainClient.complete(
-                prompt = prompt,
-                apiAddress = apiAddress.trim().trimEnd('/'),
-                apiToken = apiToken.trim(),
-                modelName = modelName.trim(),
-                provider = provider.trim(),
-                systemPrompt = systemPrompt,
-                temperature = temperature,
-            )
+            withTimeout(aiCompletionRequestTimeoutMillis()) {
+                langChainClient.complete(
+                    prompt = prompt,
+                    apiAddress = apiAddress.trim().trimEnd('/'),
+                    apiToken = apiToken.trim(),
+                    modelName = modelName.trim(),
+                    provider = provider.trim(),
+                    systemPrompt = systemPrompt,
+                    temperature = temperature,
+                )
+            }
         } catch (e: Exception) {
             log.e(e) { "AI completion failed" }
             throw e
@@ -176,3 +179,5 @@ fun openAiChatCompletionEndpoint(apiAddress: String): String {
 }
 
 fun aiChatRequestTimeoutMillis(): Long = 120_000L
+
+fun aiCompletionRequestTimeoutMillis(): Long = com.dailysatori.config.AIConfig.timeoutMs

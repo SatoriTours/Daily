@@ -1,16 +1,17 @@
 package com.dailysatori.service.parser
 
-private fun extractOgImageUrl(html: String): String? {
+private fun extractMetadataImageUrl(html: String): String? {
     val opts = setOf(RegexOption.IGNORE_CASE)
-    val ogImageRegex = Regex("""<meta[^>]*property\s*=\s*["']og:image["'][^>]*content\s*=\s*["']([^"']*)["']""", opts)
-    val ogImage2Regex = Regex("""<meta[^>]*content\s*=\s*["']([^"']*)["'][^>]*property\s*=\s*["']og:image["']""", opts)
-    return ogImageRegex.find(html)?.groupValues?.get(1)
-        ?: ogImage2Regex.find(html)?.groupValues?.get(1)
+    val names = "(?:og:image|og:image:secure_url|twitter:image|twitter:image:src)"
+    val imageRegex = Regex("""<meta[^>]*(?:property|name)\s*=\s*["']$names["'][^>]*content\s*=\s*["']([^"']*)["']""", opts)
+    val image2Regex = Regex("""<meta[^>]*content\s*=\s*["']([^"']*)["'][^>]*(?:property|name)\s*=\s*["']$names["']""", opts)
+    return imageRegex.find(html)?.groupValues?.get(1)
+        ?: image2Regex.find(html)?.groupValues?.get(1)
 }
 
 internal fun extractCoverImageUrl(html: String, sourceUrl: String? = null): String? {
     return extractLargestContentImgSrc(html, sourceUrl)
-        ?: extractOgImageUrl(html)?.takeUnless { it.hasSkippedKeyword() }?.normalizeTwitterImageUrl()
+        ?: extractMetadataImageUrl(html)?.takeUnless { it.hasSkippedKeyword() }?.toAbsoluteUrl(sourceUrl)?.normalizeTwitterImageUrl()
         ?: extractFirstImgSrc(html, sourceUrl)
 }
 
@@ -36,20 +37,48 @@ private fun extractLargestContentImgSrc(html: String, sourceUrl: String?): Strin
 }
 
 private fun extractFirstImgSrc(html: String, sourceUrl: String?): String? {
-    val imgRegex = Regex("""<img[^>]+src\s*=\s*["']([^"']+)["']""", setOf(RegexOption.IGNORE_CASE))
+    val imgRegex = Regex("""<img\b[^>]*>""", setOf(RegexOption.IGNORE_CASE))
     return imgRegex.findAll(html)
-        .map { it.groupValues[1] }
+        .mapNotNull { imageSrc(it.value) }
         .firstOrNull { !it.shouldSkipImage() && !it.hasSkippedKeyword() }
         ?.toAbsoluteUrl(sourceUrl)
         ?.normalizeTwitterImageUrl()
 }
 
 private fun imageCandidate(tag: String): ImageCandidate? {
-    val src = attrValue(tag, "src") ?: return null
+    val src = imageSrc(tag) ?: return null
     if (src.shouldSkipImage() || src.hasSkippedKeyword()) return null
     val width = attrValue(tag, "width")?.toLongOrNull() ?: 0L
     val height = attrValue(tag, "height")?.toLongOrNull() ?: 0L
     return ImageCandidate(src, width, height)
+}
+
+private fun imageSrc(tag: String): String? =
+    attrValue(tag, "data-src")
+        ?: attrValue(tag, "data-original")
+        ?: attrValue(tag, "data-lazy-src")
+        ?: bestSrcsetUrl(attrValue(tag, "data-srcset"))
+        ?: bestSrcsetUrl(attrValue(tag, "srcset"))
+        ?: attrValue(tag, "src")
+
+private fun bestSrcsetUrl(srcset: String?): String? {
+    if (srcset.isNullOrBlank()) return null
+    return srcset.split(',')
+        .mapNotNull { srcsetCandidate(it.trim()) }
+        .maxByOrNull { it.width }
+        ?.url
+}
+
+private fun srcsetCandidate(candidate: String): SrcsetCandidate? {
+    val parts = candidate.split(Regex("\\s+")).filter { it.isNotBlank() }
+    val url = parts.firstOrNull() ?: return null
+    if (url.shouldSkipImage() || url.hasSkippedKeyword()) return null
+    val width = parts.drop(1)
+        .firstOrNull { it.endsWith("w", ignoreCase = true) }
+        ?.dropLast(1)
+        ?.toLongOrNull()
+        ?: 0L
+    return SrcsetCandidate(url, width)
 }
 
 private fun attrValue(tag: String, name: String): String? {
@@ -77,7 +106,7 @@ private fun String.toAbsoluteUrl(sourceUrl: String?): String {
     return when {
         startsWith("//") -> "https:$this"
         startsWith("/") -> "$origin$this"
-        else -> "$origin/$this"
+        else -> "${sourceUrl.basePathUrl()}/$this"
     }
 }
 
@@ -91,6 +120,11 @@ private fun String.origin(): String? {
     return regex.find(this)?.groupValues?.get(1)
 }
 
+private fun String.basePathUrl(): String {
+    val withoutQuery = substringBefore('?').substringBefore('#')
+    return if (withoutQuery.endsWith("/")) withoutQuery.dropLast(1) else withoutQuery.substringBeforeLast('/', missingDelimiterValue = origin().orEmpty())
+}
+
 private data class ImageCandidate(
     val src: String,
     val width: Long,
@@ -99,3 +133,8 @@ private data class ImageCandidate(
     val area: Long = width * height
     val isLargeEnough: Boolean = width > 300L || height > 300L
 }
+
+private data class SrcsetCandidate(
+    val url: String,
+    val width: Long,
+)

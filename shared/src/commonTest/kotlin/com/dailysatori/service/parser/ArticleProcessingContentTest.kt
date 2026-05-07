@@ -4,6 +4,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import com.dailysatori.platform.WebViewPageContent
 
 class ArticleProcessingContentTest {
@@ -108,7 +111,25 @@ class ArticleProcessingContentTest {
         assertEquals(true, prompt.contains("不保留原生 HTML 标签"))
         assertEquals(true, prompt.contains("不输出摘要"))
         assertEquals(true, prompt.contains("必须保留正文图片"))
-        assertEquals(true, prompt.contains("返回内容翻译成流畅的中文"))
+        assertEquals(true, prompt.contains("保留原文语言"))
+        assertEquals(false, prompt.contains("返回内容翻译成流畅的中文"))
+    }
+
+    @Test
+    fun articleMarkdownInputUsesExtractedTextAndImagesInsteadOfFullHtml() {
+        val extracted = ExtractedContent(
+            title = "标题",
+            content = "渲染后的正文",
+            htmlContent = "<html><body><script>noise()</script><article>HTML正文</article></body></html>",
+            coverImageUrl = null,
+            imageUrls = listOf("https://example.com/image.jpg"),
+        )
+
+        val input = articleMarkdownInput(extracted, "gpt-5")
+
+        assertEquals(true, input.contains("正文文本：\n渲染后的正文"))
+        assertEquals(true, input.contains("正文图片：\nhttps://example.com/image.jpg"))
+        assertEquals(false, input.contains("<script>"))
     }
 
     @Test
@@ -232,6 +253,15 @@ class ArticleProcessingContentTest {
     @Test
     fun cancellationDoesNotPersistAsArticleProcessingError() {
         assertEquals(false, shouldPersistArticleProcessingError(CancellationException("Job was cancelled")))
+        val timeout = runBlocking {
+            try {
+                withTimeout(1) { awaitCancellation() }
+                null
+            } catch (e: Exception) {
+                e
+            }
+        }
+        assertEquals(true, shouldPersistArticleProcessingError(timeout ?: error("Expected timeout")))
         assertEquals(true, shouldPersistArticleProcessingError(IllegalStateException("AI config not set")))
     }
 
@@ -315,6 +345,85 @@ class ArticleProcessingContentTest {
         assertEquals(
             "https://pbs.twimg.com/media/HHR2R6CbAAApwp-?format=jpg&name=large",
             extractCoverImageUrl(html, "https://x.com/0xMulight/status/2050393928340488265"),
+        )
+    }
+
+    @Test
+    fun extractsLazyLoadedArticleImages() {
+        val html = """
+            <html><body>
+              <img src="data:image/gif;base64,R0lG" data-src="/article/hero.jpg" width="900" height="500" />
+            </body></html>
+        """.trimIndent()
+
+        assertEquals(
+            "https://example.com/article/hero.jpg",
+            extractCoverImageUrl(html, "https://example.com/posts/123"),
+        )
+        assertEquals(
+            listOf("https://example.com/article/hero.jpg"),
+            extractContentImageUrls(html, "https://example.com/posts/123"),
+        )
+    }
+
+    @Test
+    fun extractsAlternateLazyLoadedArticleImageAttributes() {
+        val html = """
+            <html><body>
+              <img src="/placeholder.png" data-original="/article/original.jpg" width="900" height="500" />
+              <img src="/placeholder.png" data-lazy-src="/article/lazy.jpg" width="800" height="450" />
+            </body></html>
+        """.trimIndent()
+
+        assertEquals(
+            "https://example.com/article/original.jpg",
+            extractCoverImageUrl(html, "https://example.com/posts/123"),
+        )
+        assertEquals(
+            listOf("https://example.com/article/original.jpg", "https://example.com/article/lazy.jpg"),
+            extractContentImageUrls(html, "https://example.com/posts/123"),
+        )
+    }
+
+    @Test
+    fun extractsBestSrcsetCandidateWhenSrcIsMissingOrTiny() {
+        val html = """
+            <html><body>
+              <img src="/tiny.jpg" srcset="/small.jpg 320w, /article/large.jpg 1280w" />
+            </body></html>
+        """.trimIndent()
+
+        assertEquals(
+            "https://example.com/article/large.jpg",
+            extractCoverImageUrl(html, "https://example.com/posts/123"),
+        )
+    }
+
+    @Test
+    fun resolvesRelativeArticleImageUrlsAgainstPagePath() {
+        val html = """
+            <html><body>
+              <img src="images/hero.jpg" width="900" height="500" />
+            </body></html>
+        """.trimIndent()
+
+        assertEquals(
+            "https://example.com/posts/images/hero.jpg",
+            extractCoverImageUrl(html, "https://example.com/posts/123"),
+        )
+    }
+
+    @Test
+    fun fallsBackToTwitterImageMetadataWhenOgImageIsMissing() {
+        val html = """
+            <html><head>
+              <meta name="twitter:image" content="https://example.com/twitter-card.jpg" />
+            </head><body></body></html>
+        """.trimIndent()
+
+        assertEquals(
+            "https://example.com/twitter-card.jpg",
+            extractCoverImageUrl(html, "https://example.com/posts/123"),
         )
     }
 

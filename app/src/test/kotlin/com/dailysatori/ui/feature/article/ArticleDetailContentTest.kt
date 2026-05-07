@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.article
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class ArticleDetailContentTest {
     @Test
@@ -20,6 +21,15 @@ class ArticleDetailContentTest {
     fun trimsOuterWhitespaceBeforeRenderingMarkdown() {
         assertEquals("# 标题\n正文", articleDetailPageContent(0, "\n\n# 标题\n正文\n", null))
         assertEquals("原文", articleDetailPageContent(1, null, "\n\n原文\n"))
+    }
+
+    @Test
+    fun allowsManualRefreshAtAnyProcessingState() {
+        assertTrue(canManuallyRefreshArticle(isRefreshing = true, articleStatus = "error"))
+        assertTrue(canManuallyRefreshArticle(isRefreshing = true, articleStatus = "pending"))
+        assertTrue(canManuallyRefreshArticle(isRefreshing = true, articleStatus = "webContentFetched"))
+        assertTrue(canManuallyRefreshArticle(isRefreshing = true, articleStatus = "aiProcessing"))
+        assertTrue(canManuallyRefreshArticle(isRefreshing = false, articleStatus = "completed"))
     }
 
     @Test

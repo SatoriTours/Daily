@@ -35,6 +35,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import java.time.Duration
 
 internal actual class LangChainAiClient actual constructor() {
     actual suspend fun complete(
@@ -92,12 +93,14 @@ internal actual class LangChainAiClient actual constructor() {
                 .apiKey(apiToken)
                 .modelName(modelName)
                 .temperature(temperature)
+                .timeout(Duration.ofMillis(aiCompletionRequestTimeoutMillis()))
                 .build()
             "gemini" -> GoogleAiGeminiChatModel.builder()
                 .baseUrl(apiAddress)
                 .apiKey(apiToken)
                 .modelName(modelName)
                 .temperature(temperature)
+                .timeout(Duration.ofMillis(aiCompletionRequestTimeoutMillis()))
                 .build()
             else -> OpenAiChatModel.builder()
                 .httpClientBuilder(langChainHttpClientBuilder())
@@ -105,6 +108,7 @@ internal actual class LangChainAiClient actual constructor() {
                 .apiKey(apiToken)
                 .modelName(modelName)
                 .temperature(temperature)
+                .timeout(Duration.ofMillis(aiCompletionRequestTimeoutMillis()))
                 .build()
         }
     }

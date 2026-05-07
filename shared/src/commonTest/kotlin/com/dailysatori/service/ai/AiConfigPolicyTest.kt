@@ -11,6 +11,11 @@ import kotlinx.serialization.json.jsonPrimitive
 
 class AiConfigPolicyTest {
     @Test
+    fun completionRequestsUseConfiguredAiTimeout() {
+        assertEquals(30_000L, aiCompletionRequestTimeoutMillis())
+    }
+
+    @Test
     fun buildsDisplayNameFromProviderAndModelWithoutStoredName() {
         assertEquals(
             "OpenAI / GPT-5.5 (旗舰)",

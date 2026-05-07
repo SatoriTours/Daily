@@ -82,6 +82,6 @@ internal fun htmlToReadableMarkdownPrompt(): String = """
 
     ## 输出要求
     - 只返回转换后的 Markdown 内容，不添加任何说明
-    - 返回内容翻译成流畅的中文
+    - 保留原文语言，不翻译正文内容
     - 确保最终排版美观、专业、易读
 """.trimIndent()

@@ -11,3 +11,5 @@ internal fun articleDetailPageContent(
 
 private fun String?.normalizedMarkdownOrFallback(fallback: String): String =
     this?.trim()?.takeIf { it.isNotBlank() } ?: fallback
+
+internal fun canManuallyRefreshArticle(isRefreshing: Boolean, articleStatus: String?): Boolean = true

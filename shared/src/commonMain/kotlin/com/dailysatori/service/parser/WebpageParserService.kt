@@ -21,6 +21,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -130,7 +131,8 @@ internal fun isLegacyRecoverableProcessingError(message: String?, aiMarkdownCont
 internal fun articleProcessingErrorMessage(error: Exception): String =
     error.message?.takeIf { it.isNotBlank() } ?: "AI processing failed"
 
-internal fun shouldPersistArticleProcessingError(error: Throwable): Boolean = error !is CancellationException
+internal fun shouldPersistArticleProcessingError(error: Throwable): Boolean =
+    error !is CancellationException || error is TimeoutCancellationException
 
 class WebpageParserService(
     private val articleRepo: ArticleRepository,
@@ -367,32 +369,8 @@ class WebpageParserService(
             val modelName = normalizedConfig.modelName
             val provider = normalizedConfig.provider
 
-            val originalTitle = article.title ?: ""
-            var aiTitle = ""
-            if (originalTitle.isNotBlank() && originalTitle != "正在加载...") {
-                val titleState = mutableMapOf<Long, ArticleProcessingState>()
-                titleState[articleId] = ArticleProcessingState(articleId, "aiProcessing", "Generating title")
-                _processingStates.value = titleState
-                updateArticleStatus(article, "aiProcessing")
-                try {
-                    aiTitle = if (!containsChinese(originalTitle)) {
-                        val translated = aiService.translate(
-                            originalTitle.trim(),
-                            "Translate the following text to Chinese. Only return the translation, nothing else.",
-                            apiAddress, apiToken, modelName, provider,
-                        )
-                        if (translated.length >= AIConfig.longTitleThreshold) {
-                            aiService.summarize(translated, "Summarize the following text in one short line in Chinese.", apiAddress, apiToken, modelName, provider)
-                        } else translated
-                    } else if (originalTitle.length >= AIConfig.longTitleThreshold) {
-                        aiService.summarize(originalTitle.trim(), "Summarize the following text in one short line in Chinese.", apiAddress, apiToken, modelName, provider)
-                    } else originalTitle.trim()
-                } catch (e: Exception) {
-                    if (!shouldPersistArticleProcessingError(e)) throw e
-                    log.e(e) { "Title generation failed" }
-                    aiTitle = originalTitle.trim()
-                }
-            }
+            val originalTitle = article.title?.trim().orEmpty()
+            var aiTitle = originalTitle.takeIf { it.isNotBlank() && it != "正在加载..." }.orEmpty()
 
             val state2 = mutableMapOf<Long, ArticleProcessingState>()
             state2[articleId] = ArticleProcessingState(articleId, "aiProcessing", "Generating summary")
@@ -411,6 +389,7 @@ class WebpageParserService(
                 )
                 val parsedSummary = parseArticleSummaryOutput(summary)
                 aiCoverImageUrl = validatedCoverImageUrl(parsedSummary.coverImageUrl, extracted?.imageUrls.orEmpty())
+                aiTitle = extractMarkdownHeadingTitle(parsedSummary.summary) ?: aiTitle
                 aiContent = generatedSummaryOrFallback(
                     parsedSummary.summary,
                     article.ai_content,
@@ -432,7 +411,7 @@ class WebpageParserService(
             if (htmlContent.isNotBlank()) {
                 try {
                     aiMarkdownContent = aiService.htmlToMarkdown(
-                        htmlForAiModel(htmlContent, modelName),
+                        articleMarkdownInput(extracted, modelName),
                         htmlToReadableMarkdownPrompt(),
                         apiAddress, apiToken, modelName, provider,
                     )
@@ -768,6 +747,30 @@ internal fun articleSummaryInput(extracted: ExtractedContent?, modelName: String
     if (textContent.isNotBlank()) return textContent.take(AIConfig.maxContentLength.toInt())
     return htmlForAiModel(extracted?.htmlContent.orEmpty(), modelName)
 }
+
+internal fun articleMarkdownInput(extracted: ExtractedContent?, modelName: String): String {
+    val textContent = extracted?.content?.trim().orEmpty()
+    val images = extracted?.imageUrls.orEmpty().joinToString("\n")
+    if (textContent.isNotBlank()) {
+        return buildString {
+            append("正文文本：\n")
+            append(textContent.take(AIConfig.maxContentLength.toInt()))
+            if (images.isNotBlank()) {
+                append("\n\n正文图片：\n")
+                append(images)
+            }
+        }
+    }
+    return htmlForAiModel(extracted?.htmlContent.orEmpty(), modelName)
+}
+
+internal fun extractMarkdownHeadingTitle(markdown: String): String? = markdown
+    .lineSequence()
+    .firstOrNull { it.trimStart().startsWith("# ") }
+    ?.trim()
+    ?.removePrefix("#")
+    ?.trim()
+    ?.takeIf { it.isNotBlank() }
 
 private fun aiHtmlCharLimit(modelName: String, fallbackLimit: Int): Int {
     val normalized = modelName.lowercase()
