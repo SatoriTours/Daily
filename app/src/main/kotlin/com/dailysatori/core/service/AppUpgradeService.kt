@@ -95,6 +95,25 @@ class AppUpgradeService(private val client: HttpClient) {
         pendingDownload = null
     }
 
+    fun queryDownloadProgress(context: Context, downloadId: Long): ApkDownloadProgress? {
+        val manager = context.getSystemService(DownloadManager::class.java)
+        val query = DownloadManager.Query().setFilterById(downloadId)
+        manager.query(query)?.use { cursor ->
+            if (!cursor.moveToFirst()) return null
+            return ApkDownloadProgress(
+                status = cursor.longValue(DownloadManager.COLUMN_STATUS).toInt(),
+                downloadedBytes = cursor.longValue(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR),
+                totalBytes = cursor.longValue(DownloadManager.COLUMN_TOTAL_SIZE_BYTES),
+            )
+        }
+        return null
+    }
+
+    private fun android.database.Cursor.longValue(columnName: String): Long {
+        val index = getColumnIndex(columnName)
+        return if (index >= 0) getLong(index) else -1L
+    }
+
     fun createInstallIntent(context: Context, file: File): Intent {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         return Intent(Intent.ACTION_VIEW)
@@ -131,4 +150,10 @@ class AppUpgradeService(private val client: HttpClient) {
 data class ApkDownload(
     val id: Long,
     val filePath: String,
+)
+
+data class ApkDownloadProgress(
+    val status: Int,
+    val downloadedBytes: Long,
+    val totalBytes: Long,
 )

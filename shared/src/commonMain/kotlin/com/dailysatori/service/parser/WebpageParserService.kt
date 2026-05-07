@@ -7,6 +7,7 @@ import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.ImageRepository
 import com.dailysatori.data.repository.TagRepository
 import com.dailysatori.platform.FileManager
+import com.dailysatori.platform.WebViewPageContent
 import com.dailysatori.platform.WebViewLoader
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
@@ -16,15 +17,16 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsBytes
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 
@@ -79,17 +81,56 @@ internal fun generatedMarkdownOrFallback(generated: String, existing: String?, e
     return ""
 }
 
-internal fun generatedSummaryOrFallback(generated: String, existing: String?, extractedContent: String?): String {
+internal fun generatedSummaryOrFallback(
+    generated: String,
+    existing: String?,
+    extractedContent: String?,
+    existingMarkdownContent: String? = null,
+): String {
     if (generated.isNotBlank()) return generated
-    if (!existing.isNullOrBlank()) return existing
+    existingSummaryOrNull(existing)?.let { return it }
     if (!extractedContent.isNullOrBlank()) return extractedContent.trim().take(AIConfig.maxSummaryLength)
+    if (!existingMarkdownContent.isNullOrBlank()) return existingMarkdownContent.trim().take(AIConfig.maxSummaryLength)
     throw IllegalStateException("AI summary generation returned empty result")
 }
+
+internal fun existingSummaryOrNull(existing: String?): String? {
+    val summary = existing?.trim()?.takeIf { it.isNotBlank() } ?: return null
+    if (isLegacyProcessingErrorSummary(summary)) return null
+    return summary
+}
+
+private fun isLegacyProcessingErrorSummary(summary: String): Boolean =
+    summary == "Job was cancelled" ||
+        summary == "StandaloneCoroutine was cancelled" ||
+        summary == "AI summary generation returned empty result"
 
 internal fun isRecoverableArticleStatus(status: String?): Boolean = when (status) {
     "pending", "webContentFetched", "aiProcessing" -> true
     else -> false
 }
+
+internal fun isRecoverableArticleForProcessing(
+    status: String?,
+    aiContent: String?,
+    aiMarkdownContent: String?,
+): Boolean {
+    if (isRecoverableArticleStatus(status)) return true
+    if (status != "error") return false
+    return isLegacyRecoverableProcessingError(aiContent, aiMarkdownContent)
+}
+
+internal fun isLegacyRecoverableProcessingError(message: String?, aiMarkdownContent: String?): Boolean {
+    val error = message?.trim().orEmpty()
+    return error == "Job was cancelled" ||
+        error == "StandaloneCoroutine was cancelled" ||
+        (error == "AI summary generation returned empty result" && !aiMarkdownContent.isNullOrBlank())
+}
+
+internal fun articleProcessingErrorMessage(error: Exception): String =
+    error.message?.takeIf { it.isNotBlank() } ?: "AI processing failed"
+
+internal fun shouldPersistArticleProcessingError(error: Throwable): Boolean = error !is CancellationException
 
 class WebpageParserService(
     private val articleRepo: ArticleRepository,
@@ -113,7 +154,7 @@ class WebpageParserService(
     suspend fun resumeInterruptedProcessing() {
         withContext(Dispatchers.IO) {
             articleRepo.getRecoverableForProcessingSync()
-                .filter { isRecoverableArticleStatus(it.status) }
+                .filter { isRecoverableArticleForProcessing(it.status, it.ai_content, it.ai_markdown_content) }
                 .forEach { article ->
                     if (!markArticleActive(article.id)) return@forEach
                     try {
@@ -136,6 +177,7 @@ class WebpageParserService(
                         }
                         processAiTasks(article.id, extracted)
                     } catch (e: Exception) {
+                        if (!shouldPersistArticleProcessingError(e)) throw e
                         log.e(e) { "Interrupted article processing failed: articleId=${article.id}" }
                     } finally {
                         finishQueuedArticle(article.id)
@@ -199,12 +241,13 @@ class WebpageParserService(
             log.i { "saveWebpage completed: articleId=$articleId" }
             return articleId
         } catch (e: Exception) {
+            if (!shouldPersistArticleProcessingError(e)) throw e
             log.e(e) { "saveWebpage failed: articleId=$articleId" }
             articleRepo.update(
                 id = articleId,
                 title = article.title,
                 aiTitle = article.ai_title,
-                aiContent = e.message ?: "Extraction failed",
+                aiContent = articleProcessingErrorMessage(e),
                 aiMarkdownContent = article.ai_markdown_content,
                 url = article.url,
                 isFavorite = article.is_favorite ?: 0L,
@@ -215,7 +258,7 @@ class WebpageParserService(
                 pubDate = article.pub_date,
             )
             val errorState = mutableMapOf<Long, ArticleProcessingState>()
-            errorState[articleId] = ArticleProcessingState(articleId, "error", e.message ?: "")
+            errorState[articleId] = ArticleProcessingState(articleId, "error", articleProcessingErrorMessage(e))
             _processingStates.value = errorState
             throw e
         } finally {
@@ -269,7 +312,7 @@ class WebpageParserService(
             scope.launch {
                 try {
                     val article = articleRepo.getById(articleId)
-                    if (article != null && isRecoverableArticleStatus(article.status)) {
+                    if (article != null && isRecoverableArticleForProcessing(article.status, article.ai_content, article.ai_markdown_content)) {
                         val extracted = article.url?.let { extractContent(it) }
                         processAiTasks(articleId, extracted)
                     }
@@ -345,6 +388,7 @@ class WebpageParserService(
                         aiService.summarize(originalTitle.trim(), "Summarize the following text in one short line in Chinese.", apiAddress, apiToken, modelName, provider)
                     } else originalTitle.trim()
                 } catch (e: Exception) {
+                    if (!shouldPersistArticleProcessingError(e)) throw e
                     log.e(e) { "Title generation failed" }
                     aiTitle = originalTitle.trim()
                 }
@@ -367,10 +411,16 @@ class WebpageParserService(
                 )
                 val parsedSummary = parseArticleSummaryOutput(summary)
                 aiCoverImageUrl = validatedCoverImageUrl(parsedSummary.coverImageUrl, extracted?.imageUrls.orEmpty())
-                aiContent = generatedSummaryOrFallback(parsedSummary.summary, article.ai_content, extracted?.content)
+                aiContent = generatedSummaryOrFallback(
+                    parsedSummary.summary,
+                    article.ai_content,
+                    extracted?.content,
+                    article.ai_markdown_content,
+                )
             } catch (e: Exception) {
+                if (!shouldPersistArticleProcessingError(e)) throw e
                 log.e(e) { "Summary generation failed" }
-                aiContent = generatedSummaryOrFallback("", article.ai_content, extracted?.content)
+                aiContent = generatedSummaryOrFallback("", article.ai_content, extracted?.content, article.ai_markdown_content)
             }
 
             val state3 = mutableMapOf<Long, ArticleProcessingState>()
@@ -388,6 +438,7 @@ class WebpageParserService(
                     )
                     aiMarkdownContent = generatedMarkdownOrFallback(aiMarkdownContent, article.ai_markdown_content, extracted?.content)
                 } catch (e: Exception) {
+                    if (!shouldPersistArticleProcessingError(e)) throw e
                     log.e(e) { "Markdown conversion failed" }
                     aiMarkdownContent = generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content)
                 }
@@ -406,6 +457,7 @@ class WebpageParserService(
                 try {
                     coverImage = downloadCoverImage(articleId, coverImageUrl)
                 } catch (e: Exception) {
+                    if (!shouldPersistArticleProcessingError(e)) throw e
                     log.e(e) { "Cover image download failed" }
                 }
             }
@@ -430,12 +482,13 @@ class WebpageParserService(
             _processingStates.value = completedState
             log.i { "AI processing completed: articleId=$articleId" }
         } catch (e: Exception) {
+            if (!shouldPersistArticleProcessingError(e)) throw e
             log.e(e) { "AI processing failed: articleId=$articleId" }
             articleRepo.update(
                 id = articleId,
                 title = article.title,
                 aiTitle = article.ai_title,
-                aiContent = article.ai_content,
+                aiContent = articleProcessingErrorMessage(e),
                 aiMarkdownContent = article.ai_markdown_content,
                 url = article.url,
                 isFavorite = article.is_favorite ?: 0L,
@@ -446,7 +499,7 @@ class WebpageParserService(
                 pubDate = article.pub_date,
             )
             val errorState = mutableMapOf<Long, ArticleProcessingState>()
-            errorState[articleId] = ArticleProcessingState(articleId, "error", e.message ?: "")
+            errorState[articleId] = ArticleProcessingState(articleId, "error", articleProcessingErrorMessage(e))
             _processingStates.value = errorState
             throw e
         }
@@ -456,19 +509,24 @@ class WebpageParserService(
         return withContext(Dispatchers.Default) {
             extractTwitterContent(url)?.let { return@withContext it }
             try {
-                val html = suspendCoroutine<String> { cont ->
-                    webViewLoader.loadContent(url, WebViewConfig.timeoutMs) { result ->
+                val page = suspendCancellableCoroutine<WebViewPageContent> { cont ->
+                    val handle = webViewLoader.loadContent(url, WebViewConfig.timeoutMs) { result ->
+                        if (!cont.isActive) return@loadContent
                         result.fold(
                             onSuccess = { cont.resume(it) },
                             onFailure = { cont.resumeWithException(it) }
                         )
                     }
+                    cont.invokeOnCancellation { handle.cancel() }
                 }
 
+                val html = page.html
                 val title = extractTitle(html)
                 val coverImageUrl = extractCoverImageUrl(html, url)
                 val imageUrls = extractContentImageUrls(html, url)
-                val textContent = extractTextContent(html)
+                val textContent = page.summaryTextOrHtmlFallback().let { content ->
+                    if (content == html) extractTextContent(html) else content
+                }
 
                 ExtractedContent(
                     title = title,
@@ -478,6 +536,7 @@ class WebpageParserService(
                     imageUrls = imageUrls,
                 )
             } catch (e: Exception) {
+                if (!shouldPersistArticleProcessingError(e)) throw e
                 log.e(e) { "Content extraction failed for $url" }
                 try {
                     val response = httpClient.get(url)
@@ -494,6 +553,7 @@ class WebpageParserService(
                         imageUrls = imageUrls,
                     )
                 } catch (e2: Exception) {
+                    if (!shouldPersistArticleProcessingError(e2)) throw e2
                     log.e(e2) { "Fallback extraction also failed" }
                     ExtractedContent(null, null, null, null)
                 }
@@ -503,10 +563,13 @@ class WebpageParserService(
 
     private suspend fun extractTwitterContent(url: String): ExtractedContent? {
         val statusId = twitterStatusId(url) ?: return null
-        return runCatching {
+        return try {
             val json = httpClient.get("https://api.fxtwitter.com/status/$statusId").bodyAsText()
             parseFxTwitterTweetPayload(json, url)
-        }.getOrNull()
+        } catch (e: Exception) {
+            if (!shouldPersistArticleProcessingError(e)) throw e
+            null
+        }
     }
 
     suspend fun refreshArticle(articleId: Long) {
@@ -561,6 +624,7 @@ class WebpageParserService(
 
             log.i { "refreshArticle completed: articleId=$articleId" }
         } catch (e: Exception) {
+            if (!shouldPersistArticleProcessingError(e)) throw e
             log.e(e) { "refreshArticle failed: articleId=$articleId" }
             articleRepo.update(
                 id = articleId,
@@ -577,7 +641,7 @@ class WebpageParserService(
                 pubDate = article.pub_date,
             )
             val errorState = mutableMapOf<Long, ArticleProcessingState>()
-            errorState[articleId] = ArticleProcessingState(articleId, "error", e.message ?: "")
+            errorState[articleId] = ArticleProcessingState(articleId, "error", articleProcessingErrorMessage(e))
             _processingStates.value = errorState
             throw e
         }
@@ -673,6 +737,12 @@ class WebpageParserService(
     private companion object {
         const val MAX_CONCURRENT_PROCESSING = 5
     }
+}
+
+internal fun WebViewPageContent.summaryTextOrHtmlFallback(): String {
+    val textContent = text.trim()
+    if (textContent.isNotBlank()) return textContent
+    return html
 }
 
 internal fun parseArticleSummaryOutput(output: String): ParsedArticleSummary {

@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.settings
 
+import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import androidx.lifecycle.ViewModel
@@ -10,6 +11,7 @@ import com.dailysatori.core.service.AppUpgradeService
 import com.dailysatori.core.service.WebServerService
 import com.dailysatori.data.repository.SettingRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +31,9 @@ data class SettingsState(
     val availableRelease: AppRelease? = null,
     val showUpdateDialog: Boolean = false,
     val updateMessage: String? = null,
+    val isDownloadingUpdate: Boolean = false,
+    val updateDownloadProgress: Float? = null,
+    val updateDownloadProgressText: String = "",
     val downloadId: Long? = null,
     val pendingInstallFilePath: String? = null,
     val currentVersion: String = BuildConfig.VERSION_NAME,
@@ -157,15 +162,65 @@ class SettingsViewModel(
                 val download = appUpgradeService.enqueueApkDownload(context.applicationContext, release)
                 _state.update {
                     it.copy(
-                        showUpdateDialog = false,
-                        updateMessage = "正在下载更新...",
+                        showUpdateDialog = true,
+                        updateMessage = null,
+                        isDownloadingUpdate = true,
+                        updateDownloadProgress = null,
+                        updateDownloadProgressText = updateDownloadProgressText(null),
                         downloadId = download.id,
                         pendingInstallFilePath = download.filePath,
                     )
                 }
+                observeUpdateDownload(context.applicationContext, download.id)
             } catch (e: Exception) {
-                _state.update { it.copy(showUpdateDialog = false, updateMessage = e.message ?: "下载更新失败") }
+                _state.update {
+                    it.copy(
+                        showUpdateDialog = false,
+                        isDownloadingUpdate = false,
+                        updateMessage = e.message ?: "下载更新失败",
+                    )
+                }
             }
+        }
+    }
+
+    private suspend fun observeUpdateDownload(context: Context, downloadId: Long) {
+        while (_state.value.downloadId == downloadId) {
+            val progress = appUpgradeService.queryDownloadProgress(context, downloadId) ?: return
+            when (progress.status) {
+                DownloadManager.STATUS_SUCCESSFUL -> {
+                    _state.update {
+                        it.copy(
+                            updateDownloadProgress = 1f,
+                            updateDownloadProgressText = "下载完成，正在安装...",
+                        )
+                    }
+                    return
+                }
+                DownloadManager.STATUS_FAILED -> {
+                    _state.update {
+                        it.copy(
+                            showUpdateDialog = false,
+                            isDownloadingUpdate = false,
+                            updateDownloadProgress = null,
+                            updateDownloadProgressText = "",
+                            updateMessage = "下载失败，请重试",
+                            downloadId = null,
+                            pendingInstallFilePath = null,
+                        )
+                    }
+                    return
+                }
+                else -> updateDownloadProgress(progress.downloadedBytes, progress.totalBytes).let { value ->
+                    _state.update {
+                        it.copy(
+                            updateDownloadProgress = value,
+                            updateDownloadProgressText = updateDownloadProgressText(value),
+                        )
+                    }
+                }
+            }
+            delay(500)
         }
     }
 
@@ -183,6 +238,7 @@ class SettingsViewModel(
     }
 
     fun dismissUpdateDialog() {
+        if (_state.value.isDownloadingUpdate) return
         _state.update { it.copy(showUpdateDialog = false) }
     }
 
@@ -192,7 +248,16 @@ class SettingsViewModel(
 
     fun markInstallLaunched() {
         appUpgradeService.clearPendingDownload()
-        _state.update { it.copy(downloadId = null, pendingInstallFilePath = null) }
+        _state.update {
+            it.copy(
+                showUpdateDialog = false,
+                isDownloadingUpdate = false,
+                updateDownloadProgress = null,
+                updateDownloadProgressText = "",
+                downloadId = null,
+                pendingInstallFilePath = null,
+            )
+        }
     }
 
     fun notifyInstallPermissionRequired() {
@@ -209,4 +274,13 @@ class SettingsViewModel(
             }
         }
     }
+}
+
+internal fun updateDownloadProgress(downloadedBytes: Long, totalBytes: Long): Float? {
+    if (totalBytes <= 0L) return null
+    return (downloadedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
+}
+
+internal fun updateDownloadProgressText(progress: Float?): String {
+    return progress?.let { "下载中 ${(it * 100).toInt()}%" } ?: "正在准备下载..."
 }

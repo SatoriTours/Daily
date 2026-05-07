@@ -3,6 +3,8 @@ package com.dailysatori.service.parser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlinx.coroutines.CancellationException
+import com.dailysatori.platform.WebViewPageContent
 
 class ArticleProcessingContentTest {
     @Test
@@ -48,6 +50,28 @@ class ArticleProcessingContentTest {
             "old summary",
             generatedSummaryOrFallback("", existing = "old summary", extractedContent = "网页正文"),
         )
+    }
+
+    @Test
+    fun fallsBackToExistingOriginalWhenSummaryGenerationIsBlank() {
+        assertEquals(
+            "已有原文",
+            generatedSummaryOrFallback("", existing = null, extractedContent = null, existingMarkdownContent = "已有原文"),
+        )
+    }
+
+    @Test
+    fun doesNotReuseLegacyProcessingErrorsAsExistingSummary() {
+        assertEquals(null, existingSummaryOrNull("Job was cancelled"))
+        assertEquals(null, existingSummaryOrNull("AI summary generation returned empty result"))
+        assertEquals("The event was cancelled by the organizer.", existingSummaryOrNull("The event was cancelled by the organizer."))
+        assertEquals("正常摘要", existingSummaryOrNull("正常摘要"))
+    }
+
+    @Test
+    fun realRetryFailureReplacesLegacyRecoverableErrorMessage() {
+        assertEquals("AI config not set", articleProcessingErrorMessage(IllegalStateException("AI config not set")))
+        assertEquals("AI processing failed", articleProcessingErrorMessage(Exception()))
     }
 
     @Test
@@ -151,6 +175,26 @@ class ArticleProcessingContentTest {
     }
 
     @Test
+    fun extractedContentUsesWebViewVisibleTextForAiSummary() {
+        val page = WebViewPageContent(
+            html = "<html><body><main>HTML正文</main></body></html>",
+            text = "浏览器渲染后的完整可见文本",
+        )
+
+        assertEquals("浏览器渲染后的完整可见文本", page.summaryTextOrHtmlFallback())
+    }
+
+    @Test
+    fun extractedContentFallsBackToHtmlWhenVisibleTextIsBlank() {
+        val page = WebViewPageContent(
+            html = "<html><body><main>HTML正文</main></body></html>",
+            text = "   ",
+        )
+
+        assertEquals("<html><body><main>HTML正文</main></body></html>", page.summaryTextOrHtmlFallback())
+    }
+
+    @Test
     fun onlyInterruptedArticleStatusesAreRecoverable() {
         assertEquals(true, isRecoverableArticleStatus("pending"))
         assertEquals(true, isRecoverableArticleStatus("webContentFetched"))
@@ -160,6 +204,35 @@ class ArticleProcessingContentTest {
         assertEquals(false, isRecoverableArticleStatus("error"))
         assertEquals(false, isRecoverableArticleStatus(""))
         assertEquals(false, isRecoverableArticleStatus("unknown"))
+    }
+
+    @Test
+    fun legacyCancellationErrorsAreRecoverableOnAppResume() {
+        assertEquals(true, isRecoverableArticleForProcessing("error", "Job was cancelled", null))
+        assertEquals(true, isRecoverableArticleForProcessing("error", "StandaloneCoroutine was cancelled", null))
+        assertEquals(false, isRecoverableArticleForProcessing("error", "AI config not set", null))
+    }
+
+    @Test
+    fun legacyBlankSummaryErrorsWithOriginalContentAreRecoverableOnAppResume() {
+        assertEquals(
+            true,
+            isRecoverableArticleForProcessing(
+                "error",
+                "AI summary generation returned empty result",
+                "已有原文",
+            ),
+        )
+        assertEquals(
+            false,
+            isRecoverableArticleForProcessing("error", "AI summary generation returned empty result", ""),
+        )
+    }
+
+    @Test
+    fun cancellationDoesNotPersistAsArticleProcessingError() {
+        assertEquals(false, shouldPersistArticleProcessingError(CancellationException("Job was cancelled")))
+        assertEquals(true, shouldPersistArticleProcessingError(IllegalStateException("AI config not set")))
     }
 
     @Test

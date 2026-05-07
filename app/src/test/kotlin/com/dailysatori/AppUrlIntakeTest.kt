@@ -103,11 +103,80 @@ class AppUrlIntakeTest {
     }
 
     @Test
+    fun webViewLoaderReturnsVisibleTextAndHtmlSnapshot() {
+        val common = File("../shared/src/commonMain/kotlin/com/dailysatori/platform/WebViewLoader.kt").readText()
+        val android = File("../shared/src/androidMain/kotlin/com/dailysatori/platform/WebViewLoader.android.kt").readText()
+
+        assertTrue(common.contains("data class WebViewPageContent"))
+        assertTrue(common.contains("Result<WebViewPageContent>"))
+        assertTrue(android.contains("document.body.innerText"))
+        assertTrue(android.contains("document.documentElement.outerHTML"))
+    }
+
+    @Test
+    fun webViewLoaderWaitsForStableInnerHtmlBeforeCompleting() {
+        val source = File("../shared/src/androidMain/kotlin/com/dailysatori/platform/WebViewLoader.android.kt").readText()
+
+        assertTrue(source.contains("document.documentElement.innerHTML"))
+        assertTrue(source.contains("stableHtml"))
+        assertTrue(source.contains("stableReadCount >= 2"))
+        assertTrue(source.contains("lastPageContent"))
+    }
+
+    @Test
+    fun webViewLoaderUsesJsonDecoderForEvaluateJavascriptResult() {
+        val source = File("../shared/src/androidMain/kotlin/com/dailysatori/platform/WebViewLoader.android.kt").readText()
+
+        assertTrue(source.contains("JSONTokener"))
+        assertFalse(source.contains("replace(\"\\\\n\", \"\\n\")"))
+    }
+
+    @Test
+    fun webViewLoadingCanBeCancelledByCoroutineCaller() {
+        val common = File("../shared/src/commonMain/kotlin/com/dailysatori/platform/WebViewLoader.kt").readText()
+        val parser = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
+        val android = File("../shared/src/androidMain/kotlin/com/dailysatori/platform/WebViewLoader.android.kt").readText()
+
+        assertTrue(common.contains("expect class WebViewLoadHandle"))
+        assertTrue(parser.contains("suspendCancellableCoroutine"))
+        assertTrue(parser.contains("invokeOnCancellation"))
+        assertTrue(android.contains("actual fun cancel()"))
+    }
+
+    @Test
     fun articleProcessingWorkerRetriesWhenBackgroundWorkIsCancelled() {
         val source = File("src/main/kotlin/com/dailysatori/core/worker/ArticleProcessingWorker.kt").readText()
 
         assertTrue(source.contains("CancellationException"))
         assertTrue(source.contains("Result.retry()"))
+    }
+
+    @Test
+    fun parserResumeModePropagatesCancellationToWorkerRetry() {
+        val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
+        val resumeCatch = source.substringAfter("suspend fun resumeInterruptedProcessing")
+            .substringBefore("private fun enqueueArticleProcessing")
+
+        assertTrue(resumeCatch.contains("shouldPersistArticleProcessingError"))
+    }
+
+    @Test
+    fun twitterExtractionDoesNotSwallowCoroutineCancellation() {
+        val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
+        val twitterExtraction = source.substringAfter("private suspend fun extractTwitterContent")
+            .substringBefore("suspend fun refreshArticle")
+
+        assertFalse(twitterExtraction.contains("runCatching"))
+    }
+
+    @Test
+    fun resumeQueryIncludesLegacyCancellationErrors() {
+        val source = File("../shared/src/commonMain/sqldelight/com/dailysatori/shared/db/DailySatori.sq").readText()
+        val query = source.substringAfter("selectRecoverableArticles:")
+            .substringBefore("selectArticlesByTag:")
+
+        assertTrue(query.contains("status = 'error'"))
+        assertTrue(query.contains("cancelled"))
     }
 
     @Test

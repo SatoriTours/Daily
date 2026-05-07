@@ -36,6 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import com.dailysatori.core.navigation.DailySatoriNavHost
 import com.dailysatori.ui.feature.settings.SettingsState
 import com.dailysatori.ui.feature.settings.SettingsViewModel
+import com.dailysatori.ui.feature.settings.UpdateDownloadProgress
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -152,10 +153,17 @@ private fun UpgradeDialog(
     if (!state.showUpdateDialog) return
     AlertDialog(
         onDismissRequest = { viewModel.dismissUpdateDialog() },
-        title = { Text("发现新版本") },
-        text = { Text("当前版本 v${state.currentVersion}\n最新版本 ${release.version}\n是否立即更新？") },
-        dismissButton = { TextButton(onClick = { viewModel.dismissUpdateDialog() }) { Text("稍后") } },
-        confirmButton = { TextButton(onClick = { viewModel.startUpdateDownload(context) }) { Text("立即更新") } },
+        title = { Text(if (state.isDownloadingUpdate) "正在下载更新" else "发现新版本") },
+        text = {
+            if (state.isDownloadingUpdate) UpdateDownloadProgress(state)
+            else Text("当前版本 v${state.currentVersion}\n最新版本 ${release.version}\n是否立即更新？")
+        },
+        dismissButton = {
+            if (!state.isDownloadingUpdate) TextButton(onClick = { viewModel.dismissUpdateDialog() }) { Text("稍后") }
+        },
+        confirmButton = {
+            if (!state.isDownloadingUpdate) TextButton(onClick = { viewModel.startUpdateDownload(context) }) { Text("立即更新") }
+        },
     )
 }
 

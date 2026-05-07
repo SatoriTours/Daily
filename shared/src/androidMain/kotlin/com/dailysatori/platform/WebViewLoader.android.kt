@@ -5,62 +5,94 @@ import android.os.Handler
 import android.os.Looper
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import org.json.JSONObject
+import org.json.JSONTokener
 import org.koin.mp.KoinPlatform
+import kotlinx.coroutines.CancellationException
+
+actual class WebViewLoadHandle internal constructor(
+    private val cancelAction: () -> Unit,
+) {
+    actual fun cancel() = cancelAction()
+}
 
 actual class WebViewLoader actual constructor() {
     private val context: Context by lazy { KoinPlatform.getKoin().get<PlatformContext>().context }
 
-    actual fun loadContent(url: String, timeoutMs: Long, callback: (Result<String>) -> Unit) {
-        Handler(Looper.getMainLooper()).post {
+    actual fun loadContent(
+        url: String,
+        timeoutMs: Long,
+        callback: (Result<WebViewPageContent>) -> Unit,
+    ): WebViewLoadHandle {
+        val handler = Handler(Looper.getMainLooper())
+        var cancelled = false
+        var cancelWebView: (() -> Unit)? = null
+        val handle = WebViewLoadHandle {
+            handler.post {
+                cancelled = true
+                cancelWebView?.invoke()
+            }
+        }
+        handler.post {
             try {
-                val handler = Handler(Looper.getMainLooper())
+                if (cancelled) return@post
                 val webView = WebView(context)
                 webView.settings.javaScriptEnabled = true
                 webView.settings.domStorageEnabled = true
 
                 var finished = false
                 var isPolling = false
-                var lastHtml = ""
+                var lastStableHtml = ""
+                var lastPageContent: WebViewPageContent? = null
                 var stableReadCount = 0
 
-                fun complete(result: Result<String>) {
+                fun complete(result: Result<WebViewPageContent>) {
                     if (finished) return
                     finished = true
-                    callback(result)
-                    webView.destroy()
+                    try {
+                        callback(result)
+                    } finally {
+                        webView.destroy()
+                    }
                 }
 
                 fun decodeJavascriptString(value: String?): String {
-                    val raw = value ?: return ""
-                    if (raw == "null") return ""
-                    return raw
-                        .removeSurrounding("\"")
-                        .replace("\\u003C", "<")
-                        .replace("\\u003E", ">")
-                        .replace("\\u0026", "&")
-                        .replace("\\/", "/")
-                        .replace("\\\"", "\"")
-                        .replace("\\n", "\n")
-                        .replace("\\r", "")
-                        .replace("\\t", "\t")
-                        .replace("\\\\", "\\")
+                    val decoded = JSONTokener(value ?: "null").nextValue()
+                    return decoded as? String ?: ""
+                }
+
+                fun parsePageContent(value: String?): PageSnapshot {
+                    val json = JSONObject(decodeJavascriptString(value))
+                    return PageSnapshot(
+                        stableHtml = json.optString("stableHtml"),
+                        content = WebViewPageContent(
+                            html = json.optString("html"),
+                            text = json.optString("text"),
+                        ),
+                    )
                 }
 
                 fun pollHtmlUntilStable() {
                     if (finished) return
-                    webView.evaluateJavascript(PARSE_CONTENT_SCRIPT) { html ->
+                    webView.evaluateJavascript(PARSE_CONTENT_SCRIPT) { value ->
                         if (finished) return@evaluateJavascript
 
-                        val currentHtml = decodeJavascriptString(html)
-                        if (currentHtml == lastHtml) {
+                        val snapshot = runCatching { parsePageContent(value) }.getOrNull()
+                        if (snapshot == null) {
+                            handler.postDelayed(::pollHtmlUntilStable, STABILITY_CHECK_INTERVAL_MS)
+                            return@evaluateJavascript
+                        }
+                        lastPageContent = snapshot.content
+
+                        if (snapshot.stableHtml == lastStableHtml) {
                             stableReadCount += 1
                         } else {
-                            lastHtml = currentHtml
+                            lastStableHtml = snapshot.stableHtml
                             stableReadCount = 0
                         }
 
                         if (stableReadCount >= 2) {
-                            complete(Result.success(currentHtml))
+                            complete(Result.success(snapshot.content))
                         } else {
                             handler.postDelayed(::pollHtmlUntilStable, STABILITY_CHECK_INTERVAL_MS)
                         }
@@ -74,25 +106,37 @@ actual class WebViewLoader actual constructor() {
                         pollHtmlUntilStable()
                     }
                 }
+                cancelWebView = {
+                    webView.stopLoading()
+                    complete(Result.failure(CancellationException("WebView load cancelled")))
+                }
 
                 webView.loadUrl(url)
 
                 handler.postDelayed({
                     if (!finished) {
                         webView.stopLoading()
-                        complete(Result.failure(Exception("WebView load timeout")))
+                        val content = lastPageContent
+                        if (content != null && (content.text.isNotBlank() || content.html.isNotBlank())) {
+                            complete(Result.success(content))
+                        } else {
+                            complete(Result.failure(Exception("WebView load timeout")))
+                        }
                     }
                 }, timeoutMs)
             } catch (e: Exception) {
                 callback(Result.failure(e))
             }
         }
+        return handle
     }
 
     private companion object {
         const val STABILITY_CHECK_INTERVAL_MS = 2_000L
         const val PARSE_CONTENT_SCRIPT = """
             (function() {
+                const stableHtml = document.documentElement ? (document.documentElement.innerHTML || '') : '';
+                const text = document.body ? (document.body.innerText || '') : '';
                 const clone = document.documentElement.cloneNode(true);
                 const originalImages = Array.from(document.images || []);
                 const clonedImages = Array.from(clone.getElementsByTagName('img'));
@@ -131,8 +175,17 @@ actual class WebViewLoader actual constructor() {
                     clonedImg.removeAttribute('data-url');
                 });
 
-                return clone.outerHTML;
+                return JSON.stringify({
+                    stableHtml: stableHtml,
+                    text: text,
+                    html: document.documentElement ? (clone.outerHTML || document.documentElement.outerHTML || '') : ''
+                });
             })();
         """
     }
+
+    private data class PageSnapshot(
+        val stableHtml: String,
+        val content: WebViewPageContent,
+    )
 }

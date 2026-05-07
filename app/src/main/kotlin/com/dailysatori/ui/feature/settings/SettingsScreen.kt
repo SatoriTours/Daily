@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -27,6 +28,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -156,11 +158,31 @@ private fun UpdateDialog(state: SettingsState, viewModel: SettingsViewModel, con
     if (!state.showUpdateDialog) return
     AlertDialog(
         onDismissRequest = { viewModel.dismissUpdateDialog() },
-        title = { Text("发现新版本") },
-        text = { Text("当前版本 v${state.currentVersion}\n最新版本 ${release.version}\n是否立即更新？") },
-        dismissButton = { TextButton(onClick = { viewModel.dismissUpdateDialog() }) { Text("稍后") } },
-        confirmButton = { TextButton(onClick = { viewModel.startUpdateDownload(context) }) { Text("立即更新") } },
+        title = { Text(if (state.isDownloadingUpdate) "正在下载更新" else "发现新版本") },
+        text = {
+            if (state.isDownloadingUpdate) UpdateDownloadProgress(state)
+            else Text("当前版本 v${state.currentVersion}\n最新版本 ${release.version}\n是否立即更新？")
+        },
+        dismissButton = {
+            if (!state.isDownloadingUpdate) TextButton(onClick = { viewModel.dismissUpdateDialog() }) { Text("稍后") }
+        },
+        confirmButton = {
+            if (!state.isDownloadingUpdate) TextButton(onClick = { viewModel.startUpdateDownload(context) }) { Text("立即更新") }
+        },
     )
+}
+
+@Composable
+internal fun UpdateDownloadProgress(state: SettingsState) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Text(state.updateDownloadProgressText)
+        val progress = state.updateDownloadProgress
+        if (progress == null) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        } else {
+            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+        }
+    }
 }
 
 @Composable
