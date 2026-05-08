@@ -8,6 +8,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import com.dailysatori.platform.WebViewPageContent
+import com.dailysatori.platform.shouldCompleteWebViewPolling
 
 class ArticleProcessingContentTest {
     @Test
@@ -111,8 +112,52 @@ class ArticleProcessingContentTest {
         assertEquals(true, prompt.contains("不保留原生 HTML 标签"))
         assertEquals(true, prompt.contains("不输出摘要"))
         assertEquals(true, prompt.contains("必须保留正文图片"))
-        assertEquals(true, prompt.contains("保留原文语言"))
-        assertEquals(false, prompt.contains("返回内容翻译成流畅的中文"))
+        assertEquals(false, prompt.contains("保留原文语言"))
+        assertEquals(true, prompt.contains("用中文输出"))
+        assertEquals(false, prompt.contains("保留原文语言，不翻译正文内容"))
+    }
+
+    @Test
+    fun articleTitlePromptRequiresChineseOutput() {
+        val prompt = articleTitlePrompt()
+
+        assertEquals(true, prompt.contains("用中文输出"))
+        assertEquals(true, prompt.contains("15-25 字"))
+        assertEquals(true, prompt.contains("只返回标题"))
+    }
+
+    @Test
+    fun articleSummaryPromptRequiresChineseOutput() {
+        val prompt = articleSummaryPrompt()
+
+        assertEquals(true, prompt.contains("用中文输出"))
+    }
+
+    @Test
+    fun prefersGeneratedTitleThenSummaryThenExistingTitles() {
+        assertEquals(
+            "AI 优化标题",
+            selectedArticleAiTitle("AI 优化标题", "摘要标题", "网页标题", "原标题"),
+        )
+        assertEquals(
+            "摘要标题",
+            selectedArticleAiTitle("", "摘要标题", "网页标题", "原标题"),
+        )
+        assertEquals(
+            "网页标题",
+            selectedArticleAiTitle("", null, "网页标题", "原标题"),
+        )
+        assertEquals(
+            "原标题",
+            selectedArticleAiTitle("", null, null, "原标题"),
+        )
+    }
+
+    @Test
+    fun webViewPollingUsesCurrentSnapshotAfterMaximumChecks() {
+        assertEquals(false, shouldCompleteWebViewPolling(stableReadCount = 0, readCount = 4))
+        assertEquals(true, shouldCompleteWebViewPolling(stableReadCount = 0, readCount = 5))
+        assertEquals(true, shouldCompleteWebViewPolling(stableReadCount = 2, readCount = 2))
     }
 
     @Test

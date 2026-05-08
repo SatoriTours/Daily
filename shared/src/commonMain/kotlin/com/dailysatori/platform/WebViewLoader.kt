@@ -5,6 +5,12 @@ data class WebViewPageContent(
     val text: String,
 )
 
+internal fun shouldCompleteWebViewPolling(
+    stableReadCount: Int,
+    readCount: Int,
+    maxReadCount: Int = 5,
+): Boolean = stableReadCount >= 2 || readCount >= maxReadCount
+
 expect class WebViewLoadHandle {
     fun cancel()
 }

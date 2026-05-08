@@ -21,6 +21,15 @@ internal fun articleSummaryPrompt(): String = """
     5. 要点精炼有力，去除冗余修饰，避免解释性语言。
 """.trimIndent()
 
+internal fun articleTitlePrompt(): String = """
+    你是一位专业中文编辑。请阅读用户给出的文章正文，用中文输出一个详细、简明扼要的标题。
+
+    要求：
+    1. 标题控制在 15-25 字，准确概括文章核心内容。
+    2. 只返回标题，不要输出解释、引号、编号或 Markdown 标记。
+    3. 只基于正文内容，不要编造信息。
+""".trimIndent()
+
 internal fun htmlToReadableMarkdownPrompt(): String = """
     你是一个专业的技术文档排版专家，擅长将 HTML 内容转换为精美、专业的 Markdown 格式，达到类似 InfoQ 技术文章的排版效果，并符合 GitHub Markdown 的渲染标准。
 
@@ -82,6 +91,7 @@ internal fun htmlToReadableMarkdownPrompt(): String = """
 
     ## 输出要求
     - 只返回转换后的 Markdown 内容，不添加任何说明
-    - 保留原文语言，不翻译正文内容
+    - 用中文输出标题、段落、列表、表格等正文内容
+    - 保留原文主要信息、代码、专有名词、链接和图片，不改变原意
     - 确保最终排版美观、专业、易读
 """.trimIndent()

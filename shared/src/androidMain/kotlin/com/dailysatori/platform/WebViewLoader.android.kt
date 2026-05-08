@@ -45,6 +45,7 @@ actual class WebViewLoader actual constructor() {
                 var lastStableHtml = ""
                 var lastPageContent: WebViewPageContent? = null
                 var stableReadCount = 0
+                var readCount = 0
 
                 fun complete(result: Result<WebViewPageContent>) {
                     if (finished) return
@@ -83,6 +84,7 @@ actual class WebViewLoader actual constructor() {
                             return@evaluateJavascript
                         }
                         lastPageContent = snapshot.content
+                        readCount += 1
 
                         if (snapshot.stableHtml == lastStableHtml) {
                             stableReadCount += 1
@@ -91,7 +93,7 @@ actual class WebViewLoader actual constructor() {
                             stableReadCount = 0
                         }
 
-                        if (stableReadCount >= 2) {
+                        if (shouldCompleteWebViewPolling(stableReadCount, readCount)) {
                             complete(Result.success(snapshot.content))
                         } else {
                             handler.postDelayed(::pollHtmlUntilStable, STABILITY_CHECK_INTERVAL_MS)
@@ -112,6 +114,12 @@ actual class WebViewLoader actual constructor() {
                 }
 
                 webView.loadUrl(url)
+                handler.postDelayed({
+                    if (!finished && !isPolling) {
+                        isPolling = true
+                        pollHtmlUntilStable()
+                    }
+                }, STABILITY_CHECK_INTERVAL_MS)
 
                 handler.postDelayed({
                     if (!finished) {

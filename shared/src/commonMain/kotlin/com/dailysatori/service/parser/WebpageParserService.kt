@@ -16,6 +16,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsBytes
 import io.ktor.client.statement.bodyAsText
+import kotlinx.coroutines.async
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -41,6 +43,12 @@ data class ExtractedContent(
 
 internal data class ParsedArticleSummary(
     val summary: String,
+    val coverImageUrl: String?,
+)
+
+private data class ArticleSummaryResult(
+    val content: String,
+    val title: String?,
     val coverImageUrl: String?,
 )
 
@@ -130,6 +138,16 @@ internal fun isLegacyRecoverableProcessingError(message: String?, aiMarkdownCont
 
 internal fun articleProcessingErrorMessage(error: Exception): String =
     error.message?.takeIf { it.isNotBlank() } ?: "AI processing failed"
+
+internal fun selectedArticleAiTitle(
+    generatedTitle: String?,
+    summaryTitle: String?,
+    extractedTitle: String?,
+    originalTitle: String?,
+): String = listOf(generatedTitle, summaryTitle, extractedTitle, originalTitle)
+    .map { it?.trim().orEmpty() }
+    .firstOrNull { it.isNotBlank() && it != "正在加载..." }
+    .orEmpty()
 
 internal fun shouldPersistArticleProcessingError(error: Throwable): Boolean =
     error !is CancellationException || error is TimeoutCancellationException
@@ -369,61 +387,27 @@ class WebpageParserService(
             val modelName = normalizedConfig.modelName
             val provider = normalizedConfig.provider
 
-            val originalTitle = article.title?.trim().orEmpty()
-            var aiTitle = originalTitle.takeIf { it.isNotBlank() && it != "正在加载..." }.orEmpty()
-
             val state2 = mutableMapOf<Long, ArticleProcessingState>()
-            state2[articleId] = ArticleProcessingState(articleId, "aiProcessing", "Generating summary")
+            state2[articleId] = ArticleProcessingState(articleId, "aiProcessing", "Running AI tasks")
             _processingStates.value = state2
             updateArticleStatus(article, "aiProcessing")
 
             val htmlContent = extracted?.htmlContent ?: ""
-            var aiContent = ""
-            var tags = ""
-            var aiCoverImageUrl: String? = null
-            try {
-                val summary = aiService.summarize(
-                    articleSummaryInput(extracted, modelName),
-                    articleSummaryPrompt(),
-                    apiAddress, apiToken, modelName, provider,
-                )
-                val parsedSummary = parseArticleSummaryOutput(summary)
-                aiCoverImageUrl = validatedCoverImageUrl(parsedSummary.coverImageUrl, extracted?.imageUrls.orEmpty())
-                aiTitle = extractMarkdownHeadingTitle(parsedSummary.summary) ?: aiTitle
-                aiContent = generatedSummaryOrFallback(
-                    parsedSummary.summary,
-                    article.ai_content,
-                    extracted?.content,
-                    article.ai_markdown_content,
-                )
-            } catch (e: Exception) {
-                if (!shouldPersistArticleProcessingError(e)) throw e
-                log.e(e) { "Summary generation failed" }
-                aiContent = generatedSummaryOrFallback("", article.ai_content, extracted?.content, article.ai_markdown_content)
+            val (generatedTitle, summaryResult, aiMarkdownContent) = supervisorScope {
+                val titleTask = async { generateArticleTitle(article, extracted, apiAddress, apiToken, modelName, provider) }
+                val summaryTask = async { generateArticleSummary(article, extracted, apiAddress, apiToken, modelName, provider) }
+                val markdownTask = async { generateArticleMarkdown(article, extracted, htmlContent, apiAddress, apiToken, modelName, provider) }
+                Triple(titleTask.await(), summaryTask.await(), markdownTask.await())
             }
 
-            val state3 = mutableMapOf<Long, ArticleProcessingState>()
-            state3[articleId] = ArticleProcessingState(articleId, "aiProcessing", "Converting to Markdown")
-            _processingStates.value = state3
-            updateArticleStatus(article, "aiProcessing")
-
-            var aiMarkdownContent = ""
-            if (htmlContent.isNotBlank()) {
-                try {
-                    aiMarkdownContent = aiService.htmlToMarkdown(
-                        articleMarkdownInput(extracted, modelName),
-                        htmlToReadableMarkdownPrompt(),
-                        apiAddress, apiToken, modelName, provider,
-                    )
-                    aiMarkdownContent = generatedMarkdownOrFallback(aiMarkdownContent, article.ai_markdown_content, extracted?.content)
-                } catch (e: Exception) {
-                    if (!shouldPersistArticleProcessingError(e)) throw e
-                    log.e(e) { "Markdown conversion failed" }
-                    aiMarkdownContent = generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content)
-                }
-            } else {
-                aiMarkdownContent = generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content)
-            }
+            val aiTitle = selectedArticleAiTitle(
+                generatedTitle,
+                summaryResult.title,
+                extracted?.title,
+                article.title,
+            )
+            val aiContent = summaryResult.content
+            val aiCoverImageUrl = summaryResult.coverImageUrl
 
             val state4 = mutableMapOf<Long, ArticleProcessingState>()
             state4[articleId] = ArticleProcessingState(articleId, "aiProcessing", "Downloading cover image")
@@ -481,6 +465,78 @@ class WebpageParserService(
             errorState[articleId] = ArticleProcessingState(articleId, "error", articleProcessingErrorMessage(e))
             _processingStates.value = errorState
             throw e
+        }
+    }
+
+    private suspend fun generateArticleTitle(
+        article: Article,
+        extracted: ExtractedContent?,
+        apiAddress: String,
+        apiToken: String,
+        modelName: String,
+        provider: String,
+    ): String = try {
+        aiService.summarize(
+            articleTitleInput(extracted, modelName),
+            articleTitlePrompt(),
+            apiAddress, apiToken, modelName, provider,
+        ).trim().trim('#', ' ', '\n', '\t')
+    } catch (e: Exception) {
+        if (!shouldPersistArticleProcessingError(e)) throw e
+        log.e(e) { "Title generation failed" }
+        article.ai_title.orEmpty()
+    }
+
+    private suspend fun generateArticleSummary(
+        article: Article,
+        extracted: ExtractedContent?,
+        apiAddress: String,
+        apiToken: String,
+        modelName: String,
+        provider: String,
+    ): ArticleSummaryResult = try {
+        val summary = aiService.summarize(
+            articleSummaryInput(extracted, modelName),
+            articleSummaryPrompt(),
+            apiAddress, apiToken, modelName, provider,
+        )
+        val parsed = parseArticleSummaryOutput(summary)
+        ArticleSummaryResult(
+            content = generatedSummaryOrFallback(parsed.summary, article.ai_content, extracted?.content, article.ai_markdown_content),
+            title = extractMarkdownHeadingTitle(parsed.summary),
+            coverImageUrl = validatedCoverImageUrl(parsed.coverImageUrl, extracted?.imageUrls.orEmpty()),
+        )
+    } catch (e: Exception) {
+        if (!shouldPersistArticleProcessingError(e)) throw e
+        log.e(e) { "Summary generation failed" }
+        ArticleSummaryResult(
+            content = generatedSummaryOrFallback("", article.ai_content, extracted?.content, article.ai_markdown_content),
+            title = null,
+            coverImageUrl = null,
+        )
+    }
+
+    private suspend fun generateArticleMarkdown(
+        article: Article,
+        extracted: ExtractedContent?,
+        htmlContent: String,
+        apiAddress: String,
+        apiToken: String,
+        modelName: String,
+        provider: String,
+    ): String {
+        if (htmlContent.isBlank()) return generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content)
+        return try {
+            val markdown = aiService.htmlToMarkdown(
+                articleMarkdownInput(extracted, modelName),
+                htmlToReadableMarkdownPrompt(),
+                apiAddress, apiToken, modelName, provider,
+            )
+            generatedMarkdownOrFallback(markdown, article.ai_markdown_content, extracted?.content)
+        } catch (e: Exception) {
+            if (!shouldPersistArticleProcessingError(e)) throw e
+            log.e(e) { "Markdown conversion failed" }
+            generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content)
         }
     }
 
@@ -747,6 +803,8 @@ internal fun articleSummaryInput(extracted: ExtractedContent?, modelName: String
     if (textContent.isNotBlank()) return textContent.take(AIConfig.maxContentLength.toInt())
     return htmlForAiModel(extracted?.htmlContent.orEmpty(), modelName)
 }
+
+internal fun articleTitleInput(extracted: ExtractedContent?, modelName: String): String = articleSummaryInput(extracted, modelName)
 
 internal fun articleMarkdownInput(extracted: ExtractedContent?, modelName: String): String {
     val textContent = extracted?.content?.trim().orEmpty()
