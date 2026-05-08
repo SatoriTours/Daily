@@ -148,6 +148,9 @@ SELECT * FROM article ORDER BY created_at DESC LIMIT ? OFFSET ?;
 selectArticleById:
 SELECT * FROM article WHERE id = ?;
 
+selectArticleByUrl:
+SELECT * FROM article WHERE url = ?;
+
 selectArticlesByStatus:
 SELECT * FROM article WHERE status = ? ORDER BY created_at DESC;
 
@@ -197,6 +200,21 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 updateArticle:
 UPDATE article SET title = ?, ai_title = ?, ai_content = ?, ai_markdown_content = ?, url = ?, is_favorite = ?, comment = ?, status = ?, cover_image = ?, cover_image_url = ?, pub_date = ?, updated_at = ?
 WHERE id = ?;
+
+updateArticleAiTitle:
+UPDATE article SET ai_title = ?, updated_at = ? WHERE id = ?;
+
+updateArticleAiContent:
+UPDATE article SET ai_content = ?, ai_title = COALESCE(?, ai_title), cover_image_url = COALESCE(?, cover_image_url), updated_at = ? WHERE id = ?;
+
+updateArticleAiMarkdownContent:
+UPDATE article SET ai_markdown_content = ?, updated_at = ? WHERE id = ?;
+
+updateArticleStatus:
+UPDATE article SET status = ?, updated_at = ? WHERE id = ?;
+
+updateArticleProcessingCompletion:
+UPDATE article SET status = ?, cover_image = COALESCE(?, cover_image), cover_image_url = COALESCE(?, cover_image_url), updated_at = ? WHERE id = ?;
 
 updateArticleField:
 UPDATE article SET updated_at = ? WHERE id = ?;

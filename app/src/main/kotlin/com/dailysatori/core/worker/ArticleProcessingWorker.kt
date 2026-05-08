@@ -23,13 +23,21 @@ import java.security.MessageDigest
 
 class ArticleProcessingScheduler(private val context: Context) {
     fun enqueueSave(url: String) {
+        enqueueSave(url, ExistingWorkPolicy.KEEP)
+    }
+
+    fun enqueueRetrySave(url: String) {
+        enqueueSave(url, ExistingWorkPolicy.REPLACE)
+    }
+
+    private fun enqueueSave(url: String, policy: ExistingWorkPolicy) {
         val normalizedUrl = normalizeArticleUrl(url)
         if (normalizedUrl.isBlank()) return
         markSavePending(normalizedUrl)
         val request = buildArticleSaveWorkRequest(url, normalizedUrl)
         WorkManager.getInstance(context).enqueueUniqueWork(
             saveWorkName(normalizedUrl),
-            ExistingWorkPolicy.KEEP,
+            policy,
             request,
         )
     }
@@ -37,7 +45,16 @@ class ArticleProcessingScheduler(private val context: Context) {
     fun isSavePending(url: String): Boolean {
         val normalizedUrl = normalizeArticleUrl(url)
         if (normalizedUrl.isBlank()) return false
-        return pendingPrefs().getBoolean(normalizedUrl, false)
+        val markedAt = try {
+            pendingPrefs().getLong(normalizedUrl, 0L)
+        } catch (_: ClassCastException) {
+            clearSavePending(normalizedUrl)
+            return false
+        }
+        if (markedAt == 0L) return false
+        if (System.currentTimeMillis() - markedAt <= SAVE_PENDING_TTL_MS) return true
+        clearSavePending(normalizedUrl)
+        return false
     }
 
     fun clearSavePending(url: String) {
@@ -58,7 +75,7 @@ class ArticleProcessingScheduler(private val context: Context) {
     }
 
     private fun markSavePending(normalizedUrl: String) {
-        pendingPrefs().edit().putBoolean(normalizedUrl, true).apply()
+        pendingPrefs().edit().putLong(normalizedUrl, System.currentTimeMillis()).apply()
     }
 
     private fun pendingPrefs() = context.getSharedPreferences("article_processing_pending", Context.MODE_PRIVATE)
@@ -66,6 +83,10 @@ class ArticleProcessingScheduler(private val context: Context) {
     private fun saveWorkName(normalizedUrl: String): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(normalizedUrl.toByteArray())
         return "article-save-${digest.joinToString("") { "%02x".format(it.toInt() and 0xff) }}"
+    }
+
+    private companion object {
+        const val SAVE_PENDING_TTL_MS = 10 * 60 * 1000L
     }
 }
 

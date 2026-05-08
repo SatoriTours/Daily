@@ -52,6 +52,7 @@ private fun aiProgressMessage(progress: String?): String = when (progress) {
     "Generating title" -> "正在优化标题..."
     "Generating summary" -> "正在生成摘要..."
     "Converting to Markdown" -> "正在整理原文排版..."
+    "Running AI tasks" -> "正在并行处理标题、摘要和原文..."
     "Downloading cover image" -> "正在保存封面图..."
     else -> "正在处理文章..."
 }

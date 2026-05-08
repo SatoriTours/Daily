@@ -32,7 +32,9 @@ class AppUrlIntakeViewModel(
         val url = extractFirstUrl(text) ?: return
         clipboardCheckGate.suppressNextCheck()
         viewModelScope.launch(Dispatchers.IO) {
-            if (isExistingArticle(url)) {
+            if (retryExistingArticle(url)) {
+                _state.update { it.copy(clipboardUrl = null, duplicateUrl = null) }
+            } else if (isExistingArticle(url)) {
                 _state.update { it.copy(duplicateUrl = url, clipboardUrl = null) }
             } else {
                 saveUrl(url)
@@ -45,7 +47,11 @@ class AppUrlIntakeViewModel(
         val url = clipboardMonitorService.checkClipboard() ?: return
         if (!clipboardPromptState.shouldPrompt(url)) return
         viewModelScope.launch(Dispatchers.IO) {
-            if (isExistingArticle(url)) {
+            if (retryExistingArticle(url)) {
+                clipboardPromptState.markHandled(url)
+                clipboardMonitorService.markProcessed(url)
+                _state.update { it.copy(duplicateUrl = null, clipboardUrl = null) }
+            } else if (isExistingArticle(url)) {
                 clipboardPromptState.markHandled(url)
                 clipboardMonitorService.markProcessed(url)
                 _state.update { it.copy(duplicateUrl = url, clipboardUrl = null) }
@@ -77,6 +83,15 @@ class AppUrlIntakeViewModel(
 
     private fun isExistingArticle(url: String): Boolean {
         return articleUrlExists(url, articleRepo.getAllSync().mapNotNull { it.url })
+    }
+
+    private fun retryExistingArticle(url: String): Boolean {
+        val article = articleRepo.getAllSync()
+            .firstOrNull { normalizeArticleUrl(it.url) == normalizeArticleUrl(url) }
+            ?: return false
+        if (!shouldRetryExistingSharedArticle(article.status)) return false
+        articleProcessingScheduler.enqueueRetrySave(url)
+        return true
     }
 
     private suspend fun saveUrl(url: String) {

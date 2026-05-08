@@ -65,6 +65,27 @@ class ArticleProcessingContentTest {
     }
 
     @Test
+    fun keepsExistingSummaryWhenLaterProcessingFails() {
+        assertEquals("已有摘要", summaryAfterProcessingError("已有摘要", "已有原文", "AI timeout"))
+        assertEquals("已有原文", summaryAfterProcessingError(null, "已有原文", "AI timeout"))
+        assertEquals("AI timeout", summaryAfterProcessingError(null, null, "AI timeout"))
+    }
+
+    @Test
+    fun marksArticleCompletedWhenAnyAiContentExists() {
+        assertEquals("completed", finalArticleStatus(aiContent = "摘要", aiMarkdownContent = null))
+        assertEquals("completed", finalArticleStatus(aiContent = null, aiMarkdownContent = "原文"))
+        assertEquals("error", finalArticleStatus(aiContent = null, aiMarkdownContent = null))
+    }
+
+    @Test
+    fun legacyProcessingErrorTextDoesNotMakeArticleCompleted() {
+        assertEquals("error", finalArticleStatus(aiContent = "Job was cancelled", aiMarkdownContent = null))
+        assertEquals("error", finalArticleStatus(aiContent = "AI summary generation returned empty result", aiMarkdownContent = null))
+        assertEquals("completed", finalArticleStatus(aiContent = "Job was cancelled", aiMarkdownContent = "已有原文"))
+    }
+
+    @Test
     fun doesNotReuseLegacyProcessingErrorsAsExistingSummary() {
         assertEquals(null, existingSummaryOrNull("Job was cancelled"))
         assertEquals(null, existingSummaryOrNull("AI summary generation returned empty result"))
@@ -472,34 +493,4 @@ class ArticleProcessingContentTest {
         )
     }
 
-    @Test
-    fun parsesTweetApiPayloadIntoCompactArticleContent() {
-        val json = """
-            {
-              "tweet": {
-                "text": "三只松鼠2025年干了101.89亿的营收，\n最后落到自己口袋的净利润只剩1.55亿。",
-                "author": { "name": "Ruken", "screen_name": "rukenyang1024" },
-                "media": {
-                  "photos": [
-                    {
-                      "url": "https://pbs.twimg.com/media/HHZk9oQbcAAe0WN.jpg?name=orig",
-                      "width": 1080,
-                      "height": 608
-                    }
-                  ]
-                }
-              }
-            }
-        """.trimIndent()
-
-        val extracted = parseFxTwitterTweetPayload(
-            json,
-            "https://x.com/rukenyang1024/status/2050938638931018064",
-        )
-
-        assertEquals("三只松鼠2025年干了101.89亿的营收，", extracted?.title)
-        assertEquals("https://pbs.twimg.com/media/HHZk9oQbcAAe0WN.jpg?name=large", extracted?.coverImageUrl)
-        assertEquals(listOf("https://pbs.twimg.com/media/HHZk9oQbcAAe0WN.jpg?name=large"), extracted?.imageUrls)
-        assertEquals(true, extracted?.htmlContent?.contains("abs.twimg.com/responsive-web") == false)
-    }
 }

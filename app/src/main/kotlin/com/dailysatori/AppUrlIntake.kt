@@ -17,6 +17,11 @@ internal fun articleUrlExists(url: String, existingUrls: List<String>): Boolean 
     return existingUrls.any { normalizeArticleUrl(it) == normalized }
 }
 
+internal fun shouldRetryExistingSharedArticle(status: String?): Boolean = when (status) {
+    "pending", "webContentFetched", "aiProcessing", "error" -> true
+    else -> false
+}
+
 internal fun shouldCheckClipboardOnForeground(launchedFromShare: Boolean): Boolean = !launchedFromShare
 
 internal fun duplicateUrlSnackbarMessage(): String = "链接已存在"

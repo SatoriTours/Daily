@@ -60,7 +60,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
             title, aiTitle, aiContent, aiMarkdownContent,
             url, isFavorite, comment, status, coverImage, coverImageUrl, pubDate, now, now,
         )
-        return q.selectArticles().executeAsList().maxOfOrNull { it.id } ?: 0L
+        return q.selectArticleByUrl(url ?: error("Article URL required for insert")).executeAsOne().id
     }
 
     fun update(
@@ -82,6 +82,31 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
             title, aiTitle, aiContent, aiMarkdownContent,
             url, isFavorite, comment, status, coverImage, coverImageUrl, pubDate, now, id,
         )
+    }
+
+    fun updateAiTitle(id: Long, aiTitle: String?) {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        q.updateArticleAiTitle(aiTitle, now, id)
+    }
+
+    fun updateAiContent(id: Long, aiContent: String?, aiTitle: String?, coverImageUrl: String?) {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        q.updateArticleAiContent(aiContent, aiTitle, coverImageUrl, now, id)
+    }
+
+    fun updateAiMarkdownContent(id: Long, aiMarkdownContent: String?) {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        q.updateArticleAiMarkdownContent(aiMarkdownContent, now, id)
+    }
+
+    fun updateStatus(id: Long, status: String) {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        q.updateArticleStatus(status, now, id)
+    }
+
+    fun updateProcessingCompletion(id: Long, status: String, coverImage: String?, coverImageUrl: String?) {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        q.updateArticleProcessingCompletion(status, coverImage, coverImageUrl, now, id)
     }
 
     fun delete(id: Long) = q.deleteArticle(id)

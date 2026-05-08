@@ -21,6 +21,7 @@ class ArticleProcessingUiTextTest {
         assertEquals("正在优化标题...", articleProcessingMessage("aiProcessing", "Generating title"))
         assertEquals("正在生成摘要...", articleProcessingMessage("aiProcessing", "Generating summary"))
         assertEquals("正在整理原文排版...", articleProcessingMessage("aiProcessing", "Converting to Markdown"))
+        assertEquals("正在并行处理标题、摘要和原文...", articleProcessingMessage("aiProcessing", "Running AI tasks"))
         assertEquals("正在保存封面图...", articleProcessingMessage("aiProcessing", "Downloading cover image"))
         assertEquals("正在处理文章...", articleProcessingMessage("aiProcessing", "Starting AI tasks"))
     }
