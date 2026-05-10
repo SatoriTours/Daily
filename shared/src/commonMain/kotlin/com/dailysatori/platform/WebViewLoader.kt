@@ -12,7 +12,13 @@ internal fun shouldCompleteWebViewPolling(
     stableReadCount: Int,
     readCount: Int,
     maxReadCount: Int = 5,
-): Boolean = stableReadCount >= 2 || readCount >= maxReadCount
+    requireUsableContent: Boolean = false,
+    hasUsableContent: Boolean = false,
+): Boolean = if (requireUsableContent) {
+    (stableReadCount >= 2 && hasUsableContent) || readCount >= maxReadCount
+} else {
+    stableReadCount >= 2 || readCount >= maxReadCount
+}
 
 expect class WebViewLoadHandle {
     fun cancel()

@@ -22,6 +22,9 @@ actual class WebViewLoadHandle internal constructor(
 
 actual class WebViewLoader actual constructor() {
     private val context: Context by lazy { KoinPlatform.getKoin().get<PlatformContext>().context }
+    private val loadLock = Any()
+    private val pendingLoads = ArrayDeque<QueuedWebViewLoad>()
+    private var activeLoad: QueuedWebViewLoad? = null
     private val readabilityJs: String by lazy {
         runCatching {
             context.assets.open("js/Readability.js").bufferedReader().use { it.readText() }
@@ -29,6 +32,69 @@ actual class WebViewLoader actual constructor() {
     }
 
     actual fun loadContent(
+        url: String,
+        timeoutMs: Long,
+        callback: (Result<WebViewPageContent>) -> Unit,
+    ): WebViewLoadHandle {
+        val load = QueuedWebViewLoad(url, timeoutMs, callback)
+        synchronized(loadLock) {
+            pendingLoads.addLast(load)
+        }
+        startNextLoad()
+        return WebViewLoadHandle {
+            var notifyCancelled = false
+            val runningHandle = synchronized(loadLock) {
+                if (load.completed) return@synchronized null
+                load.cancelled = true
+                if (activeLoad === load) {
+                    load.runningHandle
+                } else {
+                    notifyCancelled = pendingLoads.remove(load)
+                    null
+                }
+            }
+            if (runningHandle != null) {
+                runningHandle.cancel()
+            } else if (notifyCancelled) {
+                callback(Result.failure(CancellationException("WebView load cancelled")))
+            }
+        }
+    }
+
+    private fun startNextLoad() {
+        val load = synchronized(loadLock) {
+            if (activeLoad != null || pendingLoads.isEmpty()) return
+            pendingLoads.removeFirst().also { activeLoad = it }
+        }
+        if (load.cancelled) {
+            finishLoad(load)
+            return
+        }
+        val handle = startWebViewLoad(load.url, load.timeoutMs) { result ->
+            try {
+                if (!load.cancelled) load.callback(result)
+            } finally {
+                finishLoad(load)
+            }
+        }
+        val shouldCancel = synchronized(loadLock) {
+            load.runningHandle = handle
+            load.cancelled
+        }
+        if (shouldCancel) handle.cancel()
+    }
+
+    private fun finishLoad(load: QueuedWebViewLoad) {
+        val shouldStartNext = synchronized(loadLock) {
+            if (activeLoad !== load) return@synchronized false
+            load.completed = true
+            activeLoad = null
+            true
+        }
+        if (shouldStartNext) startNextLoad()
+    }
+
+    private fun startWebViewLoad(
         url: String,
         timeoutMs: Long,
         callback: (Result<WebViewPageContent>) -> Unit,
@@ -78,6 +144,7 @@ actual class WebViewLoader actual constructor() {
                     val json = JSONObject(decodeJavascriptString(value))
                     return PageSnapshot(
                         stableHtml = json.optString("stableHtml"),
+                        hasUsableContent = json.optBoolean("hasUsableContent"),
                         content = WebViewPageContent(
                             html = json.optString("html"),
                             text = json.optString("text"),
@@ -108,7 +175,13 @@ actual class WebViewLoader actual constructor() {
                             stableReadCount = 0
                         }
 
-                        if (shouldCompleteWebViewPolling(stableReadCount, readCount)) {
+                        if (shouldCompleteWebViewPolling(
+                                stableReadCount,
+                                readCount,
+                                requireUsableContent = true,
+                                hasUsableContent = snapshot.hasUsableContent,
+                            )
+                        ) {
                             complete(Result.success(snapshot.content))
                         } else {
                             handler.postDelayed(::pollHtmlUntilStable, STABILITY_CHECK_INTERVAL_MS)
@@ -192,6 +265,15 @@ actual class WebViewLoader actual constructor() {
         }
         return handle
     }
+
+    private class QueuedWebViewLoad(
+        val url: String,
+        val timeoutMs: Long,
+        val callback: (Result<WebViewPageContent>) -> Unit,
+        var cancelled: Boolean = false,
+        var completed: Boolean = false,
+        var runningHandle: WebViewLoadHandle? = null,
+    )
 
     private companion object {
         const val DESKTOP_USER_AGENT =
@@ -282,6 +364,43 @@ actual class WebViewLoader actual constructor() {
                     return fallbackText.length >= 50 ? fallbackText : '';
                 }
 
+                function isUsableContent(value) {
+                    if (!value) return false;
+                    const compact = String(value).replace(/\s+/g, '').trim();
+                    if (compact.length < 24) return false;
+                    if (!/[A-Za-z0-9\u4e00-\u9fff]/.test(value)) return false;
+
+                    const lines = String(value)
+                        .split('\n')
+                        .map(function(line) { return String(line || '').trim().toLowerCase(); })
+                        .filter(function(line) { return line.length > 0; });
+                    if (lines.length === 0) return false;
+
+                    const noiseWords = [
+                        '登录',
+                        '注册',
+                        '首页',
+                        'login',
+                        'log in',
+                        'sign in',
+                        'sign up',
+                        'menu',
+                        'search',
+                        'subscribe',
+                        'subscribe to',
+                        'follow',
+                        'following',
+                        'home',
+                        'explore',
+                        'notifications',
+                    ];
+
+                    const noiseLines = lines.filter(function(line) {
+                        return noiseWords.includes(line);
+                    });
+                    return !(lines.length >= 3 && noiseLines.length >= lines.length * 0.6);
+                }
+
                 try {
                     if (ensureReadability()) {
                         const article = new Readability(document.cloneNode(true)).parse();
@@ -293,10 +412,11 @@ actual class WebViewLoader actual constructor() {
                     }
                 } catch (e) {}
 
+                const readableContentCandidate = readableContent || fallbackReadableContent();
                 if (!readableContent) {
-                    readableContent = fallbackReadableContent();
+                    readableContent = readableContentCandidate;
                     readableTitle = readableTitle || document.title || '';
-                    readableExcerpt = readableExcerpt || readableContent.substring(0, 200);
+                    readableExcerpt = readableExcerpt || readableContentCandidate.substring(0, 200);
                 }
 
                 originalImages.forEach(function(img, index) {
@@ -323,7 +443,8 @@ actual class WebViewLoader actual constructor() {
                     html: document.documentElement ? (clone.outerHTML || document.documentElement.outerHTML || '') : '',
                     readableTitle: readableTitle,
                     readableContent: readableContent,
-                    readableExcerpt: readableExcerpt
+                    readableExcerpt: readableExcerpt,
+                    hasUsableContent: isUsableContent(readableContentCandidate),
                 });
             })();
         """
@@ -331,6 +452,7 @@ actual class WebViewLoader actual constructor() {
 
     private data class PageSnapshot(
         val stableHtml: String,
+        val hasUsableContent: Boolean,
         val content: WebViewPageContent,
     )
 }

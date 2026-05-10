@@ -151,9 +151,22 @@ class ArticleProcessingContentTest {
         assertEquals(true, prompt.contains("不保留原生 HTML 标签"))
         assertEquals(true, prompt.contains("不输出摘要"))
         assertEquals(true, prompt.contains("必须保留正文图片"))
+        assertEquals(true, prompt.contains("只调整排版、分段和 Markdown 结构"))
+        assertEquals(true, prompt.contains("禁止总结、缩写、改写或合并原文信息"))
+        assertEquals(true, prompt.contains("长段落必须按自然语义拆分"))
         assertEquals(false, prompt.contains("保留原文语言"))
         assertEquals(true, prompt.contains("用中文输出"))
         assertEquals(false, prompt.contains("保留原文语言，不翻译正文内容"))
+    }
+
+    @Test
+    fun articleAnalysisPromptRequiresReadableMarkdownWithoutRewritingContent() {
+        val prompt = articleAnalysisPrompt()
+
+        assertEquals(true, prompt.contains("markdown"))
+        assertEquals(true, prompt.contains("只调整排版、分段和 Markdown 结构"))
+        assertEquals(true, prompt.contains("禁止总结、缩写、改写或合并原文信息"))
+        assertEquals(true, prompt.contains("长段落必须按自然语义拆分"))
     }
 
     @Test
@@ -197,6 +210,14 @@ class ArticleProcessingContentTest {
         assertEquals(false, shouldCompleteWebViewPolling(stableReadCount = 0, readCount = 4))
         assertEquals(true, shouldCompleteWebViewPolling(stableReadCount = 0, readCount = 5))
         assertEquals(true, shouldCompleteWebViewPolling(stableReadCount = 2, readCount = 2))
+    }
+
+    @Test
+    fun webViewPollingWaitsForUsableContentWhenEnabled() {
+        assertEquals(false, shouldCompleteWebViewPolling(stableReadCount = 2, readCount = 2, requireUsableContent = true, hasUsableContent = false))
+        assertEquals(false, shouldCompleteWebViewPolling(stableReadCount = 4, readCount = 4, requireUsableContent = true, hasUsableContent = false))
+        assertEquals(true, shouldCompleteWebViewPolling(stableReadCount = 4, readCount = 5, requireUsableContent = true, hasUsableContent = false))
+        assertEquals(true, shouldCompleteWebViewPolling(stableReadCount = 2, readCount = 2, requireUsableContent = true, hasUsableContent = true))
     }
 
     @Test
@@ -423,6 +444,167 @@ class ArticleProcessingContentTest {
                 existing = existing,
             ),
         )
+    }
+
+    @Test
+    fun replacesMinimalTwitterMarkdownWhenNewExtractionHasSubstantialContent() {
+        val url = "https://x.com/Xudong07452910/status/2051891753821556976"
+        val existing = """
+            # 推文内容
+
+            **Xudong Han**
+            http://
+            x.com/i/article/2051
+            …
+
+            原文链接：$url
+        """.trimIndent()
+        val extracted = ExtractedContent(
+            title = "15天搭建个人Agent工作系统",
+            content = """
+                15天搭建个人Agent工作系统：从选基座到配测试的可复制方法论
+
+                本文复盘了作者用15天将个人Agent从脚本迭代为日常工作系统的完整方法论。
+                核心是通过选择轻量开源基座、建立项目记忆文件、用AI对话把模块拆解成可验证任务。
+                文章还详细说明了如何配置测试、沉淀工作流，并把日常高频任务纳入同一个Agent系统。
+            """.trimIndent(),
+            htmlContent = "<article><h1>15天搭建个人Agent工作系统</h1><p>完整正文</p></article>",
+            coverImageUrl = null,
+            readableHtmlContent = "<article><h1>15天搭建个人Agent工作系统</h1><p>完整正文</p></article>",
+            imageUrls = emptyList(),
+        )
+
+        val markdown = twitterStatusMarkdownOrExisting(url, extracted, existing)
+
+        assertEquals(true, markdown.contains("15天搭建个人Agent工作系统"))
+        assertEquals(false, markdown.contains("x.com/i/article/2051\n…"))
+    }
+
+    @Test
+    fun twitterMarkdownUsesReadableHtmlWhenTweetTextOnlyContainsArticleLink() {
+        val url = "https://x.com/Xudong07452910/status/2051891753821556976"
+        val extracted = ExtractedContent(
+            title = "15天搭建个人Agent工作系统",
+            content = """
+                **Xudong Han**
+                http://
+                x.com/i/article/2051
+                …
+            """.trimIndent(),
+            htmlContent = "<html><body>shell</body></html>",
+            coverImageUrl = null,
+            readableHtmlContent = """
+                <article>
+                    <h1>15天搭建个人Agent工作系统：从选基座到配测试的可复制方法论</h1>
+                    <p>本文复盘了作者用15天将个人Agent从脚本迭代为日常工作系统的完整方法论。</p>
+                    <p>核心是通过选择轻量开源基座、建立项目记忆文件、用AI对话把模块拆解成可验证任务。</p>
+                </article>
+            """.trimIndent(),
+            imageUrls = emptyList(),
+        )
+
+        val markdown = twitterStatusMarkdown(url, extracted)
+
+        assertEquals(true, markdown.contains("15天搭建个人Agent工作系统"))
+        assertEquals(false, markdown.contains("x.com/i/article/2051\n…"))
+    }
+
+    @Test
+    fun twitterReadableHtmlMarkdownIsSplitIntoReadableParagraphsWithoutChangingText() {
+        val url = "https://x.com/Xudong07452910/status/2051891753821556976"
+        val extracted = ExtractedContent(
+            title = "15天搭建个人Agent工作系统",
+            content = """
+                **Xudong Han**
+                http://
+                x.com/i/article/2051
+                …
+            """.trimIndent(),
+            htmlContent = "<html><body>shell</body></html>",
+            coverImageUrl = null,
+            readableHtmlContent = """
+                <article><h1>15天搭建个人Agent工作系统</h1><p>第一步选择轻量开源基座，把项目记忆文件放在固定位置。第二步用AI对话拆解模块，确保每个任务都可以验证。第三步配置测试流程，让Agent每次修改后都能回到可检查状态。</p></article>
+            """.trimIndent(),
+            imageUrls = emptyList(),
+        )
+
+        val markdown = twitterStatusMarkdown(url, extracted)
+
+        assertEquals(true, markdown.contains("第一步选择轻量开源基座，把项目记忆文件放在固定位置。"))
+        assertEquals(true, markdown.contains("第二步用AI对话拆解模块，确保每个任务都可以验证。"))
+        assertEquals(true, markdown.contains("第三步配置测试流程，让Agent每次修改后都能回到可检查状态。"))
+        assertEquals(true, markdown.contains("位置。\n\n第二步"))
+        assertEquals(true, markdown.contains("验证。\n\n第三步"))
+    }
+
+    @Test
+    fun twitterLongExtractedTextMarkdownIsSplitIntoReadableParagraphs() {
+        val url = "https://x.com/Xudong07452910/status/2051891753821556976"
+        val extracted = ExtractedContent(
+            title = "15天搭建个人Agent工作系统",
+            content = "2026年个人Agent自建实战：我用Vibe Coding + 借开源轮子，15天搭出每天都在用的工作系统（方法篇）。上一篇我聊了为什么自己不再去追新框架、不再频繁迁移、而是决定自己搭一套Agent。很多朋友看完后留言说想动手但不知道从哪开始，所以这篇文章讲了我用15天把我的个人Agent从能跑迭代成每天都在用的工作系统，完整复盘可复制的方法论。第一步，选一个轻量好扩展的基础项目不要一上来就从零写，也别直接上那种功能堆得很重的框架。第二步，用Claude Code装上，把飞书也顺手跑通，让Agent真的活起来。第三步，先建脚手架文件，让Claude Code知道你是谁、你要什么，避免每次从零猜。",
+            htmlContent = "<html><body>shell</body></html>",
+            coverImageUrl = null,
+            readableHtmlContent = null,
+            imageUrls = emptyList(),
+        )
+
+        val markdown = twitterStatusMarkdown(url, extracted)
+
+        assertEquals(true, markdown.contains("上一篇我聊了为什么自己不再去追新框架"))
+        assertEquals(true, markdown.contains("第一步，选一个轻量好扩展的基础项目"))
+        assertEquals(true, markdown.contains("第二步，用Claude Code装上"))
+        assertEquals(true, markdown.contains("第三步，先建脚手架文件"))
+        assertEquals(true, markdown.contains("方法论。\n\n第一步"))
+        assertEquals(true, markdown.contains("框架。\n\n第二步"))
+        assertEquals(true, markdown.contains("起来。\n\n第三步"))
+    }
+
+    @Test
+    fun twitterLongArticleMarkdownRemovesCollapsedXHeaderNoise() {
+        val url = "https://x.com/Xudong07452910/status/2051891753821556976"
+        val extracted = ExtractedContent(
+            title = "15天搭建个人Agent工作系统",
+            content = "对话Xudong Han@Xudong074529102026年个人Agent自建实战：我用Vibe Coding + 借开源轮子，15天搭出每天都在用的工作系统（方法篇）1010848213万上一篇我聊了为什么自己不再去追新框架、不再频繁迁移、而是决定自己搭一套Agent。第一步，选一个轻量好扩展的基础项目。第二步，用Claude Code装上，把飞书也顺手跑通。",
+            htmlContent = "<html><body>shell</body></html>",
+            coverImageUrl = null,
+            readableHtmlContent = null,
+            imageUrls = emptyList(),
+        )
+
+        val markdown = twitterStatusMarkdown(url, extracted)
+
+        assertEquals(false, markdown.contains("对话Xudong Han@"))
+        assertEquals(false, markdown.contains("1010848213万上一篇"))
+        assertEquals(true, markdown.contains("2026年个人Agent自建实战"))
+        assertEquals(true, markdown.contains("上一篇我聊了为什么自己不再去追新框架"))
+    }
+
+    @Test
+    fun replacesAutoGeneratedTwitterMarkdownEvenWhenExistingContentIsLong() {
+        val url = "https://x.com/Xudong07452910/status/2051891753821556976"
+        val existing = """
+            # 推文内容
+
+            对话Xudong Han@Xudong074529102026年个人Agent自建实战：我用Vibe Coding + 借开源轮子，15天搭出每天都在用的工作系统（方法篇）1010848213万上一篇我聊了为什么自己不再去追新框架、不再频繁迁移、而是决定自己搭一套Agent。第一步，选一个轻量好扩展的基础项目不要一上来就从零写，也别直接上那种功能堆得很重的框架。第二步，用Claude Code装上，把飞书也顺手跑通。
+
+            原文链接：$url
+        """.trimIndent()
+        val extracted = ExtractedContent(
+            title = "15天搭建个人Agent工作系统",
+            content = "2026年个人Agent自建实战：我用Vibe Coding + 借开源轮子，15天搭出每天都在用的工作系统（方法篇）。上一篇我聊了为什么自己不再去追新框架、不再频繁迁移、而是决定自己搭一套Agent。第一步，选一个轻量好扩展的基础项目不要一上来就从零写，也别直接上那种功能堆得很重的框架。第二步，用Claude Code装上，把飞书也顺手跑通。",
+            htmlContent = "<html><body>shell</body></html>",
+            coverImageUrl = null,
+            readableHtmlContent = null,
+            imageUrls = emptyList(),
+        )
+
+        val markdown = twitterStatusMarkdownOrExisting(url, extracted, existing)
+
+        assertEquals(false, markdown.contains("对话Xudong Han@"))
+        assertEquals(false, markdown.contains("1010848213万上一篇"))
+        assertEquals(true, markdown.contains("方法篇）。\n\n上一篇"))
+        assertEquals(true, markdown.contains("Agent。\n\n第一步"))
     }
 
     @Test

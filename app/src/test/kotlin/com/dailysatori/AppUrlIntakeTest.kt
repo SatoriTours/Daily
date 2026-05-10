@@ -134,6 +134,8 @@ class AppUrlIntakeTest {
         assertTrue(source.contains("document.documentElement.innerHTML"))
         assertTrue(source.contains("stableHtml"))
         assertTrue(source.contains("shouldCompleteWebViewPolling"))
+        assertTrue(source.contains("isUsableContent"))
+        assertTrue(source.contains("hasUsableContent"))
         assertTrue(source.contains("lastPageContent"))
     }
 
@@ -255,7 +257,8 @@ class AppUrlIntakeTest {
 
         assertTrue(existingBranch.contains("markArticleActive(existing.id)"))
         assertTrue(existingBranch.contains("finishQueuedArticle(existing.id)"))
-        assertTrue(existingBranch.contains("throw CancellationException"))
+        assertTrue(existingBranch.contains("enqueueArticleProcessing(existing.id)"))
+        assertFalse(existingBranch.contains("throw CancellationException"))
     }
 
     @Test
@@ -296,12 +299,36 @@ class AppUrlIntakeTest {
     }
 
     @Test
+    fun articleProcessingQueueRunsOneArticleAtATimeAndQueuesNewArticles() {
+        val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
+        val saveNewArticle = source.substringAfter("val ownsProcessing = markArticleActive(articleId)")
+            .substringBefore("val state = mutableMapOf<Long, ArticleProcessingState>()")
+        val enqueueIndex = saveNewArticle.indexOf("enqueueArticleProcessing(articleId)")
+        val returnIndex = saveNewArticle.indexOf("return articleId")
+
+        assertTrue(source.contains("const val MAX_CONCURRENT_PROCESSING = 1"))
+        assertTrue(enqueueIndex >= 0)
+        assertTrue(returnIndex >= 0)
+        assertTrue(enqueueIndex < returnIndex)
+    }
+
+    @Test
+    fun androidWebViewLoaderSerializesPageLoads() {
+        val source = File("../shared/src/androidMain/kotlin/com/dailysatori/platform/WebViewLoader.android.kt").readText()
+
+        assertTrue(source.contains("pendingLoads"))
+        assertTrue(source.contains("activeLoad"))
+        assertTrue(source.contains("startNextLoad()"))
+        assertTrue(source.contains("finishLoad(load)"))
+    }
+
+    @Test
     fun aiCompletionUsesFieldSpecificStatusAndCoverUpdate() {
         val parser = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
         val repository = File("../shared/src/commonMain/kotlin/com/dailysatori/data/repository/ArticleRepository.kt").readText()
         val queries = File("../shared/src/commonMain/sqldelight/com/dailysatori/shared/db/DailySatori.sq").readText()
         val completion = parser.substringAfter("Downloading cover image")
-            .substringBefore("val completedState")
+            .substringBefore("setProcessingState(articleId, finalArticleStatus")
 
         assertTrue(completion.contains("updateProcessingCompletion("))
         assertFalse(completion.contains("articleRepo.update("))
