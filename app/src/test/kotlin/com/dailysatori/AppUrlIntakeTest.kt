@@ -108,9 +108,23 @@ class AppUrlIntakeTest {
         val android = File("../shared/src/androidMain/kotlin/com/dailysatori/platform/WebViewLoader.android.kt").readText()
 
         assertTrue(common.contains("data class WebViewPageContent"))
+        assertTrue(common.contains("readableContent"))
         assertTrue(common.contains("Result<WebViewPageContent>"))
         assertTrue(android.contains("document.body.innerText"))
         assertTrue(android.contains("document.documentElement.outerHTML"))
+    }
+
+    @Test
+    fun webViewLoaderInjectsReadabilityAndUsesBrowserLikeLoadingSettings() {
+        val source = File("../shared/src/androidMain/kotlin/com/dailysatori/platform/WebViewLoader.android.kt").readText()
+
+        assertTrue(source.contains("Readability.js"))
+        assertTrue(source.contains("new Readability"))
+        assertTrue(source.contains("userAgentString"))
+        assertTrue(source.contains("Windows NT 10.0; Win64; x64"))
+        assertTrue(source.contains("onReceivedError"))
+        assertTrue(source.contains("onReceivedHttpError"))
+        assertTrue(source.contains("shouldInterceptRequest"))
     }
 
     @Test

@@ -1,5 +1,4 @@
 package com.dailysatori.ui.feature.settings
-
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -20,5 +19,11 @@ class SettingsUpdateProgressTest {
     fun formatsUpdateDownloadProgressText() {
         assertEquals("下载中 25%", updateDownloadProgressText(0.25f))
         assertEquals("正在准备下载...", updateDownloadProgressText(null))
+    }
+
+    @Test
+    fun completedDirectDownloadUsesFilePathForInstall() {
+        assertEquals("/tmp/app.apk", installReadyFilePathAfterDownload("/tmp/app.apk"))
+        assertEquals(null, installReadyFilePathAfterDownload("   "))
     }
 }

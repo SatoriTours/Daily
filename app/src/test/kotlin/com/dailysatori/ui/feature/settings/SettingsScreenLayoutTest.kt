@@ -15,5 +15,6 @@ class SettingsScreenLayoutTest {
         assertTrue(settingsMainPage.contains("AppScaffold("))
         assertFalse(Regex("[^A-Za-z]Scaffold\\(").containsMatchIn(settingsMainPage))
         assertFalse(settingsMainPage.contains("AppTopBar("))
+        assertFalse(settingsMainPage.contains("snackbarHost ="))
     }
 }

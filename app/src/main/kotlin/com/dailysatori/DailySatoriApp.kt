@@ -1,10 +1,7 @@
 package com.dailysatori
 
-import android.app.DownloadManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -28,7 +25,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -103,7 +99,21 @@ fun DailySatoriApp(
         }
     }
 
-    UpgradeDownloadCompleteReceiver(upgradeViewModel, context)
+    LaunchedEffect(upgradeState.installReadyFilePath) {
+        val filePath = upgradeState.installReadyFilePath ?: return@LaunchedEffect
+        val installIntent = upgradeViewModel.createInstallIntentForFilePath(context, filePath) ?: run {
+            upgradeViewModel.notifyInstallFileUnavailable()
+            return@LaunchedEffect
+        }
+        if (canInstallPackages(context)) {
+            context.startActivity(installIntent)
+            upgradeViewModel.markInstallLaunched()
+        } else {
+            upgradeViewModel.clearInstallReadyFilePath()
+            context.startActivity(unknownAppSourcesIntent(context))
+            upgradeViewModel.notifyInstallPermissionRequired()
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -165,35 +175,6 @@ private fun UpgradeDialog(
             if (!state.isDownloadingUpdate) TextButton(onClick = { viewModel.startUpdateDownload(context) }) { Text("立即更新") }
         },
     )
-}
-
-@Composable
-private fun UpgradeDownloadCompleteReceiver(
-    viewModel: SettingsViewModel,
-    context: Context,
-) {
-    DisposableEffect(Unit) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(receiverContext: Context, intent: Intent) {
-                val completedId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
-                val installIntent = viewModel.createInstallIntentForDownload(context, completedId) ?: return
-                if (canInstallPackages(context)) {
-                    context.startActivity(installIntent)
-                    viewModel.markInstallLaunched()
-                } else {
-                    context.startActivity(unknownAppSourcesIntent(context))
-                    viewModel.notifyInstallPermissionRequired()
-                }
-            }
-        }
-        ContextCompat.registerReceiver(
-            context,
-            receiver,
-            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-            ContextCompat.RECEIVER_NOT_EXPORTED,
-        )
-        onDispose { context.unregisterReceiver(receiver) }
-    }
 }
 
 private fun installPendingUpgradeIfAllowed(context: Context, viewModel: SettingsViewModel) {

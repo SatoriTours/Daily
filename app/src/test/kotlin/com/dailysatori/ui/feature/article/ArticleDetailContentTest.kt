@@ -24,6 +24,19 @@ class ArticleDetailContentTest {
     }
 
     @Test
+    fun repairsOriginalImagePlaceholdersWithArticleImageUrlsBeforeRendering() {
+        assertEquals(
+            "# 原文\n\n![图像](https://example.com/image.jpg)",
+            articleDetailPageContent(
+                page = 1,
+                summary = null,
+                original = "# 原文\n\n！[图像](https：//example.com/image.jpg？format=jpg)",
+                originalImageUrls = listOf("https://example.com/image.jpg"),
+            ),
+        )
+    }
+
+    @Test
     fun allowsManualRefreshAtAnyProcessingState() {
         assertTrue(canManuallyRefreshArticle(isRefreshing = true, articleStatus = "error"))
         assertTrue(canManuallyRefreshArticle(isRefreshing = true, articleStatus = "pending"))

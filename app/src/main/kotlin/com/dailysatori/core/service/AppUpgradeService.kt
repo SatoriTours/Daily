@@ -8,6 +8,7 @@ import android.os.Environment
 import androidx.core.content.FileProvider
 import co.touchlab.kermit.Logger
 import io.ktor.client.*
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import kotlinx.serialization.json.*
@@ -65,9 +66,26 @@ class AppUpgradeService(private val client: HttpClient) {
         }
     }
 
+    suspend fun downloadApk(
+        context: Context,
+        release: AppRelease,
+        onProgress: (downloadedBytes: Long, totalBytes: Long) -> Unit = { _, _ -> },
+    ): ApkDownload {
+        val asset = release.apkAsset ?: throw IllegalStateException("新版本没有可下载的 APK")
+        val file = apkFile(context, release.version)
+        val bytes = client.get(asset.downloadUrl) {
+            onDownload { bytesSentTotal, contentLength ->
+                onProgress(bytesSentTotal, contentLength ?: -1L)
+            }
+        }.bodyAsBytes()
+        file.parentFile?.mkdirs()
+        file.writeBytes(bytes)
+        return ApkDownload(id = 0L, filePath = file.absolutePath).also { pendingDownload = it }
+    }
+
     fun enqueueApkDownload(context: Context, release: AppRelease): ApkDownload {
         val asset = release.apkAsset ?: throw IllegalStateException("新版本没有可下载的 APK")
-        val fileName = "DailySatori-${release.version.removePrefix("v").removePrefix("V")}.apk"
+        val fileName = apkFileName(release.version)
         val request = DownloadManager.Request(Uri.parse(asset.downloadUrl))
             .setTitle("Daily Satori ${release.version}")
             .setDescription("正在下载更新")
@@ -90,6 +108,9 @@ class AppUpgradeService(private val client: HttpClient) {
         val download = pendingDownload ?: return null
         return createInstallIntentForFilePath(context, download.filePath)
     }
+
+    fun createInstallIntentForFilePathIfExists(context: Context, filePath: String): Intent? =
+        createInstallIntentForFilePath(context, filePath)
 
     fun clearPendingDownload() {
         pendingDownload = null
@@ -127,6 +148,12 @@ class AppUpgradeService(private val client: HttpClient) {
         if (!file.exists()) return null
         return createInstallIntent(context, file)
     }
+
+    private fun apkFile(context: Context, version: String): File =
+        File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), apkFileName(version))
+
+    private fun apkFileName(version: String): String =
+        "DailySatori-${version.removePrefix("v").removePrefix("V")}.apk"
 
     private fun parseRelease(json: JsonObject): AppRelease? {
         val tagName = json["tag_name"]?.jsonPrimitive?.content ?: return null

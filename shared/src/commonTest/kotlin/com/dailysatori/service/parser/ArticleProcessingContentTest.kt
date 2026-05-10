@@ -107,6 +107,24 @@ class ArticleProcessingContentTest {
     }
 
     @Test
+    fun rejectsUnusableExtractedArticleContent() {
+        assertFailsWith<IllegalStateException> {
+            usableArticleContentOrThrow("登录\n注册\n首页", "https://example.com/article")
+        }
+        assertFailsWith<IllegalStateException> {
+            usableArticleContentOrThrow("Just a moment...\nChecking your browser before accessing", "https://example.com/article")
+        }
+
+        assertEquals(
+            "这是一段可用正文，包含足够的信息密度，用来证明文章内容已经被正确提取，而不是导航、登录或错误页面。",
+            usableArticleContentOrThrow(
+                "这是一段可用正文，包含足够的信息密度，用来证明文章内容已经被正确提取，而不是导航、登录或错误页面。",
+                "https://example.com/article",
+            ),
+        )
+    }
+
+    @Test
     fun articleSummaryPromptRequiresStructuredConciseAnalysis() {
         val prompt = articleSummaryPrompt()
 
@@ -182,20 +200,101 @@ class ArticleProcessingContentTest {
     }
 
     @Test
-    fun articleMarkdownInputUsesExtractedTextAndImagesInsteadOfFullHtml() {
+    fun articleMarkdownInputUsesReadableHtmlAndImagesInsteadOfFullPageHtml() {
         val extracted = ExtractedContent(
             title = "标题",
             content = "渲染后的正文",
             htmlContent = "<html><body><script>noise()</script><article>HTML正文</article></body></html>",
+            readableHtmlContent = "<article><h1>标题</h1><p>Readability 正文</p><img src=\"https://example.com/image.jpg\"></article>",
             coverImageUrl = null,
             imageUrls = listOf("https://example.com/image.jpg"),
         )
 
         val input = articleMarkdownInput(extracted, "gpt-5")
 
-        assertEquals(true, input.contains("正文文本：\n渲染后的正文"))
+        assertEquals(true, input.contains("正文 HTML：\n<article><h1>标题</h1><p>Readability 正文</p>"))
         assertEquals(true, input.contains("正文图片：\nhttps://example.com/image.jpg"))
         assertEquals(false, input.contains("<script>"))
+    }
+
+    @Test
+    fun parsesStructuredArticleAnalysisJson() {
+        val parsed = parseArticleAnalysisOutput(
+            """
+                ```json
+                {
+                  "title": "中文标题",
+                  "summary": "# 标题\n\n## 核心内容\n摘要",
+                  "markdown": "# 原文\n\n正文"
+                }
+                ```
+            """.trimIndent(),
+        )
+
+        assertEquals("中文标题", parsed.title)
+        assertEquals(true, parsed.summary.contains("## 核心内容"))
+        assertEquals("# 原文\n\n正文", parsed.markdown)
+    }
+
+    @Test
+    fun repairsMalformedImageMarkdownWhenExtractedImageUrlExists() {
+        assertEquals(
+            "正文\n\n![图片](https://example.com/article.jpg)",
+            normalizeArticleMarkdownImages(
+                "正文\n\n!图片",
+                listOf("https://example.com/article.jpg"),
+            ),
+        )
+        assertEquals(
+            "正文\n\n![配图](https://example.com/article.jpg)",
+            normalizeArticleMarkdownImages(
+                "正文\n\n![配图]",
+                listOf("https://example.com/article.jpg"),
+            ),
+        )
+    }
+
+    @Test
+    fun repairsFullWidthMalformedImageMarkdownWhenExtractedImageUrlExists() {
+        assertEquals(
+            "正文\n\n![图片](https://example.com/article.jpg)",
+            normalizeArticleMarkdownImages(
+                "正文\n\n！图片",
+                listOf("https://example.com/article.jpg"),
+            ),
+        )
+    }
+
+    @Test
+    fun repairsFullWidthImageMarkdownLinkWhenExtractedImageUrlExists() {
+        assertEquals(
+            "正文\n\n![图像](https://pbs.twimg.com/media/G7ckOWAbYAE_fDS?format=jpg&name=large)",
+            normalizeArticleMarkdownImages(
+                "正文\n\n！[图像](https：//pbs.twimg.com/media/G7ckOWAbYAE_fDS？format=jpg&name=medium)",
+                listOf("https://pbs.twimg.com/media/G7ckOWAbYAE_fDS?format=jpg&name=large"),
+            ),
+        )
+    }
+
+    @Test
+    fun appendsMissingImageMarkdownWhenModelDropsImagePlaceholder() {
+        assertEquals(
+            "正文\n\n![图片 1](https://example.com/article.jpg)",
+            normalizeArticleMarkdownImages(
+                "正文",
+                listOf("https://example.com/article.jpg"),
+            ),
+        )
+    }
+
+    @Test
+    fun preservesExistingValidImageMarkdown() {
+        val markdown = "正文\n\n![原图](https://example.com/article.jpg)"
+
+        assertEquals(
+            markdown,
+            normalizeArticleMarkdownImages(markdown, listOf("https://example.com/article.jpg")),
+        )
     }
 
     @Test
@@ -359,6 +458,33 @@ class ArticleProcessingContentTest {
     }
 
     @Test
+    fun detectsWebViewNetworkErrorPages() {
+        assertEquals(true, isWebViewNetworkErrorContent("网页无法打开\nnet::ERR_CONNECTION_CLOSE", ""))
+        assertEquals(true, isWebViewNetworkErrorContent("", "<body>net::ERR_CONNECTION_RESET</body>"))
+        assertEquals(false, isWebViewNetworkErrorContent("正常正文", "<body>正常正文</body>"))
+    }
+
+    @Test
+    fun twitterExtractionFallbackUsesOriginalUrlInsteadOfNetworkErrorText() {
+        val url = "https://x.com/i/status/2051891753821556976"
+        val fallback = twitterExtractionFallback(url)
+
+        assertEquals("原文链接：$url", fallback.content)
+        assertEquals("", fallback.htmlContent)
+        assertEquals("原文链接：$url", twitterStatusMarkdownOrExisting(url, fallback, existing = null))
+    }
+
+    @Test
+    fun failedExtractionOnlyFallsBackToOriginalLinkForTwitterStatusUrls() {
+        val twitterUrl = "https://x.com/i/status/2051891753821556976"
+
+        assertEquals("原文链接：$twitterUrl", failedExtractionFallback(twitterUrl).content)
+        assertFailsWith<IllegalStateException> {
+            failedExtractionFallback("https://example.com/article")
+        }
+    }
+
+    @Test
     fun parsesCoverImageUrlFromSummaryOutputAndRemovesMetadataLine() {
         val output = """
             # 标题
@@ -422,7 +548,19 @@ class ArticleProcessingContentTest {
     }
 
     @Test
-    fun extractedContentUsesWebViewVisibleTextForAiSummary() {
+    fun extractedContentUsesReadableContentBeforeVisibleTextForAiSummary() {
+        val page = WebViewPageContent(
+            html = "<html><body><main>HTML正文</main></body></html>",
+            text = "导航 登录 推荐",
+            readableTitle = "Readability 标题",
+            readableContent = "<article><p>Readability 正文</p></article>",
+        )
+
+        assertEquals("Readability 正文", page.summaryTextOrHtmlFallback())
+    }
+
+    @Test
+    fun extractedContentUsesWebViewVisibleTextWhenReadableContentIsBlank() {
         val page = WebViewPageContent(
             html = "<html><body><main>HTML正文</main></body></html>",
             text = "浏览器渲染后的完整可见文本",

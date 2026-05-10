@@ -1,6 +1,5 @@
 package com.dailysatori.ui.feature.settings
 
-import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import androidx.lifecycle.ViewModel
@@ -36,6 +35,7 @@ data class SettingsState(
     val updateDownloadProgressText: String = "",
     val downloadId: Long? = null,
     val pendingInstallFilePath: String? = null,
+    val installReadyFilePath: String? = null,
     val currentVersion: String = BuildConfig.VERSION_NAME,
     val isExporting: Boolean = false,
     val exportProgress: Float = 0f,
@@ -159,7 +159,6 @@ class SettingsViewModel(
         val release = _state.value.availableRelease ?: return
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val download = appUpgradeService.enqueueApkDownload(context.applicationContext, release)
                 _state.update {
                     it.copy(
                         showUpdateDialog = true,
@@ -167,11 +166,28 @@ class SettingsViewModel(
                         isDownloadingUpdate = true,
                         updateDownloadProgress = null,
                         updateDownloadProgressText = updateDownloadProgressText(null),
-                        downloadId = download.id,
-                        pendingInstallFilePath = download.filePath,
                     )
                 }
-                observeUpdateDownload(context.applicationContext, download.id)
+                val download = appUpgradeService.downloadApk(context.applicationContext, release) { downloaded, total ->
+                    val progress = updateDownloadProgress(downloaded, total)
+                    _state.update {
+                        it.copy(
+                            updateDownloadProgress = progress,
+                            updateDownloadProgressText = updateDownloadProgressText(progress),
+                        )
+                    }
+                }
+                _state.update {
+                    it.copy(
+                        showUpdateDialog = false,
+                        isDownloadingUpdate = false,
+                        updateDownloadProgress = 1f,
+                        updateDownloadProgressText = "下载完成，正在安装...",
+                        downloadId = download.id,
+                        pendingInstallFilePath = download.filePath,
+                        installReadyFilePath = installReadyFilePathAfterDownload(download.filePath),
+                    )
+                }
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
@@ -181,46 +197,6 @@ class SettingsViewModel(
                     )
                 }
             }
-        }
-    }
-
-    private suspend fun observeUpdateDownload(context: Context, downloadId: Long) {
-        while (_state.value.downloadId == downloadId) {
-            val progress = appUpgradeService.queryDownloadProgress(context, downloadId) ?: return
-            when (progress.status) {
-                DownloadManager.STATUS_SUCCESSFUL -> {
-                    _state.update {
-                        it.copy(
-                            updateDownloadProgress = 1f,
-                            updateDownloadProgressText = "下载完成，正在安装...",
-                        )
-                    }
-                    return
-                }
-                DownloadManager.STATUS_FAILED -> {
-                    _state.update {
-                        it.copy(
-                            showUpdateDialog = false,
-                            isDownloadingUpdate = false,
-                            updateDownloadProgress = null,
-                            updateDownloadProgressText = "",
-                            updateMessage = "下载失败，请重试",
-                            downloadId = null,
-                            pendingInstallFilePath = null,
-                        )
-                    }
-                    return
-                }
-                else -> updateDownloadProgress(progress.downloadedBytes, progress.totalBytes).let { value ->
-                    _state.update {
-                        it.copy(
-                            updateDownloadProgress = value,
-                            updateDownloadProgressText = updateDownloadProgressText(value),
-                        )
-                    }
-                }
-            }
-            delay(500)
         }
     }
 
@@ -237,6 +213,10 @@ class SettingsViewModel(
         return appUpgradeService.createPendingInstallIntent(context)
     }
 
+    fun createInstallIntentForFilePath(context: Context, filePath: String): Intent? {
+        return appUpgradeService.createInstallIntentForFilePathIfExists(context, filePath)
+    }
+
     fun dismissUpdateDialog() {
         if (_state.value.isDownloadingUpdate) return
         _state.update { it.copy(showUpdateDialog = false) }
@@ -244,6 +224,22 @@ class SettingsViewModel(
 
     fun clearUpdateMessage() {
         _state.update { it.copy(updateMessage = null) }
+    }
+
+    fun clearInstallReadyFilePath() {
+        _state.update { it.copy(installReadyFilePath = null) }
+    }
+
+    fun notifyInstallFileUnavailable() {
+        appUpgradeService.clearPendingDownload()
+        _state.update {
+            it.copy(
+                updateMessage = "安装包不可用，请重新下载",
+                downloadId = null,
+                pendingInstallFilePath = null,
+                installReadyFilePath = null,
+            )
+        }
     }
 
     fun markInstallLaunched() {
@@ -256,6 +252,7 @@ class SettingsViewModel(
                 updateDownloadProgressText = "",
                 downloadId = null,
                 pendingInstallFilePath = null,
+                installReadyFilePath = null,
             )
         }
     }
@@ -284,3 +281,6 @@ internal fun updateDownloadProgress(downloadedBytes: Long, totalBytes: Long): Fl
 internal fun updateDownloadProgressText(progress: Float?): String {
     return progress?.let { "下载中 ${(it * 100).toInt()}%" } ?: "正在准备下载..."
 }
+
+internal fun installReadyFilePathAfterDownload(filePath: String): String? =
+    filePath.trim().takeIf { it.isNotBlank() }

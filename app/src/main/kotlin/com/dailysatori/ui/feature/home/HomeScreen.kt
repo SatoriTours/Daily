@@ -56,7 +56,7 @@ val tabs = listOf(
 
 const val AI_CHAT_TAB_INDEX = 3
 
-fun homeBottomBarVisibleForTab(index: Int): Boolean = index != AI_CHAT_TAB_INDEX
+fun homeBottomBarVisibleForTab(index: Int): Boolean = index in tabs.indices
 
 @Composable
 fun HomeScreen(

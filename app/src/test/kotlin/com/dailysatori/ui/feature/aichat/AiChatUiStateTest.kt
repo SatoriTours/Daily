@@ -59,9 +59,9 @@ class AiChatUiStateTest {
     }
 
     @Test
-    fun chatInputUsesImePaddingWhenAiTabOwnsBottomSpace() {
+    fun homeBottomBarRemainsVisibleOnAiTab() {
         assertTrue(chatInputUsesImePadding())
-        assertFalse(homeBottomBarVisibleForTab(AI_CHAT_TAB_INDEX))
+        assertTrue(homeBottomBarVisibleForTab(AI_CHAT_TAB_INDEX))
     }
 
     @Test

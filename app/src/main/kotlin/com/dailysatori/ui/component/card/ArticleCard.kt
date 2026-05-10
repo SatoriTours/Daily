@@ -1,5 +1,6 @@
 package com.dailysatori.ui.component.card
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -24,10 +26,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -68,12 +73,10 @@ fun ArticleCard(
         modifier = modifier.fillMaxWidth(),
     ) {
         Row(modifier = Modifier.height(articleCardHeightDp.dp)) {
-            if (!coverImage.isNullOrBlank()) {
-                ArticleCoverImage(
-                    imagePath = coverImage,
-                    modifier = Modifier.width(120.dp).fillMaxHeight(),
-                )
-            }
+            ArticleCoverImage(
+                imagePath = coverImage,
+                modifier = Modifier.width(120.dp).fillMaxHeight(),
+            )
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -186,6 +189,8 @@ fun ArticleCard(
     }
 }
 
+internal fun articleCoverSlotVisible(coverImage: String?): Boolean = true
+
 private fun extractDomain(url: String?): String {
     if (url.isNullOrBlank()) return ""
     return url.removePrefix("https://")
@@ -197,15 +202,22 @@ private fun extractDomain(url: String?): String {
 
 @Composable
 private fun ArticleCoverImage(
-    imagePath: String,
+    imagePath: String?,
     modifier: Modifier = Modifier,
 ) {
+    var loadFailed by remember(imagePath) { androidx.compose.runtime.mutableStateOf(false) }
+    val hasImage = !imagePath.isNullOrBlank() && !loadFailed
+    if (!hasImage) {
+        DefaultArticleCover(modifier)
+        return
+    }
     val context = LocalContext.current
-    val isLocal = !imagePath.startsWith("http://") && !imagePath.startsWith("https://")
-    val resolvedPath = if (isLocal && !imagePath.startsWith("/")) {
-        File(context.filesDir, "DailySatori/$imagePath").absolutePath
+    val path = imagePath.orEmpty()
+    val isLocal = !path.startsWith("http://") && !path.startsWith("https://")
+    val resolvedPath = if (isLocal && !path.startsWith("/")) {
+        File(context.filesDir, "DailySatori/$path").absolutePath
     } else {
-        imagePath
+        path
     }
     val imageRequest = remember(context, resolvedPath) {
         ImageRequest.Builder(context)
@@ -220,6 +232,31 @@ private fun ArticleCoverImage(
             contentDescription = null,
             modifier = Modifier.fillMaxWidth().fillMaxHeight(),
             contentScale = ContentScale.Crop,
+            onError = { loadFailed = true },
+        )
+    }
+}
+
+@Composable
+private fun DefaultArticleCover(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(topStart = Radius.m, bottomStart = Radius.m))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.primaryContainer,
+                        MaterialTheme.colorScheme.surfaceContainerHighest,
+                    ),
+                ),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.Article,
+            contentDescription = null,
+            modifier = Modifier.size(36.dp),
+            tint = MaterialTheme.colorScheme.primary,
         )
     }
 }

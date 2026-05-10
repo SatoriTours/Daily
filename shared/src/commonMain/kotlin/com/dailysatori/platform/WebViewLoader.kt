@@ -3,6 +3,9 @@ package com.dailysatori.platform
 data class WebViewPageContent(
     val html: String,
     val text: String,
+    val readableTitle: String? = null,
+    val readableContent: String? = null,
+    val readableExcerpt: String? = null,
 )
 
 internal fun shouldCompleteWebViewPolling(

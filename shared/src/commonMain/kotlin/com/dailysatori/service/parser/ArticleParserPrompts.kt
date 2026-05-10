@@ -30,6 +30,23 @@ internal fun articleTitlePrompt(): String = """
     3. 只基于正文内容，不要编造信息。
 """.trimIndent()
 
+internal fun articleAnalysisPrompt(): String = """
+    你是一位专业的中文翻译和文章分析专家。请分析用户给出的文章正文或正文 HTML，并返回严格的 JSON 对象。
+
+    输出格式：
+    {"title":"...","summary":"...","markdown":"..."}
+
+    字段要求：
+    1. title：中文标题，15-25 字，准确概括文章核心内容。
+    2. summary：中文 Markdown 摘要，必须包含 "# 标题"、"## 核心内容"、"## 核心观点" 三部分；核心内容 50-100 字；核心观点 2-5 条。
+    3. markdown：将原文主要内容转换为中文 Markdown，保留正文层级、列表、代码块、表格、链接和图片，不输出摘要或处理说明。每张正文图片必须使用合法 Markdown 图片语法：![图片描述](图片URL)，禁止输出 "!图片"、"![图片]" 或纯图片说明。
+
+    JSON 要求：
+    1. 只返回 JSON，不要使用代码块包裹，不要输出 JSON 之外的文字。
+    2. 字符串中的换行必须使用 \n 转义，双引号和反斜杠必须正确转义。
+    3. 如果原文很长，优先保证 JSON 完整，可以适当压缩 markdown，但不要遗漏核心正文。
+""".trimIndent()
+
 internal fun htmlToReadableMarkdownPrompt(): String = """
     你是一个专业的技术文档排版专家，擅长将 HTML 内容转换为精美、专业的 Markdown 格式，达到类似 InfoQ 技术文章的排版效果，并符合 GitHub Markdown 的渲染标准。
 
@@ -69,6 +86,7 @@ internal fun htmlToReadableMarkdownPrompt(): String = """
     - 删除无关元素，包括导航、广告、版权声明、作者信息、脚本、样式、按钮、推荐阅读等非正文噪音
     - 完整保留正文中的列表、表格、代码块、图片链接等信息
     - 必须保留正文图片，HTML 中的正文 <img> 必须转换为 Markdown 图片：![描述](图片URL)
+    - 每张正文图片都必须保留完整 URL，禁止输出 "!图片"、"![图片]" 或没有 URL 的图片占位符
 
     ### 2. 排版优化
     - 删除所有多余空行，只在段落间保留一个空行

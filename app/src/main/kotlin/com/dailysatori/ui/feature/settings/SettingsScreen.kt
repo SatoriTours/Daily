@@ -1,6 +1,5 @@
 package com.dailysatori.ui.feature.settings
 
-import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,13 +29,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.component.settings.SettingsRow
@@ -72,18 +67,9 @@ private enum class SettingsPage {
 fun SettingsScreen() {
     val viewModel: SettingsViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
-    val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
 
     var currentPage by remember { mutableStateOf(SettingsPage.MAIN) }
     var showAboutDialog by remember { mutableStateOf(false) }
-
-    LaunchedEffect(state.updateMessage) {
-        state.updateMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearUpdateMessage()
-        }
-    }
 
     BackHandler(enabled = currentPage != SettingsPage.MAIN) {
         currentPage = SettingsPage.MAIN
@@ -92,13 +78,11 @@ fun SettingsScreen() {
     when (currentPage) {
         SettingsPage.MAIN -> SettingsMainPage(
             state = state,
-            snackbarHostState = snackbarHostState,
             showAboutDialog = showAboutDialog,
             onShowAbout = { showAboutDialog = true },
             onDismissAbout = { showAboutDialog = false },
             onNavigate = { currentPage = it },
             viewModel = viewModel,
-            context = context,
         )
         SettingsPage.AI_CONFIG -> AiConfigScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.MCP_SERVER -> McpServerScreen(onBack = { currentPage = SettingsPage.MAIN })
@@ -112,16 +96,13 @@ fun SettingsScreen() {
 @Composable
 private fun SettingsMainPage(
     state: SettingsState,
-    snackbarHostState: SnackbarHostState,
     showAboutDialog: Boolean,
     onShowAbout: () -> Unit,
     onDismissAbout: () -> Unit,
     onNavigate: (SettingsPage) -> Unit,
     viewModel: SettingsViewModel,
-    context: Context,
 ) {
     AboutDialog(showAboutDialog, state.currentVersion, onDismissAbout)
-    UpdateDialog(state, viewModel, context)
     AppScaffold(
         title = "设置",
         showBack = false,
@@ -130,7 +111,6 @@ private fun SettingsMainPage(
                 Icon(Icons.Default.Info, contentDescription = "关于")
             }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { modifier ->
         SettingsList(
             state = state,
@@ -149,26 +129,6 @@ private fun AboutDialog(show: Boolean, currentVersion: String, onDismiss: () -> 
         title = { Text("Daily Satori") },
         text = { Text("v$currentVersion\n个人知识管理与 AI 阅读助手\n基于 KMP + Compose Multiplatform") },
         confirmButton = { TextButton(onClick = onDismiss) { Text("确定") } },
-    )
-}
-
-@Composable
-private fun UpdateDialog(state: SettingsState, viewModel: SettingsViewModel, context: Context) {
-    val release = state.availableRelease ?: return
-    if (!state.showUpdateDialog) return
-    AlertDialog(
-        onDismissRequest = { viewModel.dismissUpdateDialog() },
-        title = { Text(if (state.isDownloadingUpdate) "正在下载更新" else "发现新版本") },
-        text = {
-            if (state.isDownloadingUpdate) UpdateDownloadProgress(state)
-            else Text("当前版本 v${state.currentVersion}\n最新版本 ${release.version}\n是否立即更新？")
-        },
-        dismissButton = {
-            if (!state.isDownloadingUpdate) TextButton(onClick = { viewModel.dismissUpdateDialog() }) { Text("稍后") }
-        },
-        confirmButton = {
-            if (!state.isDownloadingUpdate) TextButton(onClick = { viewModel.startUpdateDownload(context) }) { Text("立即更新") }
-        },
     )
 }
 

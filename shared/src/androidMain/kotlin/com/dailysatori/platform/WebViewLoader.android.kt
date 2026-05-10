@@ -3,12 +3,16 @@ package com.dailysatori.platform
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import org.json.JSONObject
 import org.json.JSONTokener
 import org.koin.mp.KoinPlatform
 import kotlinx.coroutines.CancellationException
+import java.io.ByteArrayInputStream
 
 actual class WebViewLoadHandle internal constructor(
     private val cancelAction: () -> Unit,
@@ -18,6 +22,11 @@ actual class WebViewLoadHandle internal constructor(
 
 actual class WebViewLoader actual constructor() {
     private val context: Context by lazy { KoinPlatform.getKoin().get<PlatformContext>().context }
+    private val readabilityJs: String by lazy {
+        runCatching {
+            context.assets.open("js/Readability.js").bufferedReader().use { it.readText() }
+        }.getOrElse { "" }
+    }
 
     actual fun loadContent(
         url: String,
@@ -39,6 +48,9 @@ actual class WebViewLoader actual constructor() {
                 val webView = WebView(context)
                 webView.settings.javaScriptEnabled = true
                 webView.settings.domStorageEnabled = true
+                webView.settings.useWideViewPort = true
+                webView.settings.loadWithOverviewMode = true
+                webView.settings.userAgentString = DESKTOP_USER_AGENT
 
                 var finished = false
                 var isPolling = false
@@ -69,13 +81,16 @@ actual class WebViewLoader actual constructor() {
                         content = WebViewPageContent(
                             html = json.optString("html"),
                             text = json.optString("text"),
+                            readableTitle = json.optString("readableTitle").takeIf { it.isNotBlank() },
+                            readableContent = json.optString("readableContent").takeIf { it.isNotBlank() },
+                            readableExcerpt = json.optString("readableExcerpt").takeIf { it.isNotBlank() },
                         ),
                     )
                 }
 
                 fun pollHtmlUntilStable() {
                     if (finished) return
-                    webView.evaluateJavascript(PARSE_CONTENT_SCRIPT) { value ->
+                    webView.evaluateJavascript(parseContentScript(readabilityJs)) { value ->
                         if (finished) return@evaluateJavascript
 
                         val snapshot = runCatching { parsePageContent(value) }.getOrNull()
@@ -102,10 +117,49 @@ actual class WebViewLoader actual constructor() {
                 }
 
                 webView.webViewClient = object : WebViewClient() {
+                    override fun shouldInterceptRequest(
+                        view: WebView?,
+                        request: WebResourceRequest?,
+                    ): WebResourceResponse? {
+                        val host = request?.url?.host?.lowercase().orEmpty()
+                        if (host.isNotBlank() && AD_DOMAINS.any { host.contains(it) }) {
+                            return WebResourceResponse(
+                                "text/plain",
+                                "utf-8",
+                                ByteArrayInputStream(ByteArray(0)),
+                            )
+                        }
+                        return super.shouldInterceptRequest(view, request)
+                    }
+
                     override fun onPageFinished(view: WebView?, webpageUrl: String?) {
                         if (finished || isPolling || view == null) return
                         isPolling = true
                         pollHtmlUntilStable()
+                    }
+
+                    override fun onReceivedError(
+                        view: WebView?,
+                        request: WebResourceRequest?,
+                        error: WebResourceError?,
+                    ) {
+                        if (request?.isForMainFrame == true) {
+                            complete(Result.failure(Exception("WebView load failed: ${error?.description ?: "unknown error"}")))
+                            return
+                        }
+                        super.onReceivedError(view, request, error)
+                    }
+
+                    override fun onReceivedHttpError(
+                        view: WebView?,
+                        request: WebResourceRequest?,
+                        errorResponse: WebResourceResponse?,
+                    ) {
+                        if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 0) >= 400) {
+                            complete(Result.failure(Exception("WebView HTTP error: ${errorResponse?.statusCode}")))
+                            return
+                        }
+                        super.onReceivedHttpError(view, request, errorResponse)
                     }
                 }
                 cancelWebView = {
@@ -140,14 +194,36 @@ actual class WebViewLoader actual constructor() {
     }
 
     private companion object {
+        const val DESKTOP_USER_AGENT =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
         const val STABILITY_CHECK_INTERVAL_MS = 2_000L
-        const val PARSE_CONTENT_SCRIPT = """
+        val AD_DOMAINS = listOf(
+            "doubleclick.net",
+            "googlesyndication.com",
+            "googleadservices.com",
+            "google-analytics.com",
+            "googletagmanager.com",
+            "googletagservices.com",
+            "adservice.google.com",
+            "pagead2.googlesyndication.com",
+            "analytics.twitter.com",
+            "ads.twitter.com",
+            "facebook.com",
+            "connect.facebook.net",
+            "outbrain.com",
+            "taboola.com",
+        )
+
+        fun parseContentScript(readabilityJs: String): String = """
             (function() {
                 const stableHtml = document.documentElement ? (document.documentElement.innerHTML || '') : '';
                 const text = document.body ? (document.body.innerText || '') : '';
                 const clone = document.documentElement.cloneNode(true);
                 const originalImages = Array.from(document.images || []);
                 const clonedImages = Array.from(clone.getElementsByTagName('img'));
+                let readableTitle = '';
+                let readableContent = '';
+                let readableExcerpt = '';
 
                 function absoluteUrl(value) {
                     if (!value) return '';
@@ -163,6 +239,64 @@ actual class WebViewLoader actual constructor() {
                 function imageWidth(img) {
                     const attrWidth = parseInt(img.getAttribute('width') || '0', 10) || 0;
                     return img.naturalWidth || img.clientWidth || img.width || attrWidth || 0;
+                }
+
+                function ensureReadability() {
+                    if (typeof Readability === 'function') return true;
+                    const source = ${JSONObject.quote(readabilityJs)};
+                    if (!source) return false;
+                    const script = document.createElement('script');
+                    script.textContent = source;
+                    document.head.appendChild(script);
+                    return typeof Readability === 'function';
+                }
+
+                function fallbackReadableContent() {
+                    const tweetText = document.querySelector('[data-testid="tweetText"]');
+                    if (tweetText) {
+                        const parts = [];
+                        document.querySelectorAll('[data-testid="tweetText"]').forEach(function(t) {
+                            if (t.innerText && t.innerText.trim()) parts.push(t.innerText.trim());
+                        });
+                        const userName = document.querySelector('[data-testid="User-Name"]');
+                        const author = userName ? (userName.innerText || '').split('\n')[0] : '';
+                        return (author ? '**' + author + '**\n\n' : '') + parts.join('\n\n---\n\n');
+                    }
+
+                    const selectors = ['main', 'article', '[role="main"]', '.post-content', '.article-content', '.entry-content', '#content'];
+                    let el = null;
+                    for (let i = 0; i < selectors.length; i++) {
+                        const candidate = document.querySelector(selectors[i]);
+                        if (candidate && (candidate.innerText || '').trim().length > 100) {
+                            el = candidate;
+                            break;
+                        }
+                    }
+                    if (!el) el = document.body;
+                    if (!el) return '';
+                    const fallbackClone = el.cloneNode(true);
+                    fallbackClone.querySelectorAll('script,style,nav,footer,header,[role="navigation"],[role="banner"]').forEach(function(n) {
+                        n.remove();
+                    });
+                    const fallbackText = (fallbackClone.innerText || '').trim();
+                    return fallbackText.length >= 50 ? fallbackText : '';
+                }
+
+                try {
+                    if (ensureReadability()) {
+                        const article = new Readability(document.cloneNode(true)).parse();
+                        if (article) {
+                            readableTitle = article.title || '';
+                            readableContent = article.content || '';
+                            readableExcerpt = article.excerpt || '';
+                        }
+                    }
+                } catch (e) {}
+
+                if (!readableContent) {
+                    readableContent = fallbackReadableContent();
+                    readableTitle = readableTitle || document.title || '';
+                    readableExcerpt = readableExcerpt || readableContent.substring(0, 200);
                 }
 
                 originalImages.forEach(function(img, index) {
@@ -186,7 +320,10 @@ actual class WebViewLoader actual constructor() {
                 return JSON.stringify({
                     stableHtml: stableHtml,
                     text: text,
-                    html: document.documentElement ? (clone.outerHTML || document.documentElement.outerHTML || '') : ''
+                    html: document.documentElement ? (clone.outerHTML || document.documentElement.outerHTML || '') : '',
+                    readableTitle: readableTitle,
+                    readableContent: readableContent,
+                    readableExcerpt: readableExcerpt
                 });
             })();
         """

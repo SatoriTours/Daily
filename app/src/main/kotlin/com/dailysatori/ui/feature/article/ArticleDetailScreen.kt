@@ -239,6 +239,7 @@ fun ArticleDetailScreen(
                                                 page = page,
                                                 summary = article.ai_content,
                                                 original = article.ai_markdown_content,
+                                                originalImageUrls = listOfNotNull(article.cover_image_url),
                                             ),
                                         )
                                     }

@@ -33,12 +33,18 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 data class ExtractedContent(
     val title: String?,
     val content: String?,
     val htmlContent: String?,
     val coverImageUrl: String?,
+    val readableHtmlContent: String? = null,
     val imageUrls: List<String> = emptyList(),
 )
 
@@ -53,6 +59,12 @@ private data class ArticleSummaryResult(
     val coverImageUrl: String?,
 )
 
+internal data class ArticleAnalysisResult(
+    val title: String?,
+    val summary: String,
+    val markdown: String,
+)
+
 data class ArticleProcessingState(
     val articleId: Long,
     val status: String,
@@ -65,6 +77,8 @@ internal data class NormalizedAiConfigValues(
     val modelName: String,
     val provider: String,
 )
+
+private val articleJson = Json { ignoreUnknownKeys = true; isLenient = true }
 
 internal fun normalizeAiConfigValues(
     apiAddress: String,
@@ -90,6 +104,106 @@ internal fun generatedMarkdownOrFallback(generated: String, existing: String?, e
     if (!extractedContent.isNullOrBlank()) return extractedContent.trim()
     return ""
 }
+
+fun normalizeArticleMarkdownImages(markdown: String, imageUrls: List<String>): String {
+    val normalized = markdown.trim()
+    val usableImageUrls = imageUrls
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+
+    if (normalized.isBlank() || usableImageUrls.isEmpty()) return normalized
+
+    val validImageRegex = Regex("""!\[[^]]*]\([^)]+\)""")
+    val existingImageUrls = validImageRegex.findAll(normalized)
+        .mapNotNull { match ->
+            Regex("""!\[[^]]*]\(([^)]+)\)""").find(match.value)?.groupValues?.getOrNull(1)?.trim()
+        }
+        .filter { it.isNotBlank() }
+        .toSet()
+
+    val remainingImageUrls = usableImageUrls.filterNot { it in existingImageUrls }
+    if (remainingImageUrls.isEmpty()) return normalized
+
+    val imageLinkRegex = Regex("""[!！]\[([^]]*)]\([^)]+\)""")
+    val malformedImageLinkMatch = imageLinkRegex.findAll(normalized)
+        .firstOrNull { !validImageRegex.matches(it.value) }
+    if (malformedImageLinkMatch != null) {
+        val altText = malformedImageLinkMatch.groupValues.getOrNull(1)?.trim().orEmpty().ifBlank { "图片" }
+        val fixed = normalized.replaceRange(malformedImageLinkMatch.range, "![$altText](${remainingImageUrls.first()})")
+        return appendMissingArticleImages(fixed, remainingImageUrls.drop(1))
+    }
+
+    val bracketPlaceholderRegex = Regex("""[!！]\[([^]]+)](?!\()""")
+    val bracketMatch = bracketPlaceholderRegex.find(normalized)
+    if (bracketMatch != null) {
+        val altText = bracketMatch.groupValues.getOrNull(1)?.trim().orEmpty().ifBlank { "图片" }
+        val fixed = normalized.replaceRange(bracketMatch.range, "![$altText](${remainingImageUrls.first()})")
+        return appendMissingArticleImages(fixed, remainingImageUrls.drop(1))
+    }
+
+    val textPlaceholderRegex = Regex("""[!！](图片|配图|插图|图像|image|photo|figure)""", RegexOption.IGNORE_CASE)
+    val textMatch = textPlaceholderRegex.find(normalized)
+    if (textMatch != null) {
+        val altText = textMatch.groupValues.getOrNull(1)?.trim().orEmpty().ifBlank { "图片" }
+        val fixed = normalized.replaceRange(textMatch.range, "![$altText](${remainingImageUrls.first()})")
+        return appendMissingArticleImages(fixed, remainingImageUrls.drop(1))
+    }
+
+    return appendMissingArticleImages(normalized, remainingImageUrls)
+}
+
+private fun appendMissingArticleImages(markdown: String, imageUrls: List<String>): String {
+    if (imageUrls.isEmpty()) return markdown
+    return buildString {
+        append(markdown.trim())
+        imageUrls.forEachIndexed { index, imageUrl ->
+            append("\n\n![图片 ").append(index + 1).append("](").append(imageUrl).append(')')
+        }
+    }
+}
+
+internal fun usableArticleContentOrThrow(content: String?, url: String): String {
+    val text = content.orEmpty().trim()
+    val normalized = text.lowercase()
+    val errorMarkers = listOf(
+        "net::err_",
+        "web page not available",
+        "网页无法打开",
+        "just a moment",
+        "checking your browser",
+        "captcha",
+        "access denied",
+        "enable javascript",
+    )
+    if (errorMarkers.any { it in normalized }) {
+        throw IllegalStateException("Extracted content is an error page")
+    }
+    val compact = text.replace(Regex("\\s+"), "")
+    if (compact.length < MIN_USABLE_ARTICLE_CONTENT_CHARS && !isTwitterStatusUrl(url)) {
+        throw IllegalStateException("Extracted article content is too short")
+    }
+    val noiseLines = text.lines().map { it.trim().lowercase() }.filter { it.isNotBlank() }
+    val noisy = noiseLines.count { it in contentNoiseLines }
+    if (noiseLines.isNotEmpty() && noisy.toDouble() / noiseLines.size > 0.6 && !isTwitterStatusUrl(url)) {
+        throw IllegalStateException("Extracted content looks like navigation or login noise")
+    }
+    return text
+}
+
+private const val MIN_USABLE_ARTICLE_CONTENT_CHARS = 30
+
+private val contentNoiseLines = setOf(
+    "登录",
+    "注册",
+    "首页",
+    "login",
+    "sign in",
+    "sign up",
+    "menu",
+    "search",
+    "subscribe",
+)
 
 internal fun isTwitterStatusUrl(url: String?): Boolean {
     val value = url?.trim().orEmpty()
@@ -124,7 +238,34 @@ internal fun twitterStatusMarkdownOrExisting(
     url: String,
     extracted: ExtractedContent?,
     existing: String?,
-): String = if (!existing.isNullOrBlank()) existing else twitterStatusMarkdown(url, extracted)
+): String {
+    if (!existing.isNullOrBlank()) return existing
+    if (extracted?.isTwitterFallback == true) return extracted.content.orEmpty().trim()
+    return twitterStatusMarkdown(url, extracted)
+}
+
+internal fun isWebViewNetworkErrorContent(text: String?, html: String?): Boolean {
+    val content = "${text.orEmpty()}\n${html.orEmpty()}".lowercase()
+    return "net::err_" in content || "web page not available" in content || "网页无法打开" in content
+}
+
+internal fun twitterExtractionFallback(url: String): ExtractedContent = ExtractedContent(
+    title = null,
+    content = "原文链接：${url.trim()}",
+    htmlContent = "",
+    coverImageUrl = null,
+    imageUrls = emptyList(),
+)
+
+internal fun failedExtractionFallback(url: String): ExtractedContent {
+    if (isTwitterStatusUrl(url)) return twitterExtractionFallback(url)
+    throw IllegalStateException("Unable to extract article content")
+}
+
+private val ExtractedContent.isTwitterFallback: Boolean
+    get() = htmlContent.isNullOrBlank() &&
+        imageUrls.isEmpty() &&
+        content.orEmpty().trim().startsWith("原文链接：")
 
 private fun cleanTwitterStatusText(content: String?): String = content.orEmpty()
     .lines()
@@ -511,22 +652,30 @@ class WebpageParserService(
             updateArticleStatus(article, "aiProcessing")
 
             var aiCoverImageUrl: String? = null
-            supervisorScope {
-                listOf(
-                    async {
-                        val title = generateArticleTitle(article, extracted, apiAddress, apiToken, modelName, provider)
-                        updateArticleAiTitle(articleId, selectedArticleAiTitle(title, null, extracted?.title, article.title))
-                    },
-                    async {
-                        val summary = generateArticleSummary(article, extracted, apiAddress, apiToken, modelName, provider)
-                        aiCoverImageUrl = summary.coverImageUrl
-                        updateArticleSummary(articleId, summary)
-                    },
-                    async {
-                        val markdown = generateArticleMarkdown(article, extracted, extracted?.htmlContent ?: "", apiAddress, apiToken, modelName, provider)
-                        updateArticleMarkdown(articleId, markdown)
-                    },
-                ).awaitAll()
+            val analysis = generateArticleAnalysis(article, extracted, apiAddress, apiToken, modelName, provider)
+            if (analysis != null) {
+                val aiTitle = selectedArticleAiTitle(analysis.title, extractMarkdownHeadingTitle(analysis.summary), extracted?.title, article.title)
+                updateArticleAiTitle(articleId, aiTitle)
+                updateArticleSummary(articleId, ArticleSummaryResult(content = analysis.summary, title = aiTitle, coverImageUrl = null))
+                updateArticleMarkdown(articleId, normalizeArticleMarkdownImages(analysis.markdown, extracted?.imageUrls.orEmpty()))
+            } else {
+                supervisorScope {
+                    listOf(
+                        async {
+                            val title = generateArticleTitle(article, extracted, apiAddress, apiToken, modelName, provider)
+                            updateArticleAiTitle(articleId, selectedArticleAiTitle(title, null, extracted?.title, article.title))
+                        },
+                        async {
+                            val summary = generateArticleSummary(article, extracted, apiAddress, apiToken, modelName, provider)
+                            aiCoverImageUrl = summary.coverImageUrl
+                            updateArticleSummary(articleId, summary)
+                        },
+                        async {
+                            val markdown = generateArticleMarkdown(article, extracted, extracted?.htmlContent ?: "", apiAddress, apiToken, modelName, provider)
+                            updateArticleMarkdown(articleId, markdown)
+                        },
+                    ).awaitAll()
+                }
             }
 
             val latestArticle = articleRepo.getById(articleId) ?: article
@@ -617,6 +766,29 @@ class WebpageParserService(
         articleRepo.updateAiTitle(articleId, aiTitle.ifBlank { article.ai_title })
     }
 
+    private suspend fun generateArticleAnalysis(
+        article: Article,
+        extracted: ExtractedContent?,
+        apiAddress: String,
+        apiToken: String,
+        modelName: String,
+        provider: String,
+    ): ArticleAnalysisResult? {
+        if (isTwitterStatusUrl(article.url)) return null
+        return try {
+            val output = aiService.summarize(
+                articleAnalysisInput(article, extracted, modelName),
+                articleAnalysisPrompt(),
+                apiAddress, apiToken, modelName, provider,
+            )
+            parseArticleAnalysisOutput(output)
+        } catch (e: Exception) {
+            if (!shouldPersistArticleProcessingError(e)) throw e
+            log.e(e) { "Structured article analysis failed; falling back to separate AI tasks" }
+            null
+        }
+    }
+
     private suspend fun generateArticleSummary(
         article: Article,
         extracted: ExtractedContent?,
@@ -672,11 +844,17 @@ class WebpageParserService(
                 htmlToReadableMarkdownPrompt(),
                 apiAddress, apiToken, modelName, provider,
             )
-            generatedMarkdownOrFallback(markdown, article.ai_markdown_content, extracted?.content)
+            normalizeArticleMarkdownImages(
+                generatedMarkdownOrFallback(markdown, article.ai_markdown_content, extracted?.content),
+                extracted?.imageUrls.orEmpty(),
+            )
         } catch (e: Exception) {
             if (!shouldPersistArticleProcessingError(e)) throw e
             log.e(e) { "Markdown conversion failed" }
-            generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content)
+            normalizeArticleMarkdownImages(
+                generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content),
+                extracted?.imageUrls.orEmpty(),
+            )
         }
     }
 
@@ -699,18 +877,21 @@ class WebpageParserService(
                 }
 
                 val html = page.html
-                val title = extractTitle(html)
+                if (isWebViewNetworkErrorContent(page.text, html)) throw IllegalStateException("WebView loaded a network error page")
+                val title = page.readableTitle?.trim()?.takeIf { it.isNotBlank() } ?: extractTitle(html)
                 val coverImageUrl = extractCoverImageUrl(html, url)
                 val imageUrls = extractContentImageUrls(html, url)
                 val textContent = page.summaryTextOrHtmlFallback().let { content ->
                     if (content == html) extractTextContent(html) else content
                 }
+                val usableContent = usableArticleContentOrThrow(textContent, url)
 
                 ExtractedContent(
                     title = title,
-                    content = textContent.take(AIConfig.maxContentLength.toInt()),
+                    content = usableContent.take(AIConfig.maxContentLength.toInt()),
                     htmlContent = html,
                     coverImageUrl = coverImageUrl,
+                    readableHtmlContent = page.readableContent,
                     imageUrls = imageUrls,
                 )
             } catch (e: Exception) {
@@ -723,9 +904,10 @@ class WebpageParserService(
                     val coverImageUrl = extractCoverImageUrl(html, url)
                     val imageUrls = extractContentImageUrls(html, url)
                     val textContent = extractTextContent(html)
+                    val usableContent = usableArticleContentOrThrow(textContent, url)
                     ExtractedContent(
                         title = title,
-                        content = textContent.take(AIConfig.maxContentLength.toInt()),
+                        content = usableContent.take(AIConfig.maxContentLength.toInt()),
                         htmlContent = html,
                         coverImageUrl = coverImageUrl,
                         imageUrls = imageUrls,
@@ -733,7 +915,7 @@ class WebpageParserService(
                 } catch (e2: Exception) {
                     if (!shouldPersistArticleProcessingError(e2)) throw e2
                     log.e(e2) { "Fallback extraction also failed" }
-                    ExtractedContent(null, null, null, null)
+                    failedExtractionFallback(url)
                 }
             }
         }
@@ -916,16 +1098,90 @@ class WebpageParserService(
 }
 
 internal fun WebViewPageContent.summaryTextOrHtmlFallback(): String {
+    val readable = readableContent.orEmpty().trim()
+    if (readable.isNotBlank()) return readable.htmlFragmentToText()
     val textContent = text.trim()
     if (textContent.isNotBlank()) return textContent
     return html
 }
+
+private fun String.htmlFragmentToText(): String = this
+    .replace(Regex("<script[^>]*>.*?</script>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)), "")
+    .replace(Regex("<style[^>]*>.*?</style>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)), "")
+    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
+    .replace(Regex("</(p|div|li|h[1-6]|tr|blockquote)>", RegexOption.IGNORE_CASE), "\n")
+    .replace(Regex("<[^>]+>"), " ")
+    .replace("&amp;", "&")
+    .replace("&lt;", "<")
+    .replace("&gt;", ">")
+    .replace("&quot;", "\"")
+    .replace("&#39;", "'")
+    .replace("&nbsp;", " ")
+    .replace(Regex("[ \\t]+"), " ")
+    .replace(Regex("\\n{3,}"), "\n\n")
+    .trim()
 
 internal fun parseArticleSummaryOutput(output: String): ParsedArticleSummary {
     val coverRegex = Regex("""(?im)^\s*COVER_IMAGE_URL\s*:\s*(\S*)\s*$""")
     val coverImageUrl = coverRegex.find(output)?.groupValues?.get(1)?.takeIf { it.isNotBlank() }
     val summary = output.replace(coverRegex, "").trim()
     return ParsedArticleSummary(summary = summary, coverImageUrl = coverImageUrl)
+}
+
+internal fun parseArticleAnalysisOutput(output: String): ArticleAnalysisResult {
+    val jsonText = extractJsonObject(output)
+        ?: throw IllegalStateException("AI analysis output is not JSON")
+    val obj = articleJson.parseToJsonElement(jsonText).jsonObject
+    val title = obj.stringValue("title") ?: obj.stringValue("chinese_title")
+    val summary = obj.stringValue("summary").orEmpty().trim()
+    val markdown = obj.stringValue("markdown").orEmpty().trim()
+    if (summary.isBlank()) throw IllegalStateException("AI analysis summary is blank")
+    if (markdown.isBlank()) throw IllegalStateException("AI analysis markdown is blank")
+    return ArticleAnalysisResult(
+        title = title?.trim()?.takeIf { it.isNotBlank() },
+        summary = summary,
+        markdown = markdown,
+    )
+}
+
+private fun JsonObject.stringValue(name: String): String? =
+    this[name]?.jsonPrimitive?.contentOrNull
+
+private fun extractJsonObject(value: String): String? {
+    val cleaned = value.trim()
+        .removePrefix("```json")
+        .removePrefix("```")
+        .removeSuffix("```")
+        .trim()
+    if (cleaned.startsWith("{") && cleaned.endsWith("}")) return cleaned
+
+    val start = cleaned.indexOf('{')
+    if (start < 0) return null
+    var depth = 0
+    var inString = false
+    var escaped = false
+    for (index in start until cleaned.length) {
+        val ch = cleaned[index]
+        if (inString) {
+            if (escaped) {
+                escaped = false
+            } else if (ch == '\\') {
+                escaped = true
+            } else if (ch == '"') {
+                inString = false
+            }
+            continue
+        }
+        when (ch) {
+            '"' -> inString = true
+            '{' -> depth += 1
+            '}' -> {
+                depth -= 1
+                if (depth == 0) return cleaned.substring(start, index + 1)
+            }
+        }
+    }
+    return null
 }
 
 internal fun validatedCoverImageUrl(candidate: String?, imageUrls: List<String>): String? {
@@ -947,9 +1203,27 @@ internal fun articleSummaryInput(extracted: ExtractedContent?, modelName: String
 
 internal fun articleTitleInput(extracted: ExtractedContent?, modelName: String): String = articleSummaryInput(extracted, modelName)
 
+internal fun articleAnalysisInput(article: Article, extracted: ExtractedContent?, modelName: String): String = buildString {
+    append("标题：")
+    append(extracted?.title?.takeIf { it.isNotBlank() } ?: article.title.orEmpty())
+    append("\n\n")
+    append(articleMarkdownInput(extracted, modelName))
+}
+
 internal fun articleMarkdownInput(extracted: ExtractedContent?, modelName: String): String {
     val textContent = extracted?.content?.trim().orEmpty()
+    val readableHtml = extracted?.readableHtmlContent?.trim().orEmpty()
     val images = extracted?.imageUrls.orEmpty().joinToString("\n")
+    if (readableHtml.isNotBlank()) {
+        return buildString {
+            append("正文 HTML：\n")
+            append(htmlForAiModel(readableHtml, modelName))
+            if (images.isNotBlank()) {
+                append("\n\n正文图片：\n")
+                append(images)
+            }
+        }
+    }
     if (textContent.isNotBlank()) {
         return buildString {
             append("正文文本：\n")
