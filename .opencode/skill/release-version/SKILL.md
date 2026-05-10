@@ -17,7 +17,7 @@ metadata:
 3. **生成日志** - 创建 `docs/versions/changelog_${version}.md`
 4. **提交代码** - 执行 `git add .` 和 `git commit`
 5. **打版本标签** - 执行 `git tag v${version}`
-6. **同步 GitHub** - 使用 `gh api` 将 GitHub `main` 快进到发布提交，并创建远程 tag 引用
+6. **同步 GitHub** - 使用本地 `gh` 命令创建远程版本 tag/release，并验证 GitHub 状态
 
 > 发布只需要提交代码、打 tag、同步 GitHub main 和 tag。不在本地编译 release 版本，不上传 APK 或其他 release 资产。
 
@@ -71,35 +71,28 @@ git tag v${current_version}
 
 ```
 
-### 5. 使用 gh 同步 GitHub
+### 5. 同步 GitHub
 
-发布时不要使用普通 `git push` 推送分支；使用 GitHub API 快进远程 `main`，并用 GitHub API 创建远程 tag ref。
+GitHub CLI 没有普通的 `gh push tag` 子命令；不要使用 `gh api` 手工操作 Git refs。发布时使用本地 `gh release create` 创建远程版本 tag/release，不上传 APK 或其他资产。
 
 ```bash
 release_sha=$(git rev-parse HEAD)
 
-# 快进 GitHub main 到发布提交，force=false 防止覆盖远端新提交
-gh api repos/SatoriTours/Daily/git/refs/heads/main \
-  -X PATCH \
-  -f sha="$release_sha" \
-  -F force=false \
-  --jq .object.sha
+# 使用 gh 创建 GitHub 版本 tag/release，不附带任何资产
+gh release create "v${current_version}" \
+  --repo SatoriTours/Daily \
+  --target "$release_sha" \
+  --title "v${current_version}" \
+  --notes-file "docs/versions/changelog_${current_version}.md"
 
-# 创建远程 tag 引用，相当于只把 tag 推到 GitHub
-gh api repos/SatoriTours/Daily/git/refs \
-  -f ref="refs/tags/v${current_version}" \
-  -f sha="$release_sha" \
-  --jq .ref
-
-# 验证远程 main 和 tag 都指向发布提交
-gh api repos/SatoriTours/Daily/git/ref/heads/main --jq .object.sha
-git ls-remote --tags origin "v${current_version}"
+# 使用 gh 验证 GitHub release/tag 已存在
+gh release view "v${current_version}" --repo SatoriTours/Daily --json tagName,targetCommitish,url
 ```
 
-如果远程 tag 已存在，先验证它是否指向当前发布提交：
+如果远程 release/tag 已存在，先验证它：
 
 ```bash
-git ls-remote --tags origin "v${current_version}"
+gh release view "v${current_version}" --repo SatoriTours/Daily --json tagName,targetCommitish,url
 ```
 
 只有在用户明确要求修正错误 tag 时，才删除并重建远程 tag。不要 force push main/master。
@@ -109,6 +102,7 @@ git ls-remote --tags origin "v${current_version}"
 - 更新日志使用中文，聚焦功能变化
 - 按新增/优化/修复分类，不包含测试改进
 - 打标签前确认版本号正确
-- GitHub 同步使用 `gh api`，不要用普通 `git push` 推送分支
-- 只同步 main 和 tag，不编译 release，不上传 APK，不创建/上传 release 资产
-- 远程 main 使用 `force=false` 快进，失败时停止并报告远端已有新提交
+- 使用本地 `gh release create` 创建 GitHub tag/release
+- 不使用 `gh api` 手工操作 Git refs
+- 不使用 `git push` 作为发布步骤
+- 不编译 release，不上传 APK，不上传 release 资产
