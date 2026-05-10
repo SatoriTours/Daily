@@ -199,6 +199,166 @@ class ArticleProcessingContentTest {
     }
 
     @Test
+    fun detectsTwitterStatusUrls() {
+        assertEquals(true, isTwitterStatusUrl("https://x.com/i/status/2050393928340488265"))
+        assertEquals(true, isTwitterStatusUrl("https://x.com/user/status/2050393928340488265"))
+        assertEquals(true, isTwitterStatusUrl("https://twitter.com/user/status/2050393928340488265"))
+    }
+
+    @Test
+    fun rejectsNonTwitterStatusUrls() {
+        assertEquals(false, isTwitterStatusUrl("https://x.com/user"))
+        assertEquals(false, isTwitterStatusUrl("https://x.com/search?q=kotlin"))
+        assertEquals(false, isTwitterStatusUrl("https://mobile.twitter.com/user/status/2050393928340488265"))
+        assertEquals(false, isTwitterStatusUrl("https://example.com/user/status/2050393928340488265"))
+        assertEquals(false, isTwitterStatusUrl(null))
+    }
+
+    @Test
+    fun formatsTwitterMarkdownWithCleanedTextOriginalUrlAndMediaUrls() {
+        val url = "https://x.com/user/status/2050393928340488265"
+        val extracted = ExtractedContent(
+            title = "Post / X",
+            content = """
+                X
+                Post
+                See new posts
+                User
+                @user
+                This is the actual post.
+                It spans two lines.
+                Translate post
+                12:34 PM · May 9, 2026
+            """.trimIndent(),
+            htmlContent = null,
+            coverImageUrl = "https://pbs.twimg.com/media/first?format=jpg&name=large",
+            imageUrls = listOf(
+                "https://pbs.twimg.com/media/first?format=jpg&name=large",
+                "https://pbs.twimg.com/profile_images/avatar.jpg",
+                "https://pbs.twimg.com/media/second?format=png&name=large",
+                "https://pbs.twimg.com/media/first?format=jpg&name=large",
+            ),
+        )
+
+        assertEquals(
+            """
+                # 推文内容
+
+                User
+                @user
+                This is the actual post.
+                It spans two lines.
+
+                原文链接：https://x.com/user/status/2050393928340488265
+
+                ## 媒体
+
+                ![媒体 1](https://pbs.twimg.com/media/first?format=jpg&name=large)
+                ![媒体 2](https://pbs.twimg.com/profile_images/avatar.jpg)
+                ![媒体 3](https://pbs.twimg.com/media/second?format=png&name=large)
+            """.trimIndent(),
+            twitterStatusMarkdown(url, extracted),
+        )
+    }
+
+    @Test
+    fun fallsBackToMinimalTwitterMarkdownWhenOnlyUiNoiseIsAvailable() {
+        val url = "https://twitter.com/user/status/2050393928340488265"
+        val extracted = ExtractedContent(
+            title = "X",
+            content = """
+                X
+                Post
+                See new posts
+                Translate post
+                Reply
+                Repost
+                Like
+                Share
+            """.trimIndent(),
+            htmlContent = null,
+            coverImageUrl = null,
+            imageUrls = emptyList(),
+        )
+
+        assertEquals(
+            """
+                # 推文内容
+
+                原文链接：https://twitter.com/user/status/2050393928340488265
+            """.trimIndent(),
+            twitterStatusMarkdown(url, extracted),
+        )
+    }
+
+    @Test
+    fun preservesExistingTwitterMarkdownBeforeFormattingNewMarkdown() {
+        val existing = "# 已保存推文原文\n\n已有内容"
+        val extracted = ExtractedContent(
+            title = "Post / X",
+            content = "new tweet text",
+            htmlContent = null,
+            coverImageUrl = null,
+            imageUrls = emptyList(),
+        )
+
+        assertEquals(
+            existing,
+            twitterStatusMarkdownOrExisting(
+                url = "https://x.com/user/status/2050393928340488265",
+                extracted = extracted,
+                existing = existing,
+            ),
+        )
+    }
+
+    @Test
+    fun preservesExistingTwitterMarkdownExactlyBeforeFormattingNewMarkdown() {
+        val existing = "\n  # 已保存推文原文\n\n已有内容  \n"
+
+        assertEquals(
+            existing,
+            twitterStatusMarkdownOrExisting(
+                url = "https://x.com/user/status/2050393928340488265",
+                extracted = null,
+                existing = existing,
+            ),
+        )
+    }
+
+    @Test
+    fun includesTwitterThumbnailOrCardUrlsAsMedia() {
+        val url = "https://x.com/user/status/2050393928340488265"
+        val extracted = ExtractedContent(
+            title = "Post / X",
+            content = "tweet text",
+            htmlContent = null,
+            coverImageUrl = "https://example.com/twitter-card.jpg",
+            imageUrls = listOf(
+                "   ",
+                "https://example.com/twitter-card.jpg",
+                "https://cdn.example.com/thumb.png",
+            ),
+        )
+
+        assertEquals(
+            """
+                # 推文内容
+
+                tweet text
+
+                原文链接：https://x.com/user/status/2050393928340488265
+
+                ## 媒体
+
+                ![媒体 1](https://example.com/twitter-card.jpg)
+                ![媒体 2](https://cdn.example.com/thumb.png)
+            """.trimIndent(),
+            twitterStatusMarkdown(url, extracted),
+        )
+    }
+
+    @Test
     fun parsesCoverImageUrlFromSummaryOutputAndRemovesMetadataLine() {
         val output = """
             # 标题

@@ -91,6 +91,76 @@ internal fun generatedMarkdownOrFallback(generated: String, existing: String?, e
     return ""
 }
 
+internal fun isTwitterStatusUrl(url: String?): Boolean {
+    val value = url?.trim().orEmpty()
+    return Regex(
+        pattern = "^https?://(?:www\\.)?(?:x\\.com|twitter\\.com)/(?:i/status|[^/?#]+/status)/[^/?#]+(?:[/?#].*)?$",
+        option = RegexOption.IGNORE_CASE,
+    ).matches(value)
+}
+
+internal fun twitterStatusMarkdown(url: String, extracted: ExtractedContent?): String {
+    val text = cleanTwitterStatusText(extracted?.content)
+    val mediaUrls = twitterMediaUrls(extracted)
+    val markdown = StringBuilder("# 推文内容\n\n")
+
+    if (text.isNotBlank()) {
+        markdown.append(text).append("\n\n")
+    }
+    markdown.append("原文链接：").append(url)
+
+    if (mediaUrls.isNotEmpty()) {
+        markdown.append("\n\n## 媒体\n\n")
+        mediaUrls.forEachIndexed { index, mediaUrl ->
+            if (index > 0) markdown.append('\n')
+            markdown.append("![媒体 ").append(index + 1).append("](").append(mediaUrl).append(')')
+        }
+    }
+
+    return markdown.toString()
+}
+
+internal fun twitterStatusMarkdownOrExisting(
+    url: String,
+    extracted: ExtractedContent?,
+    existing: String?,
+): String = if (!existing.isNullOrBlank()) existing else twitterStatusMarkdown(url, extracted)
+
+private fun cleanTwitterStatusText(content: String?): String = content.orEmpty()
+    .lines()
+    .map { it.trim() }
+    .filter { it.isNotBlank() && !isTwitterUiNoiseLine(it) }
+    .joinToString("\n")
+
+private fun isTwitterUiNoiseLine(line: String): Boolean {
+    val normalized = line.lowercase()
+    return normalized in twitterUiNoiseLines ||
+        Regex("^\\d{1,2}:\\d{2}\\s*(am|pm)?\\s*·.*$", RegexOption.IGNORE_CASE).matches(line) ||
+        Regex("^[\\d,.]+[kmb]?$").matches(normalized)
+}
+
+private val twitterUiNoiseLines = setOf(
+    "x",
+    "post",
+    "see new posts",
+    "translate post",
+    "reply",
+    "repost",
+    "like",
+    "share",
+    "quote",
+    "bookmark",
+    "views",
+    "show more",
+)
+
+private fun twitterMediaUrls(extracted: ExtractedContent?): List<String> =
+    listOfNotNull(extracted?.coverImageUrl)
+        .plus(extracted?.imageUrls.orEmpty())
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+
 internal fun generatedSummaryOrFallback(
     generated: String,
     existing: String?,
@@ -591,6 +661,10 @@ class WebpageParserService(
         modelName: String,
         provider: String,
     ): String {
+        val url = article.url.orEmpty()
+        if (isTwitterStatusUrl(url)) {
+            return twitterStatusMarkdownOrExisting(url, extracted, article.ai_markdown_content)
+        }
         if (htmlContent.isBlank()) return generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content)
         return try {
             val markdown = aiService.htmlToMarkdown(
