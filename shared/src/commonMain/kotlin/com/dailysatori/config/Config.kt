@@ -77,7 +77,7 @@ object WebServiceConfig {
 }
 
 object WebViewConfig {
-    const val timeoutMs = 25_000L
+    const val timeoutMs = 10_000L
     const val sessionMaxLifetimeMs = 240_000L
     const val maxConcurrentSessions = 2
     const val maxRedirects = 10

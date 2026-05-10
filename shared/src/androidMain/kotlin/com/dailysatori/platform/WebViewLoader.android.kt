@@ -144,7 +144,6 @@ actual class WebViewLoader actual constructor() {
                     val json = JSONObject(decodeJavascriptString(value))
                     return PageSnapshot(
                         stableHtml = json.optString("stableHtml"),
-                        hasUsableContent = json.optBoolean("hasUsableContent"),
                         content = WebViewPageContent(
                             html = json.optString("html"),
                             text = json.optString("text"),
@@ -175,13 +174,7 @@ actual class WebViewLoader actual constructor() {
                             stableReadCount = 0
                         }
 
-                        if (shouldCompleteWebViewPolling(
-                                stableReadCount,
-                                readCount,
-                                requireUsableContent = true,
-                                hasUsableContent = snapshot.hasUsableContent,
-                            )
-                        ) {
+                        if (shouldCompleteWebViewPolling(stableReadCount, readCount)) {
                             complete(Result.success(snapshot.content))
                         } else {
                             handler.postDelayed(::pollHtmlUntilStable, STABILITY_CHECK_INTERVAL_MS)
@@ -278,7 +271,7 @@ actual class WebViewLoader actual constructor() {
     private companion object {
         const val DESKTOP_USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
-        const val STABILITY_CHECK_INTERVAL_MS = 2_000L
+        const val STABILITY_CHECK_INTERVAL_MS = 1_000L
         val AD_DOMAINS = listOf(
             "doubleclick.net",
             "googlesyndication.com",
@@ -364,43 +357,6 @@ actual class WebViewLoader actual constructor() {
                     return fallbackText.length >= 50 ? fallbackText : '';
                 }
 
-                function isUsableContent(value) {
-                    if (!value) return false;
-                    const compact = String(value).replace(/\s+/g, '').trim();
-                    if (compact.length < 24) return false;
-                    if (!/[A-Za-z0-9\u4e00-\u9fff]/.test(value)) return false;
-
-                    const lines = String(value)
-                        .split('\n')
-                        .map(function(line) { return String(line || '').trim().toLowerCase(); })
-                        .filter(function(line) { return line.length > 0; });
-                    if (lines.length === 0) return false;
-
-                    const noiseWords = [
-                        '登录',
-                        '注册',
-                        '首页',
-                        'login',
-                        'log in',
-                        'sign in',
-                        'sign up',
-                        'menu',
-                        'search',
-                        'subscribe',
-                        'subscribe to',
-                        'follow',
-                        'following',
-                        'home',
-                        'explore',
-                        'notifications',
-                    ];
-
-                    const noiseLines = lines.filter(function(line) {
-                        return noiseWords.includes(line);
-                    });
-                    return !(lines.length >= 3 && noiseLines.length >= lines.length * 0.6);
-                }
-
                 try {
                     if (ensureReadability()) {
                         const article = new Readability(document.cloneNode(true)).parse();
@@ -444,7 +400,6 @@ actual class WebViewLoader actual constructor() {
                     readableTitle: readableTitle,
                     readableContent: readableContent,
                     readableExcerpt: readableExcerpt,
-                    hasUsableContent: isUsableContent(readableContentCandidate),
                 });
             })();
         """
@@ -452,7 +407,6 @@ actual class WebViewLoader actual constructor() {
 
     private data class PageSnapshot(
         val stableHtml: String,
-        val hasUsableContent: Boolean,
         val content: WebViewPageContent,
     )
 }

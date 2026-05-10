@@ -206,18 +206,10 @@ class ArticleProcessingContentTest {
     }
 
     @Test
-    fun webViewPollingUsesCurrentSnapshotAfterMaximumChecks() {
-        assertEquals(false, shouldCompleteWebViewPolling(stableReadCount = 0, readCount = 4))
-        assertEquals(true, shouldCompleteWebViewPolling(stableReadCount = 0, readCount = 5))
-        assertEquals(true, shouldCompleteWebViewPolling(stableReadCount = 2, readCount = 2))
-    }
-
-    @Test
-    fun webViewPollingWaitsForUsableContentWhenEnabled() {
-        assertEquals(false, shouldCompleteWebViewPolling(stableReadCount = 2, readCount = 2, requireUsableContent = true, hasUsableContent = false))
-        assertEquals(false, shouldCompleteWebViewPolling(stableReadCount = 4, readCount = 4, requireUsableContent = true, hasUsableContent = false))
-        assertEquals(true, shouldCompleteWebViewPolling(stableReadCount = 4, readCount = 5, requireUsableContent = true, hasUsableContent = false))
-        assertEquals(true, shouldCompleteWebViewPolling(stableReadCount = 2, readCount = 2, requireUsableContent = true, hasUsableContent = true))
+    fun webViewPollingCompletesAfterThreeStableReadsOrTenChecks() {
+        assertEquals(false, shouldCompleteWebViewPolling(stableReadCount = 2, readCount = 9))
+        assertEquals(true, shouldCompleteWebViewPolling(stableReadCount = 3, readCount = 3))
+        assertEquals(true, shouldCompleteWebViewPolling(stableReadCount = 0, readCount = 10))
     }
 
     @Test
@@ -647,20 +639,12 @@ class ArticleProcessingContentTest {
     }
 
     @Test
-    fun twitterExtractionFallbackUsesOriginalUrlInsteadOfNetworkErrorText() {
-        val url = "https://x.com/i/status/2051891753821556976"
-        val fallback = twitterExtractionFallback(url)
-
-        assertEquals("原文链接：$url", fallback.content)
-        assertEquals("", fallback.htmlContent)
-        assertEquals("原文链接：$url", twitterStatusMarkdownOrExisting(url, fallback, existing = null))
-    }
-
-    @Test
-    fun failedExtractionOnlyFallsBackToOriginalLinkForTwitterStatusUrls() {
+    fun failedExtractionDoesNotFabricateOriginalContentForTwitterStatusUrls() {
         val twitterUrl = "https://x.com/i/status/2051891753821556976"
 
-        assertEquals("原文链接：$twitterUrl", failedExtractionFallback(twitterUrl).content)
+        assertFailsWith<IllegalStateException> {
+            failedExtractionFallback(twitterUrl)
+        }
         assertFailsWith<IllegalStateException> {
             failedExtractionFallback("https://example.com/article")
         }

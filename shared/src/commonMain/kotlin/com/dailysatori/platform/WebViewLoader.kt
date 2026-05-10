@@ -11,19 +11,13 @@ data class WebViewPageContent(
 internal fun shouldCompleteWebViewPolling(
     stableReadCount: Int,
     readCount: Int,
-    maxReadCount: Int = 5,
-    requireUsableContent: Boolean = false,
-    hasUsableContent: Boolean = false,
-): Boolean = if (requireUsableContent) {
-    (stableReadCount >= 2 && hasUsableContent) || readCount >= maxReadCount
-} else {
-    stableReadCount >= 2 || readCount >= maxReadCount
-}
+    maxReadCount: Int = 10,
+): Boolean = stableReadCount >= 3 || readCount >= maxReadCount
 
 expect class WebViewLoadHandle {
     fun cancel()
 }
 
 expect class WebViewLoader() {
-    fun loadContent(url: String, timeoutMs: Long = 25_000, callback: (Result<WebViewPageContent>) -> Unit): WebViewLoadHandle
+    fun loadContent(url: String, timeoutMs: Long = 10_000, callback: (Result<WebViewPageContent>) -> Unit): WebViewLoadHandle
 }
