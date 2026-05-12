@@ -34,6 +34,7 @@ import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.service.migration.DatabaseMigration
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.service.plugin.PluginService
+import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.setting.SettingService
 import com.dailysatori.service.weekly.WeeklySummaryService
 import org.koin.core.module.Module
@@ -65,6 +66,7 @@ val sharedModule: Module = module {
     single { BackupPasswordStore(get()) }
     single { BackupService(get(), get(), get()) }
     single { PluginService(get(), get()) }
+    single { RemoteNewsService(get()) }
     single { MemoryExtractService(get(), get(), get()) }
 
     // AdBlock service (loads EasyList rules from assets via FileManager)

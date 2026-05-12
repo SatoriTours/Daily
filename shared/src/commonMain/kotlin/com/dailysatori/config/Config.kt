@@ -61,6 +61,12 @@ object PaginationConfig {
     const val minPageSize = 5L
 }
 
+object RemoteNewsConfig {
+    const val articlesPageSize = 20
+    const val digestsPageSize = 20
+    const val feedsPageSize = 50
+}
+
 object SearchConfig {
     const val debounceTimeMs = 300L
     const val minLength = 2
@@ -98,4 +104,6 @@ object SettingKeys {
     const val isFirstLaunch = "is_first_launch"
     const val schemaVersion = "schema_version"
     const val backupPassword = "backup_password"
+    const val remoteNewsBaseUrl = "remote_news_base_url"
+    const val remoteNewsApiToken = "remote_news_api_token"
 }

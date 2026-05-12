@@ -50,6 +50,7 @@ import com.dailysatori.ui.feature.settings.backup.BackupSettingsScreen
 import com.dailysatori.ui.feature.settings.importing.DataImportScreen
 import com.dailysatori.ui.feature.settings.mcp.McpServerScreen
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterScreen
+import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
@@ -61,6 +62,7 @@ private enum class SettingsPage {
     BACKUP_SETTINGS,
     BACKUP_RESTORE,
     DATA_IMPORT,
+    REMOTE_NEWS_SETTINGS,
 }
 
 @Composable
@@ -90,6 +92,7 @@ fun SettingsScreen() {
         SettingsPage.BACKUP_SETTINGS -> BackupSettingsScreen(onBack = { currentPage = SettingsPage.MAIN }, onRestore = { currentPage = SettingsPage.BACKUP_RESTORE })
         SettingsPage.BACKUP_RESTORE -> BackupRestoreScreen(onBack = { currentPage = SettingsPage.BACKUP_SETTINGS })
         SettingsPage.DATA_IMPORT -> DataImportScreen(onBack = { currentPage = SettingsPage.MAIN })
+        SettingsPage.REMOTE_NEWS_SETTINGS -> RemoteNewsSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
     }
 }
 
@@ -161,7 +164,7 @@ private fun SettingsList(
     ) {
         Spacer(modifier = Modifier.height(Spacing.xs))
         AiServicesSection(onNavigate)
-        NetworkSection(state, viewModel)
+        NetworkSection(state, viewModel, onNavigate)
         DataSection(onNavigate)
         Spacer(modifier = Modifier.height(Spacing.xl))
     }
@@ -177,8 +180,18 @@ private fun AiServicesSection(onNavigate: (SettingsPage) -> Unit) {
 }
 
 @Composable
-private fun NetworkSection(state: SettingsState, viewModel: SettingsViewModel) {
+private fun NetworkSection(
+    state: SettingsState,
+    viewModel: SettingsViewModel,
+    onNavigate: (SettingsPage) -> Unit,
+) {
     SettingsSectionCard("网络与同步") {
+        SettingsRow(
+            icon = Icons.Default.Language,
+            title = "远程新闻设置",
+            subtitle = "配置服务地址和 API Token",
+            onClick = { onNavigate(SettingsPage.REMOTE_NEWS_SETTINGS) },
+        )
         WebServerRow(state, viewModel)
         if (state.webServerToken.isNotEmpty()) ApiTokenRow(state, viewModel)
         SettingsRow(

@@ -12,10 +12,12 @@ import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Icon
@@ -38,6 +40,7 @@ import com.dailysatori.ui.feature.aichat.AiChatScreen
 import com.dailysatori.ui.feature.article.ArticleListScreen
 import com.dailysatori.ui.feature.book.BooksScreen
 import com.dailysatori.ui.feature.diary.DiaryScreen
+import com.dailysatori.ui.feature.remotenews.RemoteNewsScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
 
 data class TabItem(
@@ -51,6 +54,7 @@ val tabs = listOf(
     TabItem("日记", Icons.Filled.Book, Icons.Outlined.Book),
     TabItem("读书", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
     TabItem("AI", Icons.Filled.SmartToy, Icons.Outlined.SmartToy),
+    TabItem("远程新闻", Icons.Filled.Language, Icons.Outlined.Language),
     TabItem("设置", Icons.Filled.Settings, Icons.Outlined.Settings),
 )
 
@@ -119,7 +123,8 @@ fun HomeScreen(
                         onSelectedBookConsumed = onSelectedBookConsumed,
                     )
                     AI_CHAT_TAB_INDEX -> AiChatScreen(onArticleClick = onAiArticleClick)
-                    4 -> SettingsScreen()
+                    4 -> RemoteNewsScreen()
+                    5 -> SettingsScreen()
                 }
             }
         }
