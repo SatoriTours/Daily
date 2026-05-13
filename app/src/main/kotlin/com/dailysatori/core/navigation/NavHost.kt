@@ -19,6 +19,7 @@ import com.dailysatori.ui.feature.book.BookContentSearchScreen
 import com.dailysatori.ui.feature.book.BookSearchScreen
 import com.dailysatori.ui.feature.home.HomeScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
+import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.share.ShareDialogScreen
 
 private const val ANIM_DURATION = 350
@@ -27,7 +28,7 @@ private const val SELECTED_VIEWPOINT_ID_KEY = "selectedViewpointId"
 private const val BOOK_ANALYSIS_MESSAGE_KEY = "bookAnalysisMessage"
 
 @Composable
-fun DailySatoriNavHost(navController: NavHostController) {
+fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: SettingsViewModel) {
     NavHost(navController, startDestination = HomeRoute) {
         composable<HomeRoute>(
             enterTransition = { fadeIn(animationSpec = tween(ANIM_DURATION)) },
@@ -58,6 +59,7 @@ fun DailySatoriNavHost(navController: NavHostController) {
                 },
                 onArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
                 onAiArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
+                settingsViewModel = settingsViewModel,
             )
         }
 
@@ -195,7 +197,7 @@ fun DailySatoriNavHost(navController: NavHostController) {
                 ) + fadeOut(animationSpec = tween(ANIM_DURATION))
             },
         ) {
-            SettingsScreen()
+            SettingsScreen(settingsViewModel)
         }
 
         composable<ShareDialogRoute>(

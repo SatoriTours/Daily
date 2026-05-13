@@ -52,7 +52,6 @@ import com.dailysatori.ui.feature.settings.mcp.McpServerScreen
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterScreen
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
 import com.dailysatori.ui.theme.Spacing
-import org.koin.androidx.compose.koinViewModel
 
 private enum class SettingsPage {
     MAIN,
@@ -66,8 +65,7 @@ private enum class SettingsPage {
 }
 
 @Composable
-fun SettingsScreen() {
-    val viewModel: SettingsViewModel = koinViewModel()
+fun SettingsScreen(viewModel: SettingsViewModel) {
     val state by viewModel.state.collectAsState()
 
     var currentPage by remember { mutableStateOf(SettingsPage.MAIN) }

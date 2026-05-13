@@ -120,7 +120,7 @@ fun DailySatoriApp(
         color = MaterialTheme.colorScheme.background,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            DailySatoriNavHost(navController)
+            DailySatoriNavHost(navController, upgradeViewModel)
             SnackbarHost(
                 hostState = snackbarHostState,
                 modifier = Modifier.align(Alignment.BottomCenter),
