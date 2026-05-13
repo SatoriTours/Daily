@@ -106,4 +106,6 @@ object SettingKeys {
     const val backupPassword = "backup_password"
     const val remoteNewsBaseUrl = "remote_news_base_url"
     const val remoteNewsApiToken = "remote_news_api_token"
+    const val crayfishNewsBaseUrl = "crayfish_news_base_url"
+    const val crayfishNewsApiToken = "crayfish_news_api_token"
 }

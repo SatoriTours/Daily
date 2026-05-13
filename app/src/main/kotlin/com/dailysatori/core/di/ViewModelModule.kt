@@ -31,8 +31,10 @@ import com.dailysatori.ui.feature.book.BookSearchViewModel
 import com.dailysatori.ui.feature.book.BookContentSearchViewModel
 import com.dailysatori.ui.feature.book.BooksViewModel
 import com.dailysatori.ui.feature.diary.DiaryViewModel
+import com.dailysatori.ui.feature.crayfishnews.CrayfishNewsViewModel
 import com.dailysatori.ui.feature.remotenews.RemoteNewsViewModel
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterViewModel
+import com.dailysatori.ui.feature.settings.crayfishnews.CrayfishNewsSettingsViewModel
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsViewModel
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.mcp.McpServerViewModel
@@ -141,6 +143,8 @@ val viewModelModule: Module = module {
     }
     viewModel { RemoteNewsViewModel(get(), get()) }
     viewModel { RemoteNewsSettingsViewModel(get(), get()) }
+    viewModel { CrayfishNewsViewModel(get(), get()) }
+    viewModel { CrayfishNewsSettingsViewModel(get(), get()) }
     viewModel {
         SettingsViewModel(
             webServerService = get<WebServerService>(),
