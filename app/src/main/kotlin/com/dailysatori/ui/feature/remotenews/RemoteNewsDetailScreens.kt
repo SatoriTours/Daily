@@ -101,7 +101,7 @@ fun DigestBody(digest: RemoteDigest, modifier: Modifier = Modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.width(Spacing.xs))
-            Text(digest.date.orEmpty(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            Text(remoteDigestTimestampText(digest), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         }
 
         digest.summary?.takeIf { it.isNotBlank() }?.let { summary ->
@@ -147,6 +147,19 @@ fun DigestBody(digest: RemoteDigest, modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+internal fun remoteDigestTimestampText(digest: RemoteDigest): String {
+    val date = digest.date.orEmpty()
+    val time = digest.generatedAt.timeText() ?: digest.startedAt.timeText()
+    return listOfNotNull(date, time).filter { it.isNotBlank() }.joinToString(" ")
+}
+
+private fun String?.timeText(): String? {
+    val value = this?.trim().orEmpty()
+    if (value.isBlank()) return null
+    val timeStart = value.indexOf('T').takeIf { it >= 0 } ?: value.indexOf(' ').takeIf { it >= 0 } ?: return null
+    return value.drop(timeStart + 1).take(5).takeIf { it.length == 5 && it[2] == ':' }
 }
 
 @Composable

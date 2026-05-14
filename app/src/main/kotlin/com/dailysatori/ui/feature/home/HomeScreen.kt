@@ -42,6 +42,7 @@ import com.dailysatori.ui.feature.book.BooksScreen
 import com.dailysatori.ui.feature.diary.DiaryScreen
 import com.dailysatori.ui.feature.remotenews.RemoteNewsScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
+import com.dailysatori.ui.feature.settings.SettingsViewModel
 
 data class TabItem(
     val label: String,
@@ -70,6 +71,7 @@ fun HomeScreen(
     onSelectedBookConsumed: () -> Unit = {},
     onArticleClick: (Long) -> Unit = {},
     onAiArticleClick: (Long) -> Unit = {},
+    settingsViewModel: SettingsViewModel,
 ) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
 
@@ -124,7 +126,7 @@ fun HomeScreen(
                     )
                     AI_CHAT_TAB_INDEX -> AiChatScreen(onArticleClick = onAiArticleClick)
                     4 -> RemoteNewsScreen()
-                    5 -> SettingsScreen()
+                    5 -> SettingsScreen(settingsViewModel)
                 }
             }
         }

@@ -23,6 +23,7 @@ enum class RemoteNewsMode(val title: String) {
     DIGESTS("远程新闻"),
     ARTICLES("远程文章"),
     FEEDS("信息源"),
+    CRAYFISH("小龙虾新闻"),
 }
 
 data class RemoteNewsState(
@@ -38,6 +39,7 @@ data class RemoteNewsState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val isLoadingMore: Boolean = false,
+    val refreshCompletedToken: Int = 0,
     val error: String? = null,
     val loadMoreError: String? = null,
 )
@@ -50,15 +52,18 @@ class RemoteNewsViewModel(
     val state: StateFlow<RemoteNewsState> = _state.asStateFlow()
 
     fun loadInitial() {
+        if (_state.value.mode == RemoteNewsMode.CRAYFISH) return
         if (_state.value.digests.isEmpty()) loadMode(RemoteNewsMode.DIGESTS, refresh = false)
     }
 
     fun switchMode(mode: RemoteNewsMode) {
         _state.update { it.copy(mode = mode, error = null, loadMoreError = null) }
+        if (mode == RemoteNewsMode.CRAYFISH) return
         val needsLoad = when (mode) {
             RemoteNewsMode.DIGESTS -> _state.value.digests.isEmpty()
             RemoteNewsMode.ARTICLES -> _state.value.articles.isEmpty()
             RemoteNewsMode.FEEDS -> _state.value.feeds.isEmpty()
+            RemoteNewsMode.CRAYFISH -> false
         }
         if (needsLoad) loadMode(mode, refresh = false)
     }
@@ -68,10 +73,12 @@ class RemoteNewsViewModel(
     fun loadMore() {
         val current = _state.value
         if (current.isLoading || current.isRefreshing || current.isLoadingMore) return
+        if (current.mode == RemoteNewsMode.CRAYFISH) return
         val nextPage = when (current.mode) {
             RemoteNewsMode.DIGESTS -> current.digestPagination?.next
             RemoteNewsMode.ARTICLES -> current.articlePagination?.next
             RemoteNewsMode.FEEDS -> current.feedPagination?.next
+            RemoteNewsMode.CRAYFISH -> null
         } ?: return
         loadPage(current.mode, nextPage, append = true)
     }
@@ -109,39 +116,64 @@ class RemoteNewsViewModel(
             _state.update { it.copy(isLoading = !refresh && !append, isRefreshing = refresh, isLoadingMore = append, error = null, loadMoreError = null) }
             val config = currentConfigOrSetError() ?: return@launch
             when (mode) {
-                RemoteNewsMode.DIGESTS -> loadDigests(config, page, append)
-                RemoteNewsMode.ARTICLES -> loadArticles(config, page, append)
-                RemoteNewsMode.FEEDS -> loadFeeds(config, page, append)
+                RemoteNewsMode.DIGESTS -> loadDigests(config, page, append, refresh)
+                RemoteNewsMode.ARTICLES -> loadArticles(config, page, append, refresh)
+                RemoteNewsMode.FEEDS -> loadFeeds(config, page, append, refresh)
+                RemoteNewsMode.CRAYFISH -> Unit
             }
         }
     }
 
-    private suspend fun loadDigests(config: RemoteNewsConfigValues, page: Int, append: Boolean) {
+    private suspend fun loadDigests(config: RemoteNewsConfigValues, page: Int, append: Boolean, refresh: Boolean) {
         when (val result = remoteNewsService.fetchDigests(config, page, RemoteNewsConfig.digestsPageSize)) {
             is RemoteNewsResult.Success -> _state.update {
-                it.copy(digests = if (append) it.digests + result.value.digests else result.value.digests, digestPagination = result.value.pagination, isLoading = false, isRefreshing = false, isLoadingMore = false)
+                it.copy(
+                    digests = if (append) it.digests + result.value.digests else result.value.digests,
+                    digestPagination = result.value.pagination,
+                    isLoading = false,
+                    isRefreshing = false,
+                    isLoadingMore = false,
+                    refreshCompletedToken = it.nextRefreshCompletedToken(refresh),
+                )
             }
             is RemoteNewsResult.Failure -> applyFailure(result.message, append)
         }
     }
 
-    private suspend fun loadArticles(config: RemoteNewsConfigValues, page: Int, append: Boolean) {
+    private suspend fun loadArticles(config: RemoteNewsConfigValues, page: Int, append: Boolean, refresh: Boolean) {
         when (val result = remoteNewsService.fetchArticles(config, page, RemoteNewsConfig.articlesPageSize)) {
             is RemoteNewsResult.Success -> _state.update {
-                it.copy(articles = if (append) it.articles + result.value.articles else result.value.articles, articlePagination = result.value.pagination, isLoading = false, isRefreshing = false, isLoadingMore = false)
+                it.copy(
+                    articles = if (append) it.articles + result.value.articles else result.value.articles,
+                    articlePagination = result.value.pagination,
+                    isLoading = false,
+                    isRefreshing = false,
+                    isLoadingMore = false,
+                    refreshCompletedToken = it.nextRefreshCompletedToken(refresh),
+                )
             }
             is RemoteNewsResult.Failure -> applyFailure(result.message, append)
         }
     }
 
-    private suspend fun loadFeeds(config: RemoteNewsConfigValues, page: Int, append: Boolean) {
+    private suspend fun loadFeeds(config: RemoteNewsConfigValues, page: Int, append: Boolean, refresh: Boolean) {
         when (val result = remoteNewsService.fetchFeeds(config, page, RemoteNewsConfig.feedsPageSize)) {
             is RemoteNewsResult.Success -> _state.update {
-                it.copy(feeds = if (append) it.feeds + result.value.feeds else result.value.feeds, feedPagination = result.value.pagination, isLoading = false, isRefreshing = false, isLoadingMore = false)
+                it.copy(
+                    feeds = if (append) it.feeds + result.value.feeds else result.value.feeds,
+                    feedPagination = result.value.pagination,
+                    isLoading = false,
+                    isRefreshing = false,
+                    isLoadingMore = false,
+                    refreshCompletedToken = it.nextRefreshCompletedToken(refresh),
+                )
             }
             is RemoteNewsResult.Failure -> applyFailure(result.message, append)
         }
     }
+
+    private fun RemoteNewsState.nextRefreshCompletedToken(refresh: Boolean): Int =
+        if (refresh) refreshCompletedToken + 1 else refreshCompletedToken
 
     private fun applyFailure(message: String, append: Boolean) {
         _state.update {

@@ -53,6 +53,7 @@ import com.dailysatori.ui.component.card.CustomCard
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.feature.crayfishnews.CrayfishNewsScreen
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
@@ -61,9 +62,8 @@ fun RemoteNewsScreen() {
     val viewModel: RemoteNewsViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) { viewModel.loadInitial() }
-
     when {
+        state.mode == RemoteNewsMode.CRAYFISH -> CrayfishNewsScreen(onBackToRemoteNews = { viewModel.switchMode(RemoteNewsMode.DIGESTS) })
         state.selectedArticle != null -> RemoteArticleDetailScreen(state.selectedArticle!!, viewModel::closeArticle)
         state.selectedDigest != null -> RemoteDigestDetailScreen(state.selectedDigest!!, viewModel::closeDigest, viewModel::openArticle)
         else -> RemoteNewsListScreen(state, viewModel)
@@ -73,6 +73,8 @@ fun RemoteNewsScreen() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RemoteNewsListScreen(state: RemoteNewsState, viewModel: RemoteNewsViewModel) {
+    LaunchedEffect(Unit) { viewModel.loadInitial() }
+
     AppScaffold(title = state.mode.title, showBack = false, actions = { RemoteNewsMenu(state.mode, viewModel) }) { modifier ->
         PullToRefreshBox(
             isRefreshing = state.isRefreshing,
@@ -93,6 +95,7 @@ private fun RemoteNewsMenu(mode: RemoteNewsMode, viewModel: RemoteNewsViewModel)
             if (mode != RemoteNewsMode.DIGESTS) MenuItem("查看总结", Icons.Default.Article) { viewModel.switchMode(RemoteNewsMode.DIGESTS); expanded = false }
             if (mode != RemoteNewsMode.ARTICLES) MenuItem("查看文章", Icons.Default.Article) { viewModel.switchMode(RemoteNewsMode.ARTICLES); expanded = false }
             if (mode != RemoteNewsMode.FEEDS) MenuItem("查看信息源", Icons.Default.RssFeed) { viewModel.switchMode(RemoteNewsMode.FEEDS); expanded = false }
+            if (mode != RemoteNewsMode.CRAYFISH) MenuItem("小龙虾新闻", Icons.Default.Article) { viewModel.switchMode(RemoteNewsMode.CRAYFISH); expanded = false }
             MenuItem("刷新", Icons.Default.Refresh) { viewModel.refresh(); expanded = false }
         }
     }
@@ -110,8 +113,14 @@ private fun RemoteNewsListContent(state: RemoteNewsState, viewModel: RemoteNewsV
         RemoteNewsMode.DIGESTS -> state.digests.size
         RemoteNewsMode.ARTICLES -> state.articles.size
         RemoteNewsMode.FEEDS -> state.feeds.size
+        RemoteNewsMode.CRAYFISH -> 0
     }
     LoadMoreWhenAtEnd(listState, itemsCount, viewModel::loadMore)
+    if (state.refreshCompletedToken > 0) {
+        LaunchedEffect(state.refreshCompletedToken) {
+            listState.scrollToItem(0)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
@@ -162,6 +171,7 @@ private fun RemoteNewsLazyList(state: RemoteNewsState, listState: LazyListState,
             }
             RemoteNewsMode.ARTICLES -> items(state.articles, key = { it.id }) { RemoteArticleSummaryCard(it) { viewModel.openArticle(it.id) } }
             RemoteNewsMode.FEEDS -> items(state.feeds, key = { it.id }) { FeedCard(it) }
+            RemoteNewsMode.CRAYFISH -> Unit
         }
         if (state.isLoadingMore) item {
             Box(modifier = Modifier.fillMaxWidth().padding(Spacing.s), contentAlignment = Alignment.Center) {
