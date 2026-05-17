@@ -6,6 +6,7 @@ import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.ServerResponseException
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.http.URLBuilder
 
 class RemoteNewsService(private val client: HttpClient) {
@@ -18,6 +19,17 @@ class RemoteNewsService(private val client: HttpClient) {
     suspend fun fetchArticles(config: RemoteNewsConfigValues, page: Int, perPage: Int): RemoteNewsResult<RemoteArticlesResponse> =
         request { client.get(buildUrl(config.baseUrl, "articles", page, perPage)) { bearerAuth(config.token) }.body() }
 
+    suspend fun fetchTopArticlesToday(
+        config: RemoteNewsConfigValues,
+        page: Int = 1,
+        limit: Int = 50,
+    ): RemoteNewsResult<RemoteArticlesResponse> = request {
+        client.get(buildTopArticlesTodayUrl(config.baseUrl, page, limit)) {
+            bearerAuth(config.token)
+            header("X-Api-Token", config.token)
+        }.body()
+    }
+
     suspend fun fetchArticle(config: RemoteNewsConfigValues, id: Long): RemoteNewsResult<RemoteArticleResponse> =
         request { client.get(buildUrl(config.baseUrl, "articles/$id")) { bearerAuth(config.token) }.body() }
 
@@ -29,6 +41,15 @@ class RemoteNewsService(private val client: HttpClient) {
         val builder = URLBuilder("$normalizedBase/api/v1/external/$path")
         if (page != null) builder.parameters.append("page", page.toString())
         if (perPage != null) builder.parameters.append("per_page", perPage.toString())
+        return builder.buildString()
+    }
+
+    fun buildTopArticlesTodayUrl(baseUrl: String, page: Int = 1, limit: Int = 50): String {
+        val normalizedBase = baseUrl.trim().trimEnd('/')
+        val builder = URLBuilder("$normalizedBase/api/v1/external/top_articles_today")
+        builder.parameters.append("page", page.toString())
+        builder.parameters.append("per_page", limit.toString())
+        builder.parameters.append("limit", limit.toString())
         return builder.buildString()
     }
 

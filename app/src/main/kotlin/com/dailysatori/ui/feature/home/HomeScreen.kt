@@ -8,17 +8,13 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Article
-import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -37,12 +34,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.feature.aichat.AiChatScreen
-import com.dailysatori.ui.feature.article.ArticleListScreen
 import com.dailysatori.ui.feature.book.BooksScreen
 import com.dailysatori.ui.feature.diary.DiaryScreen
-import com.dailysatori.ui.feature.remotenews.RemoteNewsScreen
-import com.dailysatori.ui.feature.settings.SettingsScreen
 import com.dailysatori.ui.feature.settings.SettingsViewModel
+import com.dailysatori.ui.feature.settings.SettingsScreen
+import com.dailysatori.ui.feature.unifiednews.UnifiedNewsScreen
 
 data class TabItem(
     val label: String,
@@ -51,12 +47,10 @@ data class TabItem(
 )
 
 val tabs = listOf(
-    TabItem("文章", Icons.AutoMirrored.Filled.Article, Icons.AutoMirrored.Outlined.Article),
+    TabItem("新闻汇总", Icons.Filled.Language, Icons.Outlined.Language),
     TabItem("日记", Icons.Filled.Book, Icons.Outlined.Book),
     TabItem("读书", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
     TabItem("AI", Icons.Filled.SmartToy, Icons.Outlined.SmartToy),
-    TabItem("远程新闻", Icons.Filled.Language, Icons.Outlined.Language),
-    TabItem("设置", Icons.Filled.Settings, Icons.Outlined.Settings),
 )
 
 const val AI_CHAT_TAB_INDEX = 3
@@ -74,6 +68,11 @@ fun HomeScreen(
     settingsViewModel: SettingsViewModel,
 ) {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
+    var showMy by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(tabs.size) {
+        if (selectedIndex !in tabs.indices) selectedIndex = 0
+    }
 
     LaunchedEffect(selectedBookId) {
         if (selectedBookId != null) selectedIndex = 2
@@ -115,18 +114,23 @@ fun HomeScreen(
                 .padding(innerPadding),
         ) {
             Crossfade(targetState = selectedIndex) { index ->
+                if (showMy) {
+                    SettingsScreen(settingsViewModel, onBack = { showMy = false })
+                    return@Crossfade
+                }
+                val openMy = { showMy = true }
                 when (index) {
-                    0 -> ArticleListScreen(onArticleClick = onArticleClick)
-                    1 -> DiaryScreen()
+                    0 -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = openMy)
+                    1 -> DiaryScreen(onMyClick = openMy)
                     2 -> BooksScreen(
                         selectedBookId = selectedBookId,
                         selectedViewpointId = selectedViewpointId,
                         bookAnalysisMessage = bookAnalysisMessage,
                         onSelectedBookConsumed = onSelectedBookConsumed,
+                        onMyClick = openMy,
                     )
-                    AI_CHAT_TAB_INDEX -> AiChatScreen(onArticleClick = onAiArticleClick)
-                    4 -> RemoteNewsScreen()
-                    5 -> SettingsScreen(settingsViewModel)
+                    AI_CHAT_TAB_INDEX -> AiChatScreen(onArticleClick = onAiArticleClick, onMyClick = openMy)
+                    else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = openMy)
                 }
             }
         }

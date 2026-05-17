@@ -9,9 +9,11 @@ import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.ImageRepository
 import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.data.repository.MemoryRepository
+import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.data.repository.SessionRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.data.repository.TagRepository
+import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
 import com.dailysatori.data.repository.WeeklySummaryRepository
 import com.dailysatori.platform.FileManager
 import com.dailysatori.platform.WebViewLoader
@@ -37,6 +39,7 @@ import com.dailysatori.service.plugin.PluginService
 import com.dailysatori.service.crayfishnews.CrayfishNewsService
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.setting.SettingService
+import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
 import com.dailysatori.service.weekly.WeeklySummaryService
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -54,9 +57,11 @@ val sharedModule: Module = module {
     single { DiaryRepository(get()) }
     single { ImageRepository(get()) }
     single { MemoryRepository(get()) }
+    single { RemoteNewsSourceRepository(get()) }
     single { SessionRepository(get()) }
     single { SettingRepository(get()) }
     single { TagRepository(get()) }
+    single { UnifiedNewsSummaryRepository(get()) }
     single { WeeklySummaryRepository(get()) }
 
     // Core services
@@ -70,6 +75,7 @@ val sharedModule: Module = module {
     single { RemoteNewsService(get()) }
     single { CrayfishNewsService(get()) }
     single { MemoryExtractService(get(), get(), get()) }
+    single { UnifiedNewsSummaryService(get(), get(), get(), get(), get(), get()) }
 
     // AdBlock service (loads EasyList rules from assets via FileManager)
     single {

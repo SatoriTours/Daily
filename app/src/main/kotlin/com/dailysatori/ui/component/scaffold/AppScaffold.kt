@@ -15,6 +15,8 @@ fun AppScaffold(
     title: String,
     onBack: (() -> Unit)? = null,
     showBack: Boolean = onBack != null,
+    myNavigationLabel: String? = null,
+    onMyNavigationClick: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
     snackbarHost: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
@@ -28,6 +30,8 @@ fun AppScaffold(
                 title = title,
                 onBack = onBack,
                 showBack = showBack,
+                myNavigationLabel = myNavigationLabel,
+                onMyNavigationClick = onMyNavigationClick,
                 actions = actions,
             )
         },

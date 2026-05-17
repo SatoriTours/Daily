@@ -63,6 +63,7 @@ fun BooksScreen(
     selectedViewpointId: Long? = null,
     bookAnalysisMessage: String? = null,
     onSelectedBookConsumed: () -> Unit = {},
+    onMyClick: () -> Unit = {},
 ) {
     val viewModel: BooksViewModel = koinViewModel()
     val addBookViewModel: BookSearchViewModel = koinViewModel()
@@ -123,6 +124,8 @@ fun BooksScreen(
         AppTopBar(
             title = "读书",
             showBack = false,
+            myNavigationLabel = "我的",
+            onMyNavigationClick = onMyClick,
             actions = {
                 IconButton(onClick = { inlineMode = inlineMode.toggleAdd() }) {
                     Icon(Icons.Default.Add, contentDescription = booksAddActionContentDescription())

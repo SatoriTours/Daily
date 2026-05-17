@@ -47,7 +47,6 @@ import com.dailysatori.ui.component.settings.SettingsSectionCard
 import com.dailysatori.ui.feature.aiconfig.AiConfigScreen
 import com.dailysatori.ui.feature.settings.backup.BackupRestoreScreen
 import com.dailysatori.ui.feature.settings.backup.BackupSettingsScreen
-import com.dailysatori.ui.feature.settings.crayfishnews.CrayfishNewsSettingsScreen
 import com.dailysatori.ui.feature.settings.importing.DataImportScreen
 import com.dailysatori.ui.feature.settings.mcp.McpServerScreen
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterScreen
@@ -63,11 +62,10 @@ private enum class SettingsPage {
     BACKUP_RESTORE,
     DATA_IMPORT,
     REMOTE_NEWS_SETTINGS,
-    CRAYFISH_NEWS_SETTINGS,
 }
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel) {
+fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
     val state by viewModel.state.collectAsState()
 
     var currentPage by remember { mutableStateOf(SettingsPage.MAIN) }
@@ -85,6 +83,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
             onDismissAbout = { showAboutDialog = false },
             onNavigate = { currentPage = it },
             viewModel = viewModel,
+            onBack = onBack,
         )
         SettingsPage.AI_CONFIG -> AiConfigScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.MCP_SERVER -> McpServerScreen(onBack = { currentPage = SettingsPage.MAIN })
@@ -93,7 +92,6 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
         SettingsPage.BACKUP_RESTORE -> BackupRestoreScreen(onBack = { currentPage = SettingsPage.BACKUP_SETTINGS })
         SettingsPage.DATA_IMPORT -> DataImportScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.REMOTE_NEWS_SETTINGS -> RemoteNewsSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
-        SettingsPage.CRAYFISH_NEWS_SETTINGS -> CrayfishNewsSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
     }
 }
 
@@ -105,11 +103,13 @@ private fun SettingsMainPage(
     onDismissAbout: () -> Unit,
     onNavigate: (SettingsPage) -> Unit,
     viewModel: SettingsViewModel,
+    onBack: (() -> Unit)? = null,
 ) {
     AboutDialog(showAboutDialog, state.currentVersion, onDismissAbout)
     AppScaffold(
         title = "设置",
-        showBack = false,
+        onBack = onBack,
+        showBack = onBack != null,
         actions = {
             IconButton(onClick = onShowAbout) {
                 Icon(Icons.Default.Info, contentDescription = "关于")
@@ -192,12 +192,6 @@ private fun NetworkSection(
             title = "远程新闻设置",
             subtitle = "配置服务地址和 API Token",
             onClick = { onNavigate(SettingsPage.REMOTE_NEWS_SETTINGS) },
-        )
-        SettingsRow(
-            icon = Icons.Default.Language,
-            title = "小龙虾新闻设置",
-            subtitle = "配置小龙虾新闻服务地址和 Token",
-            onClick = { onNavigate(SettingsPage.CRAYFISH_NEWS_SETTINGS) },
         )
         WebServerRow(state, viewModel)
         if (state.webServerToken.isNotEmpty()) ApiTokenRow(state, viewModel)

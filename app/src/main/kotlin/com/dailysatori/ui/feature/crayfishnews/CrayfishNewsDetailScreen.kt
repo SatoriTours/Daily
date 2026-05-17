@@ -15,12 +15,13 @@ import com.mikepenz.markdown.m3.Markdown
 @Composable
 fun CrayfishNewsDetailScreen(
     news: CrayfishNewsDetail,
+    title: String = "小龙虾新闻",
     onBack: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
     val content = news.content.withoutIntroBlock()
 
-    AppScaffold(title = "小龙虾新闻", onBack = onBack) { modifier ->
+    AppScaffold(title = title, onBack = onBack) { modifier ->
         LazyColumn(
             modifier = modifier,
             verticalArrangement = Arrangement.spacedBy(Spacing.m),

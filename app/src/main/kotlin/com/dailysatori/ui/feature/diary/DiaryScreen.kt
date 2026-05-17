@@ -57,7 +57,7 @@ import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun DiaryScreen() {
+fun DiaryScreen(onMyClick: () -> Unit = {}) {
     val viewModel: DiaryViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     var showEditor by remember { mutableStateOf(false) }
@@ -70,6 +70,8 @@ fun DiaryScreen() {
             AppTopBar(
                 title = "我的日记",
                 showBack = false,
+                myNavigationLabel = "我的",
+                onMyNavigationClick = onMyClick,
                 actions = {
                     IconButton(onClick = { viewModel.toggleSearch() }) {
                         Icon(Icons.Default.Search, contentDescription = "搜索")

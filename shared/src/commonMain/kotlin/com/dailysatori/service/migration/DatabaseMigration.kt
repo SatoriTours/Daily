@@ -40,6 +40,12 @@ class DatabaseMigration(
         if (currentVersion < 6) {
             migrateV5ToV6()
         }
+        if (currentVersion < 7) {
+            migrateV6ToV7()
+        }
+        if (currentVersion < 8) {
+            migrateV7ToV8()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -232,6 +238,100 @@ class DatabaseMigration(
                 log.w(e) { "Could not add mcp_server column: $column" }
             }
         }
+    }
+
+    private fun migrateV6ToV7() {
+        log.i { "Migration V6 -> V7: Unified news summary tables" }
+        try {
+            runSql("""
+                CREATE TABLE IF NOT EXISTS unified_news_summary (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    summary_date TEXT NOT NULL,
+                    window_key TEXT NOT NULL,
+                    window_start_ms INTEGER NOT NULL,
+                    window_end_ms INTEGER NOT NULL,
+                    title TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    error_message TEXT,
+                    source_warnings TEXT,
+                    generated_at INTEGER,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    UNIQUE(summary_date, window_key)
+                )
+            """.trimIndent())
+            runSql("""
+                CREATE TABLE IF NOT EXISTS unified_news_source (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    summary_id INTEGER NOT NULL REFERENCES unified_news_summary(id) ON DELETE CASCADE,
+                    ref_key TEXT NOT NULL,
+                    source_type TEXT NOT NULL,
+                    source_id INTEGER,
+                    source_filename TEXT,
+                    source_url TEXT,
+                    title TEXT NOT NULL,
+                    summary TEXT NOT NULL,
+                    source_time INTEGER,
+                    UNIQUE(summary_id, ref_key)
+                )
+            """.trimIndent())
+            log.i { "Created unified news tables" }
+        } catch (e: Exception) {
+            log.w(e) { "Migration V6->V7 failed" }
+        }
+    }
+
+    private fun migrateV7ToV8() {
+        log.i { "Migration V7 -> V8: Remote news source table" }
+        try {
+            runSql("""
+                CREATE TABLE IF NOT EXISTS remote_news_source (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    base_url TEXT NOT NULL,
+                    api_token TEXT NOT NULL,
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                )
+            """.trimIndent())
+            log.i { "Created remote_news_source table" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not create remote_news_source table" }
+        }
+
+        try {
+            migrateExistingRemoteNewsSettings()
+        } catch (e: Exception) {
+            log.w(e) { "Could not migrate remote news settings" }
+        }
+    }
+
+    private fun migrateExistingRemoteNewsSettings() {
+        val baseUrl = settingRepo.get(SettingKeys.remoteNewsBaseUrl)?.trim().orEmpty()
+        val apiToken = settingRepo.get(SettingKeys.remoteNewsApiToken)?.trim().orEmpty()
+        if (baseUrl.isBlank() || apiToken.isBlank()) return
+        if (queryLong("SELECT COUNT(*) FROM remote_news_source") != 0L) return
+
+        runSql("""
+            INSERT INTO remote_news_source (name, base_url, api_token, enabled, created_at, updated_at)
+            VALUES ('远程新闻', '${baseUrl.sqlEscaped()}', '${apiToken.sqlEscaped()}', 1,
+                strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000)
+        """.trimIndent())
+    }
+
+    private fun String.sqlEscaped(): String = replace("'", "''")
+
+    private fun queryLong(sql: String): Long {
+        var result = 0L
+        driver.executeQuery<Long>(0, sql, { cursor ->
+            if (cursor.next().value) {
+                result = cursor.getLong(0) ?: 0L
+            }
+            QueryResult.Value(result)
+        }, 0)
+        return result
     }
 
     private fun runSql(sql: String) {

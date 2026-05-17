@@ -37,6 +37,25 @@ data class CrayfishNewsListResponse(
 )
 
 @Serializable
+data class CrayfishArticleListResponse(
+    val date: String = "",
+    val sources: List<String> = emptyList(),
+    val articles: List<CrayfishArticle> = emptyList(),
+    val total: Int = 0,
+)
+
+@Serializable
+data class CrayfishArticle(
+    val id: String = "",
+    val title: String = "",
+    val summary: String = "",
+    val content: String? = null,
+    val markdown: String? = null,
+    val url: String? = null,
+    val source: String? = null,
+)
+
+@Serializable
 data class CrayfishHealthResponse(
     val status: String = "",
     val user: String = "",

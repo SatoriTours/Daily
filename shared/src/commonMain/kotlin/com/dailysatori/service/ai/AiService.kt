@@ -15,6 +15,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class AiService(private val client: HttpClient) {
     private val log = Logger.withTag("AI")
@@ -30,6 +34,9 @@ class AiService(private val client: HttpClient) {
         systemPrompt: String? = null,
         temperature: Double = 0.5,
     ): String {
+        if (usesOpenAiCompatibleChatApi(provider)) {
+            return rawOpenAiTextCompletion(apiAddress, apiToken, modelName, prompt, systemPrompt, temperature)
+        }
         val response = try {
             withTimeout(aiCompletionRequestTimeoutMillis()) {
                 langChainClient.complete(
@@ -48,6 +55,25 @@ class AiService(private val client: HttpClient) {
         }
         if (response.isBlank()) throw IllegalStateException("AI returned empty response")
         return response
+    }
+
+    private suspend fun rawOpenAiTextCompletion(
+        apiAddress: String,
+        apiToken: String,
+        modelName: String,
+        prompt: String,
+        systemPrompt: String?,
+        temperature: Double,
+    ): String {
+        val response = rawOpenAiChatCompletion(
+            apiAddress = apiAddress,
+            apiToken = apiToken,
+            modelName = modelName,
+            messages = buildOpenAiTextCompletionMessages(prompt, systemPrompt),
+            tools = emptyList(),
+            temperature = temperature,
+        )
+        return extractOpenAiTextCompletionContent(response)
     }
 
     suspend fun testConnection(
@@ -168,6 +194,29 @@ fun buildOpenAiChatCompletionRequest(
         put("tools", JsonArray(tools))
         put("tool_choice", JsonPrimitive("auto"))
     }
+}
+
+fun buildOpenAiTextCompletionMessages(prompt: String, systemPrompt: String?): List<JsonObject> = buildList {
+    if (!systemPrompt.isNullOrBlank()) {
+        add(buildJsonObject {
+            put("role", JsonPrimitive("system"))
+            put("content", JsonPrimitive(systemPrompt.trim()))
+        })
+    }
+    add(buildJsonObject {
+        put("role", JsonPrimitive("user"))
+        put("content", JsonPrimitive(prompt.trim()))
+    })
+}
+
+fun extractOpenAiTextCompletionContent(response: JsonObject): String {
+    val content = response["choices"]?.jsonArray?.firstOrNull()
+        ?.jsonObject?.get("message")?.jsonObject?.get("content")
+        ?.jsonPrimitive?.contentOrNull
+        ?.trim()
+        .orEmpty()
+    if (content.isBlank()) throw IllegalStateException("AI returned empty response")
+    return content
 }
 
 fun usesOpenAiCompatibleChatApi(provider: String): Boolean =

@@ -64,6 +64,8 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun ArticleListScreen(
     onArticleClick: (Long) -> Unit = {},
+    showFavoritesOnly: Boolean = false,
+    lockFavoritesFilter: Boolean = false,
 ) {
     val viewModel: ArticlesViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -73,9 +75,14 @@ fun ArticleListScreen(
     val listState = rememberLazyListState()
     val lifecycleOwner = LocalLifecycleOwner.current
     val coroutineScope = rememberCoroutineScope()
+    val effectiveShowFavoritesOnly = if (lockFavoritesFilter) true else showFavoritesOnly
 
     fun firstVisibleArticleId(): Long? = state.articles.getOrNull(listState.firstVisibleItemIndex)?.id
     fun isAtTop(): Boolean = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+
+    LaunchedEffect(effectiveShowFavoritesOnly) {
+        viewModel.setFavoritesOnly(effectiveShowFavoritesOnly)
+    }
 
     LaunchedEffect(state.scrollToTopRequest, state.articles.isNotEmpty()) {
         if (shouldScrollToTopAfterArticleAdded(state.scrollToTopRequest) && state.articles.isNotEmpty()) {
@@ -126,20 +133,22 @@ fun ArticleListScreen(
                             leadingIcon = { Icon(Icons.Default.FilterList, contentDescription = null) },
                             onClick = { showMenu = false },
                         )
-                        DropdownMenuItem(
-                            text = { Text(if (state.showFavoritesOnly) "显示全部" else "只看收藏") },
-                            leadingIcon = {
-                                Icon(
-                                    if (state.showFavoritesOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                    contentDescription = null,
-                                    tint = if (state.showFavoritesOnly) MaterialTheme.colorScheme.error else LocalContentColor.current,
-                                )
-                            },
-                            onClick = {
-                                viewModel.toggleFavoritesOnly()
-                                showMenu = false
-                            },
-                        )
+                        if (!lockFavoritesFilter) {
+                            DropdownMenuItem(
+                                text = { Text(if (state.showFavoritesOnly) "显示全部" else "只看收藏") },
+                                leadingIcon = {
+                                    Icon(
+                                        if (state.showFavoritesOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                        contentDescription = null,
+                                        tint = if (state.showFavoritesOnly) MaterialTheme.colorScheme.error else LocalContentColor.current,
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.toggleFavoritesOnly()
+                                    showMenu = false
+                                },
+                            )
+                        }
                     }
                 }
             },

@@ -56,7 +56,7 @@ object MarkdownStyles {
             fontFamily = LatoFontFamily,
             fontWeight = FontWeight.Normal,
             fontSize = 16.sp,
-            lineHeight = 28.sp,
+            lineHeight = 26.sp,
         ),
         code = TextStyle(
             fontFamily = LatoFontFamily,
@@ -73,38 +73,38 @@ object MarkdownStyles {
             fontFamily = LatoFontFamily,
             fontWeight = FontWeight.Normal,
             fontSize = 16.sp,
-            lineHeight = 28.sp,
+            lineHeight = 26.sp,
             fontStyle = FontStyle.Italic,
         ),
         paragraph = TextStyle(
             fontFamily = LatoFontFamily,
             fontWeight = FontWeight.Normal,
             fontSize = 16.sp,
-            lineHeight = 28.sp,
+            lineHeight = 26.sp,
         ),
         ordered = TextStyle(
             fontFamily = LatoFontFamily,
             fontWeight = FontWeight.Medium,
             fontSize = 16.sp,
-            lineHeight = 28.sp,
+            lineHeight = 26.sp,
         ),
         bullet = TextStyle(
             fontFamily = LatoFontFamily,
             fontWeight = FontWeight.Medium,
             fontSize = 16.sp,
-            lineHeight = 28.sp,
+            lineHeight = 26.sp,
         ),
         list = TextStyle(
             fontFamily = LatoFontFamily,
             fontWeight = FontWeight.Medium,
             fontSize = 16.sp,
-            lineHeight = 28.sp,
+            lineHeight = 26.sp,
         ),
         link = TextStyle(
             fontFamily = LatoFontFamily,
             fontWeight = FontWeight.Normal,
             fontSize = 16.sp,
-            lineHeight = 28.sp,
+            lineHeight = 26.sp,
         ),
     )
 
@@ -217,8 +217,8 @@ object MarkdownStyles {
     @Composable
     fun padding(): MarkdownPadding = markdownPadding(
         block = 10.dp,
-        list = 12.dp,
-        listItemBottom = 20.dp,
+        list = 16.dp,
+        listItemBottom = 38.dp,
         indentList = 24.dp,
         codeBlock = PaddingValues(12.dp),
         blockQuote = PaddingValues(12.dp),

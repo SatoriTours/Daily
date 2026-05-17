@@ -38,7 +38,7 @@ import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun AiChatScreen(onArticleClick: (Long) -> Unit = {}) {
+fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}) {
     val viewModel: AiChatViewModel = koinViewModel()
     val referenceDetailViewModel: AiReferenceDetailViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
@@ -66,6 +66,8 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}) {
             AppTopBar(
                 title = "AI 助手",
                 showBack = false,
+                myNavigationLabel = "我的",
+                onMyNavigationClick = onMyClick,
                 actions = {
                     IconButton(onClick = { showMemorySheet = true }) {
                         Icon(Icons.Default.Search, contentDescription = "记忆搜索")

@@ -31,15 +31,13 @@ import com.dailysatori.ui.feature.book.BookSearchViewModel
 import com.dailysatori.ui.feature.book.BookContentSearchViewModel
 import com.dailysatori.ui.feature.book.BooksViewModel
 import com.dailysatori.ui.feature.diary.DiaryViewModel
-import com.dailysatori.ui.feature.crayfishnews.CrayfishNewsViewModel
-import com.dailysatori.ui.feature.remotenews.RemoteNewsViewModel
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterViewModel
-import com.dailysatori.ui.feature.settings.crayfishnews.CrayfishNewsSettingsViewModel
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsViewModel
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.mcp.McpServerViewModel
 import com.dailysatori.ui.feature.share.ShareDialogViewModel
 import com.dailysatori.ui.feature.settings.weekly.WeeklySummaryViewModel
+import com.dailysatori.ui.feature.unifiednews.UnifiedNewsViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -141,10 +139,8 @@ val viewModelModule: Module = module {
             settingRepo = get<SettingRepository>(),
         )
     }
-    viewModel { RemoteNewsViewModel(get(), get()) }
+    viewModel { UnifiedNewsViewModel(get(), get(), get(), get(), get(), com.dailysatori.BuildConfig.DEBUG) }
     viewModel { RemoteNewsSettingsViewModel(get(), get()) }
-    viewModel { CrayfishNewsViewModel(get(), get()) }
-    viewModel { CrayfishNewsSettingsViewModel(get(), get()) }
     viewModel {
         SettingsViewModel(
             webServerService = get<WebServerService>(),

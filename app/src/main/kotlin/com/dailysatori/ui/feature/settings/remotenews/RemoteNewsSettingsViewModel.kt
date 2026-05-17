@@ -2,11 +2,11 @@ package com.dailysatori.ui.feature.settings.remotenews
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dailysatori.config.SettingKeys
-import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.service.remotenews.RemoteNewsConfigValues
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
+import com.dailysatori.shared.db.Remote_news_source
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,15 +15,19 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class RemoteNewsSettingsState(
+    val sources: List<Remote_news_source> = emptyList(),
+    val editingId: Long? = null,
+    val name: String = "",
     val baseUrl: String = "",
     val token: String = "",
+    val enabled: Boolean = true,
     val isSaving: Boolean = false,
     val isTesting: Boolean = false,
     val message: String? = null,
 )
 
 class RemoteNewsSettingsViewModel(
-    private val settingRepo: SettingRepository,
+    private val sourceRepo: RemoteNewsSourceRepository,
     private val remoteNewsService: RemoteNewsService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RemoteNewsSettingsState())
@@ -31,42 +35,119 @@ class RemoteNewsSettingsViewModel(
 
     init { load() }
 
+    fun updateName(value: String) = _state.update { it.copy(name = value, message = null) }
+
     fun updateBaseUrl(value: String) = _state.update { it.copy(baseUrl = value, message = null) }
 
     fun updateToken(value: String) = _state.update { it.copy(token = value, message = null) }
 
+    fun updateEnabled(value: Boolean) = _state.update { it.copy(enabled = value, message = null) }
+
+    fun startAdd() = _state.update {
+        it.copy(editingId = null, name = "", baseUrl = "", token = "", enabled = true, message = null)
+    }
+
+    fun startEdit(source: Remote_news_source) = _state.update {
+        it.copy(
+            editingId = source.id,
+            name = source.name,
+            baseUrl = source.base_url,
+            token = source.api_token,
+            enabled = source.enabled == 1L,
+            message = null,
+        )
+    }
+
     fun load() {
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update {
-                it.copy(
-                    baseUrl = settingRepo.get(SettingKeys.remoteNewsBaseUrl).orEmpty(),
-                    token = settingRepo.get(SettingKeys.remoteNewsApiToken).orEmpty(),
+            _state.update { it.copy(sources = sourceRepo.getAll()) }
+        }
+    }
+
+    fun save() {
+        if (state.value.isSaving) return
+        val form = state.value
+        val editingId = form.editingId
+        val name = form.name.trim()
+        val baseUrl = form.baseUrl.trim()
+        val token = form.token.trim()
+        val enabled = form.enabled
+        if (name.isBlank() || baseUrl.isBlank() || token.isBlank()) {
+            _state.update { it.copy(message = "请填写名称、URL 和 Token") }
+            return
+        }
+        if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
+            _state.update { it.copy(message = "URL 必须以 http:// 或 https:// 开头") }
+            return
+        }
+        _state.update { it.copy(isSaving = true, message = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                sourceRepo.save(editingId, name, baseUrl, token, enabled)
+                _state.update {
+                    it.copy(
+                        sources = sourceRepo.getAll(),
+                        editingId = null,
+                        name = "",
+                        baseUrl = "",
+                        token = "",
+                        enabled = true,
+                        message = "远程新闻设置已保存",
+                    )
+                }
+            } catch (_: Exception) {
+                _state.update { it.copy(message = "远程新闻设置保存失败") }
+            } finally {
+                _state.update { it.copy(isSaving = false) }
+            }
+        }
+    }
+
+    fun deleteSource(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            sourceRepo.delete(id)
+            _state.update { current ->
+                val editingDeleted = current.editingId == id
+                current.copy(
+                    sources = sourceRepo.getAll(),
+                    editingId = if (editingDeleted) null else current.editingId,
+                    name = if (editingDeleted) "" else current.name,
+                    baseUrl = if (editingDeleted) "" else current.baseUrl,
+                    token = if (editingDeleted) "" else current.token,
+                    enabled = if (editingDeleted) true else current.enabled,
+                    message = "远程新闻已删除",
                 )
             }
         }
     }
 
-    fun save() {
-        viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isSaving = true, message = null) }
-            settingRepo.upsert(SettingKeys.remoteNewsBaseUrl, state.value.baseUrl.trim())
-            settingRepo.upsert(SettingKeys.remoteNewsApiToken, state.value.token.trim())
-            _state.update { it.copy(isSaving = false, message = "远程新闻设置已保存") }
-        }
-    }
-
     fun testConnection() {
+        if (state.value.isTesting) return
+        val baseUrl = state.value.baseUrl.trim()
+        val token = state.value.token.trim()
+        if (baseUrl.isBlank() || token.isBlank()) {
+            _state.update { it.copy(message = "请先配置远程新闻服务") }
+            return
+        }
+        _state.update { it.copy(isTesting = true, message = null) }
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isTesting = true, message = null) }
-            val config = remoteNewsService.configOrFailure(state.value.baseUrl, state.value.token)
-            val message = when (config) {
-                is RemoteNewsResult.Failure -> config.message
-                is RemoteNewsResult.Success<RemoteNewsConfigValues> -> when (val result = remoteNewsService.fetchDigests(config.value, 1, 1)) {
-                    is RemoteNewsResult.Success -> "连接成功"
-                    is RemoteNewsResult.Failure -> result.message
+            try {
+                val config = remoteNewsService.configOrFailure(baseUrl, token)
+                val message = when (config) {
+                    is RemoteNewsResult.Failure -> config.message
+                    is RemoteNewsResult.Success<RemoteNewsConfigValues> -> when (
+                        val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 1)
+                    ) {
+                        is RemoteNewsResult.Success -> "连接成功"
+                        is RemoteNewsResult.Failure -> result.message
+                    }
                 }
+                _state.update { it.copy(message = message) }
+            } catch (_: Exception) {
+                _state.update { it.copy(message = "无法连接远程新闻服务") }
+            } finally {
+                _state.update { it.copy(isTesting = false) }
             }
-            _state.update { it.copy(isTesting = false, message = message) }
         }
     }
 }

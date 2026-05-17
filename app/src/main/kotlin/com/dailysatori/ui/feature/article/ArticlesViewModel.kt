@@ -110,6 +110,12 @@ class ArticlesViewModel(
         loadArticles()
     }
 
+    fun setFavoritesOnly(enabled: Boolean) {
+        if (_state.value.showFavoritesOnly == enabled) return
+        _state.update { it.copy(showFavoritesOnly = enabled) }
+        loadArticles()
+    }
+
     fun toggleSearch() {
         _state.update { it.copy(isSearchVisible = !_state.value.isSearchVisible) }
     }

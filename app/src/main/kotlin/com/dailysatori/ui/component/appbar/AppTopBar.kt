@@ -3,6 +3,7 @@ package com.dailysatori.ui.component.appbar
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -18,6 +19,8 @@ fun AppTopBar(
     title: String,
     onBack: (() -> Unit)? = null,
     showBack: Boolean = onBack != null,
+    myNavigationLabel: String? = null,
+    onMyNavigationClick: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     CenterAlignedTopAppBar(
@@ -33,6 +36,14 @@ fun AppTopBar(
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "返回",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            } else if (myNavigationLabel != null && onMyNavigationClick != null) {
+                IconButton(onClick = onMyNavigationClick) {
+                    Icon(
+                        Icons.Default.AccountCircle,
+                        contentDescription = myNavigationLabel,
                         tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }

@@ -124,6 +124,9 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
 
     fun getFavoritesSync(): List<Article> = q.selectFavoriteArticles().executeAsList()
 
+    fun getFavoritesByDateRangeSync(startMs: Long, endMs: Long): List<Article> =
+        q.selectFavoriteArticlesByDateRange(startMs, endMs).executeAsList()
+
     fun getLatestSync(limit: Int = 5): List<Article> =
         q.selectArticlesPaginated(limit.toLong(), 0).executeAsList()
 }
