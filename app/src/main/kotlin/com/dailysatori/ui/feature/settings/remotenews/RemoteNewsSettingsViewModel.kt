@@ -6,6 +6,7 @@ import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.service.remotenews.RemoteNewsConfigValues
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
+import com.dailysatori.service.remotenews.normalizeTopArticlesTodayUrl
 import com.dailysatori.shared.db.Remote_news_source
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 
 data class RemoteNewsSettingsState(
     val sources: List<Remote_news_source> = emptyList(),
+    val isEditing: Boolean = false,
     val editingId: Long? = null,
     val name: String = "",
     val baseUrl: String = "",
@@ -43,12 +45,13 @@ class RemoteNewsSettingsViewModel(
 
     fun updateEnabled(value: Boolean) = _state.update { it.copy(enabled = value, message = null) }
 
-    fun startAdd() = _state.update {
-        it.copy(editingId = null, name = "", baseUrl = "", token = "", enabled = true, message = null)
+    fun openAdd() = _state.update {
+        it.copy(isEditing = true, editingId = null, name = "", baseUrl = "", token = "", enabled = true, message = null)
     }
 
-    fun startEdit(source: Remote_news_source) = _state.update {
+    fun openEdit(source: Remote_news_source) = _state.update {
         it.copy(
+            isEditing = true,
             editingId = source.id,
             name = source.name,
             baseUrl = source.base_url,
@@ -56,6 +59,10 @@ class RemoteNewsSettingsViewModel(
             enabled = source.enabled == 1L,
             message = null,
         )
+    }
+
+    fun closeEditor() = _state.update {
+        it.copy(isEditing = false, editingId = null, name = "", baseUrl = "", token = "", enabled = true, message = null)
     }
 
     fun load() {
@@ -69,10 +76,11 @@ class RemoteNewsSettingsViewModel(
         val form = state.value
         val editingId = form.editingId
         val name = form.name.trim()
-        val baseUrl = form.baseUrl.trim()
+        val rawBaseUrl = form.baseUrl.trim()
+        val baseUrl = normalizeTopArticlesTodayUrl(rawBaseUrl)
         val token = form.token.trim()
         val enabled = form.enabled
-        if (name.isBlank() || baseUrl.isBlank() || token.isBlank()) {
+        if (name.isBlank() || rawBaseUrl.isBlank() || token.isBlank()) {
             _state.update { it.copy(message = "请填写名称、URL 和 Token") }
             return
         }
@@ -87,6 +95,7 @@ class RemoteNewsSettingsViewModel(
                 _state.update {
                     it.copy(
                         sources = sourceRepo.getAll(),
+                        isEditing = false,
                         editingId = null,
                         name = "",
                         baseUrl = "",
@@ -110,6 +119,7 @@ class RemoteNewsSettingsViewModel(
                 val editingDeleted = current.editingId == id
                 current.copy(
                     sources = sourceRepo.getAll(),
+                    isEditing = if (editingDeleted) false else current.isEditing,
                     editingId = if (editingDeleted) null else current.editingId,
                     name = if (editingDeleted) "" else current.name,
                     baseUrl = if (editingDeleted) "" else current.baseUrl,
@@ -123,9 +133,9 @@ class RemoteNewsSettingsViewModel(
 
     fun testConnection() {
         if (state.value.isTesting) return
-        val baseUrl = state.value.baseUrl.trim()
+        val baseUrl = normalizeTopArticlesTodayUrl(state.value.baseUrl.trim())
         val token = state.value.token.trim()
-        if (baseUrl.isBlank() || token.isBlank()) {
+        if (state.value.baseUrl.isBlank() || token.isBlank()) {
             _state.update { it.copy(message = "请先配置远程新闻服务") }
             return
         }
@@ -138,7 +148,7 @@ class RemoteNewsSettingsViewModel(
                     is RemoteNewsResult.Success<RemoteNewsConfigValues> -> when (
                         val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 1)
                     ) {
-                        is RemoteNewsResult.Success -> "连接成功"
+                        is RemoteNewsResult.Success -> "连接成功，获取到 ${result.value.articles.size} 篇文章"
                         is RemoteNewsResult.Failure -> result.message
                     }
                 }

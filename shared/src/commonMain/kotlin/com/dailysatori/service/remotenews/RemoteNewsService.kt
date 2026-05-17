@@ -37,7 +37,7 @@ class RemoteNewsService(private val client: HttpClient) {
         request { client.get(buildUrl(config.baseUrl, "feeds", page, perPage)) { bearerAuth(config.token) }.body() }
 
     fun buildUrl(baseUrl: String, path: String, page: Int? = null, perPage: Int? = null): String {
-        val normalizedBase = baseUrl.trim().trimEnd('/')
+        val normalizedBase = externalApiRootFromRemoteNewsUrl(baseUrl)
         val builder = URLBuilder("$normalizedBase/api/v1/external/$path")
         if (page != null) builder.parameters.append("page", page.toString())
         if (perPage != null) builder.parameters.append("per_page", perPage.toString())
@@ -45,8 +45,7 @@ class RemoteNewsService(private val client: HttpClient) {
     }
 
     fun buildTopArticlesTodayUrl(baseUrl: String, page: Int = 1, limit: Int = 50): String {
-        val normalizedBase = baseUrl.trim().trimEnd('/')
-        val builder = URLBuilder("$normalizedBase/api/v1/external/top_articles_today")
+        val builder = URLBuilder(normalizeTopArticlesTodayUrl(baseUrl))
         builder.parameters.append("page", page.toString())
         builder.parameters.append("per_page", limit.toString())
         builder.parameters.append("limit", limit.toString())
@@ -72,3 +71,17 @@ class RemoteNewsService(private val client: HttpClient) {
         RemoteNewsResult.Failure("无法连接远程新闻服务")
     }
 }
+
+fun normalizeTopArticlesTodayUrl(value: String): String {
+    val trimmed = value.trim().substringBefore('?').substringBefore('#').trimEnd('/')
+    if (trimmed.endsWith("/api/v1/external/top_articles_today")) return trimmed
+    return "$trimmed/api/v1/external/top_articles_today"
+}
+
+fun externalApiRootFromRemoteNewsUrl(value: String): String =
+    value.trim()
+        .substringBefore('?')
+        .substringBefore('#')
+        .trimEnd('/')
+        .substringBefore("/api/v1/external/top_articles_today")
+        .substringBefore("/api/v1/external")

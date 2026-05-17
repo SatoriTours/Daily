@@ -129,6 +129,10 @@ private fun UnifiedNewsSummaryPage(state: UnifiedNewsState, viewModel: UnifiedNe
     ) { modifier ->
         Column(modifier = modifier.fillMaxSize()) {
             if (state.isRegenerating) UnifiedNewsGeneratingSkeleton(summaryDate = state.regeneratingSummaryDate)
+            val refreshMessage = state.manualRefreshMessage ?: state.error
+            if (!state.isRegenerating && !refreshMessage.isNullOrBlank()) {
+                UnifiedNewsRefreshMessage(refreshMessage)
+            }
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 val visibleSummaries = if (state.isRegenerating) {
                     state.summaries.filter { summary -> summary.summary_date != state.regeneratingSummaryDate }
@@ -158,6 +162,22 @@ private fun UnifiedNewsSummaryPage(state: UnifiedNewsState, viewModel: UnifiedNe
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun UnifiedNewsRefreshMessage(message: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    ) {
+        Text(
+            text = message,
+            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.service.remotenews.normalizeTopArticlesTodayUrl
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.QueryResult
 
@@ -309,9 +310,10 @@ class DatabaseMigration(
     }
 
     private fun migrateExistingRemoteNewsSettings() {
-        val baseUrl = settingRepo.get(SettingKeys.remoteNewsBaseUrl)?.trim().orEmpty()
+        val rawBaseUrl = settingRepo.get(SettingKeys.remoteNewsBaseUrl)?.trim().orEmpty()
+        val baseUrl = normalizeTopArticlesTodayUrl(rawBaseUrl)
         val apiToken = settingRepo.get(SettingKeys.remoteNewsApiToken)?.trim().orEmpty()
-        if (baseUrl.isBlank() || apiToken.isBlank()) return
+        if (rawBaseUrl.isBlank() || apiToken.isBlank()) return
         if (queryLong("SELECT COUNT(*) FROM remote_news_source") != 0L) return
 
         runSql("""

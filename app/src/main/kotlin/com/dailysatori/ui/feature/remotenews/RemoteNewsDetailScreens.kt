@@ -185,59 +185,100 @@ fun RemoteArticleDetailScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(Spacing.m),
         ) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-                    Text(article.title.orEmpty(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-                        article.feedName?.let {
-                            Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                                Text(it, modifier = Modifier.padding(horizontal = Spacing.s, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            }
-                        }
-                        article.createdAt?.let {
-                            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            }
+            item { RemoteArticleHeroCard(article) }
 
             val articleSummary = article.summary?.takeIf { it.isNotBlank() }
-            if (articleSummary != null || article.viewpoints.isNotEmpty()) {
-                item { HorizontalDivider() }
-                item { SectionHeader("AI 摘要") }
-                item {
-                    SelectionContainer {
-                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                            articleSummary?.let {
-                                Markdown(content = it, typography = MarkdownStyles.cardTypography(), padding = MarkdownStyles.cardPadding())
-                            }
-                            article.viewpoints.forEach { viewpoint ->
-                                Row {
-                                    Text("•", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.tertiary)
-                                    Spacer(Modifier.width(Spacing.s))
-                                    Text(viewpoint, style = MaterialTheme.typography.bodyMedium)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            articleSummary?.let { item { RemoteArticleSummaryCard(it) } }
+            if (article.viewpoints.isNotEmpty()) item { RemoteArticleViewpointsSection(article.viewpoints) }
 
             val articleContent = article.content?.takeIf { it.isNotBlank() }
-            if (articleContent != null) {
-                item { HorizontalDivider() }
-                item { SectionHeader("原文") }
-                item {
-                    SelectionContainer {
-                        Markdown(
-                            content = articleContent,
-                            typography = MarkdownStyles.typography(),
-                            padding = MarkdownStyles.padding(),
-                        )
-                    }
+            articleContent?.let { item { RemoteArticleContentSection(it) } }
+            article.url?.takeIf { it.isNotBlank() }?.let { item { RemoteArticleOriginalLinkCard(it) } }
+        }
+    }
+}
+
+@Composable
+private fun RemoteArticleHeroCard(article: RemoteArticle) {
+    Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
+            Text("阅读详情", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            Text(article.title.orEmpty(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            RemoteArticleMetaChips(article)
+        }
+    }
+}
+
+@Composable
+private fun RemoteArticleMetaChips(article: RemoteArticle) {
+    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+        listOfNotNull(
+            article.feedName,
+            article.domain,
+            article.createdAt?.take(10),
+            article.importanceScore?.let { "重要性 ${String.format("%.1f", it)}" },
+        ).filter { it.isNotBlank() }.take(4).forEach { label ->
+            Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surface) {
+                Text(label, modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs), style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RemoteArticleSummaryCard(summary: String) {
+    RemoteArticleSectionSurface(title = "AI 摘要") {
+        SelectionContainer {
+            Markdown(content = summary, typography = MarkdownStyles.cardTypography(), padding = MarkdownStyles.cardPadding())
+        }
+    }
+}
+
+@Composable
+private fun RemoteArticleViewpointsSection(viewpoints: List<String>) {
+    RemoteArticleSectionSurface(title = "关键观点") {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            viewpoints.forEach { viewpoint ->
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = Spacing.s)
+                            .size(Spacing.s)
+                            .clip(RoundedCornerShape(Radius.circular))
+                            .background(MaterialTheme.colorScheme.primary),
+                    )
+                    Text(viewpoint, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun RemoteArticleContentSection(content: String) {
+    RemoteArticleSectionSurface(title = "正文") {
+        SelectionContainer {
+            Markdown(content = content, typography = MarkdownStyles.typography(), padding = MarkdownStyles.padding())
+        }
+    }
+}
+
+@Composable
+private fun RemoteArticleOriginalLinkCard(url: String) {
+    Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            Text("原文链接", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text(url, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+private fun RemoteArticleSectionSurface(title: String, content: @Composable () -> Unit) {
+    Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            SectionHeader(title)
+            content()
         }
     }
 }
