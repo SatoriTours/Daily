@@ -5,8 +5,8 @@ No,Category,Guideline,Description,Do,Don't,Code Good,Code Bad,Severity,Docs URL
 4,Widgets,Prefer composition over inheritance,Combine widgets using children,Compose widgets,Extend widget classes,Container(child: MyContent()),class MyContainer extends Container,Medium,
 5,State,Use setState correctly,Minimal state in StatefulWidget,setState for UI state changes,setState for business logic,setState(() { _counter++; }),Complex logic in setState,Medium,https://api.flutter.dev/flutter/widgets/State/setState.html
 6,State,Avoid setState in build,Never call setState during build,setState in callbacks only,setState in build method,onPressed: () => setState(() {}),build() { setState(); },High,
-7,State,Use state management for complex apps,Provider Riverpod BLoC,State management for shared state,setState for global state,Provider.of<MyState>(context),Global setState calls,Medium,
-8,State,Prefer Riverpod or Provider,Recommended state solutions,Riverpod for new projects,InheritedWidget manually,ref.watch(myProvider),Custom InheritedWidget,Medium,https://riverpod.dev/
+7,State,Use state management for complex apps,Provider BLoC,State management for shared state,setState for global state,Provider.of<MyState>(context),Global setState calls,Medium,
+8,State,Prefer Provider or BLoC,Recommended state solutions,Provider for new projects,InheritedWidget manually,context.watch<MyProvider>(),Custom InheritedWidget,Medium,
 9,State,Dispose resources,Clean up controllers and subscriptions,dispose() for cleanup,Memory leaks from subscriptions,@override void dispose() { controller.dispose(); },No dispose implementation,High,
 10,Layout,Use Column and Row,Basic layout widgets,Column Row for linear layouts,Stack for simple layouts,"Column(children: [Text(), Button()])",Stack for vertical list,Medium,https://api.flutter.dev/flutter/widgets/Column-class.html
 11,Layout,Use Expanded and Flexible,Control flex behavior,Expanded to fill space,Fixed sizes in flex containers,Expanded(child: Container()),Container(width: 200) in Row,Medium,
@@ -17,7 +17,7 @@ No,Category,Guideline,Description,Do,Don't,Code Good,Code Bad,Severity,Docs URL
 16,Lists,Provide itemExtent when known,Skip measurement,itemExtent for fixed height items,No itemExtent for uniform lists,ListView.builder(itemExtent: 50),ListView.builder without itemExtent,Medium,
 17,Lists,Use keys for stateful items,Preserve widget state,Key for stateful list items,No key for dynamic lists,ListTile(key: ValueKey(item.id)),ListTile without key,High,
 18,Lists,Use SliverList for custom scroll,Custom scroll effects,CustomScrollView with Slivers,Nested ListViews,CustomScrollView(slivers: [SliverList()]),ListView inside ListView,Medium,https://api.flutter.dev/flutter/widgets/SliverList-class.html
-19,Navigation,Use Navigator 2.0 or GoRouter,Declarative routing,go_router for navigation,Navigator.push for complex apps,GoRouter(routes: [...]),Navigator.push everywhere,Medium,https://pub.dev/packages/go_router
+19,Navigation,Use Navigator 2.0,Declarative routing,Router API for navigation,Navigator.push for complex apps,RouterConfig(...),Navigator.push everywhere,Medium,https://api.flutter.dev/flutter/widgets/Router-class.html
 20,Navigation,Use named routes,Organized navigation,Named routes for clarity,Anonymous routes,Navigator.pushNamed(context '/home'),Navigator.push(context MaterialPageRoute()),Low,
 21,Navigation,Handle back button (PopScope),Android back behavior and predictive back (Android 14+),Use PopScope widget (WillPopScope is deprecated),Use WillPopScope,"PopScope(canPop: false, onPopInvoked: (didPop) => ...)",WillPopScope(onWillPop: ...),High,https://api.flutter.dev/flutter/widgets/PopScope-class.html
 22,Navigation,Pass typed arguments,Type-safe route arguments,Typed route arguments,Dynamic arguments,MyRoute(id: '123'),arguments: {'id': '123'},Medium,

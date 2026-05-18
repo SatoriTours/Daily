@@ -11,7 +11,6 @@
 | [03-app-features](./03-app-features.md) | 功能模块说明与约束 |
 | [04-style-guide](./04-style-guide.md) | 样式系统快速参考 |
 | [05-i18n-guide](./05-i18n-guide.md) | 国际化开发指南 |
-| [06-riverpod-style-guide](./06-riverpod-style-guide.md) | Riverpod 最佳实践 |
 
 ## 🔗 入口文件
 
@@ -29,4 +28,3 @@
 | **03-app-features** | 功能模块、数据模型、业务约束 |
 | **04-style-guide** | 颜色、间距、字体、组件样式 |
 | **05-i18n-guide** | 国际化使用方式、配置文件 |
-| **06-riverpod-style-guide** | Provider 组织、状态建模、代码模式 |
