@@ -4,7 +4,10 @@ private val CitationRegex = Regex("\\[([RCDF]\\d+)]")
 private val CitationLikeRegex = Regex("\\[([A-Z]+\\d*)]")
 
 fun citationTokens(content: String): List<String> =
-    CitationRegex.findAll(content).map { it.groupValues[1] }.toList()
+    CitationRegex.findAll(content)
+        .filterNot { it.isMarkdownLabel(content) }
+        .map { it.groupValues[1] }
+        .toList()
 
 fun invalidCitationTokens(content: String, sources: List<UnifiedNewsSourceItem>): List<String> {
     val valid = sources.map { it.refKey }.toSet()
@@ -40,8 +43,6 @@ fun sanitizeGeneratedUnifiedNewsContent(content: String, sources: List<UnifiedNe
 
 private fun sanitizeGeneratedUnifiedNewsLine(line: String, sources: List<UnifiedNewsSourceItem>): String? {
     if (line.isBlank()) return line
-    val hasCitationLikeToken = CitationLikeRegex.findAll(line).any { !it.isMarkdownLabel(line) }
-    if (!hasCitationLikeToken) return line
     val sanitized = removeInvalidCitationTokens(line, sources)
     if (line.trimStart().startsWith("#")) return sanitized
     return sanitized.takeIf { hasValidCitationTokens(it, sources) }

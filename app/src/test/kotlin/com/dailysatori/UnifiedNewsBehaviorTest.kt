@@ -246,6 +246,17 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun citationGroundingIgnoresMarkdownInlineAndReferenceLabels() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+        )
+
+        assertFalse(hasValidCitationTokens("[R1](https://example.com)", sources))
+        assertFalse(hasValidCitationTokens("[R1]: https://example.com", sources))
+        assertTrue(hasValidCitationTokens("事实 [R1]", sources))
+    }
+
+    @Test
     fun removeInvalidCitationTokensDropsOnlyMissingSourceReferences() {
         val sources = listOf(
             UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
@@ -303,6 +314,32 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun sanitizeGeneratedUnifiedNewsContentDropsUncitedBulletWithOtherValidBullet() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+        )
+        val content = "- Verified fact [R1]\n- Fabricated fact"
+
+        val sanitized = sanitizeGeneratedUnifiedNewsContent(content, sources)
+
+        assertTrue(sanitized.contains("- Verified fact [R1]"))
+        assertFalse(sanitized.contains("Fabricated fact"))
+    }
+
+    @Test
+    fun sanitizeGeneratedUnifiedNewsContentDropsUncitedParagraphWithOtherValidLine() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+        )
+        val content = "Verified fact [R1]\nFabricated paragraph"
+
+        val sanitized = sanitizeGeneratedUnifiedNewsContent(content, sources)
+
+        assertTrue(sanitized.contains("Verified fact [R1]"))
+        assertFalse(sanitized.contains("Fabricated paragraph"))
+    }
+
+    @Test
     fun sanitizeGeneratedUnifiedNewsContentKeepsValidCitedLine() {
         val sources = listOf(
             UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
@@ -323,6 +360,18 @@ class UnifiedNewsBehaviorTest {
         val sanitized = sanitizeGeneratedUnifiedNewsContent(content, sources)
 
         assertTrue(sanitized.contains("## 今日要点\n\n- 有效事实 [R1]"))
+    }
+
+    @Test
+    fun sanitizeGeneratedUnifiedNewsContentPreservesHeadingBlankLineAndValidBullet() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+        )
+        val content = "## heading\n\n- item [R1]"
+
+        val sanitized = sanitizeGeneratedUnifiedNewsContent(content, sources)
+
+        assertEquals("## heading\n\n- item [R1]", sanitized)
     }
 
     @Test
@@ -775,6 +824,8 @@ class UnifiedNewsBehaviorTest {
         assertTrue(source.contains("catch (e: Exception)"))
         assertTrue(source.contains("Unified news source collection failed"))
         assertTrue(source.contains("return saveFailure(window, emptyList(), warnings, \"新闻来源收集失败，请稍后重试\")"))
+        assertTrue(source.contains("if (sources.isEmpty() && warnings.isNotEmpty())"))
+        assertTrue(source.contains("新闻来源暂时不可用，请稍后重试"))
     }
 
     @Test

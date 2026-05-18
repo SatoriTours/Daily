@@ -43,6 +43,9 @@ class UnifiedNewsSummaryService(
             log.w(e) { "Unified news source collection failed" }
             return saveFailure(window, emptyList(), warnings, "新闻来源收集失败，请稍后重试")
         }
+        if (sources.isEmpty() && warnings.isNotEmpty()) {
+            return saveFailure(window, emptyList(), warnings, "新闻来源暂时不可用，请稍后重试")
+        }
         val preparedSources = prepareUnifiedNewsSources(sources)
         if (preparedSources.isEmpty()) return persistEmpty(window, warnings)
 
