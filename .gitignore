@@ -28,22 +28,6 @@ app.*.map.json
 # Backup files
 .backup
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-
-# Android Flutter build artifacts (not KMP)
-/android/app/debug
-/android/app/profile
-/android/app/release
-/android/app/.cxx
-/android/NOTICE
-
 # KMP/Android build artifacts
 .gradle/
 .kotlin/
@@ -51,8 +35,3 @@ app/build/
 shared/build/
 build/
 local.properties
-
-# Flutter related
-.dart_tool/
-.flutter-plugins-dependencies
-android/
