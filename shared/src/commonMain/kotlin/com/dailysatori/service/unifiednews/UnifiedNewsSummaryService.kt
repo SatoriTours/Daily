@@ -291,11 +291,10 @@ fun remoteDigestArticlesToUnifiedSources(
 
 fun deduplicateUnifiedNewsSources(items: List<UnifiedNewsSourceItem>): List<UnifiedNewsSourceItem> =
     items.fold(emptyList()) { deduped, item ->
-        val existing = deduped.firstOrNull { it.matchesDedupeIdentity(item) }
+        val matches = deduped.filter { it.matchesDedupeIdentity(item) }
         when {
-            existing == null -> deduped + item
-            item.usefulTextLength() <= existing.usefulTextLength() -> deduped
-            else -> deduped.map { if (it == existing) item else it }
+            matches.isEmpty() -> deduped + item
+            else -> deduped.filterNot { it in matches } + (matches + item).maxBy { it.usefulTextLength() }
         }
     }
 

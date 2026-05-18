@@ -706,6 +706,42 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun prepareUnifiedNewsSourcesMergesConnectedDuplicateIdentities() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(
+                refKey = "R1",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                sourceUrl = "https://example.com/url-1",
+                title = "桥接标题 A",
+                summary = "第一条桥接摘要信息量足够",
+                content = "第一条桥接正文信息量足够。",
+            ),
+            UnifiedNewsSourceItem(
+                refKey = "R2",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                sourceUrl = "https://example.com/url-2",
+                title = "桥接标题 B",
+                summary = "第二条桥接摘要信息量足够",
+                content = "第二条桥接正文信息量足够。",
+            ),
+            UnifiedNewsSourceItem(
+                refKey = "R3",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                sourceUrl = "https://example.com/url-1",
+                title = "桥接标题 B",
+                summary = "第三条桥接摘要更加完整，连接前两条重复身份",
+                content = "第三条桥接正文更加完整，连接相同 URL 和相同标题，应当只保留这一条。",
+            ),
+        )
+
+        val prepared = prepareUnifiedNewsSources(sources, minTextChars = 10)
+
+        assertEquals(1, prepared.size)
+        assertEquals("R3", prepared.single().refKey)
+        assertEquals("桥接标题 B", prepared.single().title)
+    }
+
+    @Test
     fun prepareUnifiedNewsSourcesLimitsPerSourceTypeBeforeGlobalBudget() {
         val remote = (1..8).map { index ->
             UnifiedNewsSourceItem(
