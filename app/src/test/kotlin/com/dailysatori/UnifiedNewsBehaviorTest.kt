@@ -325,6 +325,20 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun sanitizeGeneratedUnifiedNewsContentRemovesInvalidHeadingCitationButKeepsHeading() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+        )
+        val content = "## 今日要点 [X99]\n- Valid [R1]"
+
+        val sanitized = sanitizeGeneratedUnifiedNewsContent(content, sources)
+
+        assertTrue(sanitized.contains("## 今日要点"))
+        assertTrue(sanitized.contains("- Valid [R1]"))
+        assertFalse(sanitized.contains("[X99]"))
+    }
+
+    @Test
     fun unifiedNewsPromptRequestsDailyBriefingStructure() {
         val prompt = buildUnifiedNewsPrompt(
             window = UnifiedNewsWindow(

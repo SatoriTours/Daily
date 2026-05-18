@@ -39,10 +39,11 @@ fun sanitizeGeneratedUnifiedNewsContent(content: String, sources: List<UnifiedNe
         .joinToString("\n")
 
 private fun sanitizeGeneratedUnifiedNewsLine(line: String, sources: List<UnifiedNewsSourceItem>): String? {
-    if (line.isBlank() || line.trimStart().startsWith("#")) return line
+    if (line.isBlank()) return line
     val hasCitationLikeToken = CitationLikeRegex.findAll(line).any { !it.isMarkdownLabel(line) }
     if (!hasCitationLikeToken) return line
     val sanitized = removeInvalidCitationTokens(line, sources)
+    if (line.trimStart().startsWith("#")) return sanitized
     return sanitized.takeIf { hasValidCitationTokens(it, sources) }
 }
 
