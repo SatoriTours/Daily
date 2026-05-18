@@ -245,8 +245,8 @@ actual class WebViewLoader actual constructor() {
                     if (!finished) {
                         webView.stopLoading()
                         val content = lastPageContent
-                        if (content != null && (content.text.isNotBlank() || content.html.isNotBlank())) {
-                            complete(Result.success(content))
+                        if (isUsableContent(content)) {
+                            complete(Result.success(content!!))
                         } else {
                             complete(Result.failure(Exception("WebView load timeout")))
                         }
@@ -258,6 +258,12 @@ actual class WebViewLoader actual constructor() {
         }
         return handle
     }
+
+    private fun hasUsableContent(content: WebViewPageContent): Boolean =
+        content.text.isNotBlank() || content.html.isNotBlank()
+
+    private fun isUsableContent(content: WebViewPageContent?): Boolean =
+        content != null && hasUsableContent(content)
 
     private class QueuedWebViewLoad(
         val url: String,
