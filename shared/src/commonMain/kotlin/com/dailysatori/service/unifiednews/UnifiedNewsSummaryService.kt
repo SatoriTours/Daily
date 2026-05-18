@@ -250,9 +250,33 @@ fun budgetUnifiedNewsSources(
     sources: List<UnifiedNewsSourceItem>,
     maxSources: Int = 30,
     maxContentChars: Int = 8000,
-): List<UnifiedNewsSourceItem> = sources
-    .take(maxSources)
-    .map { source -> source.copy(content = source.content.take(maxContentChars)) }
+): List<UnifiedNewsSourceItem> = prepareUnifiedNewsSources(
+    sources = sources,
+    maxSources = maxSources,
+    maxContentChars = maxContentChars,
+    maxPerSourceType = maxSources,
+)
+
+fun prepareUnifiedNewsSources(
+    sources: List<UnifiedNewsSourceItem>,
+    maxSources: Int = 30,
+    maxContentChars: Int = 8000,
+    maxPerSourceType: Int = 18,
+    minTextChars: Int = 40,
+): List<UnifiedNewsSourceItem> {
+    val useful = sources
+        .filter { it.title.isNotBlank() }
+        .filter { it.usefulTextLength() >= minTextChars }
+    val deduped = deduplicateUnifiedNewsSources(useful)
+    return deduped
+        .sortedWith(compareByDescending<UnifiedNewsSourceItem> { it.sourceTime ?: 0L }.thenByDescending { it.usefulTextLength() })
+        .groupBy { it.sourceType }
+        .values
+        .flatMap { it.take(maxPerSourceType) }
+        .sortedWith(compareByDescending<UnifiedNewsSourceItem> { it.sourceTime ?: 0L }.thenByDescending { it.usefulTextLength() })
+        .take(maxSources)
+        .map { source -> source.copy(content = source.content.take(maxContentChars)) }
+}
 
 fun remoteDigestArticlesToUnifiedSources(
     digests: List<RemoteDigest>,
@@ -267,7 +291,22 @@ fun remoteDigestArticlesToUnifiedSources(
 }
 
 fun deduplicateUnifiedNewsSources(items: List<UnifiedNewsSourceItem>): List<UnifiedNewsSourceItem> =
-    items.distinctBy { listOf(it.sourceId, it.sourceUrl, it.title) }
+    items
+        .groupBy { it.dedupeKey() }
+        .values
+        .map { candidates -> candidates.maxBy { it.usefulTextLength() } }
+
+private fun UnifiedNewsSourceItem.dedupeKey(): String {
+    val normalizedUrl = sourceUrl?.trim()?.lowercase().orEmpty()
+    if (normalizedUrl.isNotBlank()) return "url:$normalizedUrl"
+    return "title:${sourceType.dbValue}:${title.trim().lowercase()}"
+}
+
+private fun UnifiedNewsSourceItem.usefulTextLength(): Int =
+    listOf(title, summary, content)
+        .joinToString(" ")
+        .trim()
+        .length
 
 fun remoteNewsSourceRouteKey(id: Long): String = "remote_news_source:$id"
 

@@ -21,6 +21,7 @@ import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
 import com.dailysatori.service.unifiednews.dueUnifiedNewsWindows
 import com.dailysatori.service.unifiednews.invalidCitationTokens
 import com.dailysatori.service.unifiednews.nextUnifiedNewsWindow
+import com.dailysatori.service.unifiednews.prepareUnifiedNewsSources
 import com.dailysatori.service.unifiednews.remoteDigestArticlesToUnifiedSources
 import com.dailysatori.service.unifiednews.unifiedNewsWindowFor
 import com.dailysatori.service.remotenews.RemoteArticle
@@ -581,8 +582,9 @@ class UnifiedNewsBehaviorTest {
                 refKey = "R$index",
                 sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
                 title = "source $index",
-                summary = "summary $index",
-                content = "x".repeat(20),
+                summary = "summary $index with enough detail for useful source filtering",
+                content = "x".repeat(60),
+                sourceTime = 1000L - index,
             )
         }
 
@@ -591,6 +593,113 @@ class UnifiedNewsBehaviorTest {
         assertEquals(30, budgeted.size)
         assertTrue(budgeted.all { it.content.length <= 12 })
         assertEquals("R30", budgeted.last().refKey)
+    }
+
+    @Test
+    fun prepareUnifiedNewsSourcesDropsBlankAndLowContentItems() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(
+                refKey = "R1",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                title = " ",
+                summary = "valid summary with enough detail",
+                content = "valid content with enough detail",
+            ),
+            UnifiedNewsSourceItem(
+                refKey = "R2",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                title = "短内容",
+                summary = "短",
+                content = "少",
+            ),
+            UnifiedNewsSourceItem(
+                refKey = "F1",
+                sourceType = UnifiedNewsSourceType.LOCAL_FAVORITE,
+                title = "有效收藏",
+                summary = "这是一条包含足够信息量的收藏摘要",
+                content = "这是一条包含足够信息量的收藏正文，用来参与每日汇总。",
+            ),
+        )
+
+        val prepared = prepareUnifiedNewsSources(sources, minTextChars = 20)
+
+        assertEquals(listOf("有效收藏"), prepared.map { it.title })
+    }
+
+    @Test
+    fun prepareUnifiedNewsSourcesDeduplicatesUrlAndTitleSourceKeepingRicherItem() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(
+                refKey = "R1",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                sourceUrl = "https://example.com/same",
+                title = "同一新闻",
+                summary = "短摘要但有效",
+                content = "短正文但有效内容超过阈值",
+            ),
+            UnifiedNewsSourceItem(
+                refKey = "R2",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                sourceUrl = "https://example.com/same",
+                title = "同一新闻更新",
+                summary = "更完整摘要，解释了事件的上下文和影响",
+                content = "更完整正文，包含更多事实、背景、影响以及后续观察点。",
+            ),
+            UnifiedNewsSourceItem(
+                refKey = "R3",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                title = "重复标题",
+                summary = "第一条重复标题摘要，信息量较少",
+                content = "第一条重复标题正文，信息量较少。",
+            ),
+            UnifiedNewsSourceItem(
+                refKey = "R4",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                title = "重复标题",
+                summary = "第二条重复标题摘要，信息量明显更多，保留这一条",
+                content = "第二条重复标题正文，信息量明显更多，包含更多细节，应当保留。",
+            ),
+        )
+
+        val prepared = prepareUnifiedNewsSources(sources, minTextChars = 10)
+
+        assertEquals(setOf("同一新闻更新", "重复标题"), prepared.map { it.title }.toSet())
+        assertTrue(prepared.single { it.title == "重复标题" }.content.contains("应当保留"))
+    }
+
+    @Test
+    fun prepareUnifiedNewsSourcesLimitsPerSourceTypeBeforeGlobalBudget() {
+        val remote = (1..8).map { index ->
+            UnifiedNewsSourceItem(
+                refKey = "R$index",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                title = "远程新闻 $index",
+                summary = "远程摘要 $index 信息量充足",
+                content = "远程正文 $index 信息量充足，用来验证来源预算不会被单一来源占满。",
+                sourceTime = 1000L - index,
+            )
+        }
+        val favorites = (1..2).map { index ->
+            UnifiedNewsSourceItem(
+                refKey = "F$index",
+                sourceType = UnifiedNewsSourceType.LOCAL_FAVORITE,
+                title = "收藏新闻 $index",
+                summary = "收藏摘要 $index 信息量充足",
+                content = "收藏正文 $index 信息量充足，用来验证收藏来源会被保留。",
+                sourceTime = 2000L - index,
+            )
+        }
+
+        val prepared = prepareUnifiedNewsSources(
+            sources = remote + favorites,
+            maxSources = 5,
+            maxPerSourceType = 3,
+            minTextChars = 10,
+        )
+
+        assertEquals(5, prepared.size)
+        assertEquals(3, prepared.count { it.sourceType == UnifiedNewsSourceType.REMOTE_ARTICLE })
+        assertEquals(2, prepared.count { it.sourceType == UnifiedNewsSourceType.LOCAL_FAVORITE })
     }
 
     @Test
