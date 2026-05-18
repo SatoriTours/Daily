@@ -415,7 +415,7 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun remoteArticleDetailUsesReadableArticleLayout() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsDetailScreens.kt").readText()
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
 
         assertTrue(screen.contains("RemoteArticleHeroCard"))
         assertTrue(screen.contains("RemoteArticleMetaChips"))
@@ -433,7 +433,7 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun articleDetailsUseSharedMarkdownTabPager() {
         val localDetail = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
-        val remoteDetail = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsDetailScreens.kt").readText()
+        val remoteDetail = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
         val sharedPager = java.io.File("src/main/kotlin/com/dailysatori/ui/component/content/MarkdownTabPager.kt")
 
         assertTrue(sharedPager.exists())
