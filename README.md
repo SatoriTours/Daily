@@ -135,7 +135,7 @@ app/src/main/kotlin/com/dailysatori/
 
 GitHub Actions 会在推送 `v*.*.*` tag 时构建签名 Release APK，并上传到 GitHub Release。
 
-## Version Source
+### Version Source
 
 Daily Satori is now a Kotlin Multiplatform Android app. The app version source of truth is `versionName` and `versionCode` in `app/build.gradle.kts`.
 
