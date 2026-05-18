@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -30,8 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +52,9 @@ import coil3.request.ImageRequest
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteDigest
 import com.dailysatori.ui.component.card.CustomCard
+import com.dailysatori.ui.component.content.MarkdownContent
+import com.dailysatori.ui.component.content.MarkdownTabPager
+import com.dailysatori.ui.component.content.MarkdownTabRow
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.article.articleCardContentVerticalPaddingDp
 import com.dailysatori.ui.feature.article.articleCardHeightDp
@@ -205,20 +205,20 @@ fun RemoteArticleDetailScreen(
     ) { modifier ->
         Column(modifier = modifier.fillMaxSize()) {
             RemoteArticleHeroCard(article)
-            RemoteArticleTabRow(
+            MarkdownTabRow(
+                tabTitles = listOf("AI 摘要", "原文"),
                 selectedTabIndex = selectedTabIndex,
                 onTabSelected = { index -> coroutineScope.launch { pagerState.animateScrollToPage(index) } },
             )
-            HorizontalPager(
-                state = pagerState,
+            MarkdownTabPager(
+                pagerState = pagerState,
                 modifier = Modifier.weight(1f),
-                beyondViewportPageCount = 1,
             ) { page ->
                 val listState = rememberLazyListState()
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                     item(key = "remote-content-$page") {
                         Box(modifier = Modifier.padding(Spacing.m)) {
-                            RemoteArticleMarkdownContent(
+                            MarkdownContent(
                                 remoteArticleDetailPageContent(
                                     page = page,
                                     summary = article.summary,
@@ -231,24 +231,6 @@ fun RemoteArticleDetailScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun RemoteArticleTabRow(
-    selectedTabIndex: Int,
-    onTabSelected: (Int) -> Unit,
-) {
-    TabRow(selectedTabIndex = selectedTabIndex, modifier = Modifier.fillMaxWidth()) {
-        Tab(selected = selectedTabIndex == 0, onClick = { onTabSelected(0) }, text = { Text("AI 摘要") })
-        Tab(selected = selectedTabIndex == 1, onClick = { onTabSelected(1) }, text = { Text("原文") })
-    }
-}
-
-@Composable
-private fun RemoteArticleMarkdownContent(content: String) {
-    SelectionContainer {
-        Markdown(content = content, typography = MarkdownStyles.typography(), padding = MarkdownStyles.padding())
     }
 }
 

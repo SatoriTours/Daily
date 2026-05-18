@@ -419,8 +419,8 @@ class UnifiedNewsBehaviorTest {
 
         assertTrue(screen.contains("RemoteArticleHeroCard"))
         assertTrue(screen.contains("RemoteArticleMetaChips"))
-        assertTrue(screen.contains("RemoteArticleTabRow"))
-        assertTrue(screen.contains("HorizontalPager"))
+        assertTrue(screen.contains("MarkdownTabPager"))
+        assertTrue(screen.contains("MarkdownTabRow"))
         assertTrue(screen.contains("AI 摘要"))
         assertTrue(screen.contains("原文"))
         assertTrue(screen.contains("阅读详情"))
@@ -428,6 +428,19 @@ class UnifiedNewsBehaviorTest {
         assertFalse(screen.contains("RemoteArticleContentSection"))
         assertFalse(screen.contains("RemoteArticleOriginalLinkCard"))
         assertFalse(screen.contains("Text(article.url.orEmpty(), style = MaterialTheme.typography.bodySmall)"))
+    }
+
+    @Test
+    fun articleDetailsUseSharedMarkdownTabPager() {
+        val localDetail = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
+        val remoteDetail = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsDetailScreens.kt").readText()
+        val sharedPager = java.io.File("src/main/kotlin/com/dailysatori/ui/component/content/MarkdownTabPager.kt")
+
+        assertTrue(sharedPager.exists())
+        assertTrue(localDetail.contains("MarkdownTabPager("))
+        assertTrue(remoteDetail.contains("MarkdownTabPager("))
+        assertFalse(localDetail.contains("private fun ArticleTabRow"))
+        assertFalse(remoteDetail.contains("private fun RemoteArticleTabRow"))
     }
 
     @Test

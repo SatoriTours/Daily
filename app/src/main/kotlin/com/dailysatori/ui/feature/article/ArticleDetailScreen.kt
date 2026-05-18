@@ -9,9 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -25,8 +23,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -50,13 +46,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import com.dailysatori.ui.component.content.MarkdownContent
+import com.dailysatori.ui.component.content.MarkdownTabPager
+import com.dailysatori.ui.component.content.MarkdownTabRow
 import com.dailysatori.ui.component.dialog.ConfirmDialog
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
-import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Spacing
-import com.mikepenz.markdown.m3.Markdown
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.io.File
@@ -179,20 +176,18 @@ fun ArticleDetailScreen(
                             modifier = Modifier.fillMaxWidth().height(articleCoverMaxHeightDp.dp),
                         )
                     }
-                    ArticleTabRow(
-                        selectedTabIndex = state.selectedTabIndex,
-                        onTabSelected = { index -> coroutineScope.launch { pagerState.animateScrollToPage(index) } },
-                    )
+                    ArticleMarkdownTabRow(state.selectedTabIndex) { index ->
+                        coroutineScope.launch { pagerState.animateScrollToPage(index) }
+                    }
                     ArticleProcessingStepper(
                         status = state.processingStage,
                         progress = state.processingProgress,
                         modifier = Modifier.padding(Spacing.m),
                     )
                 } else {
-                    HorizontalPager(
-                        state = pagerState,
+                    MarkdownTabPager(
+                        pagerState = pagerState,
                         modifier = Modifier.weight(1f),
-                        beyondViewportPageCount = 1,
                     ) { page ->
                         val listState = rememberLazyListState()
                         val nestedScrollConnection = remember(listState, hasCover, density) {
@@ -222,10 +217,9 @@ fun ArticleDetailScreen(
                                     modifier = Modifier.fillMaxWidth().height(coverHeightDp.dp),
                                 )
                             }
-                            ArticleTabRow(
-                                selectedTabIndex = state.selectedTabIndex,
-                                onTabSelected = { index -> coroutineScope.launch { pagerState.animateScrollToPage(index) } },
-                            )
+                            ArticleMarkdownTabRow(state.selectedTabIndex) { index ->
+                                coroutineScope.launch { pagerState.animateScrollToPage(index) }
+                            }
                             LazyColumn(
                                 state = listState,
                                 modifier = Modifier
@@ -234,7 +228,7 @@ fun ArticleDetailScreen(
                             ) {
                                 item(key = "content-$page") {
                                     Box(modifier = Modifier.padding(Spacing.m)) {
-                                        ArticleMarkdownContent(
+                                        MarkdownContent(
                                             articleDetailPageContent(
                                                 page = page,
                                                 summary = article.ai_content,
@@ -294,33 +288,15 @@ internal fun articleDeleteDialogTitle(): String = "删除文章"
 internal fun articleDeleteDialogMessage(): String = "确定要删除这篇文章吗？"
 
 @Composable
-private fun ArticleTabRow(
+private fun ArticleMarkdownTabRow(
     selectedTabIndex: Int,
     onTabSelected: (Int) -> Unit,
 ) {
-    TabRow(selectedTabIndex = selectedTabIndex, modifier = Modifier.fillMaxWidth()) {
-        Tab(
-            selected = selectedTabIndex == 0,
-            onClick = { onTabSelected(0) },
-            text = { Text("AI 摘要") },
-        )
-        Tab(
-            selected = selectedTabIndex == 1,
-            onClick = { onTabSelected(1) },
-            text = { Text("原文") },
-        )
-    }
-}
-
-@Composable
-private fun ArticleMarkdownContent(content: String) {
-    SelectionContainer {
-        Markdown(
-            content = content,
-            typography = MarkdownStyles.typography(),
-            padding = MarkdownStyles.padding(),
-        )
-    }
+    MarkdownTabRow(
+        tabTitles = listOf("AI 摘要", "原文"),
+        selectedTabIndex = selectedTabIndex,
+        onTabSelected = onTabSelected,
+    )
 }
 
 private fun extractDomain(url: String?): String {
