@@ -9,7 +9,7 @@ fun citationTokens(content: String): List<String> =
 fun invalidCitationTokens(content: String, sources: List<UnifiedNewsSourceItem>): List<String> {
     val valid = sources.map { it.refKey }.toSet()
     return CitationLikeRegex.findAll(content)
-        .filterNot { it.isMarkdownInlineLinkLabel(content) || it.isMarkdownReferenceLinkLabel(content) || it.isMarkdownReferenceLabel(content) }
+        .filterNot { it.isMarkdownLabel(content) }
         .map { it.groupValues[1] }
         .filterNot { it in valid }
         .distinct()
@@ -26,14 +26,18 @@ fun removeInvalidCitationTokens(content: String, sources: List<UnifiedNewsSource
     return CitationLikeRegex.replace(content) { match ->
         val token = match.groupValues[1]
         when {
-            match.isMarkdownInlineLinkLabel(content) -> match.value
-            match.isMarkdownReferenceLinkLabel(content) -> match.value
-            match.isMarkdownReferenceLabel(content) -> match.value
+            match.isMarkdownLabel(content) -> match.value
             token in valid -> match.value
             else -> ""
         }
     }
 }
+
+private fun MatchResult.isMarkdownLabel(content: String): Boolean =
+    isMarkdownInlineLinkLabel(content) ||
+        isMarkdownReferenceLinkLabel(content) ||
+        isMarkdownReferenceTargetLabel(content) ||
+        isMarkdownReferenceDestinationLabel(content)
 
 private fun MatchResult.isMarkdownInlineLinkLabel(content: String): Boolean =
     content.getOrNull(range.last + 1) == '('
@@ -41,10 +45,18 @@ private fun MatchResult.isMarkdownInlineLinkLabel(content: String): Boolean =
 private fun MatchResult.isMarkdownReferenceLinkLabel(content: String): Boolean =
     content.getOrNull(range.last + 1) == '['
 
-private fun MatchResult.isMarkdownReferenceLabel(content: String): Boolean {
+private fun MatchResult.isMarkdownReferenceTargetLabel(content: String): Boolean {
     if (content.getOrNull(range.last + 1) != ':') return false
     val lineStart = content.lastIndexOf('\n', startIndex = range.first - 1).let { if (it == -1) 0 else it + 1 }
     return content.substring(lineStart, range.first).all { it == ' ' || it == '\t' }
+}
+
+private fun MatchResult.isMarkdownReferenceDestinationLabel(content: String): Boolean {
+    if (content.getOrNull(range.first - 1) != ']') return false
+    val previousOpen = content.lastIndexOf('[', startIndex = range.first - 2)
+    if (previousOpen == -1) return false
+    val previousLabel = content.substring(previousOpen + 1, range.first - 1)
+    return previousLabel.isNotEmpty() && !CitationLikeRegex.matches("[$previousLabel]")
 }
 
 fun buildUnifiedNewsPrompt(window: UnifiedNewsWindow, sources: List<UnifiedNewsSourceItem>): String {

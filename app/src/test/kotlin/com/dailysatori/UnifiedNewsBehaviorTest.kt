@@ -251,6 +251,22 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun removeInvalidCitationTokensPreservesMarkdownReferenceLinkLabels() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+        )
+        val content = "[Article][R99]\n[R99][]\n[R99]: https://example.com\n事实 [R99]"
+
+        val sanitized = removeInvalidCitationTokens(content, sources)
+
+        assertTrue(sanitized.contains("[Article][R99]"))
+        assertTrue(sanitized.contains("[R99][]"))
+        assertTrue(sanitized.contains("[R99]: https://example.com"))
+        assertTrue(sanitized.contains("事实 "))
+        assertFalse(sanitized.contains("事实 [R99]"))
+    }
+
+    @Test
     fun unifiedNewsPromptRequestsDailyBriefingStructure() {
         val prompt = buildUnifiedNewsPrompt(
             window = UnifiedNewsWindow(
