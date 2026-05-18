@@ -17,9 +17,9 @@ metadata:
 3. **生成日志** - 创建 `docs/versions/changelog_${version}.md`
 4. **提交代码** - 执行 `git add .` 和 `git commit`
 5. **打版本标签** - 执行 `git tag v${version}`
-6. **同步 GitHub** - 使用本地 `gh` 命令创建远程版本 tag/release，并验证 GitHub 状态
+6. **同步 GitHub** - 推送 `main` 和版本 tag，触发 GitHub Actions 构建并发布 APK
 
-> 发布只需要提交代码、打 tag、同步 GitHub main 和 tag。不在本地编译 release 版本，不上传 APK 或其他 release 资产。
+> 发布只需要提交代码、打 tag、同步 GitHub main 和 tag。不在本地编译 release 版本；APK 由 GitHub Actions 构建并上传到 Release。
 
 ## 使用场景
 
@@ -73,19 +73,12 @@ git tag v${current_version}
 
 ### 5. 同步 GitHub
 
-GitHub CLI 没有普通的 `gh push tag` 子命令；不要使用 `gh api` 手工操作 Git refs。发布时使用本地 `gh release create` 创建远程版本 tag/release，不上传 APK 或其他资产。
+推送 `main` 和版本 tag。远程 tag 会触发 `.github/workflows/android-release.yml`，由 GitHub Actions 构建签名 APK 并上传到 GitHub Release。
 
 ```bash
-release_sha=$(git rev-parse HEAD)
+git push origin main "v${current_version}"
 
-# 使用 gh 创建 GitHub 版本 tag/release，不附带任何资产
-gh release create "v${current_version}" \
-  --repo SatoriTours/Daily \
-  --target "$release_sha" \
-  --title "v${current_version}" \
-  --notes-file "docs/versions/changelog_${current_version}.md"
-
-# 使用 gh 验证 GitHub release/tag 已存在
+# 使用 gh 验证 GitHub release/tag 已存在；如 Actions 仍在运行，可稍后重试
 gh release view "v${current_version}" --repo SatoriTours/Daily --json tagName,targetCommitish,url
 ```
 
@@ -102,7 +95,8 @@ gh release view "v${current_version}" --repo SatoriTours/Daily --json tagName,ta
 - 更新日志使用中文，聚焦功能变化
 - 按新增/优化/修复分类，不包含测试改进
 - 打标签前确认版本号正确
-- 使用本地 `gh release create` 创建 GitHub tag/release
+- tag 必须匹配 `app/build.gradle.kts` 的 `versionName`
+- tag 指向的 commit 必须属于 `main` 分支历史
 - 不使用 `gh api` 手工操作 Git refs
-- 不使用 `git push` 作为发布步骤
-- 不编译 release，不上传 APK，不上传 release 资产
+- 使用 `git push origin main "v${current_version}"` 触发远程发布流程
+- 不在本地编译 release，不在本地上传 APK

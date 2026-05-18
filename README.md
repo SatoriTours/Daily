@@ -137,9 +137,9 @@ GitHub Actions 会在推送 `v*.*.*` tag 时构建签名 Release APK，并上传
 
 ### Version Source
 
-Daily Satori is now a Kotlin Multiplatform Android app. The app version source of truth is `versionName` and `versionCode` in `app/build.gradle.kts`.
+Daily Satori is now a Kotlin Multiplatform Android app. The app version source of truth is `versionName` and `versionCode` in `app/build.gradle.kts`. Release tag 必须匹配 `app/build.gradle.kts` 的 `versionName`，例如 `versionName = "5.0.16"` 对应 tag `v5.0.16`。
 
-发布条件：tag 指向的 commit 必须属于 `main` 分支历史。签名使用仓库 GitHub Secrets：
+发布条件：tag 指向的 commit 必须属于 `main` 分支历史，且 tag 版本必须匹配 `app/build.gradle.kts` 的 `versionName`。签名使用仓库 GitHub Secrets：
 
 - `KEY_JKS`：base64 编码后的 keystore
 - `KEY_ALIAS`：签名 alias

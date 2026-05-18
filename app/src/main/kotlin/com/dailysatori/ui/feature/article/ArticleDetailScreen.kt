@@ -59,6 +59,8 @@ import org.koin.core.parameter.parametersOf
 import java.io.File
 import androidx.compose.runtime.rememberCoroutineScope
 
+private val articleDetailTabTitles = listOf("AI 摘要", "原文")
+
 @Composable
 fun ArticleDetailScreen(
     articleId: Long,
@@ -177,7 +179,7 @@ fun ArticleDetailScreen(
                         )
                     }
                     MarkdownTabRow(
-                        tabTitles = listOf("AI 摘要", "原文"),
+                        tabTitles = articleDetailTabTitles,
                         selectedTabIndex = state.selectedTabIndex,
                         onTabSelected = { index ->
                             coroutineScope.launch { pagerState.animateScrollToPage(index) }
@@ -222,7 +224,7 @@ fun ArticleDetailScreen(
                                 )
                             }
                             MarkdownTabRow(
-                                tabTitles = listOf("AI 摘要", "原文"),
+                                tabTitles = articleDetailTabTitles,
                                 selectedTabIndex = state.selectedTabIndex,
                                 onTabSelected = { index ->
                                     coroutineScope.launch { pagerState.animateScrollToPage(index) }

@@ -447,6 +447,30 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun releaseWorkflowValidatesTagAgainstMainAndGradleVersion() {
+        val workflow = java.io.File("../.github/workflows/android-release.yml").readText()
+
+        assertTrue(workflow.contains("Validate release tag"))
+        assertTrue(workflow.contains("git merge-base --is-ancestor"))
+        assertTrue(workflow.contains("origin/main"))
+        assertTrue(workflow.contains("versionName"))
+        assertTrue(workflow.contains("TAG_VERSION=\"${'$'}{GITHUB_REF_NAME#v}\""))
+        assertTrue(workflow.contains("Version mismatch"))
+    }
+
+    @Test
+    fun releaseSkillUsesGitPushTagWorkflow() {
+        val skill = java.io.File("../.opencode/skill/release-version/SKILL.md").readText()
+        val readme = java.io.File("../README.md").readText()
+
+        assertTrue(skill.contains("app/build.gradle.kts"))
+        assertTrue(skill.contains("git push origin main \"v${'$'}{current_version}\""))
+        assertFalse(skill.contains("gh release create"))
+        assertFalse(skill.contains("不使用 `git push`"))
+        assertTrue(readme.contains("tag 必须匹配 `app/build.gradle.kts` 的 `versionName`"))
+    }
+
+    @Test
     fun unifiedNewsCollectsAllEnabledRemoteSourcesOnly() {
         val service = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
         val models = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsModels.kt").readText()

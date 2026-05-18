@@ -40,6 +40,8 @@ import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import kotlinx.coroutines.launch
 
+private val remoteArticleDetailTabTitles = listOf("AI 摘要", "原文")
+
 @Composable
 fun RemoteArticleDetailScreen(
     article: RemoteArticle,
@@ -72,7 +74,7 @@ fun RemoteArticleDetailScreen(
         Column(modifier = modifier.fillMaxSize()) {
             RemoteArticleHeroCard(article)
             MarkdownTabRow(
-                tabTitles = listOf("AI 摘要", "原文"),
+                tabTitles = remoteArticleDetailTabTitles,
                 selectedTabIndex = selectedTabIndex,
                 onTabSelected = { index -> coroutineScope.launch { pagerState.animateScrollToPage(index) } },
             )
