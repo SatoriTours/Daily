@@ -25,6 +25,7 @@ import com.dailysatori.service.unifiednews.remoteDigestArticlesToUnifiedSources
 import com.dailysatori.service.unifiednews.unifiedNewsWindowFor
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteDigest
+import com.dailysatori.ui.feature.remotenews.remoteArticleDetailPageContent
 import com.dailysatori.ui.feature.unifiednews.displayUnifiedNewsMarkdown
 import com.dailysatori.ui.feature.unifiednews.primaryCitationInUnifiedNewsLine
 import com.dailysatori.ui.feature.unifiednews.manualRefreshWindowForEnvironment
@@ -418,11 +419,14 @@ class UnifiedNewsBehaviorTest {
 
         assertTrue(screen.contains("RemoteArticleHeroCard"))
         assertTrue(screen.contains("RemoteArticleMetaChips"))
-        assertTrue(screen.contains("RemoteArticleSummaryCard"))
-        assertTrue(screen.contains("RemoteArticleViewpointsSection"))
-        assertTrue(screen.contains("RemoteArticleContentSection"))
-        assertTrue(screen.contains("RemoteArticleOriginalLinkCard"))
+        assertTrue(screen.contains("RemoteArticleTabRow"))
+        assertTrue(screen.contains("HorizontalPager"))
+        assertTrue(screen.contains("AI 摘要"))
+        assertTrue(screen.contains("原文"))
         assertTrue(screen.contains("阅读详情"))
+        assertFalse(screen.contains("RemoteArticleViewpointsSection"))
+        assertFalse(screen.contains("RemoteArticleContentSection"))
+        assertFalse(screen.contains("RemoteArticleOriginalLinkCard"))
         assertFalse(screen.contains("Text(article.url.orEmpty(), style = MaterialTheme.typography.bodySmall)"))
     }
 
@@ -1390,6 +1394,46 @@ class UnifiedNewsBehaviorTest {
         assertTrue(screen.contains("RemoteDigestDetailScreen"))
         assertTrue(screen.contains("RemoteArticleDetailScreen"))
         assertFalse(screen.contains("CrayfishNewsDetailScreen"))
+    }
+
+    @Test
+    fun remoteArticleDetailSummaryTabCombinesSummaryAndViewpointsOnly() {
+        val content = remoteArticleDetailPageContent(
+            page = 0,
+            summary = "AI 摘要内容",
+            viewpoints = listOf("观点一", "观点二"),
+            original = "原文内容",
+        )
+
+        assertTrue(content.contains("AI 摘要内容"))
+        assertTrue(content.contains("## 关键观点"))
+        assertTrue(content.contains("- 观点一"))
+        assertTrue(content.contains("- 观点二"))
+        assertFalse(content.contains("原文内容"))
+    }
+
+    @Test
+    fun remoteArticleDetailOriginalTabShowsOriginalOnly() {
+        val content = remoteArticleDetailPageContent(
+            page = 1,
+            summary = "AI 摘要内容",
+            viewpoints = listOf("观点一"),
+            original = "原文内容",
+        )
+
+        assertEquals("原文内容", content)
+    }
+
+    @Test
+    fun remoteArticleDetailTabsUseFallbacksForMissingContent() {
+        assertEquals(
+            "暂无摘要内容",
+            remoteArticleDetailPageContent(page = 0, summary = " ", viewpoints = emptyList(), original = null),
+        )
+        assertEquals(
+            "暂无原文内容",
+            remoteArticleDetailPageContent(page = 1, summary = null, viewpoints = listOf("观点"), original = ""),
+        )
     }
 
     @Test

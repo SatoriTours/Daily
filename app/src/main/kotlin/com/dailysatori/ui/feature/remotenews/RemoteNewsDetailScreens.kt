@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -15,6 +16,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -26,9 +30,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +64,7 @@ import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import com.mikepenz.markdown.m3.Markdown
+import kotlinx.coroutines.launch
 
 @Composable
 fun RemoteDigestDetailScreen(
@@ -168,6 +180,17 @@ fun RemoteArticleDetailScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(pagerState.currentPage) {
+        if (selectedTabIndex != pagerState.currentPage) selectedTabIndex = pagerState.currentPage
+    }
+
+    LaunchedEffect(selectedTabIndex) {
+        if (pagerState.currentPage != selectedTabIndex) pagerState.animateScrollToPage(selectedTabIndex)
+    }
 
     BackHandler(onBack = onBack)
 
@@ -180,22 +203,76 @@ fun RemoteArticleDetailScreen(
             }
         },
     ) { modifier ->
-        LazyColumn(
-            modifier = modifier,
-            verticalArrangement = Arrangement.spacedBy(Spacing.m),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(Spacing.m),
-        ) {
-            item { RemoteArticleHeroCard(article) }
-
-            val articleSummary = article.summary?.takeIf { it.isNotBlank() }
-            articleSummary?.let { item { RemoteArticleSummaryCard(it) } }
-            if (article.viewpoints.isNotEmpty()) item { RemoteArticleViewpointsSection(article.viewpoints) }
-
-            val articleContent = article.content?.takeIf { it.isNotBlank() }
-            articleContent?.let { item { RemoteArticleContentSection(it) } }
-            article.url?.takeIf { it.isNotBlank() }?.let { item { RemoteArticleOriginalLinkCard(it) } }
+        Column(modifier = modifier.fillMaxSize()) {
+            RemoteArticleHeroCard(article)
+            RemoteArticleTabRow(
+                selectedTabIndex = selectedTabIndex,
+                onTabSelected = { index -> coroutineScope.launch { pagerState.animateScrollToPage(index) } },
+            )
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f),
+                beyondViewportPageCount = 1,
+            ) { page ->
+                val listState = rememberLazyListState()
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    item(key = "remote-content-$page") {
+                        Box(modifier = Modifier.padding(Spacing.m)) {
+                            RemoteArticleMarkdownContent(
+                                remoteArticleDetailPageContent(
+                                    page = page,
+                                    summary = article.summary,
+                                    viewpoints = article.viewpoints,
+                                    original = article.content,
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun RemoteArticleTabRow(
+    selectedTabIndex: Int,
+    onTabSelected: (Int) -> Unit,
+) {
+    TabRow(selectedTabIndex = selectedTabIndex, modifier = Modifier.fillMaxWidth()) {
+        Tab(selected = selectedTabIndex == 0, onClick = { onTabSelected(0) }, text = { Text("AI 摘要") })
+        Tab(selected = selectedTabIndex == 1, onClick = { onTabSelected(1) }, text = { Text("原文") })
+    }
+}
+
+@Composable
+private fun RemoteArticleMarkdownContent(content: String) {
+    SelectionContainer {
+        Markdown(content = content, typography = MarkdownStyles.typography(), padding = MarkdownStyles.padding())
+    }
+}
+
+internal fun remoteArticleDetailPageContent(
+    page: Int,
+    summary: String?,
+    viewpoints: List<String>,
+    original: String?,
+): String = when (page) {
+    0 -> remoteArticleSummaryPageContent(summary, viewpoints)
+    else -> original?.trim()?.takeIf { it.isNotBlank() } ?: "暂无原文内容"
+}
+
+private fun remoteArticleSummaryPageContent(summary: String?, viewpoints: List<String>): String {
+    val summaryContent = summary?.trim()?.takeIf { it.isNotBlank() }
+    val viewpointContent = viewpoints
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .joinToString(separator = "\n") { "- $it" }
+
+    return listOfNotNull(
+        summaryContent,
+        viewpointContent.takeIf { it.isNotBlank() }?.let { "## 关键观点\n\n$it" },
+    ).joinToString(separator = "\n\n").ifBlank { "暂无摘要内容" }
 }
 
 @Composable
@@ -222,78 +299,6 @@ private fun RemoteArticleMetaChips(article: RemoteArticle) {
                 Text(label, modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs), style = MaterialTheme.typography.labelSmall)
             }
         }
-    }
-}
-
-@Composable
-private fun RemoteArticleSummaryCard(summary: String) {
-    RemoteArticleSectionSurface(title = "AI 摘要") {
-        SelectionContainer {
-            Markdown(content = summary, typography = MarkdownStyles.cardTypography(), padding = MarkdownStyles.cardPadding())
-        }
-    }
-}
-
-@Composable
-private fun RemoteArticleViewpointsSection(viewpoints: List<String>) {
-    RemoteArticleSectionSurface(title = "关键观点") {
-        Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            viewpoints.forEach { viewpoint ->
-                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = Spacing.s)
-                            .size(Spacing.s)
-                            .clip(RoundedCornerShape(Radius.circular))
-                            .background(MaterialTheme.colorScheme.primary),
-                    )
-                    Text(viewpoint, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun RemoteArticleContentSection(content: String) {
-    RemoteArticleSectionSurface(title = "正文") {
-        SelectionContainer {
-            Markdown(content = content, typography = MarkdownStyles.typography(), padding = MarkdownStyles.padding())
-        }
-    }
-}
-
-@Composable
-private fun RemoteArticleOriginalLinkCard(url: String) {
-    Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            Text("原文链接", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-            Text(url, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        }
-    }
-}
-
-@Composable
-private fun RemoteArticleSectionSurface(title: String, content: @Composable () -> Unit) {
-    Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surface) {
-        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            SectionHeader(title)
-            content()
-        }
-    }
-}
-
-@Composable
-private fun SectionHeader(text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(MaterialTheme.colorScheme.primary),
-        )
-        Spacer(Modifier.width(Spacing.s))
-        Text(text, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
     }
 }
 
