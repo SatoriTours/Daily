@@ -26,6 +26,7 @@
 - Keep timestamp units unchanged; document whether each helper handles epoch milliseconds or seconds before replacing call sites.
 - Keep boolean storage compatible with existing rows; preserve current `0`/`1` semantics.
 - Prefer query improvements that preserve result ordering and pagination behavior unless a task explicitly changes those expectations.
+- This refactor must preserve current externally observed count/search behavior. If inventory or tests show that current SQL returns behavior that appears incorrect, document it and split the behavior correction into a separate behavior-change plan with explicit acceptance criteria; do not silently fix it inside this refactor.
 
 ## Task 1: Standardize Repository Timestamp And Boolean Helpers
 
@@ -86,11 +87,13 @@ Expected: count queries and callers that may duplicate list-query filters are id
 
 - [ ] **Step 2: Add tests for current count expectations**
 
-Cover empty-table count, filtered count matching filtered list size, deleted/archived visibility where applicable, and source-specific or tag-specific counts where applicable.
+Cover empty-table count, filtered count matching the currently observed filtered list size, deleted/archived visibility where applicable, and source-specific or tag-specific counts where applicable. Treat these as characterization tests for existing external behavior, including any surprising filter gaps or off-by-one behavior.
+
+If a count query appears wrong while writing these tests, stop the count-query refactor for that behavior and create a separate behavior-change plan that states the current output, the intended new output, affected screens/API callers, migration/backfill impact if any, and acceptance criteria. This plan may only preserve or reorganize the current count behavior.
 
 - [ ] **Step 3: Update count queries**
 
-Improve count SQL so filters match the corresponding list/search queries exactly. Prefer named SQLDelight queries over Kotlin-side counting when the count can be computed by SQLite.
+Improve count SQL structure only where it preserves externally observed behavior from Step 2. Prefer named SQLDelight queries over Kotlin-side counting when the count can be computed by SQLite, but do not add or remove visible filters unless that change is moved to a separate behavior-change plan with acceptance criteria.
 
 - [ ] **Step 4: Update repository callers**
 
@@ -106,7 +109,7 @@ Run:
 ./gradlew :app:compileDebugKotlin --no-configuration-cache
 ```
 
-Expected: SQLDelight generation, tests, and compile finish with `BUILD SUCCESSFUL`.
+Expected: SQLDelight generation, tests, and compile finish with `BUILD SUCCESSFUL`; characterization tests confirm externally observed count results are unchanged.
 
 ## Task 3: Improve SQL Search Queries
 
@@ -127,11 +130,13 @@ Expected: search filters, ordering, pagination, and duplicated Kotlin-side filte
 
 - [ ] **Step 2: Add tests for current search expectations**
 
-Cover blank query handling, case-insensitive matching if current behavior supports it, title/content/source matching, pagination boundaries, and stable ordering.
+Cover blank query handling, case-insensitive matching if current behavior supports it, title/content/source matching, pagination boundaries, and stable ordering using current outputs as expected values. Treat these as characterization tests for existing external behavior, including any surprising matching, ordering, or pagination behavior.
+
+If a search query appears wrong while writing these tests, stop the search-query refactor for that behavior and create a separate behavior-change plan that states the current output, the intended new output, affected screens/API callers, locale/case-sensitivity implications, pagination impact, and acceptance criteria. This plan may only preserve or reorganize the current search behavior.
 
 - [ ] **Step 3: Update search SQL**
 
-Move repeated Kotlin filtering into SQL only when the SQL query can preserve current matching semantics. Normalize wildcard binding in repositories instead of string-concatenating SQL.
+Move repeated Kotlin filtering into SQL only when the SQL query can preserve current matching semantics and externally observed results from Step 2. Normalize wildcard binding in repositories instead of string-concatenating SQL, but do not change visible matching, ordering, or pagination unless that change is moved to a separate behavior-change plan with acceptance criteria.
 
 - [ ] **Step 4: Update repository callers**
 
@@ -147,7 +152,7 @@ Run:
 ./gradlew :app:compileDebugKotlin --no-configuration-cache
 ```
 
-Expected: SQLDelight generation, tests, and compile finish with `BUILD SUCCESSFUL`.
+Expected: SQLDelight generation, tests, and compile finish with `BUILD SUCCESSFUL`; characterization tests confirm externally observed search results are unchanged.
 
 ## Task 4: Migration-Safety Sub-Stage
 
@@ -181,6 +186,10 @@ Wrap each migration operation in `try/catch`, log failures through the existing 
 
 - [ ] **Step 5: Verify migration safety**
 
+Manual prerequisites before this step:
+- Upgrade gate: install the previous released/debug build first, open the app, and create non-empty data for at least one persisted content table affected by the schema. A fixture DB or manually seeded on-device DB must exist before claiming upgrade safety.
+- Fresh-install gate: use the app id `com.dailysatori` when clearing app data before the fresh install check.
+
 Run:
 
 ```bash
@@ -188,9 +197,13 @@ Run:
 ./gradlew :app:compileDebugKotlin --no-configuration-cache
 JAVA_HOME=/home/jimxl/.local/share/jdk-21.0.6 ./gradlew :app:installDebug
 adb shell am start -n com.dailysatori/.MainActivity
+adb shell am force-stop com.dailysatori
+adb shell pm clear com.dailysatori
+JAVA_HOME=/home/jimxl/.local/share/jdk-21.0.6 ./gradlew :app:installDebug
+adb shell am start -n com.dailysatori/.MainActivity
 ```
 
-Expected: SQLDelight generation and compile finish with `BUILD SUCCESSFUL`; upgraded app starts without database migration crash.
+Expected: SQLDelight generation and compile finish with `BUILD SUCCESSFUL`; upgraded app starts against the previous-schema non-empty data without database migration crash or data loss in affected screens; fresh install after `adb shell pm clear com.dailysatori` starts without database creation crash.
 
 ## Verification
 
@@ -208,14 +221,22 @@ Expected: all commands finish with `BUILD SUCCESSFUL`.
 
 - [ ] **Run after any persisted schema change**
 
+Manual prerequisites:
+- For the upgrade gate, install the previous released/debug build before this branch build and seed non-empty data in the old schema. Do not claim upgrade safety unless that fixture or manually seeded DB exists.
+- For the fresh-install gate, use `adb shell pm clear com.dailysatori` before reinstalling this branch build.
+
 Run:
 
 ```bash
 JAVA_HOME=/home/jimxl/.local/share/jdk-21.0.6 ./gradlew :app:installDebug
 adb shell am start -n com.dailysatori/.MainActivity
+adb shell am force-stop com.dailysatori
+adb shell pm clear com.dailysatori
+JAVA_HOME=/home/jimxl/.local/share/jdk-21.0.6 ./gradlew :app:installDebug
+adb shell am start -n com.dailysatori/.MainActivity
 ```
 
-Expected: app launches on an existing install and a fresh install without database crashes.
+Expected: app launches on the upgraded non-empty previous-schema install and on the cleared fresh install without database crashes; affected persisted data remains visible after upgrade.
 
 - [ ] **Check patch hygiene**
 

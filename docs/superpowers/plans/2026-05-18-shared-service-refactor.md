@@ -192,7 +192,7 @@ Run:
 
 Expected: both commands finish with `BUILD SUCCESSFUL`.
 
-- [ ] **Run device smoke check after the full stage**
+- [ ] **Run explicit service smoke scenarios after the full stage**
 
 Run:
 
@@ -201,7 +201,25 @@ JAVA_HOME=/home/jimxl/.local/share/jdk-21.0.6 ./gradlew :app:installDebug
 adb shell am start -n com.dailysatori/.MainActivity
 ```
 
-Expected: app launches; article parsing, unified news refresh, remote news access, and data import flows do not crash.
+Prerequisites:
+- App is installed and launches on a connected device or emulator.
+- Parser scenario has a stable sample URL available, for example `https://example.com/`, or a known local/test page used by existing parser tests.
+- Unified news and remote news scenarios have the same credentials and network access used before the refactor. If credentials or network are unavailable, use the fallback verification below instead of claiming live integration success.
+- Import scenario has a small known-valid import payload and one known-invalid payload from existing fixtures or manually saved test data.
+
+Scenarios and expected unchanged outputs:
+- Webpage parser: submit the stable sample URL. Expected unchanged output is the same success/failure classification, title fallback behavior, cover image behavior, and saved article fields observed before the refactor.
+- Unified news summary: run refresh with the same configured sources. Expected unchanged output is the same source inclusion/exclusion behavior, duplicate handling, item ordering, failure aggregation, and summary visibility observed before the refactor.
+- Remote news access: fetch top articles with the same base URL and token. Expected unchanged output is the same request success/failure classification, auth behavior, normalized URL target, and mapped article count/order observed before the refactor.
+- Data import: import the known-valid payload, then import the known-invalid payload. Expected unchanged output is the same success count, duplicate handling, error message category, timestamp preservation, and partial-success behavior observed before the refactor.
+
+Fallback verification when credentials or network are unavailable:
+- Do not mark live unified-news or remote-news smoke checks as passed.
+- Run deterministic helper/unit tests that cover URL normalization, auth-header setup, parser transformations, summary grouping/deduplication, and import validation/mapping.
+- Manually verify the app still launches and unavailable-network/unauthorized states show the same error category as before the refactor, without logging tokens or sensitive payloads.
+- Record which live scenarios were skipped and why, so integration safety is not overstated.
+
+Expected: completed live scenarios match pre-refactor outputs; skipped live scenarios have deterministic fallback coverage and documented prerequisites that were unavailable.
 
 - [ ] **Check patch hygiene**
 

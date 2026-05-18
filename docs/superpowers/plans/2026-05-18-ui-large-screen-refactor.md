@@ -29,6 +29,7 @@
 - Do not introduce new design primitives; use existing `com.dailysatori.ui.theme.*` and existing reusable components.
 - Keep extracted composables `private` when they remain in the same file, or `internal` when moved to a sibling file in the same package.
 - Prefer one screen per commit so regressions are easy to isolate.
+- Each screen refactor must be visually and behaviorally unchanged. Capture before/after screenshots or complete the manual state checklist for every affected screen before claiming completion.
 
 ## Task 1: Refactor MCP Server Screen Internals
 
@@ -60,6 +61,12 @@ git diff -- app/src/main/kotlin/com/dailysatori/ui/feature/settings/mcp/McpServe
 
 Expected: no public `McpServerScreen` signature change; extracted components are private or internal.
 
+- [ ] **Step 4: Verify unchanged MCP screen states**
+
+Capture before/after screenshots or complete a manual checklist for: loaded server list, empty server list, loading/error if reachable, add/edit dialog, delete confirmation dialog, save/cancel paths, and back navigation from MCP settings.
+
+Expected: visual layout, text, enabled/disabled states, dialogs, snackbar behavior, and navigation match the pre-refactor screen.
+
 ## Task 2: Refactor Books Screen Internals
 
 **Files:**
@@ -89,6 +96,12 @@ git diff -- app/src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt a
 ```
 
 Expected: no public `BooksScreen` signature change; extracted components are private or internal.
+
+- [ ] **Step 4: Verify unchanged Books screen states**
+
+Capture before/after screenshots or complete a manual checklist for: loaded book list, empty library, loading state if reachable, import/action entry points, filter/shelf selection, book item primary action, any dialog shown by this screen, and back/primary navigation paths.
+
+Expected: visual layout, text, enabled/disabled states, dialogs, list behavior, and navigation match the pre-refactor screen.
 
 ## Task 3: Refactor Unified News Screen Internals
 
@@ -120,6 +133,12 @@ git diff -- app/src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNe
 
 Expected: no public `UnifiedNewsScreen` signature change; extracted components are private or internal.
 
+- [ ] **Step 4: Verify unchanged Unified News states**
+
+Capture before/after screenshots or complete a manual checklist for: loaded feed, empty feed, loading/refresh indicator, error state, source filter changes, summary/status sections, feed item primary action, and primary navigation paths to and from unified news.
+
+Expected: visual layout, text, enabled/disabled states, refresh behavior, error presentation, and navigation match the pre-refactor screen.
+
 ## Task 4: Refactor Data Import Screen Internals
 
 **Files:**
@@ -150,6 +169,12 @@ git diff -- app/src/main/kotlin/com/dailysatori/ui/feature/settings/importing/Da
 
 Expected: no public `DataImportScreen` signature change; extracted components are private or internal.
 
+- [ ] **Step 4: Verify unchanged Data Import states**
+
+Capture before/after screenshots or complete a manual checklist for: initial source selection, selected-file display, loading/progress state, success result, error result, destructive confirmation if reachable, cancel path, and primary navigation paths to and from data import.
+
+Expected: visual layout, text, enabled/disabled states, progress/result behavior, dialogs, and navigation match the pre-refactor screen.
+
 ## Task 5: Simplify Navigation Host Internals
 
 **Files:**
@@ -179,6 +204,12 @@ git diff -- app/src/main/kotlin/com/dailysatori/core/navigation/NavHost.kt
 
 Expected: route strings, destination coverage, and screen composable calls are unchanged except for private helper use.
 
+- [ ] **Step 4: Verify unchanged primary navigation paths**
+
+Capture before/after screenshots or complete a manual checklist for: app launch start destination, bottom/top-level navigation between primary tabs, settings to MCP settings, settings to data import, books entry path, unified news entry path, and Android back behavior from each affected screen.
+
+Expected: destinations, selected navigation state, transition behavior, and back-stack behavior match the pre-refactor app.
+
 ## Verification
 
 - [ ] **Compile after each screen or navigation task**
@@ -201,6 +232,14 @@ adb shell am start -n com.dailysatori/.MainActivity
 ```
 
 Expected: app launches; MCP settings, books, unified news, data import, and primary navigation paths render without crashes.
+
+- [ ] **Verify visual and behavioral parity after the full stage**
+
+Use one of these gates before claiming completion:
+- Screenshot gate: capture before and after screenshots for each affected screen state listed in Tasks 1-5 and compare them manually for unchanged layout, text, colors, spacing, dialogs, and navigation state.
+- Manual checklist gate: record pass/fail for each affected screen state listed in Tasks 1-5, covering loaded, empty, loading, error, dialog states, primary actions, and primary navigation/back paths.
+
+Expected: every affected state is unchanged except for private code organization; any intentional visual or behavioral change is moved to a separate UI behavior-change plan with acceptance criteria.
 
 - [ ] **Check patch hygiene**
 
