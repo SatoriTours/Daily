@@ -19,9 +19,11 @@ import com.dailysatori.service.unifiednews.budgetUnifiedNewsSources
 import com.dailysatori.service.unifiednews.citationTokens
 import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
 import com.dailysatori.service.unifiednews.dueUnifiedNewsWindows
+import com.dailysatori.service.unifiednews.hasValidCitationTokens
 import com.dailysatori.service.unifiednews.invalidCitationTokens
 import com.dailysatori.service.unifiednews.nextUnifiedNewsWindow
 import com.dailysatori.service.unifiednews.prepareUnifiedNewsSources
+import com.dailysatori.service.unifiednews.removeInvalidCitationTokens
 import com.dailysatori.service.unifiednews.remoteDigestArticlesToUnifiedSources
 import com.dailysatori.service.unifiednews.unifiedNewsWindowFor
 import com.dailysatori.service.remotenews.RemoteArticle
@@ -218,6 +220,62 @@ class UnifiedNewsBehaviorTest {
         val content = "未知来源 [X1]"
 
         assertEquals(listOf("X1"), invalidCitationTokens(content, sources))
+    }
+
+    @Test
+    fun citationGroundingRequiresAtLeastOneValidToken() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+        )
+
+        assertTrue(hasValidCitationTokens("有效事实 [R1]", sources))
+        assertFalse(hasValidCitationTokens("没有引用的事实", sources))
+        assertFalse(hasValidCitationTokens("无效事实 [R99]", sources))
+    }
+
+    @Test
+    fun removeInvalidCitationTokensDropsOnlyMissingSourceReferences() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+            UnifiedNewsSourceItem(refKey = "F1", sourceType = UnifiedNewsSourceType.LOCAL_FAVORITE, title = "收藏", summary = "摘要"),
+        )
+        val content = "有效事实 [R1][R99]\n收藏背景 [F1][X2]\n[原文](https://example.com)"
+
+        val sanitized = removeInvalidCitationTokens(content, sources)
+
+        assertTrue(sanitized.contains("[R1]"))
+        assertTrue(sanitized.contains("[F1]"))
+        assertFalse(sanitized.contains("[R99]"))
+        assertFalse(sanitized.contains("[X2]"))
+        assertTrue(sanitized.contains("[原文](https://example.com)"))
+    }
+
+    @Test
+    fun unifiedNewsPromptRequestsDailyBriefingStructure() {
+        val prompt = buildUnifiedNewsPrompt(
+            window = UnifiedNewsWindow(
+                key = UnifiedNewsWindowKey.DAILY,
+                summaryDate = "2026-05-18",
+                startMs = 0,
+                endMs = 1,
+            ),
+            sources = listOf(
+                UnifiedNewsSourceItem(
+                    refKey = "R1",
+                    sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                    title = "OpenAI 发布更新",
+                    summary = "OpenAI 发布产品更新",
+                    content = "OpenAI 发布产品更新，影响开发者工具链。",
+                ),
+            ),
+        )
+
+        assertTrue(prompt.contains("今日要点"))
+        assertTrue(prompt.contains("重要变化"))
+        assertTrue(prompt.contains("值得关注"))
+        assertTrue(prompt.contains("不要编造事实"))
+        assertTrue(prompt.contains("每个关键判断都必须带引用"))
+        assertTrue(prompt.contains("- 新闻标题或短句 [R1]"))
     }
 
     @Test
@@ -1307,15 +1365,14 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedNewsPromptUsesDynamicNewsCategories() {
+    fun unifiedNewsPromptUsesDailyBriefingSections() {
         val prompt = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsPrompt.kt").readText()
 
         assertFalse(prompt.contains("输出结构使用：## 重点速览、## 值得关注"))
-        assertTrue(prompt.contains("按今天新闻内容动态合并为 3-5 个大类"))
-        assertTrue(prompt.contains("AI"))
-        assertTrue(prompt.contains("世界新闻"))
-        assertTrue(prompt.contains("工具提效"))
-        assertTrue(prompt.contains("体育"))
+        assertTrue(prompt.contains("## 今日要点"))
+        assertTrue(prompt.contains("## 重要变化"))
+        assertTrue(prompt.contains("## 值得关注"))
+        assertTrue(prompt.contains("优先做跨来源综合"))
     }
 
     @Test
@@ -1332,20 +1389,18 @@ class UnifiedNewsBehaviorTest {
             ),
         )
 
-        assertTrue(prompt.contains("每条新闻使用 Markdown 无序列表"))
+        assertTrue(prompt.contains("每个二级标题下面使用 Markdown 无序列表"))
         assertTrue(prompt.contains("- 新闻标题或短句 [R1]"))
     }
 
     @Test
-    fun unifiedNewsPromptRequiresConciseDynamicCategoryNames() {
+    fun unifiedNewsPromptRequiresGroundedConciseDailyBriefing() {
         val prompt = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsPrompt.kt").readText()
 
-        assertTrue(prompt.contains("分类名必须简洁"))
-        assertTrue(prompt.contains("2-5 个汉字"))
-        assertTrue(prompt.contains("不要：全球安全威胁与基础设施事件"))
-        assertTrue(prompt.contains("要：安全威胁"))
-        assertTrue(prompt.contains("不要：AI前沿模型与能力突破"))
-        assertTrue(prompt.contains("要：AI前沿"))
+        assertTrue(prompt.contains("不要编造事实"))
+        assertTrue(prompt.contains("每个关键判断都必须带引用"))
+        assertTrue(prompt.contains("保持短句"))
+        assertTrue(prompt.contains("如果来源不足以支持可靠判断"))
     }
 
     @Test

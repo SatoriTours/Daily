@@ -16,6 +16,25 @@ fun invalidCitationTokens(content: String, sources: List<UnifiedNewsSourceItem>)
         .toList()
 }
 
+fun hasValidCitationTokens(content: String, sources: List<UnifiedNewsSourceItem>): Boolean {
+    val valid = sources.map { it.refKey }.toSet()
+    return citationTokens(content).any { it in valid }
+}
+
+fun removeInvalidCitationTokens(content: String, sources: List<UnifiedNewsSourceItem>): String {
+    val valid = sources.map { it.refKey }.toSet()
+    return CitationLikeRegex.replace(content) { match ->
+        val token = match.groupValues[1]
+        when {
+            match.isMarkdownInlineLinkLabel(content) -> match.value
+            match.isMarkdownReferenceLinkLabel(content) -> match.value
+            match.isMarkdownReferenceLabel(content) -> match.value
+            token in valid -> match.value
+            else -> ""
+        }
+    }
+}
+
 private fun MatchResult.isMarkdownInlineLinkLabel(content: String): Boolean =
     content.getOrNull(range.last + 1) == '('
 
@@ -35,19 +54,18 @@ fun buildUnifiedNewsPrompt(window: UnifiedNewsWindow, sources: List<UnifiedNewsS
 摘要: ${source.summary}
 正文: ${source.content.take(8000)}""".trimIndent()
     }
-    return """请基于以下来源，生成中文 Markdown 新闻汇总。
+    return """请基于以下来源，生成中文 Markdown 每日新闻简报。
 
 要求：
 1. 只能使用给定来源，不要编造事实。
-2. 每个事实判断都必须带引用，例如 [R1][F2]。
+2. 每个关键判断都必须带引用，例如 [R1][F2]。
 3. 引用必须完全匹配来源编号，不要创造不存在的编号。
-4. 不要使用 `重点速览`、`值得关注` 这类泛泛分类。
-5. 按今天新闻内容动态合并为 3-5 个大类，每个大类用二级标题 `## 分类名`。
-6. 优先考虑这些方向，但不要机械照搬：AI、世界新闻、工具提效、体育、技术、商业、生活。
-7. 每天的大类可以不同，尽量把相近主题合并，避免超过 5 个分类。不要输出总标题。
-8. 每条新闻使用 Markdown 无序列表，格式为 `- 新闻标题或短句 [R1]`，不要输出无列表符号的长段落。
-9. 对远程来源优先使用来源标题，保持短句，不要改写成长摘要。
-10. 分类名必须简洁，通常 2-5 个汉字或短词；不要：全球安全威胁与基础设施事件，要：安全威胁；不要：AI前沿模型与能力突破，要：AI前沿。
+4. 输出结构使用这三个二级标题：`## 今日要点`、`## 重要变化`、`## 值得关注`。
+5. 每个二级标题下面使用 Markdown 无序列表，格式为 `- 新闻标题或短句 [R1]`，不要输出无列表符号的长段落。
+6. 优先做跨来源综合，不要机械逐条复述来源。
+7. 对远程来源优先使用来源标题，保持短句，不要改写成长摘要。
+8. 如果来源不足以支持可靠判断，请明确说明无法可靠生成，不要猜测。
+9. 不要输出总标题。
 
 日期: ${window.summaryDate}
 窗口: ${window.key.value}
