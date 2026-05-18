@@ -742,6 +742,42 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun prepareUnifiedNewsSourcesKeepsDiscardedBridgeIdentitiesConnected() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(
+                refKey = "R1",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                sourceUrl = "https://example.com/url-1",
+                title = "桥接标题 A",
+                summary = "最丰富摘要，包含完整背景、影响和后续观察点",
+                content = "最丰富正文，包含完整背景、影响和后续观察点，应该代表整个连接重复组。",
+            ),
+            UnifiedNewsSourceItem(
+                refKey = "R2",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                sourceUrl = "https://example.com/url-2",
+                title = "桥接标题 A",
+                summary = "较短摘要足够有效",
+                content = "较短正文足够有效。",
+            ),
+            UnifiedNewsSourceItem(
+                refKey = "R3",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                sourceUrl = "https://example.com/url-2",
+                title = "桥接标题 C",
+                summary = "另一条较短摘要足够有效",
+                content = "另一条较短正文足够有效。",
+            ),
+        )
+
+        val prepared = prepareUnifiedNewsSources(sources, minTextChars = 10)
+
+        assertEquals(1, prepared.size)
+        assertEquals("R1", prepared.single().refKey)
+        assertEquals("桥接标题 A", prepared.single().title)
+    }
+
+    @Test
     fun prepareUnifiedNewsSourcesLimitsPerSourceTypeBeforeGlobalBudget() {
         val remote = (1..8).map { index ->
             UnifiedNewsSourceItem(

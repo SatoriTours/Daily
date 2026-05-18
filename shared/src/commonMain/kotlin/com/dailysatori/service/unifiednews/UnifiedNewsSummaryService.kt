@@ -290,19 +290,43 @@ fun remoteDigestArticlesToUnifiedSources(
 }
 
 fun deduplicateUnifiedNewsSources(items: List<UnifiedNewsSourceItem>): List<UnifiedNewsSourceItem> =
-    items.fold(emptyList()) { deduped, item ->
-        val matches = deduped.filter { it.matchesDedupeIdentity(item) }
-        when {
-            matches.isEmpty() -> deduped + item
-            else -> deduped.filterNot { it in matches } + (matches + item).maxBy { it.usefulTextLength() }
-        }
+    buildUnifiedNewsDuplicateComponents(items).map { component ->
+        component.maxBy { items[it].usefulTextLength() }.let { items[it] }
     }
 
-private fun UnifiedNewsSourceItem.matchesDedupeIdentity(other: UnifiedNewsSourceItem): Boolean {
-    val normalizedUrl = sourceUrl?.trim()?.lowercase().orEmpty()
-    val otherNormalizedUrl = other.sourceUrl?.trim()?.lowercase().orEmpty()
-    return normalizedUrl.isNotBlank() && normalizedUrl == otherNormalizedUrl || titleDedupeKey() == other.titleDedupeKey()
+private fun buildUnifiedNewsDuplicateComponents(items: List<UnifiedNewsSourceItem>): List<List<Int>> {
+    val keysByIndex = items.map { it.dedupeKeys() }
+    val keyToIndices = mutableMapOf<String, MutableList<Int>>()
+    keysByIndex.forEachIndexed { index, keys ->
+        keys.forEach { key -> keyToIndices.getOrPut(key) { mutableListOf() } += index }
+    }
+    val visited = MutableList(items.size) { false }
+    return items.indices.mapNotNull { index ->
+        if (visited[index]) return@mapNotNull null
+        val component = mutableListOf<Int>()
+        val stack = mutableListOf(index)
+        visited[index] = true
+        while (stack.isNotEmpty()) {
+            val current = stack.removeAt(stack.lastIndex)
+            component += current
+            keysByIndex[current].forEach { key ->
+                keyToIndices[key].orEmpty().forEach { next ->
+                    if (!visited[next]) {
+                        visited[next] = true
+                        stack += next
+                    }
+                }
+            }
+        }
+        component
+    }
 }
+
+private fun UnifiedNewsSourceItem.dedupeKeys(): List<String> =
+    listOfNotNull(
+        sourceUrl?.trim()?.lowercase()?.takeIf { it.isNotBlank() }?.let { "url:$it" },
+        titleDedupeKey(),
+    )
 
 private fun UnifiedNewsSourceItem.titleDedupeKey(): String =
     "${sourceType.dbValue}:${title.trim().lowercase()}"
