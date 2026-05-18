@@ -33,6 +33,19 @@ fun removeInvalidCitationTokens(content: String, sources: List<UnifiedNewsSource
     }
 }
 
+fun sanitizeGeneratedUnifiedNewsContent(content: String, sources: List<UnifiedNewsSourceItem>): String =
+    content.lines()
+        .mapNotNull { line -> sanitizeGeneratedUnifiedNewsLine(line, sources) }
+        .joinToString("\n")
+
+private fun sanitizeGeneratedUnifiedNewsLine(line: String, sources: List<UnifiedNewsSourceItem>): String? {
+    if (line.isBlank() || line.trimStart().startsWith("#")) return line
+    val hasCitationLikeToken = CitationLikeRegex.findAll(line).any { !it.isMarkdownLabel(line) }
+    if (!hasCitationLikeToken) return line
+    val sanitized = removeInvalidCitationTokens(line, sources)
+    return sanitized.takeIf { hasValidCitationTokens(it, sources) }
+}
+
 private fun MatchResult.isMarkdownLabel(content: String): Boolean =
     isMarkdownInlineLinkLabel(content) ||
         isMarkdownReferenceLinkLabel(content) ||

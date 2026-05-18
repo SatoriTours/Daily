@@ -25,6 +25,7 @@ import com.dailysatori.service.unifiednews.nextUnifiedNewsWindow
 import com.dailysatori.service.unifiednews.prepareUnifiedNewsSources
 import com.dailysatori.service.unifiednews.removeInvalidCitationTokens
 import com.dailysatori.service.unifiednews.remoteDigestArticlesToUnifiedSources
+import com.dailysatori.service.unifiednews.sanitizeGeneratedUnifiedNewsContent
 import com.dailysatori.service.unifiednews.unifiedNewsWindowFor
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteDigest
@@ -286,6 +287,41 @@ class UnifiedNewsBehaviorTest {
         val sanitized = removeInvalidCitationTokens("事实 [R99][R1]", sources)
 
         assertEquals("事实 [R1]", sanitized)
+    }
+
+    @Test
+    fun sanitizeGeneratedUnifiedNewsContentDropsMixedInvalidCitedBulletsWithoutGrounding() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+        )
+        val content = "- Verified fact [R1]\n- Fabricated fact [X99]"
+
+        val sanitized = sanitizeGeneratedUnifiedNewsContent(content, sources)
+
+        assertTrue(sanitized.contains("- Verified fact [R1]"))
+        assertFalse(sanitized.contains("Fabricated fact"))
+    }
+
+    @Test
+    fun sanitizeGeneratedUnifiedNewsContentKeepsValidCitedLine() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+        )
+
+        val sanitized = sanitizeGeneratedUnifiedNewsContent("- Valid fact [R1]", sources)
+
+        assertEquals("- Valid fact [R1]", sanitized)
+    }
+
+    @Test
+    fun sanitizeGeneratedUnifiedNewsContentRemovesLineWithOnlyInvalidCitation() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+        )
+
+        val sanitized = sanitizeGeneratedUnifiedNewsContent("- Fabricated fact [X99]", sources)
+
+        assertEquals("", sanitized)
     }
 
     @Test
@@ -668,7 +704,7 @@ class UnifiedNewsBehaviorTest {
     fun unifiedNewsServiceSanitizesUnknownCitationsAndFailsUngroundedContent() {
         val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
 
-        assertTrue(source.contains("removeInvalidCitationTokens(content, preparedSources)"))
+        assertTrue(source.contains("sanitizeGeneratedUnifiedNewsContent(content, preparedSources)"))
         assertTrue(source.contains("hasValidCitationTokens(sanitizedContent, preparedSources)"))
         assertTrue(source.contains("UnifiedNewsSummaryStatus.FAILED.value"))
     }
@@ -680,7 +716,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(source.contains("val preparedSources = prepareUnifiedNewsSources("))
         assertTrue(source.contains("if (preparedSources.isEmpty()) return persistEmpty(window, warnings)"))
         assertTrue(source.contains("buildUnifiedNewsPrompt(window, preparedSources)"))
-        assertTrue(source.contains("removeInvalidCitationTokens(content, preparedSources)"))
+        assertTrue(source.contains("sanitizeGeneratedUnifiedNewsContent(content, preparedSources)"))
         assertTrue(source.contains("hasValidCitationTokens(sanitizedContent, preparedSources)"))
         assertTrue(source.contains("AI 返回内容缺少有效来源引用"))
         assertFalse(source.contains("val invalid = invalidCitationTokens(content, sources)"))

@@ -63,7 +63,7 @@ class UnifiedNewsSummaryService(
             return saveFailure(window, preparedSources, warnings, aiGenerationFailureMessage(e))
         }
 
-        val sanitizedContent = removeInvalidCitationTokens(content, preparedSources)
+        val sanitizedContent = sanitizeGeneratedUnifiedNewsContent(content, preparedSources)
         if (!hasValidCitationTokens(sanitizedContent, preparedSources)) {
             return saveFailure(window, preparedSources, warnings, "AI 返回内容缺少有效来源引用，请稍后重试")
         }
