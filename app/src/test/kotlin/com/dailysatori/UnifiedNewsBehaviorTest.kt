@@ -223,6 +223,17 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun citationValidationTreatsAdjacentCitationTokensAsCitations() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+            UnifiedNewsSourceItem(refKey = "F1", sourceType = UnifiedNewsSourceType.LOCAL_FAVORITE, title = "收藏", summary = "摘要"),
+        )
+
+        assertEquals(listOf("R99"), invalidCitationTokens("事实 [R99][R1]", sources))
+        assertEquals(emptyList(), invalidCitationTokens("事实 [R1][F1]", sources))
+    }
+
+    @Test
     fun citationGroundingRequiresAtLeastOneValidToken() {
         val sources = listOf(
             UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
@@ -264,6 +275,17 @@ class UnifiedNewsBehaviorTest {
         assertTrue(sanitized.contains("[R99]: https://example.com"))
         assertTrue(sanitized.contains("事实 "))
         assertFalse(sanitized.contains("事实 [R99]"))
+    }
+
+    @Test
+    fun removeInvalidCitationTokensDropsInvalidAdjacentCitations() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+        )
+
+        val sanitized = removeInvalidCitationTokens("事实 [R99][R1]", sources)
+
+        assertEquals("事实 [R1]", sanitized)
     }
 
     @Test

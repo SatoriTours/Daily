@@ -42,8 +42,13 @@ private fun MatchResult.isMarkdownLabel(content: String): Boolean =
 private fun MatchResult.isMarkdownInlineLinkLabel(content: String): Boolean =
     content.getOrNull(range.last + 1) == '('
 
-private fun MatchResult.isMarkdownReferenceLinkLabel(content: String): Boolean =
-    content.getOrNull(range.last + 1) == '['
+private fun MatchResult.isMarkdownReferenceLinkLabel(content: String): Boolean {
+    if (content.getOrNull(range.last + 1) != '[') return false
+    val nextClose = content.indexOf(']', startIndex = range.last + 2)
+    if (nextClose == -1) return false
+    val nextLabel = content.substring(range.last + 2, nextClose)
+    return !CitationLikeRegex.matches("[$nextLabel]")
+}
 
 private fun MatchResult.isMarkdownReferenceTargetLabel(content: String): Boolean {
     if (content.getOrNull(range.last + 1) != ':') return false
