@@ -176,9 +176,13 @@ fun ArticleDetailScreen(
                             modifier = Modifier.fillMaxWidth().height(articleCoverMaxHeightDp.dp),
                         )
                     }
-                    ArticleMarkdownTabRow(state.selectedTabIndex) { index ->
-                        coroutineScope.launch { pagerState.animateScrollToPage(index) }
-                    }
+                    MarkdownTabRow(
+                        tabTitles = listOf("AI 摘要", "原文"),
+                        selectedTabIndex = state.selectedTabIndex,
+                        onTabSelected = { index ->
+                            coroutineScope.launch { pagerState.animateScrollToPage(index) }
+                        },
+                    )
                     ArticleProcessingStepper(
                         status = state.processingStage,
                         progress = state.processingProgress,
@@ -217,9 +221,13 @@ fun ArticleDetailScreen(
                                     modifier = Modifier.fillMaxWidth().height(coverHeightDp.dp),
                                 )
                             }
-                            ArticleMarkdownTabRow(state.selectedTabIndex) { index ->
-                                coroutineScope.launch { pagerState.animateScrollToPage(index) }
-                            }
+                            MarkdownTabRow(
+                                tabTitles = listOf("AI 摘要", "原文"),
+                                selectedTabIndex = state.selectedTabIndex,
+                                onTabSelected = { index ->
+                                    coroutineScope.launch { pagerState.animateScrollToPage(index) }
+                                },
+                            )
                             LazyColumn(
                                 state = listState,
                                 modifier = Modifier
@@ -286,18 +294,6 @@ fun ArticleDetailScreen(
 internal fun articleDeleteDialogTitle(): String = "删除文章"
 
 internal fun articleDeleteDialogMessage(): String = "确定要删除这篇文章吗？"
-
-@Composable
-private fun ArticleMarkdownTabRow(
-    selectedTabIndex: Int,
-    onTabSelected: (Int) -> Unit,
-) {
-    MarkdownTabRow(
-        tabTitles = listOf("AI 摘要", "原文"),
-        selectedTabIndex = selectedTabIndex,
-        onTabSelected = onTabSelected,
-    )
-}
 
 private fun extractDomain(url: String?): String {
     if (url.isNullOrBlank()) return "文章详情"

@@ -439,8 +439,11 @@ class UnifiedNewsBehaviorTest {
         assertTrue(sharedPager.exists())
         assertTrue(localDetail.contains("MarkdownTabPager("))
         assertTrue(remoteDetail.contains("MarkdownTabPager("))
+        assertFalse(localDetail.contains("ArticleMarkdownTabRow"))
         assertFalse(localDetail.contains("private fun ArticleTabRow"))
+        assertFalse(localDetail.contains("private fun ArticleMarkdownTabRow"))
         assertFalse(remoteDetail.contains("private fun RemoteArticleTabRow"))
+        assertFalse(remoteDetail.contains("RemoteArticleMarkdownContent"))
     }
 
     @Test
