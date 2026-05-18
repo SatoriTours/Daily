@@ -38,19 +38,20 @@ class UnifiedNewsSummaryService(
 
         val warnings = mutableListOf<String>()
         val sources = try {
-            budgetUnifiedNewsSources(collectSources(window, warnings, ignoreSourceTimeFilter))
+            collectSources(window, warnings, ignoreSourceTimeFilter)
         } catch (e: Exception) {
             log.w(e) { "Unified news source collection failed" }
             return saveFailure(window, emptyList(), warnings, "新闻来源收集失败，请稍后重试")
         }
-        if (sources.isEmpty()) return persistEmpty(window, warnings)
+        val preparedSources = prepareUnifiedNewsSources(sources)
+        if (preparedSources.isEmpty()) return persistEmpty(window, warnings)
 
         val config = aiConfigService.getDefaultConfig()
-        if (config == null) return saveFailure(window, sources, warnings, "请先配置默认 AI 服务")
+        if (config == null) return saveFailure(window, preparedSources, warnings, "请先配置默认 AI 服务")
 
         val content = try {
             aiService.summarize(
-                content = buildUnifiedNewsPrompt(window, sources),
+                content = buildUnifiedNewsPrompt(window, preparedSources),
                 systemPrompt = "你是 Daily Satori 的新闻编辑，请输出可靠、克制且带引用的中文 Markdown 汇总。",
                 apiAddress = config.api_address,
                 apiToken = config.api_token,
@@ -59,14 +60,14 @@ class UnifiedNewsSummaryService(
             )
         } catch (e: Exception) {
             log.w(e) { "Unified news AI generation failed" }
-            return saveFailure(window, sources, warnings, aiGenerationFailureMessage(e))
+            return saveFailure(window, preparedSources, warnings, aiGenerationFailureMessage(e))
         }
 
-        val invalid = invalidCitationTokens(content, sources)
-        if (invalid.isNotEmpty()) {
-            return saveFailure(window, sources, warnings, "AI 返回了无效引用：${invalid.joinToString()}")
+        val sanitizedContent = removeInvalidCitationTokens(content, preparedSources)
+        if (!hasValidCitationTokens(sanitizedContent, preparedSources)) {
+            return saveFailure(window, preparedSources, warnings, "AI 返回内容缺少有效来源引用，请稍后重试")
         }
-        return persistSuccess(window, sources, warnings, content)
+        return persistSuccess(window, preparedSources, warnings, sanitizedContent)
     }
 
     suspend fun generateDaily(
@@ -142,7 +143,7 @@ class UnifiedNewsSummaryService(
     }
 
     private fun persistEmpty(window: UnifiedNewsWindow, warnings: List<String>): UnifiedNewsGenerationResult {
-        val message = "当前时间窗口暂无可总结新闻，skip the AI call"
+        val message = "当前时间窗口暂无足够可靠的新闻内容可总结"
         if (preserveExistingContent(window, "暂无可总结新闻", UnifiedNewsSummaryStatus.EMPTY.value, message, warnings)) {
             return UnifiedNewsGenerationResult(true, UnifiedNewsSummaryStatus.EMPTY, message)
         }
@@ -221,12 +222,9 @@ class UnifiedNewsSummaryService(
         return UnifiedNewsGenerationResult(true, UnifiedNewsSummaryStatus.SUCCESS)
     }
 
-    private fun warnRemoteSourceFailure(warnings: MutableList<String>, sourceName: String, message: String) =
-        warnSourceFailure(warnings, "$sourceName: $message")
-
-    private fun warnSourceFailure(warnings: MutableList<String>, message: String) {
-        log.w { message }
-        warnings += message
+    private fun warnRemoteSourceFailure(warnings: MutableList<String>, sourceName: String, message: String) {
+        log.w { "$sourceName: $message" }
+        warnings += "部分新闻来源暂时不可用，本次汇总基于已获取内容生成"
     }
 
     private fun aiGenerationFailureMessage(error: Exception): String {

@@ -660,15 +660,47 @@ class UnifiedNewsBehaviorTest {
         val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
 
         assertTrue(source.contains("status = UnifiedNewsSummaryStatus.EMPTY.value"))
-        assertTrue(source.contains("skip the AI call"))
+        assertTrue(source.contains("当前时间窗口暂无足够可靠的新闻内容可总结"))
+        assertFalse(source.contains("skip the AI call"))
     }
 
     @Test
-    fun unifiedNewsServiceFailsUnknownCitations() {
+    fun unifiedNewsServiceSanitizesUnknownCitationsAndFailsUngroundedContent() {
         val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
 
-        assertTrue(source.contains("invalidCitationTokens"))
+        assertTrue(source.contains("removeInvalidCitationTokens(content, preparedSources)"))
+        assertTrue(source.contains("hasValidCitationTokens(sanitizedContent, preparedSources)"))
         assertTrue(source.contains("UnifiedNewsSummaryStatus.FAILED.value"))
+    }
+
+    @Test
+    fun unifiedNewsSummaryServicePreparesSourcesBeforeAiPromptAndRejectsUngroundedOutput() {
+        val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
+
+        assertTrue(source.contains("val preparedSources = prepareUnifiedNewsSources("))
+        assertTrue(source.contains("if (preparedSources.isEmpty()) return persistEmpty(window, warnings)"))
+        assertTrue(source.contains("buildUnifiedNewsPrompt(window, preparedSources)"))
+        assertTrue(source.contains("removeInvalidCitationTokens(content, preparedSources)"))
+        assertTrue(source.contains("hasValidCitationTokens(sanitizedContent, preparedSources)"))
+        assertTrue(source.contains("AI 返回内容缺少有效来源引用"))
+        assertFalse(source.contains("val invalid = invalidCitationTokens(content, sources)"))
+    }
+
+    @Test
+    fun unifiedNewsPartialFailureWarningIsUserFacingAndNonTechnical() {
+        val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
+
+        assertTrue(source.contains("部分新闻来源暂时不可用，本次汇总基于已获取内容生成"))
+        assertFalse(source.contains("skip the AI call"))
+    }
+
+    @Test
+    fun unifiedNewsAllSourceFailureStillReturnsFailurePath() {
+        val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
+
+        assertTrue(source.contains("catch (e: Exception)"))
+        assertTrue(source.contains("Unified news source collection failed"))
+        assertTrue(source.contains("return saveFailure(window, emptyList(), warnings, \"新闻来源收集失败，请稍后重试\")"))
     }
 
     @Test
@@ -1093,7 +1125,8 @@ class UnifiedNewsBehaviorTest {
         val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt").readText()
 
         assertTrue(source.contains("warnRemoteSourceFailure(warnings, source.name"))
-        assertTrue(source.contains("warnSourceFailure(warnings, \"${'$'}sourceName: ${'$'}message\")"))
+        assertTrue(source.contains("log.w { \"${'$'}sourceName: ${'$'}message\" }"))
+        assertTrue(source.contains("部分新闻来源暂时不可用，本次汇总基于已获取内容生成"))
         assertFalse(source.contains("小龙虾 ${'$'}category 列表为空"))
     }
 
