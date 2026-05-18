@@ -309,16 +309,26 @@ private fun buildUnifiedNewsDuplicateComponents(items: List<UnifiedNewsSourceIte
         while (stack.isNotEmpty()) {
             val current = stack.removeAt(stack.lastIndex)
             component += current
-            keysByIndex[current].forEach { key ->
-                keyToIndices[key].orEmpty().forEach { next ->
-                    if (!visited[next]) {
-                        visited[next] = true
-                        stack += next
-                    }
-                }
-            }
+            enqueueUnvisitedDuplicateIndices(current, keysByIndex, keyToIndices, visited, stack)
         }
         component
+    }
+}
+
+private fun enqueueUnvisitedDuplicateIndices(
+    current: Int,
+    keysByIndex: List<List<String>>,
+    keyToIndices: Map<String, List<Int>>,
+    visited: MutableList<Boolean>,
+    stack: MutableList<Int>,
+) {
+    keysByIndex[current].forEach { key ->
+        keyToIndices[key].orEmpty().forEach { next ->
+            if (!visited[next]) {
+                visited[next] = true
+                stack += next
+            }
+        }
     }
 }
 
