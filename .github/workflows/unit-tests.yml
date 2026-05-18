@@ -36,7 +36,7 @@ jobs:
         run: ./gradlew :app:compileDebugKotlin --no-configuration-cache
 
       - name: Run debug unit tests
-        run: ./gradlew :app:testDebugUnitTest --no-configuration-cache
+        run: ./gradlew :app:testDebugUnitTest :shared:testDebugUnitTest --no-configuration-cache
 
       - name: Upload test results
         if: always()

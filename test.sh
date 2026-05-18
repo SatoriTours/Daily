@@ -19,7 +19,7 @@ compile() {
 
 unit_test() {
     print_info "单元测试..."
-    ./gradlew :app:testDebugUnitTest --no-configuration-cache
+    ./gradlew :app:testDebugUnitTest :shared:testDebugUnitTest --no-configuration-cache
     print_success "单元测试通过"
 }
 
@@ -53,7 +53,7 @@ Daily Satori 测试脚本
   quick    编译检查 + Android debug unit tests，默认
   full     quick + assembleDebug
   compile  只运行 compileDebugKotlin
-  unit     只运行 app debug unit tests
+  unit     只运行 Android/KMP debug unit tests
   help     显示帮助
 EOF
 }
