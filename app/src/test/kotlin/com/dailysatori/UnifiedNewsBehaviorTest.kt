@@ -577,7 +577,7 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun budgetUnifiedNewsSourcesLimitsCountAndContentLength() {
-        val sources = (1..35).map { index ->
+        val remote = (1..18).map { index ->
             UnifiedNewsSourceItem(
                 refKey = "R$index",
                 sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
@@ -587,12 +587,22 @@ class UnifiedNewsBehaviorTest {
                 sourceTime = 1000L - index,
             )
         }
+        val favorites = (1..17).map { index ->
+            UnifiedNewsSourceItem(
+                refKey = "F$index",
+                sourceType = UnifiedNewsSourceType.LOCAL_FAVORITE,
+                title = "favorite source $index",
+                summary = "favorite summary $index with enough detail for useful source filtering",
+                content = "x".repeat(60),
+                sourceTime = 500L - index,
+            )
+        }
 
-        val budgeted = budgetUnifiedNewsSources(sources, maxSources = 30, maxContentChars = 12)
+        val budgeted = budgetUnifiedNewsSources(remote + favorites, maxSources = 30, maxContentChars = 12)
 
         assertEquals(30, budgeted.size)
         assertTrue(budgeted.all { it.content.length <= 12 })
-        assertEquals("R30", budgeted.last().refKey)
+        assertEquals("F12", budgeted.last().refKey)
     }
 
     @Test
@@ -668,6 +678,34 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun prepareUnifiedNewsSourcesDeduplicatesSameTitleAndSourceWithDifferentUrls() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(
+                refKey = "R1",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                sourceUrl = "https://example.com/first",
+                title = "同一标题",
+                summary = "较短摘要但已经足够",
+                content = "较短正文但已经超过阈值。",
+            ),
+            UnifiedNewsSourceItem(
+                refKey = "R2",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                sourceUrl = "https://example.com/second",
+                title = "同一标题",
+                summary = "更完整摘要，包含事件背景、影响范围和后续观察点",
+                content = "更完整正文，包含事件背景、影响范围和后续观察点，应当保留这一条。",
+            ),
+        )
+
+        val prepared = prepareUnifiedNewsSources(sources, minTextChars = 10)
+
+        assertEquals(1, prepared.size)
+        assertEquals("R2", prepared.single().refKey)
+        assertEquals("https://example.com/second", prepared.single().sourceUrl)
+    }
+
+    @Test
     fun prepareUnifiedNewsSourcesLimitsPerSourceTypeBeforeGlobalBudget() {
         val remote = (1..8).map { index ->
             UnifiedNewsSourceItem(
@@ -700,6 +738,36 @@ class UnifiedNewsBehaviorTest {
         assertEquals(5, prepared.size)
         assertEquals(3, prepared.count { it.sourceType == UnifiedNewsSourceType.REMOTE_ARTICLE })
         assertEquals(2, prepared.count { it.sourceType == UnifiedNewsSourceType.LOCAL_FAVORITE })
+    }
+
+    @Test
+    fun defaultBudgetUnifiedNewsSourcesLimitsPerSourceTypeBeforeGlobalBudget() {
+        val remote = (1..30).map { index ->
+            UnifiedNewsSourceItem(
+                refKey = "R$index",
+                sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                title = "默认预算远程新闻 $index",
+                summary = "默认预算远程摘要 $index 信息量充足",
+                content = "默认预算远程正文 $index 信息量充足，用来验证默认预算不会被远程来源占满。",
+                sourceTime = 3000L - index,
+            )
+        }
+        val favorites = (1..4).map { index ->
+            UnifiedNewsSourceItem(
+                refKey = "F$index",
+                sourceType = UnifiedNewsSourceType.LOCAL_FAVORITE,
+                title = "默认预算收藏新闻 $index",
+                summary = "默认预算收藏摘要 $index 信息量充足",
+                content = "默认预算收藏正文 $index 信息量充足，用来验证默认预算会保留收藏来源。",
+                sourceTime = 1000L - index,
+            )
+        }
+
+        val budgeted = budgetUnifiedNewsSources(remote + favorites)
+
+        assertEquals(22, budgeted.size)
+        assertEquals(18, budgeted.count { it.sourceType == UnifiedNewsSourceType.REMOTE_ARTICLE })
+        assertEquals(4, budgeted.count { it.sourceType == UnifiedNewsSourceType.LOCAL_FAVORITE })
     }
 
     @Test

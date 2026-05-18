@@ -254,7 +254,6 @@ fun budgetUnifiedNewsSources(
     sources = sources,
     maxSources = maxSources,
     maxContentChars = maxContentChars,
-    maxPerSourceType = maxSources,
 )
 
 fun prepareUnifiedNewsSources(
@@ -291,16 +290,23 @@ fun remoteDigestArticlesToUnifiedSources(
 }
 
 fun deduplicateUnifiedNewsSources(items: List<UnifiedNewsSourceItem>): List<UnifiedNewsSourceItem> =
-    items
-        .groupBy { it.dedupeKey() }
-        .values
-        .map { candidates -> candidates.maxBy { it.usefulTextLength() } }
+    items.fold(emptyList()) { deduped, item ->
+        val existing = deduped.firstOrNull { it.matchesDedupeIdentity(item) }
+        when {
+            existing == null -> deduped + item
+            item.usefulTextLength() <= existing.usefulTextLength() -> deduped
+            else -> deduped.map { if (it == existing) item else it }
+        }
+    }
 
-private fun UnifiedNewsSourceItem.dedupeKey(): String {
+private fun UnifiedNewsSourceItem.matchesDedupeIdentity(other: UnifiedNewsSourceItem): Boolean {
     val normalizedUrl = sourceUrl?.trim()?.lowercase().orEmpty()
-    if (normalizedUrl.isNotBlank()) return "url:$normalizedUrl"
-    return "title:${sourceType.dbValue}:${title.trim().lowercase()}"
+    val otherNormalizedUrl = other.sourceUrl?.trim()?.lowercase().orEmpty()
+    return normalizedUrl.isNotBlank() && normalizedUrl == otherNormalizedUrl || titleDedupeKey() == other.titleDedupeKey()
 }
+
+private fun UnifiedNewsSourceItem.titleDedupeKey(): String =
+    "${sourceType.dbValue}:${title.trim().lowercase()}"
 
 private fun UnifiedNewsSourceItem.usefulTextLength(): Int =
     listOf(title, summary, content)
