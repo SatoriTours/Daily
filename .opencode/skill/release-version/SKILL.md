@@ -12,7 +12,7 @@ metadata:
 
 为 Daily Satori 项目发布新版本，完整执行以下步骤：
 
-1. **获取版本号** - 从 `pubspec.yaml` 读取当前版本
+1. **获取版本号** - 从 `app/build.gradle.kts` 的 `versionName` 读取当前版本
 2. **收集变更** - 获取上一版本 tag 到当前 HEAD 的提交记录
 3. **生成日志** - 创建 `docs/versions/changelog_${version}.md`
 4. **提交代码** - 执行 `git add .` 和 `git commit`
@@ -31,7 +31,7 @@ metadata:
 ### 1. 获取版本号
 
 ```bash
-current_version=$(grep "^version:" pubspec.yaml | sed 's/version: //' | tr -d ' ')
+current_version=$(grep "versionName" app/build.gradle.kts | sed -E 's/.*versionName = "([^"]+)".*/\1/' | tr -d ' ')
 ```
 
 ### 2. 获取上一版本 tag
