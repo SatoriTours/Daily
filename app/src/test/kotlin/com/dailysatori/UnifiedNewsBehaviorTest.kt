@@ -314,6 +314,30 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun sanitizeGeneratedUnifiedNewsContentPreservesStructuralBlankLines() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+        )
+        val content = "## 今日要点\n\n- 有效事实 [R1]"
+
+        val sanitized = sanitizeGeneratedUnifiedNewsContent(content, sources)
+
+        assertTrue(sanitized.contains("## 今日要点\n\n- 有效事实 [R1]"))
+    }
+
+    @Test
+    fun sanitizeGeneratedUnifiedNewsContentRemovesInvalidCitationFromMixedCitedBullet() {
+        val sources = listOf(
+            UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
+        )
+
+        val sanitized = sanitizeGeneratedUnifiedNewsContent("- 有效事实 [R1][X99]", sources)
+
+        assertTrue(sanitized.contains("[R1]"))
+        assertFalse(sanitized.contains("[X99]"))
+    }
+
+    @Test
     fun sanitizeGeneratedUnifiedNewsContentRemovesLineWithOnlyInvalidCitation() {
         val sources = listOf(
             UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
