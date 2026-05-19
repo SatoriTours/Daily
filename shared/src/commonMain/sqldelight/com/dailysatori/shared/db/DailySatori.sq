@@ -192,6 +192,9 @@ SELECT * FROM article WHERE id = ?;
 selectArticleByUrl:
 SELECT * FROM article WHERE url = ?;
 
+selectArticleByUrlNullable:
+SELECT * FROM article WHERE url = ?;
+
 selectArticlesByStatus:
 SELECT * FROM article WHERE status = ? ORDER BY created_at DESC;
 
@@ -220,6 +223,13 @@ WHERE title LIKE '%' || ? || '%'
    OR ai_content LIKE '%' || ? || '%'
 ORDER BY created_at DESC;
 
+searchArticlesFavoriteFirst:
+SELECT * FROM article
+WHERE title LIKE '%' || ? || '%'
+   OR ai_title LIKE '%' || ? || '%'
+   OR ai_content LIKE '%' || ? || '%'
+ORDER BY is_favorite DESC, created_at DESC;
+
 selectArticlesByDateRange:
 SELECT * FROM article
 WHERE created_at >= ? AND created_at <= ?
@@ -246,6 +256,19 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 updateArticle:
 UPDATE article SET title = ?, ai_title = ?, ai_content = ?, ai_markdown_content = ?, url = ?, is_favorite = ?, comment = ?, status = ?, cover_image = ?, cover_image_url = ?, pub_date = ?, updated_at = ?
 WHERE id = ?;
+
+markArticleFavoriteByUrl:
+UPDATE article SET
+    title = COALESCE(NULLIF(title, ''), ?),
+    ai_title = COALESCE(NULLIF(ai_title, ''), ?),
+    ai_content = COALESCE(NULLIF(ai_content, ''), ?),
+    ai_markdown_content = COALESCE(NULLIF(ai_markdown_content, ''), ?),
+    is_favorite = 1,
+    status = COALESCE(NULLIF(status, ''), ?),
+    cover_image_url = COALESCE(NULLIF(cover_image_url, ''), ?),
+    pub_date = COALESCE(pub_date, ?),
+    updated_at = ?
+WHERE url = ?;
 
 updateArticleAiTitle:
 UPDATE article SET ai_title = ?, updated_at = ? WHERE id = ?;

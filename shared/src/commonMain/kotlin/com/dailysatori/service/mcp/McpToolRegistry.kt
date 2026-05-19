@@ -197,7 +197,7 @@ class McpToolRegistry(
     private fun searchArticles(args: JsonObject): McpToolResult {
         val keyword = stringParam(args, "keyword") ?: return errorResult("缺少参数: keyword")
         val limit = intParam(args, "limit", 20)
-        val results = searchWithKeywords(keyword) { kw -> articleRepo.searchSync(kw) }
+        val results = searchWithKeywords(keyword) { kw -> articleRepo.searchFavoriteFirstSync(kw) }
         return successResult(
             "keyword" to JsonPrimitive(keyword),
             "articles" to articleListToJson(results.take(limit)),

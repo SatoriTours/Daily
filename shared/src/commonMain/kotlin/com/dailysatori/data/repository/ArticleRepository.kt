@@ -2,6 +2,7 @@ package com.dailysatori.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.DailySatoriDatabase
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,8 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
             .map { list -> list.associate { it.article_day to it.article_count } }
 
     fun getById(id: Long) = q.selectArticleById(id).executeAsOneOrNull()
+
+    fun getByUrl(url: String): Article? = q.selectArticleByUrlNullable(url).executeAsOneOrNull()
 
     fun insert(
         title: String? = null,
@@ -122,6 +125,9 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
 
     fun searchSync(query: String): List<Article> = q.searchArticles(query, query, query).executeAsList()
 
+    fun searchFavoriteFirstSync(query: String): List<Article> =
+        q.searchArticlesFavoriteFirst(query, query, query).executeAsList()
+
     fun getFavoritesSync(): List<Article> = q.selectFavoriteArticles().executeAsList()
 
     fun getFavoritesByDateRangeSync(startMs: Long, endMs: Long): List<Article> =
@@ -129,4 +135,62 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
 
     fun getLatestSync(limit: Int = 5): List<Article> =
         q.selectArticlesPaginated(limit.toLong(), 0).executeAsList()
+
+    fun saveRemoteArticleAsFavorite(remoteArticle: RemoteArticle): Article? {
+        val fields = remoteArticle.toLocalFavoriteArticleFields()
+        val url = fields.url
+        if (url.isNullOrBlank()) return insertRemoteArticleFavoriteWithoutUrl(fields)
+
+        val existing = q.selectArticleByUrlNullable(url).executeAsOneOrNull()
+        return if (existing == null) {
+            val id = insert(
+                title = fields.title,
+                aiTitle = fields.aiTitle,
+                aiContent = fields.aiContent,
+                aiMarkdownContent = fields.aiMarkdownContent,
+                url = url,
+                isFavorite = fields.isFavorite,
+                comment = fields.comment,
+                status = fields.status,
+                coverImage = fields.coverImage,
+                coverImageUrl = fields.coverImageUrl,
+                pubDate = fields.pubDate,
+            )
+            getById(id)
+        } else {
+            val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+            q.markArticleFavoriteByUrl(
+                fields.title,
+                fields.aiTitle,
+                fields.aiContent,
+                fields.aiMarkdownContent,
+                fields.status,
+                fields.coverImageUrl,
+                fields.pubDate,
+                now,
+                url,
+            )
+            q.selectArticleByUrlNullable(url).executeAsOneOrNull()
+        }
+    }
+
+    private fun insertRemoteArticleFavoriteWithoutUrl(fields: LocalFavoriteArticleFields): Article? {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        q.insertArticle(
+            fields.title,
+            fields.aiTitle,
+            fields.aiContent,
+            fields.aiMarkdownContent,
+            null,
+            fields.isFavorite,
+            fields.comment,
+            fields.status,
+            fields.coverImage,
+            fields.coverImageUrl,
+            fields.pubDate,
+            now,
+            now,
+        )
+        return q.selectArticlesPaginated(1, 0).executeAsOneOrNull()
+    }
 }
