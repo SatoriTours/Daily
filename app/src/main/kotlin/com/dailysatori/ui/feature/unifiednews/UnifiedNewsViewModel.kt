@@ -242,7 +242,7 @@ class UnifiedNewsViewModel(
                 when (val result = remoteNewsService.fetchArticle(config, id)) {
                     is RemoteNewsResult.Success -> {
                         val article = result.value.article
-                        val local = article.url?.let(articleRepo::getByUrl)
+                        val local = article.url?.trim()?.takeIf { it.isNotBlank() }?.let(articleRepo::getByUrl)
                         ifLatestDetailRequest(token) {
                             it.copy(
                                 selectedRemoteArticle = article,
