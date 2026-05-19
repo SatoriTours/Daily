@@ -81,7 +81,13 @@ fun UnifiedNewsScreen(
     }
 
     if (state.selectedRemoteArticle != null) {
-        RemoteArticleDetailScreen(article = state.selectedRemoteArticle!!, onBack = viewModel::closeSourceDetail)
+        RemoteArticleDetailScreen(
+            article = state.selectedRemoteArticle!!,
+            onBack = viewModel::closeSourceDetail,
+            isFavorite = state.selectedRemoteArticleIsFavorite,
+            showFavoriteAction = true,
+            onFavoriteClick = viewModel::toggleSelectedRemoteArticleFavorite,
+        )
         return
     }
     if (state.selectedRemoteDigest != null) {

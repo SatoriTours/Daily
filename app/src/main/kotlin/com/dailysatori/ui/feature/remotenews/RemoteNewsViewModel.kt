@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.config.RemoteNewsConfig
 import com.dailysatori.config.SettingKeys
+import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteDigest
@@ -36,6 +37,8 @@ data class RemoteNewsState(
     val feedPagination: RemoteNewsPagination? = null,
     val selectedDigest: RemoteDigest? = null,
     val selectedArticle: RemoteArticle? = null,
+    val selectedArticleLocalId: Long? = null,
+    val selectedArticleIsFavorite: Boolean = false,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val isLoadingMore: Boolean = false,
@@ -47,6 +50,7 @@ data class RemoteNewsState(
 class RemoteNewsViewModel(
     private val settingRepo: SettingRepository,
     private val remoteNewsService: RemoteNewsService,
+    private val articleRepo: ArticleRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RemoteNewsState())
     val state: StateFlow<RemoteNewsState> = _state.asStateFlow()
@@ -101,13 +105,50 @@ class RemoteNewsViewModel(
             _state.update { it.copy(isLoading = true, error = null) }
             val config = currentConfigOrSetError() ?: return@launch
             when (val result = remoteNewsService.fetchArticle(config, id)) {
-                is RemoteNewsResult.Success -> _state.update { it.copy(selectedArticle = result.value.article, isLoading = false) }
+                is RemoteNewsResult.Success -> {
+                    val article = result.value.article
+                    val local = article.url?.let(articleRepo::getByUrl)
+                    _state.update {
+                        it.copy(
+                            selectedArticle = article,
+                            selectedArticleLocalId = local?.id,
+                            selectedArticleIsFavorite = local?.is_favorite == 1L,
+                            isLoading = false,
+                        )
+                    }
+                }
                 is RemoteNewsResult.Failure -> _state.update { it.copy(error = result.message, isLoading = false) }
             }
         }
     }
 
-    fun closeArticle() = _state.update { it.copy(selectedArticle = null) }
+    fun toggleSelectedArticleFavorite() {
+        val article = _state.value.selectedArticle ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val localId = _state.value.selectedArticleLocalId
+                if (localId != null) {
+                    articleRepo.toggleFavorite(localId)
+                    val updated = articleRepo.getById(localId)
+                    _state.update { it.copy(selectedArticleIsFavorite = updated?.is_favorite == 1L) }
+                } else {
+                    val saved = articleRepo.saveRemoteArticleAsFavorite(article)
+                    _state.update {
+                        it.copy(
+                            selectedArticleLocalId = saved?.id,
+                            selectedArticleIsFavorite = saved?.is_favorite == 1L,
+                        )
+                    }
+                }
+            } catch (_: Exception) {
+                _state.update { it.copy(error = "收藏文章失败，请稍后重试") }
+            }
+        }
+    }
+
+    fun closeArticle() = _state.update {
+        it.copy(selectedArticle = null, selectedArticleLocalId = null, selectedArticleIsFavorite = false)
+    }
 
     private fun loadMode(mode: RemoteNewsMode, refresh: Boolean) = loadPage(mode, 1, append = false, refresh = refresh)
 

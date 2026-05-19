@@ -64,7 +64,13 @@ fun RemoteNewsScreen() {
 
     when {
         state.mode == RemoteNewsMode.CRAYFISH -> CrayfishNewsScreen(onBackToRemoteNews = { viewModel.switchMode(RemoteNewsMode.DIGESTS) })
-        state.selectedArticle != null -> RemoteArticleDetailScreen(state.selectedArticle!!, viewModel::closeArticle)
+        state.selectedArticle != null -> RemoteArticleDetailScreen(
+            article = state.selectedArticle!!,
+            onBack = viewModel::closeArticle,
+            isFavorite = state.selectedArticleIsFavorite,
+            showFavoriteAction = true,
+            onFavoriteClick = viewModel::toggleSelectedArticleFavorite,
+        )
         state.selectedDigest != null -> RemoteDigestDetailScreen(state.selectedDigest!!, viewModel::closeDigest, viewModel::openArticle)
         else -> RemoteNewsListScreen(state, viewModel)
     }

@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.unifiednews
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.config.SettingKeys
+import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
@@ -49,6 +50,8 @@ data class UnifiedNewsState(
     val navigationTarget: UnifiedNewsNavigationTarget? = null,
     val selectedRemoteDigest: RemoteDigest? = null,
     val selectedRemoteArticle: RemoteArticle? = null,
+    val selectedRemoteArticleLocalId: Long? = null,
+    val selectedRemoteArticleIsFavorite: Boolean = false,
     val isLoading: Boolean = false,
     val isRegenerating: Boolean = false,
     val regeneratingSummaryDate: String? = null,
@@ -62,6 +65,7 @@ class UnifiedNewsViewModel(
     private val settingRepo: SettingRepository,
     private val remoteNewsService: RemoteNewsService,
     private val remoteNewsSourceRepo: RemoteNewsSourceRepository,
+    private val articleRepo: ArticleRepository,
     private val isDebugBuild: Boolean = false,
 ) : ViewModel() {
     private val _state = MutableStateFlow(UnifiedNewsState())
@@ -126,6 +130,30 @@ class UnifiedNewsViewModel(
 
     fun switchPage(page: UnifiedNewsPage) {
         _state.update { it.copy(page = page) }
+    }
+
+    fun toggleSelectedRemoteArticleFavorite() {
+        val article = _state.value.selectedRemoteArticle ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val localId = _state.value.selectedRemoteArticleLocalId
+                if (localId != null) {
+                    articleRepo.toggleFavorite(localId)
+                    val updated = articleRepo.getById(localId)
+                    _state.update { it.copy(selectedRemoteArticleIsFavorite = updated?.is_favorite == 1L) }
+                } else {
+                    val saved = articleRepo.saveRemoteArticleAsFavorite(article)
+                    _state.update {
+                        it.copy(
+                            selectedRemoteArticleLocalId = saved?.id,
+                            selectedRemoteArticleIsFavorite = saved?.is_favorite == 1L,
+                        )
+                    }
+                }
+            } catch (_: Exception) {
+                _state.update { it.copy(error = "收藏文章失败，请稍后重试") }
+            }
+        }
     }
 
     fun regenerateCurrentWindow() {
@@ -212,7 +240,18 @@ class UnifiedNewsViewModel(
                 ifLatestDetailRequest(token) { it.copy(isLoading = true) }
                 val config = remoteConfigOrSetError(token, remoteSourceId) ?: return@launch
                 when (val result = remoteNewsService.fetchArticle(config, id)) {
-                    is RemoteNewsResult.Success -> ifLatestDetailRequest(token) { it.copy(selectedRemoteArticle = result.value.article, isLoading = false) }
+                    is RemoteNewsResult.Success -> {
+                        val article = result.value.article
+                        val local = article.url?.let(articleRepo::getByUrl)
+                        ifLatestDetailRequest(token) {
+                            it.copy(
+                                selectedRemoteArticle = article,
+                                selectedRemoteArticleLocalId = local?.id,
+                                selectedRemoteArticleIsFavorite = local?.is_favorite == 1L,
+                                isLoading = false,
+                            )
+                        }
+                    }
                     is RemoteNewsResult.Failure -> ifLatestDetailRequest(token) { it.copy(error = result.message, isLoading = false) }
                 }
             } catch (e: CancellationException) {
@@ -241,6 +280,8 @@ class UnifiedNewsViewModel(
     private fun UnifiedNewsState.clearSelectedSourceDetail(): UnifiedNewsState = copy(
         selectedRemoteDigest = null,
         selectedRemoteArticle = null,
+        selectedRemoteArticleLocalId = null,
+        selectedRemoteArticleIsFavorite = false,
     )
 
     private fun remoteConfigOrSetError(token: Long, remoteSourceId: Long? = null): com.dailysatori.service.remotenews.RemoteNewsConfigValues? {

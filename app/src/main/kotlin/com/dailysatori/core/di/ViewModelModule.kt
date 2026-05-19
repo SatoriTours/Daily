@@ -36,6 +36,7 @@ import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsViewMode
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.mcp.McpServerViewModel
 import com.dailysatori.ui.feature.share.ShareDialogViewModel
+import com.dailysatori.ui.feature.remotenews.RemoteNewsViewModel
 import com.dailysatori.ui.feature.settings.weekly.WeeklySummaryViewModel
 import com.dailysatori.ui.feature.unifiednews.UnifiedNewsViewModel
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -139,7 +140,8 @@ val viewModelModule: Module = module {
             settingRepo = get<SettingRepository>(),
         )
     }
-    viewModel { UnifiedNewsViewModel(get(), get(), get(), get(), get(), com.dailysatori.BuildConfig.DEBUG) }
+    viewModel { UnifiedNewsViewModel(get(), get(), get(), get(), get(), get<ArticleRepository>(), com.dailysatori.BuildConfig.DEBUG) }
+    viewModel { RemoteNewsViewModel(get(), get(), get<ArticleRepository>()) }
     viewModel { RemoteNewsSettingsViewModel(get(), get()) }
     viewModel {
         SettingsViewModel(
