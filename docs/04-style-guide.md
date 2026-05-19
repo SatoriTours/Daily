@@ -162,7 +162,7 @@ Markdown(
     padding = MarkdownStyles.summaryPadding(),
 )
 
-// 聊天气泡、日记卡片、书摘卡片等受限空间
+// 聊天气泡、日记卡片、观点卡片等受限空间
 Markdown(
     content = text,
     typography = MarkdownStyles.compactTypography(),
