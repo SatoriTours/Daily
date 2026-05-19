@@ -1,7 +1,9 @@
 package com.dailysatori.ui.theme
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -15,13 +17,34 @@ import com.mikepenz.markdown.model.markdownPadding
 object MarkdownStyles {
 
     @Composable
-    fun readingTypography(): MarkdownTypography = typographyScale(bodySize = 17, bodyLine = 30, h1 = 26, h2 = 22, h3 = 19)
+    fun readingTypography(): MarkdownTypography = typographyScale(
+        bodySize = 17,
+        bodyLine = 30,
+        h1 = 26,
+        h2 = 22,
+        h3 = 19,
+        linkColor = MaterialTheme.colorScheme.primary,
+    )
 
     @Composable
-    fun summaryTypography(): MarkdownTypography = typographyScale(bodySize = 16, bodyLine = 27, h1 = 23, h2 = 20, h3 = 18)
+    fun summaryTypography(): MarkdownTypography = typographyScale(
+        bodySize = 16,
+        bodyLine = 27,
+        h1 = 23,
+        h2 = 20,
+        h3 = 18,
+        linkColor = MaterialTheme.colorScheme.primary,
+    )
 
     @Composable
-    fun compactTypography(): MarkdownTypography = typographyScale(bodySize = 14, bodyLine = 22, h1 = 18, h2 = 16, h3 = 15)
+    fun compactTypography(): MarkdownTypography = typographyScale(
+        bodySize = 14,
+        bodyLine = 22,
+        h1 = 18,
+        h2 = 16,
+        h3 = 15,
+        linkColor = MaterialTheme.colorScheme.primary,
+    )
 
     @Composable
     fun readingPadding(): MarkdownPadding = markdownPadding(
@@ -84,6 +107,7 @@ private fun typographyScale(
     h1: Int,
     h2: Int,
     h3: Int,
+    linkColor: Color,
 ): MarkdownTypography = DefaultMarkdownTypography(
     h1 = contentStyle(FontWeight.Bold, h1, h1 + 10),
     h2 = contentStyle(FontWeight.Bold, h2, h2 + 8),
@@ -99,7 +123,7 @@ private fun typographyScale(
     ordered = contentStyle(FontWeight.Normal, bodySize, bodyLine),
     bullet = contentStyle(FontWeight.Normal, bodySize, bodyLine),
     list = contentStyle(FontWeight.Normal, bodySize, bodyLine),
-    link = contentStyle(FontWeight.Medium, bodySize, bodyLine),
+    link = contentStyle(FontWeight.Medium, bodySize, bodyLine, color = linkColor),
 )
 
 private fun contentStyle(
@@ -107,12 +131,14 @@ private fun contentStyle(
     size: Int,
     lineHeight: Int,
     fontStyle: FontStyle = FontStyle.Normal,
+    color: Color = Color.Unspecified,
 ): TextStyle = TextStyle(
     fontFamily = ContentFontFamily,
     fontWeight = weight,
     fontSize = size.sp,
     lineHeight = lineHeight.sp,
     fontStyle = fontStyle,
+    color = color,
 )
 
 private fun uiStyle(weight: FontWeight, size: Int, lineHeight: Int): TextStyle = TextStyle(

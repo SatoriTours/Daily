@@ -122,7 +122,7 @@ private fun BookPickerRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 book.title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
