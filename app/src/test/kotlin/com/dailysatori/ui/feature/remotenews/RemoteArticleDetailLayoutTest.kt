@@ -54,4 +54,15 @@ class RemoteArticleDetailLayoutTest {
         assertTrue(styles.contains("fun remoteArticleTypography()"))
         assertTrue(styles.contains("fun remoteArticlePadding()"))
     }
+
+    @Test
+    fun remoteArticleDetailExposesFavoriteAction() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
+
+        assertTrue(source.contains("isFavorite: Boolean = false"))
+        assertTrue(source.contains("onFavoriteClick: () -> Unit = {}"))
+        assertTrue(source.contains("Icons.Default.Favorite"))
+        assertTrue(source.contains("Icons.Default.FavoriteBorder"))
+        assertTrue(source.contains("contentDescription = if (isFavorite) \"取消收藏\" else \"收藏\""))
+    }
 }

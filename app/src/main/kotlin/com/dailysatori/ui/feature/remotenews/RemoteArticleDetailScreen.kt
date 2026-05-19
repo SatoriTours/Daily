@@ -15,6 +15,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,6 +65,8 @@ private val remoteArticleDetailTabTitles = listOf("AI 摘要", "原文")
 fun RemoteArticleDetailScreen(
     article: RemoteArticle,
     onBack: () -> Unit,
+    isFavorite: Boolean = false,
+    onFavoriteClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -87,6 +91,13 @@ fun RemoteArticleDetailScreen(
         title = article.domain ?: article.feedName ?: "文章",
         onBack = onBack,
         actions = {
+            IconButton(onClick = onFavoriteClick) {
+                Icon(
+                    if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = if (isFavorite) "取消收藏" else "收藏",
+                    tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             IconButton(onClick = { openArticleUrl(context, article.url) }) {
                 Icon(Icons.Default.OpenInBrowser, contentDescription = "在浏览器打开")
             }
