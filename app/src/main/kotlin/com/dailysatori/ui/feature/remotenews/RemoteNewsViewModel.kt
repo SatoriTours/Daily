@@ -123,25 +123,38 @@ class RemoteNewsViewModel(
     }
 
     fun toggleSelectedArticleFavorite() {
-        val article = _state.value.selectedArticle ?: return
+        val current = _state.value
+        val article = current.selectedArticle ?: return
+        val localId = current.selectedArticleLocalId
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val localId = _state.value.selectedArticleLocalId
                 if (localId != null) {
                     articleRepo.toggleFavorite(localId)
                     val updated = articleRepo.getById(localId)
-                    _state.update { it.copy(selectedArticleIsFavorite = updated?.is_favorite == 1L) }
+                    _state.update { state ->
+                        if (state.selectedArticle?.id == article.id) {
+                            state.copy(selectedArticleIsFavorite = updated?.is_favorite == 1L)
+                        } else {
+                            state
+                        }
+                    }
                 } else {
                     val saved = articleRepo.saveRemoteArticleAsFavorite(article)
-                    _state.update {
-                        it.copy(
-                            selectedArticleLocalId = saved?.id,
-                            selectedArticleIsFavorite = saved?.is_favorite == 1L,
-                        )
+                    _state.update { state ->
+                        if (state.selectedArticle?.id == article.id) {
+                            state.copy(
+                                selectedArticleLocalId = saved?.id,
+                                selectedArticleIsFavorite = saved?.is_favorite == 1L,
+                            )
+                        } else {
+                            state
+                        }
                     }
                 }
             } catch (_: Exception) {
-                _state.update { it.copy(error = "收藏文章失败，请稍后重试") }
+                _state.update { state ->
+                    if (state.selectedArticle?.id == article.id) state.copy(error = "收藏文章失败，请稍后重试") else state
+                }
             }
         }
     }

@@ -133,25 +133,38 @@ class UnifiedNewsViewModel(
     }
 
     fun toggleSelectedRemoteArticleFavorite() {
-        val article = _state.value.selectedRemoteArticle ?: return
+        val current = _state.value
+        val article = current.selectedRemoteArticle ?: return
+        val localId = current.selectedRemoteArticleLocalId
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val localId = _state.value.selectedRemoteArticleLocalId
                 if (localId != null) {
                     articleRepo.toggleFavorite(localId)
                     val updated = articleRepo.getById(localId)
-                    _state.update { it.copy(selectedRemoteArticleIsFavorite = updated?.is_favorite == 1L) }
+                    _state.update { state ->
+                        if (state.selectedRemoteArticle?.id == article.id) {
+                            state.copy(selectedRemoteArticleIsFavorite = updated?.is_favorite == 1L)
+                        } else {
+                            state
+                        }
+                    }
                 } else {
                     val saved = articleRepo.saveRemoteArticleAsFavorite(article)
-                    _state.update {
-                        it.copy(
-                            selectedRemoteArticleLocalId = saved?.id,
-                            selectedRemoteArticleIsFavorite = saved?.is_favorite == 1L,
-                        )
+                    _state.update { state ->
+                        if (state.selectedRemoteArticle?.id == article.id) {
+                            state.copy(
+                                selectedRemoteArticleLocalId = saved?.id,
+                                selectedRemoteArticleIsFavorite = saved?.is_favorite == 1L,
+                            )
+                        } else {
+                            state
+                        }
                     }
                 }
             } catch (_: Exception) {
-                _state.update { it.copy(error = "收藏文章失败，请稍后重试") }
+                _state.update { state ->
+                    if (state.selectedRemoteArticle?.id == article.id) state.copy(error = "收藏文章失败，请稍后重试") else state
+                }
             }
         }
     }
