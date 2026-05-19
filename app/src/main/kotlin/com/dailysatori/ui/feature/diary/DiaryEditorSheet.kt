@@ -4,32 +4,28 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -43,10 +39,11 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.dailysatori.shared.db.Diary
-import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import java.io.File
@@ -57,24 +54,17 @@ private fun sanitizeNull(value: String?): String {
     return value
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiaryEditorSheet(
     onDismiss: () -> Unit,
     onSave: (content: String, tags: String?, mood: String?, images: String?) -> Unit,
     existingDiary: Diary? = null,
 ) {
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true,
-        confirmValueChange = { false },
-    )
     val context = LocalContext.current
 
     var content by remember(existingDiary) {
         mutableStateOf(TextFieldValue(existingDiary?.content ?: ""))
     }
-    var tagInput by remember { mutableStateOf("") }
-    var showTagInput by remember { mutableStateOf(false) }
     var showMediaPicker by remember { mutableStateOf(false) }
     val undoStack = remember { mutableStateListOf<TextFieldValue>() }
     val redoStack = remember { mutableStateListOf<TextFieldValue>() }
@@ -128,6 +118,22 @@ fun DiaryEditorSheet(
         content = content.copy(text = newText, selection = TextRange(newCursor))
     }
 
+    fun insertBlock(block: String) {
+        pushUndo()
+        val text = content.text
+        val prefix = when {
+            text.isBlank() -> ""
+            text.endsWith("\n\n") -> ""
+            text.endsWith("\n") -> "\n"
+            else -> "\n\n"
+        }
+        val inserted = "$prefix$block\n"
+        content = content.copy(
+            text = text + inserted,
+            selection = TextRange(text.length + inserted.length),
+        )
+    }
+
     fun saveMedia(uri: Uri, ext: String) {
         try {
             val mimeType = context.contentResolver.getType(uri)
@@ -170,22 +176,6 @@ fun DiaryEditorSheet(
         contract = ActivityResultContracts.GetMultipleContents(),
     ) { uris: List<Uri> -> uris.forEach { uri -> saveMedia(uri, "") } }
 
-    fun appendTag() {
-        val tag = tagInput.trim()
-        if (tag.isBlank()) return
-        pushUndo()
-        val text = content.text
-        val needNewline = text.isNotBlank() && !text.endsWith("\n\n") && !text.endsWith("\n")
-        val prefix = if (needNewline) "\n\n" else if (text.isNotBlank() && text.endsWith("\n")) "\n" else ""
-        val tagText = "$prefix#$tag"
-        content = content.copy(
-            text = text + tagText,
-            selection = TextRange(text.length + tagText.length),
-        )
-        tagInput = ""
-        showTagInput = false
-    }
-
     if (showMediaPicker) {
         AlertDialog(
             onDismissRequest = { showMediaPicker = false },
@@ -210,116 +200,108 @@ fun DiaryEditorSheet(
         )
     }
 
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = Spacing.s)
-                    .width(32.dp)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-            )
-        },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.92f)
-                .padding(horizontal = Spacing.m, vertical = Spacing.s),
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
+                .padding(horizontal = Spacing.s),
+            contentAlignment = Alignment.BottomCenter,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = if (existingDiary != null) "编辑日记" else "新建日记",
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "关闭", modifier = Modifier.size(20.dp))
-                }
-            }
-            Spacer(modifier = Modifier.height(Spacing.xs))
-            Box(
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
-                    .clip(RoundedCornerShape(Radius.s))
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                    .padding(horizontal = Spacing.m, vertical = Spacing.s),
+                    .fillMaxHeight(0.92f)
+                    .padding(bottom = Spacing.s),
+                shape = RoundedCornerShape(topStart = Radius.l, topEnd = Radius.l),
+                color = MaterialTheme.colorScheme.surface,
             ) {
-                BasicTextField(
-                    value = content,
-                    onValueChange = { pushUndo(); content = it },
-                    modifier = Modifier.fillMaxWidth().fillMaxHeight(),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurface,
-                    ),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    decorationBox = { innerTextField ->
-                        if (content.text.isEmpty()) {
-                            Text(
-                                text = "写点东西...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            )
-                        }
-                        innerTextField()
-                    },
-                )
-            }
-
-            DiaryImageRow(images = images, onRemove = { images.remove(it) })
-
-            if (showTagInput) {
-                Spacer(modifier = Modifier.height(Spacing.xs))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.m, vertical = Spacing.s),
                 ) {
-                    OutlinedTextField(
-                        value = tagInput,
-                        onValueChange = { tagInput = it },
-                        modifier = Modifier.weight(1f).height(Height.input * 0.7f),
-                        placeholder = { Text("输入标签") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(Radius.s),
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = if (existingDiary != null) "编辑日记" else "新建日记",
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "关闭", modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .clip(RoundedCornerShape(Radius.s))
+                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                            .padding(horizontal = Spacing.m, vertical = Spacing.s),
+                    ) {
+                        BasicTextField(
+                            value = content,
+                            onValueChange = { pushUndo(); content = it },
+                            modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurface,
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            decorationBox = { innerTextField ->
+                                if (content.text.isEmpty()) {
+                                    Text(
+                                        text = "写点东西...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    )
+                                }
+                                innerTextField()
+                            },
+                        )
+                    }
+
+                    DiaryImageRow(images = images, onRemove = { images.remove(it) })
+
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+
+                    DiaryEditorToolbar(
+                        onTitle = { insertLineStart("# ") },
+                        onBold = { insertFormat("**", "**") },
+                        onItalic = { insertFormat("*", "*") },
+                        onQuote = { insertLineStart("> ") },
+                        onOrderedList = { insertLineStart("1. ") },
+                        onUnorderedList = { insertLineStart("- ") },
+                        onTaskList = { insertLineStart("- [ ] ") },
+                        onInlineCode = { insertFormat("`", "`") },
+                        onDivider = { insertBlock("---") },
+                        onLink = { insertFormat("[", "](url)") },
+                        onImage = { insertFormat("![", "](url)") },
+                        onUndo = { performUndo() },
+                        onRedo = { performRedo() },
+                        onMedia = { showMediaPicker = true },
+                        onSave = {
+                            onSave(
+                                content.text,
+                                null,
+                                null,
+                                images.joinToString(",").ifBlank { null },
+                            )
+                        },
+                        canUndo = undoStack.isNotEmpty(),
+                        canRedo = redoStack.isNotEmpty(),
+                        canSave = content.text.isNotBlank(),
                     )
-                    Text(
-                        text = "添加",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (tagInput.isNotBlank()) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.clickable { appendTag() }.padding(horizontal = Spacing.xs),
-                    )
+
+                    Spacer(modifier = Modifier.height(Spacing.s))
                 }
             }
-
-            Spacer(modifier = Modifier.height(Spacing.xs))
-
-            DiaryEditorToolbar(
-                onTitle = { insertLineStart("# ") },
-                onBold = { insertFormat("**", "**") },
-                onOrderedList = { insertLineStart("1. ") },
-                onUnorderedList = { insertLineStart("- ") },
-                onUndo = { performUndo() },
-                onRedo = { performRedo() },
-                onMedia = { showMediaPicker = true },
-                onTag = { showTagInput = !showTagInput },
-                onSave = {
-                    onSave(content.text, null, null, images.joinToString(",").ifBlank { null })
-                },
-                canUndo = undoStack.isNotEmpty(),
-                canRedo = redoStack.isNotEmpty(),
-                canSave = content.text.isNotBlank(),
-            )
-
-            Spacer(modifier = Modifier.height(Spacing.s))
         }
     }
 }
@@ -330,4 +312,3 @@ private fun MediaPickerButton(label: String, onClick: () -> Unit) {
         Text(label, modifier = Modifier.weight(1f))
     }
 }
-

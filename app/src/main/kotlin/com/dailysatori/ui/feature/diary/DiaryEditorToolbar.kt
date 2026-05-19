@@ -9,12 +9,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.FormatBold
+import androidx.compose.material.icons.filled.FormatItalic
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.FormatListNumbered
-import androidx.compose.material.icons.filled.Tag
+import androidx.compose.material.icons.filled.HorizontalRule
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,12 +35,18 @@ import com.dailysatori.ui.theme.Spacing
 fun DiaryEditorToolbar(
     onTitle: () -> Unit,
     onBold: () -> Unit,
+    onItalic: () -> Unit,
+    onQuote: () -> Unit,
     onOrderedList: () -> Unit,
     onUnorderedList: () -> Unit,
+    onTaskList: () -> Unit,
+    onInlineCode: () -> Unit,
+    onDivider: () -> Unit,
+    onLink: () -> Unit,
+    onImage: () -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
     onMedia: () -> Unit,
-    onTag: () -> Unit,
     onSave: () -> Unit,
     canUndo: Boolean,
     canRedo: Boolean,
@@ -50,14 +62,20 @@ fun DiaryEditorToolbar(
         ) {
             ToolbarIcon(Icons.Default.Title, "标题", onTitle)
             ToolbarIcon(Icons.Default.FormatBold, "加粗", onBold)
+            ToolbarIcon(Icons.Default.FormatItalic, "斜体", onItalic)
+            ToolbarIcon(Icons.Default.FormatQuote, "引用", onQuote)
             ToolbarIcon(Icons.Default.FormatListNumbered, "有序列表", onOrderedList)
             ToolbarIcon(Icons.AutoMirrored.Filled.FormatListBulleted, "无序列表", onUnorderedList)
+            ToolbarIcon(Icons.Default.TaskAlt, "任务项", onTaskList)
+            ToolbarIcon(Icons.Default.Code, "行内代码", onInlineCode)
+            ToolbarIcon(Icons.Default.HorizontalRule, "分割线", onDivider)
+            ToolbarIcon(Icons.Default.Link, "链接", onLink)
+            ToolbarIcon(Icons.Default.Image, "图片语法", onImage)
             ToolbarIcon(Icons.AutoMirrored.Filled.Undo, "撤销", onUndo, canUndo)
             ToolbarIcon(Icons.AutoMirrored.Filled.Redo, "重做", onRedo, canRedo)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
             ToolbarIcon(Icons.Default.AddPhotoAlternate, "添加媒体", onMedia)
-            ToolbarIcon(Icons.Default.Tag, "添加标签", onTag)
             IconButton(
                 onClick = onSave,
                 modifier = Modifier.size(36.dp),

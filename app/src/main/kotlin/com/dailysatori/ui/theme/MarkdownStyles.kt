@@ -215,6 +215,112 @@ object MarkdownStyles {
     )
 
     @Composable
+    fun remoteArticleTypography(): MarkdownTypography = DefaultMarkdownTypography(
+        h1 = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 22.sp,
+            lineHeight = 30.sp,
+        ),
+        h2 = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 19.sp,
+            lineHeight = 27.sp,
+        ),
+        h3 = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 17.sp,
+            lineHeight = 25.sp,
+        ),
+        h4 = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 16.sp,
+            lineHeight = 24.sp,
+        ),
+        h5 = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.Medium,
+            fontSize = 15.sp,
+            lineHeight = 22.sp,
+        ),
+        h6 = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.Medium,
+            fontSize = 14.sp,
+            lineHeight = 21.sp,
+        ),
+        text = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.Normal,
+            fontSize = 16.sp,
+            lineHeight = 27.sp,
+        ),
+        code = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.Normal,
+            fontSize = 14.sp,
+            lineHeight = 22.sp,
+        ),
+        inlineCode = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.Medium,
+            fontSize = 14.sp,
+        ),
+        quote = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.Normal,
+            fontSize = 16.sp,
+            lineHeight = 27.sp,
+            fontStyle = FontStyle.Italic,
+        ),
+        paragraph = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.Normal,
+            fontSize = 16.sp,
+            lineHeight = 27.sp,
+        ),
+        ordered = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.Normal,
+            fontSize = 16.sp,
+            lineHeight = 26.sp,
+        ),
+        bullet = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.Normal,
+            fontSize = 16.sp,
+            lineHeight = 26.sp,
+        ),
+        list = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.Normal,
+            fontSize = 16.sp,
+            lineHeight = 26.sp,
+        ),
+        link = TextStyle(
+            fontFamily = LatoFontFamily,
+            fontWeight = FontWeight.Medium,
+            fontSize = 16.sp,
+            lineHeight = 26.sp,
+        ),
+    )
+
+    @Composable
+    fun remoteArticlePadding(): MarkdownPadding = markdownPadding(
+        block = 8.dp,
+        list = 8.dp,
+        listItemBottom = 10.dp,
+        indentList = 20.dp,
+        codeBlock = PaddingValues(10.dp),
+        blockQuote = PaddingValues(10.dp),
+        blockQuoteText = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+        blockQuoteBar = PaddingValues.Absolute(3.dp, 0.dp, 10.dp, 0.dp),
+    )
+
+    @Composable
     fun padding(): MarkdownPadding = markdownPadding(
         block = 10.dp,
         list = 16.dp,
