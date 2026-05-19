@@ -61,6 +61,9 @@ class RemoteArticleDetailLayoutTest {
 
         assertTrue(source.contains("isFavorite: Boolean = false"))
         assertTrue(source.contains("onFavoriteClick: () -> Unit = {}"))
+        assertTrue(source.contains("showFavoriteAction: Boolean = false"))
+        assertTrue(source.contains("if (showFavoriteAction)"))
+        assertTrue(source.contains("IconButton(onClick = onFavoriteClick)"))
         assertTrue(source.contains("Icons.Default.Favorite"))
         assertTrue(source.contains("Icons.Default.FavoriteBorder"))
         assertTrue(source.contains("contentDescription = if (isFavorite) \"取消收藏\" else \"收藏\""))

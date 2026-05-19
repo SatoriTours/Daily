@@ -67,6 +67,7 @@ fun RemoteArticleDetailScreen(
     onBack: () -> Unit,
     isFavorite: Boolean = false,
     onFavoriteClick: () -> Unit = {},
+    showFavoriteAction: Boolean = false,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -91,12 +92,14 @@ fun RemoteArticleDetailScreen(
         title = article.domain ?: article.feedName ?: "文章",
         onBack = onBack,
         actions = {
-            IconButton(onClick = onFavoriteClick) {
-                Icon(
-                    if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = if (isFavorite) "取消收藏" else "收藏",
-                    tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            if (showFavoriteAction) {
+                IconButton(onClick = onFavoriteClick) {
+                    Icon(
+                        if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (isFavorite) "取消收藏" else "收藏",
+                        tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             IconButton(onClick = { openArticleUrl(context, article.url) }) {
                 Icon(Icons.Default.OpenInBrowser, contentDescription = "在浏览器打开")
