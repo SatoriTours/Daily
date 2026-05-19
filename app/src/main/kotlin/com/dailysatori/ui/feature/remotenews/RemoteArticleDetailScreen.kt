@@ -36,6 +36,7 @@ import com.dailysatori.ui.component.content.MarkdownTabPager
 import com.dailysatori.ui.component.content.MarkdownTabRow
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.article.openArticleUrl
+import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import kotlinx.coroutines.launch
@@ -90,6 +91,8 @@ fun RemoteArticleDetailScreen(
                                     viewpoints = article.viewpoints,
                                     original = article.content,
                                 ),
+                                typography = MarkdownStyles.readingTypography(),
+                                padding = MarkdownStyles.readingPadding(),
                             )
                         }
                     }

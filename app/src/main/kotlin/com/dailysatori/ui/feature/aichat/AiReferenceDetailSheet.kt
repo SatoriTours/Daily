@@ -112,8 +112,8 @@ private fun DiaryReferenceSummary(diary: Diary) {
             Spacer(modifier = Modifier.height(Spacing.s))
             Markdown(
                 content = diary.content.trim(),
-                typography = MarkdownStyles.cardTypography(),
-                padding = MarkdownStyles.cardPadding(),
+                typography = MarkdownStyles.compactTypography(),
+                padding = MarkdownStyles.compactPadding(),
             )
         }
         if (imagePaths.isNotEmpty()) {

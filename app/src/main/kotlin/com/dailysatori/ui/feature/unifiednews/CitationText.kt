@@ -56,8 +56,8 @@ fun CitationText(
                         is UnifiedNewsBlock.MarkdownBlock -> Markdown(
                             modifier = Modifier.fillMaxWidth(),
                             content = block.content,
-                            typography = MarkdownStyles.typography(),
-                            padding = MarkdownStyles.padding(),
+                            typography = MarkdownStyles.summaryTypography(),
+                            padding = MarkdownStyles.summaryPadding(),
                         )
                         is UnifiedNewsBlock.BulletItem -> UnifiedNewsBulletItem(
                             text = plainUnifiedNewsListText(titleOverrides[block.citation] ?: block.text),

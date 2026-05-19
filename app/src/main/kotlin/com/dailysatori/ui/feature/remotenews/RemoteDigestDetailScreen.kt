@@ -73,8 +73,8 @@ fun DigestBody(digest: RemoteDigest, modifier: Modifier = Modifier) {
             SelectionContainer {
                 Markdown(
                     content = summary,
-                    typography = MarkdownStyles.typography(),
-                    padding = MarkdownStyles.padding(),
+                    typography = MarkdownStyles.readingTypography(),
+                    padding = MarkdownStyles.readingPadding(),
                 )
             }
         }
@@ -120,8 +120,8 @@ private fun DigestSection(sectionTitle: String, summary: String?, highlights: Li
         SelectionContainer {
             Markdown(
                 content = secSummary,
-                typography = MarkdownStyles.typography(),
-                padding = MarkdownStyles.padding(),
+                typography = MarkdownStyles.readingTypography(),
+                padding = MarkdownStyles.readingPadding(),
             )
         }
     }

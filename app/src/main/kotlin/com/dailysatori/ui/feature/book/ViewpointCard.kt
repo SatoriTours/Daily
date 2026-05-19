@@ -58,8 +58,8 @@ fun ViewpointCard(
             Spacer(modifier = Modifier.height(Spacing.l))
             Markdown(
                 content = content,
-                typography = MarkdownStyles.typography(),
-                padding = MarkdownStyles.padding(),
+                typography = MarkdownStyles.compactTypography(),
+                padding = MarkdownStyles.compactPadding(),
             )
             if (example.isNotBlank()) {
                 Spacer(modifier = Modifier.height(Spacing.l))
@@ -71,8 +71,8 @@ fun ViewpointCard(
                 Spacer(modifier = Modifier.height(Spacing.xs))
                 Markdown(
                     content = example,
-                    typography = MarkdownStyles.typography(),
-                    padding = MarkdownStyles.cardPadding(),
+                    typography = MarkdownStyles.compactTypography(),
+                    padding = MarkdownStyles.compactPadding(),
                 )
             }
         }
