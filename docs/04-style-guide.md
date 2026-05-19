@@ -92,20 +92,22 @@ BorderWidth.xl   // 4.dp
 
 ## 字体 (AppTypography)
 
+Daily Satori 使用双字体系统：
+
+- `ContentFontFamily`：Newsreader，用于长文阅读、Markdown 正文、文章/新闻详情、AI 摘要、日记预览等内容型区域。
+- `UiFontFamily`：系统 Sans Serif/Roboto，用于导航、按钮、输入框、设置项、标签、时间、来源、状态等界面型文本。
+
+常用层级：
+
 ```kotlin
-// 使用 Material 3 Typography
-MaterialTheme.typography.headlineLarge
-MaterialTheme.typography.headlineMedium
-MaterialTheme.typography.headlineSmall
-MaterialTheme.typography.titleLarge
-MaterialTheme.typography.titleMedium
-MaterialTheme.typography.titleSmall
-MaterialTheme.typography.bodyLarge     // 16sp
-MaterialTheme.typography.bodyMedium    // 15sp (最常用)
-MaterialTheme.typography.bodySmall     // 13sp
-MaterialTheme.typography.labelLarge    // 14sp
-MaterialTheme.typography.labelMedium   // 12sp
-MaterialTheme.typography.labelSmall    // 11sp
+MaterialTheme.typography.headlineLarge // 24sp / 32sp, 内容页大标题
+MaterialTheme.typography.headlineSmall // 18sp / 26sp, 内容型区块标题
+MaterialTheme.typography.titleMedium   // 16sp / 24sp, UI 标题和 TopBar
+MaterialTheme.typography.titleSmall    // 14sp / 20sp, 卡片标题/设置项标题
+MaterialTheme.typography.bodyLarge     // 17sp / 30sp, 长文阅读正文
+MaterialTheme.typography.bodyMedium    // 15sp / 24sp, 普通 UI 正文
+MaterialTheme.typography.bodySmall     // 13sp / 18sp, 元信息/说明
+MaterialTheme.typography.labelMedium   // 12sp / 16sp, 标签/Badge
 ```
 
 ## Composable 组件使用示例
@@ -143,15 +145,32 @@ FilledIconButton(
 
 ## Markdown 样式
 
+Markdown 必须使用 `MarkdownStyles` 的场景化预设：
+
 ```kotlin
-// 使用 MarkdownStyles（位于 MarkdownStyles.kt）
+// 文章、新闻详情等全屏阅读
 Markdown(
     content = text,
-    colors = markdownColor(),
-    typography = MarkdownStyles.cardTypography(),
-    padding = MarkdownStyles.cardPadding(),
+    typography = MarkdownStyles.readingTypography(),
+    padding = MarkdownStyles.readingPadding(),
+)
+
+// 统一新闻、摘要等中等长度内容
+Markdown(
+    content = text,
+    typography = MarkdownStyles.summaryTypography(),
+    padding = MarkdownStyles.summaryPadding(),
+)
+
+// 聊天气泡、日记卡片、观点卡片等受限空间
+Markdown(
+    content = text,
+    typography = MarkdownStyles.compactTypography(),
+    padding = MarkdownStyles.compactPadding(),
 )
 ```
+
+禁止在页面内手写 Markdown 的 `TextStyle(fontSize = ...sp)` 和 padding。
 
 ## 禁止示例
 

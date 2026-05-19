@@ -155,8 +155,8 @@ fun DiaryCard(
                 ) {
                     Markdown(
                         content = contentText,
-                        typography = MarkdownStyles.cardTypography(),
-                        padding = MarkdownStyles.cardPadding(),
+                        typography = MarkdownStyles.compactTypography(),
+                        padding = MarkdownStyles.compactPadding(),
                     )
                 }
 

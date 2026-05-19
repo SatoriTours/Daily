@@ -10,6 +10,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.dailysatori.ui.theme.MarkdownStyles
+import com.mikepenz.markdown.model.MarkdownPadding
+import com.mikepenz.markdown.model.MarkdownTypography
 import com.mikepenz.markdown.m3.Markdown
 
 @Composable
@@ -47,12 +49,16 @@ fun MarkdownTabRow(
 }
 
 @Composable
-fun MarkdownContent(content: String) {
+fun MarkdownContent(
+    content: String,
+    typography: MarkdownTypography = MarkdownStyles.readingTypography(),
+    padding: MarkdownPadding = MarkdownStyles.readingPadding(),
+) {
     SelectionContainer {
         Markdown(
             content = content,
-            typography = MarkdownStyles.typography(),
-            padding = MarkdownStyles.padding(),
+            typography = typography,
+            padding = padding,
         )
     }
 }

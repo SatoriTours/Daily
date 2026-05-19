@@ -203,7 +203,7 @@ private fun RemoteNewsSourceEditorPage(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("启用", style = MaterialTheme.typography.bodyLarge)
+                Text("启用", style = MaterialTheme.typography.bodyMedium)
                 Switch(checked = state.enabled, onCheckedChange = viewModel::updateEnabled)
             }
             state.message?.let { message ->

@@ -32,8 +32,8 @@ fun CrayfishNewsDetailScreen(
                     SelectionContainer {
                         Markdown(
                             content = content,
-                            typography = MarkdownStyles.typography(),
-                            padding = MarkdownStyles.padding(),
+                            typography = MarkdownStyles.readingTypography(),
+                            padding = MarkdownStyles.readingPadding(),
                         )
                     }
                 }

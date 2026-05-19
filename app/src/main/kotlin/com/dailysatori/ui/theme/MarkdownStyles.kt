@@ -1,7 +1,9 @@
 package com.dailysatori.ui.theme
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -15,198 +17,64 @@ import com.mikepenz.markdown.model.markdownPadding
 object MarkdownStyles {
 
     @Composable
-    fun typography(): MarkdownTypography = DefaultMarkdownTypography(
-        h1 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 24.sp,
-            lineHeight = 34.sp,
-        ),
-        h2 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 21.sp,
-            lineHeight = 30.sp,
-        ),
-        h3 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
-            lineHeight = 26.sp,
-        ),
-        h4 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp,
-            lineHeight = 24.sp,
-        ),
-        h5 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 15.sp,
-            lineHeight = 22.sp,
-        ),
-        h6 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
-        ),
-        text = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            lineHeight = 26.sp,
-        ),
-        code = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 14.sp,
-            lineHeight = 22.sp,
-        ),
-        inlineCode = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 14.sp,
-        ),
-        quote = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            lineHeight = 26.sp,
-            fontStyle = FontStyle.Italic,
-        ),
-        paragraph = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            lineHeight = 26.sp,
-        ),
-        ordered = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 16.sp,
-            lineHeight = 26.sp,
-        ),
-        bullet = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 16.sp,
-            lineHeight = 26.sp,
-        ),
-        list = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 16.sp,
-            lineHeight = 26.sp,
-        ),
-        link = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            lineHeight = 26.sp,
-        ),
+    fun readingTypography(): MarkdownTypography = typographyScale(
+        bodySize = 17,
+        bodyLine = 30,
+        h1 = 26,
+        h2 = 22,
+        h3 = 19,
+        linkColor = MaterialTheme.colorScheme.primary,
     )
 
     @Composable
-    fun cardTypography(): MarkdownTypography = DefaultMarkdownTypography(
-        h1 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
-            lineHeight = 24.sp,
-        ),
-        h2 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp,
-            lineHeight = 22.sp,
-        ),
-        h3 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 15.sp,
-            lineHeight = 21.sp,
-        ),
-        h4 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
-        ),
-        h5 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            lineHeight = 20.sp,
-        ),
-        h6 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 13.sp,
-            lineHeight = 19.sp,
-        ),
-        text = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 14.sp,
-            lineHeight = 22.sp,
-        ),
-        code = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 13.sp,
-            lineHeight = 20.sp,
-        ),
-        inlineCode = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 13.sp,
-        ),
-        quote = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 14.sp,
-            lineHeight = 22.sp,
-            fontStyle = FontStyle.Italic,
-        ),
-        paragraph = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 14.sp,
-            lineHeight = 22.sp,
-        ),
-        ordered = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            lineHeight = 22.sp,
-        ),
-        bullet = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            lineHeight = 22.sp,
-        ),
-        list = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            lineHeight = 22.sp,
-        ),
-        link = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 14.sp,
-            lineHeight = 22.sp,
-        ),
+    fun summaryTypography(): MarkdownTypography = typographyScale(
+        bodySize = 16,
+        bodyLine = 27,
+        h1 = 23,
+        h2 = 20,
+        h3 = 18,
+        linkColor = MaterialTheme.colorScheme.primary,
     )
 
     @Composable
-    fun cardPadding(): MarkdownPadding = markdownPadding(
+    fun compactTypography(): MarkdownTypography = typographyScale(
+        bodySize = 14,
+        bodyLine = 22,
+        h1 = 18,
+        h2 = 16,
+        h3 = 15,
+        linkColor = MaterialTheme.colorScheme.primary,
+    )
+
+    @Composable
+    fun readingPadding(): MarkdownPadding = markdownPadding(
+        block = 10.dp,
+        list = 10.dp,
+        listItemBottom = 8.dp,
+        indentList = 22.dp,
+        codeBlock = PaddingValues(12.dp),
+        blockQuote = PaddingValues(12.dp),
+        blockQuoteText = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+        blockQuoteBar = PaddingValues.Absolute(3.dp, 0.dp, 10.dp, 0.dp),
+    )
+
+    @Composable
+    fun summaryPadding(): MarkdownPadding = markdownPadding(
+        block = 8.dp,
+        list = 8.dp,
+        listItemBottom = 6.dp,
+        indentList = 20.dp,
+        codeBlock = PaddingValues(10.dp),
+        blockQuote = PaddingValues(10.dp),
+        blockQuoteText = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+        blockQuoteBar = PaddingValues.Absolute(3.dp, 0.dp, 8.dp, 0.dp),
+    )
+
+    @Composable
+    fun compactPadding(): MarkdownPadding = markdownPadding(
         block = 4.dp,
         list = 6.dp,
-        listItemBottom = 8.dp,
+        listItemBottom = 6.dp,
         indentList = 16.dp,
         codeBlock = PaddingValues(8.dp),
         blockQuote = PaddingValues(8.dp),
@@ -215,120 +83,67 @@ object MarkdownStyles {
     )
 
     @Composable
-    fun remoteArticleTypography(): MarkdownTypography = DefaultMarkdownTypography(
-        h1 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
-            lineHeight = 30.sp,
-        ),
-        h2 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 19.sp,
-            lineHeight = 27.sp,
-        ),
-        h3 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 17.sp,
-            lineHeight = 25.sp,
-        ),
-        h4 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp,
-            lineHeight = 24.sp,
-        ),
-        h5 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 15.sp,
-            lineHeight = 22.sp,
-        ),
-        h6 = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            lineHeight = 21.sp,
-        ),
-        text = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            lineHeight = 27.sp,
-        ),
-        code = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 14.sp,
-            lineHeight = 22.sp,
-        ),
-        inlineCode = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-        ),
-        quote = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            lineHeight = 27.sp,
-            fontStyle = FontStyle.Italic,
-        ),
-        paragraph = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            lineHeight = 27.sp,
-        ),
-        ordered = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            lineHeight = 26.sp,
-        ),
-        bullet = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            lineHeight = 26.sp,
-        ),
-        list = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            lineHeight = 26.sp,
-        ),
-        link = TextStyle(
-            fontFamily = LatoFontFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 16.sp,
-            lineHeight = 26.sp,
-        ),
-    )
+    fun typography(): MarkdownTypography = readingTypography()
 
     @Composable
-    fun remoteArticlePadding(): MarkdownPadding = markdownPadding(
-        block = 8.dp,
-        list = 8.dp,
-        listItemBottom = 10.dp,
-        indentList = 20.dp,
-        codeBlock = PaddingValues(10.dp),
-        blockQuote = PaddingValues(10.dp),
-        blockQuoteText = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-        blockQuoteBar = PaddingValues.Absolute(3.dp, 0.dp, 10.dp, 0.dp),
-    )
+    fun padding(): MarkdownPadding = readingPadding()
 
     @Composable
-    fun padding(): MarkdownPadding = markdownPadding(
-        block = 10.dp,
-        list = 16.dp,
-        listItemBottom = 38.dp,
-        indentList = 24.dp,
-        codeBlock = PaddingValues(12.dp),
-        blockQuote = PaddingValues(12.dp),
-        blockQuoteText = PaddingValues(0.dp),
-        blockQuoteBar = PaddingValues.Absolute(0.dp, 0.dp, 0.dp, 0.dp),
-    )
+    fun cardTypography(): MarkdownTypography = compactTypography()
+
+    @Composable
+    fun cardPadding(): MarkdownPadding = compactPadding()
+
+    @Composable
+    fun remoteArticleTypography(): MarkdownTypography = readingTypography()
+
+    @Composable
+    fun remoteArticlePadding(): MarkdownPadding = readingPadding()
 }
+
+private fun typographyScale(
+    bodySize: Int,
+    bodyLine: Int,
+    h1: Int,
+    h2: Int,
+    h3: Int,
+    linkColor: Color,
+): MarkdownTypography = DefaultMarkdownTypography(
+    h1 = contentStyle(FontWeight.Bold, h1, h1 + 10),
+    h2 = contentStyle(FontWeight.Bold, h2, h2 + 8),
+    h3 = contentStyle(FontWeight.SemiBold, h3, h3 + 7),
+    h4 = contentStyle(FontWeight.SemiBold, bodySize, bodyLine),
+    h5 = contentStyle(FontWeight.Medium, bodySize - 1, bodyLine - 4),
+    h6 = uiStyle(FontWeight.Medium, 13, 18),
+    text = contentStyle(FontWeight.Normal, bodySize, bodyLine),
+    code = uiStyle(FontWeight.Normal, 13, 20),
+    inlineCode = uiStyle(FontWeight.Medium, 13, 20),
+    quote = contentStyle(FontWeight.Normal, bodySize, bodyLine, FontStyle.Italic),
+    paragraph = contentStyle(FontWeight.Normal, bodySize, bodyLine),
+    ordered = contentStyle(FontWeight.Normal, bodySize, bodyLine),
+    bullet = contentStyle(FontWeight.Normal, bodySize, bodyLine),
+    list = contentStyle(FontWeight.Normal, bodySize, bodyLine),
+    link = contentStyle(FontWeight.Medium, bodySize, bodyLine, color = linkColor),
+)
+
+private fun contentStyle(
+    weight: FontWeight,
+    size: Int,
+    lineHeight: Int,
+    fontStyle: FontStyle = FontStyle.Normal,
+    color: Color = Color.Unspecified,
+): TextStyle = TextStyle(
+    fontFamily = ContentFontFamily,
+    fontWeight = weight,
+    fontSize = size.sp,
+    lineHeight = lineHeight.sp,
+    fontStyle = fontStyle,
+    color = color,
+)
+
+private fun uiStyle(weight: FontWeight, size: Int, lineHeight: Int): TextStyle = TextStyle(
+    fontFamily = UiFontFamily,
+    fontWeight = weight,
+    fontSize = size.sp,
+    lineHeight = lineHeight.sp,
+)

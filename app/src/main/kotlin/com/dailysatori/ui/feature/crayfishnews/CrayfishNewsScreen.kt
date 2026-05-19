@@ -168,8 +168,8 @@ private fun CrayfishArticleCard(article: CrayfishNewsDetail, index: Int, totalCo
             SelectionContainer {
                 Markdown(
                     content = article.content.withoutIntroBlock(),
-                    typography = MarkdownStyles.typography(),
-                    padding = MarkdownStyles.padding(),
+                    typography = MarkdownStyles.summaryTypography(),
+                    padding = MarkdownStyles.summaryPadding(),
                 )
             }
         }

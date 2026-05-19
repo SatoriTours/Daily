@@ -103,8 +103,8 @@ fun MessageBubble(
                             Column(modifier = Modifier.padding(Spacing.m)) {
                                 Markdown(
                                     content = assistantContent,
-                                    typography = MarkdownStyles.cardTypography(),
-                                    padding = MarkdownStyles.cardPadding(),
+                                    typography = MarkdownStyles.compactTypography(),
+                                    padding = MarkdownStyles.compactPadding(),
                                 )
                             }
                         }

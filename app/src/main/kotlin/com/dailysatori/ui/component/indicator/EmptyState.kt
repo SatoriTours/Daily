@@ -34,7 +34,7 @@ fun EmptyState(
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(iconSize), tint = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.height(Spacing.m))
-        Text(title, style = MaterialTheme.typography.titleLarge)
+        Text(title, style = MaterialTheme.typography.titleMedium)
         if (subtitle != null) {
             Spacer(modifier = Modifier.height(Spacing.xs))
             Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

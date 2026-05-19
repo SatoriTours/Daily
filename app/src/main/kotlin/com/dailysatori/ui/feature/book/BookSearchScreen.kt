@@ -141,7 +141,7 @@ fun BookSearchScreen(
                             Spacer(modifier = Modifier.height(Spacing.s))
                             Text(
                                 "已添加《${state.addedBookTitle}》",
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         }
