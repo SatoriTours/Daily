@@ -17,7 +17,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -26,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.dailysatori.ui.theme.AppColors
 import com.dailysatori.ui.theme.Radius
 import java.io.File
 
@@ -80,8 +80,8 @@ fun SmartImage(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .size(12.dp)
-                        .background(Color(0xCC000000), CircleShape),
-                    tint = if (isLocal) Color(0xFF4CAF50) else Color(0xFF2196F3),
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f), CircleShape),
+                    tint = if (isLocal) AppColors.success else AppColors.info,
                 )
             }
         }
