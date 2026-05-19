@@ -730,7 +730,19 @@ class UnifiedNewsBehaviorTest {
         assertFalse(missingSourceBranch.contains("SettingKeys.remoteNewsBaseUrl"))
         assertFalse(missingSourceBranch.contains("SettingKeys.remoteNewsApiToken"))
         assertTrue(repo.contains("fun getById(id: Long)"))
-        assertTrue(di.contains("UnifiedNewsViewModel(get(), get(), get(), get(), get(), com.dailysatori.BuildConfig.DEBUG)"))
+        assertTrue(di.contains("UnifiedNewsViewModel(get(), get(), get(), get(), get(), get<ArticleRepository>(), com.dailysatori.BuildConfig.DEBUG)"))
+    }
+
+    @Test
+    fun mcpArticleSearchPreservesFavoriteFirstRepositoryOrdering() {
+        val registry = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/mcp/McpToolRegistry.kt").readText()
+
+        assertTrue(registry.contains("sortByTimestamp: Boolean = true"))
+        assertTrue(registry.contains("searchWithKeywords(keyword, sortByTimestamp = false) { kw -> articleRepo.searchFavoriteFirstSync(kw) }"))
+        assertTrue(registry.contains("if (!sortByTimestamp) return results"))
+        assertTrue(registry.contains("searchWithKeywords(keyword) { kw -> diaryRepo.searchSync(kw) }"))
+        assertTrue(registry.contains("searchWithKeywords(keyword) { kw -> bookRepo.searchSync(kw) }"))
+        assertTrue(registry.contains("searchWithKeywords(keyword) { kw -> viewpointRepo.searchByContentSync(kw) }"))
     }
 
     @Test

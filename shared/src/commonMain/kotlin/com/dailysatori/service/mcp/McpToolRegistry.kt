@@ -197,7 +197,7 @@ class McpToolRegistry(
     private fun searchArticles(args: JsonObject): McpToolResult {
         val keyword = stringParam(args, "keyword") ?: return errorResult("缺少参数: keyword")
         val limit = intParam(args, "limit", 20)
-        val results = searchWithKeywords(keyword) { kw -> articleRepo.searchFavoriteFirstSync(kw) }
+        val results = searchWithKeywords(keyword, sortByTimestamp = false) { kw -> articleRepo.searchFavoriteFirstSync(kw) }
         return successResult(
             "keyword" to JsonPrimitive(keyword),
             "articles" to articleListToJson(results.take(limit)),
@@ -371,19 +371,25 @@ class McpToolRegistry(
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun <T> searchWithKeywords(keyword: String, searcher: (String) -> List<T>): List<T> {
+    private fun <T> searchWithKeywords(
+        keyword: String,
+        sortByTimestamp: Boolean = true,
+        searcher: (String) -> List<T>,
+    ): List<T> {
         val keywords = keyword.split(Regex("[\\s,，]+"))
             .map { it.trim().lowercase() }
             .filter { it.isNotEmpty() && (containsChinese(it) || it.length >= 2) }
         if (keywords.isEmpty()) return emptyList()
-        val resultMap = mutableMapOf<Int, T>()
+        val resultMap = LinkedHashMap<Int, T>()
         for (kw in keywords) {
             for (item in searcher(kw)) {
                 val id = getItemId(item as Any)
                 if (!resultMap.containsKey(id)) resultMap[id] = item
             }
         }
-        return resultMap.values.toList().sortedByDescending { getItemTimestamp(it as Any) }
+        val results = resultMap.values.toList()
+        if (!sortByTimestamp) return results
+        return results.sortedByDescending { getItemTimestamp(it as Any) }
     }
 
     private fun containsChinese(text: String): Boolean =
