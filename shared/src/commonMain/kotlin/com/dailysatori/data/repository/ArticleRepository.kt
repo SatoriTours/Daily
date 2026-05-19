@@ -136,12 +136,24 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     fun getLatestSync(limit: Int = 5): List<Article> =
         q.selectArticlesPaginated(limit.toLong(), 0).executeAsList()
 
+    fun findLocalArticleForRemote(remoteArticle: RemoteArticle): Article? {
+        val fields = remoteArticle.toLocalFavoriteArticleFields()
+        val url = fields.url
+        if (!url.isNullOrBlank()) return q.selectArticleByUrlNullable(url).executeAsOneOrNull()
+        return q.selectArticles().executeAsList().firstOrNull { article ->
+            article.url.isNullOrBlank() &&
+                article.title == fields.title &&
+                article.ai_content == fields.aiContent &&
+                article.ai_markdown_content == fields.aiMarkdownContent
+        }
+    }
+
     fun saveRemoteArticleAsFavorite(remoteArticle: RemoteArticle): Article? {
         val fields = remoteArticle.toLocalFavoriteArticleFields()
         val url = fields.url
-        if (url.isNullOrBlank()) return insertRemoteArticleFavoriteWithoutUrl(fields)
+        val existing = findLocalArticleForRemote(remoteArticle)
+        if (existing == null && url.isNullOrBlank()) return insertRemoteArticleFavoriteWithoutUrl(fields)
 
-        val existing = q.selectArticleByUrlNullable(url).executeAsOneOrNull()
         return if (existing == null) {
             val id = insert(
                 title = fields.title,
@@ -157,6 +169,10 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
                 pubDate = fields.pubDate,
             )
             getById(id)
+        } else if (existing.url.isNullOrBlank()) {
+            val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+            q.markArticleFavoriteById(now, existing.id)
+            getById(existing.id)
         } else {
             val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
             q.markArticleFavoriteByUrl(
@@ -168,9 +184,9 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
                 fields.coverImageUrl,
                 fields.pubDate,
                 now,
-                url,
+                existing.url,
             )
-            q.selectArticleByUrlNullable(url).executeAsOneOrNull()
+            q.selectArticleByUrlNullable(existing.url).executeAsOneOrNull()
         }
     }
 

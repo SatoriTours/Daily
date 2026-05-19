@@ -32,4 +32,22 @@ class RemoteNewsUiBehaviorTest {
         assertTrue(source.contains("refreshCompletedToken"))
         assertTrue(source.contains("scrollToItem(0)"))
     }
+
+    @Test
+    fun remoteArticleFavoriteLookupIncludesUrlLessFallback() {
+        val repository = File(
+            "../shared/src/commonMain/kotlin/com/dailysatori/data/repository/ArticleRepository.kt",
+        ).readText()
+        val remoteNews = File(
+            "src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsViewModel.kt",
+        ).readText()
+        val unifiedNews = File(
+            "src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt",
+        ).readText()
+
+        assertTrue(repository.contains("fun findLocalArticleForRemote(remoteArticle: RemoteArticle): Article?"))
+        assertTrue(repository.contains("article.url.isNullOrBlank()"))
+        assertTrue(remoteNews.contains("articleRepo.findLocalArticleForRemote(article)"))
+        assertTrue(unifiedNews.contains("articleRepo.findLocalArticleForRemote(article)"))
+    }
 }

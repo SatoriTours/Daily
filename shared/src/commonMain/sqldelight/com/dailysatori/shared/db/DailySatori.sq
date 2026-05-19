@@ -270,6 +270,9 @@ UPDATE article SET
     updated_at = ?
 WHERE url = ?;
 
+markArticleFavoriteById:
+UPDATE article SET is_favorite = 1, updated_at = ? WHERE id = ?;
+
 updateArticleAiTitle:
 UPDATE article SET ai_title = ?, updated_at = ? WHERE id = ?;
 
