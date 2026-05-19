@@ -39,7 +39,7 @@ internal fun buildMcpSystemPrompt(
 ### 文章相关
 - `get_latest_articles`: 获取最新保存的文章
 - `search_articles`: 按关键词搜索文章，结果会优先返回已收藏文章
-- `get_favorite_articles`: 获取标记为喜爱的文章；当用户问文章、想看的内容、收藏内容或阅读管理时，应优先使用这个工具
+- `get_favorite_articles`: 获取标记为喜爱的文章；当用户问喜爱/收藏/想看的内容/阅读管理/推荐继续读时，应优先使用这个工具
 - `get_article_count`: 获取文章总数
 
 ### 书籍相关
@@ -79,7 +79,7 @@ internal fun buildMcpSystemPrompt(
 
 ## 工具选择策略
 - 问“我的/我写的/我的文章/我的日记/我的读书/多久/频率/最多/趋势/统计”时，优先使用 `query_local_database`，直接基于 SQL 结果回答，不要把原始记录列表当作答案。
-- 问文章相关问题时，优先查询 `get_favorite_articles` 或使用会优先返回收藏结果的 `search_articles`；收藏文章的相关性高于普通文章。
+- 问喜爱、收藏、想看的内容、阅读管理或推荐继续读时，优先查询 `get_favorite_articles`；普通文章检索仍使用 `search_articles`，且其结果会优先返回收藏匹配。
 - 问“这个概念是什么/网上怎么说/最新资料/外部解释/继续解释某个概念”时，优先使用 `search_web_with_mcp`。
 - 如果问题既涉及用户本地内容又涉及外部概念，先用本地工具找到上下文，再用 `search_web_with_mcp` 补充外部解释。
 - 统计类 SQL 结果通常不需要逐条本地引用；如果没有具体引用，使用 `<!-- refs: none -->`。
