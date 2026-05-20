@@ -49,5 +49,8 @@ class HomeIaTest {
         assertTrue(source.contains("Modifier.navigationBarsPadding()"))
         assertTrue(source.contains("label = { Text(tab.label, style = MaterialTheme.typography.labelSmall) }"))
         assertTrue(source.contains("indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)"))
+        assertTrue(source.contains("consumeWindowInsets(innerPadding)"))
+        assertTrue(source.contains("alwaysShowLabel = false"))
+        assertTrue(source.contains("contentDescription = null"))
     }
 }
