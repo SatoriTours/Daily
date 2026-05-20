@@ -35,7 +35,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.feature.aichat.AiChatScreen
 import com.dailysatori.ui.feature.book.BooksScreen
-import com.dailysatori.ui.feature.records.RecordsScreen
+import com.dailysatori.ui.feature.diary.DiaryScreen
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.SettingsScreen
 import com.dailysatori.ui.feature.unifiednews.UnifiedNewsScreen
@@ -47,13 +47,13 @@ data class TabItem(
 )
 
 const val TODAY_TAB_INDEX = 0
-const val RECORDS_TAB_INDEX = 1
+const val DIARY_TAB_INDEX = 1
 const val READING_TAB_INDEX = 2
 const val AI_CHAT_TAB_INDEX = 3
 
 val tabs = listOf(
     TabItem("今日", Icons.Filled.Language, Icons.Outlined.Language),
-    TabItem("记录", Icons.Filled.Book, Icons.Outlined.Book),
+    TabItem("日记", Icons.Filled.Book, Icons.Outlined.Book),
     TabItem("读书", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
     TabItem("AI", Icons.Filled.SmartToy, Icons.Outlined.SmartToy),
 )
@@ -124,7 +124,7 @@ fun HomeScreen(
                 val openMy = { showMy = true }
                 when (index) {
                     TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = openMy)
-                    RECORDS_TAB_INDEX -> RecordsScreen(onArticleClick = onArticleClick, onMyClick = openMy)
+                    DIARY_TAB_INDEX -> DiaryScreen(onMyClick = openMy)
                     READING_TAB_INDEX -> BooksScreen(
                         selectedBookId = selectedBookId,
                         selectedViewpointId = selectedViewpointId,

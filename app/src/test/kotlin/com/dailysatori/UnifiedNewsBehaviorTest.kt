@@ -1359,7 +1359,7 @@ class UnifiedNewsBehaviorTest {
         val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
 
         assertTrue(home.contains("TabItem(\"今日\""))
-        assertTrue(home.contains("TabItem(\"记录\""))
+        assertTrue(home.contains("TabItem(\"日记\""))
         assertFalse(home.contains("TabItem(\"文章\""))
         assertFalse(home.contains("TabItem(\"远程新闻\""))
         assertFalse(home.contains("TabItem(\"设置\""))
