@@ -26,9 +26,12 @@ class LiquidDarkThemeTest {
     @Test
     fun themeDefaultsToLiquidDarkAndUsesDarkStatusBarIcons() {
         val source = File("src/main/kotlin/com/dailysatori/ui/theme/Theme.kt").readText()
+        val darkScheme = source.substringAfter("private val DarkColorScheme").substringBefore("@Composable")
 
         assertTrue(source.contains("onPrimary = Color(0xFF03121D)"))
         assertTrue(source.contains("onSecondary = Color(0xFF140A2A)"))
+        assertTrue(darkScheme.contains("onSecondary = Color(0xFF140A2A)"))
+        assertFalse(darkScheme.contains("onSecondary = AppColors.onLiquid"))
         assertTrue(source.contains("darkTheme: Boolean = true"))
         assertTrue(source.contains("primary = AppColors.sapphire"))
         assertTrue(source.contains("background = AppColors.liquidBackground"))
