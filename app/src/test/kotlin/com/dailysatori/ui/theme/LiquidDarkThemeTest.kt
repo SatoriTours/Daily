@@ -21,7 +21,9 @@ class LiquidDarkThemeTest {
         assertTrue(source.contains("sapphire = Color(0xFF7DD3FC)"))
         assertTrue(source.contains("onLiquid = Color(0xFFF8FAFC)"))
         assertTrue(source.contains("onLiquidVariant = Color(0xFFCBD5E1)"))
-        assertTrue(source.contains("liquidOutlineHigh = Color(0x33475569)"))
+        assertTrue(source.contains("liquidOutline = Color(0x33475569)"))
+        assertTrue(source.contains("liquidOutlineHigh = Color(0x4D7DD3FC)"))
+        assertFalse(source.contains("liquidOutlineHigh = Color(0x33475569)"))
     }
 
     @Test
@@ -90,14 +92,20 @@ class LiquidDarkThemeTest {
     @Test
     fun markdownScaleMatchesUnifiedAppTypography() {
         val source = File("src/main/kotlin/com/dailysatori/ui/theme/MarkdownStyles.kt").readText()
+        val reading = source.substringAfter("fun readingTypography(): MarkdownTypography").substringBefore("fun summaryTypography")
+        val summary = source.substringAfter("fun summaryTypography(): MarkdownTypography").substringBefore("fun compactTypography")
+        val compact = source.substringAfter("fun compactTypography(): MarkdownTypography").substringBefore("fun readingPadding")
 
-        assertTrue(source.contains("bodySize = 15"))
-        assertTrue(source.contains("bodyLine = 24"))
-        assertFalse(source.contains("bodySize = 16"))
-        assertFalse(source.contains("bodyLine = 27"))
+        assertTrue(reading.contains("bodySize = 16"))
+        assertTrue(reading.contains("bodyLine = 27"))
+        assertTrue(summary.contains("bodySize = 15"))
+        assertTrue(summary.contains("bodyLine = 24"))
+        assertTrue(compact.contains("bodySize = 15"))
+        assertTrue(compact.contains("bodyLine = 24"))
         assertTrue(source.contains("fun cardTypography(): MarkdownTypography = summaryTypography()"))
         assertTrue(source.contains("fun cardPadding(): MarkdownPadding = summaryPadding()"))
-        assertTrue(source.contains("fun remoteArticleTypography(): MarkdownTypography = summaryTypography()"))
+        assertTrue(source.contains("fun remoteArticleTypography(): MarkdownTypography = readingTypography()"))
+        assertTrue(source.contains("fun remoteArticlePadding(): MarkdownPadding = readingPadding()"))
         assertTrue(source.contains("fontFamily = UiFontFamily"))
     }
 

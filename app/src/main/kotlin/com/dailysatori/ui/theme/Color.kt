@@ -13,7 +13,7 @@ object AppColors {
     val onLiquidVariant = Color(0xFFCBD5E1)
     val onLiquidMuted = Color(0xFF94A3B8)
     val liquidOutline = Color(0x33475569)
-    val liquidOutlineHigh = Color(0x33475569)
+    val liquidOutlineHigh = Color(0x4D7DD3FC)
 
     val primary = sapphire
     val primaryLight = sapphireSoft

@@ -278,7 +278,7 @@ private fun TodayUnifiedNewsCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(Radius.l),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline.copy(alpha = 0.65f)),
+        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             Row(

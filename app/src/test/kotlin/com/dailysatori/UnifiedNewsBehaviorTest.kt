@@ -1540,9 +1540,11 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsSummaryCardsUseSofterBorder() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val cardBody = screen.substringAfter("private fun TodayUnifiedNewsCard").substringBefore("elevation =")
+        val cardBody = screen.substringAfter("private fun TodayUnifiedNewsCard").substringAfter("Card(").substringBefore(") {")
 
-        assertTrue(cardBody.contains("outline.copy(alpha = 0.65f)"))
+        assertTrue(cardBody.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline)"))
+        assertFalse(cardBody.contains("outlineVariant"))
+        assertFalse(cardBody.contains("outline.copy"))
     }
 
     @Test
@@ -1716,24 +1718,29 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsMarkdownListSpacingIsComfortableForReading() {
         val styles = java.io.File("src/main/kotlin/com/dailysatori/ui/theme/MarkdownStyles.kt").readText()
-        val typographyBody = styles.substringAfter("fun readingTypography(): MarkdownTypography").substringBefore("fun summaryTypography")
-        val paddingBody = styles.substringAfter("fun readingPadding(): MarkdownPadding").substringBefore("fun summaryPadding")
+        val reading = styles.substringAfter("fun readingTypography(): MarkdownTypography").substringBefore("fun summaryTypography")
+        val summary = styles.substringAfter("fun summaryTypography(): MarkdownTypography").substringBefore("fun compactTypography")
+        val compact = styles.substringAfter("fun compactTypography(): MarkdownTypography").substringBefore("fun readingPadding")
 
-        assertTrue(typographyBody.contains("bodySize = 15"))
-        assertTrue(typographyBody.contains("bodyLine = 24"))
-        assertFalse(typographyBody.contains("bodyLine = 27"))
-        assertFalse(typographyBody.contains("list = TextStyle(\n            fontFamily = LatoFontFamily"))
-        assertTrue(paddingBody.contains("listItemBottom = 6.dp"))
-        assertTrue(paddingBody.contains("list = 8.dp"))
+        assertTrue(reading.contains("bodySize = 16"))
+        assertTrue(reading.contains("bodyLine = 27"))
+        assertTrue(summary.contains("bodySize = 15"))
+        assertTrue(summary.contains("bodyLine = 24"))
+        assertTrue(compact.contains("bodySize = 15"))
+        assertTrue(compact.contains("bodyLine = 24"))
+        assertFalse(styles.contains("list = TextStyle(\n            fontFamily = LatoFontFamily"))
     }
 
     @Test
     fun unifiedNewsCardsUseSubtleLiquidBorders() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val skeletonCard = screen.substringAfter("private fun UnifiedNewsGeneratingSkeleton").substringBefore("@Composable\nprivate fun UnifiedNewsSourceDetailLoadingScreen")
+        val summaryCard = screen.substringAfter("private fun TodayUnifiedNewsCard")
 
-        assertFalse(screen.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant),"))
-        assertTrue(screen.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline)"))
-        assertTrue(screen.contains("MaterialTheme.colorScheme.outline.copy(alpha = 0.65f)"))
+        assertFalse(skeletonCard.contains("outlineVariant"))
+        assertFalse(summaryCard.contains("outlineVariant"))
+        assertTrue(skeletonCard.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline)"))
+        assertTrue(summaryCard.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline)"))
     }
 
     @Test
