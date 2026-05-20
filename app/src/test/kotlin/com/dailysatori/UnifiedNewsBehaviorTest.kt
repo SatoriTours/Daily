@@ -1446,12 +1446,12 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsSummaryDoesNotExposeSourceWarningsToReaders() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val cardBody = screen.substringAfter("private fun TodayUnifiedNewsCard").substringBefore("private fun UnifiedNewsSourceCard")
-        val bannerBody = screen.substringAfter("private fun UnifiedNewsStatusBanner").substringBefore("@Composable\nprivate fun UnifiedNewsMenu")
+        val cardBody = screen.requiredSubstringAfter("private fun TodayUnifiedNewsCard")
+        val menuBody = screen.requiredSubstringAfter("private fun UnifiedNewsMenu")
 
         assertFalse(screen.contains("UnifiedNewsStatusBanner"))
-        assertFalse(bannerBody.contains("summaryError"))
-        assertFalse(bannerBody.contains("sourceWarnings"))
+        assertFalse(menuBody.contains("summaryError"))
+        assertFalse(menuBody.contains("sourceWarnings"))
         assertFalse(cardBody.contains("source_warnings"))
     }
 
@@ -1681,7 +1681,7 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsSummaryFeedHidesSourceCards() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val cardBody = screen.substringAfter("private fun TodayUnifiedNewsCard").substringBefore("@Composable\nprivate fun CrayfishArticleDetailScreen")
+        val cardBody = screen.requiredSubstringAfter("private fun TodayUnifiedNewsCard")
 
         assertTrue(screen.contains("TodayUnifiedNewsCard"))
         assertFalse(cardBody.contains("UnifiedNewsSourceCard"))
@@ -1708,7 +1708,7 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsSummaryCardDoesNotRenderErrorsInsideContent() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val cardBody = screen.substringAfter("private fun TodayUnifiedNewsCard").substringBefore("@Composable\nprivate fun CrayfishArticleDetailScreen")
+        val cardBody = screen.requiredSubstringAfter("private fun TodayUnifiedNewsCard")
 
         assertFalse(cardBody.contains("error_message"))
         assertFalse(cardBody.contains("source_warnings"))
@@ -2022,5 +2022,15 @@ class UnifiedNewsBehaviorTest {
     fun unifiedNewsWorkerModeRejectsUnknownModes() {
         assertNull(unifiedNewsWorkerMode("unknown"))
         assertNull(unifiedNewsWorkerMode(null))
+    }
+
+    private fun String.requiredSubstringAfter(marker: String): String {
+        require(contains(marker)) { "Missing marker: $marker" }
+        return substringAfter(marker)
+    }
+
+    private fun String.requiredSubstringBefore(marker: String): String {
+        require(contains(marker)) { "Missing marker: $marker" }
+        return substringBefore(marker)
     }
 }
