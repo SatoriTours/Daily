@@ -17,6 +17,7 @@ class AiChatUiStateTest {
         assertTrue(source.contains("private val ChatInputMinHeight = Height.input"))
         assertTrue(source.contains("RoundedCornerShape(Radius.circular)"))
         assertTrue(source.contains("MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)"))
+        assertTrue(source.contains("defaultMinSize(minHeight = ChatInputMinHeight)"))
         assertTrue(source.contains("modifier = Modifier.size(ChatInputButtonSize)"))
         assertTrue(source.contains("minLines = 1"))
         assertTrue(source.contains("maxLines = 3"))
