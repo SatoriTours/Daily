@@ -12,9 +12,6 @@ class MainContentRhythmTest {
         val viewpoint = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
         val message = File("src/main/kotlin/com/dailysatori/ui/feature/aichat/MessageBubble.kt").readText()
         val citation = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/CitationText.kt").readText()
-        val viewpointMetadata = viewpoint
-            .substringAfter("Text(\n                bookTitle,")
-            .substringBefore("Spacer(modifier = Modifier.height(Spacing.l))")
 
         assertTrue(diary.contains("Modifier.padding(Spacing.m)"))
         assertTrue(diary.contains("MarkdownStyles.cardTypography()"))
@@ -25,12 +22,17 @@ class MainContentRhythmTest {
         assertTrue(viewpoint.contains("MarkdownStyles.cardTypography()"))
         assertTrue(viewpoint.contains("MarkdownStyles.cardPadding()"))
         assertTrue(
-            viewpointMetadata.contains("style = MaterialTheme.typography.labelSmall") ||
-                viewpointMetadata.contains("style = MaterialTheme.typography.bodySmall"),
+            viewpoint.contains("style = MaterialTheme.typography.labelSmall") ||
+                viewpoint.contains("style = MaterialTheme.typography.bodySmall"),
         )
-        assertTrue(viewpointMetadata.contains("color = MaterialTheme.colorScheme.onSurfaceVariant"))
-        assertFalse(viewpointMetadata.contains("style = MaterialTheme.typography.titleSmall"))
-        assertFalse(viewpointMetadata.contains("color = MaterialTheme.colorScheme.primary"))
+        assertTrue(viewpoint.contains("color = MaterialTheme.colorScheme.onSurfaceVariant"))
+        assertFalse(
+            viewpoint.contains(
+                "bookTitle,\n" +
+                    "                style = MaterialTheme.typography.titleSmall,\n" +
+                    "                color = MaterialTheme.colorScheme.primary",
+            ),
+        )
         assertTrue(message.contains("MarkdownStyles.cardTypography()"))
         assertTrue(message.contains("MarkdownStyles.cardPadding()"))
         assertTrue(citation.contains("style = MaterialTheme.typography.bodyMedium"))
