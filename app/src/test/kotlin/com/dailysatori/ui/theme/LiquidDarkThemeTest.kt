@@ -75,4 +75,20 @@ class LiquidDarkThemeTest {
         assertTrue(spacing.contains("val l = 22.dp"))
         assertTrue(shape.contains("extraLarge = RoundedCornerShape(24.dp)"))
     }
+
+    @Test
+    fun sharedComponentsUseLiquidDarkSurfaces() {
+        val card = File("src/main/kotlin/com/dailysatori/ui/component/card/CustomCard.kt").readText()
+        val dialog = File("src/main/kotlin/com/dailysatori/ui/component/dialog/ConfirmDialog.kt").readText()
+        val search = File("src/main/kotlin/com/dailysatori/ui/component/input/SearchBar.kt").readText()
+        val topBar = File("src/main/kotlin/com/dailysatori/ui/component/appbar/AppTopBar.kt").readText()
+
+        assertTrue(card.contains("shape = RoundedCornerShape(Radius.l)"))
+        assertTrue(card.contains("MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f)"))
+        assertTrue(dialog.contains("shape = RoundedCornerShape(Radius.xl)"))
+        assertTrue(dialog.contains("containerColor = MaterialTheme.colorScheme.surfaceContainer"))
+        assertTrue(search.contains("height(Height.searchBar)"))
+        assertTrue(search.contains("focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f)"))
+        assertTrue(topBar.contains("containerColor = MaterialTheme.colorScheme.background"))
+    }
 }

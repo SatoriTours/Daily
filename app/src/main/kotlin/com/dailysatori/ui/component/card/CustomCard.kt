@@ -22,8 +22,8 @@ fun CustomCard(
         Card(
             onClick = onClick,
             modifier = modifier,
-            shape = RoundedCornerShape(Radius.m),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(Radius.l),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f)),
             border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             content = content,
@@ -31,8 +31,8 @@ fun CustomCard(
     } else {
         Card(
             modifier = modifier,
-            shape = RoundedCornerShape(Radius.m),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(Radius.l),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f)),
             border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             content = content,

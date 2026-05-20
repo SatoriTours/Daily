@@ -10,6 +10,19 @@ import kotlin.test.assertTrue
 
 class AiChatUiStateTest {
     @Test
+    fun chatInputUsesCompactLiquidGlassSizing() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/ChatInputBar.kt").readText()
+
+        assertTrue(source.contains("private val ChatInputButtonSize = 34.dp"))
+        assertTrue(source.contains("private val ChatInputMinHeight = Height.input"))
+        assertTrue(source.contains("RoundedCornerShape(Radius.circular)"))
+        assertTrue(source.contains("MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)"))
+        assertTrue(source.contains("modifier = Modifier.size(ChatInputButtonSize)"))
+        assertTrue(source.contains("minLines = 1"))
+        assertTrue(source.contains("maxLines = 3"))
+    }
+
+    @Test
     fun blankAssistantAnswerIsSuppressed() {
         assertNull(buildAssistantMessageOrNull("   ", emptyList(), emptyList(), now = 1L))
     }

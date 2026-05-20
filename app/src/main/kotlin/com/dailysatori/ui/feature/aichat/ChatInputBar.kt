@@ -4,6 +4,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -33,10 +34,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.dp
+import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 
 enum class ChatInputAction { Send, Stop }
+
+private val ChatInputButtonSize = 34.dp
+private val ChatInputMinHeight = Height.input
 
 fun chatInputAction(isProcessing: Boolean): ChatInputAction =
     if (isProcessing) ChatInputAction.Stop else ChatInputAction.Send
@@ -57,7 +62,7 @@ fun ChatInputBar(
     isProcessing: Boolean,
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val inputShape = RoundedCornerShape(Radius.l)
+    val inputShape = RoundedCornerShape(Radius.circular)
     val action = chatInputAction(isProcessing)
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -70,7 +75,7 @@ fun ChatInputBar(
         ) {
             Surface(
                 shape = inputShape,
-                color = MaterialTheme.colorScheme.surfaceContainer,
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
                 tonalElevation = 1.dp,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -93,6 +98,7 @@ fun ChatInputBar(
                         onValueChange = onInputChange,
                         modifier = Modifier
                             .weight(1f)
+                            .defaultMinSize(minHeight = ChatInputMinHeight)
                             .onFocusChanged { isFocused = it.isFocused },
                         placeholder = {
                             Text(
@@ -110,7 +116,8 @@ fun ChatInputBar(
                             disabledIndicatorColor = Color.Transparent,
                         ),
                         textStyle = MaterialTheme.typography.bodyMedium,
-                        maxLines = 4,
+                        minLines = 1,
+                        maxLines = 3,
                         enabled = true,
                     )
                     Spacer(modifier = Modifier.width(Spacing.xs))
@@ -122,7 +129,7 @@ fun ChatInputBar(
                             }
                         },
                         enabled = action == ChatInputAction.Stop || inputText.isNotBlank(),
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(ChatInputButtonSize),
                         shape = CircleShape,
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
