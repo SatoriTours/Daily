@@ -10,8 +10,6 @@ val UiFontFamily = FontFamily.SansSerif
 
 val ContentFontFamily = UiFontFamily
 
-val LatoFontFamily = UiFontFamily
-
 val AppTypography = Typography(
     displayLarge = TextStyle(fontFamily = UiFontFamily, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 40.sp, letterSpacing = (-0.4).sp),
     displayMedium = TextStyle(fontFamily = UiFontFamily, fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 36.sp, letterSpacing = (-0.3).sp),
