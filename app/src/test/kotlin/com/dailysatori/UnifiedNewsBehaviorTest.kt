@@ -637,13 +637,18 @@ class UnifiedNewsBehaviorTest {
     fun remoteArticleDetailUsesReadableArticleLayout() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
 
-        assertTrue(screen.contains("RemoteArticleHeroCard"))
-        assertTrue(screen.contains("RemoteArticleMetaChips"))
         assertTrue(screen.contains("MarkdownTabPager"))
         assertTrue(screen.contains("MarkdownTabRow"))
         assertTrue(screen.contains("AI 摘要"))
         assertTrue(screen.contains("原文"))
-        assertTrue(screen.contains("阅读详情"))
+        assertTrue(screen.contains("RemoteArticleHeader(article)"))
+        assertTrue(screen.contains("RemoteArticleMarkdownContent("))
+        assertTrue(screen.contains("MarkdownStyles.remoteArticleTypography()"))
+        assertTrue(screen.contains("MarkdownStyles.remoteArticlePadding()"))
+        assertTrue(screen.contains("Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s)"))
+        assertTrue(screen.contains("Modifier.padding(Spacing.m)"))
+        assertFalse(screen.contains("RemoteArticleHeroCard"))
+        assertFalse(screen.contains("RemoteArticleMetaChips"))
         assertFalse(screen.contains("RemoteArticleViewpointsSection"))
         assertFalse(screen.contains("RemoteArticleContentSection"))
         assertFalse(screen.contains("RemoteArticleOriginalLinkCard"))
@@ -663,7 +668,8 @@ class UnifiedNewsBehaviorTest {
         assertFalse(localDetail.contains("private fun ArticleTabRow"))
         assertFalse(localDetail.contains("private fun ArticleMarkdownTabRow"))
         assertFalse(remoteDetail.contains("private fun RemoteArticleTabRow"))
-        assertFalse(remoteDetail.contains("RemoteArticleMarkdownContent"))
+        assertTrue(remoteDetail.substringAfter("MarkdownTabPager(").contains("RemoteArticleMarkdownContent("))
+        assertTrue(remoteDetail.contains("MarkdownStyles.remoteArticleTypography()"))
     }
 
     @Test
@@ -1403,7 +1409,6 @@ class UnifiedNewsBehaviorTest {
         assertFalse(contentFormat.contains("小龙虾新闻"))
         assertFalse(contentFormat.contains("crayfish_general"))
         assertFalse(contentFormat.contains("crayfish_dji"))
-        assertFalse(viewModelModule.contains("RemoteNewsViewModel"))
         assertFalse(viewModelModule.contains("CrayfishNewsViewModel"))
         assertFalse(viewModelModule.contains("CrayfishNewsSettingsViewModel"))
         assertFalse(settings.contains("CRAYFISH_NEWS_SETTINGS"))
@@ -1711,13 +1716,13 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsMarkdownListSpacingIsComfortableForReading() {
         val styles = java.io.File("src/main/kotlin/com/dailysatori/ui/theme/MarkdownStyles.kt").readText()
-        val typographyBody = styles.substringAfter("fun typography(): MarkdownTypography").substringBefore("fun cardTypography")
-        val paddingBody = styles.substringAfter("fun padding(): MarkdownPadding").substringBefore("}")
+        val typographyBody = styles.substringAfter("fun readingTypography(): MarkdownTypography").substringBefore("fun summaryTypography")
+        val paddingBody = styles.substringAfter("fun readingPadding(): MarkdownPadding").substringBefore("fun summaryPadding")
 
-        assertTrue(typographyBody.contains("lineHeight = 26.sp"))
+        assertTrue(typographyBody.contains("bodyLine = 27"))
         assertFalse(typographyBody.contains("list = TextStyle(\n            fontFamily = LatoFontFamily,\n            fontWeight = FontWeight.Medium,\n            fontSize = 16.sp,\n            lineHeight = 28.sp"))
-        assertTrue(paddingBody.contains("listItemBottom = 38.dp"))
-        assertTrue(paddingBody.contains("list = 16.dp"))
+        assertTrue(paddingBody.contains("listItemBottom = 8.dp"))
+        assertTrue(paddingBody.contains("list = 10.dp"))
     }
 
     @Test
