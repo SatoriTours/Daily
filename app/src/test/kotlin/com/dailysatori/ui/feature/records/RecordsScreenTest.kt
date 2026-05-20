@@ -22,5 +22,6 @@ class RecordsScreenTest {
         assertTrue(source.contains("ArticleListScreen(onArticleClick = onArticleClick)"))
         assertTrue(source.contains("showFavoritesOnly = true"))
         assertTrue(source.contains("lockFavoritesFilter = true"))
+        assertTrue(source.contains("rememberSaveable"))
     }
 }

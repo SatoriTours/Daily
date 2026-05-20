@@ -21,7 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +50,7 @@ fun RecordsScreen(
     onArticleClick: (Long) -> Unit = {},
     onMyClick: () -> Unit = {},
 ) {
-    var selectedDestination by remember { mutableStateOf<RecordsDestination?>(null) }
+    var selectedDestination by rememberSaveable { mutableStateOf<RecordsDestination?>(null) }
     BackHandler(enabled = selectedDestination != null) { selectedDestination = null }
 
     when (selectedDestination) {
