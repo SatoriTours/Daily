@@ -8,7 +8,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.mikepenz.markdown.model.DefaultMarkdownTypography
 import com.mikepenz.markdown.model.MarkdownPadding
 import com.mikepenz.markdown.model.MarkdownTypography
@@ -17,34 +16,19 @@ import com.mikepenz.markdown.model.markdownPadding
 object MarkdownStyles {
 
     @Composable
-    fun readingTypography(): MarkdownTypography = typographyScale(
-        bodySize = 16,
-        bodyLine = 27,
-        h1 = 24,
-        h2 = 21,
-        h3 = 18,
+    fun readingTypography(): MarkdownTypography = typographyFrom(
+        body = readingTextStyle(),
+        h1 = MaterialTheme.typography.headlineLarge,
+        h2 = MaterialTheme.typography.headlineMedium,
+        h3 = MaterialTheme.typography.headlineSmall,
         linkColor = MaterialTheme.colorScheme.primary,
     )
 
     @Composable
-    fun summaryTypography(): MarkdownTypography = typographyScale(
-        bodySize = 15,
-        bodyLine = 24,
-        h1 = 22,
-        h2 = 19,
-        h3 = 17,
-        linkColor = MaterialTheme.colorScheme.primary,
-    )
+    fun summaryTypography(): MarkdownTypography = cardTypography()
 
     @Composable
-    fun compactTypography(): MarkdownTypography = typographyScale(
-        bodySize = 15,
-        bodyLine = 24,
-        h1 = 22,
-        h2 = 19,
-        h3 = 17,
-        linkColor = MaterialTheme.colorScheme.primary,
-    )
+    fun compactTypography(): MarkdownTypography = cardTypography()
 
     @Composable
     fun readingPadding(): MarkdownPadding = markdownPadding(
@@ -89,7 +73,13 @@ object MarkdownStyles {
     fun padding(): MarkdownPadding = readingPadding()
 
     @Composable
-    fun cardTypography(): MarkdownTypography = summaryTypography()
+    fun cardTypography(): MarkdownTypography = typographyFrom(
+        body = cardTextStyle(),
+        h1 = MaterialTheme.typography.titleLarge,
+        h2 = MaterialTheme.typography.titleMedium,
+        h3 = MaterialTheme.typography.titleSmall,
+        linkColor = MaterialTheme.colorScheme.primary,
+    )
 
     @Composable
     fun cardPadding(): MarkdownPadding = summaryPadding()
@@ -101,49 +91,37 @@ object MarkdownStyles {
     fun remoteArticlePadding(): MarkdownPadding = readingPadding()
 }
 
-private fun typographyScale(
-    bodySize: Int,
-    bodyLine: Int,
-    h1: Int,
-    h2: Int,
-    h3: Int,
+@Composable
+private fun cardTextStyle(): TextStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = UiFontFamily)
+
+@Composable
+private fun readingTextStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = UiFontFamily)
+
+@Composable
+private fun typographyFrom(
+    body: TextStyle,
+    h1: TextStyle,
+    h2: TextStyle,
+    h3: TextStyle,
     linkColor: Color,
 ): MarkdownTypography = DefaultMarkdownTypography(
-    h1 = contentStyle(FontWeight.Bold, h1, h1 + 10),
-    h2 = contentStyle(FontWeight.Bold, h2, h2 + 8),
-    h3 = contentStyle(FontWeight.SemiBold, h3, h3 + 7),
-    h4 = contentStyle(FontWeight.SemiBold, bodySize, bodyLine),
-    h5 = contentStyle(FontWeight.Medium, bodySize - 1, bodyLine - 4),
-    h6 = uiStyle(FontWeight.Medium, 13, 18),
-    text = contentStyle(FontWeight.Normal, bodySize, bodyLine),
-    code = uiStyle(FontWeight.Normal, 13, 20),
-    inlineCode = uiStyle(FontWeight.Medium, 13, 20),
-    quote = contentStyle(FontWeight.Normal, bodySize, bodyLine, FontStyle.Italic),
-    paragraph = contentStyle(FontWeight.Normal, bodySize, bodyLine),
-    ordered = contentStyle(FontWeight.Normal, bodySize, bodyLine),
-    bullet = contentStyle(FontWeight.Normal, bodySize, bodyLine),
-    list = contentStyle(FontWeight.Normal, bodySize, bodyLine),
-    link = contentStyle(FontWeight.Medium, bodySize, bodyLine, color = linkColor),
+    h1 = headingStyle(h1),
+    h2 = headingStyle(h2),
+    h3 = headingStyle(h3),
+    h4 = headingStyle(h3),
+    h5 = headingStyle(h3),
+    h6 = headingStyle(MaterialTheme.typography.labelLarge),
+    text = body,
+    code = codeStyle(MaterialTheme.typography.bodySmall),
+    inlineCode = codeStyle(MaterialTheme.typography.labelMedium),
+    quote = body.copy(fontStyle = FontStyle.Italic),
+    paragraph = body,
+    ordered = body,
+    bullet = body,
+    list = body,
+    link = body.copy(fontWeight = FontWeight.Medium, color = linkColor),
 )
 
-private fun contentStyle(
-    weight: FontWeight,
-    size: Int,
-    lineHeight: Int,
-    fontStyle: FontStyle = FontStyle.Normal,
-    color: Color = Color.Unspecified,
-): TextStyle = TextStyle(
-    fontFamily = UiFontFamily,
-    fontWeight = weight,
-    fontSize = size.sp,
-    lineHeight = lineHeight.sp,
-    fontStyle = fontStyle,
-    color = color,
-)
+private fun headingStyle(style: TextStyle): TextStyle = style.copy(fontFamily = UiFontFamily)
 
-private fun uiStyle(weight: FontWeight, size: Int, lineHeight: Int): TextStyle = TextStyle(
-    fontFamily = UiFontFamily,
-    fontWeight = weight,
-    fontSize = size.sp,
-    lineHeight = lineHeight.sp,
-)
+private fun codeStyle(style: TextStyle): TextStyle = style.copy(fontFamily = UiFontFamily)

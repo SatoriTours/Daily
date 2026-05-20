@@ -80,33 +80,33 @@ class LiquidDarkThemeTest {
         val source = File("src/main/kotlin/com/dailysatori/ui/theme/Typography.kt").readText()
 
         assertEquals(UiFontFamily, AppTypography.bodyLarge.fontFamily)
-        assertEquals(17.sp, AppTypography.bodyLarge.fontSize)
+        assertEquals(15.sp, AppTypography.bodyMedium.fontSize)
+        assertEquals(24.sp, AppTypography.bodyMedium.lineHeight)
+        assertEquals(16.sp, AppTypography.bodyLarge.fontSize)
+        assertEquals(26.sp, AppTypography.bodyLarge.lineHeight)
         assertTrue(source.contains("val ContentFontFamily = UiFontFamily"))
         assertFalse(source.contains("val LatoFontFamily"))
         assertTrue(source.contains("displayLarge = TextStyle(fontFamily = UiFontFamily"))
         assertTrue(source.contains("headlineLarge = TextStyle(fontFamily = UiFontFamily"))
         assertTrue(source.contains("bodyLarge = TextStyle(fontFamily = UiFontFamily"))
-        assertTrue(source.contains("fontSize = 17.sp, lineHeight = 27.sp"))
     }
 
     @Test
     fun markdownScaleMatchesUnifiedAppTypography() {
         val source = File("src/main/kotlin/com/dailysatori/ui/theme/MarkdownStyles.kt").readText()
-        val reading = source.substringAfter("fun readingTypography(): MarkdownTypography").substringBefore("fun summaryTypography")
-        val summary = source.substringAfter("fun summaryTypography(): MarkdownTypography").substringBefore("fun compactTypography")
-        val compact = source.substringAfter("fun compactTypography(): MarkdownTypography").substringBefore("fun readingPadding")
 
-        assertTrue(reading.contains("bodySize = 16"))
-        assertTrue(reading.contains("bodyLine = 27"))
-        assertTrue(summary.contains("bodySize = 15"))
-        assertTrue(summary.contains("bodyLine = 24"))
-        assertTrue(compact.contains("bodySize = 15"))
-        assertTrue(compact.contains("bodyLine = 24"))
-        assertTrue(source.contains("fun cardTypography(): MarkdownTypography = summaryTypography()"))
+        assertTrue(source.contains("private fun cardTextStyle"))
+        assertTrue(source.contains("MaterialTheme.typography.bodyMedium"))
+        assertTrue(source.contains("private fun readingTextStyle"))
+        assertTrue(source.contains("MaterialTheme.typography.bodyLarge"))
+        assertTrue(source.contains("fun summaryTypography(): MarkdownTypography = cardTypography()"))
+        assertTrue(source.contains("fun compactTypography(): MarkdownTypography = cardTypography()"))
         assertTrue(source.contains("fun cardPadding(): MarkdownPadding = summaryPadding()"))
         assertTrue(source.contains("fun remoteArticleTypography(): MarkdownTypography = readingTypography()"))
         assertTrue(source.contains("fun remoteArticlePadding(): MarkdownPadding = readingPadding()"))
         assertTrue(source.contains("fontFamily = UiFontFamily"))
+        assertFalse(source.contains("bodySize ="))
+        assertFalse(source.contains("bodyLine ="))
     }
 
     @Test
