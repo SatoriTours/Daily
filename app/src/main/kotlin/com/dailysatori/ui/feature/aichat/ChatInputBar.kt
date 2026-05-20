@@ -41,7 +41,7 @@ import com.dailysatori.ui.theme.Spacing
 enum class ChatInputAction { Send, Stop }
 
 private val ChatInputButtonSize = 34.dp
-private val ChatInputMinHeight = Height.input
+private val ChatInputContentMinHeight = Height.input
 
 fun chatInputAction(isProcessing: Boolean): ChatInputAction =
     if (isProcessing) ChatInputAction.Stop else ChatInputAction.Send
@@ -104,8 +104,6 @@ fun ChatInputBar(
                         onValueChange = onInputChange,
                         modifier = Modifier
                             .weight(1f)
-                            .heightIn(min = ChatInputMinHeight)
-                            .padding(contentPadding)
                             .onFocusChanged { isFocused = it.isFocused },
                         textStyle = MaterialTheme.typography.bodyMedium.copy(
                             color = MaterialTheme.colorScheme.onSurface,
@@ -114,7 +112,11 @@ fun ChatInputBar(
                         maxLines = 3,
                         enabled = true,
                         decorationBox = { innerTextField ->
-                            Box {
+                            Box(
+                                modifier = Modifier.heightIn(min = ChatInputContentMinHeight)
+                                    .padding(contentPadding),
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
                                 if (inputText.isEmpty()) {
                                     Text(
                                         "问我任何问题...",
