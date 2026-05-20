@@ -28,7 +28,6 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -120,11 +119,11 @@ fun HomeScreen(
                                 icon = {
                                     Icon(
                                         if (selectedIndex == index) tab.selectedIcon else tab.unselectedIcon,
-                                        contentDescription = null,
+                                        contentDescription = tab.label,
                                         modifier = Modifier.size(HomeBottomBarIconSize),
                                     )
                                 },
-                                label = { Text(tab.label, style = MaterialTheme.typography.labelSmall) },
+                                label = null,
                                 alwaysShowLabel = false,
                                 selected = selectedIndex == index,
                                 onClick = { selectedIndex = index },

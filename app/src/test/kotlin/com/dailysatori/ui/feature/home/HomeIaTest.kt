@@ -47,10 +47,11 @@ class HomeIaTest {
         assertTrue(source.contains("RoundedCornerShape(Radius.circular)"))
         assertTrue(source.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant)"))
         assertTrue(source.contains("Modifier.navigationBarsPadding()"))
-        assertTrue(source.contains("label = { Text(tab.label, style = MaterialTheme.typography.labelSmall) }"))
+        assertFalse(source.contains("label = { Text(tab.label"))
+        assertTrue(source.contains("label = null"))
         assertTrue(source.contains("indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)"))
         assertTrue(source.contains("consumeWindowInsets(innerPadding)"))
         assertTrue(source.contains("alwaysShowLabel = false"))
-        assertTrue(source.contains("contentDescription = null"))
+        assertTrue(source.contains("contentDescription = tab.label"))
     }
 }
