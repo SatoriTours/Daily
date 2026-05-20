@@ -1,17 +1,20 @@
 package com.dailysatori.ui.feature.aichat
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Stop
@@ -21,8 +24,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,7 +32,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.theme.Height
@@ -63,6 +63,12 @@ fun ChatInputBar(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val inputShape = RoundedCornerShape(Radius.circular)
+    val contentPadding = PaddingValues(
+        top = Spacing.xs,
+        bottom = Spacing.xs,
+        start = Spacing.xs,
+        end = Spacing.xs,
+    )
     val action = chatInputAction(isProcessing)
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -93,32 +99,32 @@ fun ChatInputBar(
                     modifier = Modifier.padding(start = Spacing.s, end = Spacing.xs, top = Spacing.xxs, bottom = Spacing.xxs),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextField(
+                    BasicTextField(
                         value = inputText,
                         onValueChange = onInputChange,
                         modifier = Modifier
                             .weight(1f)
-                            .defaultMinSize(minHeight = ChatInputMinHeight)
+                            .heightIn(min = ChatInputMinHeight)
+                            .padding(contentPadding)
                             .onFocusChanged { isFocused = it.isFocused },
-                        placeholder = {
-                            Text(
-                                "问我任何问题...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            )
-                        },
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            disabledContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            disabledIndicatorColor = Color.Transparent,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
                         ),
-                        textStyle = MaterialTheme.typography.bodyMedium,
                         minLines = 1,
                         maxLines = 3,
                         enabled = true,
+                        decorationBox = { innerTextField ->
+                            Box {
+                                if (inputText.isEmpty()) {
+                                    Text(
+                                        "问我任何问题...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        },
                     )
                     Spacer(modifier = Modifier.width(Spacing.xs))
                     FilledIconButton(
