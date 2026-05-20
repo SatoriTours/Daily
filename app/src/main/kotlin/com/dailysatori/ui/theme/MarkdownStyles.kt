@@ -18,11 +18,11 @@ object MarkdownStyles {
 
     @Composable
     fun readingTypography(): MarkdownTypography = typographyScale(
-        bodySize = 16,
-        bodyLine = 27,
-        h1 = 24,
-        h2 = 21,
-        h3 = 18,
+        bodySize = 15,
+        bodyLine = 24,
+        h1 = 22,
+        h2 = 19,
+        h3 = 17,
         linkColor = MaterialTheme.colorScheme.primary,
     )
 
@@ -38,19 +38,19 @@ object MarkdownStyles {
 
     @Composable
     fun compactTypography(): MarkdownTypography = typographyScale(
-        bodySize = 14,
-        bodyLine = 21,
-        h1 = 18,
-        h2 = 16,
-        h3 = 15,
+        bodySize = 15,
+        bodyLine = 24,
+        h1 = 22,
+        h2 = 19,
+        h3 = 17,
         linkColor = MaterialTheme.colorScheme.primary,
     )
 
     @Composable
     fun readingPadding(): MarkdownPadding = markdownPadding(
         block = 10.dp,
-        list = 10.dp,
-        listItemBottom = 8.dp,
+        list = 8.dp,
+        listItemBottom = 6.dp,
         indentList = 22.dp,
         codeBlock = PaddingValues(12.dp),
         blockQuote = PaddingValues(12.dp),
@@ -89,16 +89,16 @@ object MarkdownStyles {
     fun padding(): MarkdownPadding = readingPadding()
 
     @Composable
-    fun cardTypography(): MarkdownTypography = compactTypography()
+    fun cardTypography(): MarkdownTypography = summaryTypography()
 
     @Composable
-    fun cardPadding(): MarkdownPadding = compactPadding()
+    fun cardPadding(): MarkdownPadding = summaryPadding()
 
     @Composable
-    fun remoteArticleTypography(): MarkdownTypography = readingTypography()
+    fun remoteArticleTypography(): MarkdownTypography = summaryTypography()
 
     @Composable
-    fun remoteArticlePadding(): MarkdownPadding = readingPadding()
+    fun remoteArticlePadding(): MarkdownPadding = summaryPadding()
 }
 
 private fun typographyScale(

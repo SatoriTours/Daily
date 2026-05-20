@@ -1542,7 +1542,7 @@ class UnifiedNewsBehaviorTest {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
         val cardBody = screen.substringAfter("private fun TodayUnifiedNewsCard").substringBefore("elevation =")
 
-        assertTrue(cardBody.contains("outlineVariant.copy(alpha = 0.45f)"))
+        assertTrue(cardBody.contains("outline.copy(alpha = 0.65f)"))
     }
 
     @Test
@@ -1719,10 +1719,21 @@ class UnifiedNewsBehaviorTest {
         val typographyBody = styles.substringAfter("fun readingTypography(): MarkdownTypography").substringBefore("fun summaryTypography")
         val paddingBody = styles.substringAfter("fun readingPadding(): MarkdownPadding").substringBefore("fun summaryPadding")
 
-        assertTrue(typographyBody.contains("bodyLine = 27"))
-        assertFalse(typographyBody.contains("list = TextStyle(\n            fontFamily = LatoFontFamily,\n            fontWeight = FontWeight.Medium,\n            fontSize = 16.sp,\n            lineHeight = 28.sp"))
-        assertTrue(paddingBody.contains("listItemBottom = 8.dp"))
-        assertTrue(paddingBody.contains("list = 10.dp"))
+        assertTrue(typographyBody.contains("bodySize = 15"))
+        assertTrue(typographyBody.contains("bodyLine = 24"))
+        assertFalse(typographyBody.contains("bodyLine = 27"))
+        assertFalse(typographyBody.contains("list = TextStyle(\n            fontFamily = LatoFontFamily"))
+        assertTrue(paddingBody.contains("listItemBottom = 6.dp"))
+        assertTrue(paddingBody.contains("list = 8.dp"))
+    }
+
+    @Test
+    fun unifiedNewsCardsUseSubtleLiquidBorders() {
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+
+        assertFalse(screen.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant),"))
+        assertTrue(screen.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline)"))
+        assertTrue(screen.contains("MaterialTheme.colorScheme.outline.copy(alpha = 0.65f)"))
     }
 
     @Test

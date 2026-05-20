@@ -21,6 +21,7 @@ class LiquidDarkThemeTest {
         assertTrue(source.contains("sapphire = Color(0xFF7DD3FC)"))
         assertTrue(source.contains("onLiquid = Color(0xFFF8FAFC)"))
         assertTrue(source.contains("onLiquidVariant = Color(0xFFCBD5E1)"))
+        assertTrue(source.contains("liquidOutlineHigh = Color(0x33475569)"))
     }
 
     @Test
@@ -90,10 +91,13 @@ class LiquidDarkThemeTest {
     fun markdownScaleMatchesUnifiedAppTypography() {
         val source = File("src/main/kotlin/com/dailysatori/ui/theme/MarkdownStyles.kt").readText()
 
-        assertTrue(source.contains("bodySize = 16"))
-        assertTrue(source.contains("bodyLine = 27"))
         assertTrue(source.contains("bodySize = 15"))
         assertTrue(source.contains("bodyLine = 24"))
+        assertFalse(source.contains("bodySize = 16"))
+        assertFalse(source.contains("bodyLine = 27"))
+        assertTrue(source.contains("fun cardTypography(): MarkdownTypography = summaryTypography()"))
+        assertTrue(source.contains("fun cardPadding(): MarkdownPadding = summaryPadding()"))
+        assertTrue(source.contains("fun remoteArticleTypography(): MarkdownTypography = summaryTypography()"))
         assertTrue(source.contains("fontFamily = UiFontFamily"))
     }
 

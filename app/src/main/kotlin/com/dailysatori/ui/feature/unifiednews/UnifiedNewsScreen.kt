@@ -200,7 +200,7 @@ private fun UnifiedNewsGeneratingSkeleton(summaryDate: String?) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
         shape = RoundedCornerShape(Radius.l),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             summaryDate?.let {
@@ -278,7 +278,7 @@ private fun TodayUnifiedNewsCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(Radius.l),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline.copy(alpha = 0.65f)),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             Row(
