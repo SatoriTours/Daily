@@ -12,16 +12,21 @@ class AiChatUiStateTest {
     @Test
     fun chatInputUsesCompactLiquidGlassSizing() {
         val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/ChatInputBar.kt").readText()
+        val compactSource = source.replace(Regex("\\s+"), " ")
 
         assertTrue(source.contains("private val ChatInputButtonSize = 34.dp"))
         assertTrue(source.contains("private val ChatInputContentMinHeight = Height.input"))
+        assertFalse(source.contains("ChatInputMinHeight"))
         assertTrue(source.contains("RoundedCornerShape(Radius.circular)"))
         assertTrue(source.contains("MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)"))
-        assertTrue(source.contains("contentAlignment = Alignment.CenterStart"))
-        assertTrue(source.contains("Modifier.heightIn(min = ChatInputContentMinHeight)"))
-        assertFalse(source.contains(".heightIn(min = ChatInputMinHeight)\n                            .padding(contentPadding)"))
+        assertTrue(compactSource.contains("contentAlignment = Alignment.CenterStart"))
+        assertTrue(compactSource.contains("heightIn(min = ChatInputContentMinHeight)"))
+        assertTrue(compactSource.contains("padding(contentPadding)"))
+        assertFalse(compactSource.contains(".heightIn(min = ChatInputMinHeight) .padding(contentPadding)"))
         assertTrue(source.contains("contentPadding = PaddingValues"))
         assertTrue(source.contains("modifier = Modifier.size(ChatInputButtonSize)"))
+        assertTrue(source.contains("textStyle = MaterialTheme.typography.bodyMedium.copy"))
+        assertTrue(source.contains("style = MaterialTheme.typography.bodyMedium"))
         assertTrue(source.contains("minLines = 1"))
         assertTrue(source.contains("maxLines = 3"))
     }

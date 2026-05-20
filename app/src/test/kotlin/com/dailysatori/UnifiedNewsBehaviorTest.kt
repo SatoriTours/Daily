@@ -1719,15 +1719,18 @@ class UnifiedNewsBehaviorTest {
     fun unifiedNewsMarkdownListSpacingIsComfortableForReading() {
         val styles = java.io.File("src/main/kotlin/com/dailysatori/ui/theme/MarkdownStyles.kt").readText()
         val reading = styles.substringAfter("fun readingTypography(): MarkdownTypography").substringBefore("fun summaryTypography")
-        val summary = styles.substringAfter("fun summaryTypography(): MarkdownTypography").substringBefore("fun compactTypography")
-        val compact = styles.substringAfter("fun compactTypography(): MarkdownTypography").substringBefore("fun readingPadding")
+        val typographyFrom = styles.substringAfter("private fun typographyFrom(").substringBefore("private fun headingStyle")
 
-        assertTrue(reading.contains("bodySize = 16"))
-        assertTrue(reading.contains("bodyLine = 27"))
-        assertTrue(summary.contains("bodySize = 15"))
-        assertTrue(summary.contains("bodyLine = 24"))
-        assertTrue(compact.contains("bodySize = 15"))
-        assertTrue(compact.contains("bodyLine = 24"))
+        assertTrue(reading.contains("body = readingTextStyle()"))
+        assertTrue(styles.contains("private fun readingTextStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = UiFontFamily)"))
+        assertTrue(styles.contains("private fun cardTextStyle(): TextStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = UiFontFamily)"))
+        assertTrue(styles.contains("fun summaryTypography(): MarkdownTypography = cardTypography()"))
+        assertTrue(styles.contains("fun compactTypography(): MarkdownTypography = cardTypography()"))
+        assertTrue(typographyFrom.contains("ordered = body"))
+        assertTrue(typographyFrom.contains("bullet = body"))
+        assertTrue(typographyFrom.contains("list = body"))
+        assertFalse(styles.contains("bodySize ="))
+        assertFalse(styles.contains("bodyLine ="))
         assertFalse(styles.contains("list = TextStyle(\n            fontFamily = LatoFontFamily"))
     }
 
