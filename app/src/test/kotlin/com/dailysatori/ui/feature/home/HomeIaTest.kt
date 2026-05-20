@@ -37,4 +37,17 @@ class HomeIaTest {
 
         assertTrue(source.contains("if (selectedBookId != null) selectedIndex = READING_TAB_INDEX"))
     }
+
+    @Test
+    fun bottomBarUsesCompactFloatingLiquidGlassStyle() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+
+        assertTrue(source.contains("private val HomeBottomBarHeight = Height.navBar"))
+        assertTrue(source.contains("private val HomeBottomBarIconSize = IconSize.l"))
+        assertTrue(source.contains("RoundedCornerShape(Radius.circular)"))
+        assertTrue(source.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant)"))
+        assertTrue(source.contains("Modifier.navigationBarsPadding()"))
+        assertTrue(source.contains("label = { Text(tab.label, style = MaterialTheme.typography.labelSmall) }"))
+        assertTrue(source.contains("indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)"))
+    }
 }

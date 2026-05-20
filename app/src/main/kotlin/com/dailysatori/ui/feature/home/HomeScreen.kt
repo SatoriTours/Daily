@@ -1,12 +1,16 @@
 package com.dailysatori.ui.feature.home
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Book
@@ -22,6 +26,8 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +45,11 @@ import com.dailysatori.ui.feature.diary.DiaryScreen
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.SettingsScreen
 import com.dailysatori.ui.feature.unifiednews.UnifiedNewsScreen
+import com.dailysatori.ui.theme.BorderWidth
+import com.dailysatori.ui.theme.Height
+import com.dailysatori.ui.theme.IconSize
+import com.dailysatori.ui.theme.Radius
+import com.dailysatori.ui.theme.Spacing
 
 data class TabItem(
     val label: String,
@@ -57,6 +68,9 @@ val tabs = listOf(
     TabItem("读书", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
     TabItem("AI", Icons.Filled.SmartToy, Icons.Outlined.SmartToy),
 )
+
+private val HomeBottomBarHeight = Height.navBar
+private val HomeBottomBarIconSize = IconSize.l
 
 fun homeBottomBarVisibleForTab(index: Int): Boolean = index in tabs.indices
 
@@ -84,27 +98,43 @@ fun HomeScreen(
     Scaffold(
         bottomBar = {
             if (homeBottomBarVisibleForTab(selectedIndex)) {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
+                Surface(
+                    modifier = Modifier.navigationBarsPadding()
+                        .padding(horizontal = Spacing.m, vertical = Spacing.s),
+                    shape = RoundedCornerShape(Radius.circular),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
                     contentColor = MaterialTheme.colorScheme.onSurface,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 10.dp,
+                    border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant),
                 ) {
-                    tabs.forEachIndexed { index, tab ->
-                        NavigationBarItem(
-                            icon = {
-                                Icon(
-                                    if (selectedIndex == index) tab.selectedIcon else tab.unselectedIcon,
-                                    contentDescription = tab.label,
-                                    modifier = Modifier.size(28.dp),
+                    NavigationBar(
+                        modifier = Modifier.height(HomeBottomBarHeight),
+                        containerColor = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        tonalElevation = 0.dp,
+                    ) {
+                        tabs.forEachIndexed { index, tab ->
+                            NavigationBarItem(
+                                icon = {
+                                    Icon(
+                                        if (selectedIndex == index) tab.selectedIcon else tab.unselectedIcon,
+                                        contentDescription = tab.label,
+                                        modifier = Modifier.size(HomeBottomBarIconSize),
+                                    )
+                                },
+                                label = { Text(tab.label, style = MaterialTheme.typography.labelSmall) },
+                                selected = selectedIndex == index,
+                                onClick = { selectedIndex = index },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
                                 )
-                            },
-                            selected = selectedIndex == index,
-                            onClick = { selectedIndex = index },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                indicatorColor = Color.Transparent,
-                            ),
-                        )
+                            )
+                        }
                     }
                 }
             }
