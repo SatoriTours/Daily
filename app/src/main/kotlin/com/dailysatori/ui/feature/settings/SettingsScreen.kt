@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDownload
@@ -51,6 +52,7 @@ import com.dailysatori.ui.feature.settings.importing.DataImportScreen
 import com.dailysatori.ui.feature.settings.mcp.McpServerScreen
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterScreen
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
+import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 
 private enum class SettingsPage {
@@ -130,6 +132,12 @@ private fun AboutDialog(show: Boolean, currentVersion: String, onDismiss: () -> 
     if (!show) return
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 0.dp,
+        iconContentColor = MaterialTheme.colorScheme.primary,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         title = { Text("Daily Satori") },
         text = { Text("v$currentVersion\n个人知识管理与 AI 阅读助手\n基于 KMP + Compose Multiplatform") },
         confirmButton = { TextButton(onClick = onDismiss) { Text("确定") } },

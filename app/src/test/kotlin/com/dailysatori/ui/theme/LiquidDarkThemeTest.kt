@@ -24,7 +24,7 @@ class LiquidDarkThemeTest {
     }
 
     @Test
-    fun themeDefaultsToLiquidDarkAndUsesDarkStatusBarIcons() {
+    fun themeDefaultsToLiquidDarkAndUsesDarkSystemBarIcons() {
         val source = File("src/main/kotlin/com/dailysatori/ui/theme/Theme.kt").readText()
         val darkScheme = source.substringAfter("private val DarkColorScheme").substringBefore("@Composable")
 
@@ -37,6 +37,39 @@ class LiquidDarkThemeTest {
         assertTrue(source.contains("background = AppColors.liquidBackground"))
         assertTrue(source.contains("surface = AppColors.liquidSurface"))
         assertTrue(source.contains("isAppearanceLightStatusBars = false"))
+        assertTrue(source.contains("isAppearanceLightNavigationBars = false"))
+    }
+
+    @Test
+    fun directDialogsAndSheetsUseLiquidDarkTreatment() {
+        val dialogSources = listOf(
+            File("src/main/kotlin/com/dailysatori/DailySatoriApp.kt").readText(),
+            File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText(),
+            File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryEditorSheet.kt").readText(),
+            File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText(),
+            File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleListScreen.kt").readText(),
+            File("src/main/kotlin/com/dailysatori/ui/feature/settings/backup/BackupRestoreScreen.kt").readText(),
+            File("src/main/kotlin/com/dailysatori/ui/feature/aiconfig/AiConfigScreen.kt").readText(),
+        )
+        val sheetSources = listOf(
+            File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText(),
+            File("src/main/kotlin/com/dailysatori/ui/feature/aichat/MemorySearchSheet.kt").readText(),
+            File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiReferenceDetailSheet.kt").readText(),
+        )
+
+        dialogSources.forEach { source ->
+            assertTrue(source.contains("shape = RoundedCornerShape(Radius.xl)"))
+            assertTrue(source.contains("containerColor = MaterialTheme.colorScheme.surfaceContainer"))
+            assertTrue(source.contains("tonalElevation = 0.dp"))
+            assertTrue(source.contains("titleContentColor = MaterialTheme.colorScheme.onSurface"))
+            assertTrue(source.contains("textContentColor = MaterialTheme.colorScheme.onSurfaceVariant"))
+        }
+        sheetSources.forEach { source ->
+            assertTrue(source.contains("containerColor = MaterialTheme.colorScheme.surfaceContainer"))
+            assertTrue(source.contains("contentColor = MaterialTheme.colorScheme.onSurface"))
+            assertTrue(source.contains("shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl)"))
+            assertTrue(source.contains("tonalElevation = 0.dp"))
+        }
     }
 
     @Test

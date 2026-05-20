@@ -228,6 +228,12 @@ fun AiConfigScreen(
     if (targetDeleteId != null) {
         AlertDialog(
             onDismissRequest = { deletingConfigId = null },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            tonalElevation = 0.dp,
+            iconContentColor = MaterialTheme.colorScheme.primary,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = { Text("删除 AI 配置") },
             text = { Text("确定删除这个非默认模型配置吗？") },
             confirmButton = {

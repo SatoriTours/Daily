@@ -225,6 +225,12 @@ fun ArticleListScreen(
                 showAddDialog = false
                 addUrlInput = ""
             },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            tonalElevation = 0.dp,
+            iconContentColor = MaterialTheme.colorScheme.primary,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = { Text("添加文章") },
             text = {
                 OutlinedTextField(

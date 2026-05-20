@@ -179,6 +179,12 @@ fun DiaryEditorSheet(
     if (showMediaPicker) {
         AlertDialog(
             onDismissRequest = { showMediaPicker = false },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            tonalElevation = 0.dp,
+            iconContentColor = MaterialTheme.colorScheme.primary,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = { Text("添加媒体") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {

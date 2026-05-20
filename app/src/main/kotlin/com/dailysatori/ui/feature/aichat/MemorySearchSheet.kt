@@ -80,6 +80,10 @@ fun MemorySearchSheet(onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
+        tonalElevation = 0.dp,
     ) {
         Column(modifier = Modifier.padding(horizontal = Spacing.m)) {
             Text("记忆搜索", style = MaterialTheme.typography.titleLarge)

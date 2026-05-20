@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialog
@@ -25,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -33,6 +35,7 @@ import com.dailysatori.core.navigation.DailySatoriNavHost
 import com.dailysatori.ui.feature.settings.SettingsState
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.UpdateDownloadProgress
+import com.dailysatori.ui.theme.Radius
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -131,6 +134,12 @@ fun DailySatoriApp(
     state.clipboardUrl?.let { url ->
         AlertDialog(
             onDismissRequest = { viewModel.dismissClipboardUrl() },
+            shape = RoundedCornerShape(Radius.xl),
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            tonalElevation = 0.dp,
+            iconContentColor = MaterialTheme.colorScheme.primary,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             title = { Text(clipboardPromptTitle()) },
             text = { Text("是否保存为文章？\n$url") },
             confirmButton = {
@@ -163,6 +172,12 @@ private fun UpgradeDialog(
     if (!state.showUpdateDialog) return
     AlertDialog(
         onDismissRequest = { viewModel.dismissUpdateDialog() },
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 0.dp,
+        iconContentColor = MaterialTheme.colorScheme.primary,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         title = { Text(if (state.isDownloadingUpdate) "正在下载更新" else "发现新版本") },
         text = {
             if (state.isDownloadingUpdate) UpdateDownloadProgress(state)

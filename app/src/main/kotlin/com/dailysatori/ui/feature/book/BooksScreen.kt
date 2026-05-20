@@ -51,6 +51,7 @@ import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.feature.book.component.BookAddSearchSheet
 import com.dailysatori.ui.feature.book.component.BookContentSearchSheet
 import com.dailysatori.ui.feature.book.component.BookPickerSwipeRow
+import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -248,6 +249,10 @@ fun BooksScreen(
         ModalBottomSheet(
             onDismissRequest = { inlineMode = BooksInlineMode.Reading },
             sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
+            tonalElevation = 0.dp,
         ) {
             when (inlineMode) {
                 BooksInlineMode.AddBook -> BookAddSearchSheet(
@@ -285,6 +290,10 @@ fun BooksScreen(
                 }
             },
             sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
+            tonalElevation = 0.dp,
             dragHandle = {
                 Box(
                     modifier = Modifier

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,6 +31,7 @@ import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.media.SmartImage
 import com.dailysatori.ui.feature.book.ViewpointCard
 import com.dailysatori.ui.theme.MarkdownStyles
+import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import com.mikepenz.markdown.m3.Markdown
 
@@ -55,6 +57,10 @@ fun AiReferenceDetailSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
+        tonalElevation = 0.dp,
     ) {
         Column(
             modifier = Modifier
