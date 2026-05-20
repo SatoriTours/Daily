@@ -18,7 +18,7 @@ object Radius {
     val xs = 4.dp
     val s = 8.dp
     val m = 12.dp
-    val l = 16.dp
+    val l = 22.dp
     val xl = 24.dp
     val circular = 100.dp
 }
@@ -33,15 +33,15 @@ object IconSize {
 }
 
 object Height {
-    val button = 48.dp
-    val buttonSmall = 36.dp
-    val input = 48.dp
-    val listItem = 56.dp
-    val listItemSmall = 48.dp
-    val appBar = 56.dp
-    val navBar = 56.dp
-    val chip = 32.dp
-    val searchBar = 48.dp
+    val button = 46.dp
+    val buttonSmall = 34.dp
+    val input = 46.dp
+    val listItem = 54.dp
+    val listItemSmall = 46.dp
+    val appBar = 54.dp
+    val navBar = 52.dp
+    val chip = 30.dp
+    val searchBar = 46.dp
 }
 
 object BorderWidth {

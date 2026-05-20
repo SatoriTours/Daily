@@ -1,7 +1,6 @@
 package com.dailysatori.ui.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -34,28 +33,29 @@ private val LightColorScheme = lightColorScheme(
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF8AB4F8),
-    onPrimary = Color.White,
-    secondary = Color(0xFF66BB6A),
-    secondaryContainer = Color(0xFF2E3B2E),
-    onSecondaryContainer = Color(0xFF81C784),
-    tertiaryContainer = Color(0xFF3E2723),
-    background = Color(0xFF121212),
-    onBackground = Color(0xFFE0E0E0),
-    surface = Color(0xFF1E1E1E),
-    onSurface = Color(0xFFBDBDBD),
-    surfaceVariant = Color(0xFF2C2C2C),
-    onSurfaceVariant = Color(0xFF9E9E9E),
-    outline = Color(0xFF424242),
-    outlineVariant = Color(0xFF757575),
-    error = Color(0xFFE57373),
-    surfaceContainer = Color(0xFF2C2C2C),
-    surfaceContainerHighest = Color(0xFF3A3A3A),
+    primary = AppColors.sapphire,
+    onPrimary = Color(0xFF03121D),
+    secondary = AppColors.secondary,
+    onSecondary = AppColors.onLiquid,
+    secondaryContainer = AppColors.secondaryContainer,
+    onSecondaryContainer = AppColors.onSecondaryContainer,
+    tertiaryContainer = AppColors.tertiaryContainer,
+    background = AppColors.liquidBackground,
+    onBackground = AppColors.onLiquid,
+    surface = AppColors.liquidSurface,
+    onSurface = AppColors.onLiquid,
+    surfaceVariant = AppColors.liquidSurfaceHigh,
+    onSurfaceVariant = AppColors.onLiquidVariant,
+    outline = AppColors.liquidOutline,
+    outlineVariant = AppColors.liquidOutlineHigh,
+    error = AppColors.error,
+    surfaceContainer = AppColors.liquidSurfaceHigh,
+    surfaceContainerHighest = AppColors.liquidSurfaceHighest,
 )
 
 @Composable
 fun DailySatoriTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
@@ -64,7 +64,7 @@ fun DailySatoriTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = Color.Transparent.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }
 

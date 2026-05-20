@@ -18,28 +18,28 @@ object MarkdownStyles {
 
     @Composable
     fun readingTypography(): MarkdownTypography = typographyScale(
-        bodySize = 17,
-        bodyLine = 30,
-        h1 = 26,
-        h2 = 22,
-        h3 = 19,
+        bodySize = 16,
+        bodyLine = 27,
+        h1 = 24,
+        h2 = 21,
+        h3 = 18,
         linkColor = MaterialTheme.colorScheme.primary,
     )
 
     @Composable
     fun summaryTypography(): MarkdownTypography = typographyScale(
-        bodySize = 16,
-        bodyLine = 27,
-        h1 = 23,
-        h2 = 20,
-        h3 = 18,
+        bodySize = 15,
+        bodyLine = 24,
+        h1 = 22,
+        h2 = 19,
+        h3 = 17,
         linkColor = MaterialTheme.colorScheme.primary,
     )
 
     @Composable
     fun compactTypography(): MarkdownTypography = typographyScale(
         bodySize = 14,
-        bodyLine = 22,
+        bodyLine = 21,
         h1 = 18,
         h2 = 16,
         h3 = 15,
@@ -133,7 +133,7 @@ private fun contentStyle(
     fontStyle: FontStyle = FontStyle.Normal,
     color: Color = Color.Unspecified,
 ): TextStyle = TextStyle(
-    fontFamily = ContentFontFamily,
+    fontFamily = UiFontFamily,
     fontWeight = weight,
     fontSize = size.sp,
     lineHeight = lineHeight.sp,

@@ -3,35 +3,47 @@ package com.dailysatori.ui.theme
 import androidx.compose.ui.graphics.Color
 
 object AppColors {
-    val primary = Color(0xFF5E8BFF)
-    val primaryLight = Color(0xFF8AB4F8)
+    val sapphire = Color(0xFF7DD3FC)
+    val sapphireSoft = Color(0xFF38BDF8)
+    val liquidBackground = Color(0xFF050816)
+    val liquidSurface = Color(0xFF111827)
+    val liquidSurfaceHigh = Color(0xFF1E293B)
+    val liquidSurfaceHighest = Color(0xFF273449)
+    val onLiquid = Color(0xFFF8FAFC)
+    val onLiquidVariant = Color(0xFFCBD5E1)
+    val onLiquidMuted = Color(0xFF94A3B8)
+    val liquidOutline = Color(0x33475569)
+    val liquidOutlineHigh = Color(0x667DD3FC)
 
-    val background = Color(0xFFF7F7F7)
-    val surface = Color(0xFFFFFFFF)
-    val surfaceContainer = Color(0xFFF0F0F0)
-    val surfaceContainerHighest = Color(0xFFE0E0E0)
+    val primary = sapphire
+    val primaryLight = sapphireSoft
 
-    val onBackground = Color(0xFF212121)
-    val onSurface = Color(0xFF424242)
-    val onSurfaceVariant = Color(0xFF757575)
+    val background = liquidBackground
+    val surface = liquidSurface
+    val surfaceContainer = liquidSurfaceHigh
+    val surfaceContainerHighest = liquidSurfaceHighest
 
-    val outline = Color(0xFFE0E0E0)
-    val outlineVariant = Color(0xFFBDBDBD)
+    val onBackground = onLiquid
+    val onSurface = onLiquid
+    val onSurfaceVariant = onLiquidVariant
 
-    val success = Color(0xFF4CAF50)
-    val error = Color(0xFFF44336)
-    val warning = Color(0xFFFF9800)
-    val info = Color(0xFF2196F3)
+    val outline = liquidOutline
+    val outlineVariant = liquidOutlineHigh
 
-    val secondary = Color(0xFF4CAF50)
-    val secondaryContainer = Color(0xFFE8F5E9)
-    val onSecondaryContainer = Color(0xFF1B5E20)
-    val tertiaryContainer = Color(0xFFFFF3E0)
+    val success = Color(0xFF4ADE80)
+    val error = Color(0xFFF87171)
+    val warning = Color(0xFFFBBF24)
+    val info = sapphire
+
+    val secondary = Color(0xFFA78BFA)
+    val secondaryContainer = Color(0xFF1E1B4B)
+    val onSecondaryContainer = Color(0xFFDCD6FE)
+    val tertiaryContainer = Color(0xFF172554)
 
     val tagColors = listOf(
-        Color(0xFF5E8BFF), Color(0xFF26A69A), Color(0xFF66BB6A),
-        Color(0xFF9CCC65), Color(0xFFD4E157), Color(0xFFFFEE58),
-        Color(0xFFFFCA28), Color(0xFFFFB74D), Color(0xFFFF8A65),
-        Color(0xFFE57373),
+        Color(0xFF7DD3FC), Color(0xFFA78BFA), Color(0xFF60A5FA),
+        Color(0xFF34D399), Color(0xFFFBBF24), Color(0xFFFB7185),
+        Color(0xFF38BDF8), Color(0xFFC4B5FD), Color(0xFF22D3EE),
+        Color(0xFFF472B6),
     )
 }
