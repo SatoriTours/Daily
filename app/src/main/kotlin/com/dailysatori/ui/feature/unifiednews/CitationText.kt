@@ -95,7 +95,7 @@ private fun UnifiedNewsBulletItem(text: String, citation: String?, onCitationCli
         Text(
             text = text,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f),
         )
     }

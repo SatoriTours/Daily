@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.book
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -16,8 +17,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -35,31 +36,30 @@ fun ViewpointCard(
     val cardModifier = if (fillAvailableHeight) modifier.fillMaxWidth().fillMaxHeight() else modifier.fillMaxWidth()
     Card(
         modifier = cardModifier,
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
+        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.padding(Spacing.m).verticalScroll(rememberScrollState())) {
             Text(
                 title,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(Spacing.m))
             Text(
                 bookTitle,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.End,
             )
             Spacer(modifier = Modifier.height(Spacing.l))
             Markdown(
                 content = content,
-                typography = MarkdownStyles.compactTypography(),
-                padding = MarkdownStyles.compactPadding(),
+                typography = MarkdownStyles.cardTypography(),
+                padding = MarkdownStyles.cardPadding(),
             )
             if (example.isNotBlank()) {
                 Spacer(modifier = Modifier.height(Spacing.l))
@@ -71,8 +71,8 @@ fun ViewpointCard(
                 Spacer(modifier = Modifier.height(Spacing.xs))
                 Markdown(
                     content = example,
-                    typography = MarkdownStyles.compactTypography(),
-                    padding = MarkdownStyles.compactPadding(),
+                    typography = MarkdownStyles.cardTypography(),
+                    padding = MarkdownStyles.cardPadding(),
                 )
             }
         }

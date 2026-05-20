@@ -106,7 +106,7 @@ fun DiaryCard(
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+            modifier = Modifier.padding(Spacing.m),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -155,8 +155,8 @@ fun DiaryCard(
                 ) {
                     Markdown(
                         content = contentText,
-                        typography = MarkdownStyles.compactTypography(),
-                        padding = MarkdownStyles.compactPadding(),
+                        typography = MarkdownStyles.cardTypography(),
+                        padding = MarkdownStyles.cardPadding(),
                     )
                 }
 
