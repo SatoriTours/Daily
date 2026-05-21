@@ -15,6 +15,22 @@ class CompactTitleSpacingTest {
         assertFalse(source.contains("Modifier.height(Height.appBar)"))
         assertFalse(source.contains("height(64.dp)"))
     }
+
+    @Test
+    fun localArticleDetailUsesCompactFirstBodyPadding() {
+        val source = readProjectFile("app/src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt")
+
+        assertTrue(source.contains("Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s))"))
+        assertFalse(source.contains("Box(modifier = Modifier.padding(Spacing.m))"))
+    }
+
+    @Test
+    fun remoteArticleDetailUsesCompactFirstBodyPadding() {
+        val source = readProjectFile("app/src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt")
+
+        assertTrue(source.contains("Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s))"))
+        assertFalse(source.contains("Box(modifier = Modifier.padding(Spacing.m))"))
+    }
 }
 
 private fun readProjectFile(path: String): String =

@@ -149,7 +149,7 @@ fun RemoteArticleDetailScreen(
                             .nestedScroll(nestedScrollConnection),
                     ) {
                         item(key = "remote-content-$page") {
-                            Box(modifier = Modifier.padding(Spacing.m)) {
+                            Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s)) {
                                 RemoteArticleMarkdownContent(
                                     remoteArticleDetailPageContent(
                                         page = page,
