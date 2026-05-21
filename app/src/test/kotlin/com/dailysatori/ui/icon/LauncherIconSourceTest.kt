@@ -24,8 +24,8 @@ class LauncherIconSourceTest {
     fun monochromeIconKeepsRingShape() {
         val monochrome = File("src/main/res/drawable/ic_launcher_monochrome.xml").readText()
 
-        assertTrue(monochrome.contains("M54,26"))
-        assertTrue(monochrome.contains("android:strokeWidth=\"8\""))
+        assertTrue(monochrome.contains("M54,31"))
+        assertTrue(monochrome.contains("android:strokeWidth=\"7\""))
         assertTrue(monochrome.contains("android:strokeLineCap=\"round\""))
     }
 }

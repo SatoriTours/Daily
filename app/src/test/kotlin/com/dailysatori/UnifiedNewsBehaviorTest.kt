@@ -646,7 +646,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(screen.contains("MarkdownStyles.remoteArticleTypography()"))
         assertTrue(screen.contains("MarkdownStyles.remoteArticlePadding()"))
         assertTrue(screen.contains("Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s)"))
-        assertTrue(screen.contains("Modifier.padding(Spacing.m)"))
+        assertFalse(screen.substringAfter("item(key = \"remote-content-${'$'}page\")").substringBefore("RemoteArticleMarkdownContent(").contains("Modifier.padding(Spacing.m)"))
         assertFalse(screen.contains("RemoteArticleHeroCard"))
         assertFalse(screen.contains("RemoteArticleMetaChips"))
         assertFalse(screen.contains("RemoteArticleViewpointsSection"))
