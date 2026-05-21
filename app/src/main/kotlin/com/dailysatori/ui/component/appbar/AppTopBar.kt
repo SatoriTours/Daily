@@ -1,7 +1,6 @@
 package com.dailysatori.ui.component.appbar
 
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
@@ -13,7 +12,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import com.dailysatori.ui.theme.Height
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,7 +25,7 @@ fun AppTopBar(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     CenterAlignedTopAppBar(
-        modifier = Modifier.height(Height.appBar),
+        expandedHeight = Height.appBar,
         windowInsets = TopAppBarDefaults.windowInsets,
         title = {
             Text(
