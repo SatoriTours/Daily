@@ -19,17 +19,25 @@ class CompactTitleSpacingTest {
     @Test
     fun localArticleDetailUsesCompactFirstBodyPadding() {
         val source = readProjectFile("app/src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt")
+        val firstBodyWrapper = source.substringBetween(
+            start = "item(key = \"content-\$page\")",
+            end = "MarkdownContent(",
+        )
 
-        assertTrue(source.contains("Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s))"))
-        assertFalse(source.contains("Box(modifier = Modifier.padding(Spacing.m))"))
+        assertTrue(firstBodyWrapper.contains("Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s))"))
+        assertFalse(firstBodyWrapper.contains("Box(modifier = Modifier.padding(Spacing.m))"))
     }
 
     @Test
     fun remoteArticleDetailUsesCompactFirstBodyPadding() {
         val source = readProjectFile("app/src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt")
+        val firstBodyWrapper = source.substringBetween(
+            start = "item(key = \"remote-content-\$page\")",
+            end = "RemoteArticleMarkdownContent(",
+        )
 
-        assertTrue(source.contains("Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s))"))
-        assertFalse(source.contains("Box(modifier = Modifier.padding(Spacing.m))"))
+        assertTrue(firstBodyWrapper.contains("Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s))"))
+        assertFalse(firstBodyWrapper.contains("Box(modifier = Modifier.padding(Spacing.m))"))
     }
 }
 
@@ -37,3 +45,6 @@ private fun readProjectFile(path: String): String =
     (java.io.File(path).takeIf { it.exists() }
         ?: java.io.File(path.removePrefix("app/")))
         .readText()
+
+private fun String.substringBetween(start: String, end: String): String =
+    substringAfter(start).substringBefore(end)
