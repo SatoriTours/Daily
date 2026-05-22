@@ -9,11 +9,18 @@ class MainContentRhythmTest {
     @Test
     fun newsSummaryStartsCloserToTitleBar() {
         val news = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val compactStatePadding = ".padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s)"
+        val refreshMessage = news
+            .substringAfter("private fun UnifiedNewsRefreshMessage")
+            .substringBefore("private fun UnifiedNewsGeneratingSkeleton")
+        val generatingSkeleton = news
+            .substringAfter("private fun UnifiedNewsGeneratingSkeleton")
+            .substringBefore("private fun UnifiedNewsSourceDetailLoadingScreen")
 
         assertTrue(news.contains("contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m)"))
         assertFalse(news.contains("contentPadding = PaddingValues(Spacing.m)"))
-        assertTrue(news.contains(".padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s)"))
-        assertTrue(news.contains(".padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s)"))
+        assertTrue(refreshMessage.contains(compactStatePadding))
+        assertTrue(generatingSkeleton.contains(compactStatePadding))
     }
 
     @Test
