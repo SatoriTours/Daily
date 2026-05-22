@@ -154,7 +154,7 @@ private fun UnifiedNewsSummaryPage(state: UnifiedNewsState, viewModel: UnifiedNe
                     )
                     else -> LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(Spacing.m),
+                        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m),
                         verticalArrangement = Arrangement.spacedBy(Spacing.m),
                     ) {
                         items(visibleSummaries, key = { it.id }) { summary ->
@@ -174,7 +174,7 @@ private fun UnifiedNewsSummaryPage(state: UnifiedNewsState, viewModel: UnifiedNe
 @Composable
 private fun UnifiedNewsRefreshMessage(message: String) {
     Surface(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
+        modifier = Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s),
         shape = RoundedCornerShape(Radius.m),
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
     ) {
@@ -197,7 +197,7 @@ private fun UnifiedNewsGeneratingSkeleton(summaryDate: String?) {
         label = "unified-news-generating-alpha",
     )
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
+        modifier = Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s),
         shape = RoundedCornerShape(Radius.l),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),

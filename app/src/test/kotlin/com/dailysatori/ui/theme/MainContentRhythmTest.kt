@@ -7,6 +7,16 @@ import kotlin.test.assertTrue
 
 class MainContentRhythmTest {
     @Test
+    fun newsSummaryStartsCloserToTitleBar() {
+        val news = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+
+        assertTrue(news.contains("contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m)"))
+        assertFalse(news.contains("contentPadding = PaddingValues(Spacing.m)"))
+        assertTrue(news.contains(".padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s)"))
+        assertTrue(news.contains(".padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s)"))
+    }
+
+    @Test
     fun mainCardsUseSharedPaddingAndMarkdownPreset() {
         val diary = File("src/main/kotlin/com/dailysatori/ui/component/card/DiaryCard.kt").readText()
         val viewpoint = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
