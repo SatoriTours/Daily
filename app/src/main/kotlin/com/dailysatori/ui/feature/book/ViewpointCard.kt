@@ -48,21 +48,21 @@ fun ViewpointCard(
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Spacer(modifier = Modifier.height(Spacing.m))
+            Spacer(modifier = Modifier.height(Spacing.s))
             Text(
                 bookTitle,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Spacer(modifier = Modifier.height(Spacing.l))
+            Spacer(modifier = Modifier.height(Spacing.s))
             Markdown(
                 content = content,
                 typography = MarkdownStyles.cardTypography(),
                 padding = MarkdownStyles.cardPadding(),
             )
             if (example.isNotBlank()) {
-                Spacer(modifier = Modifier.height(Spacing.l))
+                Spacer(modifier = Modifier.height(Spacing.s))
                 Text(
                     "案例",
                     style = MaterialTheme.typography.titleSmall,

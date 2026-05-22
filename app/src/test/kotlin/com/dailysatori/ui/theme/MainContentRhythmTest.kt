@@ -24,6 +24,26 @@ class MainContentRhythmTest {
     }
 
     @Test
+    fun booksReadingUsesCompactHeaderAndReadableBody() {
+        val books = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
+        val viewpoint = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
+        val readingPager = books.substringAfter("HorizontalPager(")
+        val markdownBlocks = viewpoint.split("Markdown(").drop(1)
+
+        assertTrue(books.contains("Modifier.fillMaxWidth().height(Height.listItemSmall)"))
+        assertTrue(
+            readingPager.contains(
+                "modifier = Modifier.padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m)",
+            ),
+        )
+        assertFalse(readingPager.contains("modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.m)"))
+        assertTrue(viewpoint.contains("Spacer(modifier = Modifier.height(Spacing.s))"))
+        assertFalse(viewpoint.contains("Spacer(modifier = Modifier.height(Spacing.l))"))
+        assertTrue(markdownBlocks.all { it.contains("typography = MarkdownStyles.cardTypography()") })
+        assertTrue(markdownBlocks.all { it.contains("padding = MarkdownStyles.cardPadding()") })
+    }
+
+    @Test
     fun mainCardsUseSharedPaddingAndMarkdownPreset() {
         val diary = File("src/main/kotlin/com/dailysatori/ui/component/card/DiaryCard.kt").readText()
         val viewpoint = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
