@@ -12,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.Dp
 import com.dailysatori.ui.theme.Height
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -23,9 +24,10 @@ fun AppTopBar(
     myNavigationLabel: String? = null,
     onMyNavigationClick: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
+    expandedHeight: Dp = Height.appBar,
 ) {
     CenterAlignedTopAppBar(
-        expandedHeight = Height.appBar,
+        expandedHeight = expandedHeight,
         windowInsets = TopAppBarDefaults.windowInsets,
         title = {
             Text(

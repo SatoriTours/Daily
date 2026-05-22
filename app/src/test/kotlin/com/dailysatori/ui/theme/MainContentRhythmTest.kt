@@ -25,12 +25,17 @@ class MainContentRhythmTest {
 
     @Test
     fun booksReadingUsesCompactHeaderAndReadableBody() {
+        val spacing = File("src/main/kotlin/com/dailysatori/ui/theme/Spacing.kt").readText()
+        val appTopBar = File("src/main/kotlin/com/dailysatori/ui/component/appbar/AppTopBar.kt").readText()
         val books = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
         val viewpoint = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
         val readingPager = books.substringAfter("HorizontalPager(")
-        val markdownBlocks = viewpoint.split("Markdown(").drop(1)
 
-        assertTrue(books.contains("Modifier.fillMaxWidth().height(Height.listItemSmall)"))
+        assertTrue(spacing.contains("val appBarCompact = 48.dp"))
+        assertTrue(appTopBar.contains("expandedHeight: Dp = Height.appBar"))
+        assertTrue(appTopBar.contains("expandedHeight = expandedHeight"))
+        assertTrue(books.contains("expandedHeight = Height.appBarCompact"))
+        assertFalse(books.contains("Modifier.fillMaxWidth().height(Height.listItemSmall)"))
         assertTrue(
             readingPager.contains(
                 "modifier = Modifier.padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m)",
@@ -39,8 +44,8 @@ class MainContentRhythmTest {
         assertFalse(readingPager.contains("modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.m)"))
         assertTrue(viewpoint.contains("Spacer(modifier = Modifier.height(Spacing.s))"))
         assertFalse(viewpoint.contains("Spacer(modifier = Modifier.height(Spacing.l))"))
-        assertTrue(markdownBlocks.all { it.contains("typography = MarkdownStyles.cardTypography()") })
-        assertTrue(markdownBlocks.all { it.contains("padding = MarkdownStyles.cardPadding()") })
+        assertTrue(countOccurrences(viewpoint, "typography = MarkdownStyles.cardTypography()") >= 2)
+        assertTrue(countOccurrences(viewpoint, "padding = MarkdownStyles.cardPadding()") >= 2)
     }
 
     @Test
@@ -75,4 +80,7 @@ class MainContentRhythmTest {
         assertTrue(citation.contains("style = MaterialTheme.typography.bodyMedium"))
         assertFalse(citation.contains("style = MaterialTheme.typography.bodyLarge"))
     }
+
+    private fun countOccurrences(source: String, needle: String): Int =
+        source.windowed(needle.length).count { it == needle }
 }

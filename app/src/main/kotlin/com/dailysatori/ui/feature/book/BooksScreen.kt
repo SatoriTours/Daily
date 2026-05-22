@@ -123,50 +123,49 @@ fun BooksScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Box(modifier = Modifier.fillMaxWidth().height(Height.listItemSmall)) {
-            AppTopBar(
-                title = "读书",
-                showBack = false,
-                myNavigationLabel = "我的",
-                onMyNavigationClick = onMyClick,
-                actions = {
-                    IconButton(onClick = { inlineMode = inlineMode.toggleAdd() }) {
-                        Icon(Icons.Default.Add, contentDescription = booksAddActionContentDescription())
+        AppTopBar(
+            title = "读书",
+            showBack = false,
+            myNavigationLabel = "我的",
+            onMyNavigationClick = onMyClick,
+            expandedHeight = Height.appBarCompact,
+            actions = {
+                IconButton(onClick = { inlineMode = inlineMode.toggleAdd() }) {
+                    Icon(Icons.Default.Add, contentDescription = booksAddActionContentDescription())
+                }
+                IconButton(onClick = { inlineMode = inlineMode.toggleContentSearch() }) {
+                    Icon(Icons.Default.Search, contentDescription = booksContentSearchActionContentDescription())
+                }
+                var showMenu by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "更多")
                     }
-                    IconButton(onClick = { inlineMode = inlineMode.toggleContentSearch() }) {
-                        Icon(Icons.Default.Search, contentDescription = booksContentSearchActionContentDescription())
-                    }
-                    var showMenu by remember { mutableStateOf(false) }
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "更多")
-                        }
-                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text(booksFilterMenuText()) },
+                            leadingIcon = { Icon(Icons.Default.FilterList, null) },
+                            onClick = { showBookSheet = true; showMenu = false },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("随机") },
+                            leadingIcon = { Icon(Icons.Default.Refresh, null) },
+                            onClick = { viewModel.shuffle(); showMenu = false },
+                        )
+                        if (state.currentBookId != null) {
                             DropdownMenuItem(
-                                text = { Text(booksFilterMenuText()) },
-                                leadingIcon = { Icon(Icons.Default.FilterList, null) },
-                                onClick = { showBookSheet = true; showMenu = false },
+                                text = { Text("删除") },
+                                leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                                onClick = {
+                                    showDeleteDialog = state.books.find { it.id == state.currentBookId }
+                                    showMenu = false
+                                },
                             )
-                            DropdownMenuItem(
-                                text = { Text("随机") },
-                                leadingIcon = { Icon(Icons.Default.Refresh, null) },
-                                onClick = { viewModel.shuffle(); showMenu = false },
-                            )
-                            if (state.currentBookId != null) {
-                                DropdownMenuItem(
-                                    text = { Text("删除") },
-                                    leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                                    onClick = {
-                                        showDeleteDialog = state.books.find { it.id == state.currentBookId }
-                                        showMenu = false
-                                    },
-                                )
-                            }
                         }
                     }
-                },
-            )
-        }
+                }
+            },
+        )
 
         val visibleAnalysisMessage = booksAnalysisBannerMessage(bookAnalysisMessage, inlineBookAnalysisMessage)
         if (visibleAnalysisMessage != null) {

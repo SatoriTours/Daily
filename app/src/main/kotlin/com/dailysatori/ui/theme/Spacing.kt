@@ -39,6 +39,7 @@ object Height {
     val listItem = 54.dp
     val listItemSmall = 46.dp
     val appBar = 54.dp
+    val appBarCompact = 48.dp
     val navBar = 52.dp
     val chip = 30.dp
     val searchBar = 46.dp
