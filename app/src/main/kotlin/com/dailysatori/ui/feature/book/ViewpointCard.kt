@@ -44,34 +44,34 @@ fun ViewpointCard(
         Column(modifier = Modifier.padding(Spacing.m).verticalScroll(rememberScrollState())) {
             Text(
                 title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(Spacing.s))
             Text(
                 bookTitle,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(Spacing.s))
             Markdown(
                 content = content,
-                typography = MarkdownStyles.cardTypography(),
+                typography = MarkdownStyles.bookTypography(),
                 padding = MarkdownStyles.cardPadding(),
             )
             if (example.isNotBlank()) {
                 Spacer(modifier = Modifier.height(Spacing.s))
                 Text(
                     "案例",
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Spacer(modifier = Modifier.height(Spacing.xs))
                 Markdown(
                     content = example,
-                    typography = MarkdownStyles.cardTypography(),
+                    typography = MarkdownStyles.bookTypography(),
                     padding = MarkdownStyles.cardPadding(),
                 )
             }

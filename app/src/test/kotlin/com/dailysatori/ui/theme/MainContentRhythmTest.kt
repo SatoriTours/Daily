@@ -2,6 +2,7 @@ package com.dailysatori.ui.theme
 
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -38,13 +39,13 @@ class MainContentRhythmTest {
         assertFalse(books.contains("Modifier.fillMaxWidth().height(Height.listItemSmall)"))
         assertTrue(
             readingPager.contains(
-                "modifier = Modifier.padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m)",
+                "modifier = Modifier.padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s)",
             ),
         )
         assertFalse(readingPager.contains("modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.m)"))
         assertTrue(viewpoint.contains("Spacer(modifier = Modifier.height(Spacing.s))"))
         assertFalse(viewpoint.contains("Spacer(modifier = Modifier.height(Spacing.l))"))
-        assertTrue(countOccurrences(viewpoint, "typography = MarkdownStyles.cardTypography()") >= 2)
+        assertTrue(countOccurrences(viewpoint, "typography = MarkdownStyles.bookTypography()") >= 2)
         assertTrue(countOccurrences(viewpoint, "padding = MarkdownStyles.cardPadding()") >= 2)
     }
 
@@ -60,13 +61,10 @@ class MainContentRhythmTest {
         assertTrue(diary.contains("MarkdownStyles.cardPadding()"))
         assertTrue(viewpoint.contains("shape = RoundedCornerShape(Radius.l)"))
         assertTrue(viewpoint.contains("border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline)"))
-        assertTrue(viewpoint.contains("style = MaterialTheme.typography.titleMedium"))
-        assertTrue(viewpoint.contains("MarkdownStyles.cardTypography()"))
+        assertTrue(viewpoint.contains("style = MaterialTheme.typography.titleLarge"))
+        assertTrue(viewpoint.contains("MarkdownStyles.bookTypography()"))
         assertTrue(viewpoint.contains("MarkdownStyles.cardPadding()"))
-        assertTrue(
-            viewpoint.contains("style = MaterialTheme.typography.labelSmall") ||
-                viewpoint.contains("style = MaterialTheme.typography.bodySmall"),
-        )
+        assertTrue(viewpoint.contains("style = MaterialTheme.typography.labelMedium"))
         assertTrue(viewpoint.contains("color = MaterialTheme.colorScheme.onSurfaceVariant"))
         assertFalse(
             viewpoint.contains(
@@ -79,6 +77,20 @@ class MainContentRhythmTest {
         assertTrue(message.contains("MarkdownStyles.cardPadding()"))
         assertTrue(citation.contains("style = MaterialTheme.typography.bodyMedium"))
         assertFalse(citation.contains("style = MaterialTheme.typography.bodyLarge"))
+    }
+
+    @Test
+    fun bookViewpointUsesLargerReadingTypographyThanSharedCards() {
+        val styles = File("src/main/kotlin/com/dailysatori/ui/theme/MarkdownStyles.kt").readText()
+        val viewpoint = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
+
+        assertTrue(styles.contains("fun bookTypography(): MarkdownTypography = typographyFrom("))
+        assertTrue(styles.contains("body = bookTextStyle()"))
+        assertTrue(styles.contains("private fun bookTextStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy"))
+        assertEquals(2, countOccurrences(viewpoint, "typography = MarkdownStyles.bookTypography()"))
+        assertTrue(viewpoint.contains("style = MaterialTheme.typography.titleLarge"))
+        assertTrue(viewpoint.contains("style = MaterialTheme.typography.labelMedium"))
+        assertTrue(viewpoint.contains("style = MaterialTheme.typography.titleMedium"))
     }
 
     private fun countOccurrences(source: String, needle: String): Int =

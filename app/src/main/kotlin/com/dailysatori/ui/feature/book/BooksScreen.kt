@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,10 +12,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.NavigateBefore
+import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
@@ -27,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -122,26 +127,32 @@ fun BooksScreen(
         }
     }
 
+    val currentBook = state.books.find { it.id == state.currentBookId }
+
     Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(
-            title = "读书",
+            title = booksReaderTitle(currentBook?.title, currentBook?.author),
             showBack = false,
             myNavigationLabel = "我的",
             onMyNavigationClick = onMyClick,
             expandedHeight = Height.appBarCompact,
             actions = {
-                IconButton(onClick = { inlineMode = inlineMode.toggleAdd() }) {
-                    Icon(Icons.Default.Add, contentDescription = booksAddActionContentDescription())
-                }
-                IconButton(onClick = { inlineMode = inlineMode.toggleContentSearch() }) {
-                    Icon(Icons.Default.Search, contentDescription = booksContentSearchActionContentDescription())
-                }
                 var showMenu by remember { mutableStateOf(false) }
                 Box {
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "更多")
+                        Icon(Icons.Default.MoreVert, contentDescription = booksMoreActionsContentDescription())
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text(booksAddActionContentDescription()) },
+                            leadingIcon = { Icon(Icons.Default.Add, null) },
+                            onClick = { inlineMode = BooksInlineMode.AddBook; showMenu = false },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(booksContentSearchActionContentDescription()) },
+                            leadingIcon = { Icon(Icons.Default.Search, null) },
+                            onClick = { inlineMode = BooksInlineMode.ContentSearch; showMenu = false },
+                        )
                         DropdownMenuItem(
                             text = { Text(booksFilterMenuText()) },
                             leadingIcon = { Icon(Icons.Default.FilterList, null) },
@@ -212,6 +223,7 @@ fun BooksScreen(
                     initialPage = state.currentPage,
                     pageCount = { state.viewpoints.size },
                 )
+                val scope = rememberCoroutineScope()
 
                 LaunchedEffect(state.currentBookId) {
                     pagerState.scrollToPage(0)
@@ -225,21 +237,38 @@ fun BooksScreen(
                     viewModel.setPage(pagerState.currentPage)
                 }
 
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                ) { page ->
-                    val vp = state.viewpoints[page]
-                    val book = state.books.find { it.id == state.currentBookId }
-                    val bookTitle = if (book != null) "《${book.title}》 · ${book.author}" else ""
+                Column(modifier = Modifier.fillMaxSize()) {
+                    BookReadingProgressStrip(
+                        bookTitle = currentBook?.title,
+                        author = currentBook?.author,
+                        page = pagerState.currentPage,
+                        total = state.viewpoints.size,
+                    )
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                    ) { page ->
+                        val vp = state.viewpoints[page]
+                        val bookTitle = if (currentBook != null) "《${currentBook.title}》 · ${currentBook.author}" else ""
 
-                    ViewpointCard(
-                        title = vp.title,
-                        content = vp.content,
-                        example = vp.example,
-                        bookTitle = bookTitle,
-                        modifier = Modifier.padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m),
-                        fillAvailableHeight = true,
+                        ViewpointCard(
+                            title = vp.title,
+                            content = vp.content,
+                            example = vp.example,
+                            bookTitle = bookTitle,
+                            modifier = Modifier.padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s),
+                            fillAvailableHeight = true,
+                        )
+                    }
+                    BookReadingNavigationBar(
+                        pagerState = pagerState,
+                        total = state.viewpoints.size,
+                        onPrevious = {
+                            scope.launch { pagerState.animateScrollToPage((pagerState.currentPage - 1).coerceAtLeast(0)) }
+                        },
+                        onNext = {
+                            scope.launch { pagerState.animateScrollToPage((pagerState.currentPage + 1).coerceAtMost(state.viewpoints.lastIndex)) }
+                        },
                     )
                 }
             }
@@ -356,14 +385,72 @@ fun BooksScreen(
     }
 }
 
+@Composable
+private fun BookReadingProgressStrip(bookTitle: String?, author: String?, page: Int, total: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.m, vertical = Spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = booksReaderSubtitle(bookTitle, author).ifBlank { "当前书" },
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = booksReadingProgressText(page, total),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+@Composable
+private fun BookReadingNavigationBar(
+    pagerState: PagerState,
+    total: Int,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.m, vertical = Spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(onClick = onPrevious, enabled = pagerState.currentPage > 0) {
+            Icon(Icons.AutoMirrored.Filled.NavigateBefore, contentDescription = null)
+            Text(booksPreviousViewpointText())
+        }
+        Text(
+            text = booksReadingProgressText(pagerState.currentPage, total),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onNext, enabled = pagerState.currentPage < total - 1) {
+            Text(booksNextViewpointText())
+            Icon(Icons.AutoMirrored.Filled.NavigateNext, contentDescription = null)
+        }
+    }
+}
+
 fun booksEmptyStateSubtitle(hasCurrentBook: Boolean): String =
     if (hasCurrentBook) "这本书还没有观点，点击搜索重新添加并分析" else "搜索并添加一本书开始阅读"
 
 fun booksAddActionContentDescription(): String = "添加新书"
 
 fun booksContentSearchActionContentDescription(): String = "搜索读书内容"
+fun booksMoreActionsContentDescription(): String = "更多读书操作"
 fun booksFilterMenuText(): String = "筛选书籍"
-fun booksTopLevelActionCount(): Int = 3
+fun booksTopLevelActionCount(): Int = 1
+fun booksReaderTitle(title: String?, author: String?): String = title?.takeIf { it.isNotBlank() } ?: "读书"
+fun booksReaderSubtitle(title: String?, author: String?): String = author?.takeIf { it.isNotBlank() } ?: ""
+fun booksReadingProgressText(page: Int, total: Int): String = "${(page + 1).coerceAtMost(total.coerceAtLeast(1))} / ${total.coerceAtLeast(1)}"
+fun booksPreviousViewpointText(): String = "上一条"
+fun booksNextViewpointText(): String = "下一条"
 fun booksAnalysisBannerMessage(routeMessage: String?, inlineMessage: String?): String? = routeMessage ?: inlineMessage
 fun booksAddSheetTitle(): String = "添加书籍"
 fun booksContentSearchSheetTitle(): String = "搜索读书内容"

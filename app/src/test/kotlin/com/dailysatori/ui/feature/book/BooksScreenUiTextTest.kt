@@ -2,6 +2,8 @@ package com.dailysatori.ui.feature.book
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import java.io.File
 
 class BooksScreenUiTextTest {
     @Test
@@ -9,7 +11,23 @@ class BooksScreenUiTextTest {
         assertEquals("添加新书", booksAddActionContentDescription())
         assertEquals("搜索读书内容", booksContentSearchActionContentDescription())
         assertEquals("筛选书籍", booksFilterMenuText())
-        assertEquals(3, booksTopLevelActionCount())
+        assertEquals(1, booksTopLevelActionCount())
+    }
+
+    @Test
+    fun immersiveReaderExposesCurrentBookProgressAndBottomNavigation() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
+
+        assertEquals("读书", booksReaderTitle(null, null))
+        assertEquals("原则", booksReaderTitle("原则", "Ray Dalio"))
+        assertEquals("Ray Dalio", booksReaderSubtitle("原则", "Ray Dalio"))
+        assertEquals("3 / 18", booksReadingProgressText(page = 2, total = 18))
+        assertEquals("上一条", booksPreviousViewpointText())
+        assertEquals("下一条", booksNextViewpointText())
+        assertEquals("更多读书操作", booksMoreActionsContentDescription())
+        assertTrue(source.contains("BookReadingProgressStrip("))
+        assertTrue(source.contains("BookReadingNavigationBar("))
+        assertTrue(source.contains("pagerState.animateScrollToPage"))
     }
 
     @Test

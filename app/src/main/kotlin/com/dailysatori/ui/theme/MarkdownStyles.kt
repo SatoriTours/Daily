@@ -82,6 +82,15 @@ object MarkdownStyles {
     )
 
     @Composable
+    fun bookTypography(): MarkdownTypography = typographyFrom(
+        body = bookTextStyle(),
+        h1 = MaterialTheme.typography.headlineSmall,
+        h2 = MaterialTheme.typography.titleLarge,
+        h3 = MaterialTheme.typography.titleMedium,
+        linkColor = MaterialTheme.colorScheme.primary,
+    )
+
+    @Composable
     fun cardPadding(): MarkdownPadding = summaryPadding()
 
     @Composable
@@ -93,6 +102,9 @@ object MarkdownStyles {
 
 @Composable
 private fun cardTextStyle(): TextStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = UiFontFamily)
+
+@Composable
+private fun bookTextStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = UiFontFamily)
 
 @Composable
 private fun readingTextStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = UiFontFamily)
