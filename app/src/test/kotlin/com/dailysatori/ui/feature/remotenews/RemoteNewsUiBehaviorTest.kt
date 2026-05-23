@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.remotenews
 import com.dailysatori.service.remotenews.RemoteDigest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import java.io.File
 
@@ -49,5 +50,22 @@ class RemoteNewsUiBehaviorTest {
         assertTrue(repository.contains("article.url.isNullOrBlank()"))
         assertTrue(remoteNews.contains("articleRepo.findLocalArticleForRemote(article)"))
         assertTrue(unifiedNews.contains("articleRepo.findLocalArticleForRemote(article)"))
+    }
+
+    @Test
+    fun remoteArticleCacheSavesCompletedNonFavoriteWithoutProcessing() {
+        val repository = File(
+            "../shared/src/commonMain/kotlin/com/dailysatori/data/repository/ArticleRepository.kt",
+        ).readText()
+        val mapper = File(
+            "../shared/src/commonMain/kotlin/com/dailysatori/data/repository/RemoteArticleFavoriteMapper.kt",
+        ).readText()
+
+        assertTrue(repository.contains("fun cacheRemoteArticle(remoteArticle: RemoteArticle, sourceTime: Long? = null): Article?"))
+        assertTrue(mapper.contains("isFavorite = 0"))
+        assertTrue(repository.contains("status = fields.status"))
+        assertTrue(repository.contains("insertRemoteArticleCacheWithoutUrl"))
+        assertFalse(repository.contains("WebpageParserService"))
+        assertFalse(repository.contains("ArticleProcessingScheduler"))
     }
 }

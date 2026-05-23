@@ -246,6 +246,19 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun unifiedNewsCachesRemoteArticlesAsLocalSourcesBeforeSummaryGeneration() {
+        val source = java.io.File(
+            "../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt",
+        ).readText()
+
+        assertTrue(source.contains("cacheRemoteArticleSource"))
+        assertTrue(source.contains("articleRepo.cacheRemoteArticle(article"))
+        assertTrue(source.contains("sourceType = UnifiedNewsSourceType.LOCAL_FAVORITE"))
+        assertTrue(source.contains("sourceId = cached.id"))
+        assertTrue(source.contains("return fallback"))
+    }
+
+    @Test
     fun citationGroundingIgnoresMarkdownInlineAndReferenceLabels() {
         val sources = listOf(
             UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),

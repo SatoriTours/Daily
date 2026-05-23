@@ -190,7 +190,71 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         }
     }
 
+    fun cacheRemoteArticle(remoteArticle: RemoteArticle, sourceTime: Long? = null): Article? {
+        val fields = remoteArticle.toLocalCachedArticleFields(sourceTime)
+        val url = fields.url
+        val existing = findLocalArticleForRemote(remoteArticle)
+        if (existing == null && url.isNullOrBlank()) return insertRemoteArticleCacheWithoutUrl(fields)
+
+        return if (existing == null) {
+            val id = insert(
+                title = fields.title,
+                aiTitle = fields.aiTitle,
+                aiContent = fields.aiContent,
+                aiMarkdownContent = fields.aiMarkdownContent,
+                url = url,
+                isFavorite = fields.isFavorite,
+                comment = fields.comment,
+                status = fields.status,
+                coverImage = fields.coverImage,
+                coverImageUrl = fields.coverImageUrl,
+                pubDate = fields.pubDate,
+            )
+            getById(id)
+        } else {
+            updateCachedRemoteArticle(existing, fields, url)
+        }
+    }
+
     private fun insertRemoteArticleFavoriteWithoutUrl(fields: LocalFavoriteArticleFields): Article? {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        q.insertArticle(
+            fields.title,
+            fields.aiTitle,
+            fields.aiContent,
+            fields.aiMarkdownContent,
+            null,
+            fields.isFavorite,
+            fields.comment,
+            fields.status,
+            fields.coverImage,
+            fields.coverImageUrl,
+            fields.pubDate,
+            now,
+            now,
+        )
+        return q.selectArticlesPaginated(1, 0).executeAsOneOrNull()
+    }
+
+    private fun updateCachedRemoteArticle(existing: Article, fields: LocalFavoriteArticleFields, url: String?): Article? {
+        update(
+            id = existing.id,
+            title = fields.title ?: existing.title,
+            aiTitle = fields.aiTitle ?: existing.ai_title,
+            aiContent = fields.aiContent ?: existing.ai_content,
+            aiMarkdownContent = fields.aiMarkdownContent ?: existing.ai_markdown_content,
+            url = existing.url ?: url,
+            isFavorite = existing.is_favorite ?: fields.isFavorite,
+            comment = existing.comment,
+            status = fields.status,
+            coverImage = existing.cover_image,
+            coverImageUrl = fields.coverImageUrl ?: existing.cover_image_url,
+            pubDate = fields.pubDate ?: existing.pub_date,
+        )
+        return getById(existing.id)
+    }
+
+    private fun insertRemoteArticleCacheWithoutUrl(fields: LocalFavoriteArticleFields): Article? {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         q.insertArticle(
             fields.title,
