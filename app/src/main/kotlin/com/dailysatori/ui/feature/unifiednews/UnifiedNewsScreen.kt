@@ -114,9 +114,13 @@ fun UnifiedNewsScreen(
 
     when (state.page) {
         UnifiedNewsPage.SUMMARY -> UnifiedNewsSummaryPage(state, viewModel, onMyClick)
-        UnifiedNewsPage.LOCAL_ARTICLES -> ArticleListScreen(onArticleClick = onArticleClick)
+        UnifiedNewsPage.LOCAL_ARTICLES -> ArticleListScreen(
+            onArticleClick = onArticleClick,
+            onBack = { viewModel.switchPage(UnifiedNewsPage.SUMMARY) },
+        )
         UnifiedNewsPage.LOCAL_FAVORITES -> ArticleListScreen(
             onArticleClick = onArticleClick,
+            onBack = { viewModel.switchPage(UnifiedNewsPage.SUMMARY) },
             showFavoritesOnly = true,
             lockFavoritesFilter = true,
         )

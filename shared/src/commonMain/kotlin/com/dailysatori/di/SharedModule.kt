@@ -38,6 +38,7 @@ import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.service.plugin.PluginService
 import com.dailysatori.service.crayfishnews.CrayfishNewsService
 import com.dailysatori.service.remotenews.RemoteNewsService
+import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.setting.SettingService
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
 import com.dailysatori.service.weekly.WeeklySummaryService
@@ -50,14 +51,14 @@ val sharedModule: Module = module {
 
     // Repositories
     single { ArticleRepository(get()) }
-    single { AIConfigRepository(get()) }
+    single { AIConfigRepository(get(), get()) }
     single { BookRepository(get()) }
     single { BookViewpointRepository(get()) }
     single { ChatConversationRepository(get()) }
     single { DiaryRepository(get()) }
     single { ImageRepository(get()) }
     single { MemoryRepository(get()) }
-    single { RemoteNewsSourceRepository(get()) }
+    single { RemoteNewsSourceRepository(get(), get()) }
     single { SessionRepository(get()) }
     single { SettingRepository(get()) }
     single { TagRepository(get()) }
@@ -70,6 +71,7 @@ val sharedModule: Module = module {
     single { AiConfigService(get()) }
     single { AiService(get()) }
     single { BackupPasswordStore(get()) }
+    single { SecretCipher(get()) }
     single { BackupService(get(), get(), get()) }
     single { PluginService(get(), get()) }
     single { RemoteNewsService(get()) }
@@ -102,7 +104,7 @@ val sharedModule: Module = module {
     single { WeeklySummaryService(get(), get(), get(), get(), get(), get()) }
 
     // MCP server config
-    single { McpServerRepository(get()) }
+    single { McpServerRepository(get(), get()) }
 
     // Migration
     single { DatabaseMigration(get(), get()) }

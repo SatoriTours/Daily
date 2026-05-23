@@ -64,6 +64,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun ArticleListScreen(
     onArticleClick: (Long) -> Unit = {},
+    onBack: (() -> Unit)? = null,
     showFavoritesOnly: Boolean = false,
     lockFavoritesFilter: Boolean = false,
 ) {
@@ -114,7 +115,8 @@ fun ArticleListScreen(
     Column(modifier = Modifier.fillMaxSize()) {
         AppTopBar(
             title = "文章",
-            showBack = false,
+            showBack = onBack != null,
+            onBack = onBack,
             actions = {
                 IconButton(onClick = { showAddDialog = true }) {
                     Icon(Icons.Default.Add, contentDescription = "添加文章")

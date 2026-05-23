@@ -7,7 +7,13 @@ import io.ktor.client.plugins.ServerResponseException
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.URLBuilder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 
 class RemoteNewsService(private val client: HttpClient) {
     suspend fun fetchDigests(config: RemoteNewsConfigValues, page: Int, perPage: Int): RemoteNewsResult<RemoteDigestsResponse> =
@@ -27,7 +33,7 @@ class RemoteNewsService(private val client: HttpClient) {
         client.get(buildTopArticlesTodayUrl(config.baseUrl, page, limit)) {
             bearerAuth(config.token)
             header("X-Api-Token", config.token)
-        }.body()
+        }.bodyAsText().let(::parseTopArticlesTodayResponse)
     }
 
     suspend fun fetchArticle(config: RemoteNewsConfigValues, id: Long): RemoteNewsResult<RemoteArticleResponse> =
@@ -71,6 +77,44 @@ class RemoteNewsService(private val client: HttpClient) {
         RemoteNewsResult.Failure("无法连接远程新闻服务")
     }
 }
+
+private val remoteNewsJson = Json { ignoreUnknownKeys = true; isLenient = true }
+
+internal fun parseTopArticlesTodayResponse(body: String): RemoteArticlesResponse {
+    val root = remoteNewsJson.parseToJsonElement(body)
+    val direct = runCatching { remoteNewsJson.decodeFromJsonElement<RemoteArticlesResponse>(root) }.getOrNull()
+    if (direct != null && (direct.articles.isNotEmpty() || root.hasObjectKey("articles"))) return direct
+
+    val articles = topArticlesElement(root)
+        ?.asArticleArray()
+        ?.mapNotNull(::decodeTopArticle)
+        .orEmpty()
+    val pagination = (root as? JsonObject)
+        ?.get("pagination")
+        ?.let { runCatching { remoteNewsJson.decodeFromJsonElement<RemoteNewsPagination>(it) }.getOrNull() }
+        ?: RemoteNewsPagination()
+    return RemoteArticlesResponse(articles = articles, pagination = pagination)
+}
+
+private fun topArticlesElement(root: JsonElement): JsonElement? {
+    if (root is JsonArray) return root
+    val obj = root as? JsonObject ?: return null
+    return obj["articles"]
+        ?: obj["data"]?.let { data -> (data as? JsonObject)?.get("articles") ?: data }
+        ?: obj["top_articles"]
+        ?: obj["items"]
+        ?: obj["results"]
+}
+
+private fun JsonElement.asArticleArray(): JsonArray? = this as? JsonArray
+
+private fun decodeTopArticle(element: JsonElement): RemoteArticle? {
+    val articleElement = (element as? JsonObject)?.get("article") ?: element
+    return runCatching { remoteNewsJson.decodeFromJsonElement<RemoteArticle>(articleElement) }.getOrNull()
+}
+
+private fun JsonElement.hasObjectKey(key: String): Boolean =
+    (this as? JsonObject)?.containsKey(key) == true
 
 fun normalizeTopArticlesTodayUrl(value: String): String {
     val trimmed = value.trim().substringBefore('?').substringBefore('#').trimEnd('/')

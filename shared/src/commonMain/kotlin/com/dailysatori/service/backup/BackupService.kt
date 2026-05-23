@@ -20,8 +20,7 @@ data class BackupEntry(
 const val MinBackupPasswordLength = 10
 
 internal fun backupFileName(timestamp: String, password: String): String {
-    val hint = password.takeLast(3)
-    return "daily_satori_backup_${timestamp}_hint_${hint}.zip.enc"
+    return "daily_satori_backup_${timestamp}.zip.enc"
 }
 
 fun backupPasswordHint(name: String): String? {

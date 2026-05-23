@@ -13,6 +13,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import kotlinx.serialization.json.*
 import java.io.File
+import java.net.URI
 
 data class AppRelease(
     val version: String,
@@ -43,7 +44,18 @@ class AppUpgradeService(private val client: HttpClient) {
         }
 
         fun findApkAsset(assets: List<ReleaseAsset>): ReleaseAsset? =
-            assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
+            assets.firstOrNull {
+                it.name.endsWith(".apk", ignoreCase = true) && isTrustedApkDownloadUrl(it.downloadUrl)
+            }
+
+        fun isTrustedApkDownloadUrl(url: String): Boolean {
+            val uri = runCatching { URI(url) }.getOrNull() ?: return false
+            if (uri.scheme != "https") return false
+            return when (uri.host?.lowercase()) {
+                "github.com", "objects.githubusercontent.com" -> true
+                else -> false
+            }
+        }
 
         private fun versionParts(version: String): List<Int> =
             version.trim()

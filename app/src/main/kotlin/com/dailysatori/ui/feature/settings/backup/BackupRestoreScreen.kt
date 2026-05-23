@@ -92,7 +92,6 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
         if (showPasswordDialog) {
             RestorePasswordDialog(
                 password = restorePassword,
-                hint = viewModel.getPasswordHint(state.backupList.getOrNull(state.selectedBackupIndex).orEmpty()),
                 onPasswordChange = { restorePassword = it },
                 onDismiss = { showPasswordDialog = false },
                 onConfirm = {
@@ -142,10 +141,8 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                     itemsIndexed(state.backupList) { index, path ->
                         BackupFileCard(
-                            path = path,
                             selected = index == state.selectedBackupIndex,
                             time = viewModel.getBackupTime(path),
-                            passwordHint = viewModel.getPasswordHint(path),
                             onClick = { if (!state.isRestoring) viewModel.selectBackupIndex(index) },
                         )
                     }
@@ -175,10 +172,8 @@ private fun RestoreFeedback(state: BackupRestoreState) {
 
 @Composable
 private fun BackupFileCard(
-    path: String,
     selected: Boolean,
     time: String,
-    passwordHint: String,
     onClick: () -> Unit,
 ) {
     Card(
@@ -208,7 +203,7 @@ private fun BackupFileCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(time, style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "密码提示：末尾 $passwordHint",
+                    "加密备份文件",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -227,7 +222,6 @@ private fun BackupFileCard(
 @Composable
 private fun RestorePasswordDialog(
     password: String,
-    hint: String,
     onPasswordChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
@@ -243,7 +237,7 @@ private fun RestorePasswordDialog(
         title = { Text("输入备份密码") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Text("密码提示：末尾 $hint")
+                Text("请输入创建备份时设置的密码")
                 OutlinedTextField(
                     value = password,
                     onValueChange = onPasswordChange,

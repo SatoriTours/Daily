@@ -119,13 +119,17 @@ class ArticleProcessingWorker(
                         try {
                             parser.saveWebpage(url = url, comment = null, title = null, tags = null)
                             clearPendingSave()
+                            Result.success()
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
-                            clearPendingSave()
-                            throw e
+                            if (runAttemptCount < MAX_SAVE_ATTEMPTS - 1) {
+                                Result.retry()
+                            } else {
+                                clearPendingSave()
+                                Result.failure()
+                            }
                         }
-                        Result.success()
                     }
                 }
                 MODE_RESUME -> {
@@ -180,6 +184,7 @@ class ArticleProcessingWorker(
         const val KEY_NORMALIZED_URL = "normalizedUrl"
         const val MODE_SAVE = "save"
         const val MODE_RESUME = "resume"
+        private const val MAX_SAVE_ATTEMPTS = 3
         private const val CHANNEL_ID = "article_processing"
         private const val NOTIFICATION_ID = 1001
     }

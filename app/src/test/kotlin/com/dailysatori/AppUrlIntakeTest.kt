@@ -345,6 +345,21 @@ class AppUrlIntakeTest {
     }
 
     @Test
+    fun backgroundShareSaveRetriesTransientFailureBeforeClearingPendingMarker() {
+        val source = File("src/main/kotlin/com/dailysatori/core/worker/ArticleProcessingWorker.kt").readText()
+        val saveMode = source.substringAfter("MODE_SAVE ->")
+            .substringBefore("MODE_RESUME ->")
+        val exceptionBranch = saveMode.substringAfter("catch (e: Exception)")
+        val retryIndex = exceptionBranch.indexOf("Result.retry()")
+        val clearIndex = exceptionBranch.indexOf("clearPendingSave()")
+
+        assertTrue(source.contains("MAX_SAVE_ATTEMPTS"))
+        assertTrue(retryIndex >= 0)
+        assertTrue(clearIndex >= 0)
+        assertTrue(retryIndex < clearIndex)
+    }
+
+    @Test
     fun parserResumeModePropagatesCancellationToWorkerRetry() {
         val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
         val resumeCatch = source.substringAfter("suspend fun resumeInterruptedProcessing")

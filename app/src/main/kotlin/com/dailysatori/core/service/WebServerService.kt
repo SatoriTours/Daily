@@ -21,7 +21,6 @@ import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
-import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.request.header
 import io.ktor.server.request.path
@@ -83,14 +82,10 @@ class WebServerService(private val ctx: Context) {
                 val svc = this
                 server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
             install(ContentNegotiation) { registerJson(svc.json) }
-            install(CORS) { anyHost() }
             install(createApplicationPlugin(name = "ApiAuth") {
                 val log = Logger.withTag("ApiAuth")
                 onCall { call ->
                     val path = call.request.path()
-                    val authHeader = call.request.headers["Authorization"]
-                    val cookieHeader = call.request.headers["Cookie"]
-                    log.i { "ApiAuth: path=$path, auth=${authHeader?.take(20)}, cookie=${cookieHeader?.take(30)}" }
                     if (!path.startsWith("/api/v2/")) return@onCall
                     if (path == "/api/v2/auth/login" || path == "/api/v2/auth/status") return@onCall
 
@@ -113,6 +108,7 @@ class WebServerService(private val ctx: Context) {
                     }
 
                     call.respondText(respondFail("Authentication required"), ContentType.Application.Json, HttpStatusCode.Unauthorized)
+                    log.w { "ApiAuth rejected request: path=$path" }
                 }
             })
             routing {

@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.settings
 
 import android.content.Context
 import android.content.Intent
+import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.BuildConfig
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.java.KoinJavaComponent.get
 import java.net.NetworkInterface
+import java.security.SecureRandom
 
 data class SettingsState(
     val isPageLoading: Boolean = false,
@@ -95,11 +97,6 @@ class SettingsViewModel(
 
     private fun ensureToken() {
         val settingRepo = get<SettingRepository>(SettingRepository::class.java)
-        if (com.dailysatori.BuildConfig.DEBUG) {
-            settingRepo.upsert("web_server_token", "daily")
-            _state.update { it.copy(webServerToken = "daily") }
-            return
-        }
         val existing = settingRepo.get("web_server_token")
         if (existing == null) {
             val newToken = generateToken()
@@ -109,9 +106,15 @@ class SettingsViewModel(
     }
 
     private fun generateToken(): String {
-        if (com.dailysatori.BuildConfig.DEBUG) return "daily"
-        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-        return (1..10).map { chars.random() }.joinToString("")
+        return generateWebServerToken()
+    }
+
+    companion object {
+        fun generateWebServerToken(): String {
+            val bytes = ByteArray(32)
+            SecureRandom().nextBytes(bytes)
+            return Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
+        }
     }
 
     private fun getDeviceIp(): String? {

@@ -10,9 +10,13 @@ import com.dailysatori.core.service.WebServerService
 import com.dailysatori.core.worker.ArticleProcessingScheduler
 import com.dailysatori.core.worker.BackupScheduler
 import com.dailysatori.core.worker.UnifiedNewsScheduler
+import com.dailysatori.data.repository.AIConfigRepository
+import com.dailysatori.data.repository.McpServerRepository
+import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.migration.DatabaseMigration
+import com.dailysatori.ui.feature.settings.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -30,6 +34,7 @@ class DailySatoriApplication : Application() {
             modules(sharedModule, platformModule, appModule, viewModelModule)
         }
         get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
+        encryptStoredSecrets()
         get<ArticleProcessingScheduler>(ArticleProcessingScheduler::class.java).enqueueResume()
         BackupScheduler(this).ensureScheduled()
         UnifiedNewsScheduler(this).ensureScheduled()
@@ -39,11 +44,19 @@ class DailySatoriApplication : Application() {
                 try {
                     val settingRepo = get<SettingRepository>(SettingRepository::class.java)
                     if (settingRepo.get("web_server_token") == null) {
-                        settingRepo.upsert("web_server_token", "daily")
+                        settingRepo.upsert("web_server_token", SettingsViewModel.generateWebServerToken())
                     }
                     get<WebServerService>(WebServerService::class.java).start()
                 } catch (_: Exception) {}
             }
         }
+    }
+
+    private fun encryptStoredSecrets() {
+        try {
+            get<AIConfigRepository>(AIConfigRepository::class.java).encryptStoredSecrets()
+            get<McpServerRepository>(McpServerRepository::class.java).encryptStoredSecrets()
+            get<RemoteNewsSourceRepository>(RemoteNewsSourceRepository::class.java).encryptStoredSecrets()
+        } catch (_: Exception) {}
     }
 }
