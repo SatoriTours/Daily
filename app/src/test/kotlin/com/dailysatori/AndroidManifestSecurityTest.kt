@@ -15,9 +15,9 @@ class AndroidManifestSecurityTest {
     }
 
     @Test
-    fun manifestDoesNotAllowCleartextTrafficGlobally() {
+    fun manifestAllowsCleartextTrafficForLocalRemoteNewsServers() {
         val manifest = File("src/main/AndroidManifest.xml").readText()
 
-        assertFalse(manifest.contains("android:usesCleartextTraffic=\"true\""))
+        assertTrue(manifest.contains("android:usesCleartextTraffic=\"true\""))
     }
 }
