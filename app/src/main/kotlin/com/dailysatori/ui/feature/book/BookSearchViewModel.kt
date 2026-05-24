@@ -6,6 +6,7 @@ import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.service.book.BookIntelligenceService
 import com.dailysatori.service.book.BookSearchResult
+import com.dailysatori.service.book.BookViewpointSource
 import com.dailysatori.service.book.WeReadSkillErrorType
 import com.dailysatori.service.book.WeReadSkillException
 import com.dailysatori.service.book.weReadUserMessage
@@ -110,7 +111,7 @@ class BookSearchViewModel(
                 val viewpointDrafts = generationResult.drafts
                 _state.update { it.copy(analysisStep = bookAnalysisGeneratingStep()) }
                 viewpointDrafts.forEach { draft -> viewpointRepo.insert(bookId, draft.title, draft.content, draft.example) }
-                val message = bookAnalysisCompletionNotice(result.title, viewpointDrafts.size)
+                val message = bookAnalysisCompletionNotice(result.title, viewpointDrafts.size, generationResult.source)
                 _state.update {
                     it.copy(
                         isAnalyzing = false,
@@ -164,7 +165,16 @@ fun bookAnalysisStartStep(title: String): String = "正在添加《$title》"
 
 fun bookAnalysisGeneratingStep(): String = "正在生成观点卡片"
 
-fun bookAnalysisCompletionNotice(title: String, count: Int): String = "《$title》已添加，$count 个观点已生成"
+fun bookAiGeneratedDisclosure(): String = "观点由 AI 生成，非微信读书内容"
+
+fun bookAnalysisCompletionNotice(
+    title: String,
+    count: Int,
+    source: BookViewpointSource = BookViewpointSource.WeRead,
+): String {
+    val base = "《$title》已添加，$count 个观点已生成"
+    return if (source == BookViewpointSource.AiFallback) "$base（${bookAiGeneratedDisclosure()}）" else base
+}
 
 fun bookAnalysisStatusVisible(isAnalyzing: Boolean, analysisMessage: String?): Boolean =
     isAnalyzing || analysisMessage != null

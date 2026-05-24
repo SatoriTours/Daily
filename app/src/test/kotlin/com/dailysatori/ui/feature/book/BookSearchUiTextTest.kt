@@ -126,6 +126,19 @@ class BookSearchUiTextTest {
     }
 
     @Test
+    fun appendsAiGeneratedDisclosureForFallbackViewpoints() {
+        assertEquals("观点由 AI 生成，非微信读书内容", bookAiGeneratedDisclosure())
+        assertEquals(
+            "《待上架新书》已添加，10 个观点已生成（观点由 AI 生成，非微信读书内容）",
+            bookAnalysisCompletionNotice("待上架新书", 10, com.dailysatori.service.book.BookViewpointSource.AiFallback),
+        )
+        assertEquals(
+            "《三体》已添加，10 个观点已生成",
+            bookAnalysisCompletionNotice("三体", 10, com.dailysatori.service.book.BookViewpointSource.WeRead),
+        )
+    }
+
+    @Test
     fun bookResultActionsUseIconsWithAccessibleLabels() {
         assertEquals("打开微信读书介绍", bookResultSourceActionDescription())
         assertEquals("添加并分析", bookResultAddActionDescription())
