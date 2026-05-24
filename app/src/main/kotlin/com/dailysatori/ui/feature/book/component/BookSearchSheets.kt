@@ -25,7 +25,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,13 +50,14 @@ import com.dailysatori.ui.feature.book.BookSearchState
 import com.dailysatori.ui.feature.book.bookContentSearchBookLine
 import com.dailysatori.ui.feature.book.bookContentSearchPreview
 import com.dailysatori.ui.feature.book.bookResultAddActionDescription
-import com.dailysatori.ui.feature.book.bookResultDoubanActionDescription
+import com.dailysatori.ui.feature.book.bookResultSourceActionDescription
+import com.dailysatori.ui.feature.book.bookSourceOpenFailureMessage
+import com.dailysatori.ui.feature.book.bookSourceUrl
 import com.dailysatori.ui.feature.book.bookSearchRetryActionText
 import com.dailysatori.ui.feature.book.booksAddSearchLoadingText
 import com.dailysatori.ui.feature.book.booksAddSheetTitle
 import com.dailysatori.ui.feature.book.booksContentSearchLoadingText
 import com.dailysatori.ui.feature.book.booksContentSearchSheetTitle
-import com.dailysatori.ui.feature.book.doubanBookSearchUrl
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 
@@ -65,6 +69,7 @@ internal fun BookAddSearchSheet(
     onAdd: (BookSearchResult) -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
+    var sourceOpenError by remember { mutableStateOf<String?>(null) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -113,13 +118,25 @@ internal fun BookAddSearchSheet(
             }
         }
         if (state.isLoading) SearchSheetStatus(booksAddSearchLoadingText())
+        sourceOpenError?.let { message ->
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = Spacing.xs),
+            )
+        }
         LazyColumn(modifier = Modifier.fillMaxWidth().height(420.dp)) {
             items(state.visibleResults.take(8)) { result ->
                 BookSearchResultCard(
                     result = result,
                     isAnalyzing = state.isAnalyzing,
                     onAdd = { onAdd(result) },
-                    onOpenDouban = { uriHandler.openUri(doubanBookSearchUrl(result)) },
+                    onOpenSource = {
+                        sourceOpenError = null
+                        runCatching { uriHandler.openUri(bookSourceUrl(result)) }
+                            .onFailure { sourceOpenError = bookSourceOpenFailureMessage() }
+                    },
                 )
             }
         }
@@ -131,7 +148,7 @@ private fun BookSearchResultCard(
     result: BookSearchResult,
     isAnalyzing: Boolean,
     onAdd: () -> Unit,
-    onOpenDouban: () -> Unit,
+    onOpenSource: () -> Unit,
 ) {
     val context = LocalContext.current
     val imageRequest = remember(context, result.coverUrl) {
@@ -139,7 +156,7 @@ private fun BookSearchResultCard(
             .data(result.coverUrl.ifBlank { null })
             .httpHeaders(
                 NetworkHeaders.Builder()
-                    .set("Referer", "https://book.douban.com/")
+                    .set("Referer", "https://weread.qq.com/")
                     .set("User-Agent", "Mozilla/5.0 DailySatori Android")
                     .build(),
             )
@@ -181,17 +198,17 @@ private fun BookSearchResultCard(
                 horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
             ) {
                 FilledTonalButton(
-                    onClick = onOpenDouban,
+                    onClick = onOpenSource,
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = Spacing.s, vertical = Spacing.xxs),
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.OpenInNew,
-                        contentDescription = bookResultDoubanActionDescription(),
+                        contentDescription = bookResultSourceActionDescription(),
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(Spacing.xxs))
-                    Text("豆瓣", style = MaterialTheme.typography.labelSmall)
+                    Text("微信读书", style = MaterialTheme.typography.labelSmall)
                 }
                 FilledTonalButton(
                     onClick = onAdd,

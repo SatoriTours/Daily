@@ -23,8 +23,10 @@ import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.backup.BackupService
 import com.dailysatori.service.backup.BackupPasswordStore
 import com.dailysatori.service.book.BookIntelligenceService
+import com.dailysatori.service.book.BookIntelligenceSource
 import com.dailysatori.service.book.BookSearchService
 import com.dailysatori.service.book.DoubanSuggestSearchEngine
+import com.dailysatori.service.book.WeReadSkillService
 import com.dailysatori.service.book.WebSearchEngine
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.import.ImportService
@@ -96,9 +98,11 @@ val sharedModule: Module = module {
     single { DoubanSuggestSearchEngine(get()) }
     single { WebSearchEngine(get()) }
     single { BookSearchService(listOf(get<DoubanSuggestSearchEngine>(), get<WebSearchEngine>())) }
+    single { WeReadSkillService(get(), get(), get()) }
+    single<BookIntelligenceSource> { get<WeReadSkillService>() }
     single { RemoteMcpClient(get()) }
     single { LocalSqlQueryService(get()) }
-    single { BookIntelligenceService(get(), get(), get(), get(), get()) }
+    single { BookIntelligenceService(get<BookIntelligenceSource>()) }
 
     // Weekly summary service
     single { WeeklySummaryService(get(), get(), get(), get(), get(), get()) }

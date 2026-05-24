@@ -6,6 +6,9 @@ import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.service.book.BookIntelligenceService
 import com.dailysatori.service.book.BookSearchResult
+import com.dailysatori.service.book.WeReadSkillErrorType
+import com.dailysatori.service.book.WeReadSkillException
+import com.dailysatori.service.book.weReadUserMessage
 import java.net.URLEncoder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -119,15 +122,17 @@ class BookSearchViewModel(
             } catch (error: CancellationException) {
                 _state.update { it.copy(isAnalyzing = false, analysisStep = "") }
                 throw error
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                insertedBookId?.let { bookId -> bookRepo.delete(bookId) }
+                val visibleError = if (insertedBookId == null) "添加失败" else bookAnalysisFailureError(error)
                 _state.update {
                     it.copy(
                         isAnalyzing = false,
                         analysisStep = "",
-                        analysisMessage = if (insertedBookId != null) bookAnalysisFailureMessage() else null,
-                        addedBookTitle = if (insertedBookId != null) result.title else null,
-                        addedBookId = insertedBookId,
-                        error = if (insertedBookId == null) "添加失败" else null,
+                        analysisMessage = null,
+                        addedBookTitle = null,
+                        addedBookId = null,
+                        error = visibleError,
                     )
                 }
             }
@@ -146,6 +151,11 @@ class BookSearchViewModel(
 fun bookAnalysisPartialMessage(count: Int): String = "已生成 $count 个观点，可稍后重试补全"
 
 fun bookAnalysisFailureMessage(): String = "分析失败，可重新生成观点"
+
+fun bookAnalysisFailureError(error: Throwable): String = when (error) {
+    is WeReadSkillException -> bookSearchFailureMessage(error)
+    else -> bookAnalysisFailureMessage()
+}
 
 fun bookAnalysisSuccessMessage(): String = "已生成 10 个观点"
 
@@ -166,14 +176,23 @@ fun bookSearchTimeoutMs(): Long = 30_000L
 
 fun bookSearchTimeoutMessage(): String = "搜索超时，请换个关键词再试"
 
-fun bookSearchFailureMessage(error: Throwable): String =
-    if (error is kotlinx.coroutines.TimeoutCancellationException) bookSearchTimeoutMessage() else error.message ?: "搜索失败"
+fun bookSearchFailureMessage(error: Throwable): String = when (error) {
+    is kotlinx.coroutines.TimeoutCancellationException -> bookSearchTimeoutMessage()
+    is WeReadSkillException -> if (error.type == WeReadSkillErrorType.RemoteFailure) {
+        "微信读书服务调用失败，请稍后重试"
+    } else {
+        weReadUserMessage(error)
+    }
+    else -> error.message ?: "搜索失败"
+}
 
-fun doubanBookSearchUrl(result: BookSearchResult): String {
+fun bookSourceUrl(result: BookSearchResult): String {
     if (result.sourceUrl.isNotBlank()) return result.sourceUrl
     val query = listOf(result.title, result.author).filter { it.isNotBlank() }.joinToString(" ")
-    return "https://www.douban.com/search?q=${URLEncoder.encode(query, "UTF-8")}"
+    return "https://weread.qq.com/web/search/books?keyword=${URLEncoder.encode(query, "UTF-8")}"
 }
+
+fun bookSourceOpenFailureMessage(): String = "无法打开微信读书，请确认已安装微信读书"
 
 fun buildChineseBookSearchInstruction(query: String): String =
     if (query.any { it.code > 127 }) "搜索：$query。优先返回中文书籍、中文作者名和中文资料摘要。" else "搜索：$query"

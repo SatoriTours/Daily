@@ -108,4 +108,5 @@ object SettingKeys {
     const val remoteNewsApiToken = "remote_news_api_token"
     const val crayfishNewsBaseUrl = "crayfish_news_base_url"
     const val crayfishNewsApiToken = "crayfish_news_api_token"
+    const val weReadApiKey = "weread_api_key"
 }
