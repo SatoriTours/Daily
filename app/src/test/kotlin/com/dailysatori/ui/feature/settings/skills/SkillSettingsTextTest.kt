@@ -6,6 +6,7 @@ import com.dailysatori.service.skill.SkillConnectionTestRequest
 import com.dailysatori.service.skill.SkillConnectionTestResult
 import com.dailysatori.service.skill.SkillConnectionTester
 import com.dailysatori.shared.db.Skill_config
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -118,6 +119,38 @@ class SkillSettingsTextTest {
         assertFalse(skillShouldCloseEditorAfterSave(message = skillSavedMessage(), isSaving = true))
         assertFalse(skillShouldCloseEditorAfterSave(message = skillSaveFailureMessage(null), isSaving = false))
         assertTrue(skillShouldCloseEditorAfterSave(message = skillSavedMessage(), isSaving = false))
+    }
+
+    @Test
+    fun skillEditorUsesBottomTestAndSaveActions() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/settings/skills/SkillSettingsScreen.kt").readText()
+
+        assertTrue(source.contains("bottomBar ="))
+        assertTrue(source.contains("SettingsEditorBottomBar("))
+        assertTrue(source.contains("SettingsEditorMessage("))
+        assertTrue(source.contains("onFieldsChanged = viewModel::clearTestMessage"))
+    }
+
+    @Test
+    fun clearTestMessageClearsStaleSkillTestResult() = runBlocking {
+        val tester = SuspendedSkillConnectionTester(SkillConnectionTestResult.Success("真实连接成功"))
+        val viewModel = SkillSettingsViewModel(
+            SuccessfulSkillRepository(),
+            tester,
+        )
+
+        viewModel.testSkill(editInput(id = 1L, templateId = "custom", apiToken = ""))
+
+        withTimeout(2_000) {
+            tester.started.await()
+        }
+        viewModel.clearTestMessage()
+        tester.release.complete(Unit)
+        delay(100)
+
+        assertFalse(viewModel.state.value.isTesting)
+        assertEquals(null, viewModel.state.value.testMessage)
+        assertEquals(null, viewModel.state.value.error)
     }
 
     @Test
@@ -358,4 +391,18 @@ class SkillSettingsTextTest {
             return result
         }
     }
+
+    private class SuspendedSkillConnectionTester(
+        private val result: SkillConnectionTestResult,
+    ) : SkillConnectionTester {
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+
+        override suspend fun test(request: SkillConnectionTestRequest): SkillConnectionTestResult {
+            started.complete(Unit)
+            release.await()
+            return result
+        }
+    }
+
 }

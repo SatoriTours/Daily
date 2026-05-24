@@ -10,6 +10,7 @@ import com.dailysatori.service.skill.SkillConnectionTester
 import com.dailysatori.service.skill.canDeleteSkill
 import com.dailysatori.shared.db.Skill_config
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,6 +48,8 @@ class SkillSettingsViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(SkillSettingsState())
     val state: StateFlow<SkillSettingsState> = _state.asStateFlow()
+    private var testJob: Job? = null
+    private var testRequestId = 0L
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -70,16 +73,27 @@ class SkillSettingsViewModel(
     }
 
     fun testSkill(input: SkillEditInput) {
+        val requestId = ++testRequestId
+        testJob?.cancel()
         _state.update { it.copy(isTesting = true, testMessage = null, error = null) }
-        viewModelScope.launch(Dispatchers.IO) {
+        testJob = viewModelScope.launch(Dispatchers.IO) {
             val validation = validateSkillTestInput(input)
             val message = validation ?: connectionTester.test(input.toConnectionTestRequest()).toUserMessage()
-            _state.update { it.copy(isTesting = false, testMessage = message) }
+            if (requestId == testRequestId) {
+                _state.update { it.copy(isTesting = false, testMessage = message) }
+            }
         }
     }
 
     fun consumeMessage() {
         _state.update { it.copy(message = null) }
+    }
+
+    fun clearTestMessage() {
+        testRequestId++
+        testJob?.cancel()
+        testJob = null
+        _state.update { it.copy(isTesting = false, testMessage = null, error = null) }
     }
 
     private fun saveValidated(input: SkillEditInput) {

@@ -5,6 +5,7 @@ import com.dailysatori.data.repository.SettingRepository
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.http.isSuccess
 
 class PluginService(
     private val client: HttpClient,
@@ -26,10 +27,28 @@ class PluginService(
     suspend fun loadModels() {
     }
 
+    suspend fun testServer(url: String): Result<Unit> = try {
+        val response = client.get(url.trim())
+        if (response.status.isSuccess()) {
+            response.bodyAsText()
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException("插件服务器返回状态码：${response.status.value}"))
+        }
+    } catch (e: Exception) {
+        log.e(e) { "Failed to test plugin server" }
+        Result.failure(e)
+    }
+
     suspend fun forceUpdate(fileName: String): Boolean {
         val url = "$serverUrl/$fileName"
         return try {
-            val content = client.get(url).bodyAsText()
+            val response = client.get(url)
+            if (!response.status.isSuccess()) {
+                log.e { "Failed to update $fileName with status ${response.status.value}" }
+                return false
+            }
+            val content = response.bodyAsText()
             settingRepo.upsert("plugin_content_$fileName", content)
             true
         } catch (e: Exception) {

@@ -51,6 +51,8 @@ import com.dailysatori.config.McpTemplateType
 import com.dailysatori.config.filterNewMcpTemplates
 import com.dailysatori.config.mcpProviders
 import com.dailysatori.shared.db.Mcp_server
+import com.dailysatori.ui.component.settings.SettingsEditorBottomBar
+import com.dailysatori.ui.component.settings.SettingsEditorMessage
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -390,6 +392,17 @@ internal fun mcpBatchSaveResultMessage(result: McpBatchSaveResult): String =
 
 internal fun mcpBatchSaveFailureMessage(): String = "添加 MCP 失败，请稍后重试"
 
+internal fun mcpTestButtonText(isTesting: Boolean): String = if (isTesting) "测试中..." else "测试连接"
+
+internal fun mcpConnectionSuccessMessage(toolCount: Int): String =
+    if (toolCount > 0) "连接成功，发现 $toolCount 个工具" else "连接成功，未发现工具"
+
+internal fun mcpConnectionValidationMessage(name: String, serverUrl: String): String? = when {
+    name.trim().isBlank() -> "请输入服务名称"
+    serverUrl.trim().isBlank() -> "请输入服务地址"
+    else -> null
+}
+
 @Composable
 private fun McpServerEditScreen(
     viewModel: McpServerViewModel,
@@ -404,6 +417,7 @@ private fun McpServerEditScreen(
     var enabled by remember { mutableStateOf(true) }
 
     LaunchedEffect(serverId) {
+        viewModel.clearTestMessage()
         if (serverId != null && serverId > 0) {
             viewModel.loadServer(serverId) { server ->
                 name = server.name
@@ -418,23 +432,21 @@ private fun McpServerEditScreen(
         title = if (serverId != null && serverId > 0) "编辑 MCP 服务" else "添加 MCP 服务",
         onBack = onBack,
         bottomBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(Spacing.m),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-            ) {
-                OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("取消") }
-                Button(
-                    onClick = {
-                        scope.launch {
-                            if (viewModel.saveServer(serverId, name, serverUrl, apiKey, enabled)) {
-                                onBack()
-                            }
+            SettingsEditorBottomBar(
+                canTest = mcpConnectionValidationMessage(name, serverUrl) == null,
+                canSave = name.isNotBlank() && serverUrl.isNotBlank(),
+                isTesting = state.isTesting,
+                isSaving = state.isSaving,
+                testText = mcpTestButtonText(state.isTesting),
+                onTest = { viewModel.testServer(name, serverUrl, apiKey) },
+                onSave = {
+                    scope.launch {
+                        if (viewModel.saveServer(serverId, name, serverUrl, apiKey, enabled)) {
+                            onBack()
                         }
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = !state.isSaving && name.isNotBlank() && serverUrl.isNotBlank(),
-                ) { Text(if (state.isSaving) "保存中..." else "保存") }
-            }
+                    }
+                },
+            )
         },
     ) { modifier ->
         LazyColumn(
@@ -451,13 +463,21 @@ private fun McpServerEditScreen(
                     )
                 }
             }
+            state.testMessage?.let { message ->
+                item {
+                    SettingsEditorMessage(
+                        message = message,
+                        isError = state.testSucceeded != true,
+                    )
+                }
+            }
             item {
                 Column {
                     Text("服务名称", style = MaterialTheme.typography.labelMedium)
                     Spacer(modifier = Modifier.height(Spacing.xs))
                     OutlinedTextField(
                         value = name,
-                        onValueChange = { name = it },
+                        onValueChange = { name = it; viewModel.clearTestMessage() },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("如：Web Search") },
                         shape = RoundedCornerShape(Radius.s),
@@ -471,7 +491,7 @@ private fun McpServerEditScreen(
                     Spacer(modifier = Modifier.height(Spacing.xs))
                     OutlinedTextField(
                         value = serverUrl,
-                        onValueChange = { serverUrl = it },
+                        onValueChange = { serverUrl = it; viewModel.clearTestMessage() },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("https://mcp.example.com") },
                         shape = RoundedCornerShape(Radius.s),
@@ -485,7 +505,7 @@ private fun McpServerEditScreen(
                     Spacer(modifier = Modifier.height(Spacing.xs))
                     OutlinedTextField(
                         value = apiKey,
-                        onValueChange = { apiKey = it },
+                        onValueChange = { apiKey = it; viewModel.clearTestMessage() },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(Radius.s),
                         singleLine = true,

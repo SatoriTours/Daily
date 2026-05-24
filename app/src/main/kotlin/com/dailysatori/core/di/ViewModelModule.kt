@@ -150,6 +150,6 @@ val viewModelModule: Module = module {
             appUpgradeService = get<AppUpgradeService>(),
         )
     }
-    viewModel { McpServerViewModel(get()) }
+    viewModel { McpServerViewModel(get(), get()) }
     viewModel { SkillSettingsViewModel(get(), get()) }
 }

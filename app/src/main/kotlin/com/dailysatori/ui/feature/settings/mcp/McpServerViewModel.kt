@@ -7,7 +7,9 @@ import com.dailysatori.config.McpTemplate
 import com.dailysatori.config.mcpTemplateDisplayName
 import com.dailysatori.config.renderMcpConfigJson
 import com.dailysatori.data.repository.McpServerRepository
+import com.dailysatori.service.mcp.RemoteMcpClient
 import com.dailysatori.shared.db.Mcp_server
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +22,9 @@ import kotlinx.coroutines.withContext
 internal data class McpServerUiState(
     val servers: List<Mcp_server> = emptyList(),
     val isSaving: Boolean = false,
+    val isTesting: Boolean = false,
+    val testMessage: String? = null,
+    val testSucceeded: Boolean? = null,
     val error: String? = null,
 )
 
@@ -27,14 +32,85 @@ internal data class McpBatchSaveResult(val added: Int, val skipped: Int)
 
 internal class McpServerViewModel(
     private val repo: McpServerRepository,
+    private val remoteMcpClient: RemoteMcpClient,
 ) : ViewModel() {
     private val _state = MutableStateFlow(McpServerUiState())
     val state: StateFlow<McpServerUiState> = _state.asStateFlow()
     private var observeJob: Job? = null
+    private var testJob: Job? = null
+    private var testRequestId = 0L
 
     fun clearError() {
         _state.update { it.copy(error = null) }
     }
+
+    fun clearTestMessage() {
+        testRequestId++
+        testJob?.cancel()
+        testJob = null
+        _state.update { it.copy(isTesting = false, testMessage = null, testSucceeded = null) }
+    }
+
+    fun testServer(name: String, serverUrl: String, apiKey: String) {
+        val requestId = ++testRequestId
+        testJob?.cancel()
+        val validation = mcpConnectionValidationMessage(name, serverUrl)
+        if (validation != null) {
+            _state.update { it.copy(isTesting = false, testMessage = validation, testSucceeded = false) }
+            return
+        }
+        testJob = viewModelScope.launch(Dispatchers.IO) {
+            if (requestId == testRequestId) {
+                _state.update { it.copy(isTesting = true, testMessage = null, testSucceeded = null) }
+            }
+            try {
+                val result = remoteMcpClient.testConnection(testMcpServer(name, serverUrl, apiKey))
+                if (requestId == testRequestId) {
+                    _state.update {
+                        it.copy(
+                            isTesting = false,
+                            testSucceeded = result.isSuccess,
+                            testMessage = result.fold(
+                                onSuccess = { count -> mcpConnectionSuccessMessage(count) },
+                                onFailure = { error -> error.message ?: "连接失败" },
+                            ),
+                        )
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (requestId == testRequestId) {
+                    _state.update {
+                        it.copy(
+                            isTesting = false,
+                            testSucceeded = false,
+                            testMessage = error.message ?: "连接失败",
+                        )
+                    }
+                }
+            } finally {
+                if (requestId == testRequestId) {
+                    _state.update { it.copy(isTesting = false) }
+                }
+            }
+        }
+    }
+
+    private fun testMcpServer(name: String, serverUrl: String, apiKey: String): Mcp_server =
+        Mcp_server(
+            id = -1L,
+            name = name.trim(),
+            server_url = serverUrl.trim(),
+            api_key = apiKey.trim(),
+            enabled = 1L,
+            provider = "",
+            template_id = "",
+            template_type = "",
+            config_json = "",
+            created_at = 0L,
+            updated_at = 0L,
+        )
 
     fun observeServers() {
         if (observeJob?.isActive == true) return

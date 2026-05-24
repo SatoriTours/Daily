@@ -3,12 +3,20 @@ package com.dailysatori.ui.feature.settings
 import com.dailysatori.config.McpTemplateType
 import com.dailysatori.config.mcpProviders
 import com.dailysatori.ui.feature.settings.mcp.McpBatchSaveResult
+import com.dailysatori.ui.feature.settings.mcp.McpServerUiState
+import com.dailysatori.ui.feature.settings.mcp.McpServerViewModel
 import com.dailysatori.ui.feature.settings.mcp.mcpBatchSaveFailureMessage
 import com.dailysatori.ui.feature.settings.mcp.mcpBatchSaveResultMessage
+import com.dailysatori.ui.feature.settings.mcp.mcpConnectionSuccessMessage
+import com.dailysatori.ui.feature.settings.mcp.mcpConnectionValidationMessage
+import com.dailysatori.ui.feature.settings.mcp.mcpTestButtonText
 import com.dailysatori.ui.feature.settings.mcp.selectableMcpTemplatesByType
+import java.lang.reflect.Field
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class McpServerScreenTest {
     @Test
@@ -40,4 +48,52 @@ class McpServerScreenTest {
     fun formatsBatchSaveFailureMessageWithoutDetails() {
         assertEquals("添加 MCP 失败，请稍后重试", mcpBatchSaveFailureMessage())
     }
+
+    @Test
+    fun formatsMcpConnectionTestMessages() {
+        assertEquals("测试连接", mcpTestButtonText(isTesting = false))
+        assertEquals("测试中...", mcpTestButtonText(isTesting = true))
+        assertEquals("连接成功，发现 3 个工具", mcpConnectionSuccessMessage(toolCount = 3))
+        assertEquals("连接成功，未发现工具", mcpConnectionSuccessMessage(toolCount = 0))
+        assertEquals("请输入服务地址", mcpConnectionValidationMessage(name = "搜索", serverUrl = ""))
+        assertEquals(null, mcpConnectionValidationMessage(name = "搜索", serverUrl = "https://mcp.example.com"))
+    }
+
+    @Test
+    fun clearTestMessageCancelsActiveTestAndInvalidatesResult() {
+        val viewModel = unsafeMcpServerViewModel()
+        val state = MutableStateFlow(
+            McpServerUiState(isTesting = true, testMessage = "旧结果", testSucceeded = true),
+        )
+        val testJob = Job()
+        viewModel.setPrivateField("_state", state)
+        viewModel.setPrivateField("testJob", testJob)
+        viewModel.setPrivateField("testRequestId", 7L)
+
+        viewModel.clearTestMessage()
+
+        assertFalse(testJob.isActive)
+        assertEquals(8L, viewModel.privateField<Long>("testRequestId"))
+        assertEquals(McpServerUiState(), state.value)
+    }
+
+    private fun unsafeMcpServerViewModel(): McpServerViewModel {
+        val unsafe = Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe").run {
+            isAccessible = true
+            get(null)
+        }
+        return unsafe.javaClass
+            .getMethod("allocateInstance", Class::class.java)
+            .invoke(unsafe, McpServerViewModel::class.java) as McpServerViewModel
+    }
+
+    private fun Any.setPrivateField(name: String, value: Any?) {
+        privateField(name).set(this, value)
+    }
+
+    private fun Any.privateField(name: String): Field = javaClass.getDeclaredField(name).apply {
+        isAccessible = true
+    }
+
+    private inline fun <reified T> Any.privateField(name: String): T = privateField(name).get(this) as T
 }
