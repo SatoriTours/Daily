@@ -51,11 +51,6 @@ class SkillSettingsViewModel(
     }
 
     fun save(input: SkillEditInput) {
-        val validation = validateSkillInput(input.name, input.gatewayUrl, input.toolSchemaJson)
-        if (validation != null) {
-            _state.update { it.copy(error = validation, message = null) }
-            return
-        }
         viewModelScope.launch(Dispatchers.IO) { saveValidated(input) }
     }
 
@@ -69,20 +64,38 @@ class SkillSettingsViewModel(
 
     private fun saveValidated(input: SkillEditInput) {
         _state.update { it.copy(isSaving = true, error = null, message = null) }
-        if (input.id == null) {
+        try {
+            val existing = input.id?.let(repository::getById)
+            val saveInput = skillUpdateInputForExisting(input, existing)
+            val validation = validateSkillInput(saveInput.name, saveInput.gatewayUrl, saveInput.toolSchemaJson)
+            if (validation != null) {
+                _state.update { it.copy(error = validation) }
+                return
+            }
+            persistSkill(saveInput)
+            _state.update { it.copy(message = skillSavedMessage()) }
+        } catch (e: Exception) {
+            _state.update { it.copy(error = skillSaveFailureMessage(e), message = null) }
+        } finally {
+            _state.update { it.copy(isSaving = false) }
+        }
+    }
+
+    private fun persistSkill(input: SkillEditInput) {
+        val saveInput = input.trimmed()
+        if (saveInput.id == null) {
             repository.insert(
-                input.name.trim(), input.description.trim(), input.gatewayUrl.trim(),
-                input.apiToken.trim(), input.skillVersion.trim(), input.enabled.asDbLong(),
-                0L, input.provider.trim(), input.templateId.trim(), input.toolSchemaJson.trim(),
+                saveInput.name, saveInput.description, saveInput.gatewayUrl,
+                saveInput.apiToken, saveInput.skillVersion, saveInput.enabled.asDbLong(),
+                0L, saveInput.provider, saveInput.templateId, saveInput.toolSchemaJson,
             )
         } else {
             repository.update(
-                input.id, input.name.trim(), input.description.trim(), input.gatewayUrl.trim(),
-                input.apiToken.trim(), input.skillVersion.trim(), input.enabled.asDbLong(),
-                input.provider.trim(), input.templateId.trim(), input.toolSchemaJson.trim(),
+                saveInput.id, saveInput.name, saveInput.description, saveInput.gatewayUrl,
+                saveInput.apiToken, saveInput.skillVersion, saveInput.enabled.asDbLong(),
+                saveInput.provider, saveInput.templateId, saveInput.toolSchemaJson,
             )
         }
-        _state.update { it.copy(isSaving = false, message = skillSavedMessage()) }
     }
 }
 
@@ -94,9 +107,27 @@ fun skillSaveButtonText(isSaving: Boolean): String = if (isSaving) "保存中...
 
 fun skillSavedMessage(): String = "Skill 已保存"
 
+fun skillSaveFailureMessage(error: Throwable?): String {
+    val detail = error?.message?.trim().orEmpty()
+    return if (detail.isBlank()) "保存 Skill 失败" else "保存 Skill 失败：$detail"
+}
+
 fun skillBuiltinDeleteBlockedMessage(): String = "内置 Skill 不能删除"
 
 fun skillCoreFieldsEditable(builtin: Long): Boolean = builtin == 0L
+
+fun skillUpdateInputForExisting(input: SkillEditInput, existing: Skill_config?): SkillEditInput {
+    if (existing?.builtin != 1L) return input
+    return input.copy(
+        name = existing.name,
+        description = existing.description,
+        gatewayUrl = existing.gateway_url,
+        skillVersion = existing.skill_version,
+        provider = existing.provider,
+        templateId = existing.template_id,
+        toolSchemaJson = existing.tool_schema_json,
+    )
+}
 
 fun validateSkillInput(name: String, gatewayUrl: String, toolSchemaJson: String): String? {
     if (name.trim().isBlank()) return "请输入 Skill 名称"
@@ -110,3 +141,14 @@ fun validateSkillInput(name: String, gatewayUrl: String, toolSchemaJson: String)
 }
 
 private fun Boolean.asDbLong(): Long = if (this) 1L else 0L
+
+private fun SkillEditInput.trimmed(): SkillEditInput = copy(
+    name = name.trim(),
+    description = description.trim(),
+    gatewayUrl = gatewayUrl.trim(),
+    apiToken = apiToken.trim(),
+    skillVersion = skillVersion.trim(),
+    provider = provider.trim(),
+    templateId = templateId.trim(),
+    toolSchemaJson = toolSchemaJson.trim(),
+)

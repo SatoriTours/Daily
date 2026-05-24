@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.settings.skills
 
+import com.dailysatori.shared.db.Skill_config
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -30,4 +31,94 @@ class SkillSettingsTextTest {
         assertFalse(skillCoreFieldsEditable(builtin = 1L))
         assertTrue(skillCoreFieldsEditable(builtin = 0L))
     }
+
+    @Test
+    fun builtInUpdatePreservesProtectedFields() {
+        val existing = skillConfig(builtin = 1L)
+        val input = editInput(
+            name = "改名",
+            description = "改描述",
+            gatewayUrl = "https://changed.example.com",
+            apiToken = "new-token",
+            skillVersion = "9.9.9",
+            enabled = true,
+            provider = "changed-provider",
+            templateId = "changed-template",
+            toolSchemaJson = "[{\"name\":\"changed\"}]",
+        )
+
+        val protected = skillUpdateInputForExisting(input, existing)
+
+        assertEquals(existing.name, protected.name)
+        assertEquals(existing.description, protected.description)
+        assertEquals(existing.gateway_url, protected.gatewayUrl)
+        assertEquals("new-token", protected.apiToken)
+        assertEquals(existing.skill_version, protected.skillVersion)
+        assertEquals(true, protected.enabled)
+        assertEquals(existing.provider, protected.provider)
+        assertEquals(existing.template_id, protected.templateId)
+        assertEquals(existing.tool_schema_json, protected.toolSchemaJson)
+    }
+
+    @Test
+    fun customUpdateAllowsAllFields() {
+        val input = editInput(
+            name = "改名",
+            description = "改描述",
+            gatewayUrl = "https://changed.example.com",
+            apiToken = "new-token",
+            skillVersion = "9.9.9",
+            enabled = true,
+            provider = "changed-provider",
+            templateId = "changed-template",
+            toolSchemaJson = "[{\"name\":\"changed\"}]",
+        )
+
+        assertEquals(input, skillUpdateInputForExisting(input, skillConfig(builtin = 0L)))
+    }
+
+    @Test
+    fun saveFailureMessageIsVisible() {
+        assertEquals("保存 Skill 失败", skillSaveFailureMessage(null))
+        assertEquals("保存 Skill 失败：database locked", skillSaveFailureMessage(IllegalStateException("database locked")))
+    }
+
+    private fun editInput(
+        name: String = "Skill",
+        description: String = "Description",
+        gatewayUrl: String = "https://example.com",
+        apiToken: String = "token",
+        skillVersion: String = "1.0.0",
+        enabled: Boolean = false,
+        provider: String = "provider",
+        templateId: String = "template",
+        toolSchemaJson: String = "{}",
+    ) = SkillEditInput(
+        id = 1L,
+        name = name,
+        description = description,
+        gatewayUrl = gatewayUrl,
+        apiToken = apiToken,
+        skillVersion = skillVersion,
+        enabled = enabled,
+        provider = provider,
+        templateId = templateId,
+        toolSchemaJson = toolSchemaJson,
+    )
+
+    private fun skillConfig(builtin: Long) = Skill_config(
+        id = 1L,
+        name = "微信读书",
+        description = "原描述",
+        gateway_url = "https://i.weread.qq.com/api/agent/gateway",
+        api_token = "old-token",
+        skill_version = "1.0.3",
+        enabled = 0L,
+        builtin = builtin,
+        provider = "weread",
+        template_id = "weread",
+        tool_schema_json = "{}",
+        created_at = 100L,
+        updated_at = 200L,
+    )
 }
