@@ -1,9 +1,16 @@
 package com.dailysatori.ui.feature.settings.skills
 
+import com.dailysatori.data.repository.SkillConfigDataSource
 import com.dailysatori.shared.db.Skill_config
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class SkillSettingsTextTest {
@@ -83,7 +90,23 @@ class SkillSettingsTextTest {
         assertEquals("保存 Skill 失败：database locked", skillSaveFailureMessage(IllegalStateException("database locked")))
     }
 
+    @Test
+    fun saveFailureResetsSavingAndShowsError() = runBlocking {
+        val viewModel = SkillSettingsViewModel(FailingSkillRepository())
+
+        viewModel.save(editInput(id = null))
+
+        withTimeout(2_000) {
+            while (viewModel.state.value.error == null) delay(10)
+        }
+        val state = viewModel.state.value
+        assertFalse(state.isSaving)
+        assertNotNull(state.error)
+        assertTrue(state.error.startsWith("保存 Skill 失败"))
+    }
+
     private fun editInput(
+        id: Long? = 1L,
         name: String = "Skill",
         description: String = "Description",
         gatewayUrl: String = "https://example.com",
@@ -94,7 +117,7 @@ class SkillSettingsTextTest {
         templateId: String = "template",
         toolSchemaJson: String = "{}",
     ) = SkillEditInput(
-        id = 1L,
+        id = id,
         name = name,
         description = description,
         gatewayUrl = gatewayUrl,
@@ -121,4 +144,42 @@ class SkillSettingsTextTest {
         created_at = 100L,
         updated_at = 200L,
     )
+
+    private class FailingSkillRepository : SkillConfigDataSource {
+        override fun getAll(): Flow<List<Skill_config>> = emptyFlow()
+
+        override fun getById(id: Long): Skill_config? = null
+
+        override fun insertSkill(
+            name: String,
+            description: String,
+            gatewayUrl: String,
+            apiToken: String,
+            skillVersion: String,
+            enabled: Long,
+            builtin: Long,
+            provider: String,
+            templateId: String,
+            toolSchemaJson: String,
+        ) {
+            throw IllegalStateException("database locked")
+        }
+
+        override fun updateSkill(
+            id: Long,
+            name: String,
+            description: String,
+            gatewayUrl: String,
+            apiToken: String,
+            skillVersion: String,
+            enabled: Long,
+            provider: String,
+            templateId: String,
+            toolSchemaJson: String,
+        ) = Unit
+
+        override fun deleteSkill(id: Long) = Unit
+
+        override fun ensureBuiltInWeRead() = Unit
+    }
 }

@@ -16,11 +16,44 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
+interface SkillConfigDataSource {
+    fun getAll(): Flow<List<Skill_config>>
+    fun getById(id: Long): Skill_config?
+    fun insertSkill(
+        name: String,
+        description: String,
+        gatewayUrl: String,
+        apiToken: String,
+        skillVersion: String,
+        enabled: Long,
+        builtin: Long,
+        provider: String,
+        templateId: String,
+        toolSchemaJson: String,
+    )
+
+    fun updateSkill(
+        id: Long,
+        name: String,
+        description: String,
+        gatewayUrl: String,
+        apiToken: String,
+        skillVersion: String,
+        enabled: Long,
+        provider: String,
+        templateId: String,
+        toolSchemaJson: String,
+    )
+
+    fun deleteSkill(id: Long)
+    fun ensureBuiltInWeRead()
+}
+
 class SkillConfigRepository internal constructor(
     private val db: DailySatoriDatabase,
     private val encryptSecret: (String) -> String,
     private val decryptSecret: (String) -> String,
-) {
+) : SkillConfigDataSource {
     constructor(db: DailySatoriDatabase, secretCipher: SecretCipher) : this(
         db = db,
         encryptSecret = { apiToken -> secretCipher.encrypt(apiToken) },
@@ -29,12 +62,12 @@ class SkillConfigRepository internal constructor(
 
     private val q get() = db.dailySatoriQueries
 
-    fun getAll(): Flow<List<Skill_config>> =
+    override fun getAll(): Flow<List<Skill_config>> =
         q.selectAllSkillConfigs().asFlow().mapToList(Dispatchers.IO).map { skills ->
             skills.map(::decryptSkill)
         }
 
-    fun getById(id: Long): Skill_config? = q.selectSkillConfigById(id).executeAsOneOrNull()?.let(::decryptSkill)
+    override fun getById(id: Long): Skill_config? = q.selectSkillConfigById(id).executeAsOneOrNull()?.let(::decryptSkill)
 
     fun getByTemplateId(templateId: String): Skill_config? =
         q.selectSkillConfigByTemplateId(templateId).executeAsOneOrNull()?.let(::decryptSkill)
@@ -63,6 +96,22 @@ class SkillConfigRepository internal constructor(
         )
     }
 
+    override fun insertSkill(
+        name: String,
+        description: String,
+        gatewayUrl: String,
+        apiToken: String,
+        skillVersion: String,
+        enabled: Long,
+        builtin: Long,
+        provider: String,
+        templateId: String,
+        toolSchemaJson: String,
+    ) = insert(
+        name, description, gatewayUrl, apiToken, skillVersion,
+        enabled, builtin, provider, templateId, toolSchemaJson,
+    )
+
     fun update(
         id: Long,
         name: String,
@@ -82,12 +131,30 @@ class SkillConfigRepository internal constructor(
         )
     }
 
+    override fun updateSkill(
+        id: Long,
+        name: String,
+        description: String,
+        gatewayUrl: String,
+        apiToken: String,
+        skillVersion: String,
+        enabled: Long,
+        provider: String,
+        templateId: String,
+        toolSchemaJson: String,
+    ) = update(
+        id, name, description, gatewayUrl, apiToken,
+        skillVersion, enabled, provider, templateId, toolSchemaJson,
+    )
+
     fun delete(id: Long) {
         val skill = getById(id) ?: return
         if (canDeleteSkill(skill.builtin)) q.deleteSkillConfig(id)
     }
 
-    fun ensureBuiltInWeRead() {
+    override fun deleteSkill(id: Long) = delete(id)
+
+    override fun ensureBuiltInWeRead() {
         q.transaction {
             val existing = getBuiltInByTemplateId(BuiltInSkillTemplates.weRead)
             if (existing != null) return@transaction

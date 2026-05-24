@@ -2,7 +2,7 @@ package com.dailysatori.ui.feature.settings.skills
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dailysatori.data.repository.SkillConfigRepository
+import com.dailysatori.data.repository.SkillConfigDataSource
 import com.dailysatori.service.skill.canDeleteSkill
 import com.dailysatori.shared.db.Skill_config
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +36,7 @@ data class SkillEditInput(
 )
 
 class SkillSettingsViewModel(
-    private val repository: SkillConfigRepository,
+    private val repository: SkillConfigDataSource,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SkillSettingsState())
     val state: StateFlow<SkillSettingsState> = _state.asStateFlow()
@@ -59,7 +59,7 @@ class SkillSettingsViewModel(
             _state.update { it.copy(error = skillBuiltinDeleteBlockedMessage(), message = null) }
             return
         }
-        viewModelScope.launch(Dispatchers.IO) { repository.delete(skill.id) }
+        viewModelScope.launch(Dispatchers.IO) { repository.deleteSkill(skill.id) }
     }
 
     private fun saveValidated(input: SkillEditInput) {
@@ -84,13 +84,13 @@ class SkillSettingsViewModel(
     private fun persistSkill(input: SkillEditInput) {
         val saveInput = input.trimmed()
         if (saveInput.id == null) {
-            repository.insert(
+            repository.insertSkill(
                 saveInput.name, saveInput.description, saveInput.gatewayUrl,
                 saveInput.apiToken, saveInput.skillVersion, saveInput.enabled.asDbLong(),
                 0L, saveInput.provider, saveInput.templateId, saveInput.toolSchemaJson,
             )
         } else {
-            repository.update(
+            repository.updateSkill(
                 saveInput.id, saveInput.name, saveInput.description, saveInput.gatewayUrl,
                 saveInput.apiToken, saveInput.skillVersion, saveInput.enabled.asDbLong(),
                 saveInput.provider, saveInput.templateId, saveInput.toolSchemaJson,
