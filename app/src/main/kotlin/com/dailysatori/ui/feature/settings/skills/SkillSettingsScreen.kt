@@ -26,6 +26,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +51,13 @@ fun SkillSettingsScreen(onBack: () -> Unit) {
     val state by viewModel.state.collectAsState()
     var editing by remember { mutableStateOf<Skill_config?>(null) }
     var adding by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.message, state.isSaving) {
+        if (skillShouldCloseEditorAfterSave(state.message, state.isSaving)) {
+            adding = false
+            editing = null
+        }
+    }
 
     val target = editing
     if (adding || target != null) {

@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.settings.skills
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.data.repository.SkillConfigDataSource
+import com.dailysatori.service.skill.BuiltInSkillTemplates
 import com.dailysatori.service.skill.canDeleteSkill
 import com.dailysatori.shared.db.Skill_config
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +73,7 @@ class SkillSettingsViewModel(
                 _state.update { it.copy(error = validation) }
                 return
             }
-            persistSkill(saveInput)
+            persistSkill(saveInput, existing)
             _state.update { it.copy(message = skillSavedMessage()) }
         } catch (e: Exception) {
             _state.update { it.copy(error = skillSaveFailureMessage(e), message = null) }
@@ -81,18 +82,19 @@ class SkillSettingsViewModel(
         }
     }
 
-    private fun persistSkill(input: SkillEditInput) {
+    private fun persistSkill(input: SkillEditInput, existing: Skill_config?) {
         val saveInput = input.trimmed()
+        val enabled = skillEnabledValueForSave(saveInput, existing)
         if (saveInput.id == null) {
             repository.insertSkill(
                 saveInput.name, saveInput.description, saveInput.gatewayUrl,
-                saveInput.apiToken, saveInput.skillVersion, saveInput.enabled.asDbLong(),
+                saveInput.apiToken, saveInput.skillVersion, enabled,
                 0L, saveInput.provider, saveInput.templateId, saveInput.toolSchemaJson,
             )
         } else {
             repository.updateSkill(
                 saveInput.id, saveInput.name, saveInput.description, saveInput.gatewayUrl,
-                saveInput.apiToken, saveInput.skillVersion, saveInput.enabled.asDbLong(),
+                saveInput.apiToken, saveInput.skillVersion, enabled,
                 saveInput.provider, saveInput.templateId, saveInput.toolSchemaJson,
             )
         }
@@ -119,6 +121,15 @@ fun skillSaveFailureMessage(error: Throwable?): String {
 fun skillBuiltinDeleteBlockedMessage(): String = "内置 Skill 不能删除"
 
 fun skillCoreFieldsEditable(builtin: Long): Boolean = builtin == 0L
+
+fun skillShouldCloseEditorAfterSave(message: String?, isSaving: Boolean): Boolean =
+    message == skillSavedMessage() && !isSaving
+
+fun skillEnabledValueForSave(input: SkillEditInput, existing: Skill_config?): Long {
+    val isBuiltInWeRead = existing?.builtin == 1L && existing.template_id == BuiltInSkillTemplates.weRead
+    if (isBuiltInWeRead) return input.apiToken.trim().isNotBlank().asDbLong()
+    return input.enabled.asDbLong()
+}
 
 fun skillUpdateInputForExisting(input: SkillEditInput, existing: Skill_config?): SkillEditInput {
     if (existing?.builtin != 1L) return input

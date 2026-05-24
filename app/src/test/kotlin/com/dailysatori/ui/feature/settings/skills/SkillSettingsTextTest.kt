@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.settings.skills
 
 import com.dailysatori.data.repository.SkillConfigDataSource
+import com.dailysatori.service.skill.BuiltInSkillTemplates
 import com.dailysatori.shared.db.Skill_config
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -91,6 +92,30 @@ class SkillSettingsTextTest {
     }
 
     @Test
+    fun builtInWeReadTokenSaveControlsEnabledValue() {
+        val existing = skillConfig(builtin = 1L, templateId = BuiltInSkillTemplates.weRead)
+
+        assertEquals(1L, skillEnabledValueForSave(editInput(apiToken = " new-token ", enabled = false), existing))
+        assertEquals(0L, skillEnabledValueForSave(editInput(apiToken = " ", enabled = true), existing))
+    }
+
+    @Test
+    fun customSkillSaveKeepsExplicitEnabledValue() {
+        val existing = skillConfig(builtin = 0L, templateId = "custom")
+
+        assertEquals(0L, skillEnabledValueForSave(editInput(apiToken = "token", enabled = false), existing))
+        assertEquals(1L, skillEnabledValueForSave(editInput(apiToken = "", enabled = true), existing))
+    }
+
+    @Test
+    fun editorClosesOnlyAfterSuccessfulSaveCompletes() {
+        assertFalse(skillShouldCloseEditorAfterSave(message = null, isSaving = false))
+        assertFalse(skillShouldCloseEditorAfterSave(message = skillSavedMessage(), isSaving = true))
+        assertFalse(skillShouldCloseEditorAfterSave(message = skillSaveFailureMessage(null), isSaving = false))
+        assertTrue(skillShouldCloseEditorAfterSave(message = skillSavedMessage(), isSaving = false))
+    }
+
+    @Test
     fun saveFailureMessageIsVisible() {
         assertEquals("保存 Skill 失败", skillSaveFailureMessage(null))
         assertEquals("保存 Skill 失败：database locked", skillSaveFailureMessage(IllegalStateException("database locked")))
@@ -135,7 +160,10 @@ class SkillSettingsTextTest {
         toolSchemaJson = toolSchemaJson,
     )
 
-    private fun skillConfig(builtin: Long) = Skill_config(
+    private fun skillConfig(
+        builtin: Long,
+        templateId: String = "weread",
+    ) = Skill_config(
         id = 1L,
         name = "微信读书",
         description = "原描述",
@@ -145,7 +173,7 @@ class SkillSettingsTextTest {
         enabled = 0L,
         builtin = builtin,
         provider = "weread",
-        template_id = "weread",
+        template_id = templateId,
         tool_schema_json = "{}",
         created_at = 100L,
         updated_at = 200L,
