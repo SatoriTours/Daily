@@ -185,4 +185,40 @@ class WeReadSkillServiceTest {
         val error = assertFailsWith<WeReadSkillException> { requireWeReadApiKey(key) }
         assertEquals(WeReadSkillErrorType.MissingApiKey, error.type)
     }
+
+    @Test
+    fun parsesDetailedAiFallbackViewpointsOnly() {
+        val json = """
+            [
+              {"title":"待上架书也要先界定真实问题。","content":"当一本书还没有完整目录和书评时，观点生成不能假装拥有微信读书材料，而应基于书名、作者、简介和分类先界定读者可能面对的真实问题。这样生成的内容虽然来自 AI，但仍然围绕已知元数据展开，避免把不存在的章节或读者评价写成事实。","example":"例如一位读者想添加一本待上架的供应链新书，微信读书只返回书名、作者和一句简介。系统没有编造目录，而是把简介里的产业协同作为主题，让 AI 生成一个具体场景：采购、仓储和销售团队因为预测口径不同导致缺货，再说明如何用统一指标协调下一步动作。"},
+              {"title":"太短","content":"短","example":"短"}
+            ]
+        """.trimIndent()
+
+        val drafts = parseAiFallbackViewpointJson(json)
+
+        assertEquals(1, drafts.size)
+        assertEquals("待上架书也要先界定真实问题。", drafts.first().title)
+    }
+
+    @Test
+    fun buildsAiFallbackPromptWithDisclosureAndJsonContract() {
+        val prompt = buildAiFallbackViewpointPrompt(
+            book = BookSearchResult(
+                title = "供应链架构师",
+                author = "施云",
+                category = "管理",
+                introduction = "供应链是一套端到端的系统能力。",
+            ),
+            info = WeReadBookInfo(bookId = "123", title = "供应链架构师", author = "施云", intro = "端到端供应链。"),
+            chapters = listOf(WeReadChapter(chapterUid = 1, chapterIdx = 1, title = "战略到运营")),
+            reviews = emptyList(),
+        )
+
+        assertTrue(prompt.contains("只返回 JSON 数组"))
+        assertTrue(prompt.contains("10 个对象"))
+        assertTrue(prompt.contains("AI 生成"))
+        assertTrue(prompt.contains("不能声称来自微信读书书评或原文"))
+        assertTrue(prompt.contains("供应链架构师"))
+    }
 }

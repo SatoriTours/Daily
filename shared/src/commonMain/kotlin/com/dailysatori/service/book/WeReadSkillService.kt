@@ -233,10 +233,70 @@ fun buildWeReadViewpointDrafts(
     }
 }
 
+fun buildAiFallbackViewpointPrompt(
+    book: BookSearchResult,
+    info: WeReadBookInfo,
+    chapters: List<WeReadChapter>,
+    reviews: List<WeReadReview>,
+): String {
+    val title = info.title.ifBlank { book.title }
+    val author = info.author.ifBlank { book.author }
+    val intro = info.intro.ifBlank { book.introduction }
+    val chapterText = chapters.take(8).joinToString("、") { it.title }
+    val reviewText = reviews.take(3).joinToString("\n") { it.content }
+    return """
+        请为一本微信读书已返回但资料不足的书生成 10 个观点卡片。
+        这些观点是 AI 生成，不能声称来自微信读书书评或原文。
+
+        书名：$title
+        作者：$author
+        分类：${book.category.ifBlank { info.category }}
+        简介：$intro
+        可用目录：$chapterText
+        可用书评：$reviewText
+
+        只返回 JSON 数组，不要 Markdown、解释或额外文本。
+        数组必须包含 10 个对象，每个对象必须包含字段：title、content、example。
+        title 必须是完整判断句。
+        content 至少 80 个中文字符，说明观点的原因、边界和判断标准。
+        example 至少 100 个中文字符，必须是具体场景，写清人物或组织、问题、动作和结果。
+    """.trimIndent()
+}
+
+fun parseAiFallbackViewpointJson(response: String): List<BookViewpointDraft> {
+    val array = runCatching { weReadJson.parseToJsonElement(extractJsonArray(response)).jsonArray }.getOrNull()
+        ?: return emptyList()
+    return array.mapNotNull { item ->
+        val obj = item.asJsonObjectOrNull() ?: return@mapNotNull null
+        val title = obj.stringValue("title").trim()
+        val content = obj.stringValue("content").trim()
+        val example = obj.stringValue("example").trim()
+        if (title.isBlank() || content.length < 80 || example.length < 100) return@mapNotNull null
+        BookViewpointDraft(title = title, content = content, example = example)
+    }.take(10)
+}
+
 fun weReadUserMessage(error: WeReadSkillException): String = when (error.type) {
     WeReadSkillErrorType.MissingApiKey -> "请先在设置中配置微信读书 API Key"
     WeReadSkillErrorType.NoResults -> "微信读书未找到相关书籍"
     WeReadSkillErrorType.RemoteFailure -> error.message.ifBlank { "微信读书服务暂时不可用" }
+}
+
+private fun extractJsonArray(response: String): String {
+    val trimmed = response.trim()
+    val unfenced = if (trimmed.startsWith("```")) {
+        trimmed.lines()
+            .drop(1)
+            .dropLastWhile { it.trim().startsWith("```") || it.isBlank() }
+            .joinToString("\n")
+            .trim()
+    } else {
+        trimmed
+    }
+    val start = unfenced.indexOf('[')
+    val end = unfenced.lastIndexOf(']')
+    if (start < 0 || end < start) return "[]"
+    return unfenced.substring(start, end + 1)
 }
 
 private fun parseWeReadRoot(jsonText: String): JsonObject {
