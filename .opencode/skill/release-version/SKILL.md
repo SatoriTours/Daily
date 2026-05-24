@@ -12,12 +12,13 @@ metadata:
 
 为 Daily Satori 项目发布新版本，完整执行以下步骤：
 
-1. **获取版本号** - 从 `app/build.gradle.kts` 的 `versionName` 读取当前版本
-2. **收集变更** - 获取上一版本 tag 到当前 HEAD 的提交记录
-3. **生成日志** - 创建 `docs/versions/changelog_${version}.md`
-4. **提交代码** - 执行 `git add .` 和 `git commit`
-5. **打版本标签** - 执行 `git tag v${version}`
-6. **同步 GitHub** - 推送 `main` 和版本 tag，触发 GitHub Actions 构建并发布 APK
+1. **计算版本号** - 从 `app/build.gradle.kts` 的 `versionName` 读取当前版本，递增 patch 版本，并跳过任何包含数字 `4` 的版本号
+2. **更新版本号** - 将 `app/build.gradle.kts` 的 `versionName` 更新为计算后的新版本
+3. **收集变更** - 获取上一版本 tag 到当前 HEAD 的提交记录
+4. **生成日志** - 创建 `docs/versions/changelog_${version}.md`
+5. **提交代码** - 执行 `git add .` 和 `git commit`
+6. **打版本标签** - 执行 `git tag v${version}`
+7. **同步 GitHub** - 推送 `main` 和版本 tag，触发 GitHub Actions 构建并发布 APK
 
 > 发布只需要提交代码、打 tag、同步 GitHub main 和 tag。不在本地编译 release 版本；APK 由 GitHub Actions 构建并上传到 Release。
 
@@ -28,19 +29,38 @@ metadata:
 
 ## 执行步骤
 
-### 1. 获取版本号
+### 1. 计算版本号
 
 ```bash
 current_version=$(grep "versionName" app/build.gradle.kts | sed -E 's/.*versionName = "([^"]+)".*/\1/' | tr -d ' ')
+major=${current_version%%.*}
+rest=${current_version#*.}
+minor=${rest%%.*}
+patch=${current_version##*.}
+
+next_patch=$((patch + 1))
+current_version="${major}.${minor}.${next_patch}"
+while [[ "$current_version" == *4* ]]; do
+  next_patch=$((next_patch + 1))
+  current_version="${major}.${minor}.${next_patch}"
+done
 ```
 
-### 2. 获取上一版本 tag
+**版本号硬性规则**：发布版本号任意段都不能包含数字 `4`。如果常规递增结果包含 `4`，继续递增直到不包含 `4`。例如当前版本 `5.0.3`，发版时必须跳到 `5.0.5`。
+
+### 2. 更新版本号
+
+```bash
+perl -0pi -e "s/versionName = \"[^\"]+\"/versionName = \"${current_version}\"/" app/build.gradle.kts
+```
+
+### 3. 获取上一版本 tag
 
 ```bash
 previous_tag=$(git tag --sort=-v:refname | head -2 | tail -1)
 ```
 
-### 3. 生成更新日志
+### 4. 生成更新日志
 
 根据提交记录整理，按以下格式分类：
 
@@ -58,7 +78,7 @@ previous_tag=$(git tag --sort=-v:refname | head -2 | tail -1)
 
 保存到 `docs/versions/changelog_${version}.md`
 
-### 4. 执行 Git 命令
+### 5. 执行 Git 命令
 
 ```bash
 
@@ -71,7 +91,7 @@ git tag v${current_version}
 
 ```
 
-### 5. 同步 GitHub
+### 6. 同步 GitHub
 
 推送 `main` 和版本 tag。远程 tag 会触发 `.github/workflows/android-release.yml`，由 GitHub Actions 构建签名 APK 并上传到 GitHub Release。
 
@@ -94,7 +114,7 @@ gh release view "v${current_version}" --repo SatoriTours/Daily --json tagName,ta
 
 - 更新日志使用中文，聚焦功能变化
 - 按新增/优化/修复分类，不包含测试改进
-- 打标签前确认版本号正确
+- 打标签前确认版本号正确，且版本号任意段都不包含数字 `4`
 - tag 必须匹配 `app/build.gradle.kts` 的 `versionName`
 - tag 指向的 commit 必须属于 `main` 分支历史
 - 不使用 `gh api` 手工操作 Git refs
