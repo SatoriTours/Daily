@@ -46,6 +46,7 @@ import com.dailysatori.service.crayfishnews.CrayfishNewsService
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.setting.SettingService
+import com.dailysatori.service.skill.SkillRegistry
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
 import com.dailysatori.service.weekly.WeeklySummaryService
 import org.koin.core.module.Module
@@ -86,6 +87,7 @@ val sharedModule: Module = module {
     single { CrayfishNewsService(get()) }
     single { MemoryExtractService(get(), get(), get()) }
     single { UnifiedNewsSummaryService(get(), get(), get(), get(), get(), get()) }
+    single { SkillRegistry(get()) }
 
     // AdBlock service (loads EasyList rules from assets via FileManager)
     single {
