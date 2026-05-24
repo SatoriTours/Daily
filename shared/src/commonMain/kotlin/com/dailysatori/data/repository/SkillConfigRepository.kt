@@ -39,6 +39,9 @@ class SkillConfigRepository internal constructor(
     fun getByTemplateId(templateId: String): Skill_config? =
         q.selectSkillConfigByTemplateId(templateId).executeAsOneOrNull()?.let(::decryptSkill)
 
+    fun getBuiltInByTemplateId(templateId: String): Skill_config? =
+        q.selectBuiltInSkillConfigByTemplateId(templateId).executeAsOneOrNull()?.let(::decryptSkill)
+
     fun getEnabled(): List<Skill_config> = q.selectEnabledSkillConfigs().executeAsList().map(::decryptSkill)
 
     fun insert(
@@ -86,7 +89,7 @@ class SkillConfigRepository internal constructor(
 
     fun ensureBuiltInWeRead() {
         q.transaction {
-            val existing = q.selectBuiltInSkillConfigByTemplateId(BuiltInSkillTemplates.weRead).executeAsOneOrNull()
+            val existing = getBuiltInByTemplateId(BuiltInSkillTemplates.weRead)
             if (existing != null) return@transaction
             insert(
                 name = builtInWeReadSkillName(),

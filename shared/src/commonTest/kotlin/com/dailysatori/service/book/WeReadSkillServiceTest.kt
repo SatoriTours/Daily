@@ -204,6 +204,14 @@ class WeReadSkillServiceTest {
     }
 
     @Test
+    fun serviceReadsOnlyBuiltInWeReadSkillRow() {
+        val source = java.io.File("src/commonMain/kotlin/com/dailysatori/service/book/WeReadSkillService.kt").readText()
+
+        assertTrue(source.contains("skillConfigRepository.getBuiltInByTemplateId(BuiltInSkillTemplates.weRead)"))
+        assertTrue(!source.contains("skillConfigRepository.getByTemplateId(BuiltInSkillTemplates.weRead)"))
+    }
+
+    @Test
     fun plaintextStoredApiKeyIsReturnedAndReportedForUpgrade() {
         var upgraded = ""
 

@@ -92,6 +92,37 @@ class SkillConfigRepositoryBehaviorTest {
         assertTrue(wereadRows.any { it.builtin == 0L && it.name == "Custom WeRead" })
     }
 
+    @Test
+    fun builtInLookupIgnoresCustomRowsWithSameTemplateId() = withRepository { _, repository ->
+        repository.insert(
+            name = "Custom WeRead",
+            description = "",
+            gatewayUrl = "https://example.com/custom-weread",
+            apiToken = "",
+            skillVersion = "1.0.0",
+            enabled = 0,
+            builtin = 0,
+            templateId = BuiltInSkillTemplates.weRead,
+        )
+        repository.insert(
+            name = "Built-in WeRead",
+            description = "",
+            gatewayUrl = "https://example.com/builtin-weread",
+            apiToken = "built-in-token",
+            skillVersion = "1.0.3",
+            enabled = 1,
+            builtin = 1,
+            templateId = BuiltInSkillTemplates.weRead,
+        )
+
+        val skill = repository.getBuiltInByTemplateId(BuiltInSkillTemplates.weRead)
+
+        assertEquals("Built-in WeRead", skill?.name)
+        assertEquals("built-in-token", skill?.api_token)
+        assertEquals(1L, skill?.builtin)
+        assertEquals(1L, skill?.enabled)
+    }
+
     private fun withRepository(test: (DailySatoriDatabase, SkillConfigRepository) -> Unit) {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
         DailySatoriDatabase.Schema.create(driver)

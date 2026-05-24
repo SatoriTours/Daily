@@ -34,4 +34,18 @@ class WeReadSettingsTextTest {
         assertTrue(service.contains("SecretCipher"))
         assertTrue(service.contains("secretCipher::decrypt"))
     }
+
+    @Test
+    fun legacySettingsScreenWritesBuiltInWeReadSkillWhenPresent() {
+        val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/settings/weread/WeReadSettingsViewModel.kt").readText()
+        val di = File("src/main/kotlin/com/dailysatori/core/di/ViewModelModule.kt").readText()
+
+        assertTrue(viewModel.contains("SkillConfigRepository"))
+        assertTrue(viewModel.contains("getBuiltInByTemplateId(BuiltInSkillTemplates.weRead)"))
+        assertTrue(viewModel.contains("apiToken = key"))
+        assertTrue(viewModel.contains("enabled = 1"))
+        assertTrue(viewModel.contains("key = \"\""))
+        assertTrue(viewModel.contains("enabled = 0"))
+        assertTrue(di.contains("WeReadSettingsViewModel(get(), get(), get())"))
+    }
 }

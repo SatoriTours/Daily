@@ -163,7 +163,7 @@ class WeReadSkillService(
     }
 
     private fun readStoredWeReadApiKey(): String {
-        val skill = skillConfigRepository.getByTemplateId(BuiltInSkillTemplates.weRead)
+        val skill = skillConfigRepository.getBuiltInByTemplateId(BuiltInSkillTemplates.weRead)
         val legacyStored = settingRepository.get(SettingKeys.weReadApiKey).orEmpty()
         return resolveWeReadTokenFromSkillOrLegacy(
             skillToken = skill?.api_token,

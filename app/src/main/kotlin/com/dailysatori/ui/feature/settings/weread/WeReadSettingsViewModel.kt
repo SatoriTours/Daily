@@ -4,8 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.data.repository.SkillConfigRepository
 import com.dailysatori.service.book.resolveStoredWeReadApiKey
 import com.dailysatori.service.security.SecretCipher
+import com.dailysatori.service.skill.BuiltInSkillTemplates
+import com.dailysatori.shared.db.Skill_config
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,19 +26,15 @@ data class WeReadSettingsState(
 class WeReadSettingsViewModel(
     private val settingRepository: SettingRepository,
     private val secretCipher: SecretCipher,
+    private val skillConfigRepository: SkillConfigRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(WeReadSettingsState())
     val state: StateFlow<WeReadSettingsState> = _state.asStateFlow()
 
     fun load() {
         viewModelScope.launch(Dispatchers.IO) {
-            val stored = settingRepository.get(SettingKeys.weReadApiKey).orEmpty()
-            val key = resolveStoredWeReadApiKey(
-                stored = stored,
-                isEncrypted = secretCipher::isEncrypted,
-                decrypt = secretCipher::decrypt,
-                onPlaintext = { plain -> settingRepository.upsert(SettingKeys.weReadApiKey, secretCipher.encrypt(plain)) },
-            )
+            val skill = skillConfigRepository.getBuiltInByTemplateId(BuiltInSkillTemplates.weRead)
+            val key = skill?.api_token?.trim() ?: readLegacyApiKey()
             _state.update { it.copy(apiKey = key, savedApiKey = key, message = null) }
         }
     }
@@ -49,7 +48,12 @@ class WeReadSettingsViewModel(
             _state.update { it.copy(isSaving = true, message = null) }
             runCatching {
                 val key = _state.value.apiKey.trim()
-                settingRepository.upsert(SettingKeys.weReadApiKey, secretCipher.encrypt(key))
+                val skill = skillConfigRepository.getBuiltInByTemplateId(BuiltInSkillTemplates.weRead)
+                if (skill != null) {
+                    updateBuiltInWeReadSkill(skill = skill, key = key, enabled = 1)
+                } else {
+                    settingRepository.upsert(SettingKeys.weReadApiKey, secretCipher.encrypt(key))
+                }
                 _state.update {
                     it.copy(apiKey = key, savedApiKey = key, message = weReadSavedMessage())
                 }
@@ -62,11 +66,41 @@ class WeReadSettingsViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isSaving = true, message = null) }
             runCatching {
-                settingRepository.delete(SettingKeys.weReadApiKey)
+                val skill = skillConfigRepository.getBuiltInByTemplateId(BuiltInSkillTemplates.weRead)
+                if (skill != null) {
+                    updateBuiltInWeReadSkill(skill = skill, key = "", enabled = 0)
+                } else {
+                    settingRepository.delete(SettingKeys.weReadApiKey)
+                }
                 _state.update { it.copy(apiKey = "", savedApiKey = "", message = weReadClearedMessage()) }
             }
             _state.update { it.copy(isSaving = false) }
         }
+    }
+
+    private fun readLegacyApiKey(): String {
+        val stored = settingRepository.get(SettingKeys.weReadApiKey).orEmpty()
+        return resolveStoredWeReadApiKey(
+            stored = stored,
+            isEncrypted = secretCipher::isEncrypted,
+            decrypt = secretCipher::decrypt,
+            onPlaintext = { plain -> settingRepository.upsert(SettingKeys.weReadApiKey, secretCipher.encrypt(plain)) },
+        )
+    }
+
+    private fun updateBuiltInWeReadSkill(skill: Skill_config, key: String, enabled: Long) {
+        skillConfigRepository.update(
+            id = skill.id,
+            name = skill.name,
+            description = skill.description,
+            gatewayUrl = skill.gateway_url,
+            apiToken = key,
+            skillVersion = skill.skill_version,
+            enabled = enabled,
+            provider = skill.provider,
+            templateId = skill.template_id,
+            toolSchemaJson = skill.tool_schema_json,
+        )
     }
 
 }
