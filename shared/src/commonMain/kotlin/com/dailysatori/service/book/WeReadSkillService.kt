@@ -366,7 +366,7 @@ private fun String.extractWeReadBookId(): String? = Regex("[?&]bId=([^&]+)")
     ?.getOrNull(1)
     ?.takeIf { it.isNotBlank() }
 
-private fun JsonObject.stringValue(key: String): String = this[key]?.jsonPrimitive?.contentOrNull ?: ""
+private fun JsonObject.stringValue(key: String): String = runCatching { this[key]?.jsonPrimitive?.contentOrNull }.getOrNull() ?: ""
 
 private fun JsonObject.intValue(key: String): Int = this[key]?.jsonPrimitive?.intOrNull ?: 0
 
