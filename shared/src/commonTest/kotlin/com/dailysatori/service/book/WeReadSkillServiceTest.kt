@@ -202,6 +202,19 @@ class WeReadSkillServiceTest {
     }
 
     @Test
+    fun rejectsAiFallbackViewpointsWithTerseTitle() {
+        val json = """
+            [
+              {"title":"短","content":"当一本书还没有完整目录和书评时，观点生成不能假装拥有微信读书材料，而应基于书名、作者、简介和分类先界定读者可能面对的真实问题。这样生成的内容虽然来自 AI，但仍然围绕已知元数据展开，避免把不存在的章节或读者评价写成事实。","example":"例如一位读者想添加一本待上架的供应链新书，微信读书只返回书名、作者和一句简介。系统没有编造目录，而是把简介里的产业协同作为主题，让 AI 生成一个具体场景：采购、仓储和销售团队因为预测口径不同导致缺货，再说明如何用统一指标协调下一步动作。"}
+            ]
+        """.trimIndent()
+
+        val drafts = parseAiFallbackViewpointJson(json)
+
+        assertEquals(0, drafts.size)
+    }
+
+    @Test
     fun buildsAiFallbackPromptWithDisclosureAndJsonContract() {
         val prompt = buildAiFallbackViewpointPrompt(
             book = BookSearchResult(

@@ -271,7 +271,7 @@ fun parseAiFallbackViewpointJson(response: String): List<BookViewpointDraft> {
         val title = obj.stringValue("title").trim()
         val content = obj.stringValue("content").trim()
         val example = obj.stringValue("example").trim()
-        if (title.isBlank() || content.length < 80 || example.length < 100) return@mapNotNull null
+        if (title.length < 4 || content.length < 80 || example.length < 100) return@mapNotNull null
         BookViewpointDraft(title = title, content = content, example = example)
     }.take(10)
 }
