@@ -12,6 +12,7 @@ import com.dailysatori.data.repository.MemoryRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.data.repository.SessionRepository
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.data.repository.SkillConfigRepository
 import com.dailysatori.data.repository.TagRepository
 import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
 import com.dailysatori.data.repository.WeeklySummaryRepository
@@ -65,6 +66,7 @@ val sharedModule: Module = module {
     single { RemoteNewsSourceRepository(get(), get()) }
     single { SessionRepository(get()) }
     single { SettingRepository(get()) }
+    single { SkillConfigRepository(get(), get()) }
     single { TagRepository(get()) }
     single { UnifiedNewsSummaryRepository(get()) }
     single { WeeklySummaryRepository(get()) }
