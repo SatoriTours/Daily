@@ -12,8 +12,16 @@ class SkillRegistry(
 ) {
     fun enabledSkillCount(): Int = skillConfigRepository.getEnabled().size
 
-    fun buildToolDefinitions(): List<JsonObject> =
-        builtInWeReadToolNames().map(::buildBuiltInWeReadToolDefinition) + buildCallExternalSkillToolDefinition()
+    fun buildToolDefinitions(): List<JsonObject> {
+        val enabledSkills = skillConfigRepository.getEnabled()
+        val hasEnabledWeRead = enabledSkills.any { it.builtin == 1L && it.template_id == BuiltInSkillTemplates.weRead }
+        val hasEnabledExternal = enabledSkills.any { it.builtin != 1L || it.template_id != BuiltInSkillTemplates.weRead }
+
+        return buildList {
+            if (hasEnabledWeRead) addAll(builtInWeReadToolNames().map(::buildBuiltInWeReadToolDefinition))
+            if (hasEnabledExternal) add(buildCallExternalSkillToolDefinition())
+        }
+    }
 }
 
 fun builtInWeReadToolNames(): List<String> = listOf(

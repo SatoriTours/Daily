@@ -46,11 +46,38 @@ class SkillRegistryTest {
     }
 
     @Test
-    fun buildToolDefinitionsContainsWeReadAndExternalSkillTools() = withRegistry { registry, _ ->
-        val toolsByName = registry.buildToolDefinitions().associateBy { it.functionObject().stringValue("name") }
+    fun buildToolDefinitionsReturnsNoToolsWhenNoSkillsAreEnabled() = withRegistry { registry, repository ->
+        repository.insert(
+            name = "Disabled WeRead",
+            description = "",
+            gatewayUrl = "https://example.com/weread",
+            apiToken = "",
+            skillVersion = "1.0.0",
+            enabled = 0,
+            builtin = 1,
+            templateId = BuiltInSkillTemplates.weRead,
+        )
+        repository.insert("Disabled Custom", "", "https://example.com/custom", "", "1.0.0", enabled = 0)
+
+        assertEquals(emptyList(), registry.buildToolDefinitions())
+    }
+
+    @Test
+    fun buildToolDefinitionsReturnsWeReadToolsOnlyForEnabledBuiltInWeRead() = withRegistry { registry, repository ->
+        repository.insert(
+            name = "WeRead",
+            description = "",
+            gatewayUrl = "https://example.com/weread",
+            apiToken = "",
+            skillVersion = "1.0.0",
+            enabled = 1,
+            builtin = 1,
+            templateId = BuiltInSkillTemplates.weRead,
+        )
+        val toolsByName = registry.toolsByName()
 
         assertEquals(
-            expectedToolNames().toSet(),
+            builtInWeReadToolNames().toSet(),
             toolsByName.keys,
         )
 
@@ -65,12 +92,13 @@ class SkillRegistryTest {
     }
 
     @Test
-    fun callExternalSkillToolDefinitionContainsOnlyExternalSkillArguments() = withRegistry { registry, _ ->
-        val externalTool = registry.buildToolDefinitions()
-            .single { it.functionObject().stringValue("name") == "call_external_skill" }
+    fun buildToolDefinitionsIncludesExternalToolForEnabledCustomSkill() = withRegistry { registry, repository ->
+        repository.insert("Enabled Custom", "", "https://example.com/custom", "", "1.0.0", enabled = 1)
+        val externalTool = registry.toolsByName().getValue("call_external_skill")
         val parameters = externalTool.functionObject().parametersObject()
         val properties = parameters.propertiesObject()
 
+        assertEquals(setOf("call_external_skill"), registry.toolsByName().keys)
         assertEquals(listOf("skill_id", "api_name", "params_json"), parameters.requiredNames())
         assertEquals(
             setOf("skill_id", "api_name", "params_json"),
@@ -79,6 +107,13 @@ class SkillRegistryTest {
         assertEquals("integer", properties.propertyType("skill_id"))
         assertEquals("string", properties.propertyType("api_name"))
         assertEquals("string", properties.propertyType("params_json"))
+    }
+
+    @Test
+    fun buildToolDefinitionsDoesNotIncludeExternalToolForDisabledCustomSkill() = withRegistry { registry, repository ->
+        repository.insert("Disabled Custom", "", "https://example.com/custom", "", "1.0.0", enabled = 0)
+
+        assertEquals(emptyList(), registry.buildToolDefinitions())
     }
 
     private fun JsonObject.functionObject(): JsonObject = getValue("function").jsonObject
@@ -95,13 +130,8 @@ class SkillRegistryTest {
 
     private fun JsonObject.getValue(key: String) = get(key) ?: error("Missing JSON key: $key")
 
-    private fun expectedToolNames(): List<String> = listOf(
-        "weread_search_books",
-        "weread_get_book_info",
-        "weread_get_chapters",
-        "weread_get_reviews",
-        "call_external_skill",
-    )
+    private fun SkillRegistry.toolsByName(): Map<String, JsonObject> =
+        buildToolDefinitions().associateBy { it.functionObject().stringValue("name") }
 
     private fun withRegistry(test: (SkillRegistry, SkillConfigRepository) -> Unit) {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
