@@ -22,7 +22,7 @@ object BackupConfig {
 
 object DatabaseConfig {
     const val name = "daily_satori.db"
-    const val currentSchemaVersion = 8L
+    const val currentSchemaVersion = 9L
 }
 
 object DirectoryConfig {
@@ -109,4 +109,5 @@ object SettingKeys {
     const val crayfishNewsBaseUrl = "crayfish_news_base_url"
     const val crayfishNewsApiToken = "crayfish_news_api_token"
     const val weReadApiKey = "weread_api_key"
+    const val legacyWeReadApiKey = weReadApiKey
 }

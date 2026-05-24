@@ -100,6 +100,22 @@ CREATE TABLE mcp_server (
     updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE skill_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    gateway_url TEXT NOT NULL,
+    api_token TEXT NOT NULL DEFAULT '',
+    skill_version TEXT NOT NULL DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 0,
+    builtin INTEGER NOT NULL DEFAULT 0,
+    provider TEXT NOT NULL DEFAULT '',
+    template_id TEXT NOT NULL DEFAULT '',
+    tool_schema_json TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
 CREATE TABLE remote_news_source (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -490,6 +506,30 @@ WHERE id = ?;
 
 deleteMcpServer:
 DELETE FROM mcp_server WHERE id = ?;
+
+-- Skill Config queries
+selectAllSkillConfigs:
+SELECT * FROM skill_config ORDER BY builtin DESC, name;
+
+selectSkillConfigById:
+SELECT * FROM skill_config WHERE id = ?;
+
+selectSkillConfigByTemplateId:
+SELECT * FROM skill_config WHERE template_id = ? LIMIT 1;
+
+selectEnabledSkillConfigs:
+SELECT * FROM skill_config WHERE enabled = 1 ORDER BY builtin DESC, name;
+
+insertSkillConfig:
+INSERT INTO skill_config (name, description, gateway_url, api_token, skill_version, enabled, builtin, provider, template_id, tool_schema_json, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateSkillConfig:
+UPDATE skill_config SET name = ?, description = ?, gateway_url = ?, api_token = ?, skill_version = ?, enabled = ?, provider = ?, template_id = ?, tool_schema_json = ?, updated_at = ?
+WHERE id = ?;
+
+deleteSkillConfig:
+DELETE FROM skill_config WHERE id = ? AND builtin = 0;
 
 -- Remote News Source queries
 selectRemoteNewsSources:
