@@ -476,6 +476,7 @@ fun booksSwipeDeleteUsesJoinedEdgeShapes(): Boolean = true
 fun bookPickerUsesLazyList(): Boolean = true
 fun bookPickerBottomPaddingDp(): Int = 48
 fun bookResultSourceActionDescription(): String = "打开微信读书介绍"
+fun bookResultSourceActionText(): String = "微信读书"
 fun bookResultAddActionDescription(): String = "添加并分析"
 fun bookSearchRetryActionText(): String = "重新搜索"
 fun bookResultActionsUseBottomRow(): Boolean = true

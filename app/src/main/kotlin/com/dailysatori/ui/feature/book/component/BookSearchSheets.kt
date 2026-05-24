@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -36,6 +37,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -53,6 +55,7 @@ import com.dailysatori.ui.feature.book.bookResultAddActionDescription
 import com.dailysatori.ui.feature.book.bookResultIntroductionPreviewLength
 import com.dailysatori.ui.feature.book.bookResultPrimaryActionText
 import com.dailysatori.ui.feature.book.bookResultSourceActionDescription
+import com.dailysatori.ui.feature.book.bookResultSourceActionText
 import com.dailysatori.ui.feature.book.bookSourceOpenFailureMessage
 import com.dailysatori.ui.feature.book.bookSourceUrl
 import com.dailysatori.ui.feature.book.bookSearchRetryActionText
@@ -199,23 +202,34 @@ private fun BookSearchResultCard(
                     .padding(top = Spacing.s),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
             ) {
-                FilledTonalButton(
-                    onClick = onOpenSource,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = Spacing.s, vertical = Spacing.xxs),
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .clickable(
+                            onClickLabel = bookResultSourceActionDescription(),
+                            role = Role.Button,
+                            onClick = onOpenSource,
+                        )
+                        .padding(horizontal = Spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.OpenInNew,
                         contentDescription = bookResultSourceActionDescription(),
                         modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.width(Spacing.xxs))
-                    Text("微信读书", style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        bookResultSourceActionText(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 FilledTonalButton(
                     onClick = onAdd,
                     enabled = !isAnalyzing,
-                    modifier = Modifier.weight(1.25f),
                     contentPadding = PaddingValues(horizontal = Spacing.s, vertical = Spacing.xxs),
                 ) {
                     Icon(

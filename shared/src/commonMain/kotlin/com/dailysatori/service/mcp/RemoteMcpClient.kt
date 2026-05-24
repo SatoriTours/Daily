@@ -10,6 +10,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -38,6 +39,16 @@ class RemoteMcpClient(private val client: HttpClient) {
             .mapNotNull { server -> callWebSearchTool(server, query) }
             .take(3)
             .joinToString("\n")
+
+    suspend fun testConnection(server: Mcp_server): Result<Int> = try {
+        val sessionId = initializeStrict(server)
+        sendInitialized(server, sessionId)
+        Result.success(listToolsStrict(server, sessionId))
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        Result.failure(error)
+    }
 
     private suspend fun callSearchTool(server: Mcp_server, query: String): String? = try {
         val sessionId = initialize(server)
@@ -102,6 +113,24 @@ class RemoteMcpClient(private val client: HttpClient) {
         return response.sessionId ?: extractMcpSessionId(response.body)
     }
 
+    private suspend fun initializeStrict(server: Mcp_server): String? {
+        val response = postJsonRpc(
+            server = server,
+            sessionId = null,
+            method = "initialize",
+            params = buildJsonObject {
+                put("protocolVersion", JsonPrimitive(MCP_PROTOCOL_VERSION))
+                put("capabilities", JsonObject(emptyMap()))
+                put("clientInfo", buildJsonObject {
+                    put("name", JsonPrimitive("daily-satori"))
+                    put("version", JsonPrimitive("1.0"))
+                })
+            },
+        )
+        strictMcpSuccessResponse(response.body)
+        return response.sessionId ?: extractMcpSessionId(response.body)
+    }
+
     private suspend fun sendInitialized(server: Mcp_server, sessionId: String?) {
         postJsonRpc(
             server = server,
@@ -127,6 +156,11 @@ class RemoteMcpClient(private val client: HttpClient) {
         }
     }
 
+    private suspend fun listToolsStrict(server: Mcp_server, sessionId: String?): Int {
+        val response = postJsonRpc(server, sessionId, "tools/list", JsonObject(emptyMap()))
+        return strictMcpToolCount(response.body)
+    }
+
     private suspend fun postJsonRpc(
         server: Mcp_server,
         sessionId: String?,
@@ -149,8 +183,13 @@ class RemoteMcpClient(private val client: HttpClient) {
                 put("params", params)
             }.toString())
         }
+        val body = response.bodyAsText()
+        if (!response.status.isSuccess()) {
+            throw IllegalStateException("HTTP ${response.status.value}: ${body.take(120)}")
+        }
+        jsonRpcErrorMessage(body)?.let { message -> throw IllegalStateException(message) }
         return McpHttpResponse(
-            body = response.bodyAsText(),
+            body = body,
             sessionId = response.headers["Mcp-Session-Id"] ?: response.headers["MCP-Session-Id"],
         )
     }
@@ -208,6 +247,28 @@ fun parseMcpJsonResponse(response: String): JsonObject? {
         ?.trim()
         ?: response.trim()
     return runCatching { Json.parseToJsonElement(jsonText).jsonObject }.getOrNull()
+}
+
+internal fun strictMcpToolCount(response: String): Int {
+    val root = strictMcpSuccessResponse(response)
+    val tools = runCatching { root["result"]?.jsonObject?.get("tools")?.jsonArray }.getOrNull()
+        ?: throw IllegalStateException("Invalid MCP tools/list response")
+    return tools.count { item -> item.asJsonObjectOrNull()?.stringValue("name")?.isNotBlank() == true }
+}
+
+private fun strictMcpSuccessResponse(response: String): JsonObject {
+    val root = parseMcpJsonResponse(response) ?: throw IllegalStateException("Invalid MCP response")
+    jsonRpcErrorMessage(root)?.let { message -> throw IllegalStateException(message) }
+    root["result"]?.asJsonObjectOrNull() ?: throw IllegalStateException("Invalid MCP response")
+    return root
+}
+
+private fun jsonRpcErrorMessage(response: String): String? =
+    parseMcpJsonResponse(response)?.let(::jsonRpcErrorMessage)
+
+private fun jsonRpcErrorMessage(root: JsonObject): String? {
+    val error = root["error"]?.asJsonObjectOrNull() ?: return null
+    return error.stringValue("message").ifBlank { "MCP request failed" }
 }
 
 private fun extractMcpSessionId(response: String): String? =

@@ -164,6 +164,8 @@ class BookSearchUiTextTest {
         assertTrue(bookResultIntroductionPreviewLength() >= 160)
         assertEquals("添加并分析", bookResultPrimaryActionText(isAnalyzing = false))
         assertEquals("分析中", bookResultPrimaryActionText(isAnalyzing = true))
+        assertEquals(true, bookResultActionsUseBottomRow())
+        assertEquals("微信读书", bookResultSourceActionText())
     }
 
     @Test

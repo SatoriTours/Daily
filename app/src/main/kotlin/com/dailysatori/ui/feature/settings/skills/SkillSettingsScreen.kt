@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -42,6 +41,8 @@ import com.dailysatori.service.skill.skillEnabledStatus
 import com.dailysatori.service.skill.skillTokenStatus
 import com.dailysatori.shared.db.Skill_config
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsEditorBottomBar
+import com.dailysatori.ui.component.settings.SettingsEditorMessage
 import com.dailysatori.ui.theme.*
 import org.koin.androidx.compose.koinViewModel
 
@@ -70,7 +71,12 @@ fun SkillSettingsScreen(onBack: () -> Unit) {
             testMessage = state.testMessage,
             onSave = viewModel::save,
             onTest = viewModel::testSkill,
-            onBack = { adding = false; editing = null },
+            onFieldsChanged = viewModel::clearTestMessage,
+            onBack = {
+                viewModel.clearTestMessage()
+                adding = false
+                editing = null
+            },
         )
         return
     }
@@ -181,10 +187,26 @@ private fun SkillEditScreen(
     testMessage: String?,
     onSave: (SkillEditInput) -> Unit,
     onTest: (SkillEditInput) -> Unit,
+    onFieldsChanged: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val fields = rememberSkillEditFields(skill)
-    AppScaffold(title = skill?.name ?: skillAddButtonText(), onBack = onBack) { modifier ->
+    val fields = rememberSkillEditFields(skill, onFieldsChanged)
+    AppScaffold(
+        title = skill?.name ?: skillAddButtonText(),
+        onBack = onBack,
+        bottomBar = {
+            SettingsEditorBottomBar(
+                canTest = !isTesting,
+                canSave = !isSaving,
+                isTesting = isTesting,
+                isSaving = isSaving,
+                testText = skillTestButtonText(isTesting),
+                saveText = skillSaveButtonText(isSaving),
+                onTest = { onTest(fields.toInput(skill?.id)) },
+                onSave = { onSave(fields.toInput(skill?.id)) },
+            )
+        },
+    ) { modifier ->
         LazyColumn(
             modifier = modifier.fillMaxSize().padding(horizontal = Spacing.m),
             contentPadding = PaddingValues(vertical = Spacing.m),
@@ -193,16 +215,14 @@ private fun SkillEditScreen(
             skillCoreFieldItems(fields, skillCoreFieldsEditable(skill?.builtin ?: 0L))
             item { SkillTokenField(fields) }
             item { SkillEnabledRow(fields) }
-            if (error != null) item { SkillErrorText(error) }
-            if (testMessage != null) item { SkillTestMessageText(testMessage) }
-            item { SkillTestButton(skill?.id, fields, isTesting, onTest) }
-            item { SkillSaveButton(skill?.id, fields, isSaving, onSave) }
+            if (error != null) item { SettingsEditorMessage(error, isError = true) }
+            if (testMessage != null) item { SettingsEditorMessage(testMessage, isError = false) }
         }
     }
 }
 
 @Composable
-private fun rememberSkillEditFields(skill: Skill_config?): SkillEditFields {
+private fun rememberSkillEditFields(skill: Skill_config?, onFieldsChanged: () -> Unit): SkillEditFields {
     var name by remember(skill?.id) { mutableStateOf(skill?.name.orEmpty()) }
     var description by remember(skill?.id) { mutableStateOf(skill?.description.orEmpty()) }
     var gatewayUrl by remember(skill?.id) { mutableStateOf(skill?.gateway_url.orEmpty()) }
@@ -213,9 +233,15 @@ private fun rememberSkillEditFields(skill: Skill_config?): SkillEditFields {
     var templateId by remember(skill?.id) { mutableStateOf(skill?.template_id.orEmpty()) }
     var toolSchemaJson by remember(skill?.id) { mutableStateOf(skill?.tool_schema_json.orEmpty()) }
     return SkillEditFields(
-        name, { name = it }, description, { description = it }, gatewayUrl, { gatewayUrl = it },
-        apiToken, { apiToken = it }, skillVersion, { skillVersion = it }, enabled, { enabled = it },
-        provider, { provider = it }, templateId, { templateId = it }, toolSchemaJson, { toolSchemaJson = it },
+        name, { name = it; onFieldsChanged() },
+        description, { description = it; onFieldsChanged() },
+        gatewayUrl, { gatewayUrl = it; onFieldsChanged() },
+        apiToken, { apiToken = it; onFieldsChanged() },
+        skillVersion, { skillVersion = it; onFieldsChanged() },
+        enabled, { enabled = it; onFieldsChanged() },
+        provider, { provider = it; onFieldsChanged() },
+        templateId, { templateId = it; onFieldsChanged() },
+        toolSchemaJson, { toolSchemaJson = it; onFieldsChanged() },
     )
 }
 
@@ -298,44 +324,6 @@ private fun SkillEnabledRow(fields: SkillEditFields) {
         }
         Switch(checked = fields.enabled, onCheckedChange = fields.onEnabledChange)
     }
-}
-
-@Composable
-private fun SkillErrorText(error: String) {
-    Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-}
-
-@Composable
-private fun SkillTestMessageText(message: String) {
-    Text(message, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
-}
-
-@Composable
-private fun SkillTestButton(
-    skillId: Long?,
-    fields: SkillEditFields,
-    isTesting: Boolean,
-    onTest: (SkillEditInput) -> Unit,
-) {
-    Button(
-        onClick = { onTest(fields.toInput(skillId)) },
-        enabled = !isTesting,
-        modifier = Modifier.fillMaxWidth(),
-    ) { Text(skillTestButtonText(isTesting)) }
-}
-
-@Composable
-private fun SkillSaveButton(
-    skillId: Long?,
-    fields: SkillEditFields,
-    isSaving: Boolean,
-    onSave: (SkillEditInput) -> Unit,
-) {
-    Button(
-        onClick = { onSave(fields.toInput(skillId)) },
-        enabled = !isSaving,
-        modifier = Modifier.fillMaxWidth(),
-    ) { Text(skillSaveButtonText(isSaving)) }
 }
 
 private fun SkillEditFields.toInput(skillId: Long?) = SkillEditInput(

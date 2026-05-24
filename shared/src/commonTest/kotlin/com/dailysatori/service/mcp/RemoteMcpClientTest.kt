@@ -5,6 +5,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class RemoteMcpClientTest {
@@ -55,5 +56,36 @@ class RemoteMcpClientTest {
         """.trimIndent()
 
         assertEquals("SSE notes", extractMcpTextContent(response))
+    }
+
+    @Test
+    fun strictToolCountRejectsJsonRpcError() {
+        val response = """
+            {"jsonrpc":"2.0","id":2,"error":{"code":-32601,"message":"Method not found"}}
+        """.trimIndent()
+
+        val error = assertFailsWith<IllegalStateException> { strictMcpToolCount(response) }
+
+        assertEquals("Method not found", error.message)
+    }
+
+    @Test
+    fun strictToolCountRejectsInvalidToolsListResponse() {
+        val response = """
+            {"jsonrpc":"2.0","id":2,"result":{}}
+        """.trimIndent()
+
+        val error = assertFailsWith<IllegalStateException> { strictMcpToolCount(response) }
+
+        assertEquals("Invalid MCP tools/list response", error.message)
+    }
+
+    @Test
+    fun strictToolCountReadsValidToolsListResponse() {
+        val response = """
+            {"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"search"},{"name":"read"}]}}
+        """.trimIndent()
+
+        assertEquals(2, strictMcpToolCount(response))
     }
 }

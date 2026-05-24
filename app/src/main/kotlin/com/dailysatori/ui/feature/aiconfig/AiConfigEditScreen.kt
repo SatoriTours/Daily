@@ -12,13 +12,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -38,6 +36,8 @@ import com.dailysatori.config.findProvider
 import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsEditorBottomBar
+import com.dailysatori.ui.component.settings.SettingsEditorMessage
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +70,9 @@ fun AiConfigEditScreen(
 
     val models = selectedProvider?.models ?: emptyList()
     val isCustomModel = selectedProvider != null && models.isEmpty()
+    val currentModel = currentModelId(isCustomModel, customModelName, selectedModel)
+    val canTest = selectedProvider != null && apiToken.isNotBlank() && currentModel != null
+    val canSave = selectedProvider != null && apiToken.isNotBlank() && currentModel != null
 
     LaunchedEffect(configId) {
         if (configId != null) {
@@ -90,6 +93,59 @@ fun AiConfigEditScreen(
     AppScaffold(
         title = if (configId != null) "编辑配置" else "添加配置",
         onBack = onBack,
+        bottomBar = {
+            SettingsEditorBottomBar(
+                canTest = canTest,
+                canSave = canSave,
+                isTesting = isTesting,
+                isSaving = isSaving,
+                onTest = {
+                    val provider = selectedProvider ?: return@SettingsEditorBottomBar
+                    val modelId = currentModel ?: return@SettingsEditorBottomBar
+                    val token = apiToken
+                    scope.launch {
+                        isTesting = true
+                        testResult = null
+                        testSuccess = null
+                        val result = withContext(Dispatchers.IO) {
+                            aiService.testConnection(
+                                apiAddress = provider.apiHost,
+                                apiToken = token,
+                                modelName = modelId,
+                                provider = provider.id,
+                            )
+                        }
+                        testSuccess = result.isSuccess
+                        testResult = result.fold(
+                            onSuccess = { "连接成功：${it.take(80)}" },
+                            onFailure = { it.message ?: "连接失败" },
+                        )
+                        isTesting = false
+                    }
+                },
+                onSave = {
+                    val provider = selectedProvider ?: return@SettingsEditorBottomBar
+                    val modelId = currentModel ?: return@SettingsEditorBottomBar
+                    val token = apiToken
+                    val defaultValue = isDefault
+                    scope.launch {
+                        isSaving = true
+                        try {
+                            withContext(Dispatchers.IO) {
+                                if (configId != null) {
+                                    repo.update(configId, provider.id, provider.apiHost, token, modelId, if (defaultValue) 1L else 0L)
+                                } else {
+                                    repo.insert(provider.id, provider.apiHost, token, modelId, if (defaultValue) 1L else 0L)
+                                }
+                            }
+                            onBack()
+                        } finally {
+                            isSaving = false
+                        }
+                    }
+                },
+            )
+        },
     ) { modifier ->
         LazyColumn(
             modifier = modifier.fillMaxSize().padding(horizontal = Spacing.m),
@@ -220,81 +276,12 @@ fun AiConfigEditScreen(
                 }
             }
 
-            item {
-                OutlinedButton(
-                    onClick = {
-                        val provider = selectedProvider ?: return@OutlinedButton
-                        val modelId = currentModelId(isCustomModel, customModelName, selectedModel) ?: return@OutlinedButton
-                        scope.launch {
-                            isTesting = true
-                            testResult = null
-                            testSuccess = null
-                            val result = withContext(Dispatchers.IO) {
-                                aiService.testConnection(
-                                    apiAddress = provider.apiHost,
-                                    apiToken = apiToken,
-                                    modelName = modelId,
-                                    provider = provider.id,
-                                )
-                            }
-                            testSuccess = result.isSuccess
-                            testResult = result.fold(
-                                onSuccess = { "连接成功：${it.take(80)}" },
-                                onFailure = { it.message ?: "连接失败" },
-                            )
-                            isTesting = false
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !isTesting && selectedProvider != null && apiToken.isNotBlank() &&
-                        currentModelId(isCustomModel, customModelName, selectedModel) != null,
-                ) { Text(if (isTesting) "测试中..." else "测试连接") }
-                if (testResult != null) {
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    Text(
-                        text = testResult ?: "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (testSuccess == true) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        },
+            if (testResult != null) {
+                item {
+                    SettingsEditorMessage(
+                        message = testResult ?: "",
+                        isError = testSuccess != true,
                     )
-                }
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = Spacing.m),
-                    horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-                ) {
-                    OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f)) { Text("取消") }
-                    Button(
-                        onClick = {
-                            scope.launch(Dispatchers.IO) {
-                                isSaving = true
-                                try {
-                                    val provider = selectedProvider ?: return@launch
-                                    val modelId = when {
-                                        isCustomModel && customModelName.isNotBlank() -> customModelName
-                                        selectedModel != null -> selectedModel!!.id
-                                        else -> return@launch
-                                    }
-                                    if (configId != null) {
-                                        repo.update(configId, provider.id, provider.apiHost, apiToken, modelId, if (isDefault) 1L else 0L)
-                                    } else {
-                                        repo.insert(provider.id, provider.apiHost, apiToken, modelId, if (isDefault) 1L else 0L)
-                                    }
-                                } finally {
-                                    isSaving = false
-                                }
-                            }
-                            onBack()
-                        },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isSaving && selectedProvider != null && apiToken.isNotBlank() &&
-                            (selectedModel != null || customModelName.isNotBlank()),
-                    ) { Text(if (isSaving) "保存中..." else "保存") }
                 }
             }
 
