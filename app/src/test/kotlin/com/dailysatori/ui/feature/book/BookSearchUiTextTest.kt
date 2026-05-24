@@ -37,7 +37,7 @@ class BookSearchUiTextTest {
     @Test
     fun mapsWeReadErrorsToRequiredMessages() {
         assertEquals(
-            "请先在设置中配置微信读书 API Key",
+            "请先在 Skills 中配置微信读书 Token",
             bookSearchFailureMessage(com.dailysatori.service.book.WeReadSkillException(
                 com.dailysatori.service.book.WeReadSkillErrorType.MissingApiKey,
                 "missing",

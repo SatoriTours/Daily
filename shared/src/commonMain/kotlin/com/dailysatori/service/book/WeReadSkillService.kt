@@ -2,10 +2,12 @@ package com.dailysatori.service.book
 
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.data.repository.SkillConfigRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.security.SecretCipherPrefix
+import com.dailysatori.service.skill.BuiltInSkillTemplates
 import com.dailysatori.shared.db.Ai_config
 import io.ktor.client.HttpClient
 import io.ktor.client.request.bearerAuth
@@ -109,6 +111,7 @@ class WeReadSkillService(
     private val settingRepository: SettingRepository,
     private val secretCipher: SecretCipher,
     private val aiFallbackGenerator: BookAiFallbackGenerator,
+    private val skillConfigRepository: SkillConfigRepository,
 ) : BookIntelligenceSource {
     override suspend fun searchBooks(query: String): List<BookSearchResult> = searchBooks(query, limit = 10)
 
@@ -160,18 +163,21 @@ class WeReadSkillService(
     }
 
     private fun readStoredWeReadApiKey(): String {
-        val stored = settingRepository.get(SettingKeys.weReadApiKey).orEmpty()
-        return resolveStoredWeReadApiKey(
-            stored = stored,
+        val skill = skillConfigRepository.getByTemplateId(BuiltInSkillTemplates.weRead)
+        val legacyStored = settingRepository.get(SettingKeys.weReadApiKey).orEmpty()
+        return resolveWeReadTokenFromSkillOrLegacy(
+            skillToken = skill?.api_token,
+            skillEnabled = skill?.enabled == 1L,
+            legacyStored = legacyStored,
             isEncrypted = secretCipher::isEncrypted,
             decrypt = secretCipher::decrypt,
-            onPlaintext = { key -> settingRepository.upsert(SettingKeys.weReadApiKey, secretCipher.encrypt(key)) },
+            onLegacyPlaintext = { key -> settingRepository.upsert(SettingKeys.weReadApiKey, secretCipher.encrypt(key)) },
         )
     }
 }
 
 fun requireWeReadApiKey(value: String?): String = value?.trim()?.takeIf { it.isNotBlank() }
-    ?: throw WeReadSkillException(WeReadSkillErrorType.MissingApiKey, "请先在设置中配置微信读书 API Key")
+    ?: throw WeReadSkillException(WeReadSkillErrorType.MissingApiKey, "请先在 Skills 中配置微信读书 Token")
 
 fun hasSufficientWeReadMaterial(
     info: WeReadBookInfo,
@@ -234,6 +240,23 @@ fun resolveStoredWeReadApiKey(
     }
     onPlaintext(trimmed)
     return trimmed
+}
+
+fun resolveWeReadTokenFromSkillOrLegacy(
+    skillToken: String?,
+    skillEnabled: Boolean,
+    legacyStored: String,
+    isEncrypted: (String) -> Boolean,
+    decrypt: (String) -> String,
+    onLegacyPlaintext: (String) -> Unit = {},
+): String {
+    if (skillToken != null) return if (skillEnabled) skillToken.trim() else ""
+    return resolveStoredWeReadApiKey(
+        stored = legacyStored,
+        isEncrypted = isEncrypted,
+        decrypt = decrypt,
+        onPlaintext = onLegacyPlaintext,
+    )
 }
 
 fun buildWeReadGatewayBody(apiName: String, params: Map<String, Any>): JsonObject = buildJsonObject {
@@ -372,7 +395,7 @@ fun parseAiFallbackViewpointJson(response: String): List<BookViewpointDraft> {
 }
 
 fun weReadUserMessage(error: WeReadSkillException): String = when (error.type) {
-    WeReadSkillErrorType.MissingApiKey -> "请先在设置中配置微信读书 API Key"
+    WeReadSkillErrorType.MissingApiKey -> "请先在 Skills 中配置微信读书 Token"
     WeReadSkillErrorType.MissingAiFallbackConfig -> "微信读书资料不足，请先配置默认 AI 模型后重试"
     WeReadSkillErrorType.AiFallbackFailure -> "AI 观点生成失败，请稍后重试"
     WeReadSkillErrorType.NoResults -> "微信读书未找到相关书籍"

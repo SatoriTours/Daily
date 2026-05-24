@@ -103,7 +103,7 @@ val sharedModule: Module = module {
     single { WebSearchEngine(get()) }
     single { BookSearchService(listOf(get<DoubanSuggestSearchEngine>(), get<WebSearchEngine>())) }
     single<BookAiFallbackGenerator> { DefaultBookAiFallbackGenerator(get(), get()) }
-    single { WeReadSkillService(get(), get(), get(), get()) }
+    single { WeReadSkillService(get(), get(), get(), get(), get()) }
     single<BookIntelligenceSource> { get<WeReadSkillService>() }
     single { RemoteMcpClient(get()) }
     single { LocalSqlQueryService(get()) }

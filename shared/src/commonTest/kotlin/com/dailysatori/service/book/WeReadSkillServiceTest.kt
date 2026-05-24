@@ -156,7 +156,51 @@ class WeReadSkillServiceTest {
         val error = assertFailsWith<WeReadSkillException> { requireWeReadApiKey("   ") }
 
         assertEquals(WeReadSkillErrorType.MissingApiKey, error.type)
-        assertEquals("请先在设置中配置微信读书 API Key", weReadUserMessage(error))
+        assertEquals("请先在 Skills 中配置微信读书 Token", weReadUserMessage(error))
+    }
+
+    @Test
+    fun preferEnabledWeReadSkillTokenOverLegacySetting() {
+        val token = resolveWeReadTokenFromSkillOrLegacy(
+            skillToken = " skill-token ",
+            skillEnabled = true,
+            legacyStored = " legacy-token ",
+            isEncrypted = { false },
+            decrypt = { it },
+            onLegacyPlaintext = {},
+        )
+
+        assertEquals("skill-token", token)
+    }
+
+    @Test
+    fun disabledWeReadSkillIsTreatedAsMissingToken() {
+        val token = resolveWeReadTokenFromSkillOrLegacy(
+            skillToken = "skill-token",
+            skillEnabled = false,
+            legacyStored = "legacy-token",
+            isEncrypted = { false },
+            decrypt = { it },
+            onLegacyPlaintext = {},
+        )
+
+        assertEquals("", token)
+    }
+
+    @Test
+    fun legacyWeReadTokenStillWorksWhenSkillRowIsMissing() {
+        var upgraded = ""
+        val token = resolveWeReadTokenFromSkillOrLegacy(
+            skillToken = null,
+            skillEnabled = false,
+            legacyStored = " legacy-token ",
+            isEncrypted = { false },
+            decrypt = { it },
+            onLegacyPlaintext = { upgraded = it },
+        )
+
+        assertEquals("legacy-token", token)
+        assertEquals("legacy-token", upgraded)
     }
 
     @Test
