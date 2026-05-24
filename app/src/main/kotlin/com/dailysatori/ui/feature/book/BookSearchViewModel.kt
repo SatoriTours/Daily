@@ -108,7 +108,7 @@ class BookSearchViewModel(
                 insertedBookId = bookId
                 _state.update { it.copy(analysisStep = "正在提炼核心观点") }
                 val generationResult = bookIntelligenceService.generateViewpoints(result)
-                val viewpointDrafts = generationResult.drafts
+                val viewpointDrafts = bookViewpointDraftsForImport(generationResult.drafts)
                 _state.update { it.copy(analysisStep = bookAnalysisGeneratingStep()) }
                 viewpointDrafts.forEach { draft -> viewpointRepo.insert(bookId, draft.title, draft.content, draft.example) }
                 val message = bookAnalysisCompletionNotice(result.title, viewpointDrafts.size, generationResult.source)
@@ -178,6 +178,10 @@ fun bookAnalysisCompletionNotice(
 
 fun bookAnalysisStatusVisible(isAnalyzing: Boolean, analysisMessage: String?): Boolean =
     isAnalyzing || analysisMessage != null
+
+fun bookViewpointImportLimit(): Int = 20
+
+fun <T> bookViewpointDraftsForImport(drafts: List<T>): List<T> = drafts.take(bookViewpointImportLimit())
 
 fun bookAddSearchShowsTrailingSearchButton(): Boolean = false
 

@@ -76,9 +76,13 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
 
     var currentPage by remember { mutableStateOf(SettingsPage.MAIN) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    val rootBack = onBack
 
     BackHandler(enabled = currentPage != SettingsPage.MAIN) {
         currentPage = SettingsPage.MAIN
+    }
+    BackHandler(enabled = currentPage == SettingsPage.MAIN && rootBack != null) {
+        rootBack?.invoke()
     }
 
     when (currentPage) {

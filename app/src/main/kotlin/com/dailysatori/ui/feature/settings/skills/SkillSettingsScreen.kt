@@ -65,8 +65,11 @@ fun SkillSettingsScreen(onBack: () -> Unit) {
         SkillEditScreen(
             skill = target,
             isSaving = state.isSaving,
+            isTesting = state.isTesting,
             error = state.error,
+            testMessage = state.testMessage,
             onSave = viewModel::save,
+            onTest = viewModel::testSkill,
             onBack = { adding = false; editing = null },
         )
         return
@@ -173,8 +176,11 @@ private fun SkillDescription(description: String) {
 private fun SkillEditScreen(
     skill: Skill_config?,
     isSaving: Boolean,
+    isTesting: Boolean,
     error: String?,
+    testMessage: String?,
     onSave: (SkillEditInput) -> Unit,
+    onTest: (SkillEditInput) -> Unit,
     onBack: () -> Unit,
 ) {
     val fields = rememberSkillEditFields(skill)
@@ -188,6 +194,8 @@ private fun SkillEditScreen(
             item { SkillTokenField(fields) }
             item { SkillEnabledRow(fields) }
             if (error != null) item { SkillErrorText(error) }
+            if (testMessage != null) item { SkillTestMessageText(testMessage) }
+            item { SkillTestButton(skill?.id, fields, isTesting, onTest) }
             item { SkillSaveButton(skill?.id, fields, isSaving, onSave) }
         }
     }
@@ -295,6 +303,25 @@ private fun SkillEnabledRow(fields: SkillEditFields) {
 @Composable
 private fun SkillErrorText(error: String) {
     Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+}
+
+@Composable
+private fun SkillTestMessageText(message: String) {
+    Text(message, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodySmall)
+}
+
+@Composable
+private fun SkillTestButton(
+    skillId: Long?,
+    fields: SkillEditFields,
+    isTesting: Boolean,
+    onTest: (SkillEditInput) -> Unit,
+) {
+    Button(
+        onClick = { onTest(fields.toInput(skillId)) },
+        enabled = !isTesting,
+        modifier = Modifier.fillMaxWidth(),
+    ) { Text(skillTestButtonText(isTesting)) }
 }
 
 @Composable

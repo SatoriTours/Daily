@@ -46,6 +46,8 @@ import com.dailysatori.service.crayfishnews.CrayfishNewsService
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.setting.SettingService
+import com.dailysatori.service.skill.DefaultSkillConnectionTester
+import com.dailysatori.service.skill.SkillConnectionTester
 import com.dailysatori.service.skill.SkillRegistry
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
 import com.dailysatori.service.weekly.WeeklySummaryService
@@ -88,6 +90,7 @@ val sharedModule: Module = module {
     single { MemoryExtractService(get(), get(), get()) }
     single { UnifiedNewsSummaryService(get(), get(), get(), get(), get(), get()) }
     single { SkillRegistry(get()) }
+    single<SkillConnectionTester> { DefaultSkillConnectionTester(get()) }
 
     // AdBlock service (loads EasyList rules from assets via FileManager)
     single {

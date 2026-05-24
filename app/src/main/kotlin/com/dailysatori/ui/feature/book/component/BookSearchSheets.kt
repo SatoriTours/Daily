@@ -50,6 +50,8 @@ import com.dailysatori.ui.feature.book.BookSearchState
 import com.dailysatori.ui.feature.book.bookContentSearchBookLine
 import com.dailysatori.ui.feature.book.bookContentSearchPreview
 import com.dailysatori.ui.feature.book.bookResultAddActionDescription
+import com.dailysatori.ui.feature.book.bookResultIntroductionPreviewLength
+import com.dailysatori.ui.feature.book.bookResultPrimaryActionText
 import com.dailysatori.ui.feature.book.bookResultSourceActionDescription
 import com.dailysatori.ui.feature.book.bookSourceOpenFailureMessage
 import com.dailysatori.ui.feature.book.bookSourceUrl
@@ -185,16 +187,16 @@ private fun BookSearchResultCard(
             if (result.author.isNotBlank()) Text(result.author, style = MaterialTheme.typography.labelSmall)
             if (result.introduction.isNotBlank()) {
                 Text(
-                    bookContentSearchPreview(result.introduction, 90),
+                    bookContentSearchPreview(result.introduction, bookResultIntroductionPreviewLength()),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = Spacing.xxs),
+                    modifier = Modifier.padding(top = Spacing.xs),
                 )
             }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = Spacing.xs),
+                    .padding(top = Spacing.s),
                 horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
             ) {
                 FilledTonalButton(
@@ -213,7 +215,7 @@ private fun BookSearchResultCard(
                 FilledTonalButton(
                     onClick = onAdd,
                     enabled = !isAnalyzing,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1.25f),
                     contentPadding = PaddingValues(horizontal = Spacing.s, vertical = Spacing.xxs),
                 ) {
                     Icon(
@@ -222,7 +224,7 @@ private fun BookSearchResultCard(
                         modifier = Modifier.size(16.dp),
                     )
                     Spacer(modifier = Modifier.width(Spacing.xxs))
-                    Text("添加", style = MaterialTheme.typography.labelSmall)
+                    Text(bookResultPrimaryActionText(isAnalyzing), style = MaterialTheme.typography.labelSmall)
                 }
             }
         }

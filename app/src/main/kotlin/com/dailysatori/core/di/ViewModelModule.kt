@@ -151,5 +151,5 @@ val viewModelModule: Module = module {
         )
     }
     viewModel { McpServerViewModel(get()) }
-    viewModel { SkillSettingsViewModel(get()) }
+    viewModel { SkillSettingsViewModel(get(), get()) }
 }

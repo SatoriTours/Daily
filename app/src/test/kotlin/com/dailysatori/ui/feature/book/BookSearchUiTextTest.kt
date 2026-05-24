@@ -152,4 +152,24 @@ class BookSearchUiTextTest {
         assertEquals("重新搜索", bookSearchRetryActionText())
         assertEquals(true, bookResultActionsUseBottomRow())
     }
+
+    @Test
+    fun bookPickerSheetUsesScrollableListWithSafeBottomPadding() {
+        assertEquals(true, bookPickerUsesLazyList())
+        assertTrue(bookPickerBottomPaddingDp() >= 32)
+    }
+
+    @Test
+    fun addBookResultPrioritizesIntroductionAndClearPrimaryAction() {
+        assertTrue(bookResultIntroductionPreviewLength() >= 160)
+        assertEquals("添加并分析", bookResultPrimaryActionText(isAnalyzing = false))
+        assertEquals("分析中", bookResultPrimaryActionText(isAnalyzing = true))
+    }
+
+    @Test
+    fun importedBookViewpointsAreCappedAtTwenty() {
+        assertEquals(20, bookViewpointImportLimit())
+        assertEquals(20, bookViewpointDraftsForImport((1..25).toList()).size)
+        assertEquals(7, bookViewpointDraftsForImport((1..7).toList()).size)
+    }
 }

@@ -2,6 +2,9 @@ package com.dailysatori.ui.feature.settings.skills
 
 import com.dailysatori.data.repository.SkillConfigDataSource
 import com.dailysatori.service.skill.BuiltInSkillTemplates
+import com.dailysatori.service.skill.SkillConnectionTestRequest
+import com.dailysatori.service.skill.SkillConnectionTestResult
+import com.dailysatori.service.skill.SkillConnectionTester
 import com.dailysatori.shared.db.Skill_config
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +24,8 @@ class SkillSettingsTextTest {
         assertEquals("添加 Skill", skillAddButtonText())
         assertEquals("保存", skillSaveButtonText(false))
         assertEquals("保存中...", skillSaveButtonText(true))
+        assertEquals("测试 Skill", skillTestButtonText(false))
+        assertEquals("测试中...", skillTestButtonText(true))
         assertEquals("内置 Skill 不能删除", skillBuiltinDeleteBlockedMessage())
     }
 
@@ -122,8 +127,18 @@ class SkillSettingsTextTest {
     }
 
     @Test
+    fun validatesSkillTestInput() {
+        assertEquals("请输入 Gateway URL", validateSkillTestInput(editInput(gatewayUrl = "")))
+        assertEquals(
+            "请输入微信读书 Token",
+            validateSkillTestInput(editInput(templateId = BuiltInSkillTemplates.weRead, apiToken = "")),
+        )
+        assertEquals(null, validateSkillTestInput(editInput(templateId = "custom", apiToken = "")))
+    }
+
+    @Test
     fun saveFailureResetsSavingAndShowsError() = runBlocking {
-        val viewModel = SkillSettingsViewModel(FailingSkillRepository())
+        val viewModel = SkillSettingsViewModel(FailingSkillRepository(), RecordingSkillConnectionTester(SkillConnectionTestResult.Success("ok")))
 
         viewModel.save(editInput(id = null))
 
@@ -138,7 +153,7 @@ class SkillSettingsTextTest {
 
     @Test
     fun consumeMessageClearsSuccessfulSaveSignal() = runBlocking {
-        val viewModel = SkillSettingsViewModel(SuccessfulSkillRepository())
+        val viewModel = SkillSettingsViewModel(SuccessfulSkillRepository(), RecordingSkillConnectionTester(SkillConnectionTestResult.Success("ok")))
 
         viewModel.save(editInput(id = null))
 
@@ -148,6 +163,38 @@ class SkillSettingsTextTest {
         viewModel.consumeMessage()
 
         assertEquals(null, viewModel.state.value.message)
+    }
+
+    @Test
+    fun testSkillUpdatesTestStateWithoutSaving() = runBlocking {
+        val repository = CountingSkillRepository()
+        val tester = RecordingSkillConnectionTester(SkillConnectionTestResult.Success("真实连接成功"))
+        val viewModel = SkillSettingsViewModel(repository, tester)
+
+        viewModel.testSkill(editInput(id = 1L, templateId = "custom", apiToken = ""))
+
+        withTimeout(2_000) {
+            while (viewModel.state.value.testMessage == null) delay(10)
+        }
+        assertFalse(viewModel.state.value.isTesting)
+        assertEquals("真实连接成功", viewModel.state.value.testMessage)
+        assertEquals(1, tester.requests.size)
+        assertEquals("https://example.com", tester.requests.single().gatewayUrl)
+        assertEquals(0, repository.saveCount)
+    }
+
+    @Test
+    fun testSkillShowsRealConnectionFailure() = runBlocking {
+        val tester = RecordingSkillConnectionTester(SkillConnectionTestResult.Failure("连接失败：401"))
+        val viewModel = SkillSettingsViewModel(SuccessfulSkillRepository(), tester)
+
+        viewModel.testSkill(editInput(id = 1L, templateId = "custom", apiToken = ""))
+
+        withTimeout(2_000) {
+            while (viewModel.state.value.testMessage == null) delay(10)
+        }
+        assertEquals("连接失败：401", viewModel.state.value.testMessage)
+        assertEquals(1, tester.requests.size)
     }
 
     private fun editInput(
@@ -231,7 +278,7 @@ class SkillSettingsTextTest {
         override fun ensureBuiltInWeRead() = Unit
     }
 
-    private class SuccessfulSkillRepository : SkillConfigDataSource {
+    private open class SuccessfulSkillRepository : SkillConfigDataSource {
         override fun getAll(): Flow<List<Skill_config>> = emptyFlow()
 
         override fun getById(id: Long): Skill_config? = null
@@ -265,5 +312,50 @@ class SkillSettingsTextTest {
         override fun deleteSkill(id: Long) = Unit
 
         override fun ensureBuiltInWeRead() = Unit
+    }
+
+    private class CountingSkillRepository : SuccessfulSkillRepository() {
+        var saveCount = 0
+
+        override fun insertSkill(
+            name: String,
+            description: String,
+            gatewayUrl: String,
+            apiToken: String,
+            skillVersion: String,
+            enabled: Long,
+            builtin: Long,
+            provider: String,
+            templateId: String,
+            toolSchemaJson: String,
+        ) {
+            saveCount++
+        }
+
+        override fun updateSkill(
+            id: Long,
+            name: String,
+            description: String,
+            gatewayUrl: String,
+            apiToken: String,
+            skillVersion: String,
+            enabled: Long,
+            provider: String,
+            templateId: String,
+            toolSchemaJson: String,
+        ) {
+            saveCount++
+        }
+    }
+
+    private class RecordingSkillConnectionTester(
+        private val result: SkillConnectionTestResult,
+    ) : SkillConnectionTester {
+        val requests = mutableListOf<SkillConnectionTestRequest>()
+
+        override suspend fun test(request: SkillConnectionTestRequest): SkillConnectionTestResult {
+            requests += request
+            return result
+        }
     }
 }

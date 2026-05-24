@@ -1457,6 +1457,13 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun unifiedNewsSettingsBackReturnsToSummary() {
+        val unified = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+
+        assertTrue(unified.contains("SettingsScreen(settingsViewModel, onBack = { viewModel.switchPage(UnifiedNewsPage.SUMMARY) })"))
+    }
+
+    @Test
     fun unifiedNewsSummaryDoesNotExposeSourceWarningsToReaders() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
         val cardBody = screen.requiredSubstringAfter("private fun TodayUnifiedNewsCard")

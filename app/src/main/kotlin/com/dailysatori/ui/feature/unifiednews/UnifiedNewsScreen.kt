@@ -124,7 +124,7 @@ fun UnifiedNewsScreen(
             showFavoritesOnly = true,
             lockFavoritesFilter = true,
         )
-        UnifiedNewsPage.SETTINGS -> SettingsScreen(settingsViewModel)
+        UnifiedNewsPage.SETTINGS -> SettingsScreen(settingsViewModel, onBack = { viewModel.switchPage(UnifiedNewsPage.SUMMARY) })
     }
 }
 

@@ -17,4 +17,14 @@ class SettingsScreenLayoutTest {
         assertFalse(settingsMainPage.contains("AppTopBar("))
         assertFalse(settingsMainPage.contains("snackbarHost ="))
     }
+
+    @Test
+    fun settingsMainPageHandlesSystemBackWhenCallbackExists() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText()
+        val settingsScreen = source.substringAfter("fun SettingsScreen(")
+            .substringBefore("private fun SettingsMainPage(")
+
+        assertTrue(settingsScreen.contains("BackHandler(enabled = currentPage == SettingsPage.MAIN && rootBack != null)"))
+        assertTrue(settingsScreen.contains("rootBack?.invoke()"))
+    }
 }
