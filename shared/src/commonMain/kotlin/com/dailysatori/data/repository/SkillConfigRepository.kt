@@ -16,10 +16,17 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-class SkillConfigRepository(
+class SkillConfigRepository internal constructor(
     private val db: DailySatoriDatabase,
-    private val secretCipher: SecretCipher,
+    private val encryptSecret: (String) -> String,
+    private val decryptSecret: (String) -> String,
 ) {
+    constructor(db: DailySatoriDatabase, secretCipher: SecretCipher) : this(
+        db = db,
+        encryptSecret = { apiToken -> secretCipher.encrypt(apiToken) },
+        decryptSecret = { encryptedToken -> secretCipher.decrypt(encryptedToken) },
+    )
+
     private val q get() = db.dailySatoriQueries
 
     fun getAll(): Flow<List<Skill_config>> =
@@ -48,7 +55,7 @@ class SkillConfigRepository(
     ) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         q.insertSkillConfig(
-            name, description, gatewayUrl, secretCipher.encrypt(apiToken), skillVersion, enabled,
+            name, description, gatewayUrl, encryptSecret(apiToken), skillVersion, enabled,
             builtin, provider, templateId, toolSchemaJson, now, now,
         )
     }
@@ -67,7 +74,7 @@ class SkillConfigRepository(
     ) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         q.updateSkillConfig(
-            name, description, gatewayUrl, secretCipher.encrypt(apiToken), skillVersion,
+            name, description, gatewayUrl, encryptSecret(apiToken), skillVersion,
             enabled, provider, templateId, toolSchemaJson, now, id,
         )
     }
@@ -78,20 +85,23 @@ class SkillConfigRepository(
     }
 
     fun ensureBuiltInWeRead() {
-        if (getByTemplateId(BuiltInSkillTemplates.weRead) != null) return
-        insert(
-            name = builtInWeReadSkillName(),
-            description = builtInWeReadDescription(),
-            gatewayUrl = builtInWeReadGatewayUrl(),
-            apiToken = "",
-            skillVersion = builtInWeReadSkillVersion(),
-            enabled = 0,
-            builtin = 1,
-            provider = BuiltInSkillTemplates.weRead,
-            templateId = BuiltInSkillTemplates.weRead,
-        )
+        q.transaction {
+            val existing = q.selectBuiltInSkillConfigByTemplateId(BuiltInSkillTemplates.weRead).executeAsOneOrNull()
+            if (existing != null) return@transaction
+            insert(
+                name = builtInWeReadSkillName(),
+                description = builtInWeReadDescription(),
+                gatewayUrl = builtInWeReadGatewayUrl(),
+                apiToken = "",
+                skillVersion = builtInWeReadSkillVersion(),
+                enabled = 0,
+                builtin = 1,
+                provider = BuiltInSkillTemplates.weRead,
+                templateId = BuiltInSkillTemplates.weRead,
+            )
+        }
     }
 
     private fun decryptSkill(skill: Skill_config): Skill_config =
-        skill.copy(api_token = secretCipher.decrypt(skill.api_token))
+        skill.copy(api_token = decryptSecret(skill.api_token))
 }

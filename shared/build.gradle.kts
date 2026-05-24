@@ -41,6 +41,9 @@ kotlin {
                 exclude(group = "com.squareup.okhttp3", module = "okhttp-jvm")
             }
         }
+        androidUnitTest.dependencies {
+            implementation(libs.sqldelight.sqlite.driver)
+        }
     }
 }
 

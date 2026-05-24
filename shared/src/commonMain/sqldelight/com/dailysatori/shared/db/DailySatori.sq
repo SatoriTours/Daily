@@ -517,6 +517,9 @@ SELECT * FROM skill_config WHERE id = ?;
 selectSkillConfigByTemplateId:
 SELECT * FROM skill_config WHERE template_id = ? LIMIT 1;
 
+selectBuiltInSkillConfigByTemplateId:
+SELECT * FROM skill_config WHERE template_id = ? AND builtin = 1 LIMIT 1;
+
 selectEnabledSkillConfigs:
 SELECT * FROM skill_config WHERE enabled = 1 ORDER BY builtin DESC, name;
 
