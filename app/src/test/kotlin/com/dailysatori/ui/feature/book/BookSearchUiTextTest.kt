@@ -64,6 +64,13 @@ class BookSearchUiTextTest {
                 "missing ai config",
             )),
         )
+        assertEquals(
+            "AI 观点生成失败，请稍后重试",
+            bookAnalysisFailureError(com.dailysatori.service.book.WeReadSkillException(
+                com.dailysatori.service.book.WeReadSkillErrorType.AiFallbackFailure,
+                "AI 观点生成失败，请稍后重试",
+            )),
+        )
     }
 
     @Test

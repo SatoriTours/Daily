@@ -34,7 +34,7 @@ private val weReadJson = Json {
     isLenient = true
 }
 
-enum class WeReadSkillErrorType { MissingApiKey, MissingAiFallbackConfig, NoResults, RemoteFailure }
+enum class WeReadSkillErrorType { MissingApiKey, MissingAiFallbackConfig, AiFallbackFailure, NoResults, RemoteFailure }
 
 class WeReadSkillException(
     val type: WeReadSkillErrorType,
@@ -98,7 +98,7 @@ class DefaultBookAiFallbackGenerator(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            throw WeReadSkillException(WeReadSkillErrorType.RemoteFailure, "AI 观点生成失败，请稍后重试", error)
+            throw WeReadSkillException(WeReadSkillErrorType.AiFallbackFailure, "AI 观点生成失败，请稍后重试", error)
         }
         return parseAiFallbackViewpointJson(response)
     }
@@ -215,7 +215,7 @@ suspend fun selectWeReadOrAiViewpoints(
     }
     val aiDrafts = aiFallbackGenerator.generate(book, info, chapters, reviews)
     if (aiDrafts.size < 10) {
-        throw WeReadSkillException(WeReadSkillErrorType.RemoteFailure, "AI 观点生成失败，请稍后重试")
+        throw WeReadSkillException(WeReadSkillErrorType.AiFallbackFailure, "AI 观点生成失败，请稍后重试")
     }
     return BookViewpointGenerationResult(aiDrafts, BookViewpointSource.AiFallback)
 }
@@ -374,6 +374,7 @@ fun parseAiFallbackViewpointJson(response: String): List<BookViewpointDraft> {
 fun weReadUserMessage(error: WeReadSkillException): String = when (error.type) {
     WeReadSkillErrorType.MissingApiKey -> "请先在设置中配置微信读书 API Key"
     WeReadSkillErrorType.MissingAiFallbackConfig -> "微信读书资料不足，请先配置默认 AI 模型后重试"
+    WeReadSkillErrorType.AiFallbackFailure -> "AI 观点生成失败，请稍后重试"
     WeReadSkillErrorType.NoResults -> "微信读书未找到相关书籍"
     WeReadSkillErrorType.RemoteFailure -> error.message.ifBlank { "微信读书服务暂时不可用" }
 }

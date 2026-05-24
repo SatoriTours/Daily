@@ -295,6 +295,37 @@ class WeReadSkillServiceTest {
     }
 
     @Test
+    fun aiFallbackFailureUsesDedicatedErrorMessage() {
+        val error = WeReadSkillException(
+            WeReadSkillErrorType.AiFallbackFailure,
+            "AI 观点生成失败，请稍后重试",
+        )
+
+        assertEquals("AI 观点生成失败，请稍后重试", weReadUserMessage(error))
+    }
+
+    @Test
+    fun sparseWeReadMaterialFailsWithAiFallbackFailureWhenAiDraftsAreTooFew() = runBlocking {
+        val book = BookSearchResult(title = "待上架新书", author = "作者", introduction = "一句简介")
+        val info = WeReadBookInfo(bookId = "123", title = "待上架新书", intro = "")
+        val generator = object : BookAiFallbackGenerator {
+            override suspend fun generate(
+                book: BookSearchResult,
+                info: WeReadBookInfo,
+                chapters: List<WeReadChapter>,
+                reviews: List<WeReadReview>,
+            ): List<BookViewpointDraft> = emptyList()
+        }
+
+        val error = assertFailsWith<WeReadSkillException> {
+            selectWeReadOrAiViewpoints(book, info, emptyList(), emptyList(), generator)
+        }
+
+        assertEquals(WeReadSkillErrorType.AiFallbackFailure, error.type)
+        assertEquals("AI 观点生成失败，请稍后重试", weReadUserMessage(error))
+    }
+
+    @Test
     fun sparseWeReadMaterialUsesAiFallbackGenerator() = runBlocking {
         val book = BookSearchResult(title = "待上架新书", author = "作者", introduction = "一句简介")
         val info = WeReadBookInfo(bookId = "123", title = "待上架新书", intro = "")
