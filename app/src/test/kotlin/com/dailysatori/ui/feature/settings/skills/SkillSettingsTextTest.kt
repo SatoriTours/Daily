@@ -136,6 +136,20 @@ class SkillSettingsTextTest {
         assertTrue(state.error.startsWith("保存 Skill 失败"))
     }
 
+    @Test
+    fun consumeMessageClearsSuccessfulSaveSignal() = runBlocking {
+        val viewModel = SkillSettingsViewModel(SuccessfulSkillRepository())
+
+        viewModel.save(editInput(id = null))
+
+        withTimeout(2_000) {
+            while (viewModel.state.value.message != skillSavedMessage()) delay(10)
+        }
+        viewModel.consumeMessage()
+
+        assertEquals(null, viewModel.state.value.message)
+    }
+
     private fun editInput(
         id: Long? = 1L,
         name: String = "Skill",
@@ -198,6 +212,42 @@ class SkillSettingsTextTest {
         ) {
             throw IllegalStateException("database locked")
         }
+
+        override fun updateSkill(
+            id: Long,
+            name: String,
+            description: String,
+            gatewayUrl: String,
+            apiToken: String,
+            skillVersion: String,
+            enabled: Long,
+            provider: String,
+            templateId: String,
+            toolSchemaJson: String,
+        ) = Unit
+
+        override fun deleteSkill(id: Long) = Unit
+
+        override fun ensureBuiltInWeRead() = Unit
+    }
+
+    private class SuccessfulSkillRepository : SkillConfigDataSource {
+        override fun getAll(): Flow<List<Skill_config>> = emptyFlow()
+
+        override fun getById(id: Long): Skill_config? = null
+
+        override fun insertSkill(
+            name: String,
+            description: String,
+            gatewayUrl: String,
+            apiToken: String,
+            skillVersion: String,
+            enabled: Long,
+            builtin: Long,
+            provider: String,
+            templateId: String,
+            toolSchemaJson: String,
+        ) = Unit
 
         override fun updateSkill(
             id: Long,

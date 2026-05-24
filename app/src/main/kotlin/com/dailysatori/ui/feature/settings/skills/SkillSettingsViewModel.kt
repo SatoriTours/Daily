@@ -63,6 +63,10 @@ class SkillSettingsViewModel(
         viewModelScope.launch(Dispatchers.IO) { repository.deleteSkill(skill.id) }
     }
 
+    fun consumeMessage() {
+        _state.update { it.copy(message = null) }
+    }
+
     private fun saveValidated(input: SkillEditInput) {
         _state.update { it.copy(isSaving = true, error = null, message = null) }
         try {

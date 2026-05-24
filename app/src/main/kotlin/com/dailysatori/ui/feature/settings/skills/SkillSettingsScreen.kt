@@ -56,6 +56,7 @@ fun SkillSettingsScreen(onBack: () -> Unit) {
         if (skillShouldCloseEditorAfterSave(state.message, state.isSaving)) {
             adding = false
             editing = null
+            viewModel.consumeMessage()
         }
     }
 
