@@ -21,7 +21,10 @@ class BookIntelligenceServiceTest {
     @Test
     fun generateViewpointsDelegatesToSource() = runBlocking {
         val book = BookSearchResult(title = "三体", author = "刘慈欣")
-        val expected = listOf(BookViewpointDraft(title = "判断", content = "解释", example = "案例"))
+        val expected = BookViewpointGenerationResult(
+            drafts = listOf(BookViewpointDraft(title = "判断", content = "解释", example = "案例")),
+            source = BookViewpointSource.WeRead,
+        )
         val source = FakeBookIntelligenceSource(viewpoints = expected)
         val service = BookIntelligenceService(source)
 
@@ -76,7 +79,7 @@ class BookIntelligenceServiceTest {
 
     private class FakeBookIntelligenceSource(
         private val searchResults: List<BookSearchResult> = emptyList(),
-        private val viewpoints: List<BookViewpointDraft> = emptyList(),
+        private val viewpoints: BookViewpointGenerationResult = BookViewpointGenerationResult(emptyList(), BookViewpointSource.WeRead),
     ) : BookIntelligenceSource {
         var searchQuery: String? = null
             private set
@@ -88,7 +91,7 @@ class BookIntelligenceServiceTest {
             return searchResults
         }
 
-        override suspend fun generateViewpoints(book: BookSearchResult): List<BookViewpointDraft> {
+        override suspend fun generateViewpoints(book: BookSearchResult): BookViewpointGenerationResult {
             viewpointBook = book
             return viewpoints
         }

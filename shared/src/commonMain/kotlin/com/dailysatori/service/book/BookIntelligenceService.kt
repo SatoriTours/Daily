@@ -9,9 +9,16 @@ data class BookViewpointDraft(
     val example: String,
 )
 
+enum class BookViewpointSource { WeRead, AiFallback }
+
+data class BookViewpointGenerationResult(
+    val drafts: List<BookViewpointDraft>,
+    val source: BookViewpointSource,
+)
+
 interface BookIntelligenceSource {
     suspend fun searchBooks(query: String): List<BookSearchResult>
-    suspend fun generateViewpoints(book: BookSearchResult): List<BookViewpointDraft>
+    suspend fun generateViewpoints(book: BookSearchResult): BookViewpointGenerationResult
 }
 
 class BookIntelligenceService(
@@ -20,6 +27,6 @@ class BookIntelligenceService(
     suspend fun searchBooks(query: String): List<BookSearchResult> =
         weReadSkillService.searchBooks(query)
 
-    suspend fun generateViewpoints(book: BookSearchResult): List<BookViewpointDraft> =
+    suspend fun generateViewpoints(book: BookSearchResult): BookViewpointGenerationResult =
         weReadSkillService.generateViewpoints(book)
 }

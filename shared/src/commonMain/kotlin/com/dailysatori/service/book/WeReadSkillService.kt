@@ -79,7 +79,7 @@ class WeReadSkillService(
         }
     }
 
-    override suspend fun generateViewpoints(book: BookSearchResult): List<BookViewpointDraft> {
+    override suspend fun generateViewpoints(book: BookSearchResult): BookViewpointGenerationResult {
         val bookId = book.sourceUrl.extractWeReadBookId()
             ?: searchBooks("${book.title} ${book.author}".trim(), limit = 1).firstOrNull()?.sourceUrl?.extractWeReadBookId()
             ?: throw WeReadSkillException(WeReadSkillErrorType.NoResults, "微信读书未找到相关书籍")
@@ -88,7 +88,10 @@ class WeReadSkillService(
         val reviews = parseWeReadReviews(
             callGateway("/review/list", mapOf("bookId" to bookId, "reviewListType" to 1, "count" to 10)),
         )
-        return buildWeReadViewpointDrafts(info, chapters, reviews)
+        return BookViewpointGenerationResult(
+            drafts = buildWeReadViewpointDrafts(info, chapters, reviews),
+            source = BookViewpointSource.WeRead,
+        )
     }
 
     private suspend fun callGateway(apiName: String, params: Map<String, Any>): String {
