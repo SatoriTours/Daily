@@ -114,7 +114,7 @@ val sharedModule: Module = module {
     single { McpServerRepository(get(), get()) }
 
     // Migration
-    single { DatabaseMigration(get(), get()) }
+    single { DatabaseMigration(get(), get(), get()) }
 
     // Import service
     single { ImportService(get(), get(), get()) }

@@ -5,12 +5,14 @@ import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.remotenews.normalizeTopArticlesTodayUrl
+import com.dailysatori.service.security.SecretCipher
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.QueryResult
 
 class DatabaseMigration(
     private val driver: SqlDriver,
     private val settingRepo: SettingRepository,
+    private val secretCipher: SecretCipher,
 ) {
     private val log = Logger.withTag("DBMigration")
 
@@ -362,13 +364,20 @@ class DatabaseMigration(
         if (queryLong("SELECT COUNT(*) FROM skill_config WHERE template_id = 'weread'") != 0L) return
         // Reads legacy "weread_api_key" setting into skill_config.api_token.
         val legacyToken = settingRepo.get(SettingKeys.legacyWeReadApiKey)?.trim().orEmpty()
+        val apiToken = migratedWeReadTokenValue(legacyToken)
         val enabled = if (legacyToken.isBlank()) 0 else 1
         runSql("""
             INSERT INTO skill_config (name, description, gateway_url, api_token, skill_version, enabled, builtin, provider, template_id, tool_schema_json, created_at, updated_at)
             VALUES ('微信读书', '微信读书 Skill，用于搜索书籍、获取图书信息、目录和书评。', 'https://i.weread.qq.com/api/agent/gateway',
-                '${legacyToken.sqlEscaped()}', '1.0.3', $enabled, 1, 'weread', 'weread', '',
+                '${apiToken.sqlEscaped()}', '1.0.3', $enabled, 1, 'weread', 'weread', '',
                 strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000)
         """.trimIndent())
+    }
+
+    private fun migratedWeReadTokenValue(legacyToken: String): String = when {
+        legacyToken.isBlank() -> ""
+        secretCipher.isEncrypted(legacyToken) -> legacyToken
+        else -> secretCipher.encrypt(legacyToken)
     }
 
     private fun String.sqlEscaped(): String = replace("'", "''")

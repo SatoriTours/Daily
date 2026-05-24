@@ -43,4 +43,16 @@ class SkillSchemaSourceTest {
         assertTrue(migration.contains("weread"))
         assertTrue(migration.contains("weread_api_key"))
     }
+
+    @Test
+    fun databaseMigrationEncryptsLegacyWeReadToken() {
+        val migration = File("src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
+        val sharedModule = File("src/commonMain/kotlin/com/dailysatori/di/SharedModule.kt").readText()
+
+        assertTrue(migration.contains("private val secretCipher: SecretCipher"))
+        assertTrue(migration.contains("migratedWeReadTokenValue(legacyToken)"))
+        assertTrue(migration.contains("secretCipher.isEncrypted"))
+        assertTrue(migration.contains("secretCipher.encrypt"))
+        assertTrue(sharedModule.contains("DatabaseMigration(get(), get(), get())"))
+    }
 }
