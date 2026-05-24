@@ -249,4 +249,35 @@ class WeReadSkillServiceTest {
         assertTrue(prompt.contains("不能声称来自微信读书书评或原文"))
         assertTrue(prompt.contains("供应链架构师"))
     }
+
+    @Test
+    fun detectsSparseWeReadMaterialAsInsufficient() {
+        val info = WeReadBookInfo(bookId = "123", title = "待上架新书", intro = "")
+        val drafts = buildWeReadViewpointDrafts(info, chapters = emptyList(), reviews = emptyList())
+
+        assertEquals(false, hasSufficientWeReadMaterial(info, emptyList(), emptyList(), drafts))
+    }
+
+    @Test
+    fun detectsConcreteWeReadMaterialAsSufficient() {
+        val info = WeReadBookInfo(
+            bookId = "123",
+            title = "三体",
+            author = "刘慈欣",
+            intro = "人类文明第一次面对宇宙级不确定性，个体选择与集体命运被放到同一个坐标系里审视。",
+        )
+        val chapters = listOf(WeReadChapter(chapterUid = 1, chapterIdx = 1, title = "科学边界"))
+        val reviews = listOf(WeReadReview("这本书真正震撼人的地方，是把文明选择写成每个人都能感受到的压力。"))
+        val drafts = buildWeReadViewpointDrafts(info, chapters, reviews)
+
+        assertEquals(true, hasSufficientWeReadMaterial(info, chapters, reviews, drafts))
+    }
+
+    @Test
+    fun missingAiConfigUsesDedicatedErrorMessage() {
+        val error = assertFailsWith<WeReadSkillException> { requireAiFallbackConfig(null) }
+
+        assertEquals(WeReadSkillErrorType.RemoteFailure, error.type)
+        assertEquals("微信读书资料不足，请先配置默认 AI 模型后重试", error.message)
+    }
 }

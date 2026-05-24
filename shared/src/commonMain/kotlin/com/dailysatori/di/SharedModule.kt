@@ -98,7 +98,7 @@ val sharedModule: Module = module {
     single { DoubanSuggestSearchEngine(get()) }
     single { WebSearchEngine(get()) }
     single { BookSearchService(listOf(get<DoubanSuggestSearchEngine>(), get<WebSearchEngine>())) }
-    single { WeReadSkillService(get(), get(), get()) }
+    single { WeReadSkillService(get(), get(), get(), get(), get()) }
     single<BookIntelligenceSource> { get<WeReadSkillService>() }
     single { RemoteMcpClient(get()) }
     single { LocalSqlQueryService(get()) }

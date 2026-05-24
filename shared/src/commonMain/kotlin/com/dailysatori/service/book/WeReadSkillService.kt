@@ -2,8 +2,11 @@ package com.dailysatori.service.book
 
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.service.ai.AiConfigService
+import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.security.SecretCipherPrefix
+import com.dailysatori.shared.db.Ai_config
 import io.ktor.client.HttpClient
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
@@ -66,6 +69,8 @@ class WeReadSkillService(
     private val client: HttpClient,
     private val settingRepository: SettingRepository,
     private val secretCipher: SecretCipher,
+    private val aiConfigService: AiConfigService,
+    private val aiService: AiService,
 ) : BookIntelligenceSource {
     override suspend fun searchBooks(query: String): List<BookSearchResult> = searchBooks(query, limit = 10)
 
@@ -83,16 +88,54 @@ class WeReadSkillService(
         val bookId = book.sourceUrl.extractWeReadBookId()
             ?: searchBooks("${book.title} ${book.author}".trim(), limit = 1).firstOrNull()?.sourceUrl?.extractWeReadBookId()
             ?: throw WeReadSkillException(WeReadSkillErrorType.NoResults, "微信读书未找到相关书籍")
-        val info = parseWeReadBookInfo(callGateway("/book/info", mapOf("bookId" to bookId)))
+        val info = parseWeReadBookInfo(callGateway("/book/info", mapOf("bookId" to bookId))).withSearchFallback(book, bookId)
         val chapters = parseWeReadChapters(callGateway("/book/chapterinfo", mapOf("bookId" to bookId)))
         val reviews = parseWeReadReviews(
             callGateway("/review/list", mapOf("bookId" to bookId, "reviewListType" to 1, "count" to 10)),
         )
-        return BookViewpointGenerationResult(
-            drafts = buildWeReadViewpointDrafts(info, chapters, reviews),
-            source = BookViewpointSource.WeRead,
-        )
+        val weReadDrafts = buildWeReadViewpointDrafts(info, chapters, reviews)
+        if (hasSufficientWeReadMaterial(info, chapters, reviews, weReadDrafts)) {
+            return BookViewpointGenerationResult(weReadDrafts, BookViewpointSource.WeRead)
+        }
+        return generateAiFallbackViewpoints(book, info, chapters, reviews)
     }
+
+    private suspend fun generateAiFallbackViewpoints(
+        book: BookSearchResult,
+        info: WeReadBookInfo,
+        chapters: List<WeReadChapter>,
+        reviews: List<WeReadReview>,
+    ): BookViewpointGenerationResult {
+        val config = requireAiFallbackConfig(aiConfigService.getDefaultConfig())
+        val response = try {
+            aiService.complete(
+                prompt = info.title.ifBlank { book.title },
+                apiAddress = config.api_address,
+                apiToken = config.api_token,
+                modelName = config.model_name,
+                provider = config.provider,
+                systemPrompt = buildAiFallbackViewpointPrompt(book, info, chapters, reviews),
+                temperature = 0.5,
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            throw WeReadSkillException(WeReadSkillErrorType.RemoteFailure, "AI 观点生成失败，请稍后重试", error)
+        }
+        val drafts = parseAiFallbackViewpointJson(response)
+        if (drafts.size < 10) {
+            throw WeReadSkillException(WeReadSkillErrorType.RemoteFailure, "AI 观点生成失败，请稍后重试")
+        }
+        return BookViewpointGenerationResult(drafts, BookViewpointSource.AiFallback)
+    }
+
+    private fun WeReadBookInfo.withSearchFallback(book: BookSearchResult, bookId: String): WeReadBookInfo = copy(
+        bookId = this.bookId.ifBlank { bookId },
+        title = title.ifBlank { book.title },
+        author = author.ifBlank { book.author },
+        intro = intro.ifBlank { book.introduction },
+        category = category.ifBlank { book.category },
+    )
 
     private suspend fun callGateway(apiName: String, params: Map<String, Any>): String {
         val apiKey = requireWeReadApiKey(readStoredWeReadApiKey())
@@ -124,6 +167,33 @@ class WeReadSkillService(
 
 fun requireWeReadApiKey(value: String?): String = value?.trim()?.takeIf { it.isNotBlank() }
     ?: throw WeReadSkillException(WeReadSkillErrorType.MissingApiKey, "请先在设置中配置微信读书 API Key")
+
+fun hasSufficientWeReadMaterial(
+    info: WeReadBookInfo,
+    chapters: List<WeReadChapter>,
+    reviews: List<WeReadReview>,
+    drafts: List<BookViewpointDraft>,
+): Boolean {
+    val materialLength = info.intro.length + chapters.sumOf { it.title.length } + reviews.sumOf { it.content.length }
+    return info.title.isNotBlank() &&
+        materialLength >= 40 &&
+        drafts.size >= 10 &&
+        drafts.all { it.content.length >= 80 && it.example.length >= 100 }
+}
+
+fun requireAiFallbackConfig(config: Ai_config?): Ai_config {
+    val value = config ?: throw WeReadSkillException(
+        WeReadSkillErrorType.RemoteFailure,
+        "微信读书资料不足，请先配置默认 AI 模型后重试",
+    )
+    if (value.api_token.isBlank()) {
+        throw WeReadSkillException(
+            WeReadSkillErrorType.RemoteFailure,
+            "微信读书资料不足，请先配置默认 AI 模型后重试",
+        )
+    }
+    return value
+}
 
 fun resolveStoredWeReadApiKey(
     stored: String,
