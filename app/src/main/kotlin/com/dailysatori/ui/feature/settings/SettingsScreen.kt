@@ -53,9 +53,10 @@ import com.dailysatori.ui.feature.settings.importing.DataImportScreen
 import com.dailysatori.ui.feature.settings.mcp.McpServerScreen
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterScreen
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
-import com.dailysatori.ui.feature.settings.weread.WeReadSettingsScreen
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import com.dailysatori.ui.feature.settings.skills.SkillSettingsScreen
+import com.dailysatori.ui.feature.settings.skills.skillSettingsRowSubtitle
+import com.dailysatori.ui.feature.settings.skills.skillSettingsRowTitle
+import com.dailysatori.ui.theme.*
 
 private enum class SettingsPage {
     MAIN,
@@ -66,7 +67,7 @@ private enum class SettingsPage {
     BACKUP_RESTORE,
     DATA_IMPORT,
     REMOTE_NEWS_SETTINGS,
-    WE_READ,
+    SKILLS,
 }
 
 @Composable
@@ -97,7 +98,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
         SettingsPage.BACKUP_RESTORE -> BackupRestoreScreen(onBack = { currentPage = SettingsPage.BACKUP_SETTINGS })
         SettingsPage.DATA_IMPORT -> DataImportScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.REMOTE_NEWS_SETTINGS -> RemoteNewsSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
-        SettingsPage.WE_READ -> WeReadSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
+        SettingsPage.SKILLS -> SkillSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
     }
 }
 
@@ -187,7 +188,7 @@ private fun SettingsList(
 private fun AiServicesSection(onNavigate: (SettingsPage) -> Unit) {
     SettingsSectionCard("AI 与服务") {
         SettingsRow(Icons.Default.Star, "AI 配置", "管理模型服务商与 API 密钥", onClick = { onNavigate(SettingsPage.AI_CONFIG) })
-        SettingsRow(Icons.AutoMirrored.Filled.MenuBook, "微信读书", "配置微信读书 API Key", onClick = { onNavigate(SettingsPage.WE_READ) })
+        SettingsRow(Icons.AutoMirrored.Filled.MenuBook, skillSettingsRowTitle(), skillSettingsRowSubtitle(), onClick = { onNavigate(SettingsPage.SKILLS) })
         SettingsRow(Icons.Default.Hub, "MCP 服务", "管理外部工具服务连接", onClick = { onNavigate(SettingsPage.MCP_SERVER) })
         SettingsRow(Icons.Default.Settings, "插件中心", "管理 AI 提示词插件", onClick = { onNavigate(SettingsPage.PLUGIN_CENTER) })
     }

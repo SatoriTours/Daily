@@ -24,6 +24,12 @@ class SkillSettingsTextTest {
     }
 
     @Test
+    fun skillsSettingsRowUsesGenericSkillsText() {
+        assertEquals("Skills", skillSettingsRowTitle())
+        assertEquals("管理 Agent 可调用的外部 Skills", skillSettingsRowSubtitle())
+    }
+
+    @Test
     fun validatesSkillEditInput() {
         assertEquals("请输入 Skill 名称", validateSkillInput("", "https://example.com", "{}"))
         assertEquals("请输入 Gateway URL", validateSkillInput("测试", "", "{}"))

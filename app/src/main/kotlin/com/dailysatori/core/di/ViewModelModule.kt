@@ -35,7 +35,7 @@ import com.dailysatori.ui.feature.settings.plugin.PluginCenterViewModel
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsViewModel
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.mcp.McpServerViewModel
-import com.dailysatori.ui.feature.settings.weread.WeReadSettingsViewModel
+import com.dailysatori.ui.feature.settings.skills.SkillSettingsViewModel
 import com.dailysatori.ui.feature.share.ShareDialogViewModel
 import com.dailysatori.ui.feature.remotenews.RemoteNewsViewModel
 import com.dailysatori.ui.feature.settings.weekly.WeeklySummaryViewModel
@@ -151,5 +151,5 @@ val viewModelModule: Module = module {
         )
     }
     viewModel { McpServerViewModel(get()) }
-    viewModel { WeReadSettingsViewModel(get(), get(), get()) }
+    viewModel { SkillSettingsViewModel(get()) }
 }

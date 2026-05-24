@@ -101,6 +101,10 @@ class SkillSettingsViewModel(
 
 fun skillSettingsScreenTitle(): String = "Skills"
 
+fun skillSettingsRowTitle(): String = "Skills"
+
+fun skillSettingsRowSubtitle(): String = "管理 Agent 可调用的外部 Skills"
+
 fun skillAddButtonText(): String = "添加 Skill"
 
 fun skillSaveButtonText(isSaving: Boolean): String = if (isSaving) "保存中..." else "保存"
