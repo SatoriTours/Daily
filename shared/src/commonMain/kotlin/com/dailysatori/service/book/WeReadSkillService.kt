@@ -180,7 +180,9 @@ fun hasSufficientWeReadMaterial(
     drafts: List<BookViewpointDraft>,
 ): Boolean {
     val materialLength = info.intro.length + chapters.sumOf { it.title.length } + reviews.sumOf { it.content.length }
+    val hasSupportMaterial = chapters.any { it.title.isNotBlank() } || reviews.any { it.content.isNotBlank() }
     return info.title.isNotBlank() &&
+        hasSupportMaterial &&
         materialLength >= 40 &&
         drafts.size >= 10 &&
         drafts.all { it.content.length >= 80 && it.example.length >= 100 }

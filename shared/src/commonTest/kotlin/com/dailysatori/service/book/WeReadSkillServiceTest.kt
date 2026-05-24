@@ -260,6 +260,18 @@ class WeReadSkillServiceTest {
     }
 
     @Test
+    fun detectsIntroOnlyWeReadMaterialAsInsufficient() {
+        val info = WeReadBookInfo(
+            bookId = "123",
+            title = "待上架新书",
+            intro = "这是一段足够长的图书简介，用来描述主题、背景、问题意识和读者可能获得的启发，但它仍然只是简介。",
+        )
+        val drafts = buildWeReadViewpointDrafts(info, chapters = emptyList(), reviews = emptyList())
+
+        assertEquals(false, hasSufficientWeReadMaterial(info, emptyList(), emptyList(), drafts))
+    }
+
+    @Test
     fun detectsConcreteWeReadMaterialAsSufficient() {
         val info = WeReadBookInfo(
             bookId = "123",
