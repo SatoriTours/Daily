@@ -1,5 +1,6 @@
 package com.dailysatori.service.book
 
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -277,7 +278,33 @@ class WeReadSkillServiceTest {
     fun missingAiConfigUsesDedicatedErrorMessage() {
         val error = assertFailsWith<WeReadSkillException> { requireAiFallbackConfig(null) }
 
-        assertEquals(WeReadSkillErrorType.RemoteFailure, error.type)
-        assertEquals("微信读书资料不足，请先配置默认 AI 模型后重试", error.message)
+        assertEquals(WeReadSkillErrorType.MissingAiFallbackConfig, error.type)
+        assertEquals("微信读书资料不足，请先配置默认 AI 模型后重试", weReadUserMessage(error))
+    }
+
+    @Test
+    fun sparseWeReadMaterialUsesAiFallbackGenerator() = runBlocking {
+        val book = BookSearchResult(title = "待上架新书", author = "作者", introduction = "一句简介")
+        val info = WeReadBookInfo(bookId = "123", title = "待上架新书", intro = "")
+        val aiDrafts = List(10) { index ->
+            BookViewpointDraft(
+                title = "AI 生成观点 ${index + 1} 要先界定问题。",
+                content = "当微信读书材料不足时，系统应清楚承认观点来自 AI，并基于有限元数据建立判断边界，避免把不存在的目录、原文或书评写成事实，从而让读者知道这些观点是辅助理解而不是资料摘录。",
+                example = "例如一位读者添加一本待上架新书时，系统只有书名和一句简介。AI 没有编造章节，而是围绕简介中的核心问题生成场景：团队先确认信息缺口，再把观点用于提出阅读问题，等正式资料补齐后再回到原书内容验证。",
+            )
+        }
+        val generator = object : BookAiFallbackGenerator {
+            override suspend fun generate(
+                book: BookSearchResult,
+                info: WeReadBookInfo,
+                chapters: List<WeReadChapter>,
+                reviews: List<WeReadReview>,
+            ): List<BookViewpointDraft> = aiDrafts
+        }
+
+        val result = selectWeReadOrAiViewpoints(book, info, emptyList(), emptyList(), generator)
+
+        assertEquals(BookViewpointSource.AiFallback, result.source)
+        assertEquals(aiDrafts, result.drafts)
     }
 }

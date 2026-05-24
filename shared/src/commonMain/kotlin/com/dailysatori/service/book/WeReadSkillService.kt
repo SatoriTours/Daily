@@ -34,7 +34,7 @@ private val weReadJson = Json {
     isLenient = true
 }
 
-enum class WeReadSkillErrorType { MissingApiKey, NoResults, RemoteFailure }
+enum class WeReadSkillErrorType { MissingApiKey, MissingAiFallbackConfig, NoResults, RemoteFailure }
 
 class WeReadSkillException(
     val type: WeReadSkillErrorType,
@@ -65,12 +65,50 @@ data class WeReadReview(
     val star: Int = 0,
 )
 
+interface BookAiFallbackGenerator {
+    suspend fun generate(
+        book: BookSearchResult,
+        info: WeReadBookInfo,
+        chapters: List<WeReadChapter>,
+        reviews: List<WeReadReview>,
+    ): List<BookViewpointDraft>
+}
+
+class DefaultBookAiFallbackGenerator(
+    private val aiConfigService: AiConfigService,
+    private val aiService: AiService,
+) : BookAiFallbackGenerator {
+    override suspend fun generate(
+        book: BookSearchResult,
+        info: WeReadBookInfo,
+        chapters: List<WeReadChapter>,
+        reviews: List<WeReadReview>,
+    ): List<BookViewpointDraft> {
+        val config = requireAiFallbackConfig(aiConfigService.getDefaultConfig())
+        val response = try {
+            aiService.complete(
+                prompt = info.title.ifBlank { book.title },
+                apiAddress = config.api_address,
+                apiToken = config.api_token,
+                modelName = config.model_name,
+                provider = config.provider,
+                systemPrompt = buildAiFallbackViewpointPrompt(book, info, chapters, reviews),
+                temperature = 0.5,
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            throw WeReadSkillException(WeReadSkillErrorType.RemoteFailure, "AI 观点生成失败，请稍后重试", error)
+        }
+        return parseAiFallbackViewpointJson(response)
+    }
+}
+
 class WeReadSkillService(
     private val client: HttpClient,
     private val settingRepository: SettingRepository,
     private val secretCipher: SecretCipher,
-    private val aiConfigService: AiConfigService,
-    private val aiService: AiService,
+    private val aiFallbackGenerator: BookAiFallbackGenerator,
 ) : BookIntelligenceSource {
     override suspend fun searchBooks(query: String): List<BookSearchResult> = searchBooks(query, limit = 10)
 
@@ -93,40 +131,7 @@ class WeReadSkillService(
         val reviews = parseWeReadReviews(
             callGateway("/review/list", mapOf("bookId" to bookId, "reviewListType" to 1, "count" to 10)),
         )
-        val weReadDrafts = buildWeReadViewpointDrafts(info, chapters, reviews)
-        if (hasSufficientWeReadMaterial(info, chapters, reviews, weReadDrafts)) {
-            return BookViewpointGenerationResult(weReadDrafts, BookViewpointSource.WeRead)
-        }
-        return generateAiFallbackViewpoints(book, info, chapters, reviews)
-    }
-
-    private suspend fun generateAiFallbackViewpoints(
-        book: BookSearchResult,
-        info: WeReadBookInfo,
-        chapters: List<WeReadChapter>,
-        reviews: List<WeReadReview>,
-    ): BookViewpointGenerationResult {
-        val config = requireAiFallbackConfig(aiConfigService.getDefaultConfig())
-        val response = try {
-            aiService.complete(
-                prompt = info.title.ifBlank { book.title },
-                apiAddress = config.api_address,
-                apiToken = config.api_token,
-                modelName = config.model_name,
-                provider = config.provider,
-                systemPrompt = buildAiFallbackViewpointPrompt(book, info, chapters, reviews),
-                temperature = 0.5,
-            )
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            throw WeReadSkillException(WeReadSkillErrorType.RemoteFailure, "AI 观点生成失败，请稍后重试", error)
-        }
-        val drafts = parseAiFallbackViewpointJson(response)
-        if (drafts.size < 10) {
-            throw WeReadSkillException(WeReadSkillErrorType.RemoteFailure, "AI 观点生成失败，请稍后重试")
-        }
-        return BookViewpointGenerationResult(drafts, BookViewpointSource.AiFallback)
+        return selectWeReadOrAiViewpoints(book, info, chapters, reviews, aiFallbackGenerator)
     }
 
     private fun WeReadBookInfo.withSearchFallback(book: BookSearchResult, bookId: String): WeReadBookInfo = copy(
@@ -183,16 +188,34 @@ fun hasSufficientWeReadMaterial(
 
 fun requireAiFallbackConfig(config: Ai_config?): Ai_config {
     val value = config ?: throw WeReadSkillException(
-        WeReadSkillErrorType.RemoteFailure,
+        WeReadSkillErrorType.MissingAiFallbackConfig,
         "微信读书资料不足，请先配置默认 AI 模型后重试",
     )
     if (value.api_token.isBlank()) {
         throw WeReadSkillException(
-            WeReadSkillErrorType.RemoteFailure,
+            WeReadSkillErrorType.MissingAiFallbackConfig,
             "微信读书资料不足，请先配置默认 AI 模型后重试",
         )
     }
     return value
+}
+
+suspend fun selectWeReadOrAiViewpoints(
+    book: BookSearchResult,
+    info: WeReadBookInfo,
+    chapters: List<WeReadChapter>,
+    reviews: List<WeReadReview>,
+    aiFallbackGenerator: BookAiFallbackGenerator,
+): BookViewpointGenerationResult {
+    val weReadDrafts = buildWeReadViewpointDrafts(info, chapters, reviews)
+    if (hasSufficientWeReadMaterial(info, chapters, reviews, weReadDrafts)) {
+        return BookViewpointGenerationResult(weReadDrafts, BookViewpointSource.WeRead)
+    }
+    val aiDrafts = aiFallbackGenerator.generate(book, info, chapters, reviews)
+    if (aiDrafts.size < 10) {
+        throw WeReadSkillException(WeReadSkillErrorType.RemoteFailure, "AI 观点生成失败，请稍后重试")
+    }
+    return BookViewpointGenerationResult(aiDrafts, BookViewpointSource.AiFallback)
 }
 
 fun resolveStoredWeReadApiKey(
@@ -348,6 +371,7 @@ fun parseAiFallbackViewpointJson(response: String): List<BookViewpointDraft> {
 
 fun weReadUserMessage(error: WeReadSkillException): String = when (error.type) {
     WeReadSkillErrorType.MissingApiKey -> "请先在设置中配置微信读书 API Key"
+    WeReadSkillErrorType.MissingAiFallbackConfig -> "微信读书资料不足，请先配置默认 AI 模型后重试"
     WeReadSkillErrorType.NoResults -> "微信读书未找到相关书籍"
     WeReadSkillErrorType.RemoteFailure -> error.message.ifBlank { "微信读书服务暂时不可用" }
 }

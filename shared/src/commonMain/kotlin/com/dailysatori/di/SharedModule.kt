@@ -25,6 +25,8 @@ import com.dailysatori.service.backup.BackupPasswordStore
 import com.dailysatori.service.book.BookIntelligenceService
 import com.dailysatori.service.book.BookIntelligenceSource
 import com.dailysatori.service.book.BookSearchService
+import com.dailysatori.service.book.BookAiFallbackGenerator
+import com.dailysatori.service.book.DefaultBookAiFallbackGenerator
 import com.dailysatori.service.book.DoubanSuggestSearchEngine
 import com.dailysatori.service.book.WeReadSkillService
 import com.dailysatori.service.book.WebSearchEngine
@@ -98,7 +100,8 @@ val sharedModule: Module = module {
     single { DoubanSuggestSearchEngine(get()) }
     single { WebSearchEngine(get()) }
     single { BookSearchService(listOf(get<DoubanSuggestSearchEngine>(), get<WebSearchEngine>())) }
-    single { WeReadSkillService(get(), get(), get(), get(), get()) }
+    single<BookAiFallbackGenerator> { DefaultBookAiFallbackGenerator(get(), get()) }
+    single { WeReadSkillService(get(), get(), get(), get()) }
     single<BookIntelligenceSource> { get<WeReadSkillService>() }
     single { RemoteMcpClient(get()) }
     single { LocalSqlQueryService(get()) }

@@ -57,6 +57,13 @@ class BookSearchUiTextTest {
                 "remote",
             )),
         )
+        assertEquals(
+            "微信读书资料不足，请先配置默认 AI 模型后重试",
+            bookSearchFailureMessage(com.dailysatori.service.book.WeReadSkillException(
+                com.dailysatori.service.book.WeReadSkillErrorType.MissingAiFallbackConfig,
+                "missing ai config",
+            )),
+        )
     }
 
     @Test
