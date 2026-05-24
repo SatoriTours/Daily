@@ -106,10 +106,11 @@ class BookSearchViewModel(
                 )
                 insertedBookId = bookId
                 _state.update { it.copy(analysisStep = "正在提炼核心观点") }
-                val viewpoints = bookIntelligenceService.generateViewpoints(result)
+                val generationResult = bookIntelligenceService.generateViewpoints(result)
+                val viewpointDrafts = generationResult.drafts
                 _state.update { it.copy(analysisStep = bookAnalysisGeneratingStep()) }
-                viewpoints.forEach { draft -> viewpointRepo.insert(bookId, draft.title, draft.content, draft.example) }
-                val message = bookAnalysisCompletionNotice(result.title, viewpoints.size)
+                viewpointDrafts.forEach { draft -> viewpointRepo.insert(bookId, draft.title, draft.content, draft.example) }
+                val message = bookAnalysisCompletionNotice(result.title, viewpointDrafts.size)
                 _state.update {
                     it.copy(
                         isAnalyzing = false,
