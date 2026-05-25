@@ -93,7 +93,11 @@ private fun ReferenceDetailContent(
             title = state.viewpoint.title,
             content = state.viewpoint.content,
             example = state.viewpoint.example,
-            bookTitle = state.book?.let { "《${it.title}》 · ${it.author}" }.orEmpty(),
+            bookTitle = state.book?.title.orEmpty(),
+            author = state.book?.author.orEmpty(),
+            page = 0,
+            total = 1,
+            showProgress = false,
         )
         state.book != null -> BookReferenceSummary(state.book)
         else -> EmptyState(

@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.book
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import java.io.File
 
@@ -15,19 +16,27 @@ class BooksScreenUiTextTest {
     }
 
     @Test
-    fun immersiveReaderExposesCurrentBookProgressAndBottomNavigation() {
+    fun immersiveReaderRemovesChromeAndKeepsSwipePaging() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
+        val readerFlow = source.extractBetween(
+            start = "            } else {\n                val pagerState = rememberPagerState(",
+            end = "\n    if (inlineMode != BooksInlineMode.Reading)",
+        )
+        val pagerBlock = readerFlow.extractCallBlock("HorizontalPager(")
 
         assertEquals("读书", booksReaderTitle(null, null))
         assertEquals("原则", booksReaderTitle("原则", "Ray Dalio"))
-        assertEquals("Ray Dalio", booksReaderSubtitle("原则", "Ray Dalio"))
         assertEquals("3 / 18", booksReadingProgressText(page = 2, total = 18))
-        assertEquals("上一条", booksPreviousViewpointText())
-        assertEquals("下一条", booksNextViewpointText())
         assertEquals("更多读书操作", booksMoreActionsContentDescription())
-        assertTrue(source.contains("BookReadingProgressStrip("))
-        assertTrue(source.contains("BookReadingNavigationBar("))
-        assertTrue(source.contains("pagerState.animateScrollToPage"))
+        assertTrue(readerFlow.contains("HorizontalPager("))
+        assertTrue(pagerBlock.contains("ViewpointCard("))
+        assertTrue(pagerBlock.contains("page = page,"))
+        assertTrue(pagerBlock.contains("total = state.viewpoints.size"))
+        assertTrue(pagerBlock.contains("bookTitle = currentBook?.title.orEmpty()"))
+        assertTrue(pagerBlock.contains("author = currentBook?.author.orEmpty()"))
+        assertFalse(readerFlow.contains("BookReadingProgressStrip("))
+        assertFalse(readerFlow.contains("BookReadingNavigationBar("))
+        assertFalse(readerFlow.contains("pagerState.animateScrollToPage"))
     }
 
     @Test
@@ -94,5 +103,31 @@ class BooksScreenUiTextTest {
         assertEquals(true, booksPickerRowUsesFixedHeight())
         assertEquals(true, booksPickerRowTextUsesSingleLine())
         assertEquals(true, booksSwipeDeleteUsesJoinedEdgeShapes())
+    }
+
+    private fun String.extractBetween(start: String, end: String): String {
+        assertTrue(contains(start), "Missing start anchor: $start")
+        val afterStart = substringAfter(start)
+        assertTrue(afterStart.contains(end), "Missing end anchor after $start: $end")
+        return afterStart.substringBefore(end)
+    }
+
+    private fun String.extractCallBlock(anchor: String): String {
+        assertTrue(contains(anchor), "Missing call anchor: $anchor")
+        val start = indexOf(anchor)
+        val bodyStart = indexOf('{', start)
+        assertTrue(bodyStart >= 0, "Missing block body for call anchor: $anchor")
+
+        var depth = 0
+        for (index in bodyStart until length) {
+            when (this[index]) {
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) return substring(start, index + 1)
+                }
+            }
+        }
+        throw AssertionError("Missing closing brace for call anchor: $anchor")
     }
 }
