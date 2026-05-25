@@ -134,9 +134,9 @@ class BookSearchUiTextTest {
 
     @Test
     fun appendsAiGeneratedDisclosureForFallbackViewpoints() {
-        assertEquals("观点由 AI 生成，非微信读书内容", bookAiGeneratedDisclosure())
+        assertEquals("基于微信读书资料由 AI 生成", bookAiGeneratedDisclosure())
         assertEquals(
-            "《待上架新书》已添加，10 个观点已生成（观点由 AI 生成，非微信读书内容）",
+            "《待上架新书》已添加，10 个观点已生成（基于微信读书资料由 AI 生成）",
             bookAnalysisCompletionNotice("待上架新书", 10, com.dailysatori.service.book.BookViewpointSource.AiFallback),
         )
         assertEquals(

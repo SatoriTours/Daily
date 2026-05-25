@@ -26,17 +26,25 @@ class BooksScreenUiTextTest {
 
         assertEquals("读书", booksReaderTitle(null, null))
         assertEquals("原则", booksReaderTitle("原则", "Ray Dalio"))
-        assertEquals("3 / 18", booksReadingProgressText(page = 2, total = 18))
         assertEquals("更多读书操作", booksMoreActionsContentDescription())
         assertTrue(readerFlow.contains("HorizontalPager("))
         assertTrue(pagerBlock.contains("ViewpointCard("))
-        assertTrue(pagerBlock.contains("page = page,"))
-        assertTrue(pagerBlock.contains("total = state.viewpoints.size"))
         assertTrue(pagerBlock.contains("bookTitle = currentBook?.title.orEmpty()"))
         assertTrue(pagerBlock.contains("author = currentBook?.author.orEmpty()"))
+        assertFalse(pagerBlock.contains("showProgress = true"))
         assertFalse(readerFlow.contains("BookReadingProgressStrip("))
         assertFalse(readerFlow.contains("BookReadingNavigationBar("))
         assertFalse(readerFlow.contains("pagerState.animateScrollToPage"))
+    }
+
+    @Test
+    fun viewpointReaderCentersTitleAndHidesProgressByDefault() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
+
+        assertTrue(source.contains("showProgress: Boolean = false"))
+        assertTrue(source.contains("textAlign = TextAlign.Center"))
+        assertTrue(source.contains("horizontalAlignment = Alignment.CenterHorizontally"))
+        assertFalse(source.contains("Modifier.weight(1f)"))
     }
 
     @Test

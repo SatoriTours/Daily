@@ -345,14 +345,15 @@ class WeReadSkillServiceTest {
 
         assertTrue(prompt.contains("只返回 JSON 数组"))
         assertTrue(prompt.contains("10 个对象"))
-        assertTrue(prompt.contains("AI 生成"))
+        assertTrue(prompt.contains("由 AI 根据可用资料提炼"))
         assertTrue(prompt.contains("不能声称来自微信读书书评或原文"))
         assertTrue(prompt.contains("书中核心观点"))
         assertTrue(prompt.contains("不要写书评"))
         assertTrue(prompt.contains("不要写读后感"))
-        assertTrue(prompt.contains("观点总结控制在 40 到 90 个中文字符"))
-        assertTrue(prompt.contains("书中情境"))
-        assertTrue(prompt.contains("像一个小故事"))
+        assertTrue(prompt.contains("控制在 80 到 160 个中文字符"))
+        assertTrue(prompt.contains("风险、条件和边界"))
+        assertTrue(prompt.contains("直接讲故事"))
+        assertTrue(prompt.contains("不要写“在某某书中”“书中情境”"))
         assertTrue(prompt.contains("供应链架构师"))
     }
 

@@ -73,6 +73,47 @@ class BookIntelligenceServiceTest {
     }
 
     @Test
+    fun weReadMaterialIsAlwaysSentToAiForViewpointGeneration() = runBlocking {
+        val aiDrafts = (1..10).map { index ->
+            BookViewpointDraft(
+                title = "观点 $index",
+                content = "这个观点说明行动必须先确认风险来源、现实条件和可接受边界，避免把态度误当方案。",
+                example = "一个团队准备推进改革时，负责人先判断阻力来自预算、人手还是外部时间窗口，再确认现有资源能否支撑改变，最后划定哪些步骤必须推进、哪些风险不能触碰。这样行动既不空喊口号，也不盲目冒进。",
+            )
+        }
+        val generator = RecordingBookAiFallbackGenerator(aiDrafts)
+        val result = selectWeReadOrAiViewpoints(
+            book = BookSearchResult(title = "实践论", author = "毛泽东"),
+            info = WeReadBookInfo(bookId = "1", title = "实践论", author = "毛泽东", intro = "认识来自实践，并回到实践中接受检验。"),
+            chapters = (1..10).map { WeReadChapter(chapterUid = it, chapterIdx = it, title = "第 $it 章", wordCount = 1000) },
+            reviews = listOf(WeReadReview(content = "这本书强调从具体矛盾中形成判断。")),
+            aiFallbackGenerator = generator,
+        )
+
+        assertEquals(BookViewpointSource.AiFallback, result.source)
+        assertEquals(aiDrafts, result.drafts)
+        assertEquals("实践论", generator.info?.title)
+        assertEquals(10, generator.chapters.size)
+        assertEquals(1, generator.reviews.size)
+    }
+
+    @Test
+    fun aiFallbackPromptRequiresRiskConditionBoundaryAndDirectStories() {
+        val prompt = buildAiFallbackViewpointPrompt(
+            book = BookSearchResult(title = "实践论", author = "毛泽东", category = "哲学"),
+            info = WeReadBookInfo(bookId = "1", title = "实践论", author = "毛泽东", intro = "认识来自实践。"),
+            chapters = listOf(WeReadChapter(chapterUid = 1, chapterIdx = 1, title = "实践与认识")),
+            reviews = listOf(WeReadReview(content = "强调具体问题具体分析。")),
+        )
+
+        assertTrue(prompt.contains("风险"))
+        assertTrue(prompt.contains("条件"))
+        assertTrue(prompt.contains("边界"))
+        assertTrue(prompt.contains("直接讲故事"))
+        assertTrue(prompt.contains("不要写“在某某书中”“书中情境”"))
+    }
+
+    @Test
     fun doubanSubjectDetailFetchUsesShortTimeout() {
         assertTrue(doubanSubjectDetailTimeoutMs() <= 3_000L)
     }
@@ -94,6 +135,29 @@ class BookIntelligenceServiceTest {
         override suspend fun generateViewpoints(book: BookSearchResult): BookViewpointGenerationResult {
             viewpointBook = book
             return viewpoints
+        }
+    }
+
+    private class RecordingBookAiFallbackGenerator(
+        private val result: List<BookViewpointDraft>,
+    ) : BookAiFallbackGenerator {
+        var info: WeReadBookInfo? = null
+            private set
+        var chapters: List<WeReadChapter> = emptyList()
+            private set
+        var reviews: List<WeReadReview> = emptyList()
+            private set
+
+        override suspend fun generate(
+            book: BookSearchResult,
+            info: WeReadBookInfo,
+            chapters: List<WeReadChapter>,
+            reviews: List<WeReadReview>,
+        ): List<BookViewpointDraft> {
+            this.info = info
+            this.chapters = chapters
+            this.reviews = reviews
+            return result
         }
     }
 }

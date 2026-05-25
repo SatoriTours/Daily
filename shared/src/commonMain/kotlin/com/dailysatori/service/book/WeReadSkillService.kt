@@ -215,10 +215,6 @@ suspend fun selectWeReadOrAiViewpoints(
     reviews: List<WeReadReview>,
     aiFallbackGenerator: BookAiFallbackGenerator,
 ): BookViewpointGenerationResult {
-    val weReadDrafts = buildWeReadViewpointDrafts(info, chapters, reviews)
-    if (hasSufficientWeReadMaterial(info, chapters, reviews, weReadDrafts)) {
-        return BookViewpointGenerationResult(weReadDrafts, BookViewpointSource.WeRead)
-    }
     val aiDrafts = aiFallbackGenerator.generate(book, info, chapters, reviews)
     if (aiDrafts.size < 10) {
         throw WeReadSkillException(WeReadSkillErrorType.AiFallbackFailure, "AI 观点生成失败，请稍后重试")
@@ -367,8 +363,8 @@ fun buildAiFallbackViewpointPrompt(
     val chapterText = chapters.take(8).joinToString("、") { it.title }
     val reviewText = reviews.take(3).joinToString("\n") { it.content }
     return """
-        请为一本微信读书已返回但资料不足的书生成 10 个书中核心观点卡片。
-        这些观点是 AI 生成，不能声称来自微信读书书评或原文。
+        请基于微信读书接口返回的书籍资料生成 10 个书中核心观点卡片。
+        这些观点由 AI 根据可用资料提炼，不能声称来自微信读书书评或原文。
         目标是提炼书里的关键主张、论点、方法和判断标准，不要写书评，不要写读后感，不要评价这本书好不好。
 
         书名：$title
@@ -381,8 +377,9 @@ fun buildAiFallbackViewpointPrompt(
         只返回 JSON 数组，不要 Markdown、解释或额外文本。
         数组必须包含 10 个对象，每个对象必须包含字段：title、content、example。
         title 必须是完整判断句，直接表达书中观点。
-        content 是观点总结控制在 40 到 90 个中文字符，只说明书中的核心主张、适用条件和边界。
-        example 至少 120 个中文字符，优先复述书中情境，像一个小故事，写清人物或组织、冲突、行动、转折和结果。
+        content 是观点总结，控制在 80 到 160 个中文字符，必须讲清核心主张，并同时解释风险、条件和边界。
+        example 至少 120 个中文字符，直接讲故事，不要写“在某某书中”“书中情境”这类套话；故事要写清人物或组织、冲突、行动、转折和结果。
+        如果资料有限，可以做合理概括，但不要编造书中原文、页码、章节细节或具体引文。
     """.trimIndent()
 }
 

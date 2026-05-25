@@ -2,12 +2,9 @@ package com.dailysatori.ui.feature.book
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -32,7 +29,7 @@ fun ViewpointCard(
     total: Int,
     modifier: Modifier = Modifier,
     fillAvailableHeight: Boolean = false,
-    showProgress: Boolean = true,
+    showProgress: Boolean = false,
 ) {
     val contentModifier = if (fillAvailableHeight) modifier.fillMaxWidth().fillMaxHeight() else modifier.fillMaxWidth()
     Column(
@@ -63,31 +60,36 @@ private fun ViewpointHeader(
     total: Int,
     showProgress: Boolean,
 ) {
-    Row(verticalAlignment = Alignment.Top) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Text(
             text = viewpointDisplayTitle(title, bookTitle),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
+
+        viewpointBookLine(bookTitle, author).takeIf { it.isNotBlank() }?.let { line ->
+            Text(
+                text = line,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
         if (showProgress) {
-            Spacer(modifier = Modifier.width(Spacing.s))
             Text(
                 text = booksReadingProgressText(page, total),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
         }
-    }
-
-    viewpointBookLine(bookTitle, author).takeIf { it.isNotBlank() }?.let { line ->
-        Text(
-            text = line,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.End,
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 

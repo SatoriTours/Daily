@@ -65,7 +65,7 @@ class ViewpointCardLayoutTest {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
         val body = source.extractCallBlock("fun ViewpointCard(")
 
-        assertTrue(body.contains("showProgress: Boolean = true"))
+        assertTrue(body.contains("showProgress: Boolean = false"))
         assertTrue(body.contains("showProgress = showProgress"))
     }
 

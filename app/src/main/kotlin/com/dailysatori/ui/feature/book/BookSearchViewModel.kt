@@ -165,7 +165,7 @@ fun bookAnalysisStartStep(title: String): String = "正在添加《$title》"
 
 fun bookAnalysisGeneratingStep(): String = "正在生成观点卡片"
 
-fun bookAiGeneratedDisclosure(): String = "观点由 AI 生成，非微信读书内容"
+fun bookAiGeneratedDisclosure(): String = "基于微信读书资料由 AI 生成"
 
 fun bookAnalysisCompletionNotice(
     title: String,
