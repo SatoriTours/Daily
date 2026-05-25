@@ -26,7 +26,7 @@ class CompactTitleSpacingTest {
             end = "MarkdownContent(",
         )
 
-        assertTrue(firstBodyWrapper.contains("Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s))"))
+        assertTrue(firstBodyWrapper.contains("Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s))"))
         assertFalse(firstBodyWrapper.contains("Box(modifier = Modifier.padding(Spacing.m))"))
     }
 
@@ -38,7 +38,7 @@ class CompactTitleSpacingTest {
             end = "RemoteArticleMarkdownContent(",
         )
 
-        assertTrue(firstBodyWrapper.contains("Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s))"))
+        assertTrue(firstBodyWrapper.contains("Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s))"))
         assertFalse(firstBodyWrapper.contains("Box(modifier = Modifier.padding(Spacing.m))"))
     }
 }
