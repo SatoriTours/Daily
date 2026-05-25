@@ -145,10 +145,57 @@ class WeReadSkillServiceTest {
 
         assertEquals(10, drafts.size)
         assertTrue(drafts.first().title.contains("三体"))
-        assertTrue(drafts.first().content.length >= 80)
-        assertTrue(drafts.first().example.length >= 100)
+        assertTrue(drafts.first().content.length >= 40)
+        assertTrue(drafts.first().example.length >= 120)
         assertTrue(drafts.any { it.content.contains("科学边界") || it.content.contains("三体问题") })
-        assertTrue(drafts.any { it.content.contains("文明选择") || it.example.contains("文明选择") })
+        assertTrue(drafts.any { it.content.contains("条件、矛盾和后果") || it.example.contains("局势混乱") })
+    }
+
+    @Test
+    fun weReadViewpointsExtractBookArgumentsInsteadOfReviews() {
+        val drafts = buildWeReadViewpointDrafts(
+            info = WeReadBookInfo(
+                bookId = "mao-1",
+                title = "毛泽东选集",
+                author = "毛泽东",
+                intro = "围绕中国革命的基本问题，分析阶级、群众、实践、矛盾和统一战线等关键主题。",
+            ),
+            chapters = listOf(
+                WeReadChapter(chapterUid = 1, chapterIdx = 1, title = "实践论"),
+                WeReadChapter(chapterUid = 2, chapterIdx = 2, title = "矛盾论"),
+            ),
+            reviews = listOf(WeReadReview("不要把这本书写成读后感，而要提炼书中的论点。")),
+        )
+
+        val text = drafts.joinToString("\n") { "${it.title}\n${it.content}\n${it.example}" }
+        val reviewTerms = listOf("书评", "读者", "读完", "评价一本书", "读后感", "金句")
+
+        assertEquals(10, drafts.size)
+        assertTrue(drafts.any { it.content.contains("实践论") || it.content.contains("矛盾论") })
+        assertTrue(reviewTerms.none { it in text }, text)
+    }
+
+    @Test
+    fun weReadViewpointsUseShortSummaryAndBookContextStory() {
+        val drafts = buildWeReadViewpointDrafts(
+            info = WeReadBookInfo(
+                bookId = "mao-1",
+                title = "毛泽东选集",
+                author = "毛泽东",
+                intro = "围绕中国革命的基本问题，分析阶级、群众、实践、矛盾和统一战线等关键主题。",
+            ),
+            chapters = listOf(
+                WeReadChapter(chapterUid = 1, chapterIdx = 1, title = "实践论"),
+                WeReadChapter(chapterUid = 2, chapterIdx = 2, title = "矛盾论"),
+            ),
+            reviews = emptyList(),
+        )
+
+        assertEquals(10, drafts.size)
+        assertTrue(drafts.all { it.content.length in 40..95 })
+        assertTrue(drafts.all { it.example.length >= 120 })
+        assertTrue(drafts.any { it.example.contains("实践论") || it.example.contains("矛盾论") })
+        assertTrue(drafts.any { it.example.contains("先") && it.example.contains("再") })
     }
 
     @Test
@@ -243,7 +290,7 @@ class WeReadSkillServiceTest {
     fun parsesDetailedAiFallbackViewpointsOnly() {
         val json = """
             [
-              {"title":"待上架书也要先界定真实问题。","content":"当一本书还没有完整目录和书评时，观点生成不能假装拥有微信读书材料，而应基于书名、作者、简介和分类先界定读者可能面对的真实问题。这样生成的内容虽然来自 AI，但仍然围绕已知元数据展开，避免把不存在的章节或读者评价写成事实。","example":"例如一位读者想添加一本待上架的供应链新书，微信读书只返回书名、作者和一句简介。系统没有编造目录，而是把简介里的产业协同作为主题，让 AI 生成一个具体场景：采购、仓储和销售团队因为预测口径不同导致缺货，再说明如何用统一指标协调下一步动作。"},
+              {"title":"待上架书也要先界定真实问题。","content":"资料不足时，观点只能围绕书名、作者和简介界定问题，不能假装拥有原文或不存在的章节。","example":"例如一本供应链新书还未正式上架，系统只知道书名、作者和一句简介。案例里，一家制造企业先发现采购、仓储和销售各自使用不同预测口径，会议一度互相推责；负责人再把简介中的端到端协同作为线索，追问订单、库存和交付为何脱节，最后用统一指标重新安排补货节奏，避免把缺货责任简单推给某个部门。"},
               {"title":"太短","content":"短","example":"短"}
             ]
         """.trimIndent()
@@ -258,7 +305,7 @@ class WeReadSkillServiceTest {
     fun rejectsAiFallbackViewpointsWithTerseTitle() {
         val json = """
             [
-              {"title":"短","content":"当一本书还没有完整目录和书评时，观点生成不能假装拥有微信读书材料，而应基于书名、作者、简介和分类先界定读者可能面对的真实问题。这样生成的内容虽然来自 AI，但仍然围绕已知元数据展开，避免把不存在的章节或读者评价写成事实。","example":"例如一位读者想添加一本待上架的供应链新书，微信读书只返回书名、作者和一句简介。系统没有编造目录，而是把简介里的产业协同作为主题，让 AI 生成一个具体场景：采购、仓储和销售团队因为预测口径不同导致缺货，再说明如何用统一指标协调下一步动作。"}
+              {"title":"短","content":"资料不足时，观点只能围绕书名、作者和简介界定问题，不能假装拥有原文或不存在的章节。","example":"例如一本供应链新书还未正式上架，系统只知道书名、作者和一句简介。案例里，一家制造企业先发现采购、仓储和销售各自使用不同预测口径，会议一度互相推责；负责人再把简介中的端到端协同作为线索，追问订单、库存和交付为何脱节，最后用统一指标重新安排补货节奏，避免把缺货责任简单推给某个部门。"}
             ]
         """.trimIndent()
 
@@ -271,8 +318,8 @@ class WeReadSkillServiceTest {
     fun skipsMalformedAiFallbackViewpointFields() {
         val json = """
             [
-              {"title":{"text":"标题不是字符串"},"content":["内容不是字符串"],"example":"例如一位读者想添加一本待上架的供应链新书，微信读书只返回书名、作者和一句简介。系统没有编造目录，而是把简介里的产业协同作为主题，让 AI 生成一个具体场景：采购、仓储和销售团队因为预测口径不同导致缺货，再说明如何用统一指标协调下一步动作。"},
-              {"title":"待上架书也要先界定真实问题。","content":"当一本书还没有完整目录和书评时，观点生成不能假装拥有微信读书材料，而应基于书名、作者、简介和分类先界定读者可能面对的真实问题。这样生成的内容虽然来自 AI，但仍然围绕已知元数据展开，避免把不存在的章节或读者评价写成事实。","example":"例如一位读者想添加一本待上架的供应链新书，微信读书只返回书名、作者和一句简介。系统没有编造目录，而是把简介里的产业协同作为主题，让 AI 生成一个具体场景：采购、仓储和销售团队因为预测口径不同导致缺货，再说明如何用统一指标协调下一步动作。"}
+              {"title":{"text":"标题不是字符串"},"content":["内容不是字符串"],"example":"例如一本供应链新书还未正式上架，系统只知道书名、作者和一句简介。案例里，一家制造企业先发现采购、仓储和销售各自使用不同预测口径，会议一度互相推责；负责人再把简介中的端到端协同作为线索，追问订单、库存和交付为何脱节，最后用统一指标重新安排补货节奏，避免把缺货责任简单推给某个部门。"},
+              {"title":"待上架书也要先界定真实问题。","content":"资料不足时，观点只能围绕书名、作者和简介界定问题，不能假装拥有原文或不存在的章节。","example":"例如一本供应链新书还未正式上架，系统只知道书名、作者和一句简介。案例里，一家制造企业先发现采购、仓储和销售各自使用不同预测口径，会议一度互相推责；负责人再把简介中的端到端协同作为线索，追问订单、库存和交付为何脱节，最后用统一指标重新安排补货节奏，避免把缺货责任简单推给某个部门。"}
             ]
         """.trimIndent()
 
@@ -300,6 +347,12 @@ class WeReadSkillServiceTest {
         assertTrue(prompt.contains("10 个对象"))
         assertTrue(prompt.contains("AI 生成"))
         assertTrue(prompt.contains("不能声称来自微信读书书评或原文"))
+        assertTrue(prompt.contains("书中核心观点"))
+        assertTrue(prompt.contains("不要写书评"))
+        assertTrue(prompt.contains("不要写读后感"))
+        assertTrue(prompt.contains("观点总结控制在 40 到 90 个中文字符"))
+        assertTrue(prompt.contains("书中情境"))
+        assertTrue(prompt.contains("像一个小故事"))
         assertTrue(prompt.contains("供应链架构师"))
     }
 

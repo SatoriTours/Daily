@@ -191,7 +191,7 @@ fun hasSufficientWeReadMaterial(
         hasSupportMaterial &&
         materialLength >= 40 &&
         drafts.size >= 10 &&
-        drafts.all { it.content.length >= 80 && it.example.length >= 100 }
+        drafts.all { it.content.length >= 40 && it.example.length >= 120 }
 }
 
 fun requireAiFallbackConfig(config: Ai_config?): Ai_config {
@@ -329,18 +329,22 @@ fun buildWeReadViewpointDrafts(
     val author = info.author.ifBlank { "作者" }
     val intro = info.intro.ifBlank { "它提供了一套观察个人选择、组织行动与长期结果之间关系的框架。" }
     val chapterText = chapters.take(3).joinToString("、") { it.title }.ifBlank { "核心章节" }
-    val reviewText = reviews.firstOrNull()?.content ?: "读者反馈强调它能把抽象问题转化为可感知的压力与选择。"
+    val reviewText = if (reviews.any { it.content.isNotBlank() }) {
+        "可用补充材料提示这本书关注抽象问题如何转化为现实压力与选择。"
+    } else {
+        "简介和目录提示这本书关注抽象问题如何转化为现实压力与选择。"
+    }
     val themes = listOf(
-        "先识别系统压力，再评价个人选择",
+        "先识别系统压力，再判断行动选择",
         "把不确定性拆成可讨论的具体约束",
-        "章节线索能帮助读者建立递进理解",
-        "读者共鸣来自把宏大问题落到日常判断",
-        "好观点需要同时解释风险和行动边界",
-        "评价一本书要看它是否改变问题意识",
-        "从作者结构里寻找反复出现的因果链",
-        "把书评当作理解偏差的补充样本",
+        "核心概念需要放回历史条件和现实关系中理解",
+        "宏大问题必须落到具体矛盾和具体判断",
+        "有效行动要同时解释风险、条件和边界",
+        "理论价值取决于它能否改变问题意识",
+        "从论述结构里寻找反复出现的因果链",
+        "用事实材料校正抽象判断中的理解偏差",
         "从关键章节提炼可迁移的判断标准",
-        "读完之后要形成能复用的行动语言",
+        "把书中主张转化为能复用的行动语言",
     )
     return themes.mapIndexed { index, theme ->
         BookViewpointDraft(
@@ -363,8 +367,9 @@ fun buildAiFallbackViewpointPrompt(
     val chapterText = chapters.take(8).joinToString("、") { it.title }
     val reviewText = reviews.take(3).joinToString("\n") { it.content }
     return """
-        请为一本微信读书已返回但资料不足的书生成 10 个观点卡片。
+        请为一本微信读书已返回但资料不足的书生成 10 个书中核心观点卡片。
         这些观点是 AI 生成，不能声称来自微信读书书评或原文。
+        目标是提炼书里的关键主张、论点、方法和判断标准，不要写书评，不要写读后感，不要评价这本书好不好。
 
         书名：$title
         作者：$author
@@ -375,9 +380,9 @@ fun buildAiFallbackViewpointPrompt(
 
         只返回 JSON 数组，不要 Markdown、解释或额外文本。
         数组必须包含 10 个对象，每个对象必须包含字段：title、content、example。
-        title 必须是完整判断句。
-        content 至少 80 个中文字符，说明观点的原因、边界和判断标准。
-        example 至少 100 个中文字符，必须是具体场景，写清人物或组织、问题、动作和结果。
+        title 必须是完整判断句，直接表达书中观点。
+        content 是观点总结控制在 40 到 90 个中文字符，只说明书中的核心主张、适用条件和边界。
+        example 至少 120 个中文字符，优先复述书中情境，像一个小故事，写清人物或组织、冲突、行动、转折和结果。
     """.trimIndent()
 }
 
@@ -389,7 +394,7 @@ fun parseAiFallbackViewpointJson(response: String): List<BookViewpointDraft> {
         val title = obj.stringValue("title").trim()
         val content = obj.stringValue("content").trim()
         val example = obj.stringValue("example").trim()
-        if (title.length < 4 || content.length < 80 || example.length < 100) return@mapNotNull null
+        if (title.length < 4 || content.length < 40 || example.length < 120) return@mapNotNull null
         BookViewpointDraft(title = title, content = content, example = example)
     }.take(10)
 }
@@ -464,7 +469,7 @@ private fun buildWeReadContent(
     reviewText: String,
     theme: String,
     index: Int,
-): String = "$theme，是阅读《${title}》时最值得沉淀的第${index + 1}个判断。$author 在书中呈现的核心背景是：$intro 结合 $chapterText 等章节，可以看到问题并不是单点技巧，而是环境、选择和后果连续作用。读者提到“${reviewText.take(36)}”，这说明观点必须回到具体压力中验证，才能真正转化为稳定的理解。"
+): String = "$theme：先看${chapterText.take(10)}中的条件、矛盾和后果，再判断行动边界。"
 
 private fun buildWeReadExample(
     title: String,
@@ -472,7 +477,7 @@ private fun buildWeReadExample(
     reviewText: String,
     theme: String,
     index: Int,
-): String = "例如一位读者读完《${title}》后，没有只记录金句，而是把第${index + 1}个观点“$theme”写进自己的工作复盘。他先对照 $chapterText 梳理事件顺序，再把书评里提到的“${reviewText.take(36)}”当作提醒，重新描述团队遇到的真实约束、误判来源和下一步动作。这样做之后，讨论不再停留在感受层面，而能形成可执行的判断标准。"
+): String = "在《${title}》的书中情境里，围绕 $chapterText 展开的不是抽象口号，而是一段有压力的判断过程。主人公或组织先遇到局势混乱、信息不足和目标冲突，再用“$theme”重新分辨主要矛盾，随后调整行动顺序。转折发生在他们不再凭情绪下结论，而是把“${reviewText.take(24)}”放进具体条件中检验，最后才形成能够推动局面的判断。"
 
 private fun Any.toJsonPrimitive(): JsonPrimitive = when (this) {
     is Number -> JsonPrimitive(this)
