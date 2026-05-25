@@ -1,6 +1,7 @@
 package com.dailysatori.ui.feature.remotenews
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +54,7 @@ import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.article.articleCoverHeightAfterScroll
 import com.dailysatori.ui.feature.article.articleCoverMaxHeightDp
 import com.dailysatori.ui.feature.article.openArticleUrl
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -149,7 +151,7 @@ fun RemoteArticleDetailScreen(
                             .nestedScroll(nestedScrollConnection),
                     ) {
                         item(key = "remote-content-$page") {
-                            Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s)) {
+                            Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)) {
                                 RemoteArticleMarkdownContent(
                                     remoteArticleDetailPageContent(
                                         page = page,
@@ -203,10 +205,11 @@ private fun RemoteArticleMarkdownContent(content: String) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),
     ) {
         SelectionContainer {
-            Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s)) {
+            Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.m)) {
                 Markdown(
                     content = content,
                     typography = MarkdownStyles.remoteArticleTypography(),

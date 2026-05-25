@@ -46,7 +46,7 @@ fun RemoteDigestDetailScreen(
         LazyColumn(
             modifier = modifier,
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
-            contentPadding = PaddingValues(Spacing.m),
+            contentPadding = PaddingValues(horizontal = Spacing.l, vertical = Spacing.m),
         ) {
             item { DigestBody(digest) }
             if (digest.articles.isNotEmpty()) {

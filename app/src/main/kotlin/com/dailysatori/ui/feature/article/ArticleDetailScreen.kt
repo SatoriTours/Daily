@@ -239,7 +239,7 @@ fun ArticleDetailScreen(
                                     .nestedScroll(nestedScrollConnection),
                             ) {
                                 item(key = "content-$page") {
-                                    Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s)) {
+                                    Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)) {
                                         MarkdownContent(
                                             articleDetailPageContent(
                                                 page = page,

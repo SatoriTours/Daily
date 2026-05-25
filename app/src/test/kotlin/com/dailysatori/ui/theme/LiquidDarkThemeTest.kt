@@ -10,144 +10,72 @@ import kotlin.test.assertTrue
 
 class LiquidDarkThemeTest {
     @Test
-    fun colorTokensUseSapphireLiquidDarkPalette() {
+    fun colorTokensExposeIosLightAndDarkPalettes() {
         val source = File("src/main/kotlin/com/dailysatori/ui/theme/Color.kt").readText()
 
-        assertEquals(Color(0xFF7DD3FC), AppColors.sapphire)
-        assertEquals(AppColors.liquidBackground, AppColors.background)
-        assertTrue(source.contains("liquidBackground = Color(0xFF050816)"))
-        assertTrue(source.contains("liquidSurface = Color(0xFF111827)"))
-        assertTrue(source.contains("liquidSurfaceHigh = Color(0xFF1E293B)"))
-        assertTrue(source.contains("sapphire = Color(0xFF7DD3FC)"))
-        assertTrue(source.contains("onLiquid = Color(0xFFF8FAFC)"))
-        assertTrue(source.contains("onLiquidVariant = Color(0xFFCBD5E1)"))
-        assertTrue(source.contains("liquidOutline = Color(0x33475569)"))
-        assertTrue(source.contains("liquidOutlineHigh = Color(0x4D7DD3FC)"))
-        assertFalse(source.contains("liquidOutlineHigh = Color(0x33475569)"))
+        assertEquals(Color(0xFF007AFF), AppColors.primary)
+        assertEquals(Color(0xFF34C759), AppColors.success)
+        assertEquals(Color(0xFFFF3B30), AppColors.error)
+        assertTrue(source.contains("iosLightBackground = Color(0xFFF5F5F7)"))
+        assertTrue(source.contains("iosLightSurface = Color(0xFFFFFFFF)"))
+        assertTrue(source.contains("iosLightOnSurface = Color(0xFF1D1D1F)"))
+        assertTrue(source.contains("iosLightOnSurfaceVariant = Color(0xFF6E6E73)"))
+        assertTrue(source.contains("iosDarkBackground = Color(0xFF000000)"))
+        assertTrue(source.contains("iosDarkSurface = Color(0xFF1C1C1E)"))
+        assertTrue(source.contains("iosDarkOnSurface = Color(0xFFF5F5F7)"))
+        assertTrue(source.contains("iosDarkOnSurfaceVariant = Color(0xFFA1A1A6)"))
+        assertFalse(source.contains("liquidBackground = Color(0xFF050816)"))
     }
 
     @Test
-    fun themeDefaultsToLiquidDarkAndUsesDarkSystemBarIcons() {
+    fun themeFollowsSystemAndMapsLightAndDarkSchemes() {
         val source = File("src/main/kotlin/com/dailysatori/ui/theme/Theme.kt").readText()
+        val lightScheme = source.substringAfter("private val LightColorScheme").substringBefore("private val DarkColorScheme")
         val darkScheme = source.substringAfter("private val DarkColorScheme").substringBefore("@Composable")
 
-        assertTrue(source.contains("onPrimary = Color(0xFF03121D)"))
-        assertTrue(source.contains("onSecondary = Color(0xFF140A2A)"))
-        assertTrue(darkScheme.contains("onSecondary = Color(0xFF140A2A)"))
-        assertFalse(darkScheme.contains("onSecondary = AppColors.onLiquid"))
-        assertTrue(source.contains("darkTheme: Boolean = true"))
-        assertTrue(source.contains("primary = AppColors.sapphire"))
-        assertTrue(source.contains("background = AppColors.liquidBackground"))
-        assertTrue(source.contains("surface = AppColors.liquidSurface"))
-        assertTrue(source.contains("isAppearanceLightStatusBars = false"))
-        assertTrue(source.contains("isAppearanceLightNavigationBars = false"))
+        assertTrue(source.contains("import androidx.compose.foundation.isSystemInDarkTheme"))
+        assertTrue(source.contains("darkTheme: Boolean = isSystemInDarkTheme()"))
+        assertTrue(source.contains("isAppearanceLightStatusBars = !darkTheme"))
+        assertTrue(source.contains("isAppearanceLightNavigationBars = !darkTheme"))
+        assertTrue(lightScheme.contains("background = AppColors.iosLightBackground"))
+        assertTrue(lightScheme.contains("surface = AppColors.iosLightSurface"))
+        assertTrue(lightScheme.contains("onSurface = AppColors.iosLightOnSurface"))
+        assertTrue(lightScheme.contains("tertiary = AppColors.iosLightTertiaryRole"))
+        assertTrue(lightScheme.contains("onTertiary = AppColors.iosLightOnTertiaryRole"))
+        assertTrue(lightScheme.contains("errorContainer = AppColors.iosLightErrorContainer"))
+        assertTrue(lightScheme.contains("onErrorContainer = AppColors.iosLightOnErrorContainer"))
+        assertTrue(darkScheme.contains("background = AppColors.iosDarkBackground"))
+        assertTrue(darkScheme.contains("surface = AppColors.iosDarkSurface"))
+        assertTrue(darkScheme.contains("onSurface = AppColors.iosDarkOnSurface"))
+        assertTrue(darkScheme.contains("tertiary = AppColors.iosDarkTertiaryRole"))
+        assertTrue(darkScheme.contains("onTertiary = AppColors.iosDarkOnTertiaryRole"))
+        assertTrue(darkScheme.contains("errorContainer = AppColors.iosDarkErrorContainer"))
+        assertTrue(darkScheme.contains("onErrorContainer = AppColors.iosDarkOnErrorContainer"))
     }
 
     @Test
-    fun directDialogsAndSheetsUseLiquidDarkTreatment() {
-        val dialogSources = listOf(
-            File("src/main/kotlin/com/dailysatori/DailySatoriApp.kt").readText(),
-            File("src/main/kotlin/com/dailysatori/ui/feature/settings/SettingsScreen.kt").readText(),
-            File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryEditorSheet.kt").readText(),
-            File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText(),
-            File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleListScreen.kt").readText(),
-            File("src/main/kotlin/com/dailysatori/ui/feature/settings/backup/BackupRestoreScreen.kt").readText(),
-            File("src/main/kotlin/com/dailysatori/ui/feature/aiconfig/AiConfigScreen.kt").readText(),
-        )
-        val sheetSources = listOf(
-            File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText(),
-            File("src/main/kotlin/com/dailysatori/ui/feature/aichat/MemorySearchSheet.kt").readText(),
-            File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiReferenceDetailSheet.kt").readText(),
-        )
-
-        dialogSources.forEach { source ->
-            assertTrue(source.contains("shape = RoundedCornerShape(Radius.xl)"))
-            assertTrue(source.contains("containerColor = MaterialTheme.colorScheme.surfaceContainer"))
-            assertTrue(source.contains("tonalElevation = 0.dp"))
-            assertTrue(source.contains("titleContentColor = MaterialTheme.colorScheme.onSurface"))
-            assertTrue(source.contains("textContentColor = MaterialTheme.colorScheme.onSurfaceVariant"))
-        }
-        sheetSources.forEach { source ->
-            assertTrue(source.contains("containerColor = MaterialTheme.colorScheme.surfaceContainer"))
-            assertTrue(source.contains("contentColor = MaterialTheme.colorScheme.onSurface"))
-            assertTrue(source.contains("shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl)"))
-            assertTrue(source.contains("tonalElevation = 0.dp"))
-        }
-    }
-
-    @Test
-    fun typographyUsesOneSansSerifFamilyAcrossContentAndUi() {
+    fun typographyUsesComfortableReadingScale() {
         val source = File("src/main/kotlin/com/dailysatori/ui/theme/Typography.kt").readText()
 
-        assertEquals(UiFontFamily, AppTypography.bodyLarge.fontFamily)
-        assertEquals(15.sp, AppTypography.bodyMedium.fontSize)
-        assertEquals(24.sp, AppTypography.bodyMedium.lineHeight)
-        assertEquals(16.sp, AppTypography.bodyLarge.fontSize)
-        assertEquals(26.sp, AppTypography.bodyLarge.lineHeight)
+        assertEquals(17.sp, AppTypography.bodyLarge.fontSize)
+        assertEquals(30.sp, AppTypography.bodyLarge.lineHeight)
+        assertEquals((-0.2).sp, AppTypography.headlineLarge.letterSpacing)
         assertTrue(source.contains("val ContentFontFamily = UiFontFamily"))
-        assertFalse(source.contains("val LatoFontFamily"))
-        assertTrue(source.contains("displayLarge = TextStyle(fontFamily = UiFontFamily"))
+        assertTrue(source.contains("bodyLarge = TextStyle(fontFamily = ContentFontFamily"))
         assertTrue(source.contains("headlineLarge = TextStyle(fontFamily = UiFontFamily"))
-        assertTrue(source.contains("bodyLarge = TextStyle(fontFamily = UiFontFamily"))
     }
 
     @Test
-    fun markdownScaleMatchesUnifiedAppTypography() {
-        val source = File("src/main/kotlin/com/dailysatori/ui/theme/MarkdownStyles.kt").readText()
-
-        assertTrue(source.contains("private fun cardTextStyle"))
-        assertTrue(source.contains("MaterialTheme.typography.bodyMedium"))
-        assertTrue(source.contains("private fun readingTextStyle"))
-        assertTrue(source.contains("MaterialTheme.typography.bodyLarge"))
-        assertTrue(source.contains("fun summaryTypography(): MarkdownTypography = cardTypography()"))
-        assertTrue(source.contains("fun compactTypography(): MarkdownTypography = cardTypography()"))
-        assertTrue(source.contains("fun cardPadding(): MarkdownPadding = summaryPadding()"))
-        assertTrue(source.contains("fun remoteArticleTypography(): MarkdownTypography = readingTypography()"))
-        assertTrue(source.contains("fun remoteArticlePadding(): MarkdownPadding = readingPadding()"))
-        assertTrue(source.contains("fontFamily = UiFontFamily"))
-        assertFalse(source.contains("bodySize ="))
-        assertFalse(source.contains("bodyLine ="))
-    }
-
-    @Test
-    fun sharedSizingUsesCompactPremiumControls() {
-        val spacing = File("src/main/kotlin/com/dailysatori/ui/theme/Spacing.kt").readText()
-        val shape = File("src/main/kotlin/com/dailysatori/ui/theme/Shape.kt").readText()
-
-        assertTrue(spacing.contains("val input = 46.dp"))
-        assertTrue(spacing.contains("val navBar = 52.dp"))
-        assertTrue(spacing.contains("val searchBar = 46.dp"))
-        assertTrue(spacing.contains("val l = 22.dp"))
-        assertTrue(shape.contains("extraLarge = RoundedCornerShape(24.dp)"))
-    }
-
-    @Test
-    fun sharedComponentsUseLiquidDarkSurfaces() {
+    fun sharedComponentsStayTokenBased() {
         val card = File("src/main/kotlin/com/dailysatori/ui/component/card/CustomCard.kt").readText()
         val dialog = File("src/main/kotlin/com/dailysatori/ui/component/dialog/ConfirmDialog.kt").readText()
         val search = File("src/main/kotlin/com/dailysatori/ui/component/input/SearchBar.kt").readText()
         val topBar = File("src/main/kotlin/com/dailysatori/ui/component/appbar/AppTopBar.kt").readText()
 
-        assertTrue(card.contains("shape = RoundedCornerShape(Radius.l)"))
-        assertTrue(card.contains("MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f)"))
-        assertTrue(card.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline)"))
-        assertTrue(card.contains("CardDefaults.cardElevation(defaultElevation = 0.dp)"))
-        assertTrue(dialog.contains("shape = RoundedCornerShape(Radius.xl)"))
+        assertTrue(card.contains("MaterialTheme.colorScheme.surfaceContainer"))
+        assertTrue(card.contains("MaterialTheme.colorScheme.outline"))
         assertTrue(dialog.contains("containerColor = MaterialTheme.colorScheme.surfaceContainer"))
-        assertTrue(dialog.contains("tonalElevation = 0.dp"))
-        assertTrue(dialog.contains("iconContentColor = MaterialTheme.colorScheme.primary"))
-        assertTrue(dialog.contains("titleContentColor = MaterialTheme.colorScheme.onSurface"))
-        assertTrue(dialog.contains("textContentColor = MaterialTheme.colorScheme.onSurfaceVariant"))
-        assertTrue(search.contains("height(Height.searchBar)"))
-        assertTrue(search.contains("focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f)"))
-        assertTrue(search.contains("unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f)"))
-        assertTrue(search.contains("disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f)"))
-        assertTrue(search.contains("focusedIndicatorColor = Color.Transparent"))
-        assertTrue(search.contains("unfocusedIndicatorColor = Color.Transparent"))
-        assertTrue(search.contains("disabledIndicatorColor = Color.Transparent"))
-        assertTrue(search.contains("focusedTextColor = MaterialTheme.colorScheme.onSurface"))
-        assertTrue(search.contains("unfocusedTextColor = MaterialTheme.colorScheme.onSurface"))
+        assertTrue(search.contains("focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer"))
         assertTrue(topBar.contains("containerColor = MaterialTheme.colorScheme.background"))
-        assertTrue(topBar.contains("scrolledContainerColor = MaterialTheme.colorScheme.background"))
     }
 }

@@ -32,12 +32,12 @@ object MarkdownStyles {
 
     @Composable
     fun readingPadding(): MarkdownPadding = markdownPadding(
-        block = 10.dp,
-        list = 8.dp,
-        listItemBottom = 6.dp,
-        indentList = 22.dp,
-        codeBlock = PaddingValues(12.dp),
-        blockQuote = PaddingValues(12.dp),
+        block = 14.dp,
+        list = 10.dp,
+        listItemBottom = 8.dp,
+        indentList = 24.dp,
+        codeBlock = PaddingValues(14.dp),
+        blockQuote = PaddingValues(14.dp),
         blockQuoteText = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
         blockQuoteBar = PaddingValues.Absolute(3.dp, 0.dp, 10.dp, 0.dp),
     )
@@ -104,10 +104,10 @@ object MarkdownStyles {
 private fun cardTextStyle(): TextStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = UiFontFamily)
 
 @Composable
-private fun bookTextStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = UiFontFamily)
+private fun bookTextStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = ContentFontFamily)
 
 @Composable
-private fun readingTextStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = UiFontFamily)
+private fun readingTextStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = ContentFontFamily)
 
 @Composable
 private fun typographyFrom(
@@ -134,6 +134,6 @@ private fun typographyFrom(
     link = body.copy(fontWeight = FontWeight.Medium, color = linkColor),
 )
 
-private fun headingStyle(style: TextStyle): TextStyle = style.copy(fontFamily = UiFontFamily)
+private fun headingStyle(style: TextStyle): TextStyle = style.copy(fontFamily = ContentFontFamily)
 
 private fun codeStyle(style: TextStyle): TextStyle = style.copy(fontFamily = UiFontFamily)

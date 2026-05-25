@@ -45,12 +45,16 @@ class RemoteArticleDetailLayoutTest {
     fun remoteArticleDetailUsesDedicatedReaderCardMarkdownStyle() {
         val screen = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
         val styles = File("src/main/kotlin/com/dailysatori/ui/theme/MarkdownStyles.kt").readText()
+        val readerCard = screen.substringAfter("private fun RemoteArticleMarkdownContent(content: String)")
+            .substringBefore("private fun RemoteArticleCoverImage")
 
         assertTrue(screen.contains("RemoteArticleMarkdownContent("))
         assertFalse(screen.contains("import com.dailysatori.ui.component.content.MarkdownContent"))
         assertTrue(screen.contains("MarkdownStyles.remoteArticleTypography()"))
         assertTrue(screen.contains("MarkdownStyles.remoteArticlePadding()"))
-        assertTrue(screen.contains("MaterialTheme.colorScheme.surfaceContainerLow"))
+        assertTrue(readerCard.contains("color = MaterialTheme.colorScheme.surface,"))
+        assertTrue(readerCard.contains("border = BorderStroke(BorderWidth.xs, MaterialTheme.colorScheme.outline),"))
+        assertFalse(readerCard.contains("surfaceContainerLow"))
         assertTrue(styles.contains("fun remoteArticleTypography()"))
         assertTrue(styles.contains("fun remoteArticlePadding()"))
     }

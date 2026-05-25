@@ -23,11 +23,12 @@ MaterialTheme.colorScheme.errorContainer
 MaterialTheme.colorScheme.onErrorContainer
 
 // AppColors 扩展色（位于 Color.kt）
-AppColors.primary          // 0xFF5E8BFF
-AppColors.success          // 0xFF4CAF50
-AppColors.error            // 0xFFF44336
-AppColors.warning          // 0xFFFF9800
-AppColors.info             // 0xFF2196F3
+AppColors.primary          // iOS system blue, light-mode default
+AppColors.primaryLight     // iOS system blue variant for dark surfaces
+AppColors.success          // iOS system green
+AppColors.error            // iOS system red
+AppColors.warning          // iOS system orange
+AppColors.info             // iOS system blue
 ```
 
 ## 间距 (Spacing)
@@ -50,7 +51,7 @@ Radius.xxs       // 2.dp
 Radius.xs        // 4.dp
 Radius.s         // 8.dp
 Radius.m         // 12.dp
-Radius.l         // 16.dp
+Radius.l         // 22.dp
 Radius.xl        // 24.dp
 Radius.circular  // 100.dp
 ```
@@ -69,15 +70,16 @@ IconSize.xxl  // 48.dp
 ## 控件高度 (Height)
 
 ```kotlin
-Height.button       // 48.dp
-Height.buttonSmall  // 36.dp
-Height.input        // 48.dp
-Height.listItem     // 56.dp
-Height.listItemSmall// 48.dp
-Height.appBar       // 56.dp
-Height.navBar       // 56.dp
-Height.chip         // 32.dp
-Height.searchBar    // 48.dp
+Height.button       // 46.dp
+Height.buttonSmall  // 34.dp
+Height.input        // 46.dp
+Height.listItem     // 54.dp
+Height.listItemSmall// 46.dp
+Height.appBar       // 54.dp
+Height.appBarCompact// 48.dp
+Height.navBar       // 52.dp
+Height.chip         // 30.dp
+Height.searchBar    // 46.dp
 ```
 
 ## 边框宽度 (BorderWidth)
@@ -92,22 +94,22 @@ BorderWidth.xl   // 4.dp
 
 ## 字体 (AppTypography)
 
-Daily Satori 使用双字体系统：
+Daily Satori 使用内容/UI 两类排版角色；当前两类角色都共享系统 SansSerif 字体族：
 
-- `ContentFontFamily`：Newsreader，用于长文阅读、Markdown 正文、文章/新闻详情、AI 摘要、日记预览等内容型区域。
+- `ContentFontFamily`：系统内容字体，用于长文阅读、Markdown 正文、文章/新闻详情、AI 摘要、日记预览等内容型区域。
 - `UiFontFamily`：系统 Sans Serif/Roboto，用于导航、按钮、输入框、设置项、标签、时间、来源、状态等界面型文本。
 
 常用层级：
 
 ```kotlin
-MaterialTheme.typography.headlineLarge // 24sp / 32sp, 内容页大标题
-MaterialTheme.typography.headlineSmall // 18sp / 26sp, 内容型区块标题
-MaterialTheme.typography.titleMedium   // 16sp / 24sp, UI 标题和 TopBar
-MaterialTheme.typography.titleSmall    // 14sp / 20sp, 卡片标题/设置项标题
+MaterialTheme.typography.headlineLarge // 26sp / 34sp, 内容页大标题
+MaterialTheme.typography.headlineSmall // 20sp / 28sp, 内容型区块标题
+MaterialTheme.typography.titleMedium   // 17sp / 24sp, UI 标题和 TopBar
+MaterialTheme.typography.titleSmall    // 15sp / 21sp, 卡片标题/设置项标题
 MaterialTheme.typography.bodyLarge     // 17sp / 30sp, 长文阅读正文
 MaterialTheme.typography.bodyMedium    // 15sp / 24sp, 普通 UI 正文
-MaterialTheme.typography.bodySmall     // 13sp / 18sp, 元信息/说明
-MaterialTheme.typography.labelMedium   // 12sp / 16sp, 标签/Badge
+MaterialTheme.typography.bodySmall     // 13sp / 19sp, 元信息/说明
+MaterialTheme.typography.labelMedium   // 12sp / 17sp, 标签/Badge
 ```
 
 ## Composable 组件使用示例
