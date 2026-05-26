@@ -68,4 +68,15 @@ class RemoteNewsUiBehaviorTest {
         assertFalse(repository.contains("WebpageParserService"))
         assertFalse(repository.contains("ArticleProcessingScheduler"))
     }
+
+    @Test
+    fun remoteArticleSummaryCardMetadataIncludesArticleTime() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleCards.kt").readText()
+
+        assertTrue(source.contains("private fun remoteArticleTimeText(article: RemoteArticle): String?"))
+        assertTrue(source.contains("article.createdAt ?: article.processedAt"))
+        assertTrue(source.contains("val timeText = remoteArticleTimeText(article)"))
+        assertTrue(source.contains("timeText?.let { time ->"))
+        assertTrue(source.contains("Text(time"))
+    }
 }

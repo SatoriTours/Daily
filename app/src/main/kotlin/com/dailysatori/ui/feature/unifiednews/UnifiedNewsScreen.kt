@@ -9,6 +9,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
@@ -31,11 +33,13 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,12 +53,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dailysatori.service.remotenews.RemoteArticle
+import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
 import com.dailysatori.shared.db.Unified_news_source
 import com.dailysatori.shared.db.Unified_news_summary
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.article.ArticleListScreen
+import com.dailysatori.ui.feature.remotenews.RemoteArticleSummaryCard
 import com.dailysatori.ui.feature.remotenews.RemoteArticleDetailScreen
 import com.dailysatori.ui.feature.remotenews.RemoteDigestDetailScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
@@ -138,40 +145,163 @@ private fun UnifiedNewsSummaryPage(state: UnifiedNewsState, viewModel: UnifiedNe
         actions = { UnifiedNewsMenu(viewModel) },
     ) { modifier ->
         Column(modifier = modifier.fillMaxSize()) {
+            UnifiedNewsSourceSwitcher(state = state, viewModel = viewModel)
             if (state.isRegenerating) UnifiedNewsGeneratingSkeleton(summaryDate = state.regeneratingSummaryDate)
             val refreshMessage = state.manualRefreshMessage ?: state.error
             if (!state.isRegenerating && !refreshMessage.isNullOrBlank()) {
                 UnifiedNewsRefreshMessage(refreshMessage)
             }
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                val visibleSummaries = if (state.isRegenerating) {
-                    state.summaries.filter { summary -> summary.summary_date != state.regeneratingSummaryDate }
-                } else {
-                    state.summaries
-                }
-                when {
-                    state.isLoading -> LoadingIndicator()
-                    visibleSummaries.isEmpty() -> EmptyState(
-                        icon = Icons.AutoMirrored.Filled.Article,
-                        title = "暂无新闻汇总",
-                        subtitle = "点击右上角生成/更新当日新闻",
-                    )
-                    else -> LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.m),
-                    ) {
-                        items(visibleSummaries, key = { it.id }) { summary ->
-                            TodayUnifiedNewsCard(
-                                summary = summary,
-                                sources = state.sourcesBySummaryId[summary.id].orEmpty(),
-                                onCitationClick = viewModel::openCitation,
-                            )
-                        }
-                    }
+                when (val selection = state.sourceSelection) {
+                    UnifiedNewsSourceSelection.Summary -> UnifiedNewsSummaryContent(state, viewModel)
+                    is UnifiedNewsSourceSelection.RemoteSource -> UnifiedNewsSourceArticleContent(state, selection, viewModel)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun UnifiedNewsSummaryContent(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel) {
+    val visibleSummaries = if (state.isRegenerating) {
+        state.summaries.filter { summary -> summary.summary_date != state.regeneratingSummaryDate }
+    } else {
+        state.summaries
+    }
+    when {
+        state.isLoading -> LoadingIndicator()
+        visibleSummaries.isEmpty() -> EmptyState(
+            icon = Icons.AutoMirrored.Filled.Article,
+            title = "暂无新闻汇总",
+            subtitle = "点击右上角生成/更新当日新闻",
+        )
+        else -> LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) {
+            items(visibleSummaries, key = { it.id }) { summary ->
+                TodayUnifiedNewsCard(
+                    summary = summary,
+                    sources = state.sourcesBySummaryId[summary.id].orEmpty(),
+                    onCitationClick = viewModel::openCitation,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UnifiedNewsSourceSwitcher(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = Spacing.m, vertical = Spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+    ) {
+        FilterChip(
+            selected = state.sourceSelection is UnifiedNewsSourceSelection.Summary,
+            onClick = viewModel::selectSummarySource,
+            label = { Text("汇总") },
+        )
+        state.remoteSources.forEach { source ->
+            FilterChip(
+                selected = (state.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id == source.id,
+                onClick = { viewModel.selectRemoteSource(source) },
+                label = { Text(source.name) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun UnifiedNewsSourceArticleContent(
+    state: UnifiedNewsState,
+    selection: UnifiedNewsSourceSelection.RemoteSource,
+    viewModel: UnifiedNewsViewModel,
+) {
+    val cacheKey = sourceArticleCacheKey(selection.id, dailyUnifiedNewsWindowFor().summaryDate)
+    val articles = state.sourceArticlesByCacheKey[cacheKey].orEmpty()
+    val isLoading = state.sourceArticlesLoadingSourceId == selection.id
+    when {
+        isLoading && articles.isEmpty() -> LoadingIndicator()
+        state.sourceArticlesError != null && articles.isEmpty() -> UnifiedNewsSourceArticleMessage(
+            title = state.sourceArticlesError,
+            actionLabel = "刷新",
+            onAction = viewModel::refreshSelectedRemoteSource,
+        )
+        articles.isEmpty() -> UnifiedNewsSourceArticleMessage(
+            title = "这个来源今天还没有新闻",
+            actionLabel = "刷新",
+            onAction = viewModel::refreshSelectedRemoteSource,
+        )
+        else -> UnifiedNewsSourceArticleList(
+            selection = selection,
+            articles = articles,
+            isLoading = isLoading,
+            sourceArticlesError = state.sourceArticlesError,
+            viewModel = viewModel,
+        )
+    }
+}
+
+@Composable
+private fun UnifiedNewsSourceArticleList(
+    selection: UnifiedNewsSourceSelection.RemoteSource,
+    articles: List<RemoteArticle>,
+    isLoading: Boolean,
+    sourceArticlesError: String?,
+    viewModel: UnifiedNewsViewModel,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m),
+        verticalArrangement = Arrangement.spacedBy(Spacing.m),
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+                    Text("${selection.name} · 今日文章", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("共 ${articles.size} 篇", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                TextButton(onClick = viewModel::refreshSelectedRemoteSource) { Text("刷新") }
+            }
+        }
+        if (sourceArticlesError != null) item {
+            Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+                Text(
+                    text = "刷新失败，正在显示上次结果：$sourceArticlesError",
+                    modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        items(articles, key = { it.id }) { article ->
+            RemoteArticleSummaryCard(article) { viewModel.openSourceArticle(selection.id, article.id) }
+        }
+        if (isLoading) item {
+            Box(modifier = Modifier.fillMaxWidth().padding(Spacing.s), contentAlignment = Alignment.Center) {
+                Text("刷新中...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun UnifiedNewsSourceArticleMessage(title: String, actionLabel: String, onAction: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(Spacing.m),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        TextButton(onClick = onAction) { Text(actionLabel) }
     }
 }
 

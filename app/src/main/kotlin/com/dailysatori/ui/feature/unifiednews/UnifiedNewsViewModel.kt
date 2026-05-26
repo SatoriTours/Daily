@@ -15,6 +15,7 @@ import com.dailysatori.service.unifiednews.UnifiedNewsGenerationResult
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryStatus
 import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
+import com.dailysatori.service.unifiednews.remoteNewsSourceRouteKey
 import com.dailysatori.shared.db.Unified_news_source
 import com.dailysatori.shared.db.Unified_news_summary
 import kotlinx.coroutines.CancellationException
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicLong
 
 enum class UnifiedNewsPage {
     SUMMARY,
@@ -32,6 +34,18 @@ enum class UnifiedNewsPage {
     LOCAL_FAVORITES,
     SETTINGS,
 }
+
+sealed class UnifiedNewsSourceSelection {
+    data object Summary : UnifiedNewsSourceSelection()
+    data class RemoteSource(val id: Long, val name: String) : UnifiedNewsSourceSelection()
+}
+
+data class UnifiedNewsRemoteSourceOption(val id: Long, val name: String)
+
+data class SourceArticleCacheKey(val sourceId: Long, val summaryDate: String)
+
+fun sourceArticleCacheKey(sourceId: Long, summaryDate: String): SourceArticleCacheKey =
+    SourceArticleCacheKey(sourceId, summaryDate)
 
 sealed class UnifiedNewsNavigationTarget {
     data class RemoteDigest(val id: Long) : UnifiedNewsNavigationTarget()
@@ -41,6 +55,11 @@ sealed class UnifiedNewsNavigationTarget {
 
 data class UnifiedNewsState(
     val page: UnifiedNewsPage = UnifiedNewsPage.SUMMARY,
+    val sourceSelection: UnifiedNewsSourceSelection = UnifiedNewsSourceSelection.Summary,
+    val remoteSources: List<UnifiedNewsRemoteSourceOption> = emptyList(),
+    val sourceArticlesByCacheKey: Map<SourceArticleCacheKey, List<RemoteArticle>> = emptyMap(),
+    val sourceArticlesLoadingSourceId: Long? = null,
+    val sourceArticlesError: String? = null,
     val summaries: List<Unified_news_summary> = emptyList(),
     val selectedSummary: Unified_news_summary? = null,
     val lastSuccessfulSummary: Unified_news_summary? = null,
@@ -73,6 +92,8 @@ class UnifiedNewsViewModel(
     private var loadJob: Job? = null
     private var detailLoadJob: Job? = null
     private var detailRequestToken: Long = 0L
+    private val sourceArticleRequestToken = AtomicLong(0L)
+    private val sourceArticleRequestLock = Any()
 
     fun loadInitial() {
         if (loadJob != null) return
@@ -84,11 +105,20 @@ class UnifiedNewsViewModel(
                     val todaySummary = summaries.firstOrNull { it.summary_date == today.summaryDate && it.window_key == today.key.value }
                     val displaySummaries = summaries.withDisplayFallback(summaryRepo.getLatestSuccessful())
                     val sourcesBySummaryId = displaySummaries.associate { summary -> summary.id to summaryRepo.getSources(summary.id) }
+                    val remoteSources = remoteNewsSourceRepo.getEnabled().map { source -> UnifiedNewsRemoteSourceOption(source.id, source.name) }
+                    val currentState = _state.value
+                    val currentSelection = currentState.sourceSelection
+                    val shouldResetSelection = currentSelection is UnifiedNewsSourceSelection.RemoteSource &&
+                        remoteSources.none { source -> source.id == currentSelection.id }
+                    if (shouldResetSelection) invalidateSourceArticleRequest()
+                    val nextSelection = if (shouldResetSelection) UnifiedNewsSourceSelection.Summary else currentSelection
+                    val latestSuccessfulFallback = summaryRepo.getLatestSuccessful()
+                    val lastSuccessful = if (todaySummary.isSuccessfulDisplaySummary) todaySummary else latestSuccessfulFallback ?: currentState.lastSuccessfulSummary
+                    val lastSources = lastSuccessful?.let { summary -> sourcesBySummaryId[summary.id] ?: summaryRepo.getSources(summary.id) }.orEmpty()
                     _state.update {
-                        val latestSuccessfulFallback = summaryRepo.getLatestSuccessful()
-                        val lastSuccessful = if (todaySummary.isSuccessfulDisplaySummary) todaySummary else latestSuccessfulFallback ?: it.lastSuccessfulSummary
-                        val lastSources = lastSuccessful?.let { summary -> sourcesBySummaryId[summary.id] ?: summaryRepo.getSources(summary.id) }.orEmpty()
                         it.copy(
+                            sourceSelection = nextSelection,
+                            remoteSources = remoteSources,
                             summaries = displaySummaries,
                             selectedSummary = displaySummaries.firstOrNull(),
                             lastSuccessfulSummary = lastSuccessful,
@@ -130,6 +160,35 @@ class UnifiedNewsViewModel(
 
     fun switchPage(page: UnifiedNewsPage) {
         _state.update { it.copy(page = page) }
+    }
+
+    fun selectSummarySource() {
+        invalidateSourceArticleRequest()
+        _state.update { it.copy(sourceSelection = UnifiedNewsSourceSelection.Summary) }
+    }
+
+    fun selectRemoteSource(source: UnifiedNewsRemoteSourceOption) {
+        val cacheKey = sourceArticleCacheKey(source.id, dailyUnifiedNewsWindowFor().summaryDate)
+        val sourceArticlesCached = _state.value.sourceArticlesByCacheKey.containsKey(cacheKey)
+        invalidateSourceArticleRequest()
+        _state.update {
+            it.copy(
+                sourceSelection = UnifiedNewsSourceSelection.RemoteSource(source.id, source.name),
+                sourceArticlesError = null,
+            )
+        }
+        if (!sourceArticlesCached) {
+            fetchSourceArticles(source.id, force = false)
+        }
+    }
+
+    fun refreshSelectedRemoteSource() {
+        val selection = _state.value.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource ?: return
+        fetchSourceArticles(selection.id, force = true)
+    }
+
+    fun openSourceArticle(sourceId: Long, articleId: Long) {
+        openCitationSource("remote_article", articleId, remoteNewsSourceRouteKey(sourceId))
     }
 
     fun toggleSelectedRemoteArticleFavorite() {
@@ -275,6 +334,46 @@ class UnifiedNewsViewModel(
         }
     }
 
+    private fun fetchSourceArticles(sourceId: Long, force: Boolean) {
+        val cacheKey = sourceArticleCacheKey(sourceId, dailyUnifiedNewsWindowFor().summaryDate)
+        if (!force && _state.value.sourceArticlesByCacheKey.containsKey(cacheKey)) return
+        val token = beginSourceArticleRequest(sourceId)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val source = remoteNewsSourceRepo.getById(sourceId)
+                if (source == null) {
+                    ifLatestSourceArticleRequest(token) { state ->
+                        state.copy(sourceArticlesLoadingSourceId = null, sourceArticlesError = "远程新闻源不存在或已删除")
+                    }
+                    return@launch
+                }
+                when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
+                    is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)) {
+                        is RemoteNewsResult.Success -> ifLatestSourceArticleRequest(token) { state ->
+                            state.copy(
+                                sourceArticlesByCacheKey = state.sourceArticlesByCacheKey + (cacheKey to result.value.articles),
+                                sourceArticlesLoadingSourceId = null,
+                                sourceArticlesError = null,
+                            )
+                        }
+                        is RemoteNewsResult.Failure -> ifLatestSourceArticleRequest(token) { state ->
+                            state.copy(sourceArticlesLoadingSourceId = null, sourceArticlesError = result.message)
+                        }
+                    }
+                    is RemoteNewsResult.Failure -> ifLatestSourceArticleRequest(token) { state ->
+                        state.copy(sourceArticlesLoadingSourceId = null, sourceArticlesError = config.message)
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                ifLatestSourceArticleRequest(token) { state ->
+                    state.copy(sourceArticlesLoadingSourceId = null, sourceArticlesError = "来源文章加载失败，请稍后重试")
+                }
+            }
+        }
+    }
+
     private fun parseRemoteNewsSourceRouteKey(value: String?): Long? =
         value?.removePrefix("remote_news_source:")?.takeIf { it != value }?.toLongOrNull()
 
@@ -288,6 +387,27 @@ class UnifiedNewsViewModel(
 
     private fun ifLatestDetailRequest(token: Long, transform: (UnifiedNewsState) -> UnifiedNewsState) {
         if (token == detailRequestToken) _state.update(transform)
+    }
+
+    private fun ifLatestSourceArticleRequest(token: Long, transform: (UnifiedNewsState) -> UnifiedNewsState) {
+        synchronized(sourceArticleRequestLock) {
+            if (token == sourceArticleRequestToken.get()) _state.update(transform)
+        }
+    }
+
+    private fun invalidateSourceArticleRequest() {
+        synchronized(sourceArticleRequestLock) {
+            sourceArticleRequestToken.incrementAndGet()
+            _state.update { it.copy(sourceArticlesLoadingSourceId = null, sourceArticlesError = null) }
+        }
+    }
+
+    private fun beginSourceArticleRequest(sourceId: Long): Long {
+        synchronized(sourceArticleRequestLock) {
+            val token = sourceArticleRequestToken.incrementAndGet()
+            _state.update { it.copy(sourceArticlesLoadingSourceId = sourceId, sourceArticlesError = null) }
+            return token
+        }
     }
 
     private fun UnifiedNewsState.clearSelectedSourceDetail(): UnifiedNewsState = copy(

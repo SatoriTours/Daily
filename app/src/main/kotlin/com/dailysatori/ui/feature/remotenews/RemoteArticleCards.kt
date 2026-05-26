@@ -65,13 +65,18 @@ fun RemoteArticleSummaryCard(article: RemoteArticle, onClick: () -> Unit) {
 @Composable
 private fun RemoteArticleSourceRow(article: RemoteArticle) {
     Row(verticalAlignment = Alignment.CenterVertically) {
+        val timeText = remoteArticleTimeText(article)
+        timeText?.let { time ->
+            Text(time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        }
         article.feedName?.let { name ->
+            if (timeText != null) Spacer(Modifier.width(Spacing.xs))
             Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
                 Text(name, modifier = Modifier.padding(horizontal = Spacing.s, vertical = 1.dp), style = MaterialTheme.typography.labelSmall)
             }
         }
         article.domain?.let { domain ->
-            if (article.feedName != null) Spacer(Modifier.width(Spacing.xs))
+            if (timeText != null || article.feedName != null) Spacer(Modifier.width(Spacing.xs))
             Text(domain, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
     }
@@ -109,3 +114,8 @@ private fun RemoteArticleDefaultCover(modifier: Modifier = Modifier) {
 }
 
 private fun remoteArticleSummaryText(article: RemoteArticle): String? = article.summary?.takeIf { it.isNotBlank() }
+
+private fun remoteArticleTimeText(article: RemoteArticle): String? {
+    val sourceTime = article.createdAt ?: article.processedAt
+    return sourceTime?.replace('T', ' ')?.take(16)?.takeIf { it.isNotBlank() }
+}
