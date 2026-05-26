@@ -6,18 +6,17 @@ import kotlin.test.assertTrue
 
 class LauncherIconSourceTest {
     @Test
-    fun launcherIconUsesSapphireRingPaletteAndLayers() {
+    fun launcherIconUsesBlackBackgroundAndWhiteClockLayers() {
         val background = File("src/main/res/drawable/ic_launcher_background.xml").readText()
         val foreground = File("src/main/res/drawable/ic_launcher_foreground.xml").readText()
 
-        assertTrue(background.contains("#030712"))
-        assertTrue(background.contains("#0F172A"))
-        assertTrue(background.contains("#1E293B"))
-        assertTrue(foreground.contains("#7DD3FC"))
-        assertTrue(foreground.contains("#E2E8F0"))
-        assertTrue(foreground.contains("#050816"))
+        assertTrue(background.contains("#000000"))
+        assertTrue(foreground.contains("#FFFFFF"))
+        assertTrue(foreground.contains("#000000"))
+        assertTrue(foreground.contains("M54,31"))
+        assertTrue(foreground.contains("M54,27v22"))
+        assertTrue(foreground.contains("M57,56l14,15"))
         assertTrue(foreground.contains("android:strokeLineCap=\"round\""))
-        assertTrue(foreground.contains("android:strokeAlpha=\"0.95\""))
     }
 
     @Test
