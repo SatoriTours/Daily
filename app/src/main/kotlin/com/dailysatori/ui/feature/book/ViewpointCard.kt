@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +31,9 @@ fun ViewpointCard(
     modifier: Modifier = Modifier,
     fillAvailableHeight: Boolean = false,
     showProgress: Boolean = false,
+    status: String = "ready",
+    errorMessage: String = "",
+    onRetry: () -> Unit = {},
 ) {
     val contentModifier = if (fillAvailableHeight) modifier.fillMaxWidth().fillMaxHeight() else modifier.fillMaxWidth()
     Column(
@@ -47,7 +51,11 @@ fun ViewpointCard(
             showProgress = showProgress,
         )
 
-        ViewpointBody(content = content, example = example)
+        when (status) {
+            "failed" -> ViewpointRetryBody(errorMessage = errorMessage, onRetry = onRetry)
+            "generating" -> ViewpointGeneratingBody()
+            else -> ViewpointBody(content = content, example = example)
+        }
     }
 }
 
@@ -115,6 +123,36 @@ private fun ViewpointBody(content: String, example: String) {
             )
         }
     }
+}
+
+@Composable
+private fun ViewpointRetryBody(errorMessage: String, onRetry: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = errorMessage.ifBlank { "这个观点生成失败，可以只重新生成这一条。" },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Button(onClick = onRetry) {
+            Text("重新生成这个观点")
+        }
+    }
+}
+
+@Composable
+private fun ViewpointGeneratingBody() {
+    Text(
+        text = "正在重新生成这个观点...",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.primary,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 fun viewpointCardFillsAvailableHeight(fillAvailableHeight: Boolean): Boolean = fillAvailableHeight

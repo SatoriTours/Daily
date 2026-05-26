@@ -22,7 +22,7 @@ object BackupConfig {
 
 object DatabaseConfig {
     const val name = "daily_satori.db"
-    const val currentSchemaVersion = 9L
+    const val currentSchemaVersion = 10L
 }
 
 object DirectoryConfig {

@@ -110,8 +110,21 @@ class BookSearchViewModel(
                 val generationResult = bookIntelligenceService.generateViewpoints(result)
                 val viewpointDrafts = bookViewpointDraftsForImport(generationResult.drafts)
                 _state.update { it.copy(analysisStep = bookAnalysisGeneratingStep()) }
-                viewpointDrafts.forEach { draft -> viewpointRepo.insert(bookId, draft.title, draft.content, draft.example) }
-                val message = bookAnalysisCompletionNotice(result.title, viewpointDrafts.size, generationResult.source)
+                viewpointDrafts.forEach { draft ->
+                    viewpointRepo.insert(
+                        bookId = bookId,
+                        title = draft.title,
+                        content = draft.content,
+                        example = draft.example,
+                        status = draft.status,
+                        errorMessage = draft.errorMessage,
+                        outlineJson = draft.outlineJson,
+                        sourceNotes = draft.sourceNotes,
+                    )
+                }
+                val readyCount = viewpointDrafts.count { it.status == "ready" }
+                val failedCount = viewpointDrafts.count { it.status == "failed" }
+                val message = bookAnalysisCompletionNotice(result.title, readyCount, generationResult.source, failedCount)
                 _state.update {
                     it.copy(
                         isAnalyzing = false,
@@ -171,8 +184,13 @@ fun bookAnalysisCompletionNotice(
     title: String,
     count: Int,
     source: BookViewpointSource = BookViewpointSource.WeRead,
+    failedCount: Int = 0,
 ): String {
-    val base = "《$title》已添加，$count 个观点已生成"
+    val base = if (failedCount > 0) {
+        "《$title》已添加，$count 个观点已生成，$failedCount 个可在阅读页重试"
+    } else {
+        "《$title》已添加，$count 个观点已生成"
+    }
     return if (source == BookViewpointSource.AiFallback) "$base（${bookAiGeneratedDisclosure()}）" else base
 }
 

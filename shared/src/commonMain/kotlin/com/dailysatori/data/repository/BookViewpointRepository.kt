@@ -29,14 +29,37 @@ class BookViewpointRepository(private val db: DailySatoriDatabase) {
 
     fun getById(id: Long) = q.selectViewpointById(id).executeAsOneOrNull()
 
-    fun insert(bookId: Long, title: String, content: String, example: String) {
+    fun insert(
+        bookId: Long,
+        title: String,
+        content: String,
+        example: String,
+        status: String = "ready",
+        errorMessage: String = "",
+        outlineJson: String = "",
+        sourceNotes: String = "",
+    ) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
-        q.insertViewpoint(bookId, title, content, example, now, now)
+        q.insertViewpoint(bookId, title, content, example, status, errorMessage, outlineJson, sourceNotes, now, now)
     }
 
     fun update(id: Long, title: String, content: String, example: String) {
         val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
         q.updateViewpoint(title, content, example, now, id)
+    }
+
+    fun updateStatusContext(
+        id: Long,
+        title: String,
+        content: String,
+        example: String,
+        status: String,
+        errorMessage: String,
+        outlineJson: String,
+        sourceNotes: String,
+    ) {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        q.updateViewpointStatusContext(title, content, example, status, errorMessage, outlineJson, sourceNotes, now, id)
     }
 
     fun delete(id: Long) = q.deleteViewpoint(id)

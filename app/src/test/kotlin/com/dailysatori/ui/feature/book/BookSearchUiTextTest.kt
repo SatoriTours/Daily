@@ -146,6 +146,19 @@ class BookSearchUiTextTest {
     }
 
     @Test
+    fun completionNoticeMentionsFailedViewpointsCanRetry() {
+        assertEquals(
+            "《实践论》已添加，7 个观点已生成，3 个可在阅读页重试（基于微信读书资料由 AI 生成）",
+            bookAnalysisCompletionNotice(
+                title = "实践论",
+                count = 7,
+                source = com.dailysatori.service.book.BookViewpointSource.AiFallback,
+                failedCount = 3,
+            ),
+        )
+    }
+
+    @Test
     fun bookResultActionsUseIconsWithAccessibleLabels() {
         assertEquals("打开微信读书介绍", bookResultSourceActionDescription())
         assertEquals("添加并分析", bookResultAddActionDescription())

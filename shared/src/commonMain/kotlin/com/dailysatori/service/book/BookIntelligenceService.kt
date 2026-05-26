@@ -7,6 +7,10 @@ data class BookViewpointDraft(
     val title: String,
     val content: String,
     val example: String,
+    val status: String = "ready",
+    val errorMessage: String = "",
+    val outlineJson: String = "",
+    val sourceNotes: String = "",
 )
 
 enum class BookViewpointSource { WeRead, AiFallback }

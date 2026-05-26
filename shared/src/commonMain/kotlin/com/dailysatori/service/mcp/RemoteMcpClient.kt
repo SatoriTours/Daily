@@ -76,9 +76,7 @@ class RemoteMcpClient(private val client: HttpClient) {
     private suspend fun callWebSearchTool(server: Mcp_server, query: String): String? = try {
         val sessionId = initialize(server)
         sendInitialized(server, sessionId)
-        val tool = listTools(server, sessionId).firstOrNull {
-            isLikelyWebSearchTool(it.name, it.description)
-        } ?: return null
+        val tool = selectBestWebSearchTool(listTools(server, sessionId)) ?: return null
         val result = postJsonRpc(
             server = server,
             sessionId = sessionId,
@@ -221,9 +219,22 @@ fun isLikelyWebSearchTool(name: String, description: String): Boolean {
     return canSearch && relevant && !irrelevant
 }
 
+fun selectBestWebSearchTool(tools: List<RemoteMcpTool>): RemoteMcpTool? = tools
+    .filter { isLikelyWebSearchTool(it.name, it.description) }
+    .minByOrNull { webSearchToolRank(it.name, it.description) }
+
+private fun webSearchToolRank(name: String, description: String): Int {
+    val text = "$name $description".lowercase()
+    return when {
+        listOf("search", "query", "find").any { it in text } -> 0
+        listOf("reader", "read", "page", "url").any { it in text } -> 1
+        else -> 2
+    }
+}
+
 fun buildMcpToolArguments(inputSchema: JsonObject, query: String): JsonObject {
     val properties = inputSchema["properties"]?.jsonObject ?: return buildJsonObject { put("query", JsonPrimitive(query)) }
-    val queryKey = listOf("query", "q", "keyword", "keywords", "search", "text")
+    val queryKey = listOf("search_query", "query", "q", "keyword", "keywords", "search", "text")
         .firstOrNull { properties.containsKey(it) } ?: properties.keys.firstOrNull() ?: "query"
     return buildJsonObject {
         put(queryKey, JsonPrimitive(query))

@@ -58,6 +58,10 @@ CREATE TABLE book_viewpoint (
     title TEXT NOT NULL,
     content TEXT NOT NULL,
     example TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ready',
+    error_message TEXT NOT NULL DEFAULT '',
+    outline_json TEXT NOT NULL DEFAULT '',
+    source_notes TEXT NOT NULL DEFAULT '',
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
@@ -409,11 +413,16 @@ WHERE book.title LIKE '%' || ? || '%'
 ORDER BY book_viewpoint.created_at DESC;
 
 insertViewpoint:
-INSERT INTO book_viewpoint (book_id, title, content, example, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO book_viewpoint (book_id, title, content, example, status, error_message, outline_json, source_notes, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateViewpoint:
-UPDATE book_viewpoint SET title = ?, content = ?, example = ?, updated_at = ? WHERE id = ?;
+UPDATE book_viewpoint SET title = ?, content = ?, example = ?, status = 'ready', error_message = '', updated_at = ? WHERE id = ?;
+
+updateViewpointStatusContext:
+UPDATE book_viewpoint
+SET title = ?, content = ?, example = ?, status = ?, error_message = ?, outline_json = ?, source_notes = ?, updated_at = ?
+WHERE id = ?;
 
 deleteViewpoint:
 DELETE FROM book_viewpoint WHERE id = ?;

@@ -342,6 +342,10 @@ class ImportService(
                     obj.getString("title") ?: "",
                     obj.getString("content") ?: "",
                     obj.getString("example") ?: "",
+                    obj.getString("status") ?: "ready",
+                    obj.getString("error_message") ?: "",
+                    obj.getString("outline_json") ?: "",
+                    obj.getString("source_notes") ?: "",
                     obj.getEpochMs("created_at") ?: nowMs(),
                     obj.getEpochMs("updated_at") ?: nowMs(),
                 )

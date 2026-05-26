@@ -1,14 +1,18 @@
 package com.dailysatori.service.book
 
 import com.dailysatori.config.SettingKeys
+import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.data.repository.SkillConfigRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
+import com.dailysatori.service.mcp.RemoteMcpClient
 import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.security.SecretCipherPrefix
 import com.dailysatori.service.skill.BuiltInSkillTemplates
 import com.dailysatori.shared.db.Ai_config
+import com.dailysatori.shared.db.Book
+import com.dailysatori.shared.db.Book_viewpoint
 import io.ktor.client.HttpClient
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
@@ -17,6 +21,9 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -27,9 +34,11 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.Serializable
 
 private const val WE_READ_GATEWAY = "https://i.weread.qq.com/api/agent/gateway"
 private const val WE_READ_SKILL_VERSION = "1.0.3"
+private const val BOOK_VIEWPOINT_ENRICH_CONCURRENCY = 4
 
 private val weReadJson = Json {
     ignoreUnknownKeys = true
@@ -44,6 +53,7 @@ class WeReadSkillException(
     cause: Throwable? = null,
 ) : Exception(message, cause)
 
+@Serializable
 data class WeReadBookInfo(
     val bookId: String,
     val title: String,
@@ -54,6 +64,7 @@ data class WeReadBookInfo(
     val ratingCount: Int = 0,
 )
 
+@Serializable
 data class WeReadChapter(
     val chapterUid: Int,
     val chapterIdx: Int,
@@ -62,9 +73,31 @@ data class WeReadChapter(
     val wordCount: Int = 0,
 )
 
+@Serializable
 data class WeReadReview(
     val content: String,
     val star: Int = 0,
+)
+
+@Serializable
+data class BookViewpointOutline(
+    val title: String,
+    val brief: String,
+    val focus: String,
+    val searchQuery: String,
+    val caseIntent: String,
+)
+
+@Serializable
+data class BookViewpointRetryContext(
+    val bookTitle: String,
+    val bookAuthor: String,
+    val bookCategory: String,
+    val bookIntroduction: String,
+    val info: WeReadBookInfo,
+    val chapters: List<WeReadChapter>,
+    val reviews: List<WeReadReview>,
+    val outline: BookViewpointOutline,
 )
 
 interface BookAiFallbackGenerator {
@@ -74,11 +107,17 @@ interface BookAiFallbackGenerator {
         chapters: List<WeReadChapter>,
         reviews: List<WeReadReview>,
     ): List<BookViewpointDraft>
+
+    suspend fun regenerate(book: Book, viewpoint: Book_viewpoint): BookViewpointDraft {
+        throw WeReadSkillException(WeReadSkillErrorType.AiFallbackFailure, "AI 观点生成失败，请稍后重试")
+    }
 }
 
 class DefaultBookAiFallbackGenerator(
     private val aiConfigService: AiConfigService,
     private val aiService: AiService,
+    private val mcpServerRepository: McpServerRepository,
+    private val remoteMcpClient: RemoteMcpClient,
 ) : BookAiFallbackGenerator {
     override suspend fun generate(
         book: BookSearchResult,
@@ -87,22 +126,107 @@ class DefaultBookAiFallbackGenerator(
         reviews: List<WeReadReview>,
     ): List<BookViewpointDraft> {
         val config = requireAiFallbackConfig(aiConfigService.getDefaultConfig())
-        val response = try {
-            aiService.complete(
-                prompt = info.title.ifBlank { book.title },
-                apiAddress = config.api_address,
-                apiToken = config.api_token,
-                modelName = config.model_name,
-                provider = config.provider,
-                systemPrompt = buildAiFallbackViewpointPrompt(book, info, chapters, reviews),
-                temperature = 0.5,
+        val outlines = generateOutlines(book, info, chapters, reviews, config)
+        return enrichOutlines(book, info, chapters, reviews, config, outlines)
+    }
+
+    override suspend fun regenerate(book: Book, viewpoint: Book_viewpoint): BookViewpointDraft {
+        val config = requireAiFallbackConfig(aiConfigService.getDefaultConfig())
+        val context = parseBookViewpointRetryContext(viewpoint.outline_json)
+            ?: fallbackRetryContext(book, viewpoint)
+        return enrichOne(
+            book = context.toSearchResult(),
+            info = context.info,
+            chapters = context.chapters,
+            reviews = context.reviews,
+            config = config,
+            outline = context.outline,
+            servers = mcpServerRepository.getEnabled().filter { it.server_url.startsWith("http") },
+            retryContextJson = weReadJson.encodeToString(BookViewpointRetryContext.serializer(), context),
+        )
+    }
+
+    private suspend fun generateOutlines(
+        book: BookSearchResult,
+        info: WeReadBookInfo,
+        chapters: List<WeReadChapter>,
+        reviews: List<WeReadReview>,
+        config: Ai_config,
+    ): List<BookViewpointOutline> {
+        val response = completeWithAi(
+            prompt = info.title.ifBlank { book.title },
+            config = config,
+            systemPrompt = buildBookViewpointOutlinePrompt(book, info, chapters, reviews),
+            failure = "AI 观点生成失败，请稍后重试",
+        )
+        val outlines = parseBookViewpointOutlineJson(response)
+        if (outlines.size < 10) throw WeReadSkillException(WeReadSkillErrorType.AiFallbackFailure, "AI 观点生成失败，请稍后重试")
+        return outlines
+    }
+
+    private suspend fun enrichOutlines(
+        book: BookSearchResult,
+        info: WeReadBookInfo,
+        chapters: List<WeReadChapter>,
+        reviews: List<WeReadReview>,
+        config: Ai_config,
+        outlines: List<BookViewpointOutline>,
+    ): List<BookViewpointDraft> = coroutineScope {
+        val servers = mcpServerRepository.getEnabled().filter { it.server_url.startsWith("http") }
+        outlines.take(10).chunked(BOOK_VIEWPOINT_ENRICH_CONCURRENCY).flatMap { chunk ->
+            chunk.map { outline ->
+                val contextJson = bookViewpointRetryContextJson(book, info, chapters, reviews, outline)
+                async { enrichOne(book, info, chapters, reviews, config, outline, servers, contextJson) }
+            }.awaitAll()
+        }
+    }
+
+    private suspend fun enrichOne(
+        book: BookSearchResult,
+        info: WeReadBookInfo,
+        chapters: List<WeReadChapter>,
+        reviews: List<WeReadReview>,
+        config: Ai_config,
+        outline: BookViewpointOutline,
+        servers: List<com.dailysatori.shared.db.Mcp_server>,
+        retryContextJson: String,
+    ): BookViewpointDraft {
+        val sourceNotes = runCatching { remoteMcpClient.collectWebSearchNotes(servers, outline.searchQuery) }.getOrDefault("")
+        return try {
+            val response = completeWithAi(
+                prompt = outline.title,
+                config = config,
+                systemPrompt = buildBookViewpointEnrichmentPrompt(book, info, chapters, reviews, outline, sourceNotes),
+                failure = "AI 观点生成失败，请稍后重试",
             )
+            parseBookViewpointEnrichmentJson(response, outline, sourceNotes, retryContextJson)
+                ?: failedBookViewpointDraft(outline, "AI 观点生成失败，请稍后重试", sourceNotes).copy(outlineJson = retryContextJson)
         } catch (error: CancellationException) {
             throw error
-        } catch (error: Exception) {
-            throw WeReadSkillException(WeReadSkillErrorType.AiFallbackFailure, "AI 观点生成失败，请稍后重试", error)
+        } catch (_: Exception) {
+            failedBookViewpointDraft(outline, "AI 观点生成失败，请稍后重试", sourceNotes).copy(outlineJson = retryContextJson)
         }
-        return parseAiFallbackViewpointJson(response)
+    }
+
+    private suspend fun completeWithAi(
+        prompt: String,
+        config: Ai_config,
+        systemPrompt: String,
+        failure: String,
+    ): String = try {
+        aiService.complete(
+            prompt = prompt,
+            apiAddress = config.api_address,
+            apiToken = config.api_token,
+            modelName = config.model_name,
+            provider = config.provider,
+            systemPrompt = systemPrompt,
+            temperature = 0.5,
+        )
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        throw WeReadSkillException(WeReadSkillErrorType.AiFallbackFailure, failure, error)
     }
 }
 
@@ -383,6 +507,163 @@ fun buildAiFallbackViewpointPrompt(
     """.trimIndent()
 }
 
+fun buildBookViewpointOutlinePrompt(
+    book: BookSearchResult,
+    info: WeReadBookInfo,
+    chapters: List<WeReadChapter>,
+    reviews: List<WeReadReview>,
+): String {
+    val title = info.title.ifBlank { book.title }
+    val author = info.author.ifBlank { book.author }
+    return """
+        请基于微信读书资料生成 10 个观点骨架，不要写长解释和案例。
+        每个观点骨架用于后续联网 MCP 检索和 AI 补全。
+
+        书名：$title
+        作者：$author
+        分类：${book.category.ifBlank { info.category }}
+        简介：${info.intro.ifBlank { book.introduction }}
+        可用目录：${chapters.take(12).joinToString("、") { it.title }}
+        可用书评：${reviews.take(5).joinToString("\n") { it.content }}
+
+        只返回 JSON 数组，数组包含 10 个对象。
+        每个对象字段：title、brief、focus、searchQuery、caseIntent。
+        title 是完整判断句；brief 用 40-80 字说明观点；focus 是 2-8 个字的观点主题。
+        searchQuery 必须适合 MCP 联网搜索，包含书名 + 作者 + 观点主题 + 关键词。
+        caseIntent 说明这个观点适合真实案例、思想来源、寓言故事、童话故事或组织类比。
+        不要编造章节正文、页码或原文引文。
+    """.trimIndent()
+}
+
+fun buildBookViewpointEnrichmentPrompt(
+    book: BookSearchResult,
+    info: WeReadBookInfo,
+    chapters: List<WeReadChapter>,
+    reviews: List<WeReadReview>,
+    outline: BookViewpointOutline,
+    sourceNotes: String,
+): String {
+    val title = info.title.ifBlank { book.title }
+    val author = info.author.ifBlank { book.author }
+    return """
+        请把一个书籍观点骨架补全为最终观点卡片，只返回 JSON 对象：{"title":"...","content":"...","example":"..."}。
+
+        书名：$title
+        作者：$author
+        简介：${info.intro.ifBlank { book.introduction }}
+        可用目录：${chapters.take(12).joinToString("、") { it.title }}
+        可用书评：${reviews.take(5).joinToString("\n") { it.content }}
+
+        观点骨架：${weReadJson.encodeToString(BookViewpointOutline.serializer(), outline)}
+
+        外部 MCP 资料：
+        ${sourceNotes.ifBlank { "无可用外部资料" }}
+
+        先判断 MCP 资料是否与书名、作者、观点主题匹配；无关资料必须忽略。
+        content 控制在 80 到 160 个中文字符，讲清观点的风险、条件和边界。
+        example 至少 120 个中文字符。真实案例必须来自微信读书资料或 MCP 资料；如果没有可靠真实案例，可以写寓言、童话、组织场景或类比故事。
+        不能把类比或想象场景写成真实发生，也不要写“某知名企业曾经”这类无法验证的套话。
+    """.trimIndent()
+}
+
+fun parseBookViewpointOutlineJson(response: String): List<BookViewpointOutline> {
+    val array = runCatching { weReadJson.parseToJsonElement(extractJsonArray(response)).jsonArray }.getOrNull()
+        ?: return emptyList()
+    return array.mapNotNull { item ->
+        val obj = item.asJsonObjectOrNull() ?: return@mapNotNull null
+        val outline = BookViewpointOutline(
+            title = obj.stringValue("title").trim(),
+            brief = obj.stringValue("brief").trim(),
+            focus = obj.stringValue("focus").trim(),
+            searchQuery = obj.stringValue("searchQuery").trim(),
+            caseIntent = obj.stringValue("caseIntent").trim(),
+        )
+        if (outline.title.length < 4 || outline.brief.length < 10 || outline.searchQuery.isBlank()) null else outline
+    }.take(10)
+}
+
+fun failedBookViewpointDraft(outline: BookViewpointOutline, errorMessage: String, sourceNotes: String): BookViewpointDraft =
+    BookViewpointDraft(
+        title = outline.title,
+        content = "",
+        example = "",
+        status = "failed",
+        errorMessage = errorMessage,
+        outlineJson = weReadJson.encodeToString(BookViewpointOutline.serializer(), outline),
+        sourceNotes = sourceNotes,
+    )
+
+fun parseBookViewpointEnrichmentJson(
+    response: String,
+    outline: BookViewpointOutline,
+    sourceNotes: String,
+    outlineJson: String = weReadJson.encodeToString(BookViewpointOutline.serializer(), outline),
+): BookViewpointDraft? {
+    val obj = runCatching { weReadJson.parseToJsonElement(extractJsonObject(response)).jsonObject }.getOrNull()
+        ?: return null
+    val title = obj.stringValue("title").trim().ifBlank { outline.title }
+    val content = obj.stringValue("content").trim()
+    val example = obj.stringValue("example").trim()
+    if (title.length < 4 || content.length < 40 || example.length < 120) return null
+    return BookViewpointDraft(
+        title = title,
+        content = content,
+        example = example,
+        outlineJson = outlineJson,
+        sourceNotes = sourceNotes,
+    )
+}
+
+fun bookViewpointRetryContextJson(
+    book: BookSearchResult,
+    info: WeReadBookInfo,
+    chapters: List<WeReadChapter>,
+    reviews: List<WeReadReview>,
+    outline: BookViewpointOutline,
+): String = weReadJson.encodeToString(
+    BookViewpointRetryContext.serializer(),
+    BookViewpointRetryContext(
+        bookTitle = info.title.ifBlank { book.title },
+        bookAuthor = info.author.ifBlank { book.author },
+        bookCategory = book.category.ifBlank { info.category },
+        bookIntroduction = info.intro.ifBlank { book.introduction },
+        info = info,
+        chapters = chapters,
+        reviews = reviews,
+        outline = outline,
+    ),
+)
+
+fun parseBookViewpointRetryContext(value: String): BookViewpointRetryContext? =
+    runCatching { weReadJson.decodeFromString(BookViewpointRetryContext.serializer(), value) }.getOrNull()
+
+private fun fallbackRetryContext(book: Book, viewpoint: Book_viewpoint): BookViewpointRetryContext {
+    val outline = BookViewpointOutline(
+        title = viewpoint.title,
+        brief = viewpoint.content.ifBlank { viewpoint.title },
+        focus = viewpoint.title.take(8),
+        searchQuery = listOf(book.title, book.author, viewpoint.title).filter { it.isNotBlank() }.joinToString(" "),
+        caseIntent = "真实或类比案例",
+    )
+    return BookViewpointRetryContext(
+        bookTitle = book.title,
+        bookAuthor = book.author,
+        bookCategory = book.category,
+        bookIntroduction = book.introduction,
+        info = WeReadBookInfo(bookId = "", title = book.title, author = book.author, intro = book.introduction, category = book.category),
+        chapters = emptyList(),
+        reviews = emptyList(),
+        outline = outline,
+    )
+}
+
+private fun BookViewpointRetryContext.toSearchResult(): BookSearchResult = BookSearchResult(
+    title = bookTitle,
+    author = bookAuthor,
+    category = bookCategory,
+    introduction = bookIntroduction,
+)
+
 fun parseAiFallbackViewpointJson(response: String): List<BookViewpointDraft> {
     val array = runCatching { weReadJson.parseToJsonElement(extractJsonArray(response)).jsonArray }.getOrNull()
         ?: return emptyList()
@@ -418,6 +699,23 @@ private fun extractJsonArray(response: String): String {
     val start = unfenced.indexOf('[')
     val end = unfenced.lastIndexOf(']')
     if (start < 0 || end < start) return "[]"
+    return unfenced.substring(start, end + 1)
+}
+
+private fun extractJsonObject(response: String): String {
+    val trimmed = response.trim()
+    val unfenced = if (trimmed.startsWith("```")) {
+        trimmed.lines()
+            .drop(1)
+            .dropLastWhile { it.trim().startsWith("```") || it.isBlank() }
+            .joinToString("\n")
+            .trim()
+    } else {
+        trimmed
+    }
+    val start = unfenced.indexOf('{')
+    val end = unfenced.lastIndexOf('}')
+    if (start < 0 || end < start) return "{}"
     return unfenced.substring(start, end + 1)
 }
 

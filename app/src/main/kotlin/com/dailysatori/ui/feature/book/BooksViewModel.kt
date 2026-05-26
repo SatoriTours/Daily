@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
+import com.dailysatori.service.book.BookAiFallbackGenerator
 import com.dailysatori.shared.db.Book
 import com.dailysatori.shared.db.Book_viewpoint
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,7 @@ data class BooksState(
 class BooksViewModel(
     private val bookRepo: BookRepository,
     private val viewpointRepo: BookViewpointRepository,
+    private val bookAiFallbackGenerator: BookAiFallbackGenerator,
 ) : ViewModel() {
     private val _state = MutableStateFlow(BooksState())
     val state: StateFlow<BooksState> = _state.asStateFlow()
@@ -81,6 +83,44 @@ class BooksViewModel(
             viewpointRepo.deleteByBook(bookId)
             bookRepo.delete(bookId)
             _state.update { it.copy(currentBookId = null, viewpoints = emptyList()) }
+        }
+    }
+
+    fun regenerateViewpoint(viewpointId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val viewpoint = viewpointRepo.getById(viewpointId) ?: return@launch
+            val book = bookRepo.getById(viewpoint.book_id) ?: return@launch
+            viewpointRepo.updateStatusContext(
+                id = viewpoint.id,
+                title = viewpoint.title,
+                content = viewpoint.content,
+                example = viewpoint.example,
+                status = "generating",
+                errorMessage = "",
+                outlineJson = viewpoint.outline_json,
+                sourceNotes = viewpoint.source_notes,
+            )
+            val draft = runCatching { bookAiFallbackGenerator.regenerate(book, viewpoint) }.getOrElse { error ->
+                com.dailysatori.service.book.BookViewpointDraft(
+                    title = viewpoint.title,
+                    content = viewpoint.content,
+                    example = viewpoint.example,
+                    status = "failed",
+                    errorMessage = error.message ?: "AI 观点生成失败，请稍后重试",
+                    outlineJson = viewpoint.outline_json,
+                    sourceNotes = viewpoint.source_notes,
+                )
+            }
+            viewpointRepo.updateStatusContext(
+                id = viewpoint.id,
+                title = draft.title,
+                content = draft.content,
+                example = draft.example,
+                status = draft.status,
+                errorMessage = draft.errorMessage,
+                outlineJson = draft.outlineJson.ifBlank { viewpoint.outline_json },
+                sourceNotes = draft.sourceNotes,
+            )
         }
     }
 }

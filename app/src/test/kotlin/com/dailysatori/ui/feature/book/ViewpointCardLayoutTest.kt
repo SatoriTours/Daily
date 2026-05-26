@@ -69,10 +69,22 @@ class ViewpointCardLayoutTest {
         assertTrue(body.contains("showProgress = showProgress"))
     }
 
+    @Test
+    fun viewpointCardShowsRetryForFailedGeneration() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
+        val body = source.extractCallBlock("fun ViewpointCard(")
+
+        assertTrue(body.contains("status: String = \"ready\""))
+        assertTrue(body.contains("onRetry: () -> Unit = {}"))
+        assertTrue(source.contains("重新生成这个观点"))
+        assertTrue(source.contains("正在重新生成这个观点"))
+    }
+
     private fun String.extractCallBlock(anchor: String): String {
         assertTrue(contains(anchor), "Missing call anchor: $anchor")
         val start = indexOf(anchor)
-        val bodyStart = indexOf('{', start)
+        val signatureEnd = indexOf(") {", start)
+        val bodyStart = if (signatureEnd >= 0) indexOf('{', signatureEnd) else -1
         assertTrue(bodyStart >= 0, "Missing block body for call anchor: $anchor")
 
         var depth = 0

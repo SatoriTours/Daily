@@ -40,6 +40,33 @@ class RemoteMcpClientTest {
     }
 
     @Test
+    fun prefersSearchQueryArgumentWhenMcpSchemaProvidesIt() {
+        val schema = buildJsonObject {
+            put("properties", buildJsonObject {
+                put("query", buildJsonObject { put("type", JsonPrimitive("string")) })
+                put("search_query", buildJsonObject { put("type", JsonPrimitive("string")) })
+            })
+        }
+
+        val args = buildMcpToolArguments(schema, "新书 观点")
+
+        assertEquals("新书 观点", args["search_query"]?.toString()?.trim('"'))
+        assertEquals(null, args["query"])
+    }
+
+    @Test
+    fun ranksSearchToolsBeforeReaderToolsForPlainQueries() {
+        val tools = listOf(
+            RemoteMcpTool("webReader", "Read webpage content", buildJsonObject { }),
+            RemoteMcpTool("webSearchPrime", "Search web pages", buildJsonObject { }),
+        )
+
+        val best = selectBestWebSearchTool(tools)
+
+        assertEquals("webSearchPrime", best?.name)
+    }
+
+    @Test
     fun extractsTextContentFromToolCallResult() {
         val response = """
             {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"Book notes"}],"isError":false}}

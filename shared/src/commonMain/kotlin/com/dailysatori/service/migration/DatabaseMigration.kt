@@ -52,6 +52,9 @@ class DatabaseMigration(
         if (currentVersion < 9) {
             migrateV8ToV9()
         }
+        if (currentVersion < 10) {
+            migrateV9ToV10()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -372,6 +375,24 @@ class DatabaseMigration(
                 '${apiToken.sqlEscaped()}', '1.0.3', $enabled, 1, 'weread', 'weread', '',
                 strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000)
         """.trimIndent())
+    }
+
+    private fun migrateV9ToV10() {
+        log.i { "Migration V9 -> V10: Book viewpoint retry context" }
+        val columns = listOf(
+            "status TEXT NOT NULL DEFAULT 'ready'",
+            "error_message TEXT NOT NULL DEFAULT ''",
+            "outline_json TEXT NOT NULL DEFAULT ''",
+            "source_notes TEXT NOT NULL DEFAULT ''",
+        )
+        columns.forEach { column ->
+            try {
+                runSql("ALTER TABLE book_viewpoint ADD COLUMN $column")
+                log.i { "Added book_viewpoint column: $column" }
+            } catch (e: Exception) {
+                log.w(e) { "Could not add book_viewpoint column: $column" }
+            }
+        }
     }
 
     private fun migratedWeReadTokenValue(legacyToken: String): String = when {

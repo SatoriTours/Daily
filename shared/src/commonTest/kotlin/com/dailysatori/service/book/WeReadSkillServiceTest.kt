@@ -8,6 +8,21 @@ import kotlin.test.assertTrue
 
 class WeReadSkillServiceTest {
     @Test
+    fun viewpointPersistenceSupportsFailedRetryContext() {
+        val schema = java.io.File("src/commonMain/sqldelight/com/dailysatori/shared/db/DailySatori.sq").readText()
+        val migration = java.io.File("src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
+        val repository = java.io.File("src/commonMain/kotlin/com/dailysatori/data/repository/BookViewpointRepository.kt").readText()
+
+        assertTrue(schema.contains("status TEXT NOT NULL DEFAULT 'ready'"))
+        assertTrue(schema.contains("error_message TEXT NOT NULL DEFAULT ''"))
+        assertTrue(schema.contains("outline_json TEXT NOT NULL DEFAULT ''"))
+        assertTrue(schema.contains("source_notes TEXT NOT NULL DEFAULT ''"))
+        assertTrue(schema.contains("updateViewpointStatusContext:"))
+        assertTrue(migration.contains("migrateV9ToV10"))
+        assertTrue(repository.contains("fun updateStatusContext("))
+    }
+
+    @Test
     fun buildsGatewayBodyWithFlatParametersAndSkillVersion() {
         val body = buildWeReadGatewayBody(
             apiName = "/store/search",
@@ -355,6 +370,76 @@ class WeReadSkillServiceTest {
         assertTrue(prompt.contains("直接讲故事"))
         assertTrue(prompt.contains("不要写“在某某书中”“书中情境”"))
         assertTrue(prompt.contains("供应链架构师"))
+    }
+
+    @Test
+    fun buildsOutlinePromptWithMcpSearchContract() {
+        val prompt = buildBookViewpointOutlinePrompt(
+            book = BookSearchResult(title = "新书", author = "作者", category = "管理"),
+            info = WeReadBookInfo(bookId = "1", title = "新书", author = "作者", intro = "一本讨论组织判断的新书。"),
+            chapters = listOf(WeReadChapter(chapterUid = 1, chapterIdx = 1, title = "判断的边界")),
+            reviews = listOf(WeReadReview(content = "读者认为它强调真实约束。")),
+        )
+
+        assertTrue(prompt.contains("10 个观点骨架"))
+        assertTrue(prompt.contains("searchQuery"))
+        assertTrue(prompt.contains("caseIntent"))
+        assertTrue(prompt.contains("书名 + 作者 + 观点主题"))
+    }
+
+    @Test
+    fun buildsEnrichmentPromptWithMcpEvidenceJudgment() {
+        val prompt = buildBookViewpointEnrichmentPrompt(
+            book = BookSearchResult(title = "新书", author = "作者", category = "管理"),
+            info = WeReadBookInfo(bookId = "1", title = "新书", author = "作者", intro = "一本讨论组织判断的新书。"),
+            chapters = listOf(WeReadChapter(chapterUid = 1, chapterIdx = 1, title = "判断的边界")),
+            reviews = listOf(WeReadReview(content = "读者认为它强调真实约束。")),
+            outline = BookViewpointOutline(
+                title = "先看约束再行动。",
+                brief = "行动前要判断资源、风险和边界。",
+                focus = "约束判断",
+                searchQuery = "新书 作者 约束判断",
+                caseIntent = "真实或类比案例",
+            ),
+            sourceNotes = "外部 MCP：作者访谈提到约束。",
+        )
+
+        assertTrue(prompt.contains("外部 MCP 资料"))
+        assertTrue(prompt.contains("判断 MCP 资料是否与书名、作者、观点主题匹配"))
+        assertTrue(prompt.contains("类比故事"))
+        assertTrue(prompt.contains("不能把类比或想象场景写成真实发生"))
+    }
+
+    @Test
+    fun parsesOutlineJsonWithSearchQueries() {
+        val json = """
+            [
+              {"title":"先看约束再行动。","brief":"行动前要判断资源、风险和边界。","focus":"约束判断","searchQuery":"新书 作者 约束判断","caseIntent":"真实或类比案例"}
+            ]
+        """.trimIndent()
+
+        val outlines = parseBookViewpointOutlineJson(json)
+
+        assertEquals(1, outlines.size)
+        assertEquals("新书 作者 约束判断", outlines.first().searchQuery)
+    }
+
+    @Test
+    fun buildsFailedViewpointDraftWithRetryContext() {
+        val outline = BookViewpointOutline(
+            title = "先看约束再行动。",
+            brief = "行动前要判断资源、风险和边界。",
+            focus = "约束判断",
+            searchQuery = "新书 作者 约束判断",
+            caseIntent = "真实或类比案例",
+        )
+
+        val draft = failedBookViewpointDraft(outline, "AI 生成失败", "外部 MCP 资料")
+
+        assertEquals("failed", draft.status)
+        assertEquals("AI 生成失败", draft.errorMessage)
+        assertTrue(draft.outlineJson.contains("searchQuery"))
+        assertEquals("外部 MCP 资料", draft.sourceNotes)
     }
 
     @Test
