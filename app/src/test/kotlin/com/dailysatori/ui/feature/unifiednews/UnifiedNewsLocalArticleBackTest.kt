@@ -90,15 +90,18 @@ class UnifiedNewsLocalArticleBackTest {
     }
 
     @Test
-    fun unifiedNewsSourceArticleListHeaderProvidesRefreshAction() {
+    fun unifiedNewsSourceSwitcherProvidesRefreshActionAndRemoteListHasNoHeader() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val sourceSwitcher = source.substringAfter("private fun UnifiedNewsSourceSwitcher(")
+            .substringBefore("@Composable\nprivate fun UnifiedNewsSourceArticleContent")
         val articleList = source.substringAfter("private fun UnifiedNewsSourceArticleList(")
             .substringBefore("@Composable\nprivate fun UnifiedNewsSourceArticleMessage")
 
-        assertTrue(articleList.contains("TextButton(onClick = viewModel::refreshSelectedRemoteSource)"))
-        assertTrue(articleList.contains("Text(\"刷新\")"))
-        assertTrue(articleList.contains("Text(\"\${selection.name} · 今日文章\""))
-        assertTrue(articleList.contains("Text(\"共 \${articles.size} 篇\""))
+        assertTrue(sourceSwitcher.contains("Icons.Default.Refresh") || sourceSwitcher.contains("refreshSelectedSource"))
+        assertFalse(articleList.contains("TextButton(onClick = viewModel::refreshSelectedRemoteSource)"))
+        assertFalse(articleList.contains("\${selection.name} · 今日文章"))
+        assertFalse(articleList.contains("共 \${articles.size} 篇"))
+        assertTrue(articleList.contains("RemoteArticleSummaryCard(article)"))
     }
 
     @Test

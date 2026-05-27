@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.dailysatori.shouldScrollToTopAfterArticleAdded
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.ui.component.appbar.AppTopBar
@@ -67,6 +68,8 @@ fun ArticleListScreen(
     onBack: (() -> Unit)? = null,
     showFavoritesOnly: Boolean = false,
     lockFavoritesFilter: Boolean = false,
+    showTopBar: Boolean = true,
+    refreshRequestKey: Int = 0,
 ) {
     val viewModel: ArticlesViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -78,28 +81,69 @@ fun ArticleListScreen(
     val coroutineScope = rememberCoroutineScope()
     val effectiveShowFavoritesOnly = if (lockFavoritesFilter) true else showFavoritesOnly
 
+    ArticleListEffects(state, listState, lifecycleOwner, effectiveShowFavoritesOnly, refreshRequestKey, viewModel)
+    ArticleListContent(
+        state = state,
+        listState = listState,
+        showTopBar = showTopBar,
+        onBack = onBack,
+        lockFavoritesFilter = lockFavoritesFilter,
+        onAddClick = { showAddDialog = true },
+        onSearchClick = viewModel::toggleSearch,
+        onSearch = viewModel::search,
+        onRefresh = viewModel::refreshArticles,
+        onFavoriteFilterClick = viewModel::toggleFavoritesOnly,
+        onArticleClick = onArticleClick,
+        onFavoriteClick = viewModel::toggleFavorite,
+        onShareClick = { url -> openArticleUrl(context, url) },
+        onNewArticlesClick = {
+            coroutineScope.launch {
+                listState.animateScrollToItem(0)
+                viewModel.clearNewArticlesIndicator()
+            }
+        },
+    )
+    if (showAddDialog) {
+        ArticleAddDialog(
+            url = addUrlInput,
+            isAdding = state.isAddingArticle,
+            onUrlChange = { addUrlInput = it },
+            onDismiss = {
+                showAddDialog = false
+                addUrlInput = ""
+            },
+            onConfirm = { url ->
+                viewModel.addArticle(url)
+                showAddDialog = false
+                addUrlInput = ""
+            },
+        )
+    }
+}
+
+@Composable
+private fun ArticleListEffects(
+    state: ArticlesState,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    lifecycleOwner: LifecycleOwner,
+    effectiveShowFavoritesOnly: Boolean,
+    refreshRequestKey: Int,
+    viewModel: ArticlesViewModel,
+) {
     fun firstVisibleArticleId(): Long? = state.articles.getOrNull(listState.firstVisibleItemIndex)?.id
     fun isAtTop(): Boolean = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-
-    LaunchedEffect(effectiveShowFavoritesOnly) {
-        viewModel.setFavoritesOnly(effectiveShowFavoritesOnly)
-    }
-
+    LaunchedEffect(effectiveShowFavoritesOnly) { viewModel.setFavoritesOnly(effectiveShowFavoritesOnly) }
+    LaunchedEffect(refreshRequestKey) { if (refreshRequestKey > 0) viewModel.refreshArticles() }
     LaunchedEffect(state.scrollToTopRequest, state.articles.isNotEmpty()) {
         if (shouldScrollToTopAfterArticleAdded(state.scrollToTopRequest) && state.articles.isNotEmpty()) {
             listState.animateScrollToItem(0)
             viewModel.clearNewArticlesIndicator()
         }
     }
-
-    LaunchedEffect(isAtTop()) {
-        if (isAtTop()) viewModel.clearNewArticlesIndicator()
-    }
-
+    LaunchedEffect(isAtTop()) { if (isAtTop()) viewModel.clearNewArticlesIndicator() }
     LaunchedEffect(state.articles.map { it.id }, listState.firstVisibleItemIndex) {
         viewModel.checkNewArticlesAbove(firstVisibleArticleId(), isAtTop())
     }
-
     DisposableEffect(lifecycleOwner, state.articles, listState.firstVisibleItemIndex) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -111,163 +155,187 @@ fun ArticleListScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+}
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArticleListContent(
+    state: ArticlesState,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    showTopBar: Boolean,
+    onBack: (() -> Unit)?,
+    lockFavoritesFilter: Boolean,
+    onAddClick: () -> Unit,
+    onSearchClick: () -> Unit,
+    onSearch: (String) -> Unit,
+    onRefresh: () -> Unit,
+    onFavoriteFilterClick: () -> Unit,
+    onArticleClick: (Long) -> Unit,
+    onFavoriteClick: (Long) -> Unit,
+    onShareClick: (String?) -> Unit,
+    onNewArticlesClick: () -> Unit,
+) {
     Column(modifier = Modifier.fillMaxSize()) {
-        AppTopBar(
-            title = "文章",
-            showBack = onBack != null,
-            onBack = onBack,
-            actions = {
-                IconButton(onClick = { showAddDialog = true }) {
-                    Icon(Icons.Default.Add, contentDescription = "添加文章")
-                }
-                IconButton(onClick = { viewModel.toggleSearch() }) {
-                    Icon(Icons.Default.Search, contentDescription = "搜索")
-                }
-                var showMenu by remember { mutableStateOf(false) }
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "更多")
-                    }
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text("标签筛选") },
-                            leadingIcon = { Icon(Icons.Default.FilterList, contentDescription = null) },
-                            onClick = { showMenu = false },
-                        )
-                        if (!lockFavoritesFilter) {
-                            DropdownMenuItem(
-                                text = { Text(if (state.showFavoritesOnly) "显示全部" else "只看收藏") },
-                                leadingIcon = {
-                                    Icon(
-                                        if (state.showFavoritesOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                        contentDescription = null,
-                                        tint = if (state.showFavoritesOnly) MaterialTheme.colorScheme.error else LocalContentColor.current,
-                                    )
-                                },
-                                onClick = {
-                                    viewModel.toggleFavoritesOnly()
-                                    showMenu = false
-                                },
-                            )
-                        }
-                    }
-                }
-            },
-        )
-
+        if (showTopBar) {
+            ArticleListTopBar(onBack, lockFavoritesFilter, state.showFavoritesOnly, onAddClick, onSearchClick, onFavoriteFilterClick)
+        }
         if (state.isSearchVisible) {
-            SearchBar(
-                query = state.searchQuery,
-                onQueryChange = { viewModel.search(it) },
-                onSearch = { viewModel.search(it) },
-                onClose = { viewModel.toggleSearch() },
+            SearchBar(state.searchQuery, onQueryChange = onSearch, onSearch = onSearch, onClose = onSearchClick)
+        }
+        PullToRefreshBox(isRefreshing = state.isRefreshing, onRefresh = onRefresh, modifier = Modifier.weight(1f).fillMaxWidth()) {
+            ArticleListBody(state, listState, onArticleClick, onFavoriteClick, onShareClick, onNewArticlesClick)
+        }
+    }
+}
+
+@Composable
+private fun ArticleListBody(
+    state: ArticlesState,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    onArticleClick: (Long) -> Unit,
+    onFavoriteClick: (Long) -> Unit,
+    onShareClick: (String?) -> Unit,
+    onNewArticlesClick: () -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        when {
+            state.isLoading && state.articles.isEmpty() -> LoadingIndicator()
+            state.articles.isEmpty() -> EmptyState(
+                modifier = Modifier.align(Alignment.Center),
+                icon = Icons.Default.FilterList,
+                title = "暂无文章",
+                subtitle = "导入数据或保存链接来添加文章",
+            )
+            else -> ArticleListItems(state, listState, onArticleClick, onFavoriteClick, onShareClick, onNewArticlesClick)
+        }
+    }
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.ArticleListItems(
+    state: ArticlesState,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    onArticleClick: (Long) -> Unit,
+    onFavoriteClick: (Long) -> Unit,
+    onShareClick: (String?) -> Unit,
+    onNewArticlesClick: () -> Unit,
+) {
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(Spacing.m),
+        verticalArrangement = Arrangement.spacedBy(articleListItemSpacingDp.dp),
+    ) {
+        items(state.articles, key = { it.id }, contentType = { "article" }) { article ->
+            ArticleCard(
+                article = article,
+                onClick = { onArticleClick(article.id) },
+                onFavoriteClick = { onFavoriteClick(article.id) },
+                onShareClick = { onShareClick(article.url) },
             )
         }
-
-        PullToRefreshBox(
-            isRefreshing = state.isRefreshing,
-            onRefresh = { viewModel.refreshArticles() },
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                if (state.isLoading && state.articles.isEmpty()) {
-                    LoadingIndicator()
-                } else if (state.articles.isEmpty()) {
-                    EmptyState(
-                        modifier = Modifier.align(Alignment.Center),
-                        icon = Icons.Default.FilterList,
-                        title = "暂无文章",
-                        subtitle = "导入数据或保存链接来添加文章",
-                    )
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(Spacing.m),
-                        verticalArrangement = Arrangement.spacedBy(articleListItemSpacingDp.dp),
-                    ) {
-                        items(
-                            items = state.articles,
-                            key = { it.id },
-                            contentType = { "article" },
-                        ) { article ->
-                            ArticleCard(
-                                article = article,
-                                onClick = { onArticleClick(article.id) },
-                                onFavoriteClick = { viewModel.toggleFavorite(article.id) },
-                                onShareClick = {
-                                    openArticleUrl(context, article.url)
-                                },
-                            )
-                        }
-                    }
-                    if (state.newArticlesAboveCount > 0) {
-                        ElevatedAssistChip(
-                            onClick = {
-                                coroutineScope.launch {
-                                    listState.animateScrollToItem(0)
-                                    viewModel.clearNewArticlesIndicator()
-                                }
-                            },
-                            label = { Text("上方有 ${state.newArticlesAboveCount} 篇新文章") },
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .offset(y = Spacing.s),
-                        )
-                    }
-                }
-            }
-        }
     }
-
-    if (showAddDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showAddDialog = false
-                addUrlInput = ""
-            },
-            shape = RoundedCornerShape(Radius.xl),
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            tonalElevation = 0.dp,
-            iconContentColor = MaterialTheme.colorScheme.primary,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            title = { Text("添加文章") },
-            text = {
-                OutlinedTextField(
-                    value = addUrlInput,
-                    onValueChange = { addUrlInput = it },
-                    label = { Text("文章链接") },
-                    placeholder = { Text("https://...") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(Radius.s),
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val url = addUrlInput.trim()
-                        if (url.isNotBlank()) {
-                            viewModel.addArticle(url)
-                            showAddDialog = false
-                            addUrlInput = ""
-                        }
-                    },
-                    enabled = addUrlInput.isNotBlank() && !state.isAddingArticle,
-                ) {
-                    Text(if (state.isAddingArticle) "添加中..." else "确定")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showAddDialog = false
-                    addUrlInput = ""
-                }) {
-                    Text("取消")
-                }
-            },
+    if (state.newArticlesAboveCount > 0) {
+        ElevatedAssistChip(
+            onClick = onNewArticlesClick,
+            label = { Text("上方有 ${state.newArticlesAboveCount} 篇新文章") },
+            modifier = Modifier.align(Alignment.TopCenter).offset(y = Spacing.s),
         )
     }
+}
+
+@Composable
+private fun ArticleAddDialog(
+    url: String,
+    isAdding: Boolean,
+    onUrlChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 0.dp,
+        title = { Text("添加文章") },
+        text = { ArticleAddUrlField(url, onUrlChange) },
+        confirmButton = { Button(onClick = { onConfirm(url.trim()) }, enabled = url.isNotBlank() && !isAdding) { Text(if (isAdding) "添加中..." else "确定") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
+}
+
+@Composable
+private fun ArticleAddUrlField(url: String, onUrlChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = url,
+        onValueChange = onUrlChange,
+        label = { Text("文章链接") },
+        placeholder = { Text("https://...") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.s),
+    )
+}
+
+@Composable
+private fun ArticleListTopBar(
+    onBack: (() -> Unit)?,
+    lockFavoritesFilter: Boolean,
+    showFavoritesOnly: Boolean,
+    onAddClick: () -> Unit,
+    onSearchClick: () -> Unit,
+    onFavoriteFilterClick: () -> Unit,
+) {
+    AppTopBar(
+        title = "文章",
+        showBack = onBack != null,
+        onBack = onBack,
+        actions = {
+            IconButton(onClick = onAddClick) { Icon(Icons.Default.Add, contentDescription = "添加文章") }
+            IconButton(onClick = onSearchClick) { Icon(Icons.Default.Search, contentDescription = "搜索") }
+            ArticleListMenu(lockFavoritesFilter, showFavoritesOnly, onFavoriteFilterClick)
+        },
+    )
+}
+
+@Composable
+private fun ArticleListMenu(
+    lockFavoritesFilter: Boolean,
+    showFavoritesOnly: Boolean,
+    onFavoriteFilterClick: () -> Unit,
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { showMenu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "更多") }
+        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+            DropdownMenuItem(
+                text = { Text("标签筛选") },
+                leadingIcon = { Icon(Icons.Default.FilterList, contentDescription = null) },
+                onClick = { showMenu = false },
+            )
+            if (!lockFavoritesFilter) ArticleFavoriteFilterMenuItem(showFavoritesOnly, onFavoriteFilterClick) { showMenu = false }
+        }
+    }
+}
+
+@Composable
+private fun ArticleFavoriteFilterMenuItem(
+    showFavoritesOnly: Boolean,
+    onFavoriteFilterClick: () -> Unit,
+    onCloseMenu: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text(if (showFavoritesOnly) "显示全部" else "只看收藏") },
+        leadingIcon = {
+            Icon(
+                if (showFavoritesOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                contentDescription = null,
+                tint = if (showFavoritesOnly) MaterialTheme.colorScheme.error else LocalContentColor.current,
+            )
+        },
+        onClick = {
+            onFavoriteFilterClick()
+            onCloseMenu()
+        },
+    )
 }

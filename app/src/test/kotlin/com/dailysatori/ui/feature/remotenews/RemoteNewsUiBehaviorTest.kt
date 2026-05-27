@@ -75,8 +75,34 @@ class RemoteNewsUiBehaviorTest {
 
         assertTrue(source.contains("private fun remoteArticleTimeText(article: RemoteArticle): String?"))
         assertTrue(source.contains("article.createdAt ?: article.processedAt"))
-        assertTrue(source.contains("val timeText = remoteArticleTimeText(article)"))
-        assertTrue(source.contains("timeText?.let { time ->"))
-        assertTrue(source.contains("Text(time"))
+        assertTrue(source.contains("private fun remoteArticleMetaText(article: RemoteArticle): String?"))
+        assertTrue(source.contains("remoteArticleTimeText(article)"))
+        assertTrue(source.contains("article.feedName?.takeIf { it.isNotBlank() }"))
+        assertTrue(source.contains("article.domain?.takeIf { it.isNotBlank() }"))
+    }
+
+    @Test
+    fun remoteAndLocalArticleCardsUseMagazineNewsCardContent() {
+        val remoteCards = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleCards.kt").readText()
+        val localCard = File("src/main/kotlin/com/dailysatori/ui/component/card/ArticleCard.kt").readText()
+
+        assertTrue(remoteCards.contains("MagazineNewsCard("))
+        assertTrue(localCard.contains("MagazineNewsCard("))
+        assertTrue(remoteCards.contains("remoteArticleIntroText(article)"))
+        assertTrue(localCard.contains("articleIntroText(article"))
+    }
+
+    @Test
+    fun magazineCardsUseReadableIntroFallbacks() {
+        val remoteCards = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleCards.kt").readText()
+        val localCard = File("src/main/kotlin/com/dailysatori/ui/component/card/ArticleCard.kt").readText()
+
+        assertTrue(remoteCards.contains("remoteArticleIntroText"))
+        assertTrue(remoteCards.contains("article.summary"))
+        assertTrue(remoteCards.contains("article.viewpoints"))
+        assertTrue(remoteCards.contains("article.content"))
+        assertTrue(localCard.contains("articleIntroText"))
+        assertTrue(localCard.contains("article.ai_content"))
+        assertTrue(localCard.contains("article.ai_markdown_content"))
     }
 }

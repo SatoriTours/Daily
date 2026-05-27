@@ -17,14 +17,8 @@ private val BriefingListItemRegex = Regex("""^\s*[-*+]\s+(.+)""")
 fun unifiedNewsBriefingContent(content: String): UnifiedNewsBriefingContent {
     val displayed = displayUnifiedNewsMarkdown(content)
     val points = displayed.lines().mapNotNull(::briefingPointFromLine)
-    val title = if (points.isNotEmpty()) {
-        "今天需要知道的 ${points.size} 件事"
-    } else {
-        "今日新闻简报"
-    }
-
     return UnifiedNewsBriefingContent(
-        title = title,
+        title = "今日封面",
         lead = briefingLeadFrom(displayed),
         points = points,
     )

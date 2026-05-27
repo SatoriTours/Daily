@@ -1,0 +1,97 @@
+package com.dailysatori.ui.component.news
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import com.dailysatori.ui.theme.MarkdownStyles
+import com.dailysatori.ui.theme.Radius
+import com.dailysatori.ui.theme.Spacing
+import com.mikepenz.markdown.model.MarkdownPadding
+import com.mikepenz.markdown.model.MarkdownTypography
+import com.mikepenz.markdown.m3.Markdown
+
+@Composable
+fun MagazineArticleHeader(
+    title: String,
+    metaChips: List<String>,
+    intro: String?,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.l, vertical = Spacing.m),
+        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+    ) {
+        MagazineArticleMetaChips(metaChips)
+        Text(
+            text = title.ifBlank { "文章详情" },
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        intro?.trim()?.takeIf { it.isNotBlank() }?.let { summary ->
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+fun MagazineArticleBody(
+    content: String,
+    modifier: Modifier = Modifier,
+    typography: MarkdownTypography = MarkdownStyles.readingTypography(),
+    padding: MarkdownPadding = MarkdownStyles.readingPadding(),
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.l),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        SelectionContainer {
+            Box(modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.m)) {
+                Markdown(content = content, typography = typography, padding = padding)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MagazineArticleMetaChips(metaChips: List<String>) {
+    val chips = metaChips.map { it.trim() }.filter { it.isNotBlank() }
+    if (chips.isEmpty()) return
+
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+    ) {
+        chips.forEach { chip ->
+            Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+                Text(
+                    text = chip,
+                    modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}

@@ -19,7 +19,7 @@ class UnifiedNewsBriefingContentTest {
         )
 
         assertEquals("今天 AI 工具开始从功能展示走向团队治理。", model.lead)
-        assertEquals("今天需要知道的 2 件事", model.title)
+        assertEquals("今日封面", model.title)
         assertEquals(2, model.points.size)
         assertEquals("AI 编程工具强调治理", model.points[0].text)
         assertEquals("R1", model.points[0].citation)
@@ -31,7 +31,7 @@ class UnifiedNewsBriefingContentTest {
     fun `falls back when there are no citation points`() {
         val model = unifiedNewsBriefingContent("只有一段普通总结，没有引用。")
 
-        assertEquals("今日新闻简报", model.title)
+        assertEquals("今日封面", model.title)
         assertEquals("只有一段普通总结，没有引用。", model.lead)
         assertEquals(emptyList(), model.points)
     }
@@ -46,7 +46,7 @@ class UnifiedNewsBriefingContentTest {
             """.trimIndent(),
         )
 
-        assertEquals("今日新闻简报", model.title)
+        assertEquals("今日封面", model.title)
         assertEquals("今天市场关注 AI 硬件。", model.lead)
         assertEquals(0, model.points.size)
     }
@@ -68,7 +68,7 @@ class UnifiedNewsBriefingContentTest {
     fun `empty content has no lead and default title`() {
         val model = unifiedNewsBriefingContent("   ")
 
-        assertEquals("今日新闻简报", model.title)
+        assertEquals("今日封面", model.title)
         assertNull(model.lead)
         assertEquals(emptyList(), model.points)
     }

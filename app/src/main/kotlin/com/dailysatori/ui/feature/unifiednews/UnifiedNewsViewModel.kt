@@ -38,6 +38,7 @@ enum class UnifiedNewsPage {
 sealed class UnifiedNewsSourceSelection {
     data object Summary : UnifiedNewsSourceSelection()
     data class RemoteSource(val id: Long, val name: String) : UnifiedNewsSourceSelection()
+    data object LocalArticles : UnifiedNewsSourceSelection()
 }
 
 data class UnifiedNewsRemoteSourceOption(val id: Long, val name: String)
@@ -74,6 +75,7 @@ data class UnifiedNewsState(
     val isLoading: Boolean = false,
     val isRegenerating: Boolean = false,
     val regeneratingSummaryDate: String? = null,
+    val localArticleRefreshRequestKey: Int = 0,
     val manualRefreshMessage: String? = null,
     val error: String? = null,
 )
@@ -159,7 +161,12 @@ class UnifiedNewsViewModel(
     }
 
     fun switchPage(page: UnifiedNewsPage) {
-        _state.update { it.copy(page = page) }
+        _state.update {
+            it.copy(
+                page = page,
+                sourceSelection = if (page == UnifiedNewsPage.SUMMARY) UnifiedNewsSourceSelection.Summary else it.sourceSelection,
+            )
+        }
     }
 
     fun selectSummarySource() {
@@ -180,6 +187,25 @@ class UnifiedNewsViewModel(
         if (!sourceArticlesCached) {
             fetchSourceArticles(source.id, force = false)
         }
+    }
+
+    fun selectLocalArticlesSource() {
+        invalidateSourceArticleRequest()
+        _state.update {
+            it.copy(sourceSelection = UnifiedNewsSourceSelection.LocalArticles)
+        }
+    }
+
+    fun refreshSelectedSource() {
+        when (_state.value.sourceSelection) {
+            UnifiedNewsSourceSelection.Summary -> regenerateCurrentWindow()
+            is UnifiedNewsSourceSelection.RemoteSource -> refreshSelectedRemoteSource()
+            UnifiedNewsSourceSelection.LocalArticles -> incrementLocalArticleRefreshRequest()
+        }
+    }
+
+    private fun incrementLocalArticleRefreshRequest() {
+        _state.update { it.copy(localArticleRefreshRequestKey = it.localArticleRefreshRequestKey + 1) }
     }
 
     fun refreshSelectedRemoteSource() {
