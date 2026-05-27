@@ -1767,6 +1767,24 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun unifiedNewsTransientStatesMatchBriefingCardSystem() {
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val refreshMessage = screen.substringAfter("private fun UnifiedNewsRefreshMessage").substringBefore("@Composable\nprivate fun UnifiedNewsGeneratingSkeleton")
+        val skeletonCard = screen.substringAfter("private fun UnifiedNewsGeneratingSkeleton").substringBefore("@Composable\nprivate fun UnifiedNewsSourceDetailLoadingScreen")
+
+        assertTrue(refreshMessage.contains("shape = RoundedCornerShape(Radius.l)"))
+        assertTrue(refreshMessage.contains("color = MaterialTheme.colorScheme.surfaceContainerHighest"))
+        assertTrue(refreshMessage.contains("border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline)"))
+        assertTrue(skeletonCard.contains("shape = RoundedCornerShape(Radius.xl)"))
+        assertTrue(skeletonCard.contains("CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)"))
+        assertTrue(skeletonCard.contains("Surface("))
+        assertTrue(skeletonCard.contains("shape = RoundedCornerShape(Radius.l)"))
+        assertTrue(skeletonCard.contains("color = MaterialTheme.colorScheme.surfaceContainer"))
+        assertTrue(skeletonCard.contains("SkeletonStatTile("))
+        assertEquals(3, skeletonCard.split("SkeletonStatTile(").size - 1)
+    }
+
+    @Test
     fun unifiedNewsSummaryLoadKeepsPreviousSummariesVisible() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()

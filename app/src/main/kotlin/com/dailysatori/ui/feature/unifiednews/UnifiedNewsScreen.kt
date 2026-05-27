@@ -9,6 +9,9 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -51,6 +55,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.service.remotenews.RemoteArticle
@@ -67,6 +73,7 @@ import com.dailysatori.ui.feature.remotenews.RemoteDigestDetailScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.theme.BorderWidth
+import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -309,8 +316,9 @@ private fun UnifiedNewsSourceArticleMessage(title: String, actionLabel: String, 
 private fun UnifiedNewsRefreshMessage(message: String) {
     Surface(
         modifier = Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s),
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.l),
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
     ) {
         Text(
             text = message,
@@ -332,18 +340,31 @@ private fun UnifiedNewsGeneratingSkeleton(summaryDate: String?) {
     )
     Card(
         modifier = Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s),
-        shape = RoundedCornerShape(Radius.l),
+        shape = RoundedCornerShape(Radius.xl),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             summaryDate?.let {
                 Text(unifiedNewsSummaryTitle(summaryDate), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             }
-            SkeletonLine(width = 160.dp, alpha = alpha)
-            SkeletonLine(width = 280.dp, alpha = alpha)
-            SkeletonLine(width = 240.dp, alpha = alpha)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(Radius.l),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                    SkeletonLine(width = 132.dp, alpha = alpha)
+                    SkeletonLine(width = 260.dp, alpha = alpha)
+                    SkeletonLine(width = 220.dp, alpha = alpha)
+                }
+            }
             SkeletonLine(width = 300.dp, alpha = alpha)
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                SkeletonStatTile(alpha = alpha, modifier = Modifier.weight(1f))
+                SkeletonStatTile(alpha = alpha, modifier = Modifier.weight(1f))
+                SkeletonStatTile(alpha = alpha, modifier = Modifier.weight(1f))
+            }
         }
     }
 }
@@ -385,6 +406,20 @@ private fun SkeletonLine(width: androidx.compose.ui.unit.Dp, alpha: Float) {
 }
 
 @Composable
+private fun SkeletonStatTile(alpha: Float, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(Radius.l),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            SkeletonLine(width = 40.dp, alpha = alpha)
+            SkeletonLine(width = 64.dp, alpha = alpha)
+        }
+    }
+}
+
+@Composable
 private fun UnifiedNewsMenu(viewModel: UnifiedNewsViewModel) {
     var expanded by remember { mutableStateOf(false) }
     Box {
@@ -408,31 +443,198 @@ private fun TodayUnifiedNewsCard(
     sources: List<Unified_news_source>,
     onCitationClick: (Unified_news_source) -> Unit,
 ) {
+    val briefing = remember(summary.content) { unifiedNewsBriefingContent(summary.content) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.l),
+        shape = RoundedCornerShape(Radius.xl),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    unifiedNewsSummaryTitle(summary.summary_date),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.l),
+            verticalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) {
+            UnifiedNewsBriefingHero(summary = summary, sources = sources, briefing = briefing)
+            if (briefing.points.isNotEmpty()) {
+                UnifiedNewsBriefingPointList(
+                    points = briefing.points,
+                    sources = sources,
+                    onCitationClick = onCitationClick,
                 )
-                Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+            } else {
+                UnifiedNewsBriefingFallback(summary = summary, sources = sources, onCitationClick = onCitationClick)
+            }
+            UnifiedNewsBriefingSourceRow(sources)
+        }
+    }
+}
+
+@Composable
+private fun UnifiedNewsBriefingHero(
+    summary: Unified_news_summary,
+    sources: List<Unified_news_source>,
+    briefing: UnifiedNewsBriefingContent,
+) {
+    val citationCount = briefing.points.mapNotNull { it.citation }.distinct().size
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.l),
+        color = MaterialTheme.colorScheme.primaryContainer,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                UnifiedNewsBriefingBadge(unifiedNewsSummaryTitle(summary.summary_date))
+                UnifiedNewsBriefingBadge("${sources.size} 个来源")
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                Text(
+                    text = briefing.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                briefing.lead?.let { lead ->
                     Text(
-                        "${sources.size} 个来源",
-                        modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
-                        style = MaterialTheme.typography.labelSmall,
+                        text = lead,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
             }
+            UnifiedNewsBriefingStats(
+                sourceCount = sources.size,
+                pointCount = briefing.points.size,
+                citationCount = citationCount,
+            )
+        }
+    }
+}
+
+@Composable
+private fun UnifiedNewsBriefingBadge(text: String) {
+    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun UnifiedNewsBriefingStats(sourceCount: Int, pointCount: Int, citationCount: Int) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        UnifiedNewsBriefingStatTile("来源", sourceCount.toString(), Modifier.weight(1f))
+        UnifiedNewsBriefingStatTile("重点", pointCount.toString(), Modifier.weight(1f))
+        UnifiedNewsBriefingStatTile("引用", citationCount.toString(), Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun UnifiedNewsBriefingStatTile(label: String, value: String, modifier: Modifier = Modifier) {
+    Surface(modifier = modifier, shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainer) {
+        Column(modifier = Modifier.padding(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
+            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun UnifiedNewsBriefingPointList(
+    points: List<UnifiedNewsBriefingPoint>,
+    sources: List<Unified_news_source>,
+    onCitationClick: (Unified_news_source) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Text("关键要点", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        points.forEachIndexed { index, point ->
+            val source = point.citation?.let { citation -> sources.firstOrNull { it.ref_key == citation } }
+            UnifiedNewsBriefingPointRow(index = index, point = point, source = source, onCitationClick = onCitationClick)
+        }
+    }
+}
+
+@Composable
+private fun UnifiedNewsBriefingPointRow(
+    index: Int,
+    point: UnifiedNewsBriefingPoint,
+    source: Unified_news_source?,
+    onCitationClick: (Unified_news_source) -> Unit,
+) {
+    val rowModifier = if (source != null) Modifier.clickable { onCitationClick(source) } else Modifier
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.l),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
+    ) {
+        Row(
+            modifier = rowModifier.fillMaxWidth().padding(Spacing.m),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+            verticalAlignment = Alignment.Top,
+        ) {
+            UnifiedNewsBriefingNumberBadge(index + 1)
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text(
+                    text = point.text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = unifiedNewsBriefingSourceHint(point.citation, source),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UnifiedNewsBriefingNumberBadge(number: Int) {
+    Surface(
+        modifier = Modifier.size(IconSize.xl),
+        shape = RoundedCornerShape(Radius.circular),
+        color = MaterialTheme.colorScheme.primaryContainer,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = number.toString(),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun UnifiedNewsBriefingFallback(
+    summary: Unified_news_summary,
+    sources: List<Unified_news_source>,
+    onCitationClick: (Unified_news_source) -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Radius.l),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline),
+    ) {
+        Column(modifier = Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Text("完整简报", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             CitationText(
                 content = summary.content.ifBlank { "暂无正文" },
                 modifier = Modifier.fillMaxWidth(),
@@ -441,4 +643,41 @@ private fun TodayUnifiedNewsCard(
             }
         }
     }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun UnifiedNewsBriefingSourceRow(sources: List<Unified_news_source>) {
+    if (sources.isEmpty()) return
+
+    val visibleSources = sources.take(4)
+    val hiddenCount = sources.size - visibleSources.size
+
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Text("来源覆盖", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            visibleSources.forEach { source -> UnifiedNewsBriefingSourceChip(source.title) }
+            if (hiddenCount > 0) UnifiedNewsBriefingSourceChip("+$hiddenCount")
+        }
+    }
+}
+
+@Composable
+private fun UnifiedNewsBriefingSourceChip(label: String) {
+    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+private fun unifiedNewsBriefingSourceHint(citation: String?, source: Unified_news_source?): String = when {
+    source != null && citation != null -> "引用 $citation · ${source.title}"
+    citation != null -> "引用 $citation"
+    else -> "未关联来源"
 }
