@@ -17,12 +17,12 @@ class RemoteArticleDetailLayoutTest {
     }
 
     @Test
-    fun remoteArticleDetailOrdersCoverThenHeaderThenTabsThenContent() {
+    fun remoteArticleDetailOrdersCoverThenHeaderThenSegmentedTabsThenContent() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
         val pagerContent = source.functionBody("RemoteArticleDetailPage")
 
         val coverIndex = pagerContent.indexOf("RemoteArticleCoverImage(")
-        val tabsIndex = pagerContent.indexOf("MarkdownTabRow(")
+        val tabsIndex = pagerContent.indexOf("MagazineArticleTabSelector(")
         val headerIndex = pagerContent.indexOf("MagazineArticleHeader(")
         val contentIndex = pagerContent.indexOf("LazyColumn(")
 
@@ -30,6 +30,8 @@ class RemoteArticleDetailLayoutTest {
         assertTrue(headerIndex > coverIndex)
         assertTrue(tabsIndex > headerIndex)
         assertTrue(contentIndex > tabsIndex)
+        assertFalse(pagerContent.contains("intro = article.summary"))
+        assertFalse(source.contains("MarkdownTabRow(remoteArticleDetailTabTitles"))
     }
 
     @Test

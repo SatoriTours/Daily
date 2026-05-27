@@ -13,15 +13,38 @@ data class UnifiedNewsBriefingPoint(
 
 private val BriefingCitationRegex = Regex("""\[([RCDF]\d+)]""")
 private val BriefingListItemRegex = Regex("""^\s*[-*+]\s+(.+)""")
+private val BriefingDailyCoverHeadingRegex = Regex("""^\s*#{1,6}\s*(?:🗞️\s*)?每日封面\s*$""")
+private val BriefingHeadingRegex = Regex("""^\s*#{1,6}\s+.+""")
 
 fun unifiedNewsBriefingContent(content: String): UnifiedNewsBriefingContent {
-    val displayed = displayUnifiedNewsMarkdown(content)
+    val coverLead = briefingDailyCoverLeadFrom(content)
+    val displayed = displayUnifiedNewsMarkdown(content).withoutDailyCoverSection()
     val points = displayed.lines().mapNotNull(::briefingPointFromLine)
     return UnifiedNewsBriefingContent(
         title = "今日封面",
-        lead = briefingLeadFrom(displayed),
+        lead = coverLead ?: briefingLeadFrom(displayed),
         points = points,
     )
+}
+
+private fun briefingDailyCoverLeadFrom(content: String): String? {
+    val lines = content.lines()
+    val headingIndex = lines.indexOfFirst { BriefingDailyCoverHeadingRegex.matches(it.trim()) }
+    if (headingIndex < 0) return null
+    return lines.drop(headingIndex + 1)
+        .map { it.trim() }
+        .takeWhile { line -> !BriefingHeadingRegex.matches(line) }
+        .firstOrNull { line -> line.isNotEmpty() && BriefingListItemRegex.find(line) == null }
+        ?.withoutBriefingMarkdown()
+}
+
+private fun String.withoutDailyCoverSection(): String {
+    val lines = lines()
+    val headingIndex = lines.indexOfFirst { BriefingDailyCoverHeadingRegex.matches(it.trim()) }
+    if (headingIndex < 0) return this
+    val nextHeading = lines.drop(headingIndex + 1).indexOfFirst { BriefingHeadingRegex.matches(it.trim()) }
+    val endIndex = if (nextHeading < 0) lines.size else headingIndex + 1 + nextHeading
+    return (lines.take(headingIndex) + lines.drop(endIndex)).joinToString("\n")
 }
 
 private fun briefingPointFromLine(line: String): UnifiedNewsBriefingPoint? {

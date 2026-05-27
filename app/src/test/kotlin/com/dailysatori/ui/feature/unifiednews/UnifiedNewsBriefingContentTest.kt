@@ -65,6 +65,39 @@ class UnifiedNewsBriefingContentTest {
     }
 
     @Test
+    fun `uses daily cover section as magazine lead`() {
+        val model = unifiedNewsBriefingContent(
+            """
+            ## 每日封面
+            今天的封面导语应该直接展示在封面区域。
+
+            ## 今日要点
+            - AI 工具进入治理阶段 [R1]
+            """.trimIndent(),
+        )
+
+        assertEquals("今天的封面导语应该直接展示在封面区域。", model.lead)
+        assertEquals(1, model.points.size)
+    }
+
+    @Test
+    fun `uses cited daily cover paragraph as lead without turning it into story row`() {
+        val model = unifiedNewsBriefingContent(
+            """
+            ## 每日封面
+            今天市场主线集中在 AI 基建与终端落地 [R1]
+
+            ## 今日要点
+            - 其他新闻 [R2]
+            """.trimIndent(),
+        )
+
+        assertEquals("今天市场主线集中在 AI 基建与终端落地", model.lead)
+        assertEquals(1, model.points.size)
+        assertEquals("其他新闻", model.points.single().text)
+    }
+
+    @Test
     fun `empty content has no lead and default title`() {
         val model = unifiedNewsBriefingContent("   ")
 

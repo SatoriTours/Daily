@@ -651,7 +651,7 @@ class UnifiedNewsBehaviorTest {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
 
         assertTrue(screen.contains("MarkdownTabPager"))
-        assertTrue(screen.contains("MarkdownTabRow"))
+        assertTrue(screen.contains("MagazineArticleTabSelector"))
         assertTrue(screen.contains("AI 摘要"))
         assertTrue(screen.contains("原文"))
         assertTrue(screen.contains("MagazineArticleHeader("))
@@ -1508,6 +1508,41 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun unifiedNewsSourceSwitcherKeepsRefreshButtonFixedOutsideScrollableTabs() {
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val switcher = screen.requiredSubstringAfter("private fun UnifiedNewsSourceSwitcher").requiredSubstringBefore("private fun UnifiedNewsSourceTabs")
+        val tabs = screen.requiredSubstringAfter("private fun UnifiedNewsSourceTabs").requiredSubstringBefore("private fun UnifiedNewsSourceArticleContent")
+
+        assertTrue(switcher.contains("UnifiedNewsSourceTabs("))
+        assertTrue(switcher.contains("Modifier.weight(1f)"))
+        assertTrue(switcher.contains("IconButton(onClick = viewModel::refreshSelectedSource)"))
+        assertFalse(switcher.substringAfter("IconButton(onClick = viewModel::refreshSelectedSource)").contains("horizontalScroll"))
+        assertTrue(tabs.contains("horizontalScroll(rememberScrollState())"))
+        assertFalse(tabs.contains("IconButton(onClick = viewModel::refreshSelectedSource)"))
+    }
+
+    @Test
+    fun unifiedNewsPromptRequestsDailyCoverLeadForMagazineSummary() {
+        val prompt = buildUnifiedNewsPrompt(
+            window = UnifiedNewsWindow(UnifiedNewsWindowKey.DAILY, "2026-05-27", 0L, 1L),
+            sources = listOf(
+                UnifiedNewsSourceItem(
+                    refKey = "R1",
+                    sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE,
+                    sourceId = 1,
+                    title = "AI 新闻",
+                    summary = "AI 摘要",
+                    content = "AI 正文内容足够长，用于生成封面导语。",
+                ),
+            ),
+        )
+
+        assertTrue(prompt.contains("## 每日封面"))
+        assertTrue(prompt.contains("封面导语"))
+        assertTrue(prompt.indexOf("## 每日封面") < prompt.indexOf("## 今日要点"))
+    }
+
+    @Test
     fun unifiedNewsSummaryDoesNotExposeSourceWarningsToReaders() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
         val cardBody = screen.requiredSubstringAfter("private fun TodayUnifiedNewsCard")
@@ -1676,7 +1711,7 @@ class UnifiedNewsBehaviorTest {
             ),
         )
 
-        assertTrue(prompt.contains("每个二级标题下面使用 Markdown 无序列表"))
+        assertTrue(prompt.contains("其他二级标题下面使用 Markdown 无序列表"))
         assertTrue(prompt.contains("- 新闻标题或短句 [R1]"))
     }
 

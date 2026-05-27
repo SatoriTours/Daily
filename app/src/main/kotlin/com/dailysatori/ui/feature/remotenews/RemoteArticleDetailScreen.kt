@@ -43,9 +43,9 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.ui.component.content.MarkdownTabPager
-import com.dailysatori.ui.component.content.MarkdownTabRow
 import com.dailysatori.ui.component.news.MagazineArticleBody
 import com.dailysatori.ui.component.news.MagazineArticleHeader
+import com.dailysatori.ui.component.news.MagazineArticleTabSelector
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.article.articleCoverHeightAfterScroll
 import com.dailysatori.ui.feature.article.articleCoverMaxHeightDp
@@ -160,8 +160,8 @@ private fun RemoteArticleDetailPage(
         if (hasCover && coverHeightDp > 0) {
             RemoteArticleCoverImage(imageUrl = coverImage.orEmpty(), modifier = Modifier.fillMaxWidth().height(coverHeightDp.dp))
         }
-        MagazineArticleHeader(article.title.orEmpty(), remoteArticleMetaChips(article), article.summary)
-        MarkdownTabRow(remoteArticleDetailTabTitles, selectedTabIndex, onTabSelected)
+        MagazineArticleHeader(article.title.orEmpty(), remoteArticleMetaChips(article), intro = null)
+        MagazineArticleTabSelector(remoteArticleDetailTabTitles, selectedTabIndex, onTabSelected)
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(nestedScrollConnection)) {
             item(key = "remote-content-$page") { RemoteArticleDetailBody(article, page) }
         }

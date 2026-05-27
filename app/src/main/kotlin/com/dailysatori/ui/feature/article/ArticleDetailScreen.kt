@@ -53,12 +53,12 @@ import coil3.request.ImageRequest
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Article
 import com.dailysatori.ui.component.content.MarkdownTabPager
-import com.dailysatori.ui.component.content.MarkdownTabRow
 import com.dailysatori.ui.component.dialog.ConfirmDialog
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.news.MagazineArticleBody
 import com.dailysatori.ui.component.news.MagazineArticleHeader
+import com.dailysatori.ui.component.news.MagazineArticleTabSelector
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
@@ -322,7 +322,7 @@ private fun ArticleRefreshingContent(
         ArticleCoverImage(imagePath = coverImage, modifier = Modifier.fillMaxWidth().height(articleCoverMaxHeightDp.dp))
     }
     ArticleMagazineHeader(article)
-    MarkdownTabRow(articleDetailTabTitles, state.selectedTabIndex, onTabSelected)
+    MagazineArticleTabSelector(articleDetailTabTitles, state.selectedTabIndex, onTabSelected)
     ArticleProcessingStepper(state.processingStage, state.processingProgress, modifier = Modifier.padding(Spacing.m))
 }
 
@@ -364,7 +364,7 @@ private fun ArticleDetailPage(
             ArticleCoverImage(imagePath = coverImage.orEmpty(), modifier = Modifier.fillMaxWidth().height(coverHeightDp.dp))
         }
         ArticleMagazineHeader(article)
-        MarkdownTabRow(articleDetailTabTitles, state.selectedTabIndex, onTabSelected)
+        MagazineArticleTabSelector(articleDetailTabTitles, state.selectedTabIndex, onTabSelected)
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(nestedScrollConnection)) {
             item(key = "content-$page") { ArticleDetailBody(article, page) }
         }
@@ -413,7 +413,7 @@ private fun ArticleMagazineHeader(article: Article) {
     MagazineArticleHeader(
         title = articleMagazineTitle(article),
         metaChips = articleMagazineMetaChips(article),
-        intro = article.ai_content,
+        intro = null,
     )
 }
 

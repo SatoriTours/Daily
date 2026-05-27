@@ -39,6 +39,18 @@ class ArticleDetailLayoutTest {
     }
 
     @Test
+    fun localArticleDetailHeaderDoesNotRepeatSummaryAboveTabs() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
+        val headerBody = source.functionBody("ArticleMagazineHeader")
+        val pageBody = source.functionBody("ArticleDetailPage")
+
+        assertFalse(headerBody.contains("intro = article.ai_content"))
+        assertTrue(headerBody.contains("intro = null"))
+        assertTrue(pageBody.contains("MagazineArticleTabSelector("))
+        assertFalse(source.contains("MarkdownTabRow(articleDetailTabTitles"))
+    }
+
+    @Test
     fun localArticleDetailFunctionsStayFocused() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
 

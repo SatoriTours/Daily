@@ -240,8 +240,21 @@ private fun UnifiedNewsSourceSwitcher(state: UnifiedNewsState, viewModel: Unifie
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
             .padding(horizontal = Spacing.m, vertical = Spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+    ) {
+        UnifiedNewsSourceTabs(state = state, viewModel = viewModel, modifier = Modifier.weight(1f))
+        IconButton(onClick = viewModel::refreshSelectedSource) {
+            Icon(Icons.Default.Refresh, contentDescription = "刷新")
+        }
+    }
+}
+
+@Composable
+private fun UnifiedNewsSourceTabs(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
         FilterChip(
@@ -261,9 +274,6 @@ private fun UnifiedNewsSourceSwitcher(state: UnifiedNewsState, viewModel: Unifie
             onClick = viewModel::selectLocalArticlesSource,
             label = { Text("本地新闻") },
         )
-        IconButton(onClick = viewModel::refreshSelectedSource) {
-            Icon(Icons.Default.Refresh, contentDescription = "刷新")
-        }
     }
 }
 
