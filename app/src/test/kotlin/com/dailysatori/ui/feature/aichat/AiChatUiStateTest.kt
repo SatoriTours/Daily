@@ -18,7 +18,7 @@ class AiChatUiStateTest {
         assertTrue(source.contains("private val ChatInputContentMinHeight = Height.input"))
         assertFalse(source.contains("ChatInputMinHeight"))
         assertTrue(source.contains("RoundedCornerShape(Radius.circular)"))
-        assertTrue(source.contains("MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)"))
+        assertTrue(source.contains("MaterialTheme.colorScheme.surfaceContainerHighest"))
         assertTrue(compactSource.contains("contentAlignment = Alignment.CenterStart"))
         assertTrue(compactSource.contains("heightIn(min = ChatInputContentMinHeight)"))
         assertTrue(compactSource.contains("padding(contentPadding)"))

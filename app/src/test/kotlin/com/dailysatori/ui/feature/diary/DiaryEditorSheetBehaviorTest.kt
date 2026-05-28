@@ -14,7 +14,7 @@ class DiaryEditorSheetBehaviorTest {
         assertTrue(source.contains("onDismissRequest = onDismiss"))
         assertTrue(source.contains("DialogProperties(usePlatformDefaultWidth = false)"))
         assertFalse(source.contains("ModalBottomSheet"))
-        assertTrue(source.contains("IconButton(onClick = onDismiss"))
+        assertTrue(source.contains("TextButton(onClick = onDismiss)"))
     }
 
     @Test
@@ -23,17 +23,16 @@ class DiaryEditorSheetBehaviorTest {
         val toolbarSource = File("src/main/kotlin/com/dailysatori/ui/feature/diary/DiaryEditorToolbar.kt").readText()
 
         assertFalse(sheetSource.contains("showTagInput"))
-        assertFalse(sheetSource.contains("OutlinedTextField"))
+        assertTrue(sheetSource.contains("DiaryTextEditDialog("))
         assertTrue(sheetSource.contains("onTitle = { insertLineStart(\"# \") }"))
-        assertTrue(sheetSource.contains("onItalic = { insertFormat(\"*\", \"*\") }"))
-        assertTrue(sheetSource.contains("onQuote = { insertLineStart(\"> \") }"))
-        assertTrue(sheetSource.contains("onTaskList = { insertLineStart(\"- [ ] \") }"))
-        assertTrue(sheetSource.contains("onInlineCode = { insertFormat(\"`\", \"`\") }"))
-        assertTrue(sheetSource.contains("onDivider = { insertBlock(\"---\") }"))
-        assertTrue(sheetSource.contains("onLink = { insertFormat(\"[\", \"](url)\") }"))
-        assertTrue(sheetSource.contains("onImage = { insertFormat(\"![\", \"](url)\") }"))
-        assertTrue(toolbarSource.contains("onItalic: () -> Unit"))
-        assertTrue(toolbarSource.contains("onTaskList: () -> Unit"))
-        assertTrue(toolbarSource.contains("onInlineCode: () -> Unit"))
+        assertTrue(sheetSource.contains("insertFormat(\"*\", \"*\")"))
+        assertTrue(sheetSource.contains("insertLineStart(\"> \")"))
+        assertTrue(sheetSource.contains("insertLineStart(\"- [ ] \")"))
+        assertTrue(sheetSource.contains("insertBlock(\"---\")"))
+        assertTrue(sheetSource.contains("insertFormat(\"[\", \"](url)\")"))
+        assertTrue(sheetSource.contains("private fun DiaryMoreFormatMenu("))
+        assertTrue(toolbarSource.contains("onMore: () -> Unit"))
+        assertFalse(toolbarSource.contains("onInlineCode: () -> Unit"))
+        assertFalse(toolbarSource.contains("onImage: () -> Unit"))
     }
 }

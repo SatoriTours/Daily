@@ -63,9 +63,9 @@ class MainContentRhythmTest {
         val messageBody = message.extractCallBlock("fun MessageBubble(")
         val citationBody = citation.extractCallBlock("fun CitationText(")
 
-        assertTrue(diaryBody.contains("Modifier.padding(Spacing.m)"))
-        assertTrue(diaryBody.contains("MarkdownStyles.cardTypography()"))
-        assertTrue(diaryBody.contains("MarkdownStyles.cardPadding()"))
+        assertTrue(diaryBody.contains("Modifier.padding(14.dp)"))
+        assertTrue(diary.contains("MarkdownStyles.cardTypography()"))
+        assertTrue(diary.contains("MarkdownStyles.cardPadding()"))
         assertFalse(viewpointBody.contains("shape = RoundedCornerShape(Radius.l)"))
         assertFalse(viewpointBody.contains("border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outline)"))
         assertTrue(viewpointHeader.contains("style = MaterialTheme.typography.headlineSmall"))
