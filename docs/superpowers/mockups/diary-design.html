@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Satori 日记页面设计稿</title>
+  <style>
+    :root {
+      --bg: #f7f3ed;
+      --paper: #fffdf8;
+      --paper-2: #f1ebe2;
+      --ink: #211f1b;
+      --muted: #766f66;
+      --line: rgba(33, 31, 27, .12);
+      --accent: #7a5b34;
+      --accent-soft: #eadfce;
+      --shadow: 0 18px 45px rgba(58, 43, 25, .08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, #fff8eb 0, var(--bg) 36%, #efe8dd 100%);
+      color: var(--ink);
+    }
+
+    .page {
+      max-width: 1160px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 48px);
+      letter-spacing: -.04em;
+      line-height: 1.02;
+    }
+
+    .lead {
+      margin: 0;
+      color: var(--muted);
+      max-width: 760px;
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
+      align-items: start;
+    }
+
+    .concept {
+      background: rgba(255, 253, 248, .7);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    .concept h2 {
+      margin: 2px 4px 12px;
+      font-size: 18px;
+      letter-spacing: -.02em;
+    }
+
+    .concept .why {
+      min-height: 88px;
+      margin: 0 4px 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .phone {
+      width: 100%;
+      min-height: 620px;
+      border-radius: 30px;
+      padding: 16px;
+      background: var(--bg);
+      border: 1px solid rgba(0, 0, 0, .08);
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 2px 14px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .actions { color: var(--muted); font-weight: 600; font-size: 12px; }
+    .date-title {
+      margin: 14px 0 10px;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+
+    .card {
+      background: var(--paper);
+      border-radius: 22px;
+      padding: 15px;
+      margin-bottom: 12px;
+      border: 1px solid rgba(33, 31, 27, .07);
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 10px;
+      font-weight: 650;
+    }
+
+    .mood { color: var(--accent); }
+    .text {
+      font-size: 13px;
+      line-height: 1.72;
+      margin: 0;
+    }
+
+    .text.big { font-size: 14px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .chip {
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--paper-2);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+    }
+    .expand { margin-left: auto; color: var(--accent); }
+
+    .photos { display: grid; gap: 6px; margin: 10px 0 12px; }
+    .photos.one { grid-template-columns: 1fr; }
+    .photos.two { grid-template-columns: 1fr 1fr; }
+    .photos.mosaic { grid-template-columns: 1.55fr 1fr; }
+    .photo {
+      min-height: 64px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #cbb28b, #7d967c 55%, #526b7d);
+      position: relative;
+      overflow: hidden;
+    }
+    .photo.small { min-height: 48px; }
+    .photo.tall { min-height: 108px; }
+    .stack { display: grid; gap: 6px; }
+    .more {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: white;
+      background: rgba(0,0,0,.34);
+      font-weight: 800;
+    }
+
+    .timeline-row { display: grid; grid-template-columns: 42px 1fr; gap: 10px; }
+    .time { color: var(--accent); font-size: 12px; font-weight: 800; padding-top: 14px; }
+
+    .compact-item {
+      border-top: 1px solid var(--line);
+      padding: 12px 0;
+    }
+
+    .recommend {
+      margin-top: 24px;
+      background: #211f1b;
+      color: #fff8ef;
+      border-radius: 28px;
+      padding: 18px 20px;
+      line-height: 1.7;
+    }
+    .recommend strong { color: #f4d49f; }
+
+    @media (max-width: 1020px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 560px) {
+      .page { padding: 20px 12px 36px; }
+      .grid { grid-template-columns: 1fr; }
+      .concept .why { min-height: 0; }
+      .phone { min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <h1>日记页面设计稿</h1>
+      <p class="lead">重点比较 4 种卡片组织方式。共同修正点：图片不再放在“查看全部”下面；“展开/收起”只控制正文；图片、标签、心情始终作为这篇日记的上下文可见。</p>
+    </section>
+
+    <section class="grid">
+      <article class="concept">
+        <h2>A. 杂志摘要卡</h2>
+        <p class="why">最接近新闻汇总。正文优先，图片放在正文后、展开前。干净但日记的时间感略弱。</p>
+        <div class="phone">
+          <div class="topbar"><span>我的日记</span><span class="actions">搜索 · 筛选</span></div>
+          <div class="card">
+            <div class="meta"><span>今天 21:36</span><span class="mood">平静 · 3 张照片</span></div>
+            <p class="text big">今天下午去了河边，风很轻。后面突然想到最近一直很焦虑，可能不是事情太多，而是我一直没有给自己留出真正安静的时间。</p>
+            <div class="photos mosaic"><div class="photo tall"></div><div class="stack"><div class="photo small"></div><div class="photo small"><span class="more">+1</span></div></div></div>
+            <div class="chips"><span class="chip">#生活</span><span class="chip">#反思</span><span class="chip expand">展开正文</span></div>
+          </div>
+          <div class="card">
+            <div class="meta"><span>今天 09:12</span><span class="mood">有点累</span></div>
+            <p class="text">早上醒得很早，脑子里一直在排今天要做的事情。其实没有那么急，但身体已经先紧张起来了。</p>
+            <div class="chips"><span class="chip">#睡眠</span><span class="chip">#工作</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="concept">
+        <h2>B. 时间轴 + 照片优先</h2>
+        <p class="why">推荐。日期分组增加信息密度；图片在正文前，像先看到记忆画面，再读当时想法。</p>
+        <div class="phone">
+          <div class="topbar"><span>我的日记</span><span class="actions">搜索 · 筛选</span></div>
+          <div class="date-title">五月二十八日 · 周四</div>
+          <div class="timeline-row">
+            <div class="time">21:36</div>
+            <div class="card">
+              <div class="meta"><span class="mood">平静</span><span>3 张照片</span></div>
+              <div class="photos mosaic"><div class="photo tall"></div><div class="stack"><div class="photo small"></div><div class="photo small"><span class="more">+1</span></div></div></div>
+              <p class="text">今天下午去了河边，风很轻。后面突然想到最近一直很焦虑，可能不是事情太多，而是我一直没有给自己留出真正安静的时间。</p>
+              <div class="chips"><span class="chip">#生活</span><span class="chip">#反思</span><span class="chip expand">展开</span></div>
+            </div>
+          </div>
+          <div class="timeline-row">
+            <div class="time">09:12</div>
+            <div class="card">
+              <div class="meta"><span class="mood">有点累</span><span>无图片</span></div>
+              <p class="text">早上醒得很早，脑子里一直在排今天要做的事情。其实没有那么急，但身体已经先紧张起来了。</p>
+              <div class="chips"><span class="chip">#睡眠</span><span class="chip">#工作</span></div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="concept">
+        <h2>C. 照片墙式卡片</h2>
+        <p class="why">适合图片很多的日记。视觉最饱满，但无图日记会弱一些，整体更像相册。</p>
+        <div class="phone">
+          <div class="topbar"><span>我的日记</span><span class="actions">搜索 · 筛选</span></div>
+          <div class="card">
+            <div class="meta"><span>5月28日 21:36</span><span class="mood">平静</span></div>
+            <div class="photos one"><div class="photo tall"></div></div>
+            <div class="photos two"><div class="photo small"></div><div class="photo small"><span class="more">+2</span></div></div>
+            <p class="text">今天下午去了河边，风很轻。后面突然想到最近一直很焦虑，可能不是事情太多。</p>
+            <div class="chips"><span class="chip">#生活</span><span class="chip">#散步</span><span class="chip expand">展开</span></div>
+          </div>
+          <div class="card">
+            <div class="meta"><span>5月28日 09:12</span><span class="mood">有点累</span></div>
+            <p class="text">无图日记在这个方案里会更像补充条目，视觉重量比有图日记低很多。</p>
+          </div>
+        </div>
+      </article>
+
+      <article class="concept">
+        <h2>D. 紧凑手账流</h2>
+        <p class="why">浏览效率最高，一屏信息最多。视觉高级感稍弱，但适合频繁快速回看。</p>
+        <div class="phone">
+          <div class="topbar"><span>我的日记</span><span class="actions">搜索 · 筛选</span></div>
+          <div class="date-title">五月二十八日</div>
+          <div class="compact-item">
+            <div class="meta"><span>21:36 · 平静</span><span>3 图</span></div>
+            <p class="text">今天下午去了河边，风很轻。后面突然想到最近一直很焦虑，可能不是事情太多...</p>
+            <div class="chips"><span class="chip">#生活</span><span class="chip">#反思</span><span class="chip expand">展开</span></div>
+          </div>
+          <div class="compact-item">
+            <div class="meta"><span>09:12 · 有点累</span><span></span></div>
+            <p class="text">早上醒得很早，脑子里一直在排今天要做的事情。其实没有那么急...</p>
+            <div class="chips"><span class="chip">#睡眠</span><span class="chip">#工作</span></div>
+          </div>
+          <div class="compact-item">
+            <div class="meta"><span>昨天 23:10 · 感恩</span><span>1 图</span></div>
+            <p class="text">晚上和朋友聊了很久，突然觉得有人能认真听你讲话是一件很珍贵的事。</p>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="recommend">
+      <strong>我的建议：</strong>选 B。它最像一个长期使用的日记产品：日期分组解决页面太空，照片前置解决图片位置奇怪，正文展开只影响文字，不影响照片和标签。实现时可以先做 B 的基础版本：日期分组 + 图片前置 + 正文 5 行折叠。
+    </section>
+  </main>
+</body>
+</html>

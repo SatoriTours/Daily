@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Satori 日记照片墙方案</title>
+  <style>
+    :root {
+      --bg: #f6f0e7;
+      --paper: #fffdf8;
+      --paper-soft: #f2eadf;
+      --ink: #211f1b;
+      --muted: #756c60;
+      --muted-2: #9a9084;
+      --accent: #8a6335;
+      --accent-soft: #ead9bf;
+      --danger-soft: #f3dfd8;
+      --line: rgba(33, 31, 27, .10);
+      --shadow: 0 18px 46px rgba(65, 46, 25, .10);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 14% 0%, rgba(255, 245, 225, .9), transparent 34%),
+        linear-gradient(135deg, #fbf5eb, var(--bg) 58%, #ece2d5);
+      color: var(--ink);
+    }
+
+    .shell {
+      min-height: 100vh;
+      display: grid;
+      place-items: start center;
+      padding: 28px 16px 56px;
+    }
+
+    .frame {
+      width: min(430px, 100%);
+      border-radius: 38px;
+      background: rgba(255, 253, 248, .52);
+      border: 1px solid rgba(33,31,27,.09);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .screen {
+      background: var(--bg);
+      min-height: 820px;
+      padding: 18px 16px 96px;
+      position: relative;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 2px 2px 16px;
+      position: relative;
+    }
+    .title {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -.03em;
+    }
+    .top-spacer { width: 70px; }
+    .top-actions { display: flex; gap: 8px; }
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--paper);
+      color: var(--muted);
+      font-size: 14px;
+      border: 1px solid var(--line);
+    }
+
+    .month-hero {
+      margin-bottom: 12px;
+      padding: 4px 2px 0;
+    }
+    .month-hero strong {
+      display: block;
+      font-size: 30px;
+      letter-spacing: -.06em;
+      line-height: 1;
+    }
+    .month-summary {
+      display: block;
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+      letter-spacing: -.01em;
+    }
+    .filter-chip {
+      display: inline-flex;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+    .quick-strip {
+      display: flex;
+      gap: 8px;
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+    .quick-pill {
+      flex: 0 0 auto;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255,253,248,.66);
+      border: 1px solid rgba(33,31,27,.06);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .date-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin: 24px 2px 10px;
+    }
+    .date-main { color: var(--accent); font-size: 15px; font-weight: 850; letter-spacing: -.01em; }
+    .date-meta { color: var(--muted-2); font-size: 12px; font-weight: 650; }
+
+    .entry {
+      background: var(--paper);
+      border-radius: 28px;
+      padding: 14px;
+      margin-bottom: 14px;
+      border: 1px solid rgba(33,31,27,.075);
+      box-shadow: 0 10px 24px rgba(65, 46, 25, .055);
+    }
+    .entry.plain { background: rgba(255,253,248,.74); }
+
+    .entry-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 720;
+    }
+    .entry-tools { display: flex; align-items: center; gap: 6px; white-space: nowrap; position: relative; }
+    .tool-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--paper-soft);
+      color: var(--muted);
+      font-size: 16px;
+      font-weight: 900;
+    }
+    .menu-popover {
+      position: absolute;
+      top: 31px;
+      right: 0;
+      z-index: 3;
+      min-width: 92px;
+      border-radius: 16px;
+      padding: 6px;
+      background: rgba(255,253,248,.96);
+      border: 1px solid rgba(33,31,27,.09);
+      box-shadow: 0 14px 34px rgba(65,46,25,.16);
+    }
+    .menu-item {
+      padding: 7px 10px;
+      border-radius: 11px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 760;
+    }
+    .menu-item.danger { color: #9a4b35; background: var(--danger-soft); }
+    .head-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 5px rgba(138, 99, 53, .12);
+    }
+    .mood { color: var(--accent); white-space: nowrap; }
+    .more-action { color: var(--muted-2); font-weight: 900; }
+
+    .photo-grid { display: grid; gap: 6px; margin-bottom: 12px; }
+    .photo-grid.hero { grid-template-columns: 1fr; }
+    .photo-grid.double { grid-template-columns: 1fr 1fr; }
+    .photo-grid.mosaic { grid-template-columns: 1.45fr .9fr; }
+    .side-stack { display: grid; gap: 6px; }
+    .photo {
+      min-height: 86px;
+      border-radius: 20px;
+      overflow: hidden;
+      position: relative;
+      background-size: cover;
+      background-position: center;
+    }
+    .photo.big { min-height: 168px; }
+    .photo.medium { min-height: 126px; }
+    .photo.small { min-height: 81px; }
+    .p1 { background-image: linear-gradient(135deg, rgba(53,74,62,.10), rgba(20,20,20,.08)), url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80'); }
+    .p2 { background-image: linear-gradient(135deg, rgba(53,74,62,.10), rgba(20,20,20,.08)), url('https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=700&q=80'); }
+    .p3 { background-image: linear-gradient(135deg, rgba(53,74,62,.10), rgba(20,20,20,.08)), url('https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=700&q=80'); }
+    .p4 { background-image: linear-gradient(135deg, rgba(53,74,62,.10), rgba(20,20,20,.08)), url('https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=700&q=80'); }
+    .count-badge {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 850;
+      background: rgba(0,0,0,.46);
+      backdrop-filter: blur(8px);
+    }
+    .photo-count {
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 850;
+      background: rgba(0,0,0,.34);
+      backdrop-filter: blur(8px);
+    }
+
+    .content {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.74;
+      color: var(--ink);
+      letter-spacing: -.01em;
+    }
+    .content.clamped {
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .content-fade { position: relative; }
+    .content-fade::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 24px;
+      background: linear-gradient(to bottom, rgba(255,253,248,0), var(--paper));
+      pointer-events: none;
+    }
+    .quote-card {
+      border-left: 3px solid var(--accent);
+      background: linear-gradient(90deg, rgba(234,217,191,.45), rgba(255,253,248,0));
+      border-radius: 0 18px 18px 0;
+      padding: 10px 12px;
+      margin-top: 4px;
+    }
+
+    .foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 13px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .tags {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 6px;
+      min-width: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 1px;
+    }
+    .tags::-webkit-scrollbar { display: none; }
+    .tag {
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--paper-soft);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+      max-width: 112px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tag.strong { color: var(--accent); background: var(--accent-soft); }
+    .expand {
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .fab {
+      position: absolute;
+      right: 20px;
+      bottom: 22px;
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      border: 0;
+      background: var(--ink);
+      color: #fff7eb;
+      font-size: 30px;
+      box-shadow: 0 16px 36px rgba(33,31,27,.22);
+    }
+
+    .notes {
+      width: min(430px, 100%);
+      margin-top: 18px;
+      background: rgba(33,31,27,.92);
+      color: #fff7eb;
+      border-radius: 24px;
+      padding: 16px 18px;
+      line-height: 1.7;
+      font-size: 14px;
+    }
+    .notes strong { color: #f4d49f; }
+    .design-rules {
+      width: min(430px, 100%);
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .rule {
+      background: rgba(255,253,248,.7);
+      border: 1px solid rgba(33,31,27,.08);
+      border-radius: 18px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .rule strong { color: var(--ink); }
+
+    @media (max-width: 480px) {
+      .shell { padding: 0; }
+      .frame { width: 100%; border-radius: 0; border: 0; }
+      .screen { min-height: 100vh; }
+      .notes { margin: 0; border-radius: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="frame">
+      <div class="screen">
+        <header class="topbar">
+          <div class="top-spacer"></div>
+          <div class="title">我的日记</div>
+          <div class="top-actions">
+            <div class="icon-btn">⌕</div>
+            <div class="icon-btn">≡</div>
+          </div>
+        </header>
+
+        <section class="month-hero">
+          <strong>五月</strong>
+          <p class="month-summary">这个月的你在练习慢下来：把焦虑放进风里，也把温柔留给一些普通但明亮的下午。</p>
+        </section>
+
+        <section class="quick-strip" aria-label="快捷筛选">
+          <div class="quick-pill">全部</div>
+          <div class="quick-pill">有照片</div>
+          <div class="quick-pill">平静</div>
+          <div class="quick-pill">#生活 ×</div>
+        </section>
+
+        <div class="date-row">
+          <div class="date-main">五月二十八日 · 周四</div>
+          <div class="date-meta">今天</div>
+        </div>
+
+        <article class="entry">
+          <div class="entry-head">
+            <div class="head-left"><span class="dot"></span><span>21:36</span><span class="mood">平静</span></div>
+            <div class="entry-tools"><span class="tool-btn">⋯</span><div class="menu-popover"><div class="menu-item">编辑</div><div class="menu-item danger">删除</div></div></div>
+          </div>
+          <div class="photo-grid mosaic">
+            <div class="photo big p1"><span class="photo-count">5 张照片</span></div>
+            <div class="side-stack">
+              <div class="photo small p2"></div>
+              <div class="photo small p3"><span class="count-badge">+2</span></div>
+            </div>
+          </div>
+          <div class="content-fade"><p class="content clamped">今天下午去了河边，风很轻。后面突然想到最近一直很焦虑，可能不是事情太多，而是我一直没有给自己留出真正安静的时间。照片比文字更先把那种松下来的感觉记住了，所以这里应该先看到画面，再慢慢读当时写下来的东西。</p></div>
+          <div class="foot">
+            <div class="tags"><span class="tag strong">#生活</span><span class="tag">#散步</span><span class="tag">#反思</span><span class="tag">#河边</span><span class="tag">#情绪复盘</span><span class="tag">#今天也要慢一点</span></div>
+            <button class="expand">展开正文</button>
+          </div>
+        </article>
+
+        <article class="entry">
+          <div class="entry-head">
+            <div class="head-left"><span class="dot"></span><span>16:08</span><span class="mood">开心</span></div>
+            <div class="entry-tools"><span class="tool-btn">⋯</span></div>
+          </div>
+          <div class="photo-grid double">
+            <div class="photo medium p2"><span class="photo-count">2 张照片</span></div>
+            <div class="photo medium p4"></div>
+          </div>
+          <p class="content">在咖啡店坐了一会儿，窗边的位置很舒服。今天没有写很多字，但这两张照片已经足够让我想起当时的光线。</p>
+          <div class="foot">
+            <div class="tags"><span class="tag">#咖啡</span><span class="tag">#片刻</span></div>
+            <button class="expand">展开正文</button>
+          </div>
+        </article>
+
+        <article class="entry plain">
+          <div class="entry-head">
+            <div class="head-left"><span class="dot"></span><span>09:12</span><span class="mood">有点累</span></div>
+            <div class="entry-tools"><span class="tool-btn">⋯</span></div>
+          </div>
+          <div class="quote-card content-fade">
+            <p class="content clamped">早上醒得很早，脑子里一直在排今天要做的事情。其实没有那么急，但身体已经先紧张起来了。无图日记不应该显得空，所以这里用更强的文字节奏和左侧引线，让它像一条手账摘录。</p>
+          </div>
+          <div class="foot">
+            <div class="tags"><span class="tag">#睡眠</span><span class="tag">#工作</span><span class="tag">#早醒</span><span class="tag">#焦虑</span><span class="tag">#非常非常长的标签名称测试</span></div>
+            <button class="expand">展开正文</button>
+          </div>
+        </article>
+
+        <div class="date-row">
+          <div class="date-main">五月二十六日 · 周一</div>
+          <div class="date-meta">前天</div>
+        </div>
+
+        <article class="entry plain">
+          <div class="entry-head">
+            <div class="head-left"><span class="dot"></span><span>23:08</span><span class="mood">复杂</span></div>
+            <div class="entry-tools"><span class="tool-btn">⋯</span></div>
+          </div>
+          <div class="quote-card content-fade">
+            <p class="content clamped">这是一条专门模拟很多标签但没有图片的日记。如果标签全部展开，卡片会显得很碎，所以建议默认只显示一行标签，剩下的用“+更多”进入详情或编辑页再看。</p>
+          </div>
+          <div class="foot">
+            <div class="tags"><span class="tag strong">#长期项目</span><span class="tag">#家庭</span><span class="tag">#健康</span><span class="tag">#工作</span><span class="tag">#阅读</span><span class="tag">#情绪</span><span class="tag">#灵感</span><span class="tag">#待办</span></div>
+            <button class="expand">展开正文</button>
+          </div>
+        </article>
+
+        <div class="date-row">
+          <div class="date-main">五月二十七日 · 周三</div>
+          <div class="date-meta">昨天</div>
+        </div>
+
+        <article class="entry">
+          <div class="entry-head">
+            <div class="head-left"><span class="dot"></span><span>22:41</span><span class="mood">感恩</span></div>
+            <div class="entry-tools"><span class="tool-btn">⋯</span></div>
+          </div>
+          <div class="photo-grid hero"><div class="photo big p4"><span class="photo-count">1 张照片</span></div></div>
+          <p class="content">晚上和朋友聊了很久，突然觉得有人能认真听你讲话是一件很珍贵的事。</p>
+          <div class="foot">
+            <div class="tags"><span class="tag">#朋友</span><span class="tag">#夜晚</span></div>
+            <button class="expand">展开正文</button>
+          </div>
+        </article>
+
+        <button class="fab">+</button>
+      </div>
+    </section>
+
+    <section class="notes">
+      <strong>第九轮优化：</strong>右上角使用三个点菜单，菜单里放编辑和删除；标签改为一行横向滑动，不再显示“+更多”；列表中去掉测试提示文案。
+    </section>
+    <section class="design-rules">
+      <div class="rule"><strong>建议实现规则 1：</strong>顶部只展示当前月份和一句自然月度总结，不出现“AI”标签或独立卡片。</div>
+      <div class="rule"><strong>建议实现规则 2：</strong>正文列表按日期顺序展示，每天最多一张日记卡，没写的日期不显示。</div>
+      <div class="rule"><strong>建议实现规则 3：</strong>有图日记照片优先，正文最多 4 行，图片不参与折叠。</div>
+      <div class="rule"><strong>建议实现规则 4：</strong>标签默认一行横向滑动；长标签省略；不显示“+更多”。</div>
+      <div class="rule"><strong>建议实现规则 5：</strong>右上角三个点打开操作菜单，包含编辑和删除；底部只保留展开正文。</div>
+      <div class="rule"><strong>空月文案示例：</strong>“这个月还没有留下文字。没关系，生活不是每天都要存档，偶尔只负责发光也很好。”</div>
+    </section>
+  </main>
+</body>
+</html>

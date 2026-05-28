@@ -1,14 +1,18 @@
 package com.dailysatori.ui.feature.book
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -16,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import com.dailysatori.ui.theme.MarkdownStyles
+import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import com.mikepenz.markdown.m3.Markdown
 
@@ -36,25 +41,36 @@ fun ViewpointCard(
     onRetry: () -> Unit = {},
 ) {
     val contentModifier = if (fillAvailableHeight) modifier.fillMaxWidth().fillMaxHeight() else modifier.fillMaxWidth()
-    Column(
-        modifier = contentModifier
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = Spacing.l, vertical = Spacing.m),
-        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+    Box(
+        modifier = contentModifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
     ) {
-        ViewpointHeader(
-            title = title,
-            bookTitle = bookTitle,
-            author = author,
-            page = page,
-            total = total,
-            showProgress = showProgress,
-        )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(Radius.xl),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(Spacing.l),
+                verticalArrangement = Arrangement.spacedBy(Spacing.l),
+            ) {
+                ViewpointHeader(
+                    title = title,
+                    bookTitle = bookTitle,
+                    author = author,
+                    page = page,
+                    total = total,
+                    showProgress = showProgress,
+                )
 
-        when (status) {
-            "failed" -> ViewpointRetryBody(errorMessage = errorMessage, onRetry = onRetry)
-            "generating" -> ViewpointGeneratingBody()
-            else -> ViewpointBody(content = content, example = example)
+                when (status) {
+                    "failed" -> ViewpointRetryBody(errorMessage = errorMessage, onRetry = onRetry)
+                    "generating" -> ViewpointGeneratingBody()
+                    else -> ViewpointBody(content = content, example = example)
+                }
+            }
         }
     }
 }
@@ -69,15 +85,20 @@ private fun ViewpointHeader(
     showProgress: Boolean,
 ) {
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(Spacing.s),
         modifier = Modifier.fillMaxWidth(),
     ) {
+        Text(
+            text = booksReadingProgressText(page, total),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+        )
         Text(
             text = viewpointDisplayTitle(title, bookTitle),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
 
@@ -86,16 +107,7 @@ private fun ViewpointHeader(
                 text = line,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
-            )
-        }
-
-        if (showProgress) {
-            Text(
-                text = booksReadingProgressText(page, total),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
             )
         }
     }
@@ -111,11 +123,8 @@ private fun ViewpointBody(content: String, example: String) {
         )
 
         if (example.isNotBlank()) {
-            Text(
-                "案例",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
+            Text("案例", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
             Markdown(
                 content = example,
                 typography = MarkdownStyles.bookTypography(),

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Satori 编辑日记设计稿</title>
+  <style>
+    :root {
+      --bg: #f6f0e7;
+      --paper: #fffdf8;
+      --paper-soft: #f2eadf;
+      --ink: #211f1b;
+      --muted: #756c60;
+      --muted-2: #9a9084;
+      --accent: #8a6335;
+      --accent-soft: #ead9bf;
+      --danger-soft: #f3dfd8;
+      --line: rgba(33, 31, 27, .10);
+      --shadow: 0 18px 46px rgba(65, 46, 25, .10);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 14% 0%, rgba(255, 245, 225, .9), transparent 34%),
+        linear-gradient(135deg, #fbf5eb, var(--bg) 58%, #ece2d5);
+      color: var(--ink);
+    }
+
+    .shell { min-height: 100vh; display: grid; place-items: start center; padding: 28px 16px 56px; }
+    .frame { width: min(430px, 100%); border-radius: 38px; background: rgba(255,253,248,.52); border: 1px solid rgba(33,31,27,.09); box-shadow: var(--shadow); overflow: hidden; }
+    .screen { background: rgba(33,31,27,.24); min-height: 820px; padding: 60px 10px 10px; display: flex; align-items: flex-end; }
+
+    .editor {
+      width: 100%;
+      min-height: 748px;
+      border-radius: 34px 34px 28px 28px;
+      background: var(--bg);
+      padding: 14px 14px 12px;
+      box-shadow: 0 -18px 44px rgba(33,31,27,.16);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .grabber { width: 42px; height: 4px; border-radius: 999px; background: rgba(117,108,96,.34); margin: 0 auto 2px; }
+    .topbar { position: relative; display: flex; align-items: center; justify-content: space-between; min-height: 40px; }
+    .title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 17px; font-weight: 830; letter-spacing: -.03em; }
+    .plain-btn { border: 0; background: transparent; color: var(--muted); font-size: 14px; font-weight: 760; padding: 8px 4px; }
+    .save-btn { border: 0; border-radius: 999px; padding: 8px 13px; background: var(--ink); color: #fff7eb; font-size: 13px; font-weight: 850; }
+
+    .meta-line { color: var(--muted); font-size: 13px; font-weight: 720; padding: 0 4px; }
+
+    .photos { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+    .photos::-webkit-scrollbar { display: none; }
+    .side { display: contents; }
+    .photo { border-radius: 18px; min-height: 82px; background-size: cover; background-position: center; position: relative; overflow: hidden; }
+    .photo.big, .photo { flex: 0 0 112px; width: 112px; min-height: 112px; }
+    .photo-hint { color: var(--muted-2); font-size: 11px; font-weight: 700; margin-top: -5px; }
+    .p1 { background-image: linear-gradient(135deg, rgba(53,74,62,.08), rgba(20,20,20,.08)), url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80'); }
+    .p2 { background-image: linear-gradient(135deg, rgba(53,74,62,.08), rgba(20,20,20,.08)), url('https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=700&q=80'); }
+    .p3 { background-image: linear-gradient(135deg, rgba(53,74,62,.08), rgba(20,20,20,.08)), url('https://images.unsplash.com/photo-1493246507139-91e8fad9978e?auto=format&fit=crop&w=700&q=80'); }
+    .remove { position: absolute; right: 7px; top: 7px; width: 22px; height: 22px; border-radius: 999px; display: grid; place-items: center; background: rgba(255,253,248,.82); color: #9a4b35; font-weight: 900; font-size: 13px; }
+
+    .paper {
+      flex: 1;
+      background: var(--paper);
+      border-radius: 28px;
+      padding: 18px 16px;
+      border: 1px solid rgba(33,31,27,.075);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .textarea { flex: 1; color: var(--ink); font-size: 16px; line-height: 1.75; letter-spacing: -.01em; white-space: pre-line; }
+    .placeholder { color: var(--muted-2); }
+
+    .tag-row { display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; padding-top: 2px; }
+    .tag-row::-webkit-scrollbar { display: none; }
+    .tag { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; background: var(--paper-soft); color: var(--muted); font-size: 12px; font-weight: 760; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tag.add { background: var(--accent-soft); color: var(--accent); }
+
+    .toolbar { display: grid; gap: 8px; padding: 8px; border-radius: 26px; background: rgba(255,253,248,.72); border: 1px solid rgba(33,31,27,.07); }
+    .tools { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: 1; }
+    .tools::-webkit-scrollbar { display: none; }
+    .tool { flex: 0 0 auto; width: 34px; height: 34px; padding: 0; border-radius: 999px; display: grid; place-items: center; background: var(--paper-soft); color: var(--muted); font-size: 14px; font-weight: 850; }
+    .tool.primary { background: var(--accent-soft); color: var(--accent); }
+    .tool.icon { width: 34px; padding: 0; font-size: 14px; }
+    .tool svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .tool.more { margin-left: auto; background: var(--accent-soft); color: var(--accent); }
+    .format-drawer {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+    }
+    .format-drawer::-webkit-scrollbar { display: none; }
+    .format-title { color: var(--muted-2); font-size: 11px; font-weight: 800; align-self: center; flex: 0 0 auto; padding: 0 2px; }
+    .more-sheet {
+      position: absolute;
+      right: 18px;
+      bottom: 68px;
+      border-radius: 22px;
+      padding: 8px;
+      background: rgba(255,253,248,.98);
+      border: 1px solid rgba(33,31,27,.09);
+      box-shadow: 0 18px 42px rgba(65,46,25,.16);
+    }
+    .more-sheet::after {
+      content: "";
+      position: absolute;
+      right: 18px;
+      bottom: -7px;
+      width: 14px;
+      height: 14px;
+      background: rgba(255,253,248,.98);
+      border-right: 1px solid rgba(33,31,27,.09);
+      border-bottom: 1px solid rgba(33,31,27,.09);
+      transform: rotate(45deg);
+    }
+    .more-grid { display: flex; gap: 6px; }
+    .media-sheet {
+      position: absolute;
+      left: 18px;
+      bottom: 68px;
+      display: flex;
+      gap: 8px;
+      border-radius: 20px;
+      padding: 8px;
+      background: rgba(255,253,248,.98);
+      border: 1px solid rgba(33,31,27,.09);
+      box-shadow: 0 18px 42px rgba(65,46,25,.16);
+    }
+    .media-sheet::after {
+      content: "";
+      position: absolute;
+      left: 18px;
+      bottom: -7px;
+      width: 14px;
+      height: 14px;
+      background: rgba(255,253,248,.98);
+      border-right: 1px solid rgba(33,31,27,.09);
+      border-bottom: 1px solid rgba(33,31,27,.09);
+      transform: rotate(45deg);
+    }
+    .media-choice { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-radius: 999px; background: var(--paper-soft); color: var(--muted); font-size: 12px; font-weight: 800; }
+
+    .notes { width: min(430px, 100%); margin-top: 18px; background: rgba(33,31,27,.92); color: #fff7eb; border-radius: 24px; padding: 16px 18px; line-height: 1.7; font-size: 14px; }
+    .notes strong { color: #f4d49f; }
+
+    @media (max-width: 480px) {
+      .shell { padding: 0; }
+      .frame { width: 100%; border-radius: 0; border: 0; }
+      .screen { min-height: 100vh; padding: 54px 8px 8px; }
+      .editor { min-height: calc(100vh - 62px); }
+      .notes { margin: 0; border-radius: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="frame">
+      <div class="screen">
+        <section class="editor">
+          <div class="grabber"></div>
+          <header class="topbar">
+            <button class="plain-btn">取消</button>
+            <div class="title">编辑日记</div>
+            <button class="save-btn">保存</button>
+          </header>
+
+          <section class="meta-line" aria-label="日记元信息">5月28日 21:36 · 平静</section>
+
+          <section class="paper">
+            <div class="photos">
+              <div class="photo big p1"><span class="remove">×</span></div>
+              <div class="side">
+                <div class="photo p2"><span class="remove">×</span></div>
+                <div class="photo p3"><span class="remove">×</span></div>
+                <div class="photo p1"><span class="remove">×</span></div>
+                <div class="photo p4"><span class="remove">×</span></div>
+                <div class="photo p2"><span class="remove">×</span></div>
+                <div class="photo p3"><span class="remove">×</span></div>
+                <div class="photo p4"><span class="remove">×</span></div>
+                <div class="photo p1"><span class="remove">×</span></div>
+              </div>
+            </div>
+            <div class="photo-hint">8 张图片全部显示，可左右滑动管理</div>
+            <div class="textarea">今天下午去了河边，风很轻。
+
+后面突然想到最近一直很焦虑，可能不是事情太多，而是我一直没有给自己留出真正安静的时间。
+
+照片比文字更先把那种松下来的感觉记住了，所以这里应该先看到画面，再慢慢写当时的想法。</div>
+            <div class="tag-row">
+              <span class="tag add">+ 照片</span>
+              <span class="tag add">+ 标签</span>
+              <span class="tag">#生活</span>
+              <span class="tag">#散步</span>
+              <span class="tag">#今天也要慢一点</span>
+            </div>
+          </section>
+
+          <section class="toolbar" aria-label="编辑工具栏">
+            <div class="tools">
+              <div class="tool primary" title="添加图片"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="14" r="3.5"/></svg></div>
+              <div class="tool">H</div>
+              <div class="tool">1.</div>
+              <div class="tool">•</div>
+              <div class="tool">#</div>
+              <div class="tool">♡</div>
+              <div class="tool icon">↶</div>
+              <div class="tool icon">↷</div>
+              <div class="tool icon more"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></div>
+            </div>
+          </section>
+
+          <section class="media-sheet" aria-label="图片来源展开示例">
+            <div class="media-choice"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="14" r="3.5" stroke="currentColor" fill="none" stroke-width="2"/></svg>拍照</div>
+            <div class="media-choice"><svg width="16" height="16" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" fill="none" stroke-width="2"/><path d="M7 16l4-4 3 3 2-2 3 3" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>相册</div>
+          </section>
+
+          <section class="more-sheet" aria-label="更多工具展开示例">
+            <div class="more-grid">
+              <div class="tool icon">B</div>
+              <div class="tool icon">I</div>
+              <div class="tool icon">“</div>
+              <div class="tool icon">☑</div>
+              <div class="tool icon">—</div>
+              <div class="tool icon"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg></div>
+            </div>
+          </section>
+        </section>
+      </div>
+    </section>
+
+    <section class="notes">
+      <strong>工具栏建议：</strong>图片入口合并为一个简洁图标，点开后选择拍照或相册。默认工具栏保留图片、标题、有序列表、无序列表、标签、心情、撤销、重做；右侧清晰的上箭头展开低频格式。
+    </section>
+  </main>
+</body>
+</html>

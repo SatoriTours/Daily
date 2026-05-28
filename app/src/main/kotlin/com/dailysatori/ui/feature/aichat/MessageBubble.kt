@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -69,23 +70,20 @@ fun MessageBubble(
             .padding(vertical = Spacing.xxs),
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
-        ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
             Surface(
                 shape = RoundedCornerShape(
-                    topStart = Radius.m, topEnd = Radius.m,
-                    bottomStart = if (isUser) Radius.m else Radius.xs,
-                    bottomEnd = if (isUser) Radius.xs else Radius.m,
+                    topStart = Radius.l, topEnd = Radius.l,
+                    bottomStart = if (isUser) Radius.l else Radius.xs,
+                    bottomEnd = if (isUser) Radius.xs else Radius.l,
                 ),
                 color = when {
                     isUser -> MaterialTheme.colorScheme.primary
                     message.isError -> MaterialTheme.colorScheme.errorContainer
-                    else -> MaterialTheme.colorScheme.surfaceContainer
+                    else -> MaterialTheme.colorScheme.surface
                 },
                 modifier = Modifier
-                    .fillMaxWidth(0.85f)
+                    .fillMaxWidth(if (isUser) 0.82f else 0.94f)
                     .pointerInput(message.id) {
                         detectTapGestures(onLongPress = { showActions = true })
                     },
@@ -94,7 +92,7 @@ fun MessageBubble(
                     if (isUser) {
                         Text(
                             text = message.content,
-                            modifier = Modifier.padding(Spacing.m),
+                            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
                             color = MaterialTheme.colorScheme.onPrimary,
                             style = MaterialTheme.typography.bodyMedium,
                         )
@@ -158,7 +156,7 @@ private fun SearchResultsSection(
         verticalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
         Surface(
-            shape = RoundedCornerShape(Radius.l),
+            shape = RoundedCornerShape(Radius.circular),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
             modifier = Modifier.clickable { sectionExpanded = !sectionExpanded },
         ) {
@@ -198,15 +196,15 @@ private fun SearchResultCard(
     val canOpen = canOpenSearchResult(result.type)
     Surface(
         shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        tonalElevation = 1.dp,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
             .then(if (canOpen) Modifier.clickable { onReferenceClick(result) } else Modifier),
     ) {
         Column(
             modifier = Modifier.padding(Spacing.m),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Spacing.s),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -239,6 +237,7 @@ private fun SearchResultCard(
                 overflow = TextOverflow.Ellipsis,
             )
             result.summary?.takeIf { it.isNotBlank() }?.let { summary ->
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
                 Text(
                     text = summary,
                     style = MaterialTheme.typography.bodySmall,

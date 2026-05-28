@@ -62,6 +62,7 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             AppTopBar(
                 title = "AI 助手",
@@ -95,13 +96,14 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
                 modifier = Modifier.fillMaxSize().padding(padding),
                 icon = Icons.Default.AutoAwesome,
                 title = "AI 助手",
+                subtitle = "可以搜索记忆、追问文章，也可以整理今天的想法",
             )
         } else {
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = Spacing.m),
-                verticalArrangement = Arrangement.spacedBy(Spacing.s),
-                contentPadding = PaddingValues(vertical = Spacing.m),
+                verticalArrangement = Arrangement.spacedBy(Spacing.m),
+                contentPadding = PaddingValues(top = Spacing.m, bottom = Spacing.l),
             ) {
                 items(state.messages, key = { it.id }) { message ->
                     MessageBubble(

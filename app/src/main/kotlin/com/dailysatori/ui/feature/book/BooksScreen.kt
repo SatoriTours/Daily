@@ -32,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -179,31 +180,17 @@ fun BooksScreen(
 
         val visibleAnalysisMessage = booksAnalysisBannerMessage(bookAnalysisMessage, inlineBookAnalysisMessage)
         if (visibleAnalysisMessage != null) {
-            Text(
-                text = visibleAnalysisMessage,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f))
-                    .padding(horizontal = Spacing.m, vertical = Spacing.s),
-            )
+            BooksInlineNotice(text = visibleAnalysisMessage)
         }
         searchReturnLocation?.let { location ->
-            Text(
+            BooksInlineNotice(
                 text = booksRestoreReadingText(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        targetViewpointId = null
-                        viewModel.selectBook(location.bookId)
-                        viewModel.setPage(location.page)
-                        searchReturnLocation = null
-                    }
-                    .background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f))
-                    .padding(horizontal = Spacing.m, vertical = Spacing.s),
+                onClick = {
+                    targetViewpointId = null
+                    viewModel.selectBook(location.bookId)
+                    viewModel.setPage(location.page)
+                    searchReturnLocation = null
+                },
             )
         }
 
@@ -365,6 +352,25 @@ fun BooksScreen(
                 showDeleteDialog = null
             },
             onDismiss = { showDeleteDialog = null },
+        )
+    }
+}
+
+@Composable
+private fun BooksInlineNotice(text: String, onClick: (() -> Unit)? = null) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.m, vertical = Spacing.xs)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        shape = RoundedCornerShape(Radius.l),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
         )
     }
 }

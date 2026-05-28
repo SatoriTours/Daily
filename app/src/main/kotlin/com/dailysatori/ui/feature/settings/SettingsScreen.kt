@@ -178,9 +178,9 @@ private fun SettingsList(
             .fillMaxSize()
             .padding(horizontal = Spacing.m)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(Spacing.m),
+        verticalArrangement = Arrangement.spacedBy(Spacing.l),
     ) {
-        Spacer(modifier = Modifier.height(Spacing.xs))
+        Spacer(modifier = Modifier.height(Spacing.s))
         AiServicesSection(onNavigate)
         NetworkSection(state, viewModel, onNavigate)
         DataSection(onNavigate)

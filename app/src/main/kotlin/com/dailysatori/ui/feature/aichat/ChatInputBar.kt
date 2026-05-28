@@ -81,8 +81,8 @@ fun ChatInputBar(
         ) {
             Surface(
                 shape = inputShape,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
-                tonalElevation = 1.dp,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                tonalElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(
@@ -90,7 +90,7 @@ fun ChatInputBar(
                         color = if (isFocused) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.outlineVariant
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
                         },
                         shape = inputShape,
                     ),

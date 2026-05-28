@@ -15,14 +15,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,6 +48,9 @@ import com.dailysatori.shared.db.Diary
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 private fun sanitizeNull(value: String?): String {
@@ -66,6 +70,11 @@ fun DiaryEditorSheet(
         mutableStateOf(TextFieldValue(existingDiary?.content ?: ""))
     }
     var showMediaPicker by remember { mutableStateOf(false) }
+    var showTagEditor by remember { mutableStateOf(false) }
+    var showMoodEditor by remember { mutableStateOf(false) }
+    var showMoreFormats by remember { mutableStateOf(false) }
+    var tagsText by remember(existingDiary) { mutableStateOf(sanitizeNull(existingDiary?.tags)) }
+    var moodText by remember(existingDiary) { mutableStateOf(sanitizeNull(existingDiary?.mood)) }
     val undoStack = remember { mutableStateListOf<TextFieldValue>() }
     val redoStack = remember { mutableStateListOf<TextFieldValue>() }
     val images = remember(existingDiary) {
@@ -158,19 +167,9 @@ fun DiaryEditorSheet(
         val file = File(dir, "temp_photo_${UUID.randomUUID()}.jpg")
         FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }
-    val tempVideoUri = remember {
-        val dir = File(context.filesDir, "DailySatori/diary_images").apply { mkdirs() }
-        val file = File(dir, "temp_video_${UUID.randomUUID()}.mp4")
-        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-    }
-
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
     ) { success -> if (success) saveMedia(tempPhotoUri, ".jpg") }
-
-    val videoLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CaptureVideo(),
-    ) { success -> if (success) saveMedia(tempVideoUri, ".mp4") }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents(),
@@ -191,11 +190,8 @@ fun DiaryEditorSheet(
                     MediaPickerButton("拍照") {
                         showMediaPicker = false; cameraLauncher.launch(tempPhotoUri)
                     }
-                    MediaPickerButton("录像") {
-                        showMediaPicker = false; videoLauncher.launch(tempVideoUri)
-                    }
                     MediaPickerButton("从相册选择") {
-                        showMediaPicker = false; galleryLauncher.launch("*/*")
+                        showMediaPicker = false; galleryLauncher.launch("image/*")
                     }
                 }
             },
@@ -203,6 +199,26 @@ fun DiaryEditorSheet(
             dismissButton = {
                 TextButton(onClick = { showMediaPicker = false }) { Text("取消") }
             },
+        )
+    }
+
+    if (showTagEditor) {
+        DiaryTextEditDialog(
+            title = "编辑标签",
+            value = tagsText,
+            placeholder = "用逗号分隔，例如：生活,散步",
+            onValueChange = { tagsText = it },
+            onDismiss = { showTagEditor = false },
+        )
+    }
+
+    if (showMoodEditor) {
+        DiaryTextEditDialog(
+            title = "编辑心情",
+            value = moodText,
+            placeholder = "例如：平静",
+            onValueChange = { moodText = it },
+            onDismiss = { showMoodEditor = false },
         )
     }
 
@@ -235,75 +251,74 @@ fun DiaryEditorSheet(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = if (existingDiary != null) "编辑日记" else "新建日记",
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                        IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Close, contentDescription = "关闭", modifier = Modifier.size(20.dp))
-                        }
+                        TextButton(onClick = onDismiss) { Text("取消") }
+                        Text(text = if (existingDiary != null) "编辑日记" else "新建日记", style = MaterialTheme.typography.titleSmall)
+                        TextButton(
+                            enabled = content.text.isNotBlank(),
+                            onClick = { onSave(content.text, tagsText.ifBlank { null }, moodText.ifBlank { null }, images.joinToString(",").ifBlank { null }) },
+                        ) { Text("保存") }
                     }
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    Text(
+                        text = diaryEditorMetaText(existingDiary, moodText),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Spacer(modifier = Modifier.height(Spacing.xs))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
-                            .clip(RoundedCornerShape(Radius.s))
+                            .clip(RoundedCornerShape(Radius.xl))
                             .background(MaterialTheme.colorScheme.surfaceContainerLow)
                             .padding(horizontal = Spacing.m, vertical = Spacing.s),
                     ) {
-                        BasicTextField(
-                            value = content,
-                            onValueChange = { pushUndo(); content = it },
-                            modifier = Modifier.fillMaxWidth().fillMaxHeight(),
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface,
-                            ),
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                            decorationBox = { innerTextField ->
-                                if (content.text.isEmpty()) {
-                                    Text(
-                                        text = "写点东西...",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                    )
-                                }
-                                innerTextField()
-                            },
-                        )
+                        Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                            DiaryImageRow(images = images, onRemove = { images.remove(it) })
+                            BasicTextField(
+                                value = content,
+                                onValueChange = { pushUndo(); content = it },
+                                modifier = Modifier.fillMaxWidth().weight(1f),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                decorationBox = { innerTextField ->
+                                    if (content.text.isEmpty()) {
+                                        Text("写点东西...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                                    }
+                                    innerTextField()
+                                },
+                            )
+                            DiaryEditorTagRow(tagsText = tagsText, onAddTag = { showTagEditor = true })
+                        }
                     }
-
-                    DiaryImageRow(images = images, onRemove = { images.remove(it) })
 
                     Spacer(modifier = Modifier.height(Spacing.xs))
 
-                    DiaryEditorToolbar(
-                        onTitle = { insertLineStart("# ") },
-                        onBold = { insertFormat("**", "**") },
-                        onItalic = { insertFormat("*", "*") },
-                        onQuote = { insertLineStart("> ") },
-                        onOrderedList = { insertLineStart("1. ") },
-                        onUnorderedList = { insertLineStart("- ") },
-                        onTaskList = { insertLineStart("- [ ] ") },
-                        onInlineCode = { insertFormat("`", "`") },
-                        onDivider = { insertBlock("---") },
-                        onLink = { insertFormat("[", "](url)") },
-                        onImage = { insertFormat("![", "](url)") },
-                        onUndo = { performUndo() },
-                        onRedo = { performRedo() },
-                        onMedia = { showMediaPicker = true },
-                        onSave = {
-                            onSave(
-                                content.text,
-                                null,
-                                null,
-                                images.joinToString(",").ifBlank { null },
-                            )
-                        },
-                        canUndo = undoStack.isNotEmpty(),
-                        canRedo = redoStack.isNotEmpty(),
-                        canSave = content.text.isNotBlank(),
-                    )
+                    Box {
+                        DiaryEditorToolbar(
+                            onTitle = { insertLineStart("# ") },
+                            onOrderedList = { insertLineStart("1. ") },
+                            onUnorderedList = { insertLineStart("- ") },
+                            onMedia = { showMediaPicker = true },
+                            onTags = { showTagEditor = true },
+                            onMood = { showMoodEditor = true },
+                            onUndo = { performUndo() },
+                            onRedo = { performRedo() },
+                            onMore = { showMoreFormats = !showMoreFormats },
+                            canUndo = undoStack.isNotEmpty(),
+                            canRedo = redoStack.isNotEmpty(),
+                        )
+                        DiaryMoreFormatMenu(
+                            expanded = showMoreFormats,
+                            onDismiss = { showMoreFormats = false },
+                            onBold = { insertFormat("**", "**"); showMoreFormats = false },
+                            onItalic = { insertFormat("*", "*"); showMoreFormats = false },
+                            onQuote = { insertLineStart("> "); showMoreFormats = false },
+                            onTaskList = { insertLineStart("- [ ] "); showMoreFormats = false },
+                            onDivider = { insertBlock("---"); showMoreFormats = false },
+                            onLink = { insertFormat("[", "](url)"); showMoreFormats = false },
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(Spacing.s))
                 }
@@ -317,4 +332,67 @@ private fun MediaPickerButton(label: String, onClick: () -> Unit) {
     TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Text(label, modifier = Modifier.weight(1f))
     }
+}
+
+@Composable
+private fun DiaryEditorTagRow(tagsText: String, onAddTag: () -> Unit) {
+    val tags = tagsText.split(",").map { it.trim() }.filter { it.isNotBlank() && it != "null" }
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        item { DiaryEditorChip("+ 标签", onAddTag) }
+        items(tags, key = { it }) { tag -> DiaryEditorChip("#$tag", onAddTag) }
+    }
+}
+
+@Composable
+private fun DiaryEditorChip(text: String, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+        Text(text = text, modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun DiaryMoreFormatMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onBold: () -> Unit,
+    onItalic: () -> Unit,
+    onQuote: () -> Unit,
+    onTaskList: () -> Unit,
+    onDivider: () -> Unit,
+    onLink: () -> Unit,
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        DropdownMenuItem(text = { Text("加粗") }, onClick = onBold)
+        DropdownMenuItem(text = { Text("斜体") }, onClick = onItalic)
+        DropdownMenuItem(text = { Text("引用") }, onClick = onQuote)
+        DropdownMenuItem(text = { Text("任务") }, onClick = onTaskList)
+        DropdownMenuItem(text = { Text("分割线") }, onClick = onDivider)
+        DropdownMenuItem(text = { Text("链接") }, onClick = onLink)
+    }
+}
+
+@Composable
+private fun DiaryTextEditDialog(
+    title: String,
+    value: String,
+    placeholder: String,
+    onValueChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(Radius.xl),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(value = value, onValueChange = onValueChange, placeholder = { Text(placeholder) }, singleLine = true)
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("确定") } },
+    )
+}
+
+private fun diaryEditorMetaText(existingDiary: Diary?, mood: String): String {
+    val time = existingDiary?.created_at ?: System.currentTimeMillis()
+    val dateText = SimpleDateFormat("M月d日 HH:mm", Locale.CHINA).format(Date(time))
+    return mood.takeIf { it.isNotBlank() }?.let { "$dateText · $it" } ?: dateText
 }
