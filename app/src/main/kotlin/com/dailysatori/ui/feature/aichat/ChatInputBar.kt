@@ -1,6 +1,8 @@
 package com.dailysatori.ui.feature.aichat
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -51,6 +53,15 @@ fun chatInputActionDescription(action: ChatInputAction): String = when (action) 
     ChatInputAction.Stop -> "停止生成"
 }
 
+fun chatInputSuggestionLabels(): List<String> = listOf("整理今天", "提炼主题", "搜索记忆")
+
+fun chatInputPlaceholderText(): String = "继续追问今天的新闻、日记或文章..."
+
+fun chatInputShowsSuggestions(inputText: String, isProcessing: Boolean): Boolean = inputText.isBlank() && !isProcessing
+
+fun chatInputTextAfterSuggestion(currentText: String, suggestion: String): String =
+    listOf(currentText.trim(), suggestion).filter { it.isNotBlank() }.joinToString(" ")
+
 fun chatInputUsesImePadding(): Boolean = true
 
 @Composable
@@ -60,6 +71,7 @@ fun ChatInputBar(
     onSend: () -> Unit,
     onStop: () -> Unit,
     isProcessing: Boolean,
+    onSuggestionClick: (String) -> Unit = { suggestion -> onInputChange(chatInputTextAfterSuggestion(inputText, suggestion)) },
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val inputShape = RoundedCornerShape(Radius.circular)
@@ -72,13 +84,16 @@ fun ChatInputBar(
     val action = chatInputAction(isProcessing)
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
                 .padding(horizontal = Spacing.m, vertical = Spacing.xs)
                 .imePadding(),
         ) {
+            if (chatInputShowsSuggestions(inputText, isProcessing)) {
+                ChatInputSuggestions(onSuggestionClick)
+            }
             Surface(
                 shape = inputShape,
                 color = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -119,7 +134,7 @@ fun ChatInputBar(
                             ) {
                                 if (inputText.isEmpty()) {
                                     Text(
-                                        "问我任何问题...",
+                                        chatInputPlaceholderText(),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                     )
@@ -156,6 +171,29 @@ fun ChatInputBar(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatInputSuggestions(onSuggestionClick: (String) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+    ) {
+        chatInputSuggestionLabels().forEach { label ->
+            Surface(
+                shape = RoundedCornerShape(Radius.circular),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier.clickable { onSuggestionClick(label) },
+            ) {
+                Text(
+                    text = label,
+                    modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

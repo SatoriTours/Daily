@@ -107,8 +107,9 @@ class MainContentRhythmTest {
                     "                color = MaterialTheme.colorScheme.primary",
             ),
         )
-        assertTrue(messageBody.contains("MarkdownStyles.cardTypography()"))
-        assertTrue(messageBody.contains("MarkdownStyles.cardPadding()"))
+        assertTrue(messageBody.contains("StructuredAssistantMessage("))
+        assertTrue(message.contains("MarkdownStyles.summaryTypography()"))
+        assertTrue(message.contains("MarkdownStyles.summaryPadding()"))
         assertTrue(citationBody.contains("MarkdownStyles.summaryTypography()"))
         assertFalse(citationBody.contains("style = MaterialTheme.typography.bodyLarge"))
     }

@@ -4,11 +4,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -33,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.dailysatori.service.mcp.canOpenSearchResult
 import com.dailysatori.service.mcp.McpSearchResult
 import com.dailysatori.service.mcp.searchResultTypeLabel
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -51,6 +55,29 @@ fun referenceExpansionText(totalCount: Int, expanded: Boolean): String? {
     return if (expanded) "收起引用" else "展开剩余 ${totalCount - 3} 条"
 }
 
+enum class ChatMessageTreatment { MutedUserNote, StructuredAssistantNote, ErrorNote }
+
+data class StructuredAssistantContent(val title: String, val body: String)
+
+fun chatMessageTreatment(role: String, isError: Boolean): ChatMessageTreatment = when {
+    isError -> ChatMessageTreatment.ErrorNote
+    role == "user" -> ChatMessageTreatment.MutedUserNote
+    else -> ChatMessageTreatment.StructuredAssistantNote
+}
+
+fun assistantMessageUsesEditorialRail(): Boolean = true
+
+fun userMessageUsesMutedContainer(): Boolean = true
+
+fun structuredAssistantContent(content: String): StructuredAssistantContent {
+    val trimmed = content.trim()
+    val firstLine = trimmed.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+    if (!firstLine.startsWith("#")) return StructuredAssistantContent("AI 回复", trimmed)
+    val title = firstLine.trimStart('#').trim().ifBlank { "AI 回复" }
+    val body = trimmed.lines().drop(1).joinToString("\n").trim()
+    return StructuredAssistantContent(title, body.ifBlank { trimmed })
+}
+
 @Composable
 fun MessageBubble(
     message: ChatMessageUi,
@@ -60,6 +87,7 @@ fun MessageBubble(
 ) {
     val isUser = message.role == "user"
     val assistantContent = message.content.trim()
+    val treatment = chatMessageTreatment(message.role, message.isError)
     val clipboard = LocalClipboardManager.current
     var showActions by remember(message.id) { mutableStateOf(false) }
     if (!isUser && assistantContent.isBlank() && message.searchResults.isEmpty()) return
@@ -71,41 +99,20 @@ fun MessageBubble(
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
-            Surface(
-                shape = RoundedCornerShape(
-                    topStart = Radius.l, topEnd = Radius.l,
-                    bottomStart = if (isUser) Radius.l else Radius.xs,
-                    bottomEnd = if (isUser) Radius.xs else Radius.l,
-                ),
-                color = when {
-                    isUser -> MaterialTheme.colorScheme.primary
-                    message.isError -> MaterialTheme.colorScheme.errorContainer
-                    else -> MaterialTheme.colorScheme.surface
-                },
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth(if (isUser) 0.82f else 0.94f)
-                    .pointerInput(message.id) {
-                        detectTapGestures(onLongPress = { showActions = true })
-                    },
+                    .fillMaxWidth(if (isUser) 0.82f else 0.96f)
+                    .pointerInput(message.id) { detectTapGestures(onLongPress = { showActions = true }) },
             ) {
                 Column {
-                    if (isUser) {
-                        Text(
-                            text = message.content,
-                            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            style = MaterialTheme.typography.bodyMedium,
+                    when (treatment) {
+                        ChatMessageTreatment.MutedUserNote -> MutedUserMessage(message.content)
+                        ChatMessageTreatment.StructuredAssistantNote -> StructuredAssistantMessage(
+                            content = assistantContent,
+                            searchResults = message.searchResults,
+                            onReferenceClick = onReferenceClick,
                         )
-                    } else {
-                        if (assistantContent.isNotBlank()) {
-                            Column(modifier = Modifier.padding(Spacing.m)) {
-                                Markdown(
-                                    content = assistantContent,
-                                    typography = MarkdownStyles.cardTypography(),
-                                    padding = MarkdownStyles.cardPadding(),
-                                )
-                            }
-                        }
+                        ChatMessageTreatment.ErrorNote -> ErrorAssistantMessage(assistantContent)
                     }
                     DropdownMenu(expanded = showActions, onDismissRequest = { showActions = false }) {
                         DropdownMenuItem(
@@ -133,10 +140,94 @@ fun MessageBubble(
                 }
             }
         }
+    }
+}
 
-        if (!isUser && message.searchResults.isNotEmpty()) {
-            SearchResultsSection(message.searchResults, onReferenceClick)
+@Composable
+private fun MutedUserMessage(content: String) {
+    Surface(
+        shape = RoundedCornerShape(Radius.l),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    ) {
+        Text(
+            text = content,
+            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+@Composable
+private fun ErrorAssistantMessage(content: String) {
+    Surface(
+        shape = RoundedCornerShape(Radius.l),
+        color = MaterialTheme.colorScheme.errorContainer,
+    ) {
+        Text(
+            text = content,
+            modifier = Modifier.padding(Spacing.m),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+    }
+}
+
+@Composable
+private fun StructuredAssistantMessage(
+    content: String,
+    searchResults: List<McpSearchResult>,
+    onReferenceClick: (McpSearchResult) -> Unit,
+) {
+    val structured = structuredAssistantContent(content)
+    Row(
+        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+    ) {
+        Surface(
+            modifier = Modifier.width(BorderWidth.l).fillMaxHeight(),
+            shape = RoundedCornerShape(Radius.circular),
+            color = MaterialTheme.colorScheme.outlineVariant,
+        ) {}
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(Spacing.s),
+        ) {
+            AssistantKicker()
+            Text(
+                text = structured.title,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (structured.body.isNotBlank()) {
+                Markdown(
+                    content = structured.body,
+                    typography = MarkdownStyles.summaryTypography(),
+                    padding = MarkdownStyles.summaryPadding(),
+                )
+            }
+            if (searchResults.isNotEmpty()) {
+                SearchResultsSection(searchResults, onReferenceClick)
+            }
         }
+    }
+}
+
+@Composable
+private fun AssistantKicker() {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        Surface(
+            modifier = Modifier.width(BorderWidth.l).height(BorderWidth.l),
+            shape = RoundedCornerShape(Radius.circular),
+            color = MaterialTheme.colorScheme.primary,
+        ) {}
+        Text(
+            text = "AI 回复",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 

@@ -69,6 +69,76 @@ class AiChatUiStateTest {
     }
 
     @Test
+    fun messagePresentationWeakensUserAndStructuresAssistant() {
+        assertEquals(ChatMessageTreatment.MutedUserNote, chatMessageTreatment(role = "user", isError = false))
+        assertEquals(ChatMessageTreatment.StructuredAssistantNote, chatMessageTreatment(role = "assistant", isError = false))
+        assertEquals(ChatMessageTreatment.ErrorNote, chatMessageTreatment(role = "assistant", isError = true))
+        assertTrue(assistantMessageUsesEditorialRail())
+        assertTrue(userMessageUsesMutedContainer())
+    }
+
+    @Test
+    fun assistantReplyExtractsReadableTitleAndBody() {
+        val structured = structuredAssistantContent("## 结论\n可以把焦虑写成控制感。")
+
+        assertEquals("结论", structured.title)
+        assertEquals("可以把焦虑写成控制感。", structured.body)
+    }
+
+    @Test
+    fun assistantReplyFallsBackToBriefTitle() {
+        val structured = structuredAssistantContent("可以把焦虑写成控制感。")
+
+        assertEquals("AI 回复", structured.title)
+        assertEquals("可以把焦虑写成控制感。", structured.body)
+    }
+
+    @Test
+    fun assistantReplyPreservesIntroWhenHeadingIsNotFirstLine() {
+        val structured = structuredAssistantContent("先说结论。\n\n## 细节\n后续内容。")
+
+        assertEquals("AI 回复", structured.title)
+        assertEquals("先说结论。\n\n## 细节\n后续内容。", structured.body)
+    }
+
+    @Test
+    fun assistantReplyDoesNotUseCodeCommentAsTitle() {
+        val structured = structuredAssistantContent("```bash\n# comment\n```\n说明。")
+
+        assertEquals("AI 回复", structured.title)
+        assertEquals("```bash\n# comment\n```\n说明。", structured.body)
+    }
+
+    @Test
+    fun chatInputOffersEditorialQuickPrompts() {
+        assertEquals(listOf("整理今天", "提炼主题", "搜索记忆"), chatInputSuggestionLabels())
+        assertEquals("继续追问今天的新闻、日记或文章...", chatInputPlaceholderText())
+    }
+
+    @Test
+    fun chatInputSuggestionsOnlyShowWhenIdleAndEmpty() {
+        assertTrue(chatInputShowsSuggestions(inputText = "", isProcessing = false))
+        assertFalse(chatInputShowsSuggestions(inputText = "已有内容", isProcessing = false))
+        assertFalse(chatInputShowsSuggestions(inputText = "", isProcessing = true))
+    }
+
+    @Test
+    fun chatInputSuggestionKeepsExistingText() {
+        assertEquals("整理今天", chatInputTextAfterSuggestion(currentText = "", suggestion = "整理今天"))
+        assertEquals("已有内容 整理今天", chatInputTextAfterSuggestion(currentText = "已有内容", suggestion = "整理今天"))
+    }
+
+    @Test
+    fun emptyStateUsesEditorialWelcomeInsteadOfGenericPlaceholder() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+
+        assertTrue(source.contains("AiChatWelcomeBrief("))
+        assertTrue(source.contains("text = \"Assistant Note\""))
+        assertTrue(source.contains("text = \"把今天的阅读和想法整理成一条线索\""))
+        assertFalse(source.contains("EmptyState("))
+    }
+
+    @Test
     fun topBarDoesNotExposeRefreshAction() {
         assertFalse(aiChatShowsRefreshAction())
         assertTrue(aiChatShowsMemorySearchAction())

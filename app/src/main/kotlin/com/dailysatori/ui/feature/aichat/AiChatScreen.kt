@@ -1,17 +1,23 @@
 package com.dailysatori.ui.feature.aichat
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,11 +34,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dailysatori.service.mcp.McpSearchResult
 import com.dailysatori.service.mcp.searchResultOpenTarget
 import com.dailysatori.ui.component.appbar.AppTopBar
-import com.dailysatori.ui.component.indicator.EmptyState
+import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -92,12 +99,7 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
         },
     ) { padding ->
         if (state.messages.isEmpty()) {
-            EmptyState(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                icon = Icons.Default.AutoAwesome,
-                title = "AI 助手",
-                subtitle = "可以搜索记忆、追问文章，也可以整理今天的想法",
-            )
+            AiChatWelcomeBrief(modifier = Modifier.fillMaxSize().padding(padding))
         } else {
             LazyColumn(
                 state = listState,
@@ -144,6 +146,73 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
                 onArticleClick(articleId)
             },
         )
+    }
+}
+
+@Composable
+private fun AiChatWelcomeBrief(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.padding(horizontal = Spacing.l),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) {
+            Surface(
+                modifier = Modifier.width(BorderWidth.s).fillMaxHeight(),
+                shape = RoundedCornerShape(Radius.circular),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+            ) {}
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                Text(
+                    text = "Assistant Note",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "把今天的阅读和想法整理成一条线索",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "可以搜索记忆、追问文章，也可以把零散想法整理成可继续写下去的日记草稿。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(Spacing.xs))
+                WelcomePromptRow(index = "01", title = "整理今天", body = "从新闻、日记和文章里提炼一条主线。")
+                WelcomePromptRow(index = "02", title = "追问文章", body = "把阅读里的疑问变成连续批注。")
+                WelcomePromptRow(index = "03", title = "搜索记忆", body = "回看过去写下的片段和线索。")
+            }
+        }
+    }
+}
+
+@Composable
+private fun WelcomePromptRow(index: String, title: String, body: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Text(
+            text = index,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Column {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
