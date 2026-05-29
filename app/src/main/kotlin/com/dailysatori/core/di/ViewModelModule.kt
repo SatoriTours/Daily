@@ -72,6 +72,8 @@ val viewModelModule: Module = module {
         DiaryViewModel(
             diaryRepo = get<DiaryRepository>(),
             memoryExtractService = get<MemoryExtractService>(),
+            monthSummaryRepo = get(),
+            monthSummaryService = get(),
         )
     }
     viewModel {

@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Satori 日记清爽时间线 Demo</title>
+  <style>
+    :root {
+      --bg: #f5f1e9;
+      --paper: #fffdf8;
+      --paper-soft: #faf6ee;
+      --ink: #211f1b;
+      --muted: #776f64;
+      --faint: #a59c90;
+      --line: rgba(33,31,27,.10);
+      --accent: #7b5a35;
+      --accent-soft: rgba(123,90,53,.12);
+      --shadow: 0 14px 34px rgba(53,38,22,.08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #171511;
+        --paper: #232019;
+        --paper-soft: #2d281f;
+        --ink: #f3eadc;
+        --muted: #c8bba7;
+        --faint: #928777;
+        --line: rgba(243,234,220,.11);
+        --accent: #d6b072;
+        --accent-soft: rgba(214,176,114,.14);
+        --shadow: 0 16px 36px rgba(0,0,0,.34);
+      }
+    }
+
+    body[data-theme="dark"] {
+      --bg: #171511;
+      --paper: #232019;
+      --paper-soft: #2d281f;
+      --ink: #f3eadc;
+      --muted: #c8bba7;
+      --faint: #928777;
+      --line: rgba(243,234,220,.11);
+      --accent: #d6b072;
+      --accent-soft: rgba(214,176,114,.14);
+      --shadow: 0 16px 36px rgba(0,0,0,.34);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: start center;
+      padding: 24px 14px 48px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 24% -4%, rgba(255,255,255,.24), transparent 32%),
+        linear-gradient(145deg, #fbf8f1, var(--bg));
+    }
+    body[data-theme="dark"] {
+      background:
+        radial-gradient(circle at 24% -4%, rgba(214,176,114,.18), transparent 32%),
+        linear-gradient(145deg, #211d17, var(--bg));
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        background:
+          radial-gradient(circle at 24% -4%, rgba(214,176,114,.18), transparent 32%),
+          linear-gradient(145deg, #211d17, var(--bg));
+      }
+    }
+
+    .phone {
+      width: min(430px, 100%);
+      min-height: 860px;
+      border-radius: 36px;
+      overflow: hidden;
+      border: 1px solid rgba(33,31,27,.08);
+      background: var(--bg);
+      box-shadow: 0 24px 70px rgba(40,30,19,.14);
+    }
+
+    .screen { padding: 0 16px 96px; }
+    .topbar {
+      height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .topbar .ghost { width: 72px; }
+    .title { font-size: 17px; font-weight: 820; letter-spacing: -.03em; }
+    .actions { display: flex; gap: 2px; }
+    .icon {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 20px;
+      font-weight: 680;
+    }
+
+    .month {
+      padding: 6px 2px 18px;
+      border-bottom: 1px solid rgba(33,31,27,.07);
+      margin-bottom: 18px;
+    }
+    .month h1 {
+      margin: 0;
+      font-size: 38px;
+      line-height: .95;
+      letter-spacing: -.075em;
+      font-weight: 900;
+    }
+    .summary {
+      margin: 12px 0 0;
+      max-width: 32em;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+    .month-meta {
+      margin-top: 10px;
+      color: var(--faint);
+      font-size: 12px;
+      font-weight: 680;
+      letter-spacing: .01em;
+    }
+
+    .day-group { margin-top: 24px; }
+    .day-head {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+      margin: 0 2px 12px;
+    }
+    .date {
+      color: var(--accent);
+      font-size: 15px;
+      font-weight: 840;
+      letter-spacing: -.02em;
+      white-space: nowrap;
+    }
+    .rule { height: 1px; background: rgba(123,90,53,.14); }
+    .relative {
+      color: var(--faint);
+      font-size: 12px;
+      font-weight: 680;
+      white-space: nowrap;
+    }
+
+    .stack { display: grid; gap: 12px; }
+    .entry {
+      border-radius: 26px;
+      padding: 12px;
+      background: color-mix(in srgb, var(--paper) 90%, transparent);
+      border: 1px solid rgba(33,31,27,.075);
+      box-shadow: var(--shadow);
+    }
+    .entry.compact { background: color-mix(in srgb, var(--paper) 72%, transparent); box-shadow: none; }
+    .entry-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      color: var(--faint);
+      font-size: 12px;
+      font-weight: 720;
+    }
+    .entry-top-left { display: flex; align-items: center; min-width: 0; gap: 7px; }
+    .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--accent); opacity: .7; }
+    .mood { color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .more {
+      width: 30px;
+      height: 30px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-weight: 900;
+      letter-spacing: .08em;
+    }
+
+    .photos {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 10px;
+    }
+    .photos.mosaic { grid-template-columns: 1.35fr .9fr; }
+    .photos.double { grid-template-columns: 1fr 1fr; }
+    .side { display: grid; gap: 7px; }
+    .photo {
+      min-height: 84px;
+      border-radius: 20px;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .photo.big { min-height: 154px; }
+    .photo.mid { min-height: 116px; }
+    .p1 { background-image: linear-gradient(135deg, rgba(25,25,25,.03), rgba(20,20,20,.20)), linear-gradient(135deg, #a8b4a2, #d2c4aa 52%, #7a705e); }
+    .p2 { background-image: linear-gradient(135deg, rgba(25,25,25,.03), rgba(20,20,20,.16)), linear-gradient(135deg, #c8a978, #6d7f73); }
+    .p3 { background-image: linear-gradient(135deg, rgba(25,25,25,.03), rgba(20,20,20,.17)), linear-gradient(135deg, #8f9f9d, #ded3bd); }
+    .p4 { background-image: linear-gradient(135deg, rgba(25,25,25,.03), rgba(20,20,20,.18)), linear-gradient(135deg, #b9a37f, #625d55); }
+    .badge {
+      position: absolute;
+      right: 9px;
+      bottom: 9px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(22,22,22,.42);
+      color: white;
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .body {
+      color: color-mix(in srgb, var(--ink) 86%, var(--muted));
+      font-size: 14px;
+      line-height: 1.7;
+      letter-spacing: -.01em;
+      margin: 0;
+    }
+    .body.quote {
+      padding: 10px 12px;
+      border-radius: 18px;
+      background: var(--accent-soft);
+      border-left: 3px solid color-mix(in srgb, var(--accent) 58%, transparent);
+    }
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+      padding-top: 9px;
+      border-top: 1px solid rgba(33,31,27,.07);
+    }
+    .tags {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      overflow: hidden;
+      mask-image: linear-gradient(90deg, #000 84%, transparent);
+    }
+    .tag {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      max-width: 104px;
+      padding: 4px 7px 4px 6px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ink) 7%, transparent);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 720;
+      line-height: 1;
+    }
+    .tag svg {
+      width: 11px;
+      height: 11px;
+      flex: 0 0 auto;
+      stroke: var(--accent);
+      opacity: .72;
+    }
+    .tag span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .expand {
+      flex: 0 0 auto;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 780;
+    }
+
+    .fab {
+      position: fixed;
+      left: calc(50% + min(430px, 100vw) / 2 - 78px);
+      bottom: 34px;
+      width: 56px;
+      height: 56px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--ink);
+      color: var(--bg);
+      font-size: 30px;
+      box-shadow: 0 18px 40px rgba(33,31,27,.22);
+    }
+
+    .notes {
+      width: min(430px, 100%);
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 22px;
+      background: color-mix(in srgb, var(--paper) 78%, transparent);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+    .notes strong { color: var(--ink); }
+
+    @media (max-width: 460px) {
+      body { padding: 0; }
+      .phone { min-height: 100vh; border-radius: 0; border: 0; width: 100%; }
+      .fab { right: 20px; left: auto; bottom: 24px; }
+      .notes { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <section class="screen">
+      <header class="topbar">
+        <div class="ghost"></div>
+        <div class="title">我的日记</div>
+        <div class="actions"><div class="icon">⌕</div><div class="icon">≡</div></div>
+      </header>
+
+      <section class="month">
+        <h1>十二月</h1>
+        <p class="summary">这个月多是奔波、照片和一些现场记录。那些看起来零散的片刻，被你一点点收进了日记里。</p>
+        <div class="month-meta">8 篇日记 · 21 张照片 · 最近更新 12 月 6 日</div>
+      </section>
+
+      <section class="day-group">
+        <header class="day-head">
+          <div class="date">十二月六日 · 周六</div>
+          <div class="rule"></div>
+          <div class="relative">今天</div>
+        </header>
+        <div class="stack">
+          <article class="entry">
+            <div class="entry-top">
+              <div class="entry-top-left"><span class="dot"></span><span>09:42</span><span class="mood">现场记录</span></div>
+              <div class="more">···</div>
+            </div>
+            <div class="photos mosaic">
+              <div class="photo big p1"></div>
+              <div class="side"><div class="photo p2"></div><div class="photo p3"><span class="badge">+4</span></div></div>
+            </div>
+            <p class="body">上午把机柜里的线路重新整理了一遍，空间一下子清爽很多。照片比文字更容易说明今天发生了什么，所以这里不再把标签放到最显眼的位置。</p>
+            <div class="footer">
+              <div class="tags">
+                <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.6 13.2 13.2 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8Z"/><path d="M7.5 7.5h.01"/></svg><span>机柜</span></span>
+                <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.6 13.2 13.2 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8Z"/><path d="M7.5 7.5h.01"/></svg><span>工作记录</span></span>
+                <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.6 13.2 13.2 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8Z"/><path d="M7.5 7.5h.01"/></svg><span>有照片</span></span>
+              </div>
+              <div class="expand">展开正文</div>
+            </div>
+          </article>
+
+          <article class="entry compact">
+            <div class="entry-top">
+              <div class="entry-top-left"><span class="dot"></span><span>21:18</span><span class="mood">随手记</span></div>
+              <div class="more">···</div>
+            </div>
+            <p class="body quote">晚上回来的路上忽然觉得，日记不一定要写得很完整，能把一天里最清楚的那一下留住就够了。</p>
+            <div class="footer"><div class="tags"><span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.6 13.2 13.2 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8Z"/><path d="M7.5 7.5h.01"/></svg><span>想法</span></span></div><div class="expand">展开正文</div></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="day-group">
+        <header class="day-head">
+          <div class="date">十二月三日 · 周三</div>
+          <div class="rule"></div>
+          <div class="relative"></div>
+        </header>
+        <div class="stack">
+          <article class="entry">
+            <div class="entry-top">
+              <div class="entry-top-left"><span class="dot"></span><span>18:06</span><span class="mood">路上</span></div>
+              <div class="more">···</div>
+            </div>
+            <div class="photos double"><div class="photo mid p4"></div><div class="photo mid p2"></div></div>
+            <p class="body">这条记录保留照片优先的感觉，但日期、正文、标签各自有清楚的位置，视觉上不会全部挤在一起。</p>
+            <div class="footer">
+              <div class="tags">
+                <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.6 13.2 13.2 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8Z"/><path d="M7.5 7.5h.01"/></svg><span>日常</span></span>
+                <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.6 13.2 13.2 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8Z"/><path d="M7.5 7.5h.01"/></svg><span>照片</span></span>
+                <span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.6 13.2 13.2 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8Z"/><path d="M7.5 7.5h.01"/></svg><span>散步</span></span>
+              </div>
+              <div class="expand">展开正文</div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </section>
+  </main>
+  <div class="fab">+</div>
+  <aside class="notes"><strong>调整重点：</strong>月份下方不再显示“全部 / 有照片 / #标签”胶囊；日期标题独立成分组，并通过细线和留白与卡片分开；标签变成卡片底部的低优先级单行文本，避免抢照片和正文的空间。</aside>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const theme = params.get('theme');
+    if (theme === 'dark' || theme === 'light') {
+      document.body.dataset.theme = theme;
+    }
+  </script>
+</body>
+</html>

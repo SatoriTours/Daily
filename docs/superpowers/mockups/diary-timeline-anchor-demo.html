@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Satori 日记时间线锚点 Demo</title>
+  <style>
+    :root {
+      --bg: #f5f1e9;
+      --paper: #fffdf8;
+      --ink: #211f1b;
+      --muted: #756d61;
+      --faint: #a49a8b;
+      --line: rgba(33,31,27,.10);
+      --accent: #7b5a35;
+      --accent-soft: rgba(123,90,53,.11);
+      --shadow: 0 12px 28px rgba(53,38,22,.07);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body[data-theme="dark"] {
+      --bg: #171511;
+      --paper: #232019;
+      --ink: #f3eadc;
+      --muted: #c8bba7;
+      --faint: #928777;
+      --line: rgba(243,234,220,.11);
+      --accent: #d6b072;
+      --accent-soft: rgba(214,176,114,.13);
+      --shadow: 0 16px 34px rgba(0,0,0,.34);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: start center;
+      padding: 24px 14px 48px;
+      color: var(--ink);
+      background: linear-gradient(145deg, #fbf8f1, var(--bg));
+    }
+    body[data-theme="dark"] { background: linear-gradient(145deg, #211d17, var(--bg)); }
+    .phone {
+      width: min(430px, 100%);
+      min-height: 860px;
+      border-radius: 36px;
+      overflow: hidden;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      box-shadow: 0 24px 70px rgba(40,30,19,.14);
+    }
+    .screen { padding: 0 14px 92px; }
+    .topbar {
+      height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .ghost { width: 74px; }
+    .title { font-size: 17px; font-weight: 820; letter-spacing: -.03em; }
+    .actions { display: flex; gap: 2px; color: var(--muted); }
+    .icon { width: 40px; height: 40px; display: grid; place-items: center; font-size: 20px; }
+
+    .month {
+      padding: 4px 2px 18px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid color-mix(in srgb, var(--ink) 7%, transparent);
+    }
+    .month h1 {
+      margin: 0;
+      font-size: 36px;
+      line-height: .95;
+      font-weight: 900;
+      letter-spacing: -.075em;
+    }
+    .summary {
+      margin: 11px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.62;
+    }
+    .month-meta {
+      margin-top: 9px;
+      color: var(--faint);
+      font-size: 12px;
+      font-weight: 680;
+    }
+
+    .timeline { display: grid; gap: 20px; }
+    .day {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      column-gap: 10px;
+      align-items: stretch;
+    }
+    .anchor {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 2px;
+      color: var(--accent);
+    }
+    .anchor::after {
+      content: "";
+      width: 1px;
+      flex: 1;
+      margin-top: 8px;
+      background: linear-gradient(var(--accent-soft), transparent);
+    }
+    .day-num {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 24px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: -.06em;
+    }
+    .day-label {
+      margin-top: 6px;
+      text-align: center;
+      color: var(--faint);
+      font-size: 10px;
+      line-height: 1.25;
+      font-weight: 760;
+    }
+    .day-content { min-width: 0; display: grid; gap: 10px; }
+    .day-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 1px 2px 0;
+    }
+    .day-title { color: var(--accent); font-size: 14px; font-weight: 820; }
+    .day-count { color: var(--faint); font-size: 11px; font-weight: 700; }
+
+    .entry {
+      border-radius: 24px;
+      padding: 12px;
+      background: color-mix(in srgb, var(--paper) 91%, transparent);
+      border: 1px solid color-mix(in srgb, var(--ink) 7%, transparent);
+      box-shadow: var(--shadow);
+    }
+    .entry.compact { background: color-mix(in srgb, var(--paper) 75%, transparent); box-shadow: none; }
+    .entry-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 9px;
+      color: var(--faint);
+      font-size: 12px;
+      font-weight: 720;
+    }
+    .entry-left { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .dot { width: 5px; height: 5px; border-radius: 999px; background: var(--accent); opacity: .72; }
+    .mood { color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .more { width: 28px; height: 28px; display: grid; place-items: center; color: var(--muted); font-weight: 900; letter-spacing: .08em; }
+
+    .photos { display: grid; gap: 6px; margin-bottom: 10px; }
+    .photos.mosaic { grid-template-columns: 1.35fr .9fr; }
+    .photos.double { grid-template-columns: 1fr 1fr; }
+    .side { display: grid; gap: 6px; }
+    .photo {
+      min-height: 78px;
+      border-radius: 18px;
+      background-size: cover;
+      background-position: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .photo.big { min-height: 146px; }
+    .photo.mid { min-height: 108px; }
+    .p1 { background-image: linear-gradient(135deg, rgba(25,25,25,.03), rgba(20,20,20,.20)), linear-gradient(135deg, #a8b4a2, #d2c4aa 52%, #7a705e); }
+    .p2 { background-image: linear-gradient(135deg, rgba(25,25,25,.03), rgba(20,20,20,.16)), linear-gradient(135deg, #c8a978, #6d7f73); }
+    .p3 { background-image: linear-gradient(135deg, rgba(25,25,25,.03), rgba(20,20,20,.17)), linear-gradient(135deg, #8f9f9d, #ded3bd); }
+    .p4 { background-image: linear-gradient(135deg, rgba(25,25,25,.03), rgba(20,20,20,.18)), linear-gradient(135deg, #b9a37f, #625d55); }
+    .badge {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: rgba(20,20,20,.42);
+      color: white;
+      font-size: 12px;
+      font-weight: 780;
+    }
+    .body { margin: 0; color: color-mix(in srgb, var(--ink) 86%, var(--muted)); font-size: 14px; line-height: 1.68; }
+    .body.quote {
+      padding: 10px 12px;
+      border-radius: 17px;
+      background: var(--accent-soft);
+      border-left: 3px solid color-mix(in srgb, var(--accent) 58%, transparent);
+    }
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 10px;
+      padding-top: 9px;
+      border-top: 1px solid color-mix(in srgb, var(--ink) 7%, transparent);
+    }
+    .tags { min-width: 0; display: flex; gap: 7px; overflow: hidden; mask-image: linear-gradient(90deg, #000 84%, transparent); }
+    .tag {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      max-width: 96px;
+      padding: 4px 7px 4px 6px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--ink) 7%, transparent);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 720;
+    }
+    .tag svg { width: 11px; height: 11px; stroke: var(--accent); opacity: .72; flex: 0 0 auto; }
+    .tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .expand { flex: 0 0 auto; color: var(--accent); font-size: 12px; font-weight: 780; }
+    .fab {
+      position: fixed;
+      right: max(20px, calc((100vw - 430px) / 2 + 20px));
+      bottom: 28px;
+      width: 56px;
+      height: 56px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--ink);
+      color: var(--bg);
+      font-size: 30px;
+      box-shadow: 0 18px 40px rgba(33,31,27,.22);
+    }
+    .notes {
+      width: min(430px, 100%);
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 22px;
+      background: color-mix(in srgb, var(--paper) 78%, transparent);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+    .notes strong { color: var(--ink); }
+    @media (max-width: 460px) {
+      body { padding: 0; }
+      .phone { width: 100%; min-height: 100vh; border: 0; border-radius: 0; }
+      .notes { display: none; }
+      .day { grid-template-columns: 54px 1fr; column-gap: 8px; }
+      .screen { padding-left: 12px; padding-right: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <section class="screen">
+      <header class="topbar">
+        <div class="ghost"></div>
+        <div class="title">我的日记</div>
+        <div class="actions"><div class="icon">⌕</div><div class="icon">≡</div></div>
+      </header>
+
+      <section class="month">
+        <h1>十二月</h1>
+        <p class="summary">这个月多是奔波、照片和一些现场记录。那些看起来零散的片刻，被你一点点收进了日记里。</p>
+        <div class="month-meta">8 篇日记 · 21 张照片 · 最近更新 12 月 6 日</div>
+      </section>
+
+      <section class="timeline">
+        <section class="day">
+          <aside class="anchor">
+            <div class="day-num">6</div>
+            <div class="day-label">十二月<br>周六</div>
+          </aside>
+          <div class="day-content">
+            <div class="day-header"><div class="day-title">今天</div><div class="day-count">2 篇</div></div>
+            <article class="entry">
+              <div class="entry-top"><div class="entry-left"><span class="dot"></span><span>09:42</span><span class="mood">现场记录</span></div><div class="more">···</div></div>
+              <div class="photos mosaic"><div class="photo big p1"></div><div class="side"><div class="photo p2"></div><div class="photo p3"><span class="badge">+4</span></div></div></div>
+              <p class="body">上午把机柜里的线路重新整理了一遍，空间一下子清爽很多。日期在左侧锚定，内容在右侧自然阅读。</p>
+              <div class="footer"><div class="tags"><span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.6 13.2 13.2 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8Z"/><path d="M7.5 7.5h.01"/></svg><span>机柜</span></span><span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.6 13.2 13.2 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8Z"/><path d="M7.5 7.5h.01"/></svg><span>工作记录</span></span></div><div class="expand">展开</div></div>
+            </article>
+            <article class="entry compact">
+              <div class="entry-top"><div class="entry-left"><span class="dot"></span><span>21:18</span><span class="mood">随手记</span></div><div class="more">···</div></div>
+              <p class="body quote">晚上回来的路上忽然觉得，日记不一定要写得很完整，能把一天里最清楚的那一下留住就够了。</p>
+              <div class="footer"><div class="tags"><span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.6 13.2 13.2 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8Z"/><path d="M7.5 7.5h.01"/></svg><span>想法</span></span></div><div class="expand">展开</div></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="day">
+          <aside class="anchor">
+            <div class="day-num">3</div>
+            <div class="day-label">十二月<br>周三</div>
+          </aside>
+          <div class="day-content">
+            <div class="day-header"><div class="day-title">普通的一天</div><div class="day-count">1 篇</div></div>
+            <article class="entry">
+              <div class="entry-top"><div class="entry-left"><span class="dot"></span><span>18:06</span><span class="mood">路上</span></div><div class="more">···</div></div>
+              <div class="photos double"><div class="photo mid p4"></div><div class="photo mid p2"></div></div>
+              <p class="body">这版减少了日期横条的视觉重量，也压缩了不必要的留白，让照片和文字成为主角。</p>
+              <div class="footer"><div class="tags"><span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.6 13.2 13.2 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8Z"/><path d="M7.5 7.5h.01"/></svg><span>日常</span></span><span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.6 13.2 13.2 20.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 3 12.2V5a2 2 0 0 1 2-2h7.2a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8Z"/><path d="M7.5 7.5h.01"/></svg><span>照片</span></span></div><div class="expand">展开</div></div>
+            </article>
+          </div>
+        </section>
+      </section>
+    </section>
+  </main>
+  <div class="fab">+</div>
+  <aside class="notes"><strong>新版重点：</strong>日期不再横向占一整块，而是变成左侧锚点；右侧只放当天标题和日记卡片。这样 12 月 6 日和下面日记不会挤在一起，同时页面更省空间。</aside>
+  <script>
+    const theme = new URLSearchParams(window.location.search).get('theme');
+    if (theme === 'dark' || theme === 'light') document.body.dataset.theme = theme;
+  </script>
+</body>
+</html>

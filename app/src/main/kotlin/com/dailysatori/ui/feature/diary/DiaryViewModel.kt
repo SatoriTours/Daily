@@ -2,8 +2,10 @@ package com.dailysatori.ui.feature.diary
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailysatori.data.repository.DiaryMonthSummaryRepository
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.service.memory.MemoryExtractService
+import com.dailysatori.service.diary.DiaryMonthSummaryService
 import com.dailysatori.shared.db.Diary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -21,12 +23,15 @@ data class DiaryState(
     val selectedTag: String? = null,
     val isSearchVisible: Boolean = false,
     val availableTags: List<String> = emptyList(),
+    val monthSummaries: Map<String, String> = emptyMap(),
     val error: String? = null,
 )
 
 class DiaryViewModel(
     private val diaryRepo: DiaryRepository,
     private val memoryExtractService: MemoryExtractService,
+    private val monthSummaryRepo: DiaryMonthSummaryRepository,
+    private val monthSummaryService: DiaryMonthSummaryService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(DiaryState())
     val state: StateFlow<DiaryState> = _state.asStateFlow()
@@ -35,8 +40,20 @@ class DiaryViewModel(
 
     init {
         loadDiaries()
+        observeMonthSummaries()
         viewModelScope.launch(Dispatchers.IO) {
             refreshAvailableTags()
+            monthSummaryService.refreshRecentMonthsIfNeeded()
+        }
+    }
+
+    private fun observeMonthSummaries() {
+        viewModelScope.launch(Dispatchers.IO) {
+            monthSummaryRepo.getAll().collect { summaries ->
+                _state.update { state ->
+                    state.copy(monthSummaries = summaries.filter { it.summary.isNotBlank() }.associate { it.month_key to it.summary })
+                }
+            }
         }
     }
 

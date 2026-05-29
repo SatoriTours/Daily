@@ -14,8 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -57,6 +56,7 @@ import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dailysatori.ui.component.scaffold.AppScaffold
 import org.koin.androidx.compose.koinViewModel
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -73,14 +73,40 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
     var showDeleteDialog by remember { mutableStateOf<Diary?>(null) }
     var showTagFilter by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = Spacing.m)) {
-            DiaryTopBar(
-                onSearchClick = { viewModel.toggleSearch() },
-                onFilterClick = { showTagFilter = true },
-                isFilterActive = state.selectedTag != null,
-            )
-
+    AppScaffold(
+        title = "我的日记",
+        showBack = false,
+        actions = {
+            IconButton(onClick = { viewModel.toggleSearch() }) {
+                Icon(Icons.Default.Search, contentDescription = "搜索", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            }
+            IconButton(onClick = { showTagFilter = true }) {
+                Icon(
+                    Icons.Default.FilterList,
+                    contentDescription = "筛选",
+                    tint = if (state.selectedTag != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { editingDiary = null; showEditor = true },
+                modifier = Modifier.size(54.dp),
+                containerColor = MaterialTheme.colorScheme.onSurface,
+                contentColor = MaterialTheme.colorScheme.surface,
+                shape = CircleShape,
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "新建日记", modifier = Modifier.size(30.dp))
+            }
+        },
+    ) { scaffoldModifier ->
+        Box(modifier = scaffoldModifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = Spacing.m),
+        ) {
             if (state.isSearchVisible) {
                 SearchBar(
                     query = state.searchQuery,
@@ -110,19 +136,24 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(top = Spacing.xs, bottom = Spacing.xxl),
+                        contentPadding = PaddingValues(top = Spacing.s, bottom = Spacing.xxl),
                         verticalArrangement = Arrangement.spacedBy(Spacing.s),
                     ) {
                         itemsIndexed(state.diaries, key = { _, diary -> diary.id }) { index, diary ->
-                            if (index == 0 || diaryMonthKey(state.diaries[index - 1]) != diaryMonthKey(diary)) {
-                                DiaryMonthHeader(state.diaries.filter { diaryMonthKey(it) == diaryMonthKey(diary) })
+                            val hasMonthHeader = index == 0 || diaryMonthKey(state.diaries[index - 1]) != diaryMonthKey(diary)
+                            val dayDiaryCount = state.diaries.count { diaryDayKey(it) == diaryDayKey(diary) }
+                            if (hasMonthHeader) {
+                                DiaryMonthHeader(
+                                    diaries = state.diaries.filter { diaryMonthKey(it) == diaryMonthKey(diary) },
+                                    summary = state.monthSummaries[diaryMonthKey(diary)],
+                                )
                             }
                             if (index == 0 || diaryDayKey(state.diaries[index - 1]) != diaryDayKey(diary)) {
-                                DiaryDateHeader(diary)
+                                DiaryDateHeader(diary = diary, dayDiaryCount = dayDiaryCount, hasMonthHeader = hasMonthHeader)
                             }
                             DiaryCard(
                                 diary = diary,
-                                onClick = {
+                                onEdit = {
                                     editingDiary = diary
                                     showEditor = true
                                 },
@@ -133,15 +164,6 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 }
             }
         }
-
-        FloatingActionButton(
-            onClick = { editingDiary = null; showEditor = true },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 22.dp).size(54.dp),
-            containerColor = MaterialTheme.colorScheme.onSurface,
-            contentColor = MaterialTheme.colorScheme.surface,
-            shape = CircleShape,
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "新建日记", modifier = Modifier.size(30.dp))
         }
     }
 
@@ -204,57 +226,7 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
 }
 
 @Composable
-private fun DiaryTopBar(
-    onSearchClick: () -> Unit,
-    onFilterClick: () -> Unit,
-    isFilterActive: Boolean,
-) {
-    Box(
-        modifier = Modifier.fillMaxWidth().height(54.dp).padding(top = 2.dp, bottom = Spacing.m),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "我的日记",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.ExtraBold,
-        )
-        Row(
-            modifier = Modifier.align(Alignment.CenterEnd),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            DiaryTopIconButton(onClick = onSearchClick) {
-                Icon(Icons.Default.Search, contentDescription = "搜索", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-            }
-            DiaryTopIconButton(onClick = onFilterClick) {
-                Icon(
-                    Icons.Default.FilterList,
-                    contentDescription = "筛选",
-                    tint = if (isFilterActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        }
-        Box(modifier = Modifier.align(Alignment.CenterStart).width(70.dp))
-    }
-}
-
-@Composable
-private fun DiaryTopIconButton(onClick: () -> Unit, content: @Composable () -> Unit) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.size(34.dp),
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.10f)),
-    ) {
-        Box(contentAlignment = Alignment.Center) { content() }
-    }
-}
-
-@Composable
-private fun DiaryMonthHeader(diaries: List<Diary>) {
+private fun DiaryMonthHeader(diaries: List<Diary>, summary: String?) {
     val firstDiary = diaries.firstOrNull()
     val monthTitle = firstDiary?.let(::diaryMonthTitle) ?: "${toChineseNumber(Calendar.getInstance().get(Calendar.MONTH) + 1)}月"
     Column(
@@ -263,56 +235,59 @@ private fun DiaryMonthHeader(diaries: List<Diary>) {
     ) {
         Text(monthTitle, style = MaterialTheme.typography.displayMedium.copy(fontSize = 30.sp, lineHeight = 30.sp), color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
         Text(
-            text = diaryMonthSummary(diaries),
+            text = summary?.takeIf { it.isNotBlank() } ?: diaryMonthSummary(diaries),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        DiaryQuickStrip(diaries)
+        DiaryMonthMeta(diaries)
     }
 }
 
 @Composable
-private fun DiaryQuickStrip(diaries: List<Diary>) {
-    val mood = diaries.firstNotNullOfOrNull { it.mood?.takeIf { value -> value.isNotBlank() && value != "null" } }
-    val tag = diaries.firstNotNullOfOrNull { diary ->
-        diary.tags?.split(",")?.firstOrNull { it.trim().isNotBlank() && it.trim() != "null" }?.trim()
+private fun DiaryMonthMeta(diaries: List<Diary>) {
+    val imageCount = diaries.sumOf { diary ->
+        diary.images?.split(",")?.count { it.trim().isNotBlank() && it.trim() != "null" } ?: 0
     }
-    val pills = listOfNotNull("全部", "有照片".takeIf { diaries.any { !it.images.isNullOrBlank() && it.images != "null" } }, mood, tag?.let { "#$it" })
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        items(pills, key = { it }) { label -> DiaryQuickPill(label) }
-    }
+    val latest = diaries.maxOfOrNull { it.updated_at ?: it.created_at }?.let { latestTime ->
+        " · 最近更新 ${diaryMonthDayLabel(latestTime)}"
+    }.orEmpty()
+    val imageText = if (imageCount > 0) " · $imageCount 张照片" else ""
+    Text(
+        text = "${diaries.size} 篇日记$imageText$latest",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+    )
 }
 
 @Composable
-private fun DiaryQuickPill(label: String) {
-    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.74f), tonalElevation = 0.dp) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-        )
-    }
-}
-
-@Composable
-private fun DiaryDateHeader(diary: Diary) {
+private fun DiaryDateHeader(diary: Diary, dayDiaryCount: Int, hasMonthHeader: Boolean) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = Spacing.s, bottom = Spacing.xxs),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth().padding(top = if (hasMonthHeader) Spacing.s else Spacing.m, bottom = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = diaryDateTitle(diary),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            text = diaryRelativeDayLabel(diary),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = diaryDateDayNumber(diary),
+                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 27.sp, lineHeight = 27.sp),
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Black,
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(text = diaryDateMonthLabel(diary), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.ExtraBold)
+                Text(text = diaryDateWeekLabel(diary), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Box(modifier = Modifier.weight(1f).height(1.dp).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)))
+        Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)) {
+            Text(
+                text = diaryDateCountLabel(diary, dayDiaryCount),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.widthIn(min = 42.dp).padding(horizontal = 8.dp, vertical = 5.dp),
+            )
+        }
     }
 }
 
@@ -325,10 +300,23 @@ private fun diaryMonthKey(diary: Diary): String = SimpleDateFormat("yyyy-MM", Lo
 
 private fun diaryDayKey(diary: Diary): String = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date(diary.created_at))
 
-private fun diaryDateTitle(diary: Diary): String {
+private fun diaryMonthDayLabel(time: Long): String {
+    val calendar = Calendar.getInstance().apply { timeInMillis = time }
+    return "${calendar.get(Calendar.MONTH) + 1} 月 ${calendar.get(Calendar.DAY_OF_MONTH)} 日"
+}
+
+private fun diaryDateDayNumber(diary: Diary): String {
     val calendar = Calendar.getInstance().apply { time = Date(diary.created_at) }
-    val month = toChineseNumber(calendar.get(Calendar.MONTH) + 1)
-    val day = toChineseNumber(calendar.get(Calendar.DAY_OF_MONTH))
+    return calendar.get(Calendar.DAY_OF_MONTH).toString()
+}
+
+private fun diaryDateMonthLabel(diary: Diary): String {
+    val calendar = Calendar.getInstance().apply { time = Date(diary.created_at) }
+    return "${toChineseNumber(calendar.get(Calendar.MONTH) + 1)}月"
+}
+
+private fun diaryDateWeekLabel(diary: Diary): String {
+    val calendar = Calendar.getInstance().apply { time = Date(diary.created_at) }
     val week = when (calendar.get(Calendar.DAY_OF_WEEK)) {
         Calendar.MONDAY -> "周一"
         Calendar.TUESDAY -> "周二"
@@ -338,7 +326,13 @@ private fun diaryDateTitle(diary: Diary): String {
         Calendar.SATURDAY -> "周六"
         else -> "周日"
     }
-    return "${month}月${day}日 · $week"
+    return week
+}
+
+private fun diaryDateCountLabel(diary: Diary, dayDiaryCount: Int): String {
+    val relative = diaryRelativeDayLabel(diary)
+    val count = "$dayDiaryCount 篇"
+    return if (relative.isBlank()) count else "$relative · $count"
 }
 
 private fun diaryRelativeDayLabel(diary: Diary): String {

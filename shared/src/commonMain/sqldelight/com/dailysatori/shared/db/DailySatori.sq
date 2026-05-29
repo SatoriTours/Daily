@@ -77,6 +77,19 @@ CREATE TABLE diary (
     updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE diary_month_summary (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    month_key TEXT NOT NULL UNIQUE,
+    summary TEXT NOT NULL DEFAULT '',
+    diary_count INTEGER NOT NULL DEFAULT 0,
+    latest_diary_updated_at INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending',
+    error_message TEXT,
+    generated_at INTEGER,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
 -- AI Config
 CREATE TABLE ai_config (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -463,6 +476,26 @@ DELETE FROM diary WHERE id = ?;
 
 diaryCount:
 SELECT COUNT(*) FROM diary;
+
+selectDiaryMonthSummaryByMonth:
+SELECT * FROM diary_month_summary WHERE month_key = ?;
+
+selectDiaryMonthSummaries:
+SELECT * FROM diary_month_summary ORDER BY month_key DESC;
+
+upsertDiaryMonthSummary:
+INSERT INTO diary_month_summary (
+    month_key, summary, diary_count, latest_diary_updated_at, status,
+    error_message, generated_at, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(month_key) DO UPDATE SET
+    summary = excluded.summary,
+    diary_count = excluded.diary_count,
+    latest_diary_updated_at = excluded.latest_diary_updated_at,
+    status = excluded.status,
+    error_message = excluded.error_message,
+    generated_at = excluded.generated_at,
+    updated_at = excluded.updated_at;
 
 -- AI Config queries
 selectAllAiConfigs:

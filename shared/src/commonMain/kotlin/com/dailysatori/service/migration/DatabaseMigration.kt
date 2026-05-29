@@ -55,6 +55,9 @@ class DatabaseMigration(
         if (currentVersion < 10) {
             migrateV9ToV10()
         }
+        if (currentVersion < 11) {
+            migrateV10ToV11()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -392,6 +395,29 @@ class DatabaseMigration(
             } catch (e: Exception) {
                 log.w(e) { "Could not add book_viewpoint column: $column" }
             }
+        }
+    }
+
+    private fun migrateV10ToV11() {
+        log.i { "Migration V10 -> V11: Diary month summary cache" }
+        try {
+            runSql("""
+                CREATE TABLE IF NOT EXISTS diary_month_summary (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    month_key TEXT NOT NULL UNIQUE,
+                    summary TEXT NOT NULL DEFAULT '',
+                    diary_count INTEGER NOT NULL DEFAULT 0,
+                    latest_diary_updated_at INTEGER NOT NULL DEFAULT 0,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    error_message TEXT,
+                    generated_at INTEGER,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                )
+            """.trimIndent())
+            log.i { "Created diary_month_summary table" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not create diary_month_summary table" }
         }
     }
 

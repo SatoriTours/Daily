@@ -6,6 +6,7 @@ import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.data.repository.ChatConversationRepository
 import com.dailysatori.data.repository.DiaryRepository
+import com.dailysatori.data.repository.DiaryMonthSummaryRepository
 import com.dailysatori.data.repository.ImageRepository
 import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.data.repository.MemoryRepository
@@ -43,6 +44,7 @@ import com.dailysatori.service.migration.DatabaseMigration
 import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.service.plugin.PluginService
 import com.dailysatori.service.crayfishnews.CrayfishNewsService
+import com.dailysatori.service.diary.DiaryMonthSummaryService
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.setting.SettingService
@@ -65,6 +67,7 @@ val sharedModule: Module = module {
     single { BookViewpointRepository(get()) }
     single { ChatConversationRepository(get()) }
     single { DiaryRepository(get()) }
+    single { DiaryMonthSummaryRepository(get()) }
     single { ImageRepository(get()) }
     single { MemoryRepository(get()) }
     single { RemoteNewsSourceRepository(get(), get()) }
@@ -87,6 +90,7 @@ val sharedModule: Module = module {
     single { PluginService(get(), get()) }
     single { RemoteNewsService(get()) }
     single { CrayfishNewsService(get()) }
+    single { DiaryMonthSummaryService(get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }
     single { UnifiedNewsSummaryService(get(), get(), get(), get(), get(), get()) }
     single { SkillRegistry(get()) }

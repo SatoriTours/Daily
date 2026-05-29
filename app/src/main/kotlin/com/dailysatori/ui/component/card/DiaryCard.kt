@@ -2,6 +2,7 @@ package com.dailysatori.ui.component.card
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -30,7 +32,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -79,7 +80,7 @@ private fun stripInlineTags(content: String): String {
 @Composable
 fun DiaryCard(
     diary: Diary,
-    onClick: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
     showDelete: Boolean = true,
@@ -93,18 +94,17 @@ fun DiaryCard(
     var menuExpanded by remember { mutableStateOf(false) }
 
     Card(
-        onClick = onClick,
+        onClick = { expanded = !expanded },
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(Radius.xl),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            DiaryCardHeader(diary, showDelete, menuExpanded, { menuExpanded = it }, onClick, onDelete)
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            DiaryCardHeader(diary, showDelete, menuExpanded, { menuExpanded = it }, onEdit, onDelete)
             if (imagePaths.isNotEmpty()) DiaryPhotoWall(imagePaths, context.filesDir)
             DiaryBody(contentText = contentText, expanded = expanded, isLongContent = isLongContent, isQuote = imagePaths.isEmpty())
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.10f))
             DiaryCardFooter(tags = tags, isLongContent = isLongContent, expanded = expanded) { expanded = !expanded }
         }
     }
@@ -133,10 +133,13 @@ private fun DiaryCardHeader(
         }
         if (showDelete) {
             Box {
-                Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-                    IconButton(onClick = { onMenuChange(true) }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "更多", modifier = Modifier.size(17.dp))
-                    }
+                IconButton(onClick = { onMenuChange(true) }, modifier = Modifier.size(30.dp)) {
+                    Icon(
+                        Icons.Default.MoreHoriz,
+                        contentDescription = "更多",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { onMenuChange(false) }) {
                     DropdownMenuItem(text = { Text("编辑") }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { onMenuChange(false); onEdit() })
@@ -169,13 +172,27 @@ private fun DiaryBody(contentText: String, expanded: Boolean, isLongContent: Boo
 
 @Composable
 private fun DiaryCardFooter(tags: List<String>, isLongContent: Boolean, expanded: Boolean, onExpand: () -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+    ) {
         if (tags.isNotEmpty()) {
-            LazyRow(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            LazyRow(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 items(tags, key = { it }) { tag -> DiaryTagChip(tag) }
             }
+        } else {
+            Box(modifier = Modifier.weight(1f))
         }
-        TextButton(onClick = onExpand) { Text(if (expanded && isLongContent) "收起正文" else "展开正文", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary) }
+        Text(
+            text = if (expanded && isLongContent) "收起正文" else "展开正文",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .clip(RoundedCornerShape(Radius.circular))
+                .clickable(onClick = onExpand)
+                .padding(horizontal = Spacing.xs, vertical = Spacing.xxs),
+        )
     }
 }
 
@@ -184,15 +201,15 @@ private fun DiaryPhotoWall(imagePaths: List<String>, filesDir: File) {
     val visible = imagePaths.take(3)
     val hiddenCount = imagePaths.size - visible.size
     when (visible.size) {
-        1 -> DiaryPhoto(visible[0], filesDir, Modifier.fillMaxWidth().height(168.dp), hiddenCount, imagePaths.size)
+        1 -> DiaryPhoto(visible[0], filesDir, Modifier.fillMaxWidth().height(142.dp), hiddenCount, imagePaths.size)
         2 -> Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), modifier = Modifier.fillMaxWidth()) {
-            visible.forEachIndexed { index, path -> DiaryPhoto(path, filesDir, Modifier.weight(1f).height(126.dp), photoCount = imagePaths.size.takeIf { index == 0 }) }
+            visible.forEachIndexed { index, path -> DiaryPhoto(path, filesDir, Modifier.weight(1f).height(106.dp), photoCount = imagePaths.size.takeIf { index == 0 }) }
         }
         else -> Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), modifier = Modifier.fillMaxWidth()) {
-            DiaryPhoto(visible[0], filesDir, Modifier.weight(1.45f).height(168.dp), photoCount = imagePaths.size)
+            DiaryPhoto(visible[0], filesDir, Modifier.weight(1.32f).height(142.dp), photoCount = imagePaths.size)
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s), modifier = Modifier.weight(1f)) {
-                DiaryPhoto(visible[1], filesDir, Modifier.fillMaxWidth().height(80.dp))
-                DiaryPhoto(visible[2], filesDir, Modifier.fillMaxWidth().height(80.dp), hiddenCount)
+                DiaryPhoto(visible[1], filesDir, Modifier.fillMaxWidth().height(67.dp))
+                DiaryPhoto(visible[2], filesDir, Modifier.fillMaxWidth().height(67.dp), hiddenCount)
             }
         }
     }
@@ -232,14 +249,23 @@ private fun DiaryPhoto(path: String, filesDir: File, modifier: Modifier, hiddenC
 
 @Composable
 private fun DiaryTagChip(tag: String) {
-    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-        Text(
-            text = "#$tag",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.widthIn(max = 112.dp).padding(horizontal = Spacing.s, vertical = Spacing.xxs),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+    Surface(
+        shape = RoundedCornerShape(Radius.circular),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+    ) {
+        Row(
+            modifier = Modifier.widthIn(max = 112.dp).padding(horizontal = 7.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(Icons.Default.Sell, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.72f), modifier = Modifier.size(11.dp))
+            Text(
+                text = tag,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
