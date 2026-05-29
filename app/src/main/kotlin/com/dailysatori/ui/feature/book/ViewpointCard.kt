@@ -3,25 +3,28 @@ package com.dailysatori.ui.feature.book
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import com.dailysatori.ui.theme.MarkdownStyles
-import com.dailysatori.ui.theme.Radius
-import com.dailysatori.ui.theme.Spacing
+import androidx.compose.ui.text.style.TextOverflow
+import com.dailysatori.ui.theme.*
+import com.mikepenz.markdown.model.DefaultMarkdownTypography
+import com.mikepenz.markdown.model.MarkdownTypography
 import com.mikepenz.markdown.m3.Markdown
 
 @Composable
@@ -42,34 +45,28 @@ fun ViewpointCard(
 ) {
     val contentModifier = if (fillAvailableHeight) modifier.fillMaxWidth().fillMaxHeight() else modifier.fillMaxWidth()
     Box(
-        modifier = contentModifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+        modifier = contentModifier.padding(horizontal = Spacing.l, vertical = Spacing.m),
     ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(Radius.xl),
-            color = MaterialTheme.colorScheme.surface,
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.l),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(Spacing.l),
-                verticalArrangement = Arrangement.spacedBy(Spacing.l),
-            ) {
-                ViewpointHeader(
-                    title = title,
-                    bookTitle = bookTitle,
-                    author = author,
-                    page = page,
-                    total = total,
-                    showProgress = showProgress,
-                )
+            ViewpointHeader(
+                title = title,
+                bookTitle = bookTitle,
+                author = author,
+                page = page,
+                total = total,
+                showProgress = showProgress,
+            )
 
-                when (status) {
-                    "failed" -> ViewpointRetryBody(errorMessage = errorMessage, onRetry = onRetry)
-                    "generating" -> ViewpointGeneratingBody()
-                    else -> ViewpointBody(content = content, example = example)
-                }
+            when (status) {
+                "failed" -> ViewpointRetryBody(errorMessage = errorMessage, onRetry = onRetry)
+                "generating" -> ViewpointGeneratingBody()
+                else -> ViewpointBody(content = content, example = example)
             }
         }
     }
@@ -86,28 +83,48 @@ private fun ViewpointHeader(
 ) {
     Column(
         horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+        verticalArrangement = Arrangement.spacedBy(Spacing.l),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text(
-            text = booksReadingProgressText(page, total),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.SemiBold,
-        )
+        ViewpointMetaRow(bookTitle = bookTitle, author = author, page = page, total = total, showProgress = showProgress)
         Text(
             text = viewpointDisplayTitle(title, bookTitle),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.ExtraBold,
+            textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
 
-        viewpointBookLine(bookTitle, author).takeIf { it.isNotBlank() }?.let { line ->
+@Composable
+private fun ViewpointMetaRow(
+    bookTitle: String,
+    author: String,
+    page: Int,
+    total: Int,
+    showProgress: Boolean,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(
+            text = viewpointBookLine(bookTitle, author),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        if (viewpointShouldShowPageCounter(showProgress, total)) {
             Text(
-                text = line,
+                text = booksReadingProgressText(page, total),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.padding(start = Spacing.m),
             )
         }
     }
@@ -118,20 +135,70 @@ private fun ViewpointBody(content: String, example: String) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         Markdown(
             content = content,
-            typography = MarkdownStyles.bookTypography(),
+            typography = viewpointReadingTypography(),
             padding = MarkdownStyles.cardPadding(),
         )
 
         if (example.isNotBlank()) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.18f))
-            Text("案例", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-            Markdown(
-                content = example,
-                typography = MarkdownStyles.bookTypography(),
-                padding = MarkdownStyles.cardPadding(),
-            )
+            ViewpointExampleSection(example = example)
         }
     }
+}
+
+@Composable
+private fun ViewpointExampleSection(example: String) {
+    Column(
+        modifier = Modifier.padding(top = Spacing.m),
+        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Article,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(IconSize.m),
+            )
+            Text(
+                text = "案例",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Markdown(
+            content = example,
+            typography = viewpointReadingTypography(),
+            padding = MarkdownStyles.cardPadding(),
+        )
+    }
+}
+
+@Composable
+private fun viewpointReadingTypography(): MarkdownTypography {
+    val body = MaterialTheme.typography.bodyMedium.copy(
+        fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+        lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
+    )
+    return DefaultMarkdownTypography(
+        h1 = MaterialTheme.typography.titleLarge,
+        h2 = MaterialTheme.typography.titleMedium,
+        h3 = MaterialTheme.typography.titleSmall,
+        h4 = MaterialTheme.typography.titleSmall,
+        h5 = MaterialTheme.typography.titleSmall,
+        h6 = MaterialTheme.typography.labelLarge,
+        text = body,
+        code = MaterialTheme.typography.bodySmall,
+        inlineCode = MaterialTheme.typography.labelMedium,
+        quote = body,
+        paragraph = body,
+        ordered = body,
+        bullet = body,
+        list = body,
+        link = body.copy(fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary),
+    )
 }
 
 @Composable
@@ -167,6 +234,8 @@ private fun ViewpointGeneratingBody() {
 fun viewpointCardFillsAvailableHeight(fillAvailableHeight: Boolean): Boolean = fillAvailableHeight
 
 fun viewpointCardContentStartsAtTop(): Boolean = true
+
+fun viewpointShouldShowPageCounter(showProgress: Boolean, total: Int): Boolean = showProgress || total > 1
 
 fun viewpointDisplayTitle(title: String, bookTitle: String): String {
     val cleanTitle = title.trim()

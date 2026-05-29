@@ -37,6 +37,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -246,13 +247,18 @@ private fun UnifiedNewsSourceSwitcher(state: UnifiedNewsState, viewModel: Unifie
     ) {
         UnifiedNewsSourceTabs(state = state, viewModel = viewModel, modifier = Modifier.weight(1f))
         IconButton(onClick = viewModel::refreshSelectedSource) {
-            Icon(Icons.Default.Refresh, contentDescription = "刷新")
+            Icon(Icons.Default.Refresh, contentDescription = "刷新", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 @Composable
 private fun UnifiedNewsSourceTabs(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel, modifier: Modifier = Modifier) {
+    val sourceChipColors = FilterChipDefaults.filterChipColors(
+        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+        selectedLabelColor = MaterialTheme.colorScheme.primary,
+        selectedLeadingIconColor = MaterialTheme.colorScheme.primary,
+    )
     Row(
         modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
@@ -261,18 +267,21 @@ private fun UnifiedNewsSourceTabs(state: UnifiedNewsState, viewModel: UnifiedNew
             selected = state.sourceSelection is UnifiedNewsSourceSelection.Summary,
             onClick = viewModel::selectSummarySource,
             label = { Text("汇总") },
+            colors = sourceChipColors,
         )
         state.remoteSources.forEach { source ->
             FilterChip(
                 selected = (state.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id == source.id,
                 onClick = { viewModel.selectRemoteSource(source) },
                 label = { Text(source.name) },
+                colors = sourceChipColors,
             )
         }
         FilterChip(
             selected = state.sourceSelection is UnifiedNewsSourceSelection.LocalArticles,
             onClick = viewModel::selectLocalArticlesSource,
             label = { Text("本地新闻") },
+            colors = sourceChipColors,
         )
     }
 }

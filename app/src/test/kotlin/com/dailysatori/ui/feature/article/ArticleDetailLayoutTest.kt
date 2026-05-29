@@ -51,6 +51,17 @@ class ArticleDetailLayoutTest {
     }
 
     @Test
+    fun articleDetailTabsUsePrimaryBlueSelectedAccent() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/component/news/MagazineArticleDetail.kt").readText()
+        val tabBody = source.functionBody("MagazineArticleTabSelector")
+
+        assertTrue(tabBody.contains("FilterChipDefaults.filterChipColors"))
+        assertTrue(tabBody.contains("selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)"))
+        assertTrue(tabBody.contains("selectedLabelColor = MaterialTheme.colorScheme.primary"))
+        assertTrue(tabBody.contains("selectedLeadingIconColor = MaterialTheme.colorScheme.primary"))
+    }
+
+    @Test
     fun localArticleDetailFunctionsStayFocused() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
 

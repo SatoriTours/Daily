@@ -19,8 +19,8 @@ android {
         applicationId = "com.dailysatori"
         minSdk = 26
         targetSdk = 36
-        versionCode = 50110
-        versionName = "5.1.10"
+        versionCode = 50111
+        versionName = "5.1.11"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

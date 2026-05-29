@@ -29,6 +29,66 @@ class ViewpointCardLayoutTest {
     }
 
     @Test
+    fun viewpointCardUsesPureReadingLayoutWithoutCardChrome() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
+        val body = source.extractCallBlock("fun ViewpointCard(")
+
+        assertTrue(body.contains("Column("))
+        assertTrue(!body.contains("Surface("), "Approved reading layout must not wrap content in a card background")
+        assertTrue(!source.contains("HorizontalDivider"), "Approved reading layout must not separate example with a line")
+        assertTrue(!source.contains("BorderStroke"), "Approved reading layout must not add left-line or border dividers")
+    }
+
+    @Test
+    fun viewpointCardKeepsPageCounterButNoProgressBar() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
+
+        assertTrue(source.contains("booksReadingProgressText(page, total)"))
+        assertTrue(!source.contains("LinearProgressIndicator"), "Approved layout removes the bottom progress bar")
+    }
+
+    @Test
+    fun viewpointCaseHeadingIsChineseAndVisuallyEmphasized() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
+        val caseBody = source.extractCallBlock("private fun ViewpointExampleSection(")
+
+        assertTrue(caseBody.contains("text = \"案例\""))
+        assertTrue(caseBody.contains("Icons.AutoMirrored.Filled.Article"))
+        assertTrue(caseBody.contains("MaterialTheme.typography.bodyLarge"))
+        assertTrue(caseBody.contains("Modifier.size(IconSize.m)"))
+        assertTrue(caseBody.contains("modifier = Modifier.padding(top = Spacing.m)"))
+        assertTrue(caseBody.contains("FontWeight.Bold"))
+        assertTrue(!caseBody.contains("RoundedCornerShape(Radius.circular)"), "Case heading should not use the cramped pill background")
+        assertTrue(!caseBody.contains("surfaceContainerHighest"), "Case heading should not use a background block")
+        assertTrue(caseBody.contains("MaterialTheme.colorScheme.primary"), "Case heading should use app primary blue accent")
+    }
+
+    @Test
+    fun viewpointCardUsesNewsAndDiarySizedTypography() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
+        val headerBody = source.extractCallBlock("private fun ViewpointHeader(")
+        val body = source.extractCallBlock("private fun ViewpointBody(")
+        val caseBody = source.extractCallBlock("private fun ViewpointExampleSection(")
+
+        assertTrue(headerBody.contains("MaterialTheme.typography.titleMedium"))
+        assertTrue(!headerBody.contains("headlineMedium"), "Book title should not use oversized headline typography")
+        assertTrue(body.contains("viewpointReadingTypography()"), "Body should use slightly larger reading typography")
+        assertTrue(caseBody.contains("viewpointReadingTypography()"), "Example should use slightly larger reading typography")
+        assertTrue(source.contains("MaterialTheme.typography.bodyMedium.copy"))
+        assertTrue(!body.contains("MarkdownStyles.bookTypography()"), "Body should not return to oversized book typography")
+    }
+
+    @Test
+    fun viewpointTitleIsCenteredAndCaseHeadingUsesPrimaryTextColor() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
+        val headerBody = source.extractCallBlock("private fun ViewpointHeader(")
+        val caseBody = source.extractCallBlock("private fun ViewpointExampleSection(")
+
+        assertTrue(headerBody.contains("textAlign = TextAlign.Center"))
+        assertTrue(caseBody.contains("color = MaterialTheme.colorScheme.primary"))
+    }
+
+    @Test
     fun viewpointTitleRemovesCurrentBookPrefix() {
         assertEquals(
             "用事实材料校正抽象判断中的理解偏差。",

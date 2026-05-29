@@ -779,6 +779,12 @@ SELECT COUNT(*) FROM memory_entry WHERE type = ?;
 selectChatBySession:
 SELECT * FROM chat_conversation WHERE session_id = ? ORDER BY created_at ASC;
 
+selectLatestChatBySession:
+SELECT * FROM chat_conversation WHERE session_id = ? ORDER BY created_at DESC LIMIT ?;
+
+selectChatBefore:
+SELECT * FROM chat_conversation WHERE session_id = ? AND created_at < ? ORDER BY created_at DESC LIMIT ?;
+
 insertChat:
 INSERT INTO chat_conversation (session_id, role, content, search_results, steps, created_at)
 VALUES (?, ?, ?, ?, ?, ?);

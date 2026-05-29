@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -61,6 +62,11 @@ fun MagazineArticleTabSelector(
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val tabColors = FilterChipDefaults.filterChipColors(
+        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+        selectedLabelColor = MaterialTheme.colorScheme.primary,
+        selectedLeadingIconColor = MaterialTheme.colorScheme.primary,
+    )
     Row(
         modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.l, vertical = Spacing.xs),
         horizontalArrangement = Arrangement.spacedBy(Spacing.s),
@@ -70,6 +76,7 @@ fun MagazineArticleTabSelector(
                 selected = selectedIndex == index,
                 onClick = { onTabSelected(index) },
                 label = { Text(title) },
+                colors = tabColors,
             )
         }
     }

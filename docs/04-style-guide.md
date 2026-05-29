@@ -31,6 +31,12 @@ AppColors.warning          // iOS system orange
 AppColors.info             // iOS system blue
 ```
 
+### 强调色使用规范
+
+选择态、导航态和轻量分区标题统一使用 `MaterialTheme.colorScheme.primary`。例如底部导航选中态、新闻来源筛选选中态、读书观点中的“案例”分区标题，都应使用主题主色保持一致。
+
+禁止为同类强调状态引入新的非主题色；如需弱背景，使用 `MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)` 或既有主题容器色。
+
 ## 间距 (Spacing)
 
 ```kotlin

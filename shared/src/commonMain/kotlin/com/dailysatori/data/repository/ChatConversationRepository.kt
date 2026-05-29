@@ -9,6 +9,12 @@ class ChatConversationRepository(private val db: DailySatoriDatabase) {
     fun getBySession(sessionId: String): List<Chat_conversation> =
         q.selectChatBySession(sessionId).executeAsList()
 
+    fun getLatestBySession(sessionId: String, limit: Long): List<Chat_conversation> =
+        q.selectLatestChatBySession(sessionId, limit).executeAsList().asReversed()
+
+    fun getBefore(sessionId: String, beforeCreatedAt: Long, limit: Long): List<Chat_conversation> =
+        q.selectChatBefore(sessionId, beforeCreatedAt, limit).executeAsList().asReversed()
+
     fun getSessions(): List<String> =
         q.selectChatSessions().executeAsList()
 

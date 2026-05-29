@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.aichat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.data.repository.ChatConversationRepository
+import com.dailysatori.shared.db.Chat_conversation
 import com.dailysatori.service.mcp.McpAgentService
 import com.dailysatori.service.mcp.McpSearchResult
 import com.dailysatori.service.mcp.decodeMcpSearchResults
@@ -21,6 +22,8 @@ data class AiChatState(
     val isProcessing: Boolean = false,
     val currentStep: String = "",
     val sessionId: String = "chat_${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}",
+    val canLoadOlderMessages: Boolean = false,
+    val isLoadingOlderMessages: Boolean = false,
 )
 
 data class ChatMessageUi(
@@ -60,6 +63,8 @@ fun AiChatState.stoppedGeneration(): AiChatState = copy(
 fun aiChatShowsRefreshAction(): Boolean = false
 
 fun aiChatShowsMemorySearchAction(): Boolean = true
+
+fun aiChatHistoryPageSize(): Int = 12
 
 fun buildAssistantMessageOrNull(
     answer: String,
@@ -102,22 +107,36 @@ class AiChatViewModel(
             val sessions = chatConversationRepo.getSessions()
             if (sessions.isNotEmpty()) {
                 val latestSession = sessions.first()
-                val messages = chatConversationRepo.getBySession(latestSession)
+                val messages = chatConversationRepo.getLatestBySession(latestSession, aiChatHistoryPageSize().toLong())
                 if (messages.isNotEmpty()) {
                     _state.update { it.copy(
                         sessionId = latestSession,
-                        messages = messages.map { msg ->
-                            ChatMessageUi(
-                                id = msg.id.toString(),
-                                role = msg.role,
-                                content = msg.content ?: "",
-                                timestamp = msg.created_at,
-                                searchResults = decodeMcpSearchResults(msg.search_results),
-                                steps = decodeSteps(msg.steps),
-                            )
-                        },
+                        messages = messages.map(::toChatMessageUi),
+                        canLoadOlderMessages = messages.size >= aiChatHistoryPageSize(),
                     ) }
                 }
+            }
+        }
+    }
+
+    fun loadOlderMessages() {
+        val snapshot = _state.value
+        val firstMessage = snapshot.messages.firstOrNull() ?: return
+        if (!snapshot.canLoadOlderMessages || snapshot.isLoadingOlderMessages) return
+
+        _state.update { it.copy(isLoadingOlderMessages = true) }
+        viewModelScope.launch(Dispatchers.IO) {
+            val olderMessages = chatConversationRepo.getBefore(
+                sessionId = snapshot.sessionId,
+                beforeCreatedAt = firstMessage.timestamp,
+                limit = aiChatHistoryPageSize().toLong(),
+            ).map(::toChatMessageUi)
+            _state.update { current ->
+                current.copy(
+                    messages = olderMessages + current.messages,
+                    canLoadOlderMessages = olderMessages.size >= aiChatHistoryPageSize(),
+                    isLoadingOlderMessages = false,
+                )
             }
         }
     }
@@ -200,6 +219,8 @@ class AiChatViewModel(
             isProcessing = false,
             currentStep = "",
             sessionId = "chat_${kotlinx.datetime.Clock.System.now().toEpochMilliseconds()}",
+            canLoadOlderMessages = false,
+            isLoadingOlderMessages = false,
         ) }
     }
 
@@ -224,4 +245,13 @@ class AiChatViewModel(
     private fun encodeSteps(steps: List<String>): String? = steps.takeIf { it.isNotEmpty() }?.joinToString("\n")
 
     private fun decodeSteps(value: String?): List<String> = value?.lines()?.filter { it.isNotBlank() }.orEmpty()
+
+    private fun toChatMessageUi(msg: Chat_conversation): ChatMessageUi = ChatMessageUi(
+        id = msg.id.toString(),
+        role = msg.role,
+        content = msg.content ?: "",
+        timestamp = msg.created_at,
+        searchResults = decodeMcpSearchResults(msg.search_results),
+        steps = decodeSteps(msg.steps),
+    )
 }

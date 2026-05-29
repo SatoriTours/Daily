@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +43,8 @@ import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -54,10 +57,22 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
     val listState = rememberLazyListState()
     var showMemorySheet by remember { mutableStateOf(false) }
     var showReferenceSheet by remember { mutableStateOf(false) }
+    val loadOlderMessages = viewModel::loadOlderMessages
+    val displayMessages = remember(state.messages) { aiChatDisplayMessages(state.messages) }
 
-    LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty()) {
-            listState.animateScrollToItem(state.messages.size - 1)
+    LaunchedEffect(listState, state.canLoadOlderMessages, state.isLoadingOlderMessages, state.messages.size) {
+        snapshotFlow {
+            val visibleItems = listState.layoutInfo.visibleItemsInfo
+            aiChatShouldLoadOlder(
+                lastVisibleItemIndex = visibleItems.maxOfOrNull { it.index } ?: 0,
+                totalItemsCount = listState.layoutInfo.totalItemsCount,
+                isScrollInProgress = listState.isScrollInProgress,
+                canLoadOlder = state.canLoadOlderMessages,
+                isLoadingOlder = state.isLoadingOlderMessages,
+                messageCount = state.messages.size,
+            )
+        }.distinctUntilChanged().collect { shouldLoad ->
+            if (shouldLoad) loadOlderMessages()
         }
     }
 
@@ -106,15 +121,8 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
                 contentPadding = PaddingValues(top = Spacing.m, bottom = Spacing.l),
+                reverseLayout = true,
             ) {
-                items(state.messages, key = { it.id }) { message ->
-                    MessageBubble(
-                        message = message,
-                        onReferenceClick = ::openReference,
-                        onDelete = viewModel::deleteMessage,
-                        onReAsk = viewModel::reAsk,
-                    )
-                }
                 if (state.isProcessing) {
                     item(key = "thinking") {
                         ThinkingIndicator()
@@ -124,6 +132,18 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
                     item(key = "stopped") {
                         AssistantStatusCard(text = state.currentStep)
                     }
+                }
+                items(
+                    items = displayMessages,
+                    key = { it.id },
+                    contentType = { aiChatMessageContentType(it) },
+                ) { message ->
+                    MessageBubble(
+                        message = message,
+                        onReferenceClick = ::openReference,
+                        onDelete = viewModel::deleteMessage,
+                        onReAsk = viewModel::reAsk,
+                    )
                 }
             }
         }
@@ -219,6 +239,20 @@ private fun WelcomePromptRow(index: String, title: String, body: String) {
 fun aiChatShowsTopProgressIndicator(isProcessing: Boolean, currentStep: String): Boolean = false
 
 fun aiChatShowsThinkingBubble(isProcessing: Boolean): Boolean = isProcessing
+
+fun aiChatDisplayMessages(messages: List<ChatMessageUi>): List<ChatMessageUi> = messages.asReversed()
+
+fun aiChatMessageContentType(message: ChatMessageUi): String = if (message.role == "user") "user" else "assistant"
+
+fun aiChatShouldLoadOlder(
+    lastVisibleItemIndex: Int,
+    totalItemsCount: Int,
+    isScrollInProgress: Boolean,
+    canLoadOlder: Boolean,
+    isLoadingOlder: Boolean,
+    messageCount: Int,
+): Boolean = messageCount > 0 && totalItemsCount > 0 && canLoadOlder && !isLoadingOlder && isScrollInProgress &&
+    lastVisibleItemIndex >= totalItemsCount - 2
 
 @Composable
 private fun ThinkingIndicator() {

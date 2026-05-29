@@ -151,6 +151,96 @@ class AiChatUiStateTest {
     }
 
     @Test
+    fun chatHistoryDisplaysNewestMessageFirstForReverseLayout() {
+        val oldest = ChatMessageUi("old", "user", "最旧", 1L)
+        val newest = ChatMessageUi("new", "assistant", "最新", 2L)
+
+        assertEquals(listOf(newest, oldest), aiChatDisplayMessages(listOf(oldest, newest)))
+    }
+
+    @Test
+    fun activeChatChangesStillAutoScroll() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+
+        assertTrue(source.contains("reverseLayout = true"))
+        assertTrue(source.contains("aiChatDisplayMessages(state.messages)"))
+        assertFalse(source.contains("scrollToItem(currentMessageCount - 1)"))
+        assertFalse(source.contains("animateScrollToItem(currentMessageCount - 1)"))
+    }
+
+    @Test
+    fun chatInitialHistoryUsesLatestPageInsteadOfFullSession() {
+        assertEquals(12, aiChatHistoryPageSize())
+
+        val repository = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/data/repository/ChatConversationRepository.kt").readText()
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatViewModel.kt").readText()
+
+        assertTrue(repository.contains("fun getLatestBySession("))
+        assertTrue(viewModel.contains("chatConversationRepo.getLatestBySession(latestSession"))
+        assertFalse(viewModel.contains("chatConversationRepo.getBySession(latestSession)"))
+    }
+
+    @Test
+    fun pagedChatQueriesAvoidNestedSubqueriesThatCrashSqlDelightRuntime() {
+        val schema = java.io.File("../shared/src/commonMain/sqldelight/com/dailysatori/shared/db/DailySatori.sq").readText()
+        val latestQuery = schema.substringAfter("selectLatestChatBySession:").substringBefore("selectChatBefore:")
+        val beforeQuery = schema.substringAfter("selectChatBefore:").substringBefore("insertChat:")
+
+        assertFalse(latestQuery.contains("FROM ("))
+        assertFalse(beforeQuery.contains("FROM ("))
+    }
+
+    @Test
+    fun olderChatHistoryLoadsOnlyAfterUserScrollsToTop() {
+        assertFalse(
+            aiChatShouldLoadOlder(
+                lastVisibleItemIndex = 0,
+                totalItemsCount = 12,
+                isScrollInProgress = false,
+                canLoadOlder = true,
+                isLoadingOlder = false,
+                messageCount = 12,
+            ),
+        )
+        assertTrue(
+            aiChatShouldLoadOlder(
+                lastVisibleItemIndex = 11,
+                totalItemsCount = 12,
+                isScrollInProgress = true,
+                canLoadOlder = true,
+                isLoadingOlder = false,
+                messageCount = 12,
+            ),
+        )
+    }
+
+    @Test
+    fun chatListUsesContentTypesForFasterReuse() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+
+        assertEquals("user", aiChatMessageContentType(ChatMessageUi("u", "user", "问题", 1L)))
+        assertEquals("assistant", aiChatMessageContentType(ChatMessageUi("a", "assistant", "回答", 2L)))
+        assertTrue(source.contains("contentType = { aiChatMessageContentType(it) }"))
+    }
+
+    @Test
+    fun chatScreenRequestsOlderHistoryFromLazyListTop() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+
+        assertTrue(source.contains("snapshotFlow"))
+        assertTrue(source.contains("aiChatShouldLoadOlder("))
+        assertTrue(source.contains("viewModel::loadOlderMessages"))
+    }
+
+    @Test
+    fun firstCompositionNeverAutoScrolls() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+
+        assertFalse(source.contains("scrollStateInitialized"))
+        assertFalse(source.contains("previousMessageCount"))
+    }
+
+    @Test
     fun homeBottomBarRemainsVisibleOnAiTab() {
         assertTrue(chatInputUsesImePadding())
         assertTrue(homeBottomBarVisibleForTab(AI_CHAT_TAB_INDEX))
