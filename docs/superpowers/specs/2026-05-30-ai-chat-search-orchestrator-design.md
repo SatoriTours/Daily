@@ -241,3 +241,11 @@ Add source-level or unit-style tests following current project patterns:
 - The top-bar memory search button is removed.
 - Existing AI chat message layout and input flow are preserved.
 - No database schema change is required.
+
+## Future Enhancements
+
+These ideas are useful but should remain outside the first implementation pass unless explicitly selected later:
+
+- Search debug summary: show or persist a compact note such as `已搜索：记忆、日记、文章` so the user can understand which local sources were checked.
+- Follow-up context carryover: when the user asks follow-ups such as `那这篇呢`, `展开说说`, or `继续`, prefer the previous answer's references and evidence before starting a broad new search.
+- Unified search index: later add a dedicated `search_index` table that normalizes diary, article, book, book viewpoint, and memory snippets into one searchable layer. This would prepare for better full-text search, semantic search, or vector search, but requires schema migration and indexing rules.
