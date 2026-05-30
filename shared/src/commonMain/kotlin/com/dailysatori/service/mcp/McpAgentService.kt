@@ -23,6 +23,7 @@ class McpAgentService(
     private val aiService: AiService,
     private val aiConfigService: AiConfigService,
     private val toolRegistry: McpToolRegistry,
+    private val aiSearchOrchestrator: AiSearchOrchestrator,
 ) {
     private val log = Logger.withTag("MCPAgent")
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -36,6 +37,8 @@ class McpAgentService(
         onStep: (String, String) -> Unit,
     ): McpAgentResult {
         val collectedResults = mutableListOf<McpSearchResult>()
+        val localSearch = aiSearchOrchestrator.search(query)
+        collectedResults.addAll(localSearch.references)
         var currentStepName: String? = null
 
         fun updateStep(stepName: String, status: String) {
@@ -54,6 +57,12 @@ class McpAgentService(
         return try {
             val config = aiConfigService.getDefaultConfig()
             if (config == null || config.api_address.isBlank() || config.api_token.isBlank()) {
+                if (localSearch.references.isNotEmpty()) {
+                    return McpAgentResult(
+                        answer = buildAiSearchFallbackAnswer(query, localSearch.references) + "\n\nAI 服务未配置，以上为本地搜索结果。",
+                        searchResults = localSearch.references,
+                    )
+                }
                 return McpAgentResult(
                     answer = buildMcpErrorResponse("AI 服务未配置，请先在设置中配置 AI 接口"),
                     searchResults = emptyList(),
@@ -70,7 +79,7 @@ class McpAgentService(
 
             messages.add(buildJsonObject {
                 put("role", "user")
-                put("content", query)
+                put("content", localSearch.evidencePrompt ?: query)
             })
 
             val tools = toolRegistry.buildToolDefinitions()
@@ -90,12 +99,14 @@ class McpAgentService(
                     provider = provider,
                     tools = tools,
                 ) ?: return McpAgentResult(
-                    answer = if (collectedResults.isNotEmpty()) {
+                    answer = if (localSearch.references.isNotEmpty()) {
+                        buildAiSearchFallbackAnswer(query, localSearch.references)
+                    } else if (collectedResults.isNotEmpty()) {
                         buildFallbackAnswer(query, collectedResults)
                     } else {
                         buildMcpErrorResponse("AI 请求失败，请稍后重试")
                     },
-                    searchResults = collectedResults,
+                    searchResults = localSearch.references.ifEmpty { collectedResults },
                 )
 
                 val message = response["choices"]?.jsonArray?.firstOrNull()
@@ -122,10 +133,13 @@ class McpAgentService(
                 completeStep()
             }
 
-            val filteredResults = filterRelevantMcpResults(collectedResults, finalAnswer ?: "")
+            val answerForRefs = finalAnswer ?: buildFallbackAnswer(query, collectedResults)
+            val cleanAnswer = privacyMasker.restore(removeMcpRefsTag(answerForRefs))
+            val filteredResults = filterRelevantMcpResults(collectedResults, answerForRefs)
             val preciseResults = preciseSearchResultsForQuery(query, filteredResults)
-            val cleanAnswer = privacyMasker.restore(removeMcpRefsTag(finalAnswer ?: buildFallbackAnswer(query, collectedResults)))
-            McpAgentResult(answer = cleanAnswer, searchResults = preciseResults)
+            val referenceBase = preciseResults.ifEmpty { localSearch.references }
+            val searchResults = referencesForAnswer(answerForRefs, referenceBase)
+            McpAgentResult(answer = cleanAnswer, searchResults = searchResults)
         } catch (e: Exception) {
             log.e(e) { "MCP Agent processing failed" }
             if (currentStepName != null) onStep(currentStepName!!, "error")

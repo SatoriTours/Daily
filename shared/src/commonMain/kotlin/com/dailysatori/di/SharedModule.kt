@@ -35,6 +35,7 @@ import com.dailysatori.service.book.WeReadSkillService
 import com.dailysatori.service.book.WebSearchEngine
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.import.ImportService
+import com.dailysatori.service.mcp.AiSearchOrchestrator
 import com.dailysatori.service.mcp.McpAgentService
 import com.dailysatori.service.mcp.LocalSqlQueryService
 import com.dailysatori.service.mcp.McpToolRegistry
@@ -136,5 +137,6 @@ val sharedModule: Module = module {
     single { McpToolRegistry(get(), get(), get(), get(), get(), get(), get(), get()) }
 
     // MCP Agent service
-    single { McpAgentService(get(), get(), get()) }
+    single { AiSearchOrchestrator(get(), get(), get(), get(), get()) }
+    single { McpAgentService(get(), get(), get(), get()) }
 }

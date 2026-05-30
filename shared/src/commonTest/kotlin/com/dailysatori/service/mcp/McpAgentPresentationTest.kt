@@ -137,4 +137,16 @@ class McpAgentPresentationTest {
 
         assertEquals("thinking trace", assistantMessage["reasoning_content"]?.jsonPrimitive?.content)
     }
+
+    @Test
+    fun mcpAgentUsesAiSearchOrchestratorBeforeToolLoop() {
+        val service = java.io.File("src/commonMain/kotlin/com/dailysatori/service/mcp/McpAgentService.kt").readText()
+        val di = java.io.File("src/commonMain/kotlin/com/dailysatori/di/SharedModule.kt").readText()
+
+        assertTrue(service.contains("private val aiSearchOrchestrator: AiSearchOrchestrator"))
+        assertTrue(service.contains("val localSearch = aiSearchOrchestrator.search(query)"))
+        assertTrue(service.contains("referencesForAnswer(answerForRefs, referenceBase)"))
+        assertTrue(di.contains("single { AiSearchOrchestrator(get(), get(), get(), get(), get()) }"))
+        assertTrue(di.contains("McpAgentService(get(), get(), get(), get())"))
+    }
 }
