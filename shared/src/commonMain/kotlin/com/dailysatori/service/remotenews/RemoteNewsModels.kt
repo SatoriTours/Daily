@@ -1,7 +1,19 @@
 package com.dailysatori.service.remotenews
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class RemoteNewsPagination(
@@ -18,6 +30,7 @@ data class RemoteArticle(
     val title: String? = null,
     val url: String? = null,
     val summary: String? = null,
+    @Serializable(with = RemoteArticleViewpointsSerializer::class)
     val viewpoints: List<String> = emptyList(),
     val status: String? = null,
     @SerialName("source_type") val sourceType: String? = null,
@@ -103,4 +116,21 @@ data class RemoteNewsConfigValues(
 sealed class RemoteNewsResult<out T> {
     data class Success<T>(val value: T) : RemoteNewsResult<T>()
     data class Failure(val message: String) : RemoteNewsResult<Nothing>()
+}
+
+private object RemoteArticleViewpointsSerializer : KSerializer<List<String>> {
+    private val delegate = ListSerializer(String.serializer())
+    override val descriptor: SerialDescriptor = delegate.descriptor
+
+    override fun deserialize(decoder: Decoder): List<String> {
+        if (decoder !is JsonDecoder) return delegate.deserialize(decoder)
+        return when (val element = decoder.decodeJsonElement()) {
+            JsonNull -> emptyList()
+            is JsonArray -> element.mapNotNull { it.jsonPrimitive.contentOrNull?.takeIf(String::isNotBlank) }
+            is JsonPrimitive -> element.contentOrNull?.split('\n')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+            else -> emptyList()
+        }
+    }
+
+    override fun serialize(encoder: Encoder, value: List<String>) = delegate.serialize(encoder, value)
 }

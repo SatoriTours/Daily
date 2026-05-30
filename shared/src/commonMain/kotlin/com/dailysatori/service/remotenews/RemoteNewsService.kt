@@ -13,7 +13,11 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.longOrNull
 
 class RemoteNewsService(private val client: HttpClient) {
     suspend fun fetchDigests(config: RemoteNewsConfigValues, page: Int, perPage: Int): RemoteNewsResult<RemoteDigestsResponse> =
@@ -111,6 +115,48 @@ private fun JsonElement.asArticleArray(): JsonArray? = this as? JsonArray
 private fun decodeTopArticle(element: JsonElement): RemoteArticle? {
     val articleElement = (element as? JsonObject)?.get("article") ?: element
     return runCatching { remoteNewsJson.decodeFromJsonElement<RemoteArticle>(articleElement) }.getOrNull()
+        ?: decodeTopArticleObject(articleElement as? JsonObject)
+}
+
+private fun decodeTopArticleObject(obj: JsonObject?): RemoteArticle? {
+    obj ?: return null
+    val id = obj.longValue("id") ?: obj.longValue("article_id") ?: return null
+    return RemoteArticle(
+        id = id,
+        title = obj.stringValue("title") ?: obj.stringValue("headline"),
+        url = obj.stringValue("url") ?: obj.stringValue("link"),
+        summary = obj.stringValue("summary") ?: obj.stringValue("description"),
+        viewpoints = obj.stringListValue("viewpoints"),
+        status = obj.stringValue("status"),
+        sourceType = obj.stringValue("source_type") ?: obj.stringValue("sourceType"),
+        feedId = obj.longValue("feed_id") ?: obj.longValue("feedId"),
+        feedName = obj.stringValue("feed_name") ?: obj.stringValue("feedName"),
+        domain = obj.stringValue("domain"),
+        importanceScore = obj.doubleValue("importance_score") ?: obj.doubleValue("importanceScore"),
+        coverUrl = obj.stringValue("cover_url") ?: obj.stringValue("coverUrl"),
+        createdAt = obj.stringValue("created_at") ?: obj.stringValue("createdAt"),
+        processedAt = obj.stringValue("processed_at") ?: obj.stringValue("processedAt"),
+        content = obj.stringValue("content"),
+    )
+}
+
+private fun JsonObject.stringValue(key: String): String? =
+    (this[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+
+private fun JsonObject.longValue(key: String): Long? {
+    val value = this[key] as? JsonPrimitive ?: return null
+    return value.longOrNull ?: value.contentOrNull?.toLongOrNull()
+}
+
+private fun JsonObject.doubleValue(key: String): Double? {
+    val value = this[key] as? JsonPrimitive ?: return null
+    return value.doubleOrNull ?: value.contentOrNull?.toDoubleOrNull()
+}
+
+private fun JsonObject.stringListValue(key: String): List<String> = when (val value = this[key]) {
+    is JsonArray -> value.mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.takeIf(String::isNotBlank) }
+    is JsonPrimitive -> value.contentOrNull?.split('\n')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+    else -> emptyList()
 }
 
 private fun JsonElement.hasObjectKey(key: String): Boolean =
