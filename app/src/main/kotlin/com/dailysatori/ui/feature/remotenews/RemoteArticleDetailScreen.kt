@@ -160,7 +160,7 @@ private fun RemoteArticleDetailPage(
         if (hasCover && coverHeightDp > 0) {
             RemoteArticleCoverImage(imageUrl = coverImage.orEmpty(), modifier = Modifier.fillMaxWidth().height(coverHeightDp.dp))
         }
-        MagazineArticleHeader(article.title.orEmpty(), remoteArticleMetaChips(article), intro = null)
+        MagazineArticleHeader(remoteArticleDisplayTitle(article), remoteArticleMetaChips(article), intro = null)
         MagazineArticleTabSelector(remoteArticleDetailTabTitles, selectedTabIndex, onTabSelected)
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(nestedScrollConnection)) {
             item(key = "remote-content-$page") { RemoteArticleDetailBody(article, page) }
@@ -227,12 +227,12 @@ private fun remoteArticleSummaryPageContent(summary: String?, viewpoints: List<S
     return listOfNotNull(
         summaryContent,
         viewpointContent.takeIf { it.isNotBlank() }?.let { "## 关键观点\n\n$it" },
-    ).joinToString(separator = "\n\n").ifBlank { "暂无摘要内容" }
+    ).joinToString(separator = "\n\n").ifBlank { "暂无摘要内容，请刷新当前来源后重试。" }
 }
 
 private fun remoteArticleOriginalPageContent(original: String?, imageUrls: List<String>): String {
-    val content = original?.trim()?.takeIf { it.isNotBlank() } ?: "暂无原文内容"
-    if (content == "暂无原文内容" || imageUrls.isEmpty() || !content.hasRemoteImagePlaceholder()) return content
+    val content = original?.trim()?.takeIf { it.isNotBlank() } ?: "暂无原文内容，请刷新当前来源后重试。"
+    if (content == "暂无原文内容，请刷新当前来源后重试。" || imageUrls.isEmpty() || !content.hasRemoteImagePlaceholder()) return content
     return normalizeArticleMarkdownImages(content, imageUrls)
 }
 
@@ -256,6 +256,13 @@ private fun remoteArticleMetaChips(article: RemoteArticle): List<String> = listO
     article.publishedAt?.take(10) ?: article.createdAt?.take(10),
     article.importanceScore?.let { "重要性 ${String.format("%.1f", it)}" },
 ).filter { it.isNotBlank() }.take(4)
+
+private fun remoteArticleDisplayTitle(article: RemoteArticle): String = listOfNotNull(
+    article.title?.trim()?.takeIf { it.isNotBlank() },
+    article.summary?.trim()?.takeIf { it.isNotBlank() }?.take(48),
+    article.feedName?.trim()?.takeIf { it.isNotBlank() },
+    article.domain?.trim()?.takeIf { it.isNotBlank() },
+).firstOrNull() ?: "未命名远程文章"
 
 private fun String.hasRemoteImagePlaceholder(): Boolean =
     Regex("""[!！](?:\[[^]]*]|图片|配图|插图|图像|image|photo|figure)""", RegexOption.IGNORE_CASE).containsMatchIn(this)

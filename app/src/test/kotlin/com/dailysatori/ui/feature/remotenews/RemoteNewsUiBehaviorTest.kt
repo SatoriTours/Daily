@@ -69,6 +69,33 @@ class RemoteNewsUiBehaviorTest {
     }
 
     @Test
+    fun remoteArticleDetailUsesReadableTitleFallback() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
+
+        assertTrue(source.contains("private fun remoteArticleDisplayTitle(article: RemoteArticle): String"))
+        assertTrue(source.contains("remoteArticleDisplayTitle(article)"))
+        assertTrue(source.contains("article.title?.trim()?.takeIf { it.isNotBlank() }"))
+        assertTrue(source.contains("article.summary?.trim()?.takeIf { it.isNotBlank() }?.take(48)"))
+        assertTrue(source.contains("\"未命名远程文章\""))
+    }
+
+    @Test
+    fun remoteArticleDetailShowsExplicitOriginalFallback() {
+        assertEquals(
+            "暂无原文内容，请刷新当前来源后重试。",
+            remoteArticleDetailPageContent(page = 1, summary = null, viewpoints = emptyList(), original = null),
+        )
+    }
+
+    @Test
+    fun remoteArticleDetailShowsExplicitSummaryFallback() {
+        assertEquals(
+            "暂无摘要内容，请刷新当前来源后重试。",
+            remoteArticleDetailPageContent(page = 0, summary = null, viewpoints = emptyList(), original = null),
+        )
+    }
+
+    @Test
     fun remoteArticleFavoriteLookupIncludesUrlLessFallback() {
         val repository = File(
             "../shared/src/commonMain/kotlin/com/dailysatori/data/repository/ArticleRepository.kt",
