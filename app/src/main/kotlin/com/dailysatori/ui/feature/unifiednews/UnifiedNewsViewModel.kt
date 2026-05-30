@@ -227,8 +227,16 @@ class UnifiedNewsViewModel(
 
     fun openSourceArticle(article: RemoteArticle) {
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.clearSelectedSourceDetail().copy(selectedRemoteArticle = article, isLoading = true, error = null) }
-            val local = articleRepo.findLocalArticleForRemote(article)
+            _state.update {
+                it.clearSelectedSourceDetail().copy(
+                    selectedRemoteArticle = article,
+                    selectedRemoteArticleLocalId = null,
+                    selectedRemoteArticleIsFavorite = false,
+                    isLoading = true,
+                    error = null,
+                )
+            }
+            val local = runCatching { articleRepo.findLocalArticleForRemote(article) }.getOrNull()
             _state.update { state ->
                 if (state.selectedRemoteArticle?.id == article.id) {
                     state.copy(

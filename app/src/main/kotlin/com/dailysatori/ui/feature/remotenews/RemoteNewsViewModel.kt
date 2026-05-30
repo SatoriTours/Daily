@@ -106,15 +106,26 @@ class RemoteNewsViewModel(
 
     fun openArticle(article: RemoteArticle) {
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isLoading = true, detailError = null) }
-            val local = articleRepo.findLocalArticleForRemote(article)
             _state.update {
                 it.copy(
                     selectedArticle = article,
-                    selectedArticleLocalId = local?.id,
-                    selectedArticleIsFavorite = local?.is_favorite == 1L,
-                    isLoading = false,
+                    selectedArticleLocalId = null,
+                    selectedArticleIsFavorite = false,
+                    isLoading = true,
+                    detailError = null,
                 )
+            }
+            val local = runCatching { articleRepo.findLocalArticleForRemote(article) }.getOrNull()
+            _state.update { state ->
+                if (state.selectedArticle?.id == article.id) {
+                    state.copy(
+                        selectedArticleLocalId = local?.id,
+                        selectedArticleIsFavorite = local?.is_favorite == 1L,
+                        isLoading = false,
+                    )
+                } else {
+                    state
+                }
             }
         }
     }

@@ -272,6 +272,17 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun unifiedSourceArticleOpensEvenWhenFavoriteLookupFails() {
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val openBody = viewModel.substringAfter("fun openSourceArticle(article: RemoteArticle)").substringBefore("fun toggleSelectedRemoteArticleFavorite")
+
+        assertTrue(openBody.contains("selectedRemoteArticle = article"))
+        assertTrue(openBody.contains("runCatching { articleRepo.findLocalArticleForRemote(article) }.getOrNull()"))
+        assertTrue(openBody.contains("selectedRemoteArticleIsFavorite = local?.is_favorite == 1L"))
+        assertFalse(openBody.contains("catch (_: Exception)"))
+    }
+
+    @Test
     fun unifiedNewsRefreshSelectedSourceRoutesByCurrentSelectionOnly() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val refreshBody = viewModel.substringAfter("fun refreshSelectedSource()").substringBefore("private fun incrementLocalArticleRefreshRequest")

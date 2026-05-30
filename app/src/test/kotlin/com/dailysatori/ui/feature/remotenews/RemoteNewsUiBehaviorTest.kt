@@ -59,6 +59,16 @@ class RemoteNewsUiBehaviorTest {
     }
 
     @Test
+    fun remoteArticleOpensEvenWhenFavoriteLookupFails() {
+        val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsViewModel.kt").readText()
+        val openBody = viewModel.substringAfter("fun openArticle(article: RemoteArticle)").substringBefore("fun toggleSelectedArticleFavorite")
+
+        assertTrue(openBody.contains("selectedArticle = article"))
+        assertTrue(openBody.contains("runCatching { articleRepo.findLocalArticleForRemote(article) }.getOrNull()"))
+        assertTrue(openBody.contains("selectedArticleIsFavorite = local?.is_favorite == 1L"))
+    }
+
+    @Test
     fun remoteArticleFavoriteLookupIncludesUrlLessFallback() {
         val repository = File(
             "../shared/src/commonMain/kotlin/com/dailysatori/data/repository/ArticleRepository.kt",
