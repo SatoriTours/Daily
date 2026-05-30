@@ -14,13 +14,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.outlined.AutoStories
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -66,7 +66,7 @@ val tabs = listOf(
     TabItem("今日", Icons.Filled.Language, Icons.Outlined.Language),
     TabItem("日记", Icons.Filled.Book, Icons.Outlined.Book),
     TabItem("读书", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
-    TabItem("AI", Icons.Filled.SmartToy, Icons.Outlined.SmartToy),
+    TabItem("AI", Icons.Filled.AutoAwesome, Icons.Outlined.AutoAwesome),
 )
 
 private val HomeBottomBarHeight = Height.navBar

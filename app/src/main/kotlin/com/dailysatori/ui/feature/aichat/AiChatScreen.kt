@@ -1,5 +1,10 @@
 package com.dailysatori.ui.feature.aichat
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +17,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -31,6 +40,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dailysatori.service.mcp.McpSearchResult
@@ -55,7 +66,10 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
     var showReferenceSheet by remember { mutableStateOf(false) }
     val loadOlderMessages = viewModel::loadOlderMessages
     val displayMessages = remember(state.messages) { aiChatDisplayMessages(state.messages) }
-    val showThinking = state.isProcessing && displayMessages.none { it.isStreaming }
+    val showThinking = aiChatShowsThinkingBubble(
+        isProcessing = state.isProcessing,
+        hasStreamingAssistant = displayMessages.any { it.isStreaming },
+    )
     val showStoppedStatus = !state.isProcessing && state.currentStep == aiChatStoppedStatusText()
     var hasCompletedInitialScroll by remember { mutableStateOf(false) }
 
@@ -268,7 +282,8 @@ private fun WelcomePromptRow(index: String, title: String, body: String) {
 
 fun aiChatShowsTopProgressIndicator(isProcessing: Boolean, currentStep: String): Boolean = false
 
-fun aiChatShowsThinkingBubble(isProcessing: Boolean): Boolean = isProcessing
+fun aiChatShowsThinkingBubble(isProcessing: Boolean, hasStreamingAssistant: Boolean): Boolean =
+    isProcessing && !hasStreamingAssistant
 
 fun aiChatDisplayMessages(messages: List<ChatMessageUi>): List<ChatMessageUi> = messages
 
@@ -320,24 +335,44 @@ fun aiChatShouldLoadOlder(
 
 @Composable
 private fun ThinkingIndicator() {
+    val transition = rememberInfiniteTransition(label = "ai-thinking")
+    val iconScale by transition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.08f,
+        animationSpec = infiniteRepeatable(animation = tween(860), repeatMode = RepeatMode.Reverse),
+        label = "ai-thinking-scale",
+    )
+    val iconAlpha by transition.animateFloat(
+        initialValue = 0.62f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(860), repeatMode = RepeatMode.Reverse),
+        label = "ai-thinking-alpha",
+    )
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Start,
     ) {
         Surface(
-            shape = RoundedCornerShape(
-                topStart = Radius.m, topEnd = Radius.m,
-                bottomStart = Radius.xs, bottomEnd = Radius.m,
-            ),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            modifier = Modifier.fillMaxWidth(0.8f),
+            shape = RoundedCornerShape(Radius.circular),
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.36f),
         ) {
-            Text(
-                text = "思考中...",
-                modifier = Modifier.padding(Spacing.m),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp).scale(iconScale).alpha(iconAlpha),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = "AI 正在思考",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
     }
 }

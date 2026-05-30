@@ -236,13 +236,24 @@ class AiChatUiStateTest {
     fun chatBubblesUseWechatAlignmentAndNoAssistantRail() {
         val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/MessageBubble.kt").readText()
 
-        assertTrue(source.contains("Arrangement.End"))
-        assertTrue(source.contains("Arrangement.Start"))
+        assertTrue(source.contains("horizontalAlignment = if (isUser) Alignment.End else Alignment.Start"))
+        assertTrue(source.contains("horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start"))
         assertTrue(source.contains("widthIn(max = ChatUserBubbleMaxWidth)"))
-        assertTrue(source.contains("widthIn(max = ChatAssistantBubbleMaxWidth)"))
+        assertTrue(source.contains("if (isUser) widthIn(max = ChatUserBubbleMaxWidth) else fillMaxWidth()"))
+        assertFalse(source.contains("widthIn(max = ChatAssistantBubbleMaxWidth)"))
         assertFalse(source.contains("drawRoundRect("))
         assertFalse(source.contains("AssistantKicker("))
         assertFalse(source.contains("text = \"AI 回复\""))
+    }
+
+    @Test
+    fun chatMessageActionsUseHorizontalFloatingRow() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/MessageBubble.kt").readText()
+
+        assertTrue(source.contains("Popup("))
+        assertTrue(source.contains("Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs))"))
+        assertTrue(source.contains("ChatMessageActionButton("))
+        assertFalse(source.contains("DropdownMenuItem("))
     }
 
     @Test
@@ -374,7 +385,20 @@ class AiChatUiStateTest {
     @Test
     fun processingStateUsesBubbleLoadingOnly() {
         assertFalse(aiChatShowsTopProgressIndicator(isProcessing = true, currentStep = "正在查询数据..."))
-        assertTrue(aiChatShowsThinkingBubble(isProcessing = true))
+        assertTrue(aiChatShowsThinkingBubble(isProcessing = true, hasStreamingAssistant = false))
+        assertFalse(aiChatShowsThinkingBubble(isProcessing = true, hasStreamingAssistant = true))
+        assertFalse(aiChatShowsThinkingBubble(isProcessing = false, hasStreamingAssistant = false))
+    }
+
+    @Test
+    fun thinkingIndicatorUsesUnifiedBlueAiIconChip() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+
+        assertTrue(source.contains("Icons.Filled.AutoAwesome"))
+        assertTrue(source.contains("MaterialTheme.colorScheme.primary"))
+        assertTrue(source.contains("val showThinking = aiChatShowsThinkingBubble("))
+        assertTrue(source.contains("text = \"AI 正在思考\""))
+        assertFalse(source.contains("text = \"思考中...\""))
     }
 
     @Test

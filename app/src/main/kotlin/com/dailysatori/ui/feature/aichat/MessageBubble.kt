@@ -1,9 +1,9 @@
 package com.dailysatori.ui.feature.aichat
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -32,13 +30,15 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.dailysatori.service.mcp.canOpenSearchResult
 import com.dailysatori.service.mcp.McpSearchResult
+import com.dailysatori.service.mcp.canOpenSearchResult
 import com.dailysatori.service.mcp.searchResultTypeLabel
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import com.mikepenz.markdown.m3.Markdown
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 
 fun visibleReferenceCount(totalCount: Int, expanded: Boolean): Int =
     if (expanded) totalCount else totalCount.coerceAtMost(3)
@@ -59,8 +59,6 @@ data class StructuredAssistantContent(val title: String, val body: String)
 
 private val MarkdownAtxHeadingPrefix = Regex("""^#{1,6}(\s+|$)""")
 private val ChatUserBubbleMaxWidth = 302.dp
-private val ChatAssistantBubbleMaxWidth = 336.dp
-
 fun chatMessageTreatment(role: String, isError: Boolean): ChatMessageTreatment = when {
     isError -> ChatMessageTreatment.ErrorNote
     role == "user" -> ChatMessageTreatment.MutedUserNote
@@ -120,24 +118,18 @@ fun MessageBubble(
                         )
                         ChatMessageTreatment.ErrorNote -> ErrorAssistantMessage(assistantContent)
                     }
-                    DropdownMenu(expanded = showActions, onDismissRequest = { showActions = false }) {
-                        DropdownMenuItem(
-                            text = { Text("复制") },
-                            onClick = {
+                    if (showActions) {
+                        ChatMessageActionPopup(
+                            onDismiss = { showActions = false },
+                            onCopy = {
                                 clipboard.setText(AnnotatedString(message.content))
                                 showActions = false
                             },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("删除") },
-                            onClick = {
+                            onDelete = {
                                 showActions = false
                                 onDelete(message)
                             },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("重问") },
-                            onClick = {
+                            onReAsk = {
                                 showActions = false
                                 onReAsk(message)
                             },
@@ -150,7 +142,42 @@ fun MessageBubble(
 }
 
 private fun Modifier.chatBubbleWidth(isUser: Boolean): Modifier =
-    if (isUser) widthIn(max = ChatUserBubbleMaxWidth) else widthIn(max = ChatAssistantBubbleMaxWidth)
+    if (isUser) widthIn(max = ChatUserBubbleMaxWidth) else fillMaxWidth()
+
+@Composable
+private fun ChatMessageActionPopup(
+    onDismiss: () -> Unit,
+    onCopy: () -> Unit,
+    onDelete: () -> Unit,
+    onReAsk: () -> Unit,
+) {
+    Popup(
+        alignment = Alignment.TopEnd,
+        onDismissRequest = onDismiss,
+        properties = PopupProperties(focusable = true),
+    ) {
+        Surface(
+            modifier = Modifier.padding(Spacing.xs),
+            shape = RoundedCornerShape(Radius.circular),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            tonalElevation = 6.dp,
+            shadowElevation = 10.dp,
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                ChatMessageActionButton("复制", onCopy)
+                ChatMessageActionButton("删除", onDelete)
+                ChatMessageActionButton("重问", onReAsk)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatMessageActionButton(text: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick) {
+        Text(text = text, style = MaterialTheme.typography.labelMedium)
+    }
+}
 
 @Composable
 private fun MutedUserMessage(content: String) {
