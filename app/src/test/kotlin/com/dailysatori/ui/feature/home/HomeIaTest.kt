@@ -45,7 +45,7 @@ class HomeIaTest {
         assertTrue(source.contains("private val HomeBottomBarHeight = Height.navBar"))
         assertTrue(source.contains("private val HomeBottomBarIconSize = IconSize.l"))
         assertTrue(source.contains("RoundedCornerShape(Radius.circular)"))
-        assertTrue(source.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant)"))
+        assertTrue(source.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant.copy(alpha = containerAlpha))"))
         assertTrue(source.contains("Modifier.navigationBarsPadding()"))
         assertFalse(source.contains("label = { Text(tab.label"))
         assertTrue(source.contains("label = null"))

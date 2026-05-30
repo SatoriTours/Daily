@@ -1513,7 +1513,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(home.contains("UnifiedNewsScreen"))
         assertTrue(home.contains("selectedIndex !in tabs.indices"))
         assertTrue(home.contains("selectedIndex = 0"))
-        assertTrue(home.substringAfter("when (index)").substringBefore("}").contains("else ->"))
+        assertTrue(home.contains("else -> UnifiedNewsScreen"))
     }
 
     @Test
