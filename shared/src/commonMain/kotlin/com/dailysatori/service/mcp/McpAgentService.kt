@@ -79,7 +79,7 @@ class McpAgentService(
 
             messages.add(buildJsonObject {
                 put("role", "user")
-                put("content", localSearch.evidencePrompt ?: query)
+                put("content", aiSearchUserContentForQuery(query, localSearch))
             })
 
             val tools = toolRegistry.buildToolDefinitions()
@@ -138,7 +138,7 @@ class McpAgentService(
             val filteredResults = filterRelevantMcpResults(collectedResults, answerForRefs)
             val preciseResults = preciseSearchResultsForQuery(query, filteredResults)
             val referenceBase = preciseResults.ifEmpty { localSearch.references }
-            val searchResults = referencesForAnswer(answerForRefs, referenceBase)
+            val searchResults = referencesForAnswer(answerForRefs, referenceBase, collectedResults)
             McpAgentResult(answer = cleanAnswer, searchResults = searchResults)
         } catch (e: Exception) {
             log.e(e) { "MCP Agent processing failed" }

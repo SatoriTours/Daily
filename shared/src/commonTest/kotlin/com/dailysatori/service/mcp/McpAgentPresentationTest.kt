@@ -93,6 +93,14 @@ class McpAgentPresentationTest {
     }
 
     @Test
+    fun invalidRefsCanFallBackToAllCollectedOpenableResults() {
+        val localOnly = listOf(McpSearchResult(1, "diary", "本地日记", "片段", "2026-05-29"))
+        val collected = localOnly + McpSearchResult(7, "article", "工具文章", "摘要", "2026-05-30")
+
+        assertEquals(collected, referencesForAnswer("回答\n<!-- refs: article_999 -->", localOnly, collected))
+    }
+
+    @Test
     fun articleDiaryAndBookSearchResultsCanOpenDetails() {
         assertEquals(true, canOpenSearchResult("article"))
         assertEquals(true, canOpenSearchResult("diary"))

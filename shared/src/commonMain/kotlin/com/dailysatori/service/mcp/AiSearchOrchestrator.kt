@@ -175,6 +175,9 @@ $top
 下面的引用卡片可以继续打开核对原文。""".trimIndent()
 }
 
+fun aiSearchUserContentForQuery(query: String, localSearch: AiSearchResult): String =
+    if (localSearch.plan.useSqlStatsPath) query else localSearch.evidencePrompt ?: query
+
 class AiSearchOrchestrator(
     private val memoryRepo: MemoryRepository,
     private val diaryRepo: DiaryRepository,

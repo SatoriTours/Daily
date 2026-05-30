@@ -98,4 +98,19 @@ class AiSearchOrchestratorTest {
         assertTrue(answer.contains("日记"))
         assertTrue(answer.contains("命中：焦虑"))
     }
+
+    @Test
+    fun statsQueriesKeepOriginalPromptSoSqlToolsRemainAvailable() {
+        val query = "最近几天我写了多少日记"
+        val plan = analyzeAiSearchQuery(query)
+        val localSearch = AiSearchResult(
+            plan = plan,
+            evidence = listOf(AiSearchEvidence(McpSearchResult(1, "diary", "日记", "片段", "2026-05-30"), "片段")),
+            references = listOf(McpSearchResult(1, "diary", "日记", "片段", "2026-05-30")),
+            evidencePrompt = "只能基于上述证据回答",
+        )
+
+        assertTrue(plan.useSqlStatsPath)
+        assertEquals(query, aiSearchUserContentForQuery(query, localSearch))
+    }
 }

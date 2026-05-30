@@ -25,15 +25,21 @@ fun searchResultOpenTarget(type: String): SearchResultOpenTarget? = when (type) 
 
 fun canOpenSearchResult(type: String): Boolean = searchResultOpenTarget(type) != null
 
-fun referencesForAnswer(answer: String, rankedResults: List<McpSearchResult>, limit: Int = 8): List<McpSearchResult> {
+fun referencesForAnswer(
+    answer: String,
+    rankedResults: List<McpSearchResult>,
+    fallbackResults: List<McpSearchResult> = rankedResults,
+    limit: Int = 8,
+): List<McpSearchResult> {
     val refsMatch = Regex("<!--\\s*refs:\\s*([^>]+)\\s*-->").find(answer)
     val openable = rankedResults.filter { canOpenSearchResult(it.type) }
+    val fallbackOpenable = fallbackResults.filter { canOpenSearchResult(it.type) }
     if (refsMatch == null) return openable.take(limit)
     val refs = refsMatch.groupValues[1].trim()
     if (refs.equals("none", ignoreCase = true)) return emptyList()
     val byKey = openable.associateBy { "${it.type}_${it.id}" }
     val selected = refs.split(',').map { it.trim() }.mapNotNull(byKey::get)
-    return selected.takeIf { it.isNotEmpty() } ?: openable.take(limit)
+    return selected.takeIf { it.isNotEmpty() } ?: fallbackOpenable.take(limit)
 }
 
 fun orderedDiaryIndexFromQuery(query: String): Int? {
