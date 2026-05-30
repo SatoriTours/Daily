@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -123,7 +124,7 @@ private fun UnifiedNewsDetailRoute(state: UnifiedNewsState, viewModel: UnifiedNe
         RemoteDigestDetailScreen(
             digest = remoteDigest,
             onBack = viewModel::closeSourceDetail,
-            onArticleClick = { id -> viewModel.openCitationSource("remote_article", id, null) },
+            onArticleClick = viewModel::openSourceArticle,
         )
         return true
     }
@@ -213,6 +214,12 @@ private fun UnifiedNewsSummaryContent(state: UnifiedNewsState, viewModel: Unifie
     } else {
         state.summaries
     }
+    val listState = rememberLazyListState()
+    if (state.summaryRefreshCompletedToken > 0) {
+        LaunchedEffect(state.summaryRefreshCompletedToken) {
+            listState.scrollToItem(0)
+        }
+    }
     when {
         state.isLoading -> LoadingIndicator()
         visibleSummaries.isEmpty() -> EmptyState(
@@ -221,6 +228,7 @@ private fun UnifiedNewsSummaryContent(state: UnifiedNewsState, viewModel: Unifie
             subtitle = "点击上方刷新按钮生成新闻汇总",
         )
         else -> LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m),
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
@@ -341,7 +349,7 @@ private fun UnifiedNewsSourceArticleList(
             }
         }
         items(articles, key = { it.id }) { article ->
-            RemoteArticleSummaryCard(article) { viewModel.openSourceArticle(selection.id, article.id) }
+            RemoteArticleSummaryCard(article) { viewModel.openSourceArticle(article) }
         }
         if (isLoading) item {
             Box(modifier = Modifier.fillMaxWidth().padding(Spacing.s), contentAlignment = Alignment.Center) {

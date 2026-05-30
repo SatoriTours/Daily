@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.ArticleRepository
+import com.dailysatori.data.repository.needsLocalAiReprocessingForChineseOutput
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
@@ -11,6 +12,7 @@ import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteDigest
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
+import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.service.unifiednews.UnifiedNewsGenerationResult
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryStatus
@@ -75,6 +77,7 @@ data class UnifiedNewsState(
     val isLoading: Boolean = false,
     val isRegenerating: Boolean = false,
     val regeneratingSummaryDate: String? = null,
+    val summaryRefreshCompletedToken: Int = 0,
     val localArticleRefreshRequestKey: Int = 0,
     val manualRefreshMessage: String? = null,
     val error: String? = null,
@@ -87,6 +90,7 @@ class UnifiedNewsViewModel(
     private val remoteNewsService: RemoteNewsService,
     private val remoteNewsSourceRepo: RemoteNewsSourceRepository,
     private val articleRepo: ArticleRepository,
+    private val webpageParserService: WebpageParserService,
     private val isDebugBuild: Boolean = false,
 ) : ViewModel() {
     private val _state = MutableStateFlow(UnifiedNewsState())
@@ -140,7 +144,15 @@ class UnifiedNewsViewModel(
         }
     }
 
-    fun openCitation(source: Unified_news_source) = openCitationSource(source.source_type, source.source_id, source.source_filename)
+    fun openCitation(source: Unified_news_source) {
+        val target = navigationTargetFor(source.source_type, source.source_id, source.source_filename) ?: return
+        val token = beginDetailRequest(target)
+        when (target) {
+            is UnifiedNewsNavigationTarget.RemoteDigest -> openRemoteDigest(target.id, token)
+            is UnifiedNewsNavigationTarget.RemoteArticle -> openRemoteArticle(source, token)
+            is UnifiedNewsNavigationTarget.LocalArticle -> Unit
+        }
+    }
 
     fun openCitationSource(sourceType: String, sourceId: Long?, filename: String?) {
         val target = navigationTargetFor(sourceType, sourceId, filename) ?: return
@@ -213,8 +225,22 @@ class UnifiedNewsViewModel(
         fetchSourceArticles(selection.id, force = true)
     }
 
-    fun openSourceArticle(sourceId: Long, articleId: Long) {
-        openCitationSource("remote_article", articleId, remoteNewsSourceRouteKey(sourceId))
+    fun openSourceArticle(article: RemoteArticle) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.update { it.clearSelectedSourceDetail().copy(selectedRemoteArticle = article, isLoading = true, error = null) }
+            val local = articleRepo.findLocalArticleForRemote(article)
+            _state.update { state ->
+                if (state.selectedRemoteArticle?.id == article.id) {
+                    state.copy(
+                        selectedRemoteArticleLocalId = local?.id,
+                        selectedRemoteArticleIsFavorite = local?.is_favorite == 1L,
+                        isLoading = false,
+                    )
+                } else {
+                    state
+                }
+            }
+        }
     }
 
     fun toggleSelectedRemoteArticleFavorite() {
@@ -235,6 +261,7 @@ class UnifiedNewsViewModel(
                     }
                 } else {
                     val saved = articleRepo.saveRemoteArticleAsFavorite(article)
+                    reprocessEnglishRemoteArticle(article, saved?.id)
                     _state.update { state ->
                         if (state.selectedRemoteArticle?.id == article.id) {
                             state.copy(
@@ -252,6 +279,11 @@ class UnifiedNewsViewModel(
                 }
             }
         }
+    }
+
+    private suspend fun reprocessEnglishRemoteArticle(article: RemoteArticle, savedId: Long?) {
+        if (savedId == null || !article.needsLocalAiReprocessingForChineseOutput()) return
+        webpageParserService.reprocessArticle(savedId)
     }
 
     fun regenerateCurrentWindow() {
@@ -275,6 +307,7 @@ class UnifiedNewsViewModel(
                     it.copy(
                         isRegenerating = false,
                         regeneratingSummaryDate = null,
+                        summaryRefreshCompletedToken = it.summaryRefreshCompletedToken + 1,
                         manualRefreshMessage = manualRefreshMessage(result),
                         error = result.message?.takeIf { !result.success },
                     )
@@ -336,29 +369,51 @@ class UnifiedNewsViewModel(
         detailLoadJob = viewModelScope.launch(Dispatchers.IO) {
             try {
                 ifLatestDetailRequest(token) { it.copy(isLoading = true) }
-                val config = remoteConfigOrSetError(token, remoteSourceId) ?: return@launch
-                when (val result = remoteNewsService.fetchArticle(config, id)) {
-                    is RemoteNewsResult.Success -> {
-                        val article = result.value.article
-                        val local = articleRepo.findLocalArticleForRemote(article)
-                        ifLatestDetailRequest(token) {
-                            it.copy(
-                                selectedRemoteArticle = article,
-                                selectedRemoteArticleLocalId = local?.id,
-                                selectedRemoteArticleIsFavorite = local?.is_favorite == 1L,
-                                isLoading = false,
-                            )
-                        }
-                    }
-                    is RemoteNewsResult.Failure -> ifLatestDetailRequest(token) { it.copy(error = result.message, isLoading = false) }
+                val local = articleRepo.getById(id)
+                if (local == null) {
+                    ifLatestDetailRequest(token) { it.copy(error = "文章内容不可用，请刷新新闻汇总或远程来源", isLoading = false) }
+                    return@launch
+                }
+                ifLatestDetailRequest(token) {
+                    it.copy(navigationTarget = UnifiedNewsNavigationTarget.LocalArticle(local.id), isLoading = false)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                ifLatestDetailRequest(token) { it.copy(error = "引用详情加载失败，请稍后重试", isLoading = false) }
+                ifLatestDetailRequest(token) { it.copy(error = "文章内容不可用，请刷新新闻汇总或远程来源", isLoading = false) }
             }
         }
     }
+
+    private fun openRemoteArticle(source: Unified_news_source, token: Long) {
+        detailLoadJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                ifLatestDetailRequest(token) { it.copy(isLoading = true) }
+                val local = source.source_url?.let(articleRepo::getByUrl)
+                    ?: source.source_id?.let { id -> articleRepo.getById(id) }
+                    ?: articleRepo.cacheRemoteArticle(source.toRemoteArticleForLocalCache(), source.source_time)
+                if (local == null) {
+                    ifLatestDetailRequest(token) { it.copy(error = "文章内容不可用，请刷新新闻汇总或远程来源", isLoading = false) }
+                    return@launch
+                }
+                ifLatestDetailRequest(token) {
+                    it.copy(navigationTarget = UnifiedNewsNavigationTarget.LocalArticle(local.id), isLoading = false)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                ifLatestDetailRequest(token) { it.copy(error = "文章内容不可用，请刷新新闻汇总或远程来源", isLoading = false) }
+            }
+        }
+    }
+
+    private fun Unified_news_source.toRemoteArticleForLocalCache(): RemoteArticle = RemoteArticle(
+        id = source_id ?: id,
+        title = this.title,
+        url = source_url,
+        summary = this.summary,
+        content = this.summary,
+    )
 
     private fun fetchSourceArticles(sourceId: Long, force: Boolean) {
         val cacheKey = sourceArticleCacheKey(sourceId, dailyUnifiedNewsWindowFor().summaryDate)

@@ -39,6 +39,7 @@ data class RemoteArticle(
     val domain: String? = null,
     @SerialName("importance_score") val importanceScore: Double? = null,
     @SerialName("cover_url") val coverUrl: String? = null,
+    @SerialName("published_at") val publishedAt: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("processed_at") val processedAt: String? = null,
     val content: String? = null,

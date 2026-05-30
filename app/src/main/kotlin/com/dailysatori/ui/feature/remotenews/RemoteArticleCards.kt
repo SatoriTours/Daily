@@ -37,6 +37,6 @@ private fun remoteArticleMetaText(article: RemoteArticle): String? = listOfNotNu
 ).joinToString(" · ").takeIf { it.isNotBlank() }
 
 private fun remoteArticleTimeText(article: RemoteArticle): String? {
-    val sourceTime = article.createdAt ?: article.processedAt
+    val sourceTime = article.publishedAt ?: article.createdAt ?: article.processedAt
     return sourceTime?.replace('T', ' ')?.take(16)?.takeIf { it.isNotBlank() }
 }

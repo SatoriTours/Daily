@@ -259,6 +259,51 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun unifiedRemoteSourceListOpensArticleFromLoadedPayloadWithoutDetailApi() {
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val openSourceArticleBody = viewModel.substringAfter("fun openSourceArticle(").substringBefore("fun toggleSelectedRemoteArticleFavorite")
+
+        assertTrue(viewModel.contains("fun openSourceArticle(article: RemoteArticle)"))
+        assertTrue(openSourceArticleBody.contains("selectedRemoteArticle = article"))
+        assertFalse(openSourceArticleBody.contains("openCitationSource"))
+        assertTrue(screen.contains("viewModel.openSourceArticle(article)"))
+        assertFalse(screen.contains("viewModel.openSourceArticle(selection.id, article.id)"))
+    }
+
+    @Test
+    fun unifiedCitationRemoteArticleDoesNotDeriveHiddenDetailApi() {
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")
+
+        assertFalse(openRemoteArticleBody.contains("remoteNewsService.fetchArticle"))
+        assertTrue(openRemoteArticleBody.contains("articleRepo.getById(id)"))
+        assertTrue(openRemoteArticleBody.contains("文章内容不可用"))
+    }
+
+    @Test
+    fun unifiedDigestReferencedArticleOpensLoadedPayloadDirectly() {
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val digestRoute = screen.substringAfter("if (remoteDigest != null)").substringBefore("if (state.navigationTarget != null && state.isLoading)")
+
+        assertTrue(digestRoute.contains("onArticleClick = viewModel::openSourceArticle"))
+        assertFalse(digestRoute.contains("openCitationSource(\"remote_article\", article.id, null)"))
+    }
+
+    @Test
+    fun unifiedLegacyRemoteArticleCitationUsesPersistedSourceMetadataBeforeFailing() {
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")
+
+        assertTrue(viewModel.contains("fun openCitation(source: Unified_news_source)"))
+        assertTrue(openRemoteArticleBody.contains("source.source_url?.let(articleRepo::getByUrl)"))
+        assertTrue(openRemoteArticleBody.contains("RemoteArticle("))
+        assertTrue(openRemoteArticleBody.contains("articleRepo.cacheRemoteArticle"))
+        assertTrue(openRemoteArticleBody.contains("title = this.title"))
+        assertTrue(openRemoteArticleBody.contains("summary = this.summary"))
+    }
+
+    @Test
     fun citationGroundingIgnoresMarkdownInlineAndReferenceLabels() {
         val sources = listOf(
             UnifiedNewsSourceItem(refKey = "R1", sourceType = UnifiedNewsSourceType.REMOTE_ARTICLE, title = "远程", summary = "摘要"),
@@ -749,7 +794,8 @@ class UnifiedNewsBehaviorTest {
         assertFalse(missingSourceBranch.contains("SettingKeys.remoteNewsBaseUrl"))
         assertFalse(missingSourceBranch.contains("SettingKeys.remoteNewsApiToken"))
         assertTrue(repo.contains("fun getById(id: Long)"))
-        assertTrue(di.contains("UnifiedNewsViewModel(get(), get(), get(), get(), get(), get<ArticleRepository>(), com.dailysatori.BuildConfig.DEBUG)"))
+        assertTrue(di.contains("UnifiedNewsViewModel("))
+        assertTrue(di.contains("get<WebpageParserService>()"))
     }
 
     @Test
@@ -1995,10 +2041,15 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsRegenerationUsesSummaryListState() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
 
         assertTrue(viewModel.contains("selectedSummary = displaySummaries.firstOrNull()"))
         assertTrue(viewModel.contains("sourcesBySummaryId = sourcesBySummaryId"))
         assertTrue(viewModel.contains("displaySummaries"))
+        assertTrue(viewModel.contains("summaryRefreshCompletedToken"))
+        assertTrue(screen.contains("rememberLazyListState()"))
+        assertTrue(screen.contains("state.summaryRefreshCompletedToken"))
+        assertTrue(screen.contains("scrollToItem(0)"))
     }
 
     @Test

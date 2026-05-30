@@ -20,11 +20,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.dailysatori.ui.theme.*
-import com.mikepenz.markdown.model.DefaultMarkdownTypography
-import com.mikepenz.markdown.model.MarkdownTypography
 import com.mikepenz.markdown.m3.Markdown
 
 @Composable
@@ -86,10 +85,18 @@ private fun ViewpointHeader(
         verticalArrangement = Arrangement.spacedBy(Spacing.l),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        ViewpointMetaRow(bookTitle = bookTitle, author = author, page = page, total = total, showProgress = showProgress)
+        ViewpointMetaRow(
+            bookTitle = bookTitle,
+            author = author,
+            page = page,
+            total = total,
+            showProgress = showProgress,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Text(
             text = viewpointDisplayTitle(title, bookTitle),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.ExtraBold,
             textAlign = TextAlign.Center,
@@ -105,6 +112,8 @@ private fun ViewpointMetaRow(
     page: Int,
     total: Int,
     showProgress: Boolean,
+    style: TextStyle,
+    color: androidx.compose.ui.graphics.Color,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -113,8 +122,8 @@ private fun ViewpointMetaRow(
     ) {
         Text(
             text = viewpointBookLine(bookTitle, author),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = style,
+            color = color,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false),
@@ -122,8 +131,8 @@ private fun ViewpointMetaRow(
         if (viewpointShouldShowPageCounter(showProgress, total)) {
             Text(
                 text = booksReadingProgressText(page, total),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = style,
+                color = color,
                 modifier = Modifier.padding(start = Spacing.m),
             )
         }
@@ -135,70 +144,40 @@ private fun ViewpointBody(content: String, example: String) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
         Markdown(
             content = content,
-            typography = viewpointReadingTypography(),
+            typography = MarkdownStyles.bookTypography(),
             padding = MarkdownStyles.cardPadding(),
         )
 
         if (example.isNotBlank()) {
-            ViewpointExampleSection(example = example)
+            Column(
+                modifier = Modifier.padding(top = Spacing.m),
+                verticalArrangement = Arrangement.spacedBy(Spacing.s),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Article,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(IconSize.m),
+                    )
+                    Text(
+                        text = "案例",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                Markdown(
+                    content = example,
+                    typography = MarkdownStyles.bookTypography(),
+                    padding = MarkdownStyles.cardPadding(),
+                )
+            }
         }
     }
-}
-
-@Composable
-private fun ViewpointExampleSection(example: String) {
-    Column(
-        modifier = Modifier.padding(top = Spacing.m),
-        verticalArrangement = Arrangement.spacedBy(Spacing.s),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Article,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(IconSize.m),
-            )
-            Text(
-                text = "案例",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-        Markdown(
-            content = example,
-            typography = viewpointReadingTypography(),
-            padding = MarkdownStyles.cardPadding(),
-        )
-    }
-}
-
-@Composable
-private fun viewpointReadingTypography(): MarkdownTypography {
-    val body = MaterialTheme.typography.bodyMedium.copy(
-        fontSize = MaterialTheme.typography.bodyLarge.fontSize,
-        lineHeight = MaterialTheme.typography.bodyLarge.lineHeight,
-    )
-    return DefaultMarkdownTypography(
-        h1 = MaterialTheme.typography.titleLarge,
-        h2 = MaterialTheme.typography.titleMedium,
-        h3 = MaterialTheme.typography.titleSmall,
-        h4 = MaterialTheme.typography.titleSmall,
-        h5 = MaterialTheme.typography.titleSmall,
-        h6 = MaterialTheme.typography.labelLarge,
-        text = body,
-        code = MaterialTheme.typography.bodySmall,
-        inlineCode = MaterialTheme.typography.labelMedium,
-        quote = body,
-        paragraph = body,
-        ordered = body,
-        bullet = body,
-        list = body,
-        link = body.copy(fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary),
-    )
 }
 
 @Composable

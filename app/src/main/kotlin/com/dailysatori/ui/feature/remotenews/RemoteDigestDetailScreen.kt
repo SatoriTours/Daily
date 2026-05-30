@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteDigest
 import com.dailysatori.ui.component.news.MagazineArticleBody
 import com.dailysatori.ui.component.news.MagazineArticleHeader
@@ -28,7 +29,7 @@ import com.dailysatori.ui.theme.Spacing
 fun RemoteDigestDetailScreen(
     digest: RemoteDigest,
     onBack: () -> Unit,
-    onArticleClick: (Long) -> Unit,
+    onArticleClick: (RemoteArticle) -> Unit,
 ) {
     BackHandler(onBack = onBack)
 
@@ -43,7 +44,7 @@ fun RemoteDigestDetailScreen(
                 item { HorizontalDivider(modifier = Modifier.padding(vertical = Spacing.s)) }
                 item { RemoteDigestReferencedArticlesHeader(digest.articles.size) }
                 items(digest.articles, key = { it.id }) { article ->
-                    RemoteArticleSummaryCard(article = article, onClick = { onArticleClick(article.id) })
+                    RemoteArticleSummaryCard(article = article, onClick = { onArticleClick(article) })
                 }
             }
         }

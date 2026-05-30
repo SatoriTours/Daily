@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.config.RemoteNewsConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.ArticleRepository
+import com.dailysatori.data.repository.needsLocalAiReprocessingForChineseOutput
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteDigest
@@ -13,6 +14,7 @@ import com.dailysatori.service.remotenews.RemoteNewsConfigValues
 import com.dailysatori.service.remotenews.RemoteNewsPagination
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
+import com.dailysatori.service.parser.WebpageParserService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,6 +46,7 @@ data class RemoteNewsState(
     val isLoadingMore: Boolean = false,
     val refreshCompletedToken: Int = 0,
     val error: String? = null,
+    val detailError: String? = null,
     val loadMoreError: String? = null,
 )
 
@@ -51,6 +54,7 @@ class RemoteNewsViewModel(
     private val settingRepo: SettingRepository,
     private val remoteNewsService: RemoteNewsService,
     private val articleRepo: ArticleRepository,
+    private val webpageParserService: WebpageParserService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RemoteNewsState())
     val state: StateFlow<RemoteNewsState> = _state.asStateFlow()
@@ -89,35 +93,28 @@ class RemoteNewsViewModel(
 
     fun openDigest(id: Long) {
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isLoading = true, error = null) }
+            _state.update { it.copy(isLoading = true, detailError = null) }
             val config = currentConfigOrSetError() ?: return@launch
             when (val result = remoteNewsService.fetchDigest(config, id)) {
                 is RemoteNewsResult.Success -> _state.update { it.copy(selectedDigest = result.value.digest, isLoading = false) }
-                is RemoteNewsResult.Failure -> _state.update { it.copy(error = result.message, isLoading = false) }
+                is RemoteNewsResult.Failure -> _state.update { it.copy(detailError = result.message, isLoading = false) }
             }
         }
     }
 
-    fun closeDigest() = _state.update { it.copy(selectedDigest = null) }
+    fun closeDigest() = _state.update { it.copy(selectedDigest = null, detailError = null) }
 
-    fun openArticle(id: Long) {
+    fun openArticle(article: RemoteArticle) {
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isLoading = true, error = null) }
-            val config = currentConfigOrSetError() ?: return@launch
-            when (val result = remoteNewsService.fetchArticle(config, id)) {
-                is RemoteNewsResult.Success -> {
-                    val article = result.value.article
-                    val local = articleRepo.findLocalArticleForRemote(article)
-                    _state.update {
-                        it.copy(
-                            selectedArticle = article,
-                            selectedArticleLocalId = local?.id,
-                            selectedArticleIsFavorite = local?.is_favorite == 1L,
-                            isLoading = false,
-                        )
-                    }
-                }
-                is RemoteNewsResult.Failure -> _state.update { it.copy(error = result.message, isLoading = false) }
+            _state.update { it.copy(isLoading = true, detailError = null) }
+            val local = articleRepo.findLocalArticleForRemote(article)
+            _state.update {
+                it.copy(
+                    selectedArticle = article,
+                    selectedArticleLocalId = local?.id,
+                    selectedArticleIsFavorite = local?.is_favorite == 1L,
+                    isLoading = false,
+                )
             }
         }
     }
@@ -140,6 +137,7 @@ class RemoteNewsViewModel(
                     }
                 } else {
                     val saved = articleRepo.saveRemoteArticleAsFavorite(article)
+                    reprocessEnglishRemoteArticle(article, saved?.id)
                     _state.update { state ->
                         if (state.selectedArticle?.id == article.id) {
                             state.copy(
@@ -159,9 +157,16 @@ class RemoteNewsViewModel(
         }
     }
 
-    fun closeArticle() = _state.update {
-        it.copy(selectedArticle = null, selectedArticleLocalId = null, selectedArticleIsFavorite = false)
+    private suspend fun reprocessEnglishRemoteArticle(article: RemoteArticle, savedId: Long?) {
+        if (savedId == null || !article.needsLocalAiReprocessingForChineseOutput()) return
+        webpageParserService.reprocessArticle(savedId)
     }
+
+    fun closeArticle() = _state.update {
+        it.copy(selectedArticle = null, selectedArticleLocalId = null, selectedArticleIsFavorite = false, detailError = null)
+    }
+
+    fun closeDetailError() = _state.update { it.copy(detailError = null) }
 
     private fun loadMode(mode: RemoteNewsMode, refresh: Boolean) = loadPage(mode, 1, append = false, refresh = refresh)
 

@@ -389,7 +389,7 @@ private fun RemoteArticle.toUnifiedSource(
     fallbackTime: String? = null,
     sourceFilename: String? = null,
 ): UnifiedNewsSourceItem? {
-    val rawTime = processedAt ?: createdAt ?: fallbackTime
+    val rawTime = publishedAt ?: processedAt ?: createdAt ?: fallbackTime
     val time = rawTime?.let(::parseSourceTimeMillis) ?: parseDigestDateMillis(fallbackTime) ?: return null
     if (!ignoreSourceTimeFilter && time !in window.startMs..window.endMs) return null
     return UnifiedNewsSourceItem(

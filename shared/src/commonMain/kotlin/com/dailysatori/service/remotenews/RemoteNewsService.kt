@@ -73,10 +73,10 @@ class RemoteNewsService(private val client: HttpClient) {
 
     private suspend fun <T> request(block: suspend () -> T): RemoteNewsResult<T> = try {
         RemoteNewsResult.Success(block())
-    } catch (_: ClientRequestException) {
-        RemoteNewsResult.Failure("Token 无效，请检查远程新闻设置")
-    } catch (_: ServerResponseException) {
-        RemoteNewsResult.Failure("远程新闻服务暂时不可用")
+    } catch (e: ClientRequestException) {
+        RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(e.response.bodyAsText()) ?: "Token 无效，请检查远程新闻设置")
+    } catch (e: ServerResponseException) {
+        RemoteNewsResult.Failure(parseRemoteNewsErrorMessage(e.response.bodyAsText()) ?: "远程新闻服务暂时不可用")
     } catch (_: Exception) {
         RemoteNewsResult.Failure("无法连接远程新闻服务")
     }
@@ -86,18 +86,26 @@ private val remoteNewsJson = Json { ignoreUnknownKeys = true; isLenient = true }
 
 internal fun parseTopArticlesTodayResponse(body: String): RemoteArticlesResponse {
     val root = remoteNewsJson.parseToJsonElement(body)
-    val direct = runCatching { remoteNewsJson.decodeFromJsonElement<RemoteArticlesResponse>(root) }.getOrNull()
-    if (direct != null && (direct.articles.isNotEmpty() || root.hasObjectKey("articles"))) return direct
-
-    val articles = topArticlesElement(root)
-        ?.asArticleArray()
-        ?.mapNotNull(::decodeTopArticle)
-        .orEmpty()
+    val articlesElement = topArticlesElement(root)
+    val articles = articlesElement?.asArticleArray()?.mapNotNull(::decodeTopArticle).orEmpty()
     val pagination = (root as? JsonObject)
         ?.get("pagination")
         ?.let { runCatching { remoteNewsJson.decodeFromJsonElement<RemoteNewsPagination>(it) }.getOrNull() }
         ?: RemoteNewsPagination()
+    if (articlesElement != null) return RemoteArticlesResponse(articles = articles, pagination = pagination)
+
+    val direct = runCatching { remoteNewsJson.decodeFromJsonElement<RemoteArticlesResponse>(root) }.getOrNull()
+    if (direct != null) return direct
     return RemoteArticlesResponse(articles = articles, pagination = pagination)
+}
+
+internal fun parseRemoteNewsErrorMessage(body: String): String? {
+    val root = runCatching { remoteNewsJson.parseToJsonElement(body) }.getOrNull() as? JsonObject ?: return null
+    val error = root["error"]
+    val nestedMessage = (error as? JsonObject)?.stringValue("message")
+    val topMessage = root.stringValue("message")
+    val directError = (error as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+    return nestedMessage ?: topMessage ?: directError
 }
 
 private fun topArticlesElement(root: JsonElement): JsonElement? {
@@ -114,8 +122,8 @@ private fun JsonElement.asArticleArray(): JsonArray? = this as? JsonArray
 
 private fun decodeTopArticle(element: JsonElement): RemoteArticle? {
     val articleElement = (element as? JsonObject)?.get("article") ?: element
-    return runCatching { remoteNewsJson.decodeFromJsonElement<RemoteArticle>(articleElement) }.getOrNull()
-        ?: decodeTopArticleObject(articleElement as? JsonObject)
+    return decodeTopArticleObject(articleElement as? JsonObject)
+        ?: runCatching { remoteNewsJson.decodeFromJsonElement<RemoteArticle>(articleElement) }.getOrNull()
 }
 
 private fun decodeTopArticleObject(obj: JsonObject?): RemoteArticle? {
@@ -134,6 +142,7 @@ private fun decodeTopArticleObject(obj: JsonObject?): RemoteArticle? {
         domain = obj.stringValue("domain"),
         importanceScore = obj.doubleValue("importance_score") ?: obj.doubleValue("importanceScore"),
         coverUrl = obj.stringValue("cover_url") ?: obj.stringValue("coverUrl"),
+        publishedAt = obj.stringValue("published_at") ?: obj.stringValue("publishedAt"),
         createdAt = obj.stringValue("created_at") ?: obj.stringValue("createdAt"),
         processedAt = obj.stringValue("processed_at") ?: obj.stringValue("processedAt"),
         content = obj.stringValue("content"),

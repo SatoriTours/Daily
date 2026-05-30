@@ -12,6 +12,7 @@
 | [04-style-guide](./04-style-guide.md) | 样式系统快速参考 |
 | [05-i18n-guide](./05-i18n-guide.md) | 国际化开发指南 |
 | [06-koin-viewmodel-guide](./06-koin-viewmodel-guide.md) | Koin + ViewModel 最佳实践 |
+| [08-remote-news-api](./08-remote-news-api.md) | 远程新闻接口标准与兼容格式 |
 
 ## 🔗 入口文件
 
@@ -30,3 +31,4 @@
 | **04-style-guide** | 颜色、间距、字体、组件样式 |
 | **05-i18n-guide** | 国际化使用方式、配置文件 |
 | **06-koin-viewmodel-guide** | ViewModel 注入、状态管理、Koin 模块约束 |
+| **08-remote-news-api** | 远程新闻源接口、字段格式、兼容响应 |

@@ -12,6 +12,7 @@
 | [04-style-guide](./docs/04-style-guide.md) | 样式系统参考 |
 | [05-i18n-guide](./docs/05-i18n-guide.md) | 国际化指南 |
 | [06-koin-viewmodel-guide](./docs/06-koin-viewmodel-guide.md) | Koin + ViewModel 最佳实践 |
+| [08-remote-news-api](./docs/08-remote-news-api.md) | 远程新闻接口标准 |
 
 ## 核心约束
 

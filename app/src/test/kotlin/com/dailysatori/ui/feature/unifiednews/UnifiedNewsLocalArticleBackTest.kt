@@ -50,10 +50,11 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("fun selectSummarySource()"))
         assertTrue(source.contains("fun selectRemoteSource(source: UnifiedNewsRemoteSourceOption)"))
         assertTrue(source.contains("fun refreshSelectedRemoteSource()"))
-        assertTrue(source.contains("fun openSourceArticle(sourceId: Long, articleId: Long)"))
+        assertTrue(source.contains("fun openSourceArticle(article: RemoteArticle)"))
         assertTrue(source.contains("sourceArticlesByCacheKey.containsKey(cacheKey)"))
         assertTrue(source.contains("remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)"))
-        assertTrue(source.contains("openCitationSource(\"remote_article\", articleId, remoteNewsSourceRouteKey(sourceId))"))
+        assertTrue(source.contains("selectedRemoteArticle = article"))
+        assertTrue(source.contains("articleRepo.findLocalArticleForRemote(article)"))
         assertTrue(source.contains("import java.util.concurrent.atomic.AtomicLong"))
         assertTrue(source.contains("private val sourceArticleRequestToken = AtomicLong(0L)"))
         assertTrue(source.contains("private val sourceArticleRequestLock = Any()"))
@@ -86,7 +87,7 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("Text(\"汇总\")"))
         assertTrue(source.contains("sourceArticlesLoadingSourceId == selection.id"))
         assertTrue(source.contains("这个来源今天还没有新闻"))
-        assertTrue(source.contains("viewModel.openSourceArticle(selection.id, article.id)"))
+        assertTrue(source.contains("viewModel.openSourceArticle(article)"))
     }
 
     @Test
@@ -120,10 +121,11 @@ class UnifiedNewsLocalArticleBackTest {
         val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val screen = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
 
-        assertTrue(viewModel.contains("fun openSourceArticle(sourceId: Long, articleId: Long)"))
-        assertTrue(viewModel.contains("openCitationSource(\"remote_article\", articleId, remoteNewsSourceRouteKey(sourceId))"))
+        assertTrue(viewModel.contains("fun openSourceArticle(article: RemoteArticle)"))
+        assertTrue(viewModel.contains("selectedRemoteArticle = article"))
+        assertTrue(viewModel.contains("articleRepo.findLocalArticleForRemote(article)"))
         assertFalse(viewModel.contains("fun openSelectedSourceArticle(articleId: Long)"))
-        assertTrue(screen.contains("viewModel.openSourceArticle(selection.id, article.id)"))
+        assertTrue(screen.contains("viewModel.openSourceArticle(article)"))
     }
 
     @Test

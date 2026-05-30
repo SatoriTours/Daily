@@ -72,6 +72,7 @@ fun RemoteNewsScreen() {
             onFavoriteClick = viewModel::toggleSelectedArticleFavorite,
         )
         state.selectedDigest != null -> RemoteDigestDetailScreen(state.selectedDigest!!, viewModel::closeDigest, viewModel::openArticle)
+        state.detailError != null -> RemoteNewsDetailError(state.detailError.orEmpty(), viewModel::closeDetailError)
         else -> RemoteNewsListScreen(state, viewModel)
     }
 }
@@ -162,6 +163,18 @@ private fun RemoteNewsError(message: String, onRetry: () -> Unit) {
 }
 
 @Composable
+private fun RemoteNewsDetailError(message: String, onBack: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(Spacing.m),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(message, color = MaterialTheme.colorScheme.error)
+        TextButton(onClick = onBack) { Text("返回") }
+    }
+}
+
+@Composable
 private fun RemoteNewsLazyList(state: RemoteNewsState, listState: LazyListState, viewModel: RemoteNewsViewModel) {
     LazyColumn(
         state = listState,
@@ -175,7 +188,7 @@ private fun RemoteNewsLazyList(state: RemoteNewsState, listState: LazyListState,
                     DigestBody(digest = digest, modifier = Modifier.padding(Spacing.m))
                 }
             }
-            RemoteNewsMode.ARTICLES -> items(state.articles, key = { it.id }) { RemoteArticleSummaryCard(it) { viewModel.openArticle(it.id) } }
+            RemoteNewsMode.ARTICLES -> items(state.articles, key = { it.id }) { RemoteArticleSummaryCard(it) { viewModel.openArticle(it) } }
             RemoteNewsMode.FEEDS -> items(state.feeds, key = { it.id }) { FeedCard(it) }
             RemoteNewsMode.CRAYFISH -> Unit
         }

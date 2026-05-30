@@ -144,8 +144,13 @@ val viewModelModule: Module = module {
             settingRepo = get<SettingRepository>(),
         )
     }
-    viewModel { UnifiedNewsViewModel(get(), get(), get(), get(), get(), get<ArticleRepository>(), com.dailysatori.BuildConfig.DEBUG) }
-    viewModel { RemoteNewsViewModel(get(), get(), get<ArticleRepository>()) }
+    viewModel {
+        UnifiedNewsViewModel(
+            get(), get(), get(), get(), get(), get<ArticleRepository>(),
+            get<WebpageParserService>(), com.dailysatori.BuildConfig.DEBUG,
+        )
+    }
+    viewModel { RemoteNewsViewModel(get(), get(), get<ArticleRepository>(), get<WebpageParserService>()) }
     viewModel { RemoteNewsSettingsViewModel(get(), get()) }
     viewModel {
         SettingsViewModel(

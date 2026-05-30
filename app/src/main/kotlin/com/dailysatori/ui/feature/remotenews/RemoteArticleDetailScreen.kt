@@ -253,7 +253,7 @@ private fun RemoteArticleCoverImage(imageUrl: String, modifier: Modifier = Modif
 private fun remoteArticleMetaChips(article: RemoteArticle): List<String> = listOfNotNull(
     article.feedName,
     article.domain,
-    article.createdAt?.take(10),
+    article.publishedAt?.take(10) ?: article.createdAt?.take(10),
     article.importanceScore?.let { "重要性 ${String.format("%.1f", it)}" },
 ).filter { it.isNotBlank() }.take(4)
 

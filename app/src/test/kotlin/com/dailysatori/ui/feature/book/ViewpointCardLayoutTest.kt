@@ -50,11 +50,11 @@ class ViewpointCardLayoutTest {
     @Test
     fun viewpointCaseHeadingIsChineseAndVisuallyEmphasized() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
-        val caseBody = source.extractCallBlock("private fun ViewpointExampleSection(")
+        val caseBody = source.extractCallBlock("private fun ViewpointBody(")
 
         assertTrue(caseBody.contains("text = \"案例\""))
         assertTrue(caseBody.contains("Icons.AutoMirrored.Filled.Article"))
-        assertTrue(caseBody.contains("MaterialTheme.typography.bodyLarge"))
+        assertTrue(caseBody.contains("MaterialTheme.typography.titleMedium"))
         assertTrue(caseBody.contains("Modifier.size(IconSize.m)"))
         assertTrue(caseBody.contains("modifier = Modifier.padding(top = Spacing.m)"))
         assertTrue(caseBody.contains("FontWeight.Bold"))
@@ -68,21 +68,18 @@ class ViewpointCardLayoutTest {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
         val headerBody = source.extractCallBlock("private fun ViewpointHeader(")
         val body = source.extractCallBlock("private fun ViewpointBody(")
-        val caseBody = source.extractCallBlock("private fun ViewpointExampleSection(")
 
-        assertTrue(headerBody.contains("MaterialTheme.typography.titleMedium"))
+        assertTrue(headerBody.contains("MaterialTheme.typography.headlineSmall"))
         assertTrue(!headerBody.contains("headlineMedium"), "Book title should not use oversized headline typography")
-        assertTrue(body.contains("viewpointReadingTypography()"), "Body should use slightly larger reading typography")
-        assertTrue(caseBody.contains("viewpointReadingTypography()"), "Example should use slightly larger reading typography")
-        assertTrue(source.contains("MaterialTheme.typography.bodyMedium.copy"))
-        assertTrue(!body.contains("MarkdownStyles.bookTypography()"), "Body should not return to oversized book typography")
+        assertTrue(body.contains("MarkdownStyles.bookTypography()"), "Body should use shared book reading typography")
+        assertTrue(!source.contains("fontSize ="), "Viewpoint typography should not hardcode font sizes")
     }
 
     @Test
     fun viewpointTitleIsCenteredAndCaseHeadingUsesPrimaryTextColor() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
         val headerBody = source.extractCallBlock("private fun ViewpointHeader(")
-        val caseBody = source.extractCallBlock("private fun ViewpointExampleSection(")
+        val caseBody = source.extractCallBlock("private fun ViewpointBody(")
 
         assertTrue(headerBody.contains("textAlign = TextAlign.Center"))
         assertTrue(caseBody.contains("color = MaterialTheme.colorScheme.primary"))
