@@ -2297,11 +2297,11 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun remoteArticleDetailTabsUseFallbacksForMissingContent() {
         assertEquals(
-            "暂无摘要内容",
+            "暂无摘要内容，请刷新当前来源后重试。",
             remoteArticleDetailPageContent(page = 0, summary = " ", viewpoints = emptyList(), original = null),
         )
         assertEquals(
-            "暂无原文内容",
+            "暂无原文内容，请刷新当前来源后重试。",
             remoteArticleDetailPageContent(page = 1, summary = null, viewpoints = listOf("观点"), original = ""),
         )
     }
