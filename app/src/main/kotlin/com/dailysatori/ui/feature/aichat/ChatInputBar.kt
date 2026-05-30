@@ -73,15 +73,6 @@ fun ChatInputBar(
     isProcessing: Boolean,
     onSuggestionClick: (String) -> Unit = { suggestion -> onInputChange(chatInputTextAfterSuggestion(inputText, suggestion)) },
 ) {
-    var isFocused by remember { mutableStateOf(false) }
-    val inputShape = RoundedCornerShape(Radius.circular)
-    val contentPadding = PaddingValues(
-        top = Spacing.xs,
-        bottom = Spacing.xs,
-        start = Spacing.xs,
-        end = Spacing.xs,
-    )
-    val action = chatInputAction(isProcessing)
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -94,83 +85,102 @@ fun ChatInputBar(
             if (chatInputShowsSuggestions(inputText, isProcessing)) {
                 ChatInputSuggestions(onSuggestionClick)
             }
-            Surface(
-                shape = inputShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                tonalElevation = 0.dp,
+            ChatInputField(
+                inputText = inputText,
+                onInputChange = onInputChange,
+                onSend = onSend,
+                onStop = onStop,
+                isProcessing = isProcessing,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+fun ChatInputField(
+    inputText: String,
+    onInputChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onStop: () -> Unit,
+    isProcessing: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val inputShape = RoundedCornerShape(Radius.circular)
+    val contentPadding = PaddingValues(
+        top = Spacing.xs,
+        bottom = Spacing.xs,
+        start = Spacing.xs,
+        end = Spacing.xs,
+    )
+    val action = chatInputAction(isProcessing)
+    Surface(
+        shape = inputShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        tonalElevation = 0.dp,
+        modifier = modifier.border(
+            width = 1.dp,
+            color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.22f),
+            shape = inputShape,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(start = Spacing.s, end = Spacing.xs, top = Spacing.xxs, bottom = Spacing.xxs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BasicTextField(
+                value = inputText,
+                onValueChange = onInputChange,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .border(
-                        width = 1.dp,
-                        color = if (isFocused) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.22f)
-                        },
-                        shape = inputShape,
-                    ),
-            ) {
-                Row(
-                    modifier = Modifier.padding(start = Spacing.s, end = Spacing.xs, top = Spacing.xxs, bottom = Spacing.xxs),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    BasicTextField(
-                        value = inputText,
-                        onValueChange = onInputChange,
-                        modifier = Modifier
-                            .weight(1f)
-                            .onFocusChanged { isFocused = it.isFocused },
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                        ),
-                        minLines = 1,
-                        maxLines = 3,
-                        enabled = true,
-                        decorationBox = { innerTextField ->
-                            Box(
-                                modifier = Modifier.heightIn(min = ChatInputContentMinHeight)
-                                    .padding(contentPadding),
-                                contentAlignment = Alignment.CenterStart,
-                            ) {
-                                if (inputText.isEmpty()) {
-                                    Text(
-                                        chatInputPlaceholderText(),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                    )
-                                }
-                                innerTextField()
-                            }
-                        },
-                    )
-                    Spacer(modifier = Modifier.width(Spacing.xs))
-                    FilledIconButton(
-                        onClick = {
-                            when (action) {
-                                ChatInputAction.Send -> onSend()
-                                ChatInputAction.Stop -> onStop()
-                            }
-                        },
-                        enabled = action == ChatInputAction.Stop || inputText.isNotBlank(),
-                        modifier = Modifier.size(ChatInputButtonSize),
-                        shape = CircleShape,
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = contentColorFor(MaterialTheme.colorScheme.primary),
-                            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        ),
+                    .weight(1f)
+                    .onFocusChanged { isFocused = it.isFocused },
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                minLines = 1,
+                maxLines = 3,
+                enabled = true,
+                decorationBox = { innerTextField ->
+                    Box(
+                        modifier = Modifier.heightIn(min = ChatInputContentMinHeight).padding(contentPadding),
+                        contentAlignment = Alignment.CenterStart,
                     ) {
-                        Icon(
-                            imageVector = when (action) {
-                                ChatInputAction.Send -> Icons.AutoMirrored.Filled.Send
-                                ChatInputAction.Stop -> Icons.Default.Stop
-                            },
-                            contentDescription = chatInputActionDescription(action),
-                            modifier = Modifier.size(16.dp),
-                        )
+                        if (inputText.isEmpty()) {
+                            Text(
+                                chatInputPlaceholderText(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            )
+                        }
+                        innerTextField()
                     }
-                }
+                },
+            )
+            Spacer(modifier = Modifier.width(Spacing.xs))
+            FilledIconButton(
+                onClick = {
+                    when (action) {
+                        ChatInputAction.Send -> onSend()
+                        ChatInputAction.Stop -> onStop()
+                    }
+                },
+                enabled = action == ChatInputAction.Stop || inputText.isNotBlank(),
+                modifier = Modifier.size(ChatInputButtonSize),
+                shape = CircleShape,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = contentColorFor(MaterialTheme.colorScheme.primary),
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                ),
+            ) {
+                Icon(
+                    imageVector = when (action) {
+                        ChatInputAction.Send -> Icons.AutoMirrored.Filled.Send
+                        ChatInputAction.Stop -> Icons.Default.Stop
+                    },
+                    contentDescription = chatInputActionDescription(action),
+                    modifier = Modifier.size(16.dp),
+                )
             }
         }
     }

@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.aichat
 
 import com.dailysatori.service.mcp.McpSearchResult
 import com.dailysatori.ui.feature.home.AI_CHAT_TAB_INDEX
+import com.dailysatori.ui.feature.home.TODAY_TAB_INDEX
 import com.dailysatori.ui.feature.home.homeBottomBarVisibleForTab
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -602,6 +603,58 @@ class AiChatUiStateTest {
     fun homeBottomBarRemainsVisibleOnAiTab() {
         assertTrue(chatInputUsesImePadding())
         assertTrue(homeBottomBarVisibleForTab(AI_CHAT_TAB_INDEX))
+        assertTrue(homeBottomBarVisibleForTab(TODAY_TAB_INDEX))
+    }
+
+    @Test
+    fun aiTabUsesSharedMorphingHomeBottomBar() {
+        val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+        val input = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/ChatInputBar.kt").readText()
+
+        assertTrue(home.contains("homeBottomBarVisibleForTab(selectedIndex)"))
+        assertTrue(home.contains("updateTransition(targetState = selectedIndex == AI_CHAT_TAB_INDEX"))
+        assertTrue(home.contains("HomeBottomBarSurface("))
+        assertTrue(home.contains("Icons.Filled.Language"))
+        assertTrue(home.contains("ChatInputField("))
+        assertTrue(home.contains("selectedIndex = TODAY_TAB_INDEX"))
+        assertFalse(screen.contains("AiChatCompactBottomBar("))
+        assertFalse(screen.contains("Icons.Filled.Home"))
+        assertFalse(screen.contains("bottomBar = {"))
+        assertTrue(input.contains("fun ChatInputField("))
+    }
+
+    @Test
+    fun aiBottomBarMorphUsesLayoutWidthInsteadOfTransformOnlyScale() {
+        val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+        val compactBody = home.substringAfter("private fun AiCompactInputRow(").substringBefore("private fun HomeTabNavigationBar(")
+
+        assertTrue(home.contains("animateFloat(label = \"home-bottom-ai-input-weight\")"))
+        assertTrue(home.contains("animateFloat(label = \"home-bottom-tabs-weight\")"))
+        assertTrue(compactBody.contains("IconButton("))
+        assertTrue(compactBody.contains("Icons.Filled.Language"))
+        assertTrue(home.contains("modifier = Modifier.weight(inputWeight)"))
+        assertFalse(compactBody.contains("NavigationBarItem("))
+        assertFalse(compactBody.contains("scaleX ="))
+        assertFalse(compactBody.contains("TransformOrigin("))
+    }
+
+    @Test
+    fun aiExpandedBottomBarRemovesOuterContainerBackgroundAndBorder() {
+        val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+
+        assertTrue(home.contains("animateFloat(label = \"home-bottom-container-alpha\")"))
+        assertTrue(home.contains("MaterialTheme.colorScheme.surface.copy(alpha = containerAlpha)"))
+        assertTrue(home.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant.copy(alpha = containerAlpha))"))
+    }
+
+    @Test
+    fun aiChatListAvoidsExtraBottomGapAboveHomeOwnedInput() {
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+        val lazyList = screen.substringAfter("LazyColumn(").substringBefore(") {\n                items(")
+
+        assertTrue(lazyList.contains("contentPadding = PaddingValues(top = Spacing.m, bottom = 0.dp)"))
+        assertFalse(lazyList.contains("bottom = Spacing.l"))
     }
 
     @Test

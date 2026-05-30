@@ -31,7 +31,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,8 +57,20 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import org.koin.androidx.compose.koinViewModel
 
+data class AiChatInputController(
+    val inputText: String,
+    val onInputChange: (String) -> Unit,
+    val onSend: () -> Unit,
+    val onStop: () -> Unit,
+    val isProcessing: Boolean,
+)
+
 @Composable
-fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}) {
+fun AiChatScreen(
+    onArticleClick: (Long) -> Unit = {},
+    onMyClick: () -> Unit = {},
+    onInputControllerChange: (AiChatInputController?) -> Unit = {},
+) {
     val viewModel: AiChatViewModel = koinViewModel()
     val referenceDetailViewModel: AiReferenceDetailViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
@@ -137,6 +151,29 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
         }
     }
 
+    val sendCurrentInput = {
+        if (inputText.isNotBlank()) {
+            viewModel.sendMessage(inputText)
+            inputText = ""
+        }
+    }
+
+    SideEffect {
+        onInputControllerChange(
+            AiChatInputController(
+                inputText = inputText,
+                onInputChange = { inputText = it },
+                onSend = sendCurrentInput,
+                onStop = viewModel::stopGeneration,
+                isProcessing = state.isProcessing,
+            ),
+        )
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { onInputControllerChange(null) }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -147,20 +184,6 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
                 onMyNavigationClick = onMyClick,
             )
         },
-        bottomBar = {
-            ChatInputBar(
-                inputText = inputText,
-                onInputChange = { inputText = it },
-                onSend = {
-                    if (inputText.isNotBlank()) {
-                        viewModel.sendMessage(inputText)
-                        inputText = ""
-                    }
-                },
-                onStop = viewModel::stopGeneration,
-                isProcessing = state.isProcessing,
-            )
-        },
     ) { padding ->
         if (state.messages.isEmpty()) {
             AiChatWelcomeBrief(modifier = Modifier.fillMaxSize().padding(padding))
@@ -169,7 +192,7 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
                 state = listState,
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
-                contentPadding = PaddingValues(top = Spacing.m, bottom = Spacing.l),
+                contentPadding = PaddingValues(top = Spacing.m, bottom = 0.dp),
             ) {
                 items(
                     items = displayMessages,
