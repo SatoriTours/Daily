@@ -41,6 +41,7 @@ import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -54,12 +55,18 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
     var showReferenceSheet by remember { mutableStateOf(false) }
     val loadOlderMessages = viewModel::loadOlderMessages
     val displayMessages = remember(state.messages) { aiChatDisplayMessages(state.messages) }
+    val showThinking = state.isProcessing && displayMessages.none { it.isStreaming }
+    val showStoppedStatus = !state.isProcessing && state.currentStep == aiChatStoppedStatusText()
+    var hasCompletedInitialScroll by remember { mutableStateOf(false) }
 
-    LaunchedEffect(listState, state.canLoadOlderMessages, state.isLoadingOlderMessages, state.messages.size) {
+    LaunchedEffect(listState, state.canLoadOlderMessages, state.isLoadingOlderMessages, state.messages.size, displayMessages.firstOrNull()?.id) {
         snapshotFlow {
             val visibleItems = listState.layoutInfo.visibleItemsInfo
+            val firstVisibleItem = visibleItems.minByOrNull { it.index }
             aiChatShouldLoadOlder(
-                lastVisibleItemIndex = visibleItems.maxOfOrNull { it.index } ?: 0,
+                firstVisibleItemIndex = firstVisibleItem?.index ?: 0,
+                firstVisibleItemKey = firstVisibleItem?.key,
+                oldestMessageId = displayMessages.firstOrNull()?.id,
                 totalItemsCount = listState.layoutInfo.totalItemsCount,
                 isScrollInProgress = listState.isScrollInProgress,
                 canLoadOlder = state.canLoadOlderMessages,
@@ -68,6 +75,44 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
             )
         }.distinctUntilChanged().collect { shouldLoad ->
             if (shouldLoad) loadOlderMessages()
+        }
+    }
+
+    LaunchedEffect(displayMessages.size) {
+        if (!aiChatShouldForceInitialBottomScroll(hasCompletedInitialScroll, displayMessages.size)) return@LaunchedEffect
+        val targetIndex = aiChatBottomScrollTargetIndex(
+            messageCount = displayMessages.size,
+            showThinking = showThinking,
+            showStoppedStatus = showStoppedStatus,
+        )
+        if (targetIndex < 0) return@LaunchedEffect
+        snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > targetIndex }
+        listState.scrollToItem(targetIndex)
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.any { it.index == targetIndex } }.first { it }
+        val bottomScrollOffset = aiChatBottomScrollOffsetForTarget(listState.layoutInfo, targetIndex)
+        listState.scrollToItem(targetIndex, scrollOffset = bottomScrollOffset)
+        hasCompletedInitialScroll = true
+    }
+
+    LaunchedEffect(displayMessages.size, displayMessages.lastOrNull()?.content, state.isProcessing) {
+        val targetIndex = aiChatBottomScrollTargetIndex(
+            messageCount = displayMessages.size,
+            showThinking = showThinking,
+            showStoppedStatus = showStoppedStatus,
+        )
+        if (targetIndex < 0) return@LaunchedEffect
+        val appendedStatusRows = if (showThinking || showStoppedStatus) 1 else 0
+        val nearBottom = aiChatIsNearBottom(
+            lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index,
+            targetIndex = targetIndex,
+            appendedStatusRows = appendedStatusRows,
+        )
+        if (!listState.isScrollInProgress && nearBottom) {
+            if (listState.layoutInfo.visibleItemsInfo.none { it.index == targetIndex }) {
+                listState.scrollToItem(targetIndex)
+            }
+            val bottomScrollOffset = aiChatBottomScrollOffsetForTarget(listState.layoutInfo, targetIndex)
+            listState.animateScrollToItem(targetIndex, scrollOffset = bottomScrollOffset)
         }
     }
 
@@ -111,18 +156,7 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
                 contentPadding = PaddingValues(top = Spacing.m, bottom = Spacing.l),
-                reverseLayout = true,
             ) {
-                if (state.isProcessing) {
-                    item(key = "thinking") {
-                        ThinkingIndicator()
-                    }
-                }
-                if (!state.isProcessing && state.currentStep == aiChatStoppedStatusText()) {
-                    item(key = "stopped") {
-                        AssistantStatusCard(text = state.currentStep)
-                    }
-                }
                 items(
                     items = displayMessages,
                     key = { it.id },
@@ -134,6 +168,16 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
                         onDelete = viewModel::deleteMessage,
                         onReAsk = viewModel::reAsk,
                     )
+                }
+                if (showThinking) {
+                    item(key = "thinking", contentType = "status") {
+                        ThinkingIndicator()
+                    }
+                }
+                if (showStoppedStatus) {
+                    item(key = "stopped", contentType = "status") {
+                        AssistantStatusCard(text = state.currentStep)
+                    }
                 }
             }
         }
@@ -226,19 +270,53 @@ fun aiChatShowsTopProgressIndicator(isProcessing: Boolean, currentStep: String):
 
 fun aiChatShowsThinkingBubble(isProcessing: Boolean): Boolean = isProcessing
 
-fun aiChatDisplayMessages(messages: List<ChatMessageUi>): List<ChatMessageUi> = messages.asReversed()
+fun aiChatDisplayMessages(messages: List<ChatMessageUi>): List<ChatMessageUi> = messages
 
 fun aiChatMessageContentType(message: ChatMessageUi): String = if (message.role == "user") "user" else "assistant"
 
+fun aiChatBottomScrollTargetIndex(
+    messageCount: Int,
+    showThinking: Boolean,
+    showStoppedStatus: Boolean,
+): Int = if (messageCount <= 0) -1 else messageCount - 1 + if (showThinking || showStoppedStatus) 1 else 0
+
+fun aiChatIsNearBottom(
+    lastVisibleIndex: Int?,
+    targetIndex: Int,
+    appendedStatusRows: Int,
+): Boolean = lastVisibleIndex == null || lastVisibleIndex >= targetIndex - 1 - appendedStatusRows
+
+fun aiChatShouldForceInitialBottomScroll(hasCompletedInitialScroll: Boolean, messageCount: Int): Boolean =
+    !hasCompletedInitialScroll && messageCount > 0
+
+fun aiChatBottomScrollOffset(itemSize: Int, viewportSize: Int, afterContentPadding: Int): Int {
+    val visibleViewport = (viewportSize - afterContentPadding).coerceAtLeast(0)
+    return (itemSize - visibleViewport).coerceAtLeast(0)
+}
+
+private fun aiChatBottomScrollOffsetForTarget(
+    layoutInfo: androidx.compose.foundation.lazy.LazyListLayoutInfo,
+    targetIndex: Int,
+): Int {
+    val targetItem = layoutInfo.visibleItemsInfo.firstOrNull { it.index == targetIndex } ?: return 0
+    return aiChatBottomScrollOffset(
+        itemSize = targetItem.size,
+        viewportSize = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset,
+        afterContentPadding = layoutInfo.afterContentPadding,
+    )
+}
+
 fun aiChatShouldLoadOlder(
-    lastVisibleItemIndex: Int,
+    firstVisibleItemIndex: Int,
+    firstVisibleItemKey: Any?,
+    oldestMessageId: String?,
     totalItemsCount: Int,
     isScrollInProgress: Boolean,
     canLoadOlder: Boolean,
     isLoadingOlder: Boolean,
     messageCount: Int,
 ): Boolean = messageCount > 0 && totalItemsCount > 0 && canLoadOlder && !isLoadingOlder && isScrollInProgress &&
-    lastVisibleItemIndex >= totalItemsCount - 2
+    firstVisibleItemIndex <= 1 && firstVisibleItemKey == oldestMessageId
 
 @Composable
 private fun ThinkingIndicator() {

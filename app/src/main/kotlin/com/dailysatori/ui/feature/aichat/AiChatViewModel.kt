@@ -34,6 +34,7 @@ data class ChatMessageUi(
     val isError: Boolean = false,
     val searchResults: List<McpSearchResult> = emptyList(),
     val steps: List<String> = emptyList(),
+    val isStreaming: Boolean = false,
 )
 
 enum class ChatMessageAction { Copy, Delete, ReAsk }
@@ -66,6 +67,9 @@ fun aiChatShowsMemorySearchAction(): Boolean = false
 
 fun aiChatHistoryPageSize(): Int = 12
 
+private fun aiChatAssistantContentIsError(content: String): Boolean =
+    content.startsWith("😔 **出现问题**") || content == aiChatBlankResponseMessage()
+
 fun buildAssistantMessageOrNull(
     answer: String,
     searchResults: List<McpSearchResult>,
@@ -79,11 +83,89 @@ fun buildAssistantMessageOrNull(
         role = "assistant",
         content = content,
         timestamp = now,
-        isError = content.startsWith("😔 **出现问题**") || content == aiChatBlankResponseMessage(),
+        isError = aiChatAssistantContentIsError(content),
         searchResults = searchResults,
         steps = steps,
     )
 }
+
+fun AiChatState.withStreamingAssistantChunk(
+    messageId: String,
+    chunk: String,
+    now: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+): AiChatState {
+    if (chunk.isEmpty()) return this
+    val index = messages.indexOfFirst { it.id == messageId }
+    val updatedMessages = if (index >= 0) {
+        messages.mapIndexed { i, message ->
+            if (i == index) message.copy(content = message.content + chunk, isStreaming = true) else message
+        }
+    } else {
+        messages + ChatMessageUi(
+            id = messageId,
+            role = "assistant",
+            content = chunk,
+            timestamp = now,
+            isStreaming = true,
+        )
+    }
+    return copy(messages = updatedMessages, isProcessing = true, currentStep = "")
+}
+
+fun AiChatState.finishedStreamingAssistant(
+    messageId: String,
+    finalContent: String,
+    searchResults: List<McpSearchResult>,
+    steps: List<String>,
+    now: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+): AiChatState {
+    var foundMessage = false
+    val updatedMessages = messages.map { message ->
+        if (message.id == messageId) {
+            foundMessage = true
+            val displayedContent = finalContent.ifBlank { message.content }
+            message.copy(
+                content = displayedContent,
+                isStreaming = false,
+                searchResults = searchResults,
+                steps = steps,
+                isError = aiChatAssistantContentIsError(displayedContent),
+            )
+        } else {
+            message
+        }
+    }
+    val finalMessages = if (!foundMessage && finalContent.isNotBlank()) {
+        updatedMessages + ChatMessageUi(
+            id = messageId,
+            role = "assistant",
+            content = finalContent,
+            timestamp = now,
+            isError = aiChatAssistantContentIsError(finalContent),
+            searchResults = searchResults,
+            steps = steps,
+            isStreaming = false,
+        )
+    } else {
+        updatedMessages
+    }
+    return copy(messages = finalMessages, isProcessing = false, currentStep = "")
+}
+
+fun AiChatState.withAssistantMessage(message: ChatMessageUi?): AiChatState = copy(
+    messages = message?.let { messages + it } ?: messages,
+    isProcessing = false,
+    currentStep = "",
+)
+
+fun AiChatState.finalizedAssistantMessageForPersistence(messageId: String): ChatMessageUi? =
+    messages.firstOrNull { it.id == messageId && it.role == "assistant" && !it.isStreaming }
+
+fun AiChatState.cancelledStreamingAssistant(messageId: String): AiChatState = copy(
+    messages = messages.filterNot { it.id == messageId && it.isStreaming },
+    isProcessing = false,
+    currentStep = aiChatStoppedStatusText(),
+)
 
 fun generateChatMessageId(now: Long): String {
     val r = (0..9999).random()
@@ -157,30 +239,39 @@ class AiChatViewModel(
         persistMessage(userMessage)
 
         activeRequestJob = viewModelScope.launch(Dispatchers.IO) {
+            val assistantMessageId = generateId()
             try {
                 val steps = mutableListOf<String>()
-                val result = mcpAgentService.processQuery(
+                val result = mcpAgentService.processQueryStreaming(
                     query = content,
                     onStep = { step, status ->
                         _state.update { it.copy(currentStep = step) }
                         if (status == "completed") steps.add(step)
                     },
+                    onChunk = { chunk ->
+                        _state.update { it.withStreamingAssistantChunk(assistantMessageId, chunk) }
+                    },
                 )
-                val assistantMessage = buildAssistantMessageOrNull(
+                val finalAssistantMessage = buildAssistantMessageOrNull(
                     answer = result.answer.ifBlank { aiChatBlankResponseMessage() },
                     searchResults = result.searchResults,
                     steps = steps,
-                )
+                )?.copy(id = assistantMessageId)
                 _state.update { current ->
-                    current.copy(
-                        messages = assistantMessage?.let { current.messages + it } ?: current.messages,
-                        isProcessing = false,
-                        currentStep = "",
-                    )
+                    if (current.messages.any { it.id == assistantMessageId }) {
+                        current.finishedStreamingAssistant(
+                            messageId = assistantMessageId,
+                            finalContent = finalAssistantMessage?.content ?: aiChatBlankResponseMessage(),
+                            searchResults = finalAssistantMessage?.searchResults.orEmpty(),
+                            steps = finalAssistantMessage?.steps.orEmpty(),
+                        )
+                    } else {
+                        current.withAssistantMessage(finalAssistantMessage)
+                    }
                 }
-                assistantMessage?.let { persistMessage(it) }
+                _state.value.finalizedAssistantMessageForPersistence(assistantMessageId)?.let { persistMessage(it) }
             } catch (_: CancellationException) {
-                _state.update { it.stoppedGeneration() }
+                _state.update { it.cancelledStreamingAssistant(assistantMessageId) }
             } finally {
                 activeRequestJob = null
             }

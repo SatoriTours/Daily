@@ -201,7 +201,7 @@ internal fun filterRelevantMcpResults(
 }
 
 internal fun removeMcpRefsTag(answer: String): String =
-    answer.replace(Regex("\\n*<!--\\s*refs:[^>]*-->\\s*$"), "").trim()
+    answer.replace(Regex("\\n*<!--\\s*refs:[^>]*-->\\s*", RegexOption.IGNORE_CASE), "\n").trim()
 
 internal fun buildMcpErrorResponse(message: String): String =
     """😔 **出现问题**

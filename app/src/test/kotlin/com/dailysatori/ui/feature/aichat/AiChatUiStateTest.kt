@@ -1,5 +1,6 @@
 package com.dailysatori.ui.feature.aichat
 
+import com.dailysatori.service.mcp.McpSearchResult
 import com.dailysatori.ui.feature.home.AI_CHAT_TAB_INDEX
 import com.dailysatori.ui.feature.home.homeBottomBarVisibleForTab
 import kotlin.test.Test
@@ -46,6 +47,152 @@ class AiChatUiStateTest {
     }
 
     @Test
+    fun streamingChunkCreatesOrUpdatesSingleAssistantMessage() {
+        val initial = AiChatState(messages = listOf(ChatMessageUi("u1", "user", "你好", 1L)))
+        val first = initial.withStreamingAssistantChunk(
+            messageId = "a1",
+            chunk = "第一段",
+            now = 2L,
+        )
+        val second = first.withStreamingAssistantChunk(
+            messageId = "a1",
+            chunk = "第二段",
+            now = 3L,
+        )
+
+        assertEquals(2, second.messages.size)
+        assertEquals("第一段第二段", second.messages.last().content)
+        assertTrue(second.messages.last().isStreaming)
+        assertTrue(second.isProcessing)
+        assertEquals("", second.currentStep)
+    }
+
+    @Test
+    fun streamingFinalizationAttachesReferencesAndStopsStreaming() {
+        val state = AiChatState(messages = listOf(ChatMessageUi("a1", "assistant", "草稿", 1L, isStreaming = true)))
+        val refs = listOf(McpSearchResult(1, "article", "新闻", "摘要", "2026-05-30"))
+
+        val finished = state.finishedStreamingAssistant(
+            messageId = "a1",
+            finalContent = "最终回答",
+            searchResults = refs,
+            steps = listOf("完成"),
+        )
+
+        assertFalse(finished.messages.first().isStreaming)
+        assertFalse(finished.isProcessing)
+        assertEquals("", finished.currentStep)
+        assertEquals("最终回答", finished.messages.first().content)
+        assertEquals(refs, finished.messages.first().searchResults)
+        assertEquals(listOf("完成"), finished.messages.first().steps)
+    }
+
+    @Test
+    fun streamingFinalizationAppendsFinalAnswerWhenNoChunkArrived() {
+        val initial = AiChatState(messages = listOf(ChatMessageUi("u1", "user", "你好", 1L)), isProcessing = true)
+        val refs = listOf(McpSearchResult(1, "article", "新闻", "摘要", "2026-05-30"))
+
+        val finished = initial.finishedStreamingAssistant(
+            messageId = "a1",
+            finalContent = "最终回答",
+            searchResults = refs,
+            steps = listOf("完成"),
+            now = 2L,
+        )
+
+        assertFalse(finished.isProcessing)
+        assertEquals("", finished.currentStep)
+        assertEquals(2, finished.messages.size)
+        assertEquals(ChatMessageUi("a1", "assistant", "最终回答", 2L, searchResults = refs, steps = listOf("完成")), finished.messages.last())
+    }
+
+    @Test
+    fun streamingFinalizationDetectsErrorFromDisplayedFallbackContent() {
+        val state = AiChatState(
+            messages = listOf(ChatMessageUi("a1", "assistant", aiChatBlankResponseMessage(), 1L, isStreaming = true)),
+        )
+
+        val finished = state.finishedStreamingAssistant(
+            messageId = "a1",
+            finalContent = "",
+            searchResults = emptyList(),
+            steps = emptyList(),
+        )
+
+        assertTrue(finished.messages.first().isError)
+        assertEquals(aiChatBlankResponseMessage(), finished.messages.first().content)
+    }
+
+    @Test
+    fun streamingFinalizationDoesNotAppendBlankFinalAnswerWhenNoChunkArrived() {
+        val initial = AiChatState(messages = listOf(ChatMessageUi("u1", "user", "你好", 1L)), isProcessing = true)
+
+        val finished = initial.finishedStreamingAssistant(
+            messageId = "a1",
+            finalContent = "",
+            searchResults = emptyList(),
+            steps = emptyList(),
+            now = 2L,
+        )
+
+        assertFalse(finished.isProcessing)
+        assertEquals("", finished.currentStep)
+        assertEquals(initial.messages, finished.messages)
+    }
+
+    @Test
+    fun finalizedStreamingAssistantMessageUsesExistingUiTimestampForPersistence() {
+        val refs = listOf(McpSearchResult(1, "article", "新闻", "摘要", "2026-05-30"))
+        val finished = AiChatState(
+            messages = listOf(ChatMessageUi("a1", "assistant", "草稿", 10L, isStreaming = true)),
+            isProcessing = true,
+        ).finishedStreamingAssistant(
+            messageId = "a1",
+            finalContent = "最终回答",
+            searchResults = refs,
+            steps = listOf("完成"),
+            now = 20L,
+        )
+
+        val message = finished.finalizedAssistantMessageForPersistence("a1")
+
+        assertEquals(10L, message?.timestamp)
+        assertEquals("最终回答", message?.content)
+        assertEquals(refs, message?.searchResults)
+        assertEquals(listOf("完成"), message?.steps)
+        assertFalse(message?.isStreaming ?: true)
+    }
+
+    @Test
+    fun cancelledStreamingAssistantRemovesTransientMessage() {
+        val state = AiChatState(
+            messages = listOf(
+                ChatMessageUi("u1", "user", "你好", 1L),
+                ChatMessageUi("a1", "assistant", "半段", 2L, isStreaming = true),
+            ),
+            isProcessing = true,
+            currentStep = "正在生成",
+        )
+
+        val cancelled = state.cancelledStreamingAssistant("a1")
+
+        assertEquals(listOf(ChatMessageUi("u1", "user", "你好", 1L)), cancelled.messages)
+        assertFalse(cancelled.isProcessing)
+        assertEquals(aiChatStoppedStatusText(), cancelled.currentStep)
+    }
+
+    @Test
+    fun emptyStreamingChunkLeavesStateUnchanged() {
+        val state = AiChatState(
+            messages = listOf(ChatMessageUi("a1", "assistant", "草稿", 1L, isStreaming = true)),
+            isProcessing = true,
+            currentStep = "正在生成",
+        )
+
+        assertEquals(state, state.withStreamingAssistantChunk(messageId = "a1", chunk = "", now = 2L))
+    }
+
+    @Test
     fun stoppedGenerationUsesTransientStatusText() {
         assertEquals("已停止生成", aiChatStoppedStatusText())
     }
@@ -73,8 +220,56 @@ class AiChatUiStateTest {
         assertEquals(ChatMessageTreatment.MutedUserNote, chatMessageTreatment(role = "user", isError = false))
         assertEquals(ChatMessageTreatment.StructuredAssistantNote, chatMessageTreatment(role = "assistant", isError = false))
         assertEquals(ChatMessageTreatment.ErrorNote, chatMessageTreatment(role = "assistant", isError = true))
-        assertTrue(assistantMessageUsesEditorialRail())
+        assertFalse(assistantMessageUsesEditorialRail())
         assertTrue(userMessageUsesMutedContainer())
+    }
+
+    @Test
+    fun assistantMessageAvoidsIntrinsicSizingAroundMarkdown() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/MessageBubble.kt").readText()
+
+        assertFalse(source.contains("IntrinsicSize"))
+        assertFalse(source.contains("height(IntrinsicSize.Min)"))
+    }
+
+    @Test
+    fun chatBubblesUseWechatAlignmentAndNoAssistantRail() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/MessageBubble.kt").readText()
+
+        assertTrue(source.contains("Arrangement.End"))
+        assertTrue(source.contains("Arrangement.Start"))
+        assertTrue(source.contains("widthIn(max = ChatUserBubbleMaxWidth)"))
+        assertTrue(source.contains("widthIn(max = ChatAssistantBubbleMaxWidth)"))
+        assertFalse(source.contains("drawRoundRect("))
+        assertFalse(source.contains("AssistantKicker("))
+        assertFalse(source.contains("text = \"AI 回复\""))
+    }
+
+    @Test
+    fun streamingAssistantUsesPlainTextBeforeMarkdown() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/MessageBubble.kt").readText()
+
+        assertTrue(source.contains("isStreaming = message.isStreaming"))
+        assertTrue(source.contains("if (isStreaming)"))
+        assertTrue(source.contains("Text("))
+        assertTrue(source.contains("Markdown("))
+    }
+
+    @Test
+    fun streamingAssistantSkipsStructuredParsingBeforePlainText() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/MessageBubble.kt").readText()
+
+        assertTrue(source.indexOf("if (isStreaming)") < source.indexOf("structuredAssistantContent(content)"))
+    }
+
+    @Test
+    fun viewModelUsesStreamingMcpPathAndPersistsFinalMessage() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatViewModel.kt").readText()
+
+        assertTrue(source.contains("processQueryStreaming("))
+        assertTrue(source.contains("withStreamingAssistantChunk("))
+        assertTrue(source.contains("finishedStreamingAssistant("))
+        assertTrue(source.contains("finalizedAssistantMessageForPersistence(assistantMessageId)?.let { persistMessage(it) }"))
     }
 
     @Test
@@ -91,6 +286,33 @@ class AiChatUiStateTest {
 
         assertEquals("AI 回复", structured.title)
         assertEquals("可以把焦虑写成控制感。", structured.body)
+    }
+
+    @Test
+    fun plainAssistantReplyDoesNotRenderFallbackTitle() {
+        assertFalse(assistantShouldRenderStructuredTitle(structuredAssistantContent("普通回答")))
+        assertTrue(assistantShouldRenderStructuredTitle(structuredAssistantContent("## 结论\n普通回答")))
+    }
+
+    @Test
+    fun assistantReplyDoesNotRenderHashtagAsStructuredTitle() {
+        val structured = structuredAssistantContent("#hashtag\n正文")
+
+        assertFalse(assistantShouldRenderStructuredTitle(structured))
+    }
+
+    @Test
+    fun assistantReplyDoesNotRenderInvalidAtxHeadingAsStructuredTitle() {
+        val structured = structuredAssistantContent("####### not heading\n正文")
+
+        assertFalse(assistantShouldRenderStructuredTitle(structured))
+    }
+
+    @Test
+    fun assistantReplyRendersValidAtxHeadingAsStructuredTitle() {
+        val structured = structuredAssistantContent("## 标题\n正文")
+
+        assertTrue(assistantShouldRenderStructuredTitle(structured))
     }
 
     @Test
@@ -156,18 +378,27 @@ class AiChatUiStateTest {
     }
 
     @Test
-    fun chatHistoryDisplaysNewestMessageFirstForReverseLayout() {
+    fun chatDisplayMessagesKeepsNaturalOrderForBottomAnchoredList() {
         val oldest = ChatMessageUi("old", "user", "最旧", 1L)
         val newest = ChatMessageUi("new", "assistant", "最新", 2L)
 
-        assertEquals(listOf(newest, oldest), aiChatDisplayMessages(listOf(oldest, newest)))
+        assertEquals(listOf(oldest, newest), aiChatDisplayMessages(listOf(oldest, newest)))
+    }
+
+    @Test
+    fun aiChatScreenDoesNotAllocateReversedListOnRecomposition() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+
+        assertFalse(source.contains("asReversed()"))
+        assertFalse(source.contains("reverseLayout = true"))
+        assertFalse(source.contains("animateScrollToItem(displayMessages.lastIndex)"))
+        assertTrue(source.contains("animateScrollToItem(targetIndex, scrollOffset = bottomScrollOffset)"))
     }
 
     @Test
     fun activeChatChangesStillAutoScroll() {
         val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
 
-        assertTrue(source.contains("reverseLayout = true"))
         assertTrue(source.contains("aiChatDisplayMessages(state.messages)"))
         assertFalse(source.contains("scrollToItem(currentMessageCount - 1)"))
         assertFalse(source.contains("animateScrollToItem(currentMessageCount - 1)"))
@@ -199,7 +430,9 @@ class AiChatUiStateTest {
     fun olderChatHistoryLoadsOnlyAfterUserScrollsToTop() {
         assertFalse(
             aiChatShouldLoadOlder(
-                lastVisibleItemIndex = 0,
+                firstVisibleItemIndex = 0,
+                firstVisibleItemKey = "old",
+                oldestMessageId = "old",
                 totalItemsCount = 12,
                 isScrollInProgress = false,
                 canLoadOlder = true,
@@ -209,13 +442,109 @@ class AiChatUiStateTest {
         )
         assertTrue(
             aiChatShouldLoadOlder(
-                lastVisibleItemIndex = 11,
+                firstVisibleItemIndex = 1,
+                firstVisibleItemKey = "old",
+                oldestMessageId = "old",
                 totalItemsCount = 12,
                 isScrollInProgress = true,
                 canLoadOlder = true,
                 isLoadingOlder = false,
                 messageCount = 12,
             ),
+        )
+        assertFalse(
+            aiChatShouldLoadOlder(
+                firstVisibleItemIndex = 8,
+                firstVisibleItemKey = "old",
+                oldestMessageId = "old",
+                totalItemsCount = 12,
+                isScrollInProgress = true,
+                canLoadOlder = true,
+                isLoadingOlder = false,
+                messageCount = 12,
+            ),
+        )
+    }
+
+    @Test
+    fun aiChatShouldLoadOlderRequiresVisibleOldestMessageKey() {
+        assertTrue(
+            aiChatShouldLoadOlder(
+                firstVisibleItemIndex = 1,
+                firstVisibleItemKey = "current-oldest",
+                oldestMessageId = "current-oldest",
+                totalItemsCount = 12,
+                isScrollInProgress = true,
+                canLoadOlder = true,
+                isLoadingOlder = false,
+                messageCount = 12,
+            ),
+        )
+        assertFalse(
+            aiChatShouldLoadOlder(
+                firstVisibleItemIndex = 1,
+                firstVisibleItemKey = "previous-oldest",
+                oldestMessageId = "current-oldest",
+                totalItemsCount = 12,
+                isScrollInProgress = true,
+                canLoadOlder = true,
+                isLoadingOlder = false,
+                messageCount = 12,
+            ),
+        )
+    }
+
+    @Test
+    fun aiChatBottomScrollTargetIncludesStatusRows() {
+        assertEquals(
+            2,
+            aiChatBottomScrollTargetIndex(messageCount = 3, showThinking = false, showStoppedStatus = false),
+        )
+        assertEquals(
+            3,
+            aiChatBottomScrollTargetIndex(messageCount = 3, showThinking = true, showStoppedStatus = false),
+        )
+        assertEquals(
+            3,
+            aiChatBottomScrollTargetIndex(messageCount = 3, showThinking = false, showStoppedStatus = true),
+        )
+        assertEquals(
+            -1,
+            aiChatBottomScrollTargetIndex(messageCount = 0, showThinking = true, showStoppedStatus = false),
+        )
+    }
+
+    @Test
+    fun aiChatNearBottomAllowsOldBottomWhenStatusRowIsAppended() {
+        assertTrue(aiChatIsNearBottom(lastVisibleIndex = 0, targetIndex = 2, appendedStatusRows = 1))
+        assertFalse(aiChatIsNearBottom(lastVisibleIndex = 0, targetIndex = 2, appendedStatusRows = 0))
+        assertTrue(aiChatIsNearBottom(lastVisibleIndex = null, targetIndex = 2, appendedStatusRows = 1))
+    }
+
+    @Test
+    fun initialLoadedChatForcesOneBottomScroll() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+
+        assertTrue(aiChatShouldForceInitialBottomScroll(hasCompletedInitialScroll = false, messageCount = 12))
+        assertFalse(aiChatShouldForceInitialBottomScroll(hasCompletedInitialScroll = true, messageCount = 12))
+        assertFalse(aiChatShouldForceInitialBottomScroll(hasCompletedInitialScroll = false, messageCount = 0))
+        assertTrue(source.contains("scrollToItem(targetIndex)"))
+        assertTrue(source.contains("scrollToItem(targetIndex, scrollOffset = bottomScrollOffset)"))
+    }
+
+    @Test
+    fun bottomScrollOffsetAlignsTallLastMessageToViewportBottom() {
+        assertEquals(
+            400,
+            aiChatBottomScrollOffset(itemSize = 1000, viewportSize = 600, afterContentPadding = 0),
+        )
+        assertEquals(
+            0,
+            aiChatBottomScrollOffset(itemSize = 300, viewportSize = 600, afterContentPadding = 0),
+        )
+        assertEquals(
+            432,
+            aiChatBottomScrollOffset(itemSize = 1000, viewportSize = 600, afterContentPadding = 32),
         )
     }
 
@@ -238,11 +567,11 @@ class AiChatUiStateTest {
     }
 
     @Test
-    fun firstCompositionNeverAutoScrolls() {
+    fun chatScreenAutoScrollsToComputedBottomTarget() {
         val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
 
-        assertFalse(source.contains("scrollStateInitialized"))
-        assertFalse(source.contains("previousMessageCount"))
+        assertTrue(source.contains("aiChatBottomScrollTargetIndex("))
+        assertTrue(source.contains("animateScrollToItem(targetIndex, scrollOffset = bottomScrollOffset)"))
     }
 
     @Test
@@ -283,6 +612,16 @@ class AiChatUiStateTest {
         assertEquals("展开剩余 7 条", referenceExpansionText(totalCount = 10, expanded = false))
         assertEquals("收起引用", referenceExpansionText(totalCount = 10, expanded = true))
         assertEquals(null, referenceExpansionText(totalCount = 3, expanded = false))
+    }
+
+    @Test
+    fun referenceSectionUsesFullWidthReadableCards() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/MessageBubble.kt").readText()
+
+        assertFalse(source.contains("fillMaxWidth(0.86f)"))
+        assertFalse(source.contains(".padding(start = Spacing.s)"))
+        assertTrue(source.contains("referenceSummaryMaxLines()"))
+        assertEquals(4, referenceSummaryMaxLines())
     }
 
     @Test

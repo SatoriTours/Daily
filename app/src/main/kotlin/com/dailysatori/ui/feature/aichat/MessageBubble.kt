@@ -1,17 +1,16 @@
 package com.dailysatori.ui.feature.aichat
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -36,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import com.dailysatori.service.mcp.canOpenSearchResult
 import com.dailysatori.service.mcp.McpSearchResult
 import com.dailysatori.service.mcp.searchResultTypeLabel
-import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
@@ -59,24 +57,31 @@ enum class ChatMessageTreatment { MutedUserNote, StructuredAssistantNote, ErrorN
 
 data class StructuredAssistantContent(val title: String, val body: String)
 
+private val MarkdownAtxHeadingPrefix = Regex("""^#{1,6}(\s+|$)""")
+private val ChatUserBubbleMaxWidth = 302.dp
+private val ChatAssistantBubbleMaxWidth = 336.dp
+
 fun chatMessageTreatment(role: String, isError: Boolean): ChatMessageTreatment = when {
     isError -> ChatMessageTreatment.ErrorNote
     role == "user" -> ChatMessageTreatment.MutedUserNote
     else -> ChatMessageTreatment.StructuredAssistantNote
 }
 
-fun assistantMessageUsesEditorialRail(): Boolean = true
+fun assistantMessageUsesEditorialRail(): Boolean = false
 
 fun userMessageUsesMutedContainer(): Boolean = true
 
 fun structuredAssistantContent(content: String): StructuredAssistantContent {
     val trimmed = content.trim()
     val firstLine = trimmed.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
-    if (!firstLine.startsWith("#")) return StructuredAssistantContent("AI 回复", trimmed)
+    if (!MarkdownAtxHeadingPrefix.containsMatchIn(firstLine)) return StructuredAssistantContent("AI 回复", trimmed)
     val title = firstLine.trimStart('#').trim().ifBlank { "AI 回复" }
     val body = trimmed.lines().drop(1).joinToString("\n").trim()
-    return StructuredAssistantContent(title, body.ifBlank { trimmed })
+    return StructuredAssistantContent(title, body)
 }
+
+fun assistantShouldRenderStructuredTitle(structured: StructuredAssistantContent): Boolean =
+    structured.title != "AI 回复" && structured.body.isNotBlank()
 
 @Composable
 fun MessageBubble(
@@ -99,9 +104,9 @@ fun MessageBubble(
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
-            Column(
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth(if (isUser) 0.82f else 0.96f)
+                    .chatBubbleWidth(isUser)
                     .pointerInput(message.id) { detectTapGestures(onLongPress = { showActions = true }) },
             ) {
                 Column {
@@ -109,6 +114,7 @@ fun MessageBubble(
                         ChatMessageTreatment.MutedUserNote -> MutedUserMessage(message.content)
                         ChatMessageTreatment.StructuredAssistantNote -> StructuredAssistantMessage(
                             content = assistantContent,
+                            isStreaming = message.isStreaming,
                             searchResults = message.searchResults,
                             onReferenceClick = onReferenceClick,
                         )
@@ -143,16 +149,24 @@ fun MessageBubble(
     }
 }
 
+private fun Modifier.chatBubbleWidth(isUser: Boolean): Modifier =
+    if (isUser) widthIn(max = ChatUserBubbleMaxWidth) else widthIn(max = ChatAssistantBubbleMaxWidth)
+
 @Composable
 private fun MutedUserMessage(content: String) {
     Surface(
-        shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        shape = RoundedCornerShape(
+            topStart = Radius.m,
+            topEnd = Radius.m,
+            bottomStart = Radius.m,
+            bottomEnd = Radius.xs,
+        ),
+        color = MaterialTheme.colorScheme.primaryContainer,
     ) {
         Text(
             text = content,
             modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
             style = MaterialTheme.typography.bodyMedium,
         )
     }
@@ -176,58 +190,55 @@ private fun ErrorAssistantMessage(content: String) {
 @Composable
 private fun StructuredAssistantMessage(
     content: String,
+    isStreaming: Boolean,
     searchResults: List<McpSearchResult>,
     onReferenceClick: (McpSearchResult) -> Unit,
 ) {
-    val structured = structuredAssistantContent(content)
-    Row(
-        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+    Surface(
+        shape = RoundedCornerShape(
+            topStart = Radius.m,
+            topEnd = Radius.m,
+            bottomStart = Radius.xs,
+            bottomEnd = Radius.m,
+        ),
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        Surface(
-            modifier = Modifier.width(BorderWidth.l).fillMaxHeight(),
-            shape = RoundedCornerShape(Radius.circular),
-            color = MaterialTheme.colorScheme.outlineVariant,
-        ) {}
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
             verticalArrangement = Arrangement.spacedBy(Spacing.s),
         ) {
-            AssistantKicker()
-            Text(
-                text = structured.title,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-            )
-            if (structured.body.isNotBlank()) {
-                Markdown(
-                    content = structured.body,
-                    typography = MarkdownStyles.summaryTypography(),
-                    padding = MarkdownStyles.summaryPadding(),
+            if (isStreaming) {
+                Text(
+                    text = content,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
+            } else {
+                val structured = structuredAssistantContent(content)
+                if (assistantShouldRenderStructuredTitle(structured)) {
+                    Text(
+                        text = structured.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Markdown(
+                        content = structured.body,
+                        typography = MarkdownStyles.summaryTypography(),
+                        padding = MarkdownStyles.summaryPadding(),
+                    )
+                } else {
+                    Markdown(
+                        content = content,
+                        typography = MarkdownStyles.summaryTypography(),
+                        padding = MarkdownStyles.summaryPadding(),
+                    )
+                }
             }
-            if (searchResults.isNotEmpty()) {
+            if (!isStreaming && searchResults.isNotEmpty()) {
                 SearchResultsSection(searchResults, onReferenceClick)
             }
         }
-    }
-}
-
-@Composable
-private fun AssistantKicker() {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-        Surface(
-            modifier = Modifier.width(BorderWidth.l).height(BorderWidth.l),
-            shape = RoundedCornerShape(Radius.circular),
-            color = MaterialTheme.colorScheme.primary,
-        ) {}
-        Text(
-            text = "AI 回复",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.SemiBold,
-        )
     }
 }
 
@@ -241,18 +252,16 @@ private fun SearchResultsSection(
     val visibleCount = visibleReferenceCount(results.size, sectionExpanded, listExpanded)
     Spacer(modifier = Modifier.height(Spacing.xs))
     Column(
-        modifier = Modifier
-            .fillMaxWidth(0.86f)
-            .padding(start = Spacing.s),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(Spacing.s),
     ) {
         Surface(
-            shape = RoundedCornerShape(Radius.circular),
+            shape = RoundedCornerShape(Radius.m),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
-            modifier = Modifier.clickable { sectionExpanded = !sectionExpanded },
+            modifier = Modifier.fillMaxWidth().clickable { sectionExpanded = !sectionExpanded },
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.s),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m, vertical = Spacing.s),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -287,8 +296,8 @@ private fun SearchResultCard(
     val canOpen = canOpenSearchResult(result.type)
     Surface(
         shape = RoundedCornerShape(Radius.l),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 1.dp,
         modifier = Modifier
             .fillMaxWidth()
             .then(if (canOpen) Modifier.clickable { onReferenceClick(result) } else Modifier),
@@ -333,7 +342,7 @@ private fun SearchResultCard(
                     text = summary,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
+                    maxLines = referenceSummaryMaxLines(),
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -348,3 +357,5 @@ private fun SearchResultCard(
         }
     }
 }
+
+fun referenceSummaryMaxLines(): Int = 4

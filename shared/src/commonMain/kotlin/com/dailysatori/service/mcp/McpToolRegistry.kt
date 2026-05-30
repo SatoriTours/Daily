@@ -9,6 +9,7 @@ import com.dailysatori.data.repository.MemoryRepository
 import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Book
 import com.dailysatori.shared.db.Diary
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.*
 
 class McpToolRegistry(
@@ -91,7 +92,7 @@ class McpToolRegistry(
             JsonObject(emptyMap())
         }
 
-        return try {
+        return runMcpToolCatching {
             when (toolName) {
                 "get_latest_diary" -> getLatestDiary(args)
                 "get_diary_by_date" -> getDiaryByDate(args)
@@ -114,8 +115,6 @@ class McpToolRegistry(
                 "get_memory_source" -> getMemorySource(args)
                 else -> errorResult("未知工具: $toolName")
             }
-        } catch (e: Exception) {
-            errorResult("工具执行失败: ${e.message}")
         }
     }
 
@@ -410,4 +409,12 @@ class McpToolRegistry(
         is com.dailysatori.shared.db.Book_viewpoint -> item.created_at
         else -> 0L
     }
+}
+
+internal suspend fun runMcpToolCatching(block: suspend () -> McpToolResult): McpToolResult = try {
+    block()
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Exception) {
+    errorResult("工具执行失败: ${e.message}")
 }

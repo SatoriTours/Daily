@@ -5,10 +5,13 @@ import io.ktor.client.HttpClient
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
+import io.ktor.client.request.preparePost
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.Json
@@ -123,6 +126,28 @@ class AiService(private val client: HttpClient) {
         }
     }
 
+    suspend fun chatCompletionStreaming(
+        messages: List<JsonObject>,
+        apiAddress: String,
+        apiToken: String,
+        modelName: String,
+        provider: String = "openai",
+        tools: List<JsonObject> = emptyList(),
+        temperature: Double = 0.7,
+        onChunk: suspend (String) -> Unit,
+    ): JsonObject? {
+        return try {
+            if (usesOpenAiCompatibleChatApi(provider)) {
+                rawOpenAiChatCompletionStreaming(apiAddress, apiToken, modelName, messages, tools, temperature, onChunk)
+            } else {
+                chatCompletion(messages, apiAddress, apiToken, modelName, provider, tools, temperature)
+            }
+        } catch (e: Exception) {
+            log.e(e) { "AI streaming chat completion failed" }
+            throw e
+        }
+    }
+
     private suspend fun rawOpenAiChatCompletion(
         apiAddress: String,
         apiToken: String,
@@ -145,6 +170,38 @@ class AiService(private val client: HttpClient) {
             throw IllegalStateException(body.ifBlank { "AI chat completion failed: HTTP ${response.status.value}" })
         }
         return json.parseToJsonElement(body) as JsonObject
+    }
+
+    private suspend fun rawOpenAiChatCompletionStreaming(
+        apiAddress: String,
+        apiToken: String,
+        modelName: String,
+        messages: List<JsonObject>,
+        tools: List<JsonObject>,
+        temperature: Double,
+        onChunk: suspend (String) -> Unit,
+    ): JsonObject? {
+        val fullText = StringBuilder()
+        client.preparePost(openAiChatCompletionEndpoint(apiAddress.trim())) {
+            timeout {
+                requestTimeoutMillis = aiChatRequestTimeoutMillis()
+                socketTimeoutMillis = aiChatRequestTimeoutMillis()
+            }
+            contentType(ContentType.Application.Json)
+            bearerAuth(apiToken.trim())
+            setBody(buildOpenAiChatCompletionRequest(modelName.trim(), messages, tools, temperature, stream = true).toString())
+        }.execute { response ->
+            if (response.status.value !in 200..299) {
+                throw IllegalStateException(response.bodyAsText().ifBlank { "AI chat completion failed: HTTP ${response.status.value}" })
+            }
+            val channel = response.bodyAsChannel()
+            while (!channel.isClosedForRead) {
+                val chunk = parseOpenAiStreamingContentChunk(channel.readUTF8Line() ?: break) ?: continue
+                fullText.append(chunk)
+                onChunk(chunk)
+            }
+        }
+        return if (fullText.isEmpty()) null else buildOpenAiStreamingResponse(fullText.toString())
     }
 
     suspend fun translate(
@@ -186,15 +243,41 @@ fun buildOpenAiChatCompletionRequest(
     messages: List<JsonObject>,
     tools: List<JsonObject>,
     temperature: Double,
+    stream: Boolean = false,
 ): JsonObject = buildJsonObject {
     put("model", JsonPrimitive(modelName))
     put("messages", JsonArray(messages))
     put("temperature", JsonPrimitive(temperature))
+    if (stream) put("stream", JsonPrimitive(true))
     if (tools.isNotEmpty()) {
         put("tools", JsonArray(tools))
         put("tool_choice", JsonPrimitive("auto"))
     }
 }
+
+fun parseOpenAiStreamingContentChunk(line: String): String? {
+    val data = line.trim().takeIf { it.startsWith("data:") }
+        ?.removePrefix("data:")
+        ?.trim()
+        ?: return null
+    if (data == "[DONE]") return null
+    return runCatching {
+        streamingJson.parseToJsonElement(data).jsonObject["choices"]?.jsonArray?.firstOrNull()
+            ?.jsonObject?.get("delta")?.jsonObject?.get("content")
+            ?.jsonPrimitive?.contentOrNull
+    }.getOrNull()
+}
+
+private fun buildOpenAiStreamingResponse(content: String): JsonObject = buildJsonObject {
+    put("choices", JsonArray(listOf(buildJsonObject {
+        put("message", buildJsonObject {
+            put("role", JsonPrimitive("assistant"))
+            put("content", JsonPrimitive(content))
+        })
+    })))
+}
+
+private val streamingJson = Json { ignoreUnknownKeys = true; isLenient = true }
 
 fun buildOpenAiTextCompletionMessages(prompt: String, systemPrompt: String?): List<JsonObject> = buildList {
     if (!systemPrompt.isNullOrBlank()) {

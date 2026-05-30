@@ -1,9 +1,12 @@
 package com.dailysatori.service.mcp
 
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -156,5 +159,113 @@ class McpAgentPresentationTest {
         assertTrue(service.contains("referencesForAnswer(answerForRefs, referenceBase, collectedResults)"))
         assertTrue(di.contains("single { AiSearchOrchestrator(get(), get(), get(), get(), get()) }"))
         assertTrue(di.contains("McpAgentService(get(), get(), get(), get())"))
+    }
+
+    @Test
+    fun mcpAgentExposesStreamingQueryPathWithFallback() {
+        val service = java.io.File("src/commonMain/kotlin/com/dailysatori/service/mcp/McpAgentService.kt").readText()
+
+        assertTrue(service.contains("suspend fun processQueryStreaming("))
+        assertTrue(service.contains("onChunk: suspend (String) -> Unit"))
+        assertTrue(service.contains("chatCompletionStreaming("))
+        assertTrue(service.contains("return processQuery(query, onStep)"))
+    }
+
+    @Test
+    fun noToolFinalAnswerPathStreamsInsteadOfDirectChunkEmission() {
+        val service = java.io.File("src/commonMain/kotlin/com/dailysatori/service/mcp/McpAgentService.kt").readText()
+        val noToolBranch = service
+            .substringAfter("} else {\n                finalAnswer = message[\"content\"]")
+            .substringBefore("break\n            }")
+
+        assertTrue(noToolBranch.contains("fetchFinalAnswerStreaming("))
+        assertFalse(noToolBranch.contains("onChunk(privacyMasker.restore(removeMcpRefsTag(finalAnswer.orEmpty())))"))
+    }
+
+    @Test
+    fun mcpAgentDoesNotSwallowCancellation() {
+        val service = java.io.File("src/commonMain/kotlin/com/dailysatori/service/mcp/McpAgentService.kt").readText()
+
+        assertTrue(service.contains("import kotlinx.coroutines.CancellationException"))
+        assertTrue(service.contains("catch (e: CancellationException)"))
+        assertTrue(service.contains("throw e"))
+        assertTrue(service.indexOf("catch (e: CancellationException)") < service.indexOf("catch (e: Exception)"))
+        assertTrue(Regex("catch \\(e: CancellationException\\)").findAll(service).count() >= 3)
+    }
+
+    @Test
+    fun mcpToolRegistryDoesNotSwallowCancellation() {
+        val registry = java.io.File("src/commonMain/kotlin/com/dailysatori/service/mcp/McpToolRegistry.kt").readText()
+
+        assertTrue(registry.contains("import kotlinx.coroutines.CancellationException"))
+        assertTrue(registry.contains("catch (e: CancellationException)"))
+        assertTrue(registry.contains("throw e"))
+        assertTrue(registry.indexOf("catch (e: CancellationException)") < registry.indexOf("catch (e: Exception)"))
+    }
+
+    @Test
+    fun mcpToolCatchingRethrowsCancellationAndConvertsOrdinaryExceptions() = runBlocking {
+        assertFailsWith<CancellationException> {
+            runMcpToolCatching { throw CancellationException("stop") }
+        }
+
+        val result = runMcpToolCatching { throw IllegalStateException("boom") }
+
+        assertFalse(result.success)
+        assertTrue(result.data.toString().contains("工具执行失败: boom"))
+    }
+
+    @Test
+    fun streamingAnswerPresenterHoldsSplitPrivacyPlaceholderUntilRestored() {
+        val masker = PrivacyMasker()
+        masker.mask("朋友张三")
+        val presenter = StreamingAnswerPresenter(masker)
+
+        val emitted = listOf(
+            presenter.append("[PER"),
+            presenter.append("SON_1]说"),
+        ).joinToString("")
+
+        assertEquals("张三说", emitted)
+        assertFalse(emitted.contains("[PER"))
+        assertFalse(emitted.contains("PERSON_1"))
+    }
+
+    @Test
+    fun streamingAnswerPresenterHoldsSplitTrailingRefsTag() {
+        val presenter = StreamingAnswerPresenter(PrivacyMasker())
+
+        val emitted = listOf(
+            presenter.append("回答"),
+            presenter.append("\n<!-- refs:"),
+            presenter.append(" article_1 -->"),
+        ).joinToString("")
+
+        assertEquals("回答", emitted)
+    }
+
+    @Test
+    fun streamingAnswerPresenterStopsAtRefsTagEvenWhenMoreContentArrives() {
+        val presenter = StreamingAnswerPresenter(PrivacyMasker())
+
+        val emitted = listOf(
+            presenter.append("回答\n<!-- refs: article_1 -->"),
+            presenter.append("\n补充 <继续>"),
+        ).joinToString("")
+
+        assertEquals("回答", emitted)
+        assertFalse(emitted.contains("refs"))
+        assertFalse(emitted.contains("article_1"))
+        assertFalse(emitted.contains("补充"))
+    }
+
+    @Test
+    fun removeMcpRefsTagRemovesCompleteRefsCommentBeforeLaterContent() {
+        val answer = removeMcpRefsTag("回答\n<!-- refs: article_1 -->\n补充")
+
+        assertTrue(answer.contains("回答"))
+        assertTrue(answer.contains("补充"))
+        assertFalse(answer.contains("refs"))
+        assertFalse(answer.contains("article_1"))
     }
 }
