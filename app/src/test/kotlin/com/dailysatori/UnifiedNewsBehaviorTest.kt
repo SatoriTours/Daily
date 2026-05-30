@@ -305,6 +305,29 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun unifiedRemoteSourceRefreshFailureUsesScopedSourceError() {
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val fetchBody = viewModel.substringAfter("private fun fetchSourceArticles(sourceId: Long, force: Boolean)").substringBefore("private fun parseRemoteNewsSourceRouteKey")
+
+        assertTrue(fetchBody.contains("sourceArticlesError = result.message"))
+        assertTrue(fetchBody.contains("sourceArticlesError = config.message"))
+        assertTrue(fetchBody.contains("sourceArticlesError = \"来源文章加载失败，请稍后重试\""))
+        assertFalse(fetchBody.contains("error = result.message"))
+        assertFalse(fetchBody.contains("error = config.message"))
+    }
+
+    @Test
+    fun unifiedRemoteSourceRefreshFailureKeepsCachedArticlesVisible() {
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val contentBody = screen.substringAfter("private fun UnifiedNewsSourceArticleContent").substringBefore("private fun UnifiedNewsSourceArticleList")
+        val listBody = screen.substringAfter("private fun UnifiedNewsSourceArticleList").substringBefore("private fun UnifiedNewsSourceArticleMessage")
+
+        assertTrue(contentBody.contains("state.sourceArticlesError != null && articles.isEmpty()"))
+        assertTrue(listBody.contains("刷新失败，正在显示上次结果"))
+        assertTrue(listBody.contains("sourceArticlesError"))
+    }
+
+    @Test
     fun unifiedCitationRemoteArticleDoesNotDeriveHiddenDetailApi() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")
