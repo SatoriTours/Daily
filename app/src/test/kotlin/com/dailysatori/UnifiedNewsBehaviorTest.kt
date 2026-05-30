@@ -339,6 +339,21 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun unifiedSummaryRegenerationAlwaysStopsGeneratingState() {
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val regenerateBody = viewModel.substringAfter("fun regenerateCurrentWindow()").substringBefore("private fun manualRefreshMessage")
+
+        assertTrue(regenerateBody.contains("isRegenerating = true"))
+        assertTrue(regenerateBody.contains("isRegenerating = false"))
+        assertTrue(regenerateBody.contains("regeneratingSummaryDate = null"))
+        assertTrue(regenerateBody.contains("manualRefreshMessage = manualRefreshMessage(result)"))
+        assertTrue(regenerateBody.contains("error = result.message?.takeIf { !result.success }"))
+        assertTrue(regenerateBody.contains("catch (e: CancellationException)"))
+        assertTrue(regenerateBody.contains("throw e"))
+        assertTrue(regenerateBody.contains("新闻汇总重新生成失败，请稍后重试"))
+    }
+
+    @Test
     fun unifiedCitationRemoteArticleDoesNotDeriveHiddenDetailApi() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")
