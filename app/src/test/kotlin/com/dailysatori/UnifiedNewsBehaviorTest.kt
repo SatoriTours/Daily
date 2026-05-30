@@ -272,6 +272,39 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
+    fun unifiedNewsRefreshSelectedSourceRoutesByCurrentSelectionOnly() {
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val refreshBody = viewModel.substringAfter("fun refreshSelectedSource()").substringBefore("private fun incrementLocalArticleRefreshRequest")
+
+        assertTrue(refreshBody.contains("UnifiedNewsSourceSelection.Summary -> regenerateCurrentWindow()"))
+        assertTrue(refreshBody.contains("is UnifiedNewsSourceSelection.RemoteSource -> refreshSelectedRemoteSource()"))
+        assertTrue(refreshBody.contains("UnifiedNewsSourceSelection.LocalArticles -> incrementLocalArticleRefreshRequest()"))
+        assertFalse(refreshBody.contains("generateDaily"))
+        assertFalse(refreshBody.contains("fetchTopArticlesToday"))
+    }
+
+    @Test
+    fun unifiedRemoteSourceRefreshIgnoresDuplicateRequestForSameSource() {
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val fetchBody = viewModel.substringAfter("private fun fetchSourceArticles(sourceId: Long, force: Boolean)").substringBefore("private fun parseRemoteNewsSourceRouteKey")
+
+        assertTrue(fetchBody.contains("sourceArticlesLoadingSourceId == sourceId"))
+        assertTrue(fetchBody.contains("return"))
+        assertTrue(fetchBody.contains("fetchTopArticlesToday"))
+    }
+
+    @Test
+    fun unifiedRemoteSourceSwitchInvalidatesLateSourceResponses() {
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val selectBody = viewModel.substringAfter("fun selectRemoteSource").substringBefore("fun selectLocalArticlesSource")
+        val requestHelpers = viewModel.substringAfter("private fun ifLatestSourceArticleRequest").substringBefore("private fun UnifiedNewsState.clearSelectedSourceDetail")
+
+        assertTrue(selectBody.contains("invalidateSourceArticleRequest()"))
+        assertTrue(requestHelpers.contains("sourceArticleRequestToken.incrementAndGet()"))
+        assertTrue(requestHelpers.contains("if (token == sourceArticleRequestToken.get())"))
+    }
+
+    @Test
     fun unifiedCitationRemoteArticleDoesNotDeriveHiddenDetailApi() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")

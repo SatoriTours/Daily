@@ -417,7 +417,9 @@ class UnifiedNewsViewModel(
 
     private fun fetchSourceArticles(sourceId: Long, force: Boolean) {
         val cacheKey = sourceArticleCacheKey(sourceId, dailyUnifiedNewsWindowFor().summaryDate)
-        if (!force && _state.value.sourceArticlesByCacheKey.containsKey(cacheKey)) return
+        val current = _state.value
+        if (current.sourceArticlesLoadingSourceId == sourceId) return
+        if (!force && current.sourceArticlesByCacheKey.containsKey(cacheKey)) return
         val token = beginSourceArticleRequest(sourceId)
         viewModelScope.launch(Dispatchers.IO) {
             try {
