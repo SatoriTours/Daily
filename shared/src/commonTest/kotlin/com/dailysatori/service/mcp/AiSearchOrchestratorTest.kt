@@ -69,4 +69,33 @@ class AiSearchOrchestratorTest {
         assertEquals(2L, ranked.first().result.id)
         assertTrue(ranked.first().result.matchReason.orEmpty().contains("AI"))
     }
+
+    @Test
+    fun buildsEvidencePromptWithSufficiencyAndOpenableRefsOnly() {
+        val evidence = listOf(
+            AiSearchEvidence(McpSearchResult(1, "article", "AI 文章", "摘要", "2026-05-30", matchReason = "命中：AI"), "AI 摘要"),
+            AiSearchEvidence(McpSearchResult(2, "core_memory", "偏好", "喜欢结构化", null, matchReason = "命中：结构化"), "喜欢结构化", evidenceOnly = true),
+        )
+
+        val prompt = buildAiSearchEvidencePrompt("我收藏过哪些 AI 文章", evidence)
+
+        assertTrue(prompt.contains("用户问题：我收藏过哪些 AI 文章"))
+        assertTrue(prompt.contains("证据充足度：少量相关记录"))
+        assertTrue(prompt.contains("[article_1]"))
+        assertTrue(prompt.contains("[core_memory_2]"))
+        assertTrue(prompt.contains("只能基于上述证据回答"))
+    }
+
+    @Test
+    fun fallbackAnswerMentionsCountTypesTopMatchesAndSparseEvidence() {
+        val answer = buildAiSearchFallbackAnswer(
+            query = "我之前写过焦虑吗",
+            rankedResults = listOf(McpSearchResult(1, "diary", "日记", "片段", "2026-05-30", matchReason = "命中：焦虑")),
+        )
+
+        assertTrue(answer.contains("找到 1 条相关内容"))
+        assertTrue(answer.contains("我只找到少量相关记录"))
+        assertTrue(answer.contains("日记"))
+        assertTrue(answer.contains("命中：焦虑"))
+    }
 }
