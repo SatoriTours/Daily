@@ -62,7 +62,7 @@ fun AiChatState.stoppedGeneration(): AiChatState = copy(
 
 fun aiChatShowsRefreshAction(): Boolean = false
 
-fun aiChatShowsMemorySearchAction(): Boolean = true
+fun aiChatShowsMemorySearchAction(): Boolean = false
 
 fun aiChatHistoryPageSize(): Int = 12
 

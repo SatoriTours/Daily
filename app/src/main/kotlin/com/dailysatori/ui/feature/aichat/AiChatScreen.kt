@@ -17,10 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -55,7 +51,6 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
     val referenceDetailState by referenceDetailViewModel.state.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
-    var showMemorySheet by remember { mutableStateOf(false) }
     var showReferenceSheet by remember { mutableStateOf(false) }
     val loadOlderMessages = viewModel::loadOlderMessages
     val displayMessages = remember(state.messages) { aiChatDisplayMessages(state.messages) }
@@ -91,11 +86,6 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
                 showBack = false,
                 myNavigationLabel = "我的",
                 onMyNavigationClick = onMyClick,
-                actions = {
-                    IconButton(onClick = { showMemorySheet = true }) {
-                        Icon(Icons.Default.Search, contentDescription = "记忆搜索")
-                    }
-                },
             )
         },
         bottomBar = {
@@ -147,10 +137,6 @@ fun AiChatScreen(onArticleClick: (Long) -> Unit = {}, onMyClick: () -> Unit = {}
                 }
             }
         }
-    }
-
-    if (showMemorySheet) {
-        MemorySearchSheet(onDismiss = { showMemorySheet = false })
     }
 
     if (showReferenceSheet) {

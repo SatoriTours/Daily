@@ -139,9 +139,14 @@ class AiChatUiStateTest {
     }
 
     @Test
-    fun topBarDoesNotExposeRefreshAction() {
+    fun topBarDoesNotExposeRefreshOrMemorySearchAction() {
+        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/AiChatScreen.kt").readText()
+
         assertFalse(aiChatShowsRefreshAction())
-        assertTrue(aiChatShowsMemorySearchAction())
+        assertFalse(aiChatShowsMemorySearchAction())
+        assertFalse(screen.contains("MemorySearchSheet("))
+        assertFalse(screen.contains("showMemorySheet"))
+        assertFalse(screen.contains("contentDescription = \"记忆搜索\""))
     }
 
     @Test
