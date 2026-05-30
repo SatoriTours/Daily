@@ -69,7 +69,27 @@ class McpAgentPresentationTest {
         assertEquals("文章", searchResultTypeLabel("article"))
         assertEquals("日记", searchResultTypeLabel("diary"))
         assertEquals("书籍", searchResultTypeLabel("book"))
+        assertEquals("读书笔记", searchResultTypeLabel("book_viewpoint"))
         assertEquals("内容", searchResultTypeLabel("unknown"))
+    }
+
+    @Test
+    fun mapsBookViewpointSearchResultToReadableLabelAndOpenTarget() {
+        assertEquals("读书笔记", searchResultTypeLabel("book_viewpoint"))
+        assertEquals(true, canOpenSearchResult("book_viewpoint"))
+        assertEquals(SearchResultOpenTarget.BookViewpoint, searchResultOpenTarget("book_viewpoint"))
+    }
+
+    @Test
+    fun fallsBackToRankedReferencesWhenAiRefsAreMissingOrInvalid() {
+        val ranked = listOf(
+            McpSearchResult(1, "article", "文章", "摘要", "2026-05-30"),
+            McpSearchResult(2, "diary", "日记", "片段", "2026-05-29"),
+        )
+
+        assertEquals(ranked, referencesForAnswer("没有 refs", ranked))
+        assertEquals(ranked, referencesForAnswer("回答\n<!-- refs: article_999 -->", ranked))
+        assertEquals(listOf(ranked[0]), referencesForAnswer("回答\n<!-- refs: article_1 -->", ranked))
     }
 
     @Test
@@ -77,6 +97,7 @@ class McpAgentPresentationTest {
         assertEquals(true, canOpenSearchResult("article"))
         assertEquals(true, canOpenSearchResult("diary"))
         assertEquals(true, canOpenSearchResult("book"))
+        assertEquals(true, canOpenSearchResult("book_viewpoint"))
         assertEquals(false, canOpenSearchResult("unknown"))
     }
 
@@ -85,6 +106,7 @@ class McpAgentPresentationTest {
         assertEquals(SearchResultOpenTarget.Article, searchResultOpenTarget("article"))
         assertEquals(SearchResultOpenTarget.Diary, searchResultOpenTarget("diary"))
         assertEquals(SearchResultOpenTarget.Book, searchResultOpenTarget("book"))
+        assertEquals(SearchResultOpenTarget.BookViewpoint, searchResultOpenTarget("book_viewpoint"))
         assertEquals(null, searchResultOpenTarget("unknown"))
     }
 

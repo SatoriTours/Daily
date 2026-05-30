@@ -160,7 +160,7 @@ private fun extractNoteResults(
         val n = item.jsonObject
         McpSearchResult(
             id = jsonLong(n, "id") ?: return@mapNotNull null,
-            type = "book",
+            type = "book_viewpoint",
             title = jsonString(n, "bookTitle") ?: "未知书籍",
             summary = truncateNullable(jsonString(n, "title"), 100),
             createdAt = null,
@@ -191,6 +191,7 @@ internal fun filterRelevantMcpResults(
             "article" -> referencedIds["article"]?.contains(r.id) == true
             "diary" -> referencedIds["diary"]?.contains(r.id) == true
             "book" -> referencedIds["book"]?.contains(r.id) == true
+            "book_viewpoint" -> referencedIds["book_viewpoint"]?.contains(r.id) == true
             else -> false
         }
     }
@@ -222,9 +223,10 @@ private fun parseReferencedIds(refsContent: String): Map<String, MutableSet<Long
         "article" to mutableSetOf<Long>(),
         "diary" to mutableSetOf<Long>(),
         "book" to mutableSetOf<Long>(),
+        "book_viewpoint" to mutableSetOf<Long>(),
     )
     for (ref in refsContent.split(",").map { it.trim() }) {
-        val match = Regex("(article|diary|book)_(\\d+)").find(ref) ?: continue
+        val match = Regex("(article|diary|book|book_viewpoint)_(\\d+)").find(ref) ?: continue
         val type = match.groupValues[1]
         val id = match.groupValues[2].toLongOrNull() ?: continue
         ids[type]?.add(id)

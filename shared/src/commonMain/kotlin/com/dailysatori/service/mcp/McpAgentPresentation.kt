@@ -4,6 +4,7 @@ fun searchResultTypeLabel(type: String): String = when (type) {
     "article" -> "文章"
     "diary" -> "日记"
     "book" -> "书籍"
+    "book_viewpoint" -> "读书笔记"
     else -> "内容"
 }
 
@@ -11,16 +12,29 @@ enum class SearchResultOpenTarget {
     Article,
     Diary,
     Book,
+    BookViewpoint,
 }
 
 fun searchResultOpenTarget(type: String): SearchResultOpenTarget? = when (type) {
     "article" -> SearchResultOpenTarget.Article
     "diary" -> SearchResultOpenTarget.Diary
     "book" -> SearchResultOpenTarget.Book
+    "book_viewpoint" -> SearchResultOpenTarget.BookViewpoint
     else -> null
 }
 
 fun canOpenSearchResult(type: String): Boolean = searchResultOpenTarget(type) != null
+
+fun referencesForAnswer(answer: String, rankedResults: List<McpSearchResult>, limit: Int = 8): List<McpSearchResult> {
+    val refsMatch = Regex("<!--\\s*refs:\\s*([^>]+)\\s*-->").find(answer)
+    val openable = rankedResults.filter { canOpenSearchResult(it.type) }
+    if (refsMatch == null) return openable.take(limit)
+    val refs = refsMatch.groupValues[1].trim()
+    if (refs.equals("none", ignoreCase = true)) return emptyList()
+    val byKey = openable.associateBy { "${it.type}_${it.id}" }
+    val selected = refs.split(',').map { it.trim() }.mapNotNull(byKey::get)
+    return selected.takeIf { it.isNotEmpty() } ?: openable.take(limit)
+}
 
 fun orderedDiaryIndexFromQuery(query: String): Int? {
     if (!query.contains("日记")) return null

@@ -44,6 +44,7 @@ class AiReferenceDetailViewModel(
                 SearchResultOpenTarget.Article -> loadArticle(result.id)
                 SearchResultOpenTarget.Diary -> loadDiary(result.id)
                 SearchResultOpenTarget.Book -> loadBook(result.id)
+                SearchResultOpenTarget.BookViewpoint -> loadBookViewpoint(result.id)
                 else -> AiReferenceDetailState(error = MISSING_CONTENT_MESSAGE)
             }
         }
@@ -82,6 +83,15 @@ class AiReferenceDetailViewModel(
             AiReferenceDetailState(error = MISSING_CONTENT_MESSAGE)
         } else {
             AiReferenceDetailState(book = book, viewpoint = firstViewpoint)
+        }
+    }
+
+    private fun loadBookViewpoint(id: Long): AiReferenceDetailState {
+        val viewpoint = viewpointRepo.getById(id)
+        return if (viewpoint == null) {
+            AiReferenceDetailState(error = MISSING_CONTENT_MESSAGE)
+        } else {
+            AiReferenceDetailState(book = bookRepo.getById(viewpoint.book_id), viewpoint = viewpoint)
         }
     }
 

@@ -16,6 +16,7 @@ data class McpSearchResult(
     val createdAt: String?,
     val tags: List<String>? = null,
     val isFavorite: Boolean? = null,
+    val matchReason: String? = null,
 )
 
 class McpAgentService(

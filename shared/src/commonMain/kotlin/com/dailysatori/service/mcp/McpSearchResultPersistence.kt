@@ -30,6 +30,7 @@ fun encodeMcpSearchResults(results: List<McpSearchResult>): String? {
                     put("tags", JsonArray(tags.map { JsonPrimitive(it) }))
                 }
                 result.isFavorite?.let { put("isFavorite", it) }
+                result.matchReason?.let { put("matchReason", it) }
             })
         }
     }.toString()
@@ -48,6 +49,7 @@ fun decodeMcpSearchResults(value: String?): List<McpSearchResult> {
                 createdAt = obj.string("createdAt"),
                 tags = obj["tags"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull },
                 isFavorite = obj["isFavorite"]?.jsonPrimitive?.booleanOrNull,
+                matchReason = obj.string("matchReason"),
             )
         }
     }.getOrDefault(emptyList())

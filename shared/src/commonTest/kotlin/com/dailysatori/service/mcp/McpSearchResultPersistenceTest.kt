@@ -15,6 +15,15 @@ class McpSearchResultPersistenceTest {
                 createdAt = "2026-05-03",
                 tags = listOf("生活", "想法"),
                 isFavorite = null,
+                matchReason = "命中：想法",
+            ),
+            McpSearchResult(
+                id = 99L,
+                type = "book_viewpoint",
+                title = "长期主义",
+                summary = "读书笔记片段",
+                createdAt = null,
+                matchReason = "命中：长期主义",
             ),
             McpSearchResult(
                 id = 7L,
