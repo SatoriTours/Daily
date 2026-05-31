@@ -94,7 +94,7 @@ val tabs = listOf(
 )
 
 private val HomeBottomBarHeight = Height.navBar
-private val HomeBottomBarIconSize = IconSize.l
+private val HomeBottomBarIconSize = IconSize.xl
 private val HomeBottomBarHazeBlurRadius = 10.dp
 private const val HomeBottomBarSlideDurationMillis = 480
 private const val HomeBottomBarGlassAlpha = 0.10f
