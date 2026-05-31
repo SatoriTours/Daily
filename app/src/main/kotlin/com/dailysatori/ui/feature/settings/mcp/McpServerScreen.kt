@@ -38,7 +38,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,7 +55,6 @@ import com.dailysatori.ui.component.settings.SettingsEditorMessage
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
-import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 internal enum class McpScreenMode { LIST, PRESET_ADD, MANUAL_ADD }
@@ -179,7 +177,6 @@ private fun McpServerPresetAddScreen(
     onBack: () -> Unit,
     onManualAdd: () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
     var selectedProvider by remember { mutableStateOf<McpProvider?>(null) }
     var providerExpanded by remember { mutableStateOf(false) }
     var apiKey by remember { mutableStateOf("") }
@@ -206,12 +203,9 @@ private fun McpServerPresetAddScreen(
                 onManualAdd = onManualAdd,
                 onSave = {
                     val provider = selectedProvider ?: return@McpPresetAddActions
-                    scope.launch {
-                        val result = viewModel.saveSelectedTemplates(provider, selectedTemplates, apiKey)
-                        if (result != null) {
-                            saveMessage = mcpBatchSaveResultMessage(result)
-                            selectedTemplateIds = emptySet()
-                        }
+                    viewModel.saveSelectedTemplates(provider, selectedTemplates, apiKey) { result ->
+                        saveMessage = mcpBatchSaveResultMessage(result)
+                        selectedTemplateIds = emptySet()
                     }
                 },
             )
@@ -410,7 +404,6 @@ private fun McpServerEditScreen(
     serverId: Long?,
     onBack: () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
     var serverUrl by remember { mutableStateOf("") }
     var apiKey by remember { mutableStateOf("") }
@@ -440,10 +433,8 @@ private fun McpServerEditScreen(
                 testText = mcpTestButtonText(state.isTesting),
                 onTest = { viewModel.testServer(name, serverUrl, apiKey) },
                 onSave = {
-                    scope.launch {
-                        if (viewModel.saveServer(serverId, name, serverUrl, apiKey, enabled)) {
-                            onBack()
-                        }
+                    viewModel.saveServer(serverId, name, serverUrl, apiKey, enabled) {
+                        onBack()
                     }
                 },
             )

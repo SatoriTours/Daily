@@ -18,14 +18,14 @@ data class LocalFavoriteArticleFields(
 )
 
 fun RemoteArticle.toLocalFavoriteArticleFields(): LocalFavoriteArticleFields {
-    val cleanTitle = title?.trim()?.takeIf { it.isNotBlank() }
+    val cleanTitle = cleanRemoteArticleText(title)
     return LocalFavoriteArticleFields(
         title = cleanTitle,
         aiTitle = cleanTitle,
         aiContent = remoteArticleSummaryForLocalFavorite(summary, viewpoints),
-        aiMarkdownContent = content?.trim()?.takeIf { it.isNotBlank() },
-        url = url?.trim()?.takeIf { it.isNotBlank() },
-        coverImageUrl = coverUrl?.trim()?.takeIf { it.isNotBlank() },
+        aiMarkdownContent = cleanRemoteArticleText(content),
+        url = cleanRemoteArticleText(url),
+        coverImageUrl = cleanRemoteArticleText(coverUrl),
         pubDate = remoteArticleTimeMillis(publishedAt) ?: remoteArticleTimeMillis(processedAt) ?: remoteArticleTimeMillis(createdAt),
     )
 }
@@ -43,33 +43,17 @@ fun RemoteArticle.toLocalCachedArticleFields(sourceTime: Long? = null): LocalFav
 
 fun RemoteArticle.needsLocalAiReprocessingForChineseOutput(): Boolean {
     if (url.isNullOrBlank()) return false
-    val text = listOfNotNull(title, summary, viewpoints.joinToString("\n"), content)
-        .joinToString("\n")
-        .take(LOCAL_REPROCESS_LANGUAGE_SAMPLE_LIMIT)
-    val chineseCount = Regex("[\\u4e00-\\u9fff]").findAll(text).count()
-    if (chineseCount >= LOCAL_REPROCESS_CHINESE_THRESHOLD) return false
-    val englishWordCount = Regex("\\b[A-Za-z][A-Za-z'-]{2,}\\b").findAll(text).count()
-    return englishWordCount >= LOCAL_REPROCESS_ENGLISH_WORD_THRESHOLD
+    if (hasEnoughChineseForLocalArticle(this)) return false
+    return hasEnoughEnglishForLocalArticle(this)
 }
 
-internal fun remoteArticleSummaryForLocalFavorite(summary: String?, viewpoints: List<String>): String? {
-    val cleanSummary = summary?.trim()?.takeIf { it.isNotBlank() }
-    val cleanViewpoints = viewpoints.map { it.trim() }.filter { it.isNotBlank() }
-    val viewpointMarkdown = cleanViewpoints
-        .takeIf { it.isNotEmpty() }
-        ?.joinToString(separator = "\n") { "- $it" }
-        ?.let { "## 关键观点\n\n$it" }
-    return listOfNotNull(cleanSummary, viewpointMarkdown)
-        .joinToString("\n\n")
-        .takeIf { it.isNotBlank() }
-}
+internal fun remoteArticleSummaryForLocalFavorite(summary: String?, viewpoints: List<String>): String? = listOfNotNull(
+    cleanRemoteArticleText(summary),
+    remoteArticleViewpointMarkdown(viewpoints),
+).joinToString("\n\n").takeIf { it.isNotBlank() }
 
 internal fun remoteArticleTimeMillis(value: String?): Long? = try {
     value?.trim()?.takeIf { it.isNotBlank() }?.let { Instant.parse(it).toEpochMilliseconds() }
 } catch (_: Exception) {
     null
 }
-
-private const val LOCAL_REPROCESS_LANGUAGE_SAMPLE_LIMIT = 4_000
-private const val LOCAL_REPROCESS_CHINESE_THRESHOLD = 8
-private const val LOCAL_REPROCESS_ENGLISH_WORD_THRESHOLD = 12

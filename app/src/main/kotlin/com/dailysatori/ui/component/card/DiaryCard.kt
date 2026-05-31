@@ -49,6 +49,9 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.dailysatori.core.util.TimeUtils
+import com.dailysatori.core.util.diaryImagePaths
+import com.dailysatori.core.util.diaryTags
+import com.dailysatori.core.util.stripDiaryInlineTags
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
@@ -57,25 +60,6 @@ import com.mikepenz.markdown.m3.Markdown
 import java.io.File
 
 private const val CONTENT_LONG_THRESHOLD = 300
-
-private fun stripInlineTags(content: String): String {
-    val lines = content.lines().toMutableList()
-    var i = lines.lastIndex
-    while (i >= 0) {
-        val line = lines[i].trim()
-        if (line.isEmpty()) {
-            lines.removeAt(i)
-            i--
-            continue
-        }
-        val parts = line.split("\\s+".toRegex()).filter { it.isNotBlank() }
-        if (parts.all { it.startsWith("#") }) {
-            lines.removeAt(i)
-            i--
-        } else break
-    }
-    return lines.dropLastWhile { it.isBlank() }.joinToString("\n")
-}
 
 @Composable
 fun DiaryCard(
@@ -86,9 +70,9 @@ fun DiaryCard(
     showDelete: Boolean = true,
 ) {
     val context = LocalContext.current
-    val tags = diary.tags?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() && it != "null" }.orEmpty()
-    val imagePaths = diary.images?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() && it != "null" }.orEmpty()
-    val contentText = stripInlineTags(diary.content)
+    val tags = diaryTags(diary.tags)
+    val imagePaths = diaryImagePaths(diary.images)
+    val contentText = stripDiaryInlineTags(diary.content)
     val isLongContent = contentText.length > CONTENT_LONG_THRESHOLD
     var expanded by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }

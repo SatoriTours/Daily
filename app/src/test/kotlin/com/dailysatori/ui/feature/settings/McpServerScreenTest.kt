@@ -11,10 +11,12 @@ import com.dailysatori.ui.feature.settings.mcp.mcpConnectionSuccessMessage
 import com.dailysatori.ui.feature.settings.mcp.mcpConnectionValidationMessage
 import com.dailysatori.ui.feature.settings.mcp.mcpTestButtonText
 import com.dailysatori.ui.feature.settings.mcp.selectableMcpTemplatesByType
+import java.io.File
 import java.lang.reflect.Field
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -75,6 +77,31 @@ class McpServerScreenTest {
         assertFalse(testJob.isActive)
         assertEquals(8L, viewModel.privateField<Long>("testRequestId"))
         assertEquals(McpServerUiState(), state.value)
+    }
+
+    @Test
+    fun mcpScreenDelegatesSaveWorkToViewModel() {
+        val screen = File("src/main/kotlin/com/dailysatori/ui/feature/settings/mcp/McpServerScreen.kt").readText()
+
+        assertFalse(screen.contains("rememberCoroutineScope"), "MCP screen should not own save coroutine scope")
+        assertFalse(screen.contains("scope.launch"), "MCP screen should not launch save work")
+        assertFalse(screen.contains("kotlinx.coroutines.launch"), "MCP screen should not import coroutine launch")
+        assertTrue(screen.contains("viewModel.saveSelectedTemplates(provider, selectedTemplates, apiKey) { result ->"))
+        assertTrue(screen.contains("viewModel.saveServer(serverId, name, serverUrl, apiKey, enabled) {"))
+    }
+
+    @Test
+    fun mcpViewModelOwnsSaveOperations() {
+        val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/settings/mcp/McpServerViewModel.kt").readText()
+
+        assertTrue(viewModel.contains("fun saveSelectedTemplates("))
+        assertFalse(viewModel.contains("suspend fun saveSelectedTemplates"))
+        assertTrue(viewModel.contains("onSuccess: (McpBatchSaveResult) -> Unit"))
+        assertTrue(viewModel.contains("fun saveServer("))
+        assertFalse(viewModel.contains("suspend fun saveServer"))
+        assertTrue(viewModel.contains("onSaved: () -> Unit"))
+        assertTrue(viewModel.contains("withContext(Dispatchers.Main) { onSuccess(result) }"))
+        assertTrue(viewModel.contains("withContext(Dispatchers.Main) { onSaved() }"))
     }
 
     private fun unsafeMcpServerViewModel(): McpServerViewModel {

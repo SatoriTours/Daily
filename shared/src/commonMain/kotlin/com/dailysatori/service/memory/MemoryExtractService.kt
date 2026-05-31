@@ -8,7 +8,12 @@ import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.MemoryRepository
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
+import kotlin.coroutines.coroutineContext
 
 class MemoryExtractService(
     private val aiService: AiService,
@@ -24,6 +29,7 @@ class MemoryExtractService(
         content: String,
     ) {
         try {
+            coroutineContext.ensureActive()
             val config = aiConfigService.getDefaultConfig() ?: return
             if (config.api_address.isBlank()) return
 
@@ -48,6 +54,7 @@ class MemoryExtractService(
                 provider = config.provider,
                 temperature = 0.5,
             )
+            coroutineContext.ensureActive()
 
             val summary = response?.let {
                 val choice = it["choices"]?.jsonArray?.firstOrNull()?.jsonObject
@@ -57,6 +64,7 @@ class MemoryExtractService(
 
             if (summary.isNotBlank()) {
                 val existing = memoryRepo.getBySource(sourceType, sourceId)
+                coroutineContext.ensureActive()
                 if (existing != null) {
                     memoryRepo.update(
                         id = existing.id,
@@ -76,6 +84,8 @@ class MemoryExtractService(
                     log.d { "Created memory for $sourceType:$sourceId" }
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             log.e(e) { "Failed to extract memory for $sourceType:$sourceId" }
         }
@@ -97,36 +107,49 @@ class MemoryExtractService(
         onProgress: (String) -> Unit,
     ) {
         try {
-            onProgress("清除旧记忆...")
-            memoryRepo.deleteAllByType("content")
+            coroutineContext.ensureActive()
+            withContext(NonCancellable) {
+                onProgress("清除旧记忆...")
+                memoryRepo.deleteAllByType("content")
 
-            val articles = articleRepo.getAllSync()
-            articles.forEachIndexed { index, article ->
-                onProgress("处理文章 (${index + 1}/${articles.size})...")
-                val text = article.ai_markdown_content ?: ""
-                val t = article.ai_title ?: article.title ?: "未命名"
-                extractAndSave("article", article.id, t, text)
+                val articles = articleRepo.getAllSync()
+                articles.forEachIndexed { index, article ->
+                    coroutineContext.ensureActive()
+                    onProgress("处理文章 (${index + 1}/${articles.size})...")
+                    val text = article.ai_markdown_content ?: ""
+                    val t = article.ai_title ?: article.title ?: "未命名"
+                    coroutineContext.ensureActive()
+                    extractAndSave("article", article.id, t, text)
+                }
+
+                val diaries = diaryRepo.getAllSync()
+                diaries.forEachIndexed { index, diary ->
+                    coroutineContext.ensureActive()
+                    onProgress("处理日记 (${index + 1}/${diaries.size})...")
+                    coroutineContext.ensureActive()
+                    extractAndSave("diary", diary.id, "日记", diary.content)
+                }
+
+                val books = bookRepo.getAllSync()
+                books.forEachIndexed { index, book ->
+                    coroutineContext.ensureActive()
+                    onProgress("处理书籍 (${index + 1}/${books.size})...")
+                    coroutineContext.ensureActive()
+                    extractAndSave("book", book.id, book.title, book.introduction)
+                }
+
+                val viewpoints = viewpointRepo.getAllSync()
+                viewpoints.forEachIndexed { index, vp ->
+                    coroutineContext.ensureActive()
+                    onProgress("处理读书观点 (${index + 1}/${viewpoints.size})...")
+                    coroutineContext.ensureActive()
+                    extractAndSave("book_viewpoint", vp.id, vp.title, vp.content)
+                }
+
+                onProgress("重建完成")
             }
-
-            val diaries = diaryRepo.getAllSync()
-            diaries.forEachIndexed { index, diary ->
-                onProgress("处理日记 (${index + 1}/${diaries.size})...")
-                extractAndSave("diary", diary.id, "日记", diary.content)
-            }
-
-            val books = bookRepo.getAllSync()
-            books.forEachIndexed { index, book ->
-                onProgress("处理书籍 (${index + 1}/${books.size})...")
-                extractAndSave("book", book.id, book.title, book.introduction)
-            }
-
-            val viewpoints = viewpointRepo.getAllSync()
-            viewpoints.forEachIndexed { index, vp ->
-                onProgress("处理读书观点 (${index + 1}/${viewpoints.size})...")
-                extractAndSave("book_viewpoint", vp.id, vp.title, vp.content)
-            }
-
-            onProgress("重建完成")
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             log.e(e) { "Failed to rebuild all memories" }
             onProgress("重建失败: ${e.message}")

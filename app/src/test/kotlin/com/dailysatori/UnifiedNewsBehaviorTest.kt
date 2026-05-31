@@ -308,7 +308,7 @@ class UnifiedNewsBehaviorTest {
     fun unifiedRemoteSourceSwitchInvalidatesLateSourceResponses() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val selectBody = viewModel.substringAfter("fun selectRemoteSource").substringBefore("fun selectLocalArticlesSource")
-        val requestHelpers = viewModel.substringAfter("private fun ifLatestSourceArticleRequest").substringBefore("private fun UnifiedNewsState.clearSelectedSourceDetail")
+        val requestHelpers = viewModel.substringAfter("private fun ifLatestSourceArticleRequest").substringBefore("private fun remoteConfigOrSetError")
 
         assertTrue(selectBody.contains("invalidateSourceArticleRequest()"))
         assertTrue(requestHelpers.contains("sourceArticleRequestToken.incrementAndGet()"))
@@ -320,9 +320,10 @@ class UnifiedNewsBehaviorTest {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val fetchBody = viewModel.substringAfter("private fun fetchSourceArticles(sourceId: Long, force: Boolean)").substringBefore("private fun parseRemoteNewsSourceRouteKey")
 
-        assertTrue(fetchBody.contains("sourceArticlesError = result.message"))
-        assertTrue(fetchBody.contains("sourceArticlesError = config.message"))
-        assertTrue(fetchBody.contains("sourceArticlesError = \"来源文章加载失败，请稍后重试\""))
+        assertTrue(fetchBody.contains("ifLatestSourceArticleRequest(token) { state ->"))
+        assertTrue(fetchBody.contains("state.withUnifiedNewsSourceArticlesFailure(result.message)"))
+        assertTrue(fetchBody.contains("state.withUnifiedNewsSourceArticlesFailure(config.message)"))
+        assertTrue(fetchBody.contains("state.withUnifiedNewsSourceArticlesFailure(\"来源文章加载失败，请稍后重试\")"))
         assertFalse(fetchBody.contains("error = result.message"))
         assertFalse(fetchBody.contains("error = config.message"))
     }
@@ -2111,13 +2112,15 @@ class UnifiedNewsBehaviorTest {
     fun unifiedNewsDetailLoadingAndFailureStayOnDetailSurface() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val detailState = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsDetailState.kt").readText()
 
         assertTrue(screen.contains("UnifiedNewsSourceDetailLoadingScreen("))
         assertTrue(screen.contains("UnifiedNewsSourceDetailErrorScreen("))
         assertTrue(screen.indexOf("state.navigationTarget != null && state.isLoading") < screen.indexOf("when (state.page)"))
         assertTrue(screen.indexOf("state.navigationTarget != null && state.error != null") < screen.indexOf("when (state.page)"))
-        assertTrue(viewModel.contains("error = null"))
-        assertTrue(viewModel.contains("navigationTarget = target"))
+        assertTrue(viewModel.contains("_state.update { it.withUnifiedNewsDetailRequestStarted(target) }"))
+        assertTrue(detailState.contains("navigationTarget = target"))
+        assertTrue(detailState.contains("error = null"))
     }
 
     @Test
@@ -2257,7 +2260,9 @@ class UnifiedNewsBehaviorTest {
         assertFalse(viewModel.contains("selectedCrayfish"))
         assertTrue(viewModel.contains("detailRequestToken") || viewModel.contains("detailLoadJob"))
         assertTrue(viewModel.substringAfter("fun closeSourceDetail()").substringBefore("fun switchPage").contains("detailRequestToken"))
-        assertTrue(viewModel.contains("clearSelectedSourceDetail"))
+        assertTrue(viewModel.contains("withUnifiedNewsSourceDetailCleared"))
+        assertTrue(viewModel.contains("withUnifiedNewsDetailRequestStarted"))
+        assertTrue(viewModel.contains("withUnifiedNewsSourceDetailClosed"))
         assertTrue(viewModel.substringAfter("fun loadInitial()").substringBefore("fun openCitation").contains("catch") || viewModel.substringAfter("fun loadInitial()").substringBefore("fun openCitation").contains("runCatching"))
         assertTrue(viewModel.substringAfter("fun regenerateCurrentWindow()").substringBefore("private fun latestDueWindow").contains("catch") || viewModel.substringAfter("fun regenerateCurrentWindow()").substringBefore("private fun latestDueWindow").contains("runCatching"))
         assertTrue(screen.contains("onCitationClick"))

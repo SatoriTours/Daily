@@ -135,19 +135,24 @@ internal class McpServerViewModel(
         }
     }
 
-    suspend fun saveSelectedTemplates(
+    fun saveSelectedTemplates(
         provider: McpProvider,
         templates: List<McpTemplate>,
         apiKey: String,
-    ): McpBatchSaveResult? {
+        onSuccess: (McpBatchSaveResult) -> Unit,
+    ) {
         _state.update { it.copy(isSaving = true, error = null) }
-        return try {
-            withContext(Dispatchers.IO) { saveTemplates(provider, templates, apiKey) }
-        } catch (e: Exception) {
-            _state.update { it.copy(error = e.message) }
-            null
-        } finally {
-            _state.update { it.copy(isSaving = false) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = saveTemplates(provider, templates, apiKey)
+                withContext(Dispatchers.Main) { onSuccess(result) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _state.update { it.copy(error = error.message) }
+            } finally {
+                _state.update { it.copy(isSaving = false) }
+            }
         }
     }
 
@@ -162,28 +167,30 @@ internal class McpServerViewModel(
         }
     }
 
-    suspend fun saveServer(
+    fun saveServer(
         serverId: Long?,
         name: String,
         serverUrl: String,
         apiKey: String,
         enabled: Boolean,
-    ): Boolean {
+        onSaved: () -> Unit,
+    ) {
         _state.update { it.copy(isSaving = true, error = null) }
-        return try {
-            withContext(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
                 if (serverId != null && serverId > 0) {
                     repo.update(serverId, name, serverUrl, apiKey, if (enabled) 1L else 0L)
                 } else {
                     repo.insert(name, serverUrl, apiKey, if (enabled) 1L else 0L)
                 }
+                withContext(Dispatchers.Main) { onSaved() }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _state.update { it.copy(error = error.message) }
+            } finally {
+                _state.update { it.copy(isSaving = false) }
             }
-            true
-        } catch (e: Exception) {
-            _state.update { it.copy(error = e.message) }
-            false
-        } finally {
-            _state.update { it.copy(isSaving = false) }
         }
     }
 

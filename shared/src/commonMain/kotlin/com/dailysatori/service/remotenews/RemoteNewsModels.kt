@@ -4,16 +4,11 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonDecoder
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class RemoteNewsPagination(
@@ -125,12 +120,7 @@ private object RemoteArticleViewpointsSerializer : KSerializer<List<String>> {
 
     override fun deserialize(decoder: Decoder): List<String> {
         if (decoder !is JsonDecoder) return delegate.deserialize(decoder)
-        return when (val element = decoder.decodeJsonElement()) {
-            JsonNull -> emptyList()
-            is JsonArray -> element.mapNotNull { it.jsonPrimitive.contentOrNull?.takeIf(String::isNotBlank) }
-            is JsonPrimitive -> element.contentOrNull?.split('\n')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
-            else -> emptyList()
-        }
+        return remoteArticleViewpointsFromJsonElement(decoder.decodeJsonElement())
     }
 
     override fun serialize(encoder: Encoder, value: List<String>) = delegate.serialize(encoder, value)

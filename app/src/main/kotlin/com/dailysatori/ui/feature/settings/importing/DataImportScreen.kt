@@ -31,11 +31,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -45,43 +42,21 @@ import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
-import kotlinx.coroutines.launch
-import org.koin.mp.KoinPlatform
-
-data class ImportState(
-    val isImporting: Boolean = false,
-    val progress: Float = 0f,
-    val result: ImportService.ImportResult? = null,
-    val error: String? = null,
-)
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun DataImportScreen(
     onBack: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val importService = remember { KoinPlatform.getKoin().get<ImportService>() }
-    val coroutineScope = rememberCoroutineScope()
-    var state by remember { mutableStateOf(ImportState()) }
+    val viewModel: DataImportViewModel = koinViewModel()
+    val state by viewModel.state.collectAsState()
 
     val pickZipLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri: Uri? ->
         uri?.let {
-            val path = copyUriToTempFile(context, it)
-            if (path != null) {
-                coroutineScope.launch {
-                    state = ImportState(isImporting = true)
-                    try {
-                        val result = importService.importFromZip(path)
-                        state = ImportState(result = result)
-                    } catch (e: Exception) {
-                        state = ImportState(error = e.message ?: "导入失败")
-                    }
-                }
-            } else {
-                state = ImportState(error = "无法读取文件")
-            }
+            viewModel.importFromZip(copyUriToTempFile(context, it))
         }
     }
 

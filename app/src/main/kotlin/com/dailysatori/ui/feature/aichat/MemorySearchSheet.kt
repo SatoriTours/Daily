@@ -28,53 +28,31 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.dailysatori.data.repository.ArticleRepository
-import com.dailysatori.data.repository.BookRepository
-import com.dailysatori.data.repository.BookViewpointRepository
-import com.dailysatori.data.repository.DiaryRepository
-import com.dailysatori.data.repository.MemoryRepository
-import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.shared.db.Memory_entry
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.koin.compose.koinInject
+import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MemorySearchSheet(onDismiss: () -> Unit) {
-    val memoryRepo = koinInject<MemoryRepository>()
-    val extractService = koinInject<MemoryExtractService>()
-    val articleRepo = koinInject<ArticleRepository>()
-    val diaryRepo = koinInject<DiaryRepository>()
-    val bookRepo = koinInject<BookRepository>()
-    val viewpointRepo = koinInject<BookViewpointRepository>()
-    var searchQuery by remember { mutableStateOf("") }
-    var memories by remember { mutableStateOf<List<Memory_entry>>(emptyList()) }
-    var isRebuilding by remember { mutableStateOf(false) }
-    var rebuildProgress by remember { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
+    val viewModel: MemorySearchViewModel = koinViewModel()
+    val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(searchQuery) {
-        withContext(Dispatchers.IO) {
-            memories = if (searchQuery.isBlank()) {
-                memoryRepo.getAllSync()
-            } else {
-                memoryRepo.search(searchQuery, 50)
-            }
-        }
+    LaunchedEffect(Unit) {
+        viewModel.openSheet()
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { viewModel.closeSheet() }
     }
 
     ModalBottomSheet(
@@ -90,14 +68,14 @@ fun MemorySearchSheet(onDismiss: () -> Unit) {
             Spacer(modifier = Modifier.height(Spacing.s))
 
             TextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
+                value = state.searchQuery,
+                onValueChange = viewModel::search,
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("搜索记忆...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
+                    if (state.searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.search("") }) {
                             Icon(Icons.Default.Close, contentDescription = "清除")
                         }
                     }
@@ -110,10 +88,10 @@ fun MemorySearchSheet(onDismiss: () -> Unit) {
                 ),
             )
 
-            if (isRebuilding && rebuildProgress.isNotBlank()) {
+            if (state.isRebuilding && state.rebuildProgress.isNotBlank()) {
                 Spacer(modifier = Modifier.height(Spacing.s))
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                Text(rebuildProgress, style = MaterialTheme.typography.bodySmall)
+                Text(state.rebuildProgress, style = MaterialTheme.typography.bodySmall)
             }
 
             Spacer(modifier = Modifier.height(Spacing.s))
@@ -123,23 +101,13 @@ fun MemorySearchSheet(onDismiss: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    "${memories.size} 条记忆",
+                    "${state.memories.size} 条记忆",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 TextButton(
-                    onClick = {
-                        isRebuilding = true
-                        scope.launch(Dispatchers.IO) {
-                            extractService.rebuildAll(
-                                articleRepo, diaryRepo, bookRepo, viewpointRepo,
-                                onProgress = { rebuildProgress = it },
-                            )
-                            memories = memoryRepo.getAllSync()
-                            isRebuilding = false
-                        }
-                    },
-                    enabled = !isRebuilding,
+                    onClick = viewModel::rebuildAll,
+                    enabled = !state.isRebuilding,
                 ) {
                     Text("重建全部记忆")
                 }
@@ -150,7 +118,7 @@ fun MemorySearchSheet(onDismiss: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(Spacing.s),
                 contentPadding = PaddingValues(vertical = Spacing.s),
             ) {
-                items(memories, key = { it.id }) { memory ->
+                items(state.memories, key = { it.id }) { memory ->
                     MemoryEntryCard(memory)
                 }
             }

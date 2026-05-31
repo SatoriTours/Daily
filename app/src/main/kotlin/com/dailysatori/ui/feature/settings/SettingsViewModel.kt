@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.koin.java.KoinJavaComponent.get
 import java.net.NetworkInterface
 import java.security.SecureRandom
 
@@ -47,6 +46,7 @@ data class SettingsState(
 class SettingsViewModel(
     private val webServerService: WebServerService,
     private val appUpgradeService: AppUpgradeService,
+    private val settingRepo: SettingRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SettingsState())
     val state: StateFlow<SettingsState> = _state.asStateFlow()
@@ -57,7 +57,6 @@ class SettingsViewModel(
 
     private fun loadWebServiceInfo() {
         viewModelScope.launch(Dispatchers.IO) {
-            val settingRepo = get<SettingRepository>(SettingRepository::class.java)
             val token = settingRepo.get("web_server_token") ?: ""
             val port = webServerService.getPort()
             val address = if (webServerService.isRunning() && port > 0) {
@@ -89,14 +88,12 @@ class SettingsViewModel(
     fun refreshToken() {
         viewModelScope.launch(Dispatchers.IO) {
             val newToken = generateToken()
-            val settingRepo = get<SettingRepository>(SettingRepository::class.java)
             settingRepo.upsert("web_server_token", newToken)
             _state.update { it.copy(webServerToken = newToken) }
         }
     }
 
     private fun ensureToken() {
-        val settingRepo = get<SettingRepository>(SettingRepository::class.java)
         val existing = settingRepo.get("web_server_token")
         if (existing == null) {
             val newToken = generateToken()

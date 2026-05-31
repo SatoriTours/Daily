@@ -178,23 +178,15 @@ internal fun filterRelevantMcpResults(
     if (refsMatch == null) return filterByTitleMatch(results, answer)
 
     val refsContent = refsMatch.groupValues[1].trim()
-    if (refsContent.lowercase() == "none") return emptyList()
+    if (mcpReferenceContentRequestsNoResults(refsContent)) return emptyList()
     if (refsContent.isEmpty()) return filterByTitleMatch(results, answer)
 
-    val referencedIds = parseReferencedIds(refsContent)
-    if (referencedIds.values.sumOf { it.size } == 0) {
+    val referencedIds = parseMcpReferenceIds(refsContent)
+    if (!referencedIds.hasMcpReferenceIds()) {
         return filterByTitleMatch(results, answer)
     }
 
-    val filtered = results.filter { r ->
-        when (r.type) {
-            "article" -> referencedIds["article"]?.contains(r.id) == true
-            "diary" -> referencedIds["diary"]?.contains(r.id) == true
-            "book" -> referencedIds["book"]?.contains(r.id) == true
-            "book_viewpoint" -> referencedIds["book_viewpoint"]?.contains(r.id) == true
-            else -> false
-        }
-    }
+    val filtered = results.filter { it.matchesMcpReferenceIds(referencedIds) }
 
     return if (filtered.isEmpty() && results.isNotEmpty()) filterByTitleMatch(results, answer)
     else filtered
@@ -216,22 +208,6 @@ $message
 private fun formatDate(timestampMs: Long): String {
     val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(timestampMs)
     return instant.toString().substring(0, 10)
-}
-
-private fun parseReferencedIds(refsContent: String): Map<String, MutableSet<Long>> {
-    val ids = mutableMapOf(
-        "article" to mutableSetOf<Long>(),
-        "diary" to mutableSetOf<Long>(),
-        "book" to mutableSetOf<Long>(),
-        "book_viewpoint" to mutableSetOf<Long>(),
-    )
-    for (ref in refsContent.split(",").map { it.trim() }) {
-        val match = Regex("(article|diary|book|book_viewpoint)_(\\d+)").find(ref) ?: continue
-        val type = match.groupValues[1]
-        val id = match.groupValues[2].toLongOrNull() ?: continue
-        ids[type]?.add(id)
-    }
-    return ids
 }
 
 private fun filterByTitleMatch(results: List<McpSearchResult>, answer: String): List<McpSearchResult> {

@@ -183,7 +183,7 @@ class RemoteNewsViewModel(
 
     private fun loadPage(mode: RemoteNewsMode, page: Int, append: Boolean, refresh: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isLoading = !refresh && !append, isRefreshing = refresh, isLoadingMore = append, error = null, loadMoreError = null) }
+            _state.update { it.withRemoteNewsPageLoadStarted(refresh, append) }
             val config = currentConfigOrSetError() ?: return@launch
             when (mode) {
                 RemoteNewsMode.DIGESTS -> loadDigests(config, page, append, refresh)
@@ -197,13 +197,10 @@ class RemoteNewsViewModel(
     private suspend fun loadDigests(config: RemoteNewsConfigValues, page: Int, append: Boolean, refresh: Boolean) {
         when (val result = remoteNewsService.fetchDigests(config, page, RemoteNewsConfig.digestsPageSize)) {
             is RemoteNewsResult.Success -> _state.update {
-                it.copy(
+                val loaded = it.withRemoteNewsPageLoadFinished(refresh)
+                loaded.copy(
                     digests = if (append) it.digests + result.value.digests else result.value.digests,
                     digestPagination = result.value.pagination,
-                    isLoading = false,
-                    isRefreshing = false,
-                    isLoadingMore = false,
-                    refreshCompletedToken = it.nextRefreshCompletedToken(refresh),
                 )
             }
             is RemoteNewsResult.Failure -> applyFailure(result.message, append)
@@ -213,13 +210,10 @@ class RemoteNewsViewModel(
     private suspend fun loadArticles(config: RemoteNewsConfigValues, page: Int, append: Boolean, refresh: Boolean) {
         when (val result = remoteNewsService.fetchArticles(config, page, RemoteNewsConfig.articlesPageSize)) {
             is RemoteNewsResult.Success -> _state.update {
-                it.copy(
+                val loaded = it.withRemoteNewsPageLoadFinished(refresh)
+                loaded.copy(
                     articles = if (append) it.articles + result.value.articles else result.value.articles,
                     articlePagination = result.value.pagination,
-                    isLoading = false,
-                    isRefreshing = false,
-                    isLoadingMore = false,
-                    refreshCompletedToken = it.nextRefreshCompletedToken(refresh),
                 )
             }
             is RemoteNewsResult.Failure -> applyFailure(result.message, append)
@@ -229,26 +223,18 @@ class RemoteNewsViewModel(
     private suspend fun loadFeeds(config: RemoteNewsConfigValues, page: Int, append: Boolean, refresh: Boolean) {
         when (val result = remoteNewsService.fetchFeeds(config, page, RemoteNewsConfig.feedsPageSize)) {
             is RemoteNewsResult.Success -> _state.update {
-                it.copy(
+                val loaded = it.withRemoteNewsPageLoadFinished(refresh)
+                loaded.copy(
                     feeds = if (append) it.feeds + result.value.feeds else result.value.feeds,
                     feedPagination = result.value.pagination,
-                    isLoading = false,
-                    isRefreshing = false,
-                    isLoadingMore = false,
-                    refreshCompletedToken = it.nextRefreshCompletedToken(refresh),
                 )
             }
             is RemoteNewsResult.Failure -> applyFailure(result.message, append)
         }
     }
 
-    private fun RemoteNewsState.nextRefreshCompletedToken(refresh: Boolean): Int =
-        if (refresh) refreshCompletedToken + 1 else refreshCompletedToken
-
     private fun applyFailure(message: String, append: Boolean) {
-        _state.update {
-            it.copy(error = if (append) it.error else message, loadMoreError = if (append) message else null, isLoading = false, isRefreshing = false, isLoadingMore = false)
-        }
+        _state.update { it.withRemoteNewsPageLoadFailure(message, append) }
     }
 
     private fun currentConfigOrSetError(): RemoteNewsConfigValues? {

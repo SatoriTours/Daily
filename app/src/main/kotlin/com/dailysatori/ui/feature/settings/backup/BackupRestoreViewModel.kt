@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.service.backup.BackupService
 import com.dailysatori.service.backup.backupPasswordHint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -74,31 +75,47 @@ class BackupRestoreViewModel(
 
     fun getPasswordHint(path: String): String = backupPasswordHint(path) ?: "无提示"
 
-    suspend fun restoreBackup(password: String): Boolean {
-        _state.update { it.copy(isRestoring = true, restoreProgress = 0f, statusMessage = "准备恢复...", successMessage = "", errorMessage = "") }
-        return try {
-            val index = _state.value.selectedBackupIndex
-            if (index < 0 || index >= _state.value.backupList.size) {
-                _state.update { it.copy(isRestoring = false, errorMessage = "未选择备份文件") }
-                return false
+    fun restoreBackup(password: String) {
+        val backupName = selectedBackupName(password) ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            _state.update {
+                it.copy(
+                    isRestoring = true,
+                    restoreProgress = 0f,
+                    statusMessage = "准备恢复...",
+                    successMessage = "",
+                    errorMessage = "",
+                )
             }
-            if (password.isBlank()) {
-                _state.update { it.copy(isRestoring = false, errorMessage = "请输入备份密码") }
-                return false
+            try {
+                val success = backupService.restore(backupName, password)
+                if (success) {
+                    _state.update { it.copy(successMessage = "恢复完成", errorMessage = "") }
+                } else {
+                    _state.update { it.copy(errorMessage = backupService.lastMessage.value.ifBlank { "恢复失败，请检查密码" }) }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (e: Exception) {
+                _state.update { it.copy(errorMessage = e.message ?: "恢复失败") }
+            } finally {
+                _state.update { it.copy(isRestoring = false) }
             }
-            val backupName = _state.value.backupList[index]
-            val success = backupService.restore(backupName, password)
-            if (success) {
-                _state.update { it.copy(successMessage = "恢复完成", errorMessage = "") }
-            } else {
-                _state.update { it.copy(errorMessage = backupService.lastMessage.value.ifBlank { "恢复失败，请检查密码" }) }
-            }
-            _state.update { it.copy(isRestoring = false) }
-            success
-        } catch (e: Exception) {
-            _state.update { it.copy(isRestoring = false, errorMessage = e.message ?: "恢复失败") }
-            false
         }
+    }
+
+    private fun selectedBackupName(password: String): String? {
+        val current = _state.value
+        val index = current.selectedBackupIndex
+        if (index < 0 || index >= current.backupList.size) {
+            _state.update { it.copy(successMessage = "", statusMessage = "", errorMessage = "未选择备份文件") }
+            return null
+        }
+        if (password.isBlank()) {
+            _state.update { it.copy(successMessage = "", statusMessage = "", errorMessage = "请输入备份密码") }
+            return null
+        }
+        return current.backupList[index]
     }
 
     private fun applyRestoreMessage(message: String) {

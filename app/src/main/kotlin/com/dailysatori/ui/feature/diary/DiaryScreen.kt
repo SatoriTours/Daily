@@ -55,6 +55,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import com.dailysatori.core.util.diaryDateCountLabel
+import com.dailysatori.core.util.diaryDateDayNumber
+import com.dailysatori.core.util.diaryDateMonthLabel
+import com.dailysatori.core.util.diaryDateWeekLabel
+import com.dailysatori.core.util.diaryDayKey
+import com.dailysatori.core.util.diaryImagePaths
+import com.dailysatori.core.util.diaryMonthDayLabel
+import com.dailysatori.core.util.diaryMonthKey
+import com.dailysatori.core.util.diaryMonthSummary
+import com.dailysatori.core.util.diaryMonthTitle
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.ui.component.card.DiaryCard
 import com.dailysatori.ui.component.dialog.ConfirmDialog
@@ -67,10 +77,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import org.koin.androidx.compose.koinViewModel
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -264,7 +270,7 @@ private fun MiniAddDiaryButton(onClick: () -> Unit) {
 @Composable
 private fun DiaryMonthHeader(diaries: List<Diary>, summary: String?) {
     val firstDiary = diaries.firstOrNull()
-    val monthTitle = firstDiary?.let(::diaryMonthTitle) ?: "${toChineseNumber(Calendar.getInstance().get(Calendar.MONTH) + 1)}月"
+    val monthTitle = firstDiary?.let(::diaryMonthTitle) ?: diaryMonthTitle(System.currentTimeMillis())
     Column(
         modifier = Modifier.fillMaxWidth().padding(top = Spacing.xs, bottom = Spacing.xs),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -281,9 +287,7 @@ private fun DiaryMonthHeader(diaries: List<Diary>, summary: String?) {
 
 @Composable
 private fun DiaryMonthMeta(diaries: List<Diary>) {
-    val imageCount = diaries.sumOf { diary ->
-        diary.images?.split(",")?.count { it.trim().isNotBlank() && it.trim() != "null" } ?: 0
-    }
+    val imageCount = diaries.sumOf { diary -> diaryImagePaths(diary.images).size }
     val latest = diaries.maxOfOrNull { it.updated_at ?: it.created_at }?.let { latestTime ->
         " · 最近更新 ${diaryMonthDayLabel(latestTime)}"
     }.orEmpty()
@@ -325,94 +329,6 @@ private fun DiaryDateHeader(diary: Diary, dayDiaryCount: Int, hasMonthHeader: Bo
             )
         }
     }
-}
-
-private fun diaryMonthTitle(diary: Diary): String {
-    val calendar = Calendar.getInstance().apply { time = Date(diary.created_at) }
-    return "${toChineseNumber(calendar.get(Calendar.MONTH) + 1)}月"
-}
-
-private fun diaryMonthKey(diary: Diary): String = SimpleDateFormat("yyyy-MM", Locale.CHINA).format(Date(diary.created_at))
-
-private fun diaryDayKey(diary: Diary): String = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date(diary.created_at))
-
-private fun diaryMonthDayLabel(time: Long): String {
-    val calendar = Calendar.getInstance().apply { timeInMillis = time }
-    return "${calendar.get(Calendar.MONTH) + 1} 月 ${calendar.get(Calendar.DAY_OF_MONTH)} 日"
-}
-
-private fun diaryDateDayNumber(diary: Diary): String {
-    val calendar = Calendar.getInstance().apply { time = Date(diary.created_at) }
-    return calendar.get(Calendar.DAY_OF_MONTH).toString()
-}
-
-private fun diaryDateMonthLabel(diary: Diary): String {
-    val calendar = Calendar.getInstance().apply { time = Date(diary.created_at) }
-    return "${toChineseNumber(calendar.get(Calendar.MONTH) + 1)}月"
-}
-
-private fun diaryDateWeekLabel(diary: Diary): String {
-    val calendar = Calendar.getInstance().apply { time = Date(diary.created_at) }
-    val week = when (calendar.get(Calendar.DAY_OF_WEEK)) {
-        Calendar.MONDAY -> "周一"
-        Calendar.TUESDAY -> "周二"
-        Calendar.WEDNESDAY -> "周三"
-        Calendar.THURSDAY -> "周四"
-        Calendar.FRIDAY -> "周五"
-        Calendar.SATURDAY -> "周六"
-        else -> "周日"
-    }
-    return week
-}
-
-private fun diaryDateCountLabel(diary: Diary, dayDiaryCount: Int): String {
-    val relative = diaryRelativeDayLabel(diary)
-    val count = "$dayDiaryCount 篇"
-    return if (relative.isBlank()) count else "$relative · $count"
-}
-
-private fun diaryRelativeDayLabel(diary: Diary): String {
-    val today = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date())
-    val calendar = Calendar.getInstance()
-    calendar.add(Calendar.DAY_OF_YEAR, -1)
-    val yesterday = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(calendar.time)
-    calendar.add(Calendar.DAY_OF_YEAR, -1)
-    val beforeYesterday = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(calendar.time)
-    return when (diaryDayKey(diary)) {
-        today -> "今天"
-        yesterday -> "昨天"
-        beforeYesterday -> "前天"
-        else -> ""
-    }
-}
-
-private fun toChineseNumber(value: Int): String {
-    val units = listOf("零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十")
-    return when (value) {
-        in 0..10 -> units[value]
-        in 11..19 -> "十${units[value % 10]}"
-        in 20..99 -> "${units[value / 10]}十${if (value % 10 == 0) "" else units[value % 10]}"
-        else -> value.toString()
-    }
-}
-
-private fun diaryMonthSummary(diaries: List<Diary>): String {
-    if (diaries.isEmpty()) return emptyMonthSentence()
-    val tags = diaries.flatMap { diary ->
-        diary.tags?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() && it != "null" }.orEmpty()
-    }.distinct().take(3)
-    val tagText = tags.takeIf { it.isNotEmpty() }?.joinToString("、") ?: "一些普通但明亮的片刻"
-    return "这个月的你把 $tagText 留了下来。照片负责记住画面，文字负责留下当时的心。"
-}
-
-private fun emptyMonthSentence(): String {
-    val sentences = listOf(
-        "这个月还没有留下文字。没关系，生活不是每天都要存档，偶尔只负责发光也很好。",
-        "空白不是缺席，它只是给下一段故事留了点位置。",
-        "这个月的纸页还很干净，等风、等光，也等你忽然想写的那一刻。",
-    )
-    val index = Calendar.getInstance().get(Calendar.MONTH) % sentences.size
-    return sentences[index]
 }
 
 @Composable

@@ -36,7 +36,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,18 +48,21 @@ import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
-import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun BackupRestoreScreen(onBack: () -> Unit = {}) {
     val viewModel: BackupRestoreViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
-    val scope = rememberCoroutineScope()
     var showPasswordDialog by remember { mutableStateOf(false) }
     var restorePassword by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
         viewModel.loadBackupFiles()
+    }
+    LaunchedEffect(state.successMessage) {
+        if (state.successMessage.isNotBlank()) {
+            restorePassword = ""
+        }
     }
 
     AppScaffold(
@@ -96,11 +98,7 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
                 onDismiss = { showPasswordDialog = false },
                 onConfirm = {
                     showPasswordDialog = false
-                    scope.launch {
-                        if (viewModel.restoreBackup(restorePassword)) {
-                            restorePassword = ""
-                        }
-                    }
+                    viewModel.restoreBackup(restorePassword)
                 },
             )
         }

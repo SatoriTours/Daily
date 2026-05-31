@@ -27,12 +27,14 @@ class AiConfigLayoutTest {
     }
 
     @Test
-    fun editorSnapshotsFormStateBeforeIoWork() {
-        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aiconfig/AiConfigEditScreen.kt").readText()
+    fun editorDelegatesStatefulIoWorkToViewModel() {
+        val screenSource = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aiconfig/AiConfigEditScreen.kt").readText()
+        val viewModelSource = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aiconfig/AiConfigEditViewModel.kt").readText()
 
-        assertEquals(true, source.contains("val token = apiToken"))
-        assertEquals(true, source.contains("val defaultValue = isDefault"))
-        assertEquals(false, source.contains("apiToken = apiToken"))
-        assertEquals(false, source.contains("if (isDefault) 1L else 0L"))
+        assertEquals(true, screenSource.contains("AiConfigEditViewModel"))
+        assertEquals(false, screenSource.contains("KoinPlatform.getKoin()"))
+        assertEquals(true, viewModelSource.contains("val token = snapshot.apiToken"))
+        assertEquals(true, viewModelSource.contains("val defaultValue = snapshot.isDefault"))
+        assertEquals(false, screenSource.contains("val token = apiToken"))
     }
 }

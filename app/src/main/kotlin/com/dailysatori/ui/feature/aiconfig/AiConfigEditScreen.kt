@@ -22,28 +22,21 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.dailysatori.config.AiModel
-import com.dailysatori.config.AiProvider
 import com.dailysatori.config.aiProviders
-import com.dailysatori.config.findProvider
-import com.dailysatori.data.repository.AIConfigRepository
-import com.dailysatori.service.ai.AiService
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.component.settings.SettingsEditorBottomBar
 import com.dailysatori.ui.component.settings.SettingsEditorMessage
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.koin.mp.KoinPlatform
+import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,23 +44,22 @@ fun AiConfigEditScreen(
     configId: Long? = null,
     onBack: () -> Unit = {},
 ) {
-    val scope = rememberCoroutineScope()
-    val repo = remember { KoinPlatform.getKoin().get<AIConfigRepository>() }
-    val aiService = remember { KoinPlatform.getKoin().get<AiService>() }
+    val viewModel: AiConfigEditViewModel = koinViewModel()
+    val state by viewModel.state.collectAsState()
 
-    var selectedProvider by remember { mutableStateOf<AiProvider?>(null) }
-    var selectedModel by remember { mutableStateOf<AiModel?>(null) }
     var providerExpanded by remember { mutableStateOf(false) }
     var modelExpanded by remember { mutableStateOf(false) }
-    var apiToken by remember { mutableStateOf("") }
-    var customModelName by remember { mutableStateOf("") }
-    var isDefault by remember { mutableStateOf(false) }
-    var wasDefault by remember { mutableStateOf(false) }
-    var isSaving by remember { mutableStateOf(false) }
-    var isTesting by remember { mutableStateOf(false) }
-    var testResult by remember { mutableStateOf<String?>(null) }
-    var testSuccess by remember { mutableStateOf<Boolean?>(null) }
 
+    val selectedProvider = state.selectedProvider
+    val selectedModel = state.selectedModel
+    val apiToken = state.apiToken
+    val customModelName = state.customModelName
+    val isDefault = state.isDefault
+    val wasDefault = state.wasDefault
+    val isSaving = state.isSaving
+    val isTesting = state.isTesting
+    val testResult = state.testResult
+    val testSuccess = state.testSuccess
     val models = selectedProvider?.models ?: emptyList()
     val isCustomModel = selectedProvider != null && models.isEmpty()
     val currentModel = currentModelId(isCustomModel, customModelName, selectedModel)
@@ -75,19 +67,7 @@ fun AiConfigEditScreen(
     val canSave = selectedProvider != null && apiToken.isNotBlank() && currentModel != null
 
     LaunchedEffect(configId) {
-        if (configId != null) {
-            val config = repo.getById(configId)
-            if (config != null) {
-                apiToken = config.api_token
-                isDefault = config.is_default == 1L
-                wasDefault = config.is_default == 1L
-                selectedProvider = findProvider(config.provider)
-                selectedModel = selectedProvider?.models?.find { it.id == config.model_name }
-                if (selectedModel == null && config.model_name.isNotBlank()) {
-                    customModelName = config.model_name
-                }
-            }
-        }
+        viewModel.load(configId)
     }
 
     AppScaffold(
@@ -99,51 +79,8 @@ fun AiConfigEditScreen(
                 canSave = canSave,
                 isTesting = isTesting,
                 isSaving = isSaving,
-                onTest = {
-                    val provider = selectedProvider ?: return@SettingsEditorBottomBar
-                    val modelId = currentModel ?: return@SettingsEditorBottomBar
-                    val token = apiToken
-                    scope.launch {
-                        isTesting = true
-                        testResult = null
-                        testSuccess = null
-                        val result = withContext(Dispatchers.IO) {
-                            aiService.testConnection(
-                                apiAddress = provider.apiHost,
-                                apiToken = token,
-                                modelName = modelId,
-                                provider = provider.id,
-                            )
-                        }
-                        testSuccess = result.isSuccess
-                        testResult = result.fold(
-                            onSuccess = { "连接成功：${it.take(80)}" },
-                            onFailure = { it.message ?: "连接失败" },
-                        )
-                        isTesting = false
-                    }
-                },
-                onSave = {
-                    val provider = selectedProvider ?: return@SettingsEditorBottomBar
-                    val modelId = currentModel ?: return@SettingsEditorBottomBar
-                    val token = apiToken
-                    val defaultValue = isDefault
-                    scope.launch {
-                        isSaving = true
-                        try {
-                            withContext(Dispatchers.IO) {
-                                if (configId != null) {
-                                    repo.update(configId, provider.id, provider.apiHost, token, modelId, if (defaultValue) 1L else 0L)
-                                } else {
-                                    repo.insert(provider.id, provider.apiHost, token, modelId, if (defaultValue) 1L else 0L)
-                                }
-                            }
-                            onBack()
-                        } finally {
-                            isSaving = false
-                        }
-                    }
-                },
+                onTest = viewModel::testConnection,
+                onSave = { viewModel.save(configId, onBack) },
             )
         },
     ) { modifier ->
@@ -176,9 +113,7 @@ fun AiConfigEditScreen(
                             DropdownMenuItem(
                                 text = { Text(provider.name) },
                                 onClick = {
-                                    selectedProvider = provider
-                                    selectedModel = null
-                                    customModelName = ""
+                                    viewModel.selectProvider(provider)
                                     providerExpanded = false
                                 },
                             )
@@ -192,7 +127,7 @@ fun AiConfigEditScreen(
                 Spacer(modifier = Modifier.height(Spacing.xs))
                 OutlinedTextField(
                     value = apiToken,
-                    onValueChange = { apiToken = it },
+                    onValueChange = viewModel::updateApiToken,
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text("sk-...") },
                     shape = RoundedCornerShape(Radius.s),
@@ -216,7 +151,7 @@ fun AiConfigEditScreen(
                 } else if (isCustomModel) {
                     OutlinedTextField(
                         value = customModelName,
-                        onValueChange = { customModelName = it },
+                        onValueChange = viewModel::updateCustomModelName,
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text("输入模型名称") },
                         shape = RoundedCornerShape(Radius.s),
@@ -244,7 +179,7 @@ fun AiConfigEditScreen(
                                 DropdownMenuItem(
                                     text = { Text(model.name) },
                                     onClick = {
-                                        selectedModel = model
+                                        viewModel.selectModel(model)
                                         modelExpanded = false
                                     },
                                 )
@@ -270,7 +205,7 @@ fun AiConfigEditScreen(
                     Spacer(modifier = Modifier.width(Spacing.m))
                     Switch(
                         checked = isDefault,
-                        onCheckedChange = { isDefault = it },
+                        onCheckedChange = viewModel::updateIsDefault,
                         enabled = !wasDefault,
                     )
                 }

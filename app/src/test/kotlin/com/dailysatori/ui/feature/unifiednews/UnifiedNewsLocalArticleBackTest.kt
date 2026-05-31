@@ -51,7 +51,7 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("fun selectRemoteSource(source: UnifiedNewsRemoteSourceOption)"))
         assertTrue(source.contains("fun refreshSelectedRemoteSource()"))
         assertTrue(source.contains("fun openSourceArticle(article: RemoteArticle)"))
-        assertTrue(source.contains("sourceArticlesByCacheKey.containsKey(cacheKey)"))
+        assertTrue(source.contains("hasUnifiedNewsSourceArticlesCache(_state.value, source.id, summaryDate)"))
         assertTrue(source.contains("remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)"))
         assertTrue(source.contains("selectedRemoteArticle = article"))
         assertTrue(source.contains("articleRepo.findLocalArticleForRemote(article)"))
@@ -66,13 +66,14 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("private fun ifLatestSourceArticleRequest(token: Long, transform: (UnifiedNewsState) -> UnifiedNewsState)"))
         assertTrue(source.contains("if (token == sourceArticleRequestToken.get()) _state.update(transform)"))
         assertTrue(source.contains("catch (e: CancellationException)"))
-        assertTrue(source.contains("sourceArticlesError = \"来源文章加载失败，请稍后重试\""))
+        assertTrue(source.contains("state.withUnifiedNewsSourceArticlesLoaded(sourceId, cacheKey.summaryDate, result.value.articles)"))
+        assertTrue(source.contains("state.withUnifiedNewsSourceArticlesFailure(\"来源文章加载失败，请稍后重试\")"))
         assertTrue(source.contains("invalidateSourceArticleRequest()"))
-        assertTrue(source.contains("val sourceArticlesCached = _state.value.sourceArticlesByCacheKey.containsKey(cacheKey)"))
+        assertTrue(source.contains("_state.update { it.withUnifiedNewsSourceArticleRequestInvalidated() }"))
+        assertTrue(source.contains("_state.update { it.withUnifiedNewsSourceArticlesLoading(sourceId) }"))
         assertTrue(source.contains("if (!sourceArticlesCached)"))
-        assertTrue(source.contains("sourceArticlesLoadingSourceId = null"))
-        assertTrue(source.contains("val shouldResetSelection = currentSelection is UnifiedNewsSourceSelection.RemoteSource"))
-        assertTrue(source.contains("if (shouldResetSelection) invalidateSourceArticleRequest()"))
+        assertTrue(source.contains("shouldResetUnifiedNewsSourceSelection(currentSelection, remoteSources)"))
+        assertTrue(source.contains("resolvedUnifiedNewsSourceSelection(currentSelection, remoteSources)"))
         assertTrue(selectRemoteSource.indexOf("invalidateSourceArticleRequest()") < selectRemoteSource.indexOf("_state.update"))
         assertTrue(selectRemoteSource.indexOf("_state.update") < selectRemoteSource.indexOf("fetchSourceArticles(source.id, force = false)"))
     }
@@ -113,7 +114,7 @@ class UnifiedNewsLocalArticleBackTest {
 
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         assertTrue(source.contains("sourceArticlesByCacheKey: Map<SourceArticleCacheKey, List<RemoteArticle>> = emptyMap()"))
-        assertTrue(source.contains("val cacheKey = sourceArticleCacheKey(source.id, dailyUnifiedNewsWindowFor().summaryDate)"))
+        assertTrue(source.contains("hasUnifiedNewsSourceArticlesCache(_state.value, source.id, summaryDate)"))
     }
 
     @Test

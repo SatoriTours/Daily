@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.diary
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailysatori.core.util.diaryTags
 import com.dailysatori.data.repository.DiaryMonthSummaryRepository
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.service.memory.MemoryExtractService
@@ -58,15 +59,8 @@ class DiaryViewModel(
     }
 
     private fun refreshAvailableTags() {
-        val allDiaries = diaryRepo.getAllSync()
-        val tags = allDiaries
-            .flatMap { diary ->
-                diary.tags
-                    ?.split(",")
-                    ?.map { it.trim() }
-                    ?.filter { it.isNotBlank() && it != "null" }
-                    ?: emptyList()
-            }
+        val tags = diaryRepo.getAllSync()
+            .flatMap { diary -> diaryTags(diary.tags) }
             .distinct()
             .sorted()
         _state.update { it.copy(availableTags = tags) }

@@ -106,4 +106,26 @@ class RemoteArticleFavoriteMapperTest {
 
         assertFalse(article.needsLocalAiReprocessingForChineseOutput())
     }
+
+    @Test
+    fun blankRemoteArticleUrlDoesNotTriggerLocalAiReprocessing() {
+        val article = RemoteArticle(
+            id = 12,
+            title = "OpenAI launches new coding model",
+            url = " ",
+            summary = "The company announced a major update for developers and enterprise teams.",
+            content = "The model improves reliability and long context reasoning for teams building software every day.",
+        )
+
+        assertFalse(article.needsLocalAiReprocessingForChineseOutput())
+    }
+
+    @Test
+    fun cachedRemoteArticleUsesSummaryOrTitleAsMarkdownFallback() {
+        val withSummary = RemoteArticle(id = 13, title = "Title", summary = "Summary")
+        val titleOnly = RemoteArticle(id = 14, title = "Title Only")
+
+        assertEquals("Summary", withSummary.toLocalCachedArticleFields().aiMarkdownContent)
+        assertEquals("Title Only", titleOnly.toLocalCachedArticleFields().aiMarkdownContent)
+    }
 }

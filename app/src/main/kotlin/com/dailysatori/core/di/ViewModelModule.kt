@@ -14,6 +14,7 @@ import com.dailysatori.platform.FileManager
 import com.dailysatori.core.service.AppUpgradeService
 import com.dailysatori.core.service.WebServerService
 import com.dailysatori.service.backup.BackupService
+import com.dailysatori.service.import.ImportService
 import com.dailysatori.service.mcp.McpAgentService
 import com.dailysatori.service.memory.MemoryExtractService
 import com.dailysatori.service.parser.WebpageParserService
@@ -22,11 +23,14 @@ import com.dailysatori.service.setting.SettingService
 import com.dailysatori.service.weekly.WeeklySummaryService
 import com.dailysatori.ui.feature.aichat.AiChatViewModel
 import com.dailysatori.ui.feature.aichat.AiReferenceDetailViewModel
+import com.dailysatori.ui.feature.aichat.MemorySearchViewModel
+import com.dailysatori.ui.feature.aiconfig.AiConfigEditViewModel
 import com.dailysatori.ui.feature.aiconfig.AiConfigViewModel
 import com.dailysatori.ui.feature.article.ArticleDetailViewModel
 import com.dailysatori.ui.feature.article.ArticlesViewModel
 import com.dailysatori.ui.feature.settings.backup.BackupRestoreViewModel
 import com.dailysatori.ui.feature.settings.backup.BackupSettingsViewModel
+import com.dailysatori.ui.feature.settings.importing.DataImportViewModel
 import com.dailysatori.ui.feature.book.BookSearchViewModel
 import com.dailysatori.ui.feature.book.BookContentSearchViewModel
 import com.dailysatori.ui.feature.book.BooksViewModel
@@ -110,8 +114,24 @@ val viewModelModule: Module = module {
         )
     }
     viewModel {
+        MemorySearchViewModel(
+            memoryRepo = get(),
+            extractService = get<MemoryExtractService>(),
+            articleRepo = get<ArticleRepository>(),
+            diaryRepo = get<DiaryRepository>(),
+            bookRepo = get<BookRepository>(),
+            viewpointRepo = get<BookViewpointRepository>(),
+        )
+    }
+    viewModel {
         AiConfigViewModel(
             repo = get<AIConfigRepository>(),
+        )
+    }
+    viewModel {
+        AiConfigEditViewModel(
+            repo = get<AIConfigRepository>(),
+            aiService = get(),
         )
     }
     viewModel {
@@ -139,6 +159,11 @@ val viewModelModule: Module = module {
         )
     }
     viewModel {
+        DataImportViewModel(
+            importService = get<ImportService>(),
+        )
+    }
+    viewModel {
         PluginCenterViewModel(
             pluginService = get<PluginService>(),
             settingRepo = get<SettingRepository>(),
@@ -146,18 +171,47 @@ val viewModelModule: Module = module {
     }
     viewModel {
         UnifiedNewsViewModel(
-            get(), get(), get(), get(), get(), get<ArticleRepository>(),
-            get<WebpageParserService>(), com.dailysatori.BuildConfig.DEBUG,
+            summaryRepo = get(),
+            summaryService = get(),
+            settingRepo = get<SettingRepository>(),
+            remoteNewsService = get(),
+            remoteNewsSourceRepo = get(),
+            articleRepo = get<ArticleRepository>(),
+            webpageParserService = get<WebpageParserService>(),
+            isDebugBuild = com.dailysatori.BuildConfig.DEBUG,
         )
     }
-    viewModel { RemoteNewsViewModel(get(), get(), get<ArticleRepository>(), get<WebpageParserService>()) }
-    viewModel { RemoteNewsSettingsViewModel(get(), get()) }
+    viewModel {
+        RemoteNewsViewModel(
+            settingRepo = get<SettingRepository>(),
+            remoteNewsService = get(),
+            articleRepo = get<ArticleRepository>(),
+            webpageParserService = get<WebpageParserService>(),
+        )
+    }
+    viewModel {
+        RemoteNewsSettingsViewModel(
+            sourceRepo = get(),
+            remoteNewsService = get(),
+        )
+    }
     viewModel {
         SettingsViewModel(
             webServerService = get<WebServerService>(),
             appUpgradeService = get<AppUpgradeService>(),
+            settingRepo = get<SettingRepository>(),
         )
     }
-    viewModel { McpServerViewModel(get(), get()) }
-    viewModel { SkillSettingsViewModel(get(), get()) }
+    viewModel {
+        McpServerViewModel(
+            repo = get(),
+            remoteMcpClient = get(),
+        )
+    }
+    viewModel {
+        SkillSettingsViewModel(
+            repository = get(),
+            connectionTester = get(),
+        )
+    }
 }
