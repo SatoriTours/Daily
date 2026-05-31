@@ -19,7 +19,7 @@ class BooksScreenUiTextTest {
     fun immersiveReaderRemovesChromeAndKeepsSwipePaging() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
         val readerFlow = source.extractBetween(
-            start = "            } else {\n                val pagerState = rememberPagerState(",
+            start = "                } else {\n                    val pagerState = rememberPagerState(",
             end = "\n    if (inlineMode != BooksInlineMode.Reading)",
         )
         val pagerBlock = readerFlow.extractCallBlock("HorizontalPager(")
@@ -27,6 +27,10 @@ class BooksScreenUiTextTest {
         assertEquals("读书", booksReaderTitle(null, null))
         assertEquals("原则", booksReaderTitle("原则", "Ray Dalio"))
         assertEquals("更多读书操作", booksMoreActionsContentDescription())
+        assertTrue(source.contains("AppScaffold("))
+        assertTrue(source.contains("Column(modifier = modifier.fillMaxSize())"))
+        assertFalse(source.contains("AppTopBar("))
+        assertFalse(source.contains("Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)"))
         assertTrue(readerFlow.contains("HorizontalPager("))
         assertTrue(pagerBlock.contains("ViewpointCard("))
         assertTrue(pagerBlock.contains("bookTitle = currentBook?.title.orEmpty()"))

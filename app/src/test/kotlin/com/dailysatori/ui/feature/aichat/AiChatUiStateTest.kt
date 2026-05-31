@@ -668,7 +668,7 @@ class AiChatUiStateTest {
         assertTrue(gradle.contains("haze = { group = \"dev.chrisbanes.haze\", name = \"haze\", version.ref = \"haze\" }"))
         assertTrue(appGradle.contains("implementation(libs.haze)"))
         assertTrue(home.contains("rememberHazeState()"))
-        assertTrue(home.contains(".hazeSource(state = hazeState)"))
+        assertTrue(home.contains("Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).hazeSource(state = hazeState)"))
         assertTrue(glassBody.contains(".hazeEffect("))
         assertTrue(glassBody.contains("state = hazeState"))
         assertTrue(glassBody.contains("style = HazeDefaults.style("))

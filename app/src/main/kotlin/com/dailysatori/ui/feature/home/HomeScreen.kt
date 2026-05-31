@@ -136,7 +136,7 @@ fun HomeScreen(
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
         ) {
-            Box(modifier = Modifier.fillMaxSize().hazeSource(state = hazeState)) {
+            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).hazeSource(state = hazeState)) {
                 Crossfade(targetState = selectedIndex) { index ->
                     if (showMy) {
                         SettingsScreen(settingsViewModel, onBack = { showMy = false })

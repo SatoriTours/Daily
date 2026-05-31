@@ -49,14 +49,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dailysatori.shared.db.Book
-import com.dailysatori.ui.component.appbar.AppTopBar
 import com.dailysatori.ui.component.dialog.ConfirmDialog
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
+import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.book.component.BookAddSearchSheet
 import com.dailysatori.ui.feature.book.component.BookContentSearchSheet
 import com.dailysatori.ui.feature.book.component.BookPickerSwipeRow
-import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import kotlinx.coroutines.delay
@@ -129,118 +128,117 @@ fun BooksScreen(
 
     val currentBook = state.books.find { it.id == state.currentBookId }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        AppTopBar(
-            title = booksReaderTitle(currentBook?.title, currentBook?.author),
-            showBack = false,
-            myNavigationLabel = "我的",
-            onMyNavigationClick = onMyClick,
-            expandedHeight = Height.appBarCompact,
-            actions = {
-                var showMenu by remember { mutableStateOf(false) }
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = booksMoreActionsContentDescription())
-                    }
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        DropdownMenuItem(
-                            text = { Text(booksAddActionContentDescription()) },
-                            leadingIcon = { Icon(Icons.Default.Add, null) },
-                            onClick = { inlineMode = BooksInlineMode.AddBook; showMenu = false },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(booksContentSearchActionContentDescription()) },
-                            leadingIcon = { Icon(Icons.Default.Search, null) },
-                            onClick = { inlineMode = BooksInlineMode.ContentSearch; showMenu = false },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(booksFilterMenuText()) },
-                            leadingIcon = { Icon(Icons.Default.FilterList, null) },
-                            onClick = { showBookSheet = true; showMenu = false },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("随机") },
-                            leadingIcon = { Icon(Icons.Default.Refresh, null) },
-                            onClick = { viewModel.shuffle(); showMenu = false },
-                        )
-                        if (state.currentBookId != null) {
-                            DropdownMenuItem(
-                                text = { Text("删除") },
-                                leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
-                                onClick = {
-                                    showDeleteDialog = state.books.find { it.id == state.currentBookId }
-                                    showMenu = false
-                                },
-                            )
-                        }
-                    }
+    AppScaffold(
+        title = booksReaderTitle(currentBook?.title, currentBook?.author),
+        showBack = false,
+        myNavigationLabel = "我的",
+        onMyNavigationClick = onMyClick,
+        actions = {
+            var showMenu by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = booksMoreActionsContentDescription())
                 }
-            },
-        )
-
-        val visibleAnalysisMessage = booksAnalysisBannerMessage(bookAnalysisMessage, inlineBookAnalysisMessage)
-        if (visibleAnalysisMessage != null) {
-            BooksInlineNotice(text = visibleAnalysisMessage)
-        }
-        searchReturnLocation?.let { location ->
-            BooksInlineNotice(
-                text = booksRestoreReadingText(),
-                onClick = {
-                    targetViewpointId = null
-                    viewModel.selectBook(location.bookId)
-                    viewModel.setPage(location.page)
-                    searchReturnLocation = null
-                },
-            )
-        }
-
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            if (state.isLoading && state.viewpoints.isEmpty()) {
-                LoadingIndicator()
-            } else if (state.viewpoints.isEmpty()) {
-                EmptyState(
-                    modifier = Modifier.align(Alignment.Center),
-                    icon = Icons.AutoMirrored.Filled.MenuBook,
-                    title = "暂无读书观点",
-                    subtitle = booksEmptyStateSubtitle(state.currentBookId != null),
-                )
-            } else {
-                val pagerState = rememberPagerState(
-                    initialPage = state.currentPage,
-                    pageCount = { state.viewpoints.size },
-                )
-
-                LaunchedEffect(state.currentBookId) {
-                    pagerState.scrollToPage(0)
-                }
-
-                LaunchedEffect(state.currentPage) {
-                    if (pagerState.currentPage != state.currentPage) pagerState.scrollToPage(state.currentPage)
-                }
-
-                LaunchedEffect(pagerState.currentPage) {
-                    viewModel.setPage(pagerState.currentPage)
-                }
-
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                ) { page ->
-                    val vp = state.viewpoints[page]
-
-                    ViewpointCard(
-                        title = vp.title,
-                        content = vp.content,
-                        example = vp.example,
-                        bookTitle = currentBook?.title.orEmpty(),
-                        author = currentBook?.author.orEmpty(),
-                        page = page,
-                        total = state.viewpoints.size,
-                        fillAvailableHeight = true,
-                        status = vp.status,
-                        errorMessage = vp.error_message,
-                        onRetry = { viewModel.regenerateViewpoint(vp.id) },
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text(booksAddActionContentDescription()) },
+                        leadingIcon = { Icon(Icons.Default.Add, null) },
+                        onClick = { inlineMode = BooksInlineMode.AddBook; showMenu = false },
                     )
+                    DropdownMenuItem(
+                        text = { Text(booksContentSearchActionContentDescription()) },
+                        leadingIcon = { Icon(Icons.Default.Search, null) },
+                        onClick = { inlineMode = BooksInlineMode.ContentSearch; showMenu = false },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(booksFilterMenuText()) },
+                        leadingIcon = { Icon(Icons.Default.FilterList, null) },
+                        onClick = { showBookSheet = true; showMenu = false },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("随机") },
+                        leadingIcon = { Icon(Icons.Default.Refresh, null) },
+                        onClick = { viewModel.shuffle(); showMenu = false },
+                    )
+                    if (state.currentBookId != null) {
+                        DropdownMenuItem(
+                            text = { Text("删除") },
+                            leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                showDeleteDialog = state.books.find { it.id == state.currentBookId }
+                                showMenu = false
+                            },
+                        )
+                    }
+                }
+            }
+        },
+    ) { modifier ->
+        Column(modifier = modifier.fillMaxSize()) {
+            val visibleAnalysisMessage = booksAnalysisBannerMessage(bookAnalysisMessage, inlineBookAnalysisMessage)
+            if (visibleAnalysisMessage != null) {
+                BooksInlineNotice(text = visibleAnalysisMessage)
+            }
+            searchReturnLocation?.let { location ->
+                BooksInlineNotice(
+                    text = booksRestoreReadingText(),
+                    onClick = {
+                        targetViewpointId = null
+                        viewModel.selectBook(location.bookId)
+                        viewModel.setPage(location.page)
+                        searchReturnLocation = null
+                    },
+                )
+            }
+
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                if (state.isLoading && state.viewpoints.isEmpty()) {
+                    LoadingIndicator()
+                } else if (state.viewpoints.isEmpty()) {
+                    EmptyState(
+                        modifier = Modifier.align(Alignment.Center),
+                        icon = Icons.AutoMirrored.Filled.MenuBook,
+                        title = "暂无读书观点",
+                        subtitle = booksEmptyStateSubtitle(state.currentBookId != null),
+                    )
+                } else {
+                    val pagerState = rememberPagerState(
+                        initialPage = state.currentPage,
+                        pageCount = { state.viewpoints.size },
+                    )
+
+                    LaunchedEffect(state.currentBookId) {
+                        pagerState.scrollToPage(0)
+                    }
+
+                    LaunchedEffect(state.currentPage) {
+                        if (pagerState.currentPage != state.currentPage) pagerState.scrollToPage(state.currentPage)
+                    }
+
+                    LaunchedEffect(pagerState.currentPage) {
+                        viewModel.setPage(pagerState.currentPage)
+                    }
+
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                    ) { page ->
+                        val vp = state.viewpoints[page]
+
+                        ViewpointCard(
+                            title = vp.title,
+                            content = vp.content,
+                            example = vp.example,
+                            bookTitle = currentBook?.title.orEmpty(),
+                            author = currentBook?.author.orEmpty(),
+                            page = page,
+                            total = state.viewpoints.size,
+                            fillAvailableHeight = true,
+                            status = vp.status,
+                            errorMessage = vp.error_message,
+                            onRetry = { viewModel.regenerateViewpoint(vp.id) },
+                        )
+                    }
                 }
             }
         }
