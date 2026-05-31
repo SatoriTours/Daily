@@ -104,7 +104,7 @@ fun DiaryCard(
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             DiaryCardHeader(diary, showDelete, menuExpanded, { menuExpanded = it }, onEdit, onDelete)
             if (imagePaths.isNotEmpty()) DiaryPhotoWall(imagePaths, context.filesDir)
-            DiaryBody(contentText = contentText, expanded = expanded, isLongContent = isLongContent, isQuote = imagePaths.isEmpty())
+            DiaryBody(contentText = contentText, expanded = expanded, isLongContent = isLongContent)
             DiaryCardFooter(tags = tags, isLongContent = isLongContent, expanded = expanded) { expanded = !expanded }
         }
     }
@@ -151,22 +151,11 @@ private fun DiaryCardHeader(
 }
 
 @Composable
-private fun DiaryBody(contentText: String, expanded: Boolean, isLongContent: Boolean, isQuote: Boolean) {
+private fun DiaryBody(contentText: String, expanded: Boolean, isLongContent: Boolean) {
     if (contentText.isBlank()) return
     val bodyModifier = Modifier.fillMaxWidth().then(if (!expanded && isLongContent) Modifier.heightIn(max = 190.dp) else Modifier)
-    if (isQuote) {
-        Row(
-            modifier = bodyModifier.clip(RoundedCornerShape(topEnd = 18.dp, bottomEnd = 18.dp)).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)),
-        ) {
-            Box(modifier = Modifier.width(3.dp).height(120.dp).background(MaterialTheme.colorScheme.primary))
-            Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-                Markdown(content = contentText, typography = MarkdownStyles.cardTypography(), padding = MarkdownStyles.cardPadding())
-            }
-        }
-    } else {
-        Box(modifier = bodyModifier) {
-            Markdown(content = contentText, typography = MarkdownStyles.cardTypography(), padding = MarkdownStyles.cardPadding())
-        }
+    Box(modifier = bodyModifier) {
+        Markdown(content = contentText, typography = MarkdownStyles.cardTypography(), padding = MarkdownStyles.cardPadding())
     }
 }
 

@@ -1,7 +1,13 @@
 package com.dailysatori.ui.feature.diary
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +24,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,23 +35,25 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import com.dailysatori.shared.db.Diary
 import com.dailysatori.ui.component.card.DiaryCard
@@ -72,10 +81,14 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
     var editingDiary by remember { mutableStateOf<Diary?>(null) }
     var showDeleteDialog by remember { mutableStateOf<Diary?>(null) }
     var showTagFilter by remember { mutableStateOf(false) }
+    val diaryListState = rememberLazyListState()
+    val showAddDiaryButton by remember { derivedStateOf { !diaryListState.isScrollInProgress } }
 
     AppScaffold(
         title = "我的日记",
         showBack = false,
+        myNavigationLabel = "设置",
+        onMyNavigationClick = onMyClick,
         actions = {
             IconButton(onClick = { viewModel.toggleSearch() }) {
                 Icon(Icons.Default.Search, contentDescription = "搜索", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
@@ -90,14 +103,13 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             }
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { editingDiary = null; showEditor = true },
-                modifier = Modifier.size(54.dp),
-                containerColor = MaterialTheme.colorScheme.onSurface,
-                contentColor = MaterialTheme.colorScheme.surface,
-                shape = CircleShape,
+            AnimatedVisibility(
+                visible = showAddDiaryButton,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
+                modifier = Modifier.padding(bottom = 88.dp).size(48.dp),
             ) {
-                Icon(Icons.Default.Add, contentDescription = "新建日记", modifier = Modifier.size(30.dp))
+                MiniAddDiaryButton { editingDiary = null; showEditor = true }
             }
         },
     ) { scaffoldModifier ->
@@ -136,7 +148,8 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(top = Spacing.s, bottom = Spacing.xxl),
+                        state = diaryListState,
+                        contentPadding = PaddingValues(top = Spacing.s, bottom = 112.dp),
                         verticalArrangement = Arrangement.spacedBy(Spacing.s),
                     ) {
                         itemsIndexed(state.diaries, key = { _, diary -> diary.id }) { index, diary ->
@@ -222,6 +235,29 @@ fun DiaryScreen(onMyClick: () -> Unit = {}) {
             },
             onDismiss = { showDeleteDialog = null },
         )
+    }
+}
+
+@Composable
+private fun MiniAddDiaryButton(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            modifier = Modifier.size(36.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            shadowElevation = 6.dp,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Add, contentDescription = "新建日记", modifier = Modifier.size(21.dp))
+            }
+        }
     }
 }
 
