@@ -151,6 +151,60 @@ FilledIconButton(
 )
 ```
 
+## 底部浮动 Liquid Glass
+
+Home 底部导航和 AI 输入条使用 iOS Liquid Glass 方向的浮动材质。目标不是实色卡片，也不是完全透明，而是在内容上方保留可辨认的背景轮廓，同时保证导航图标可读。
+
+实现要求：
+
+- 使用 Haze 做真实背景虚化：内容层必须挂 `.hazeSource(state = hazeState)`，浮动 glass 容器使用 `.hazeEffect(state = hazeState)`。
+- Haze 样式使用透明背景，避免把内容完全盖住：`backgroundColor = Color.Transparent`。
+- 底部安全区、键盘避让和外边距放在 glass 外层容器；glass 本体只包住实际控件高度，保证上下都是完整圆角。
+- 不使用边框表达 glass。禁止给底部 glass 加 `BorderStroke` 或 `border =`。
+- 不使用 `Modifier.blur()` 伪造 backdrop blur；它只会模糊自身内容，不能虚化后面的新闻内容。
+
+当前稳定参数：
+
+```kotlin
+private val HomeBottomBarHazeBlurRadius = 10.dp
+private const val HomeBottomBarGlassAlpha = 0.10f
+private const val HomeBottomBarAiGlassAlpha = 0.16f
+private const val HomeBottomBarHazeTintAlpha = 0.08f
+private const val HomeBottomBarHazeNoiseFactor = 0.02f
+private const val HomeBottomBarGlassTopHighlightAlpha = 0.08f
+private const val HomeBottomBarGlassBottomRefractionAlpha = 0.04f
+```
+
+调参原则：
+
+- 如果看不到后面的内容，优先降低 tint、highlight、background alpha，不要继续加大 blur。
+- 如果滑动时只看到白色/亮色块，说明 blur 半径过大或高光层过强；优先降低 `HomeBottomBarHazeBlurRadius` 和高光 alpha。
+- 如果图标可读性不足，先微调 `HomeBottomBarGlassAlpha`，不要恢复不透明 `surface` 背景。
+- AI 输入条可比普通导航稍厚，但仍应能看到虚化后的背景轮廓。
+
+推荐结构：
+
+```kotlin
+val hazeState = rememberHazeState()
+
+Box(modifier = Modifier.fillMaxSize().hazeSource(state = hazeState)) {
+    // screen content
+}
+
+Box(
+    modifier = Modifier
+        .navigationBarsPadding()
+        .imePadding()
+        .padding(horizontal = Spacing.m, vertical = Spacing.s),
+) {
+    HomeGlassSurface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = HomeBottomBarGlassAlpha),
+        hazeState = hazeState,
+    ) { ... }
+}
+```
+
 ## Markdown 样式
 
 Markdown 必须使用 `MarkdownStyles` 的场景化预设：

@@ -78,6 +78,7 @@ dependencies {
     implementation(libs.koin.compose)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+    implementation(libs.haze)
     implementation(libs.markdown.renderer)
     implementation(libs.markdown.renderer.m3)
     implementation(libs.jsoup)

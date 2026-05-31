@@ -30,7 +30,7 @@ class AiChatUiStateTest {
         assertTrue(source.contains("textStyle = MaterialTheme.typography.bodyMedium.copy"))
         assertTrue(source.contains("style = MaterialTheme.typography.bodyMedium"))
         assertTrue(source.contains("minLines = 1"))
-        assertTrue(source.contains("maxLines = 3"))
+        assertTrue(source.contains("maxLines = if (compact) 1 else 3"))
     }
 
     @Test
@@ -346,7 +346,7 @@ class AiChatUiStateTest {
     @Test
     fun chatInputOffersEditorialQuickPrompts() {
         assertEquals(listOf("整理今天", "提炼主题", "搜索记忆"), chatInputSuggestionLabels())
-        assertEquals("继续追问今天的新闻、日记或文章...", chatInputPlaceholderText())
+        assertEquals("问点什么", chatInputPlaceholderText())
     }
 
     @Test
@@ -601,9 +601,17 @@ class AiChatUiStateTest {
 
     @Test
     fun homeBottomBarRemainsVisibleOnAiTab() {
+        val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+        val bottomBar = home.substringAfter("private fun HomeBottomBarSurface(").substringBefore("@Composable\nprivate fun AiCompactInputRow(")
+        val scaffoldCall = home.substringAfter("Scaffold(").substringBefore(") { innerPadding ->")
+
         assertTrue(chatInputUsesImePadding())
         assertTrue(homeBottomBarVisibleForTab(AI_CHAT_TAB_INDEX))
         assertTrue(homeBottomBarVisibleForTab(TODAY_TAB_INDEX))
+        assertTrue(home.contains("contentAlignment = Alignment.BottomCenter"))
+        assertTrue(home.contains("HomeBottomBarSurface("))
+        assertTrue(bottomBar.contains(".imePadding()"))
+        assertFalse(scaffoldCall.contains("bottomBar ="))
     }
 
     @Test
@@ -613,7 +621,8 @@ class AiChatUiStateTest {
         val input = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aichat/ChatInputBar.kt").readText()
 
         assertTrue(home.contains("homeBottomBarVisibleForTab(selectedIndex)"))
-        assertTrue(home.contains("updateTransition(targetState = selectedIndex == AI_CHAT_TAB_INDEX"))
+        assertTrue(home.contains("val isAiMode = selectedIndex == AI_CHAT_TAB_INDEX"))
+        assertTrue(home.contains("visible = isAiMode"))
         assertTrue(home.contains("HomeBottomBarSurface("))
         assertTrue(home.contains("Icons.Filled.Language"))
         assertTrue(home.contains("ChatInputField("))
@@ -622,30 +631,93 @@ class AiChatUiStateTest {
         assertFalse(screen.contains("Icons.Filled.Home"))
         assertFalse(screen.contains("bottomBar = {"))
         assertTrue(input.contains("fun ChatInputField("))
+        assertTrue(input.contains("compact: Boolean = false"))
+        assertTrue(input.contains("singleLine = compact"))
+        assertTrue(home.contains("compact = true"))
     }
 
     @Test
-    fun aiBottomBarMorphUsesLayoutWidthInsteadOfTransformOnlyScale() {
+    fun aiBottomBarUsesDirectionalSlideInsteadOfWeightMorph() {
         val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
-        val compactBody = home.substringAfter("private fun AiCompactInputRow(").substringBefore("private fun HomeTabNavigationBar(")
+        val bottomBar = home.substringAfter("private fun HomeBottomBarSurface(").substringBefore("@Composable\nprivate fun AiCompactInputRow(")
 
-        assertTrue(home.contains("animateFloat(label = \"home-bottom-ai-input-weight\")"))
-        assertTrue(home.contains("animateFloat(label = \"home-bottom-tabs-weight\")"))
-        assertTrue(compactBody.contains("IconButton("))
-        assertTrue(compactBody.contains("Icons.Filled.Language"))
-        assertTrue(home.contains("modifier = Modifier.weight(inputWeight)"))
-        assertFalse(compactBody.contains("NavigationBarItem("))
-        assertFalse(compactBody.contains("scaleX ="))
-        assertFalse(compactBody.contains("TransformOrigin("))
+        assertTrue(home.contains("AnimatedVisibility("))
+        assertFalse(home.contains("AnimatedContent("))
+        assertTrue(home.contains("visible = isAiMode"))
+        assertTrue(home.contains("enter = homeBottomBarEnterTransition()"))
+        assertTrue(home.contains("exit = homeBottomBarExitTransition()"))
+        assertTrue(home.contains("private const val HomeBottomBarSlideDurationMillis = 480"))
+        assertTrue(home.contains("animationSpec = tween(HomeBottomBarSlideDurationMillis)"))
+        assertTrue(home.contains("slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(HomeBottomBarSlideDurationMillis))"))
+        assertTrue(home.contains("slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(HomeBottomBarSlideDurationMillis))"))
+        assertTrue(home.contains("selectedIndex = TODAY_TAB_INDEX"))
+        assertFalse(bottomBar.contains("home-bottom-ai-input-weight"))
+        assertFalse(bottomBar.contains("home-bottom-tabs-weight"))
+        assertFalse(bottomBar.contains("Modifier.weight(inputWeight)"))
     }
 
     @Test
-    fun aiExpandedBottomBarRemovesOuterContainerBackgroundAndBorder() {
+    fun aiExpandedBottomBarKeepsStableOuterContainerDuringSlide() {
         val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+        val bottomBar = home.substringAfter("private fun HomeBottomBarSurface(").substringBefore("@Composable\nprivate fun AiCompactInputRow(")
+        val glassBody = home.substringAfter("private fun HomeGlassSurface(").substringBefore("@Composable\nprivate fun HomeTabNavigationBar(")
+        val gradle = java.io.File("../gradle/libs.versions.toml").readText()
+        val appGradle = java.io.File("build.gradle.kts").readText()
 
-        assertTrue(home.contains("animateFloat(label = \"home-bottom-container-alpha\")"))
-        assertTrue(home.contains("MaterialTheme.colorScheme.surface.copy(alpha = containerAlpha)"))
-        assertTrue(home.contains("BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant.copy(alpha = containerAlpha))"))
+        assertTrue(gradle.contains("haze = \"1.7.2\""))
+        assertTrue(gradle.contains("haze = { group = \"dev.chrisbanes.haze\", name = \"haze\", version.ref = \"haze\" }"))
+        assertTrue(appGradle.contains("implementation(libs.haze)"))
+        assertTrue(home.contains("rememberHazeState()"))
+        assertTrue(home.contains(".hazeSource(state = hazeState)"))
+        assertTrue(glassBody.contains(".hazeEffect("))
+        assertTrue(glassBody.contains("state = hazeState"))
+        assertTrue(glassBody.contains("style = HazeDefaults.style("))
+        assertTrue(glassBody.contains("backgroundColor = Color.Transparent"))
+        assertTrue(glassBody.contains("blurRadius = HomeBottomBarHazeBlurRadius"))
+        assertTrue(glassBody.contains("noiseFactor = HomeBottomBarHazeNoiseFactor"))
+        assertTrue(home.contains("private val HomeBottomBarHazeBlurRadius = 10.dp"))
+        assertTrue(home.contains("private const val HomeBottomBarGlassAlpha = 0.10f"))
+        assertTrue(home.contains("private const val HomeBottomBarAiGlassAlpha = 0.16f"))
+        assertTrue(home.contains("private const val HomeBottomBarHazeTintAlpha = 0.08f"))
+        assertTrue(home.contains("private const val HomeBottomBarHazeNoiseFactor = 0.02f"))
+        assertTrue(home.contains("private const val HomeBottomBarGlassTopHighlightAlpha = 0.08f"))
+        assertTrue(home.contains("private const val HomeBottomBarGlassBottomRefractionAlpha = 0.04f"))
+        assertTrue(bottomBar.contains("color = MaterialTheme.colorScheme.surface.copy(alpha = HomeBottomBarGlassAlpha)"))
+        assertTrue(bottomBar.contains("Box(\n        modifier = Modifier\n            .navigationBarsPadding()"))
+        assertTrue(bottomBar.contains("HomeGlassSurface(\n            modifier = Modifier.fillMaxWidth()"))
+        assertFalse(bottomBar.contains("HomeGlassSurface(\n        modifier = Modifier\n            .navigationBarsPadding()"))
+        assertFalse(glassBody.contains("navigationBarsPadding()"))
+        assertFalse(glassBody.contains("imePadding()"))
+        assertTrue(home.contains("Brush.verticalGradient("))
+        assertTrue(glassBody.contains("Brush.horizontalGradient("))
+        assertTrue(glassBody.contains("HomeBottomBarGlassTopHighlightAlpha"))
+        assertTrue(glassBody.contains("HomeBottomBarGlassBottomRefractionAlpha"))
+        assertFalse(bottomBar.contains("border ="))
+        assertFalse(home.contains("BorderStroke("))
+        assertFalse(bottomBar.contains("home-bottom-container-alpha"))
+        assertFalse(bottomBar.contains("copy(alpha = containerAlpha)"))
+    }
+
+    @Test
+    fun aiOverlayHidesUnderlyingTabsToAvoidDuplicateMapIcon() {
+        val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+        val bottomBar = home.substringAfter("private fun HomeBottomBarSurface(").substringBefore("@Composable\nprivate fun AiCompactInputRow(")
+
+        assertTrue(bottomBar.contains("visible = !isAiMode"))
+        assertTrue(bottomBar.contains("label = \"home-bottom-tabs\""))
+        assertFalse(bottomBar.contains("HomeTabNavigationBar(\n                selectedIndex = selectedIndex"))
+    }
+
+    @Test
+    fun aiOverlayDoesNotAddSeparateRowBackground() {
+        val home = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+        val compactBody = home.substringAfter("private fun AiCompactInputRow(").substringBefore("@Composable\nprivate fun HomeTabNavigationBar(")
+
+        assertFalse(compactBody.contains("color = MaterialTheme.colorScheme.surfaceContainerHigh"))
+        assertFalse(compactBody.contains("border ="))
+        assertTrue(compactBody.contains("color = MaterialTheme.colorScheme.surface.copy(alpha = HomeBottomBarAiGlassAlpha)"))
+        assertTrue(compactBody.contains("HomeGlassSurface("))
+        assertTrue(compactBody.contains("Row("))
     }
 
     @Test

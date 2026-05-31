@@ -55,7 +55,7 @@ fun chatInputActionDescription(action: ChatInputAction): String = when (action) 
 
 fun chatInputSuggestionLabels(): List<String> = listOf("整理今天", "提炼主题", "搜索记忆")
 
-fun chatInputPlaceholderText(): String = "继续追问今天的新闻、日记或文章..."
+fun chatInputPlaceholderText(): String = "问点什么"
 
 fun chatInputShowsSuggestions(inputText: String, isProcessing: Boolean): Boolean = inputText.isBlank() && !isProcessing
 
@@ -105,6 +105,7 @@ fun ChatInputField(
     onStop: () -> Unit,
     isProcessing: Boolean,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val inputShape = RoundedCornerShape(Radius.circular)
@@ -136,8 +137,9 @@ fun ChatInputField(
                     .weight(1f)
                     .onFocusChanged { isFocused = it.isFocused },
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                singleLine = compact,
                 minLines = 1,
-                maxLines = 3,
+                maxLines = if (compact) 1 else 3,
                 enabled = true,
                 decorationBox = { innerTextField ->
                     Box(

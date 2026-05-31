@@ -1,17 +1,25 @@
 package com.dailysatori.ui.feature.home
 
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.updateTransition
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -44,7 +52,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -56,11 +65,15 @@ import com.dailysatori.ui.feature.diary.DiaryScreen
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.SettingsScreen
 import com.dailysatori.ui.feature.unifiednews.UnifiedNewsScreen
-import com.dailysatori.ui.theme.BorderWidth
 import com.dailysatori.ui.theme.Height
 import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeDefaults
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 data class TabItem(
     val label: String,
@@ -82,6 +95,14 @@ val tabs = listOf(
 
 private val HomeBottomBarHeight = Height.navBar
 private val HomeBottomBarIconSize = IconSize.l
+private val HomeBottomBarHazeBlurRadius = 10.dp
+private const val HomeBottomBarSlideDurationMillis = 480
+private const val HomeBottomBarGlassAlpha = 0.10f
+private const val HomeBottomBarAiGlassAlpha = 0.16f
+private const val HomeBottomBarHazeTintAlpha = 0.08f
+private const val HomeBottomBarHazeNoiseFactor = 0.02f
+private const val HomeBottomBarGlassTopHighlightAlpha = 0.08f
+private const val HomeBottomBarGlassBottomRefractionAlpha = 0.04f
 
 fun homeBottomBarVisibleForTab(index: Int): Boolean = index in tabs.indices
 
@@ -98,6 +119,7 @@ fun HomeScreen(
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
     var showMy by rememberSaveable { mutableStateOf(false) }
     var aiInputController by remember { mutableStateOf<AiChatInputController?>(null) }
+    val hazeState = rememberHazeState()
 
     LaunchedEffect(tabs.size) {
         if (selectedIndex !in tabs.indices) selectedIndex = 0
@@ -107,47 +129,51 @@ fun HomeScreen(
         if (selectedBookId != null) selectedIndex = READING_TAB_INDEX
     }
 
-    Scaffold(
-        bottomBar = {
-            if (homeBottomBarVisibleForTab(selectedIndex)) {
-                HomeBottomBarSurface(
-                    selectedIndex = selectedIndex,
-                    aiInputController = aiInputController,
-                    onTabSelected = { selectedIndex = it },
-                    onHomeClick = { selectedIndex = TODAY_TAB_INDEX },
-                )
-            }
-        },
-        contentWindowInsets = WindowInsets.navigationBars,
-    ) { innerPadding ->
+    Scaffold(contentWindowInsets = WindowInsets.navigationBars) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
         ) {
-            Crossfade(targetState = selectedIndex) { index ->
-                if (showMy) {
-                    SettingsScreen(settingsViewModel, onBack = { showMy = false })
-                    return@Crossfade
+            Box(modifier = Modifier.fillMaxSize().hazeSource(state = hazeState)) {
+                Crossfade(targetState = selectedIndex) { index ->
+                    if (showMy) {
+                        SettingsScreen(settingsViewModel, onBack = { showMy = false })
+                        return@Crossfade
+                    }
+                    val openMy = { showMy = true }
+                    when (index) {
+                        TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = openMy)
+                        DIARY_TAB_INDEX -> DiaryScreen(onMyClick = openMy)
+                        READING_TAB_INDEX -> BooksScreen(
+                            selectedBookId = selectedBookId,
+                            selectedViewpointId = selectedViewpointId,
+                            bookAnalysisMessage = bookAnalysisMessage,
+                            onSelectedBookConsumed = onSelectedBookConsumed,
+                            onMyClick = openMy,
+                        )
+                        AI_CHAT_TAB_INDEX -> AiChatScreen(
+                            onArticleClick = onAiArticleClick,
+                            onMyClick = openMy,
+                            onInputControllerChange = { aiInputController = it },
+                        )
+                        else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = openMy)
+                    }
                 }
-                val openMy = { showMy = true }
-                when (index) {
-                    TODAY_TAB_INDEX -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = openMy)
-                    DIARY_TAB_INDEX -> DiaryScreen(onMyClick = openMy)
-                    READING_TAB_INDEX -> BooksScreen(
-                        selectedBookId = selectedBookId,
-                        selectedViewpointId = selectedViewpointId,
-                        bookAnalysisMessage = bookAnalysisMessage,
-                        onSelectedBookConsumed = onSelectedBookConsumed,
-                        onMyClick = openMy,
+            }
+            if (homeBottomBarVisibleForTab(selectedIndex)) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    HomeBottomBarSurface(
+                        selectedIndex = selectedIndex,
+                        aiInputController = aiInputController,
+                        hazeState = hazeState,
+                        onTabSelected = { selectedIndex = it },
+                        onHomeClick = { selectedIndex = TODAY_TAB_INDEX },
                     )
-                    AI_CHAT_TAB_INDEX -> AiChatScreen(
-                        onArticleClick = onAiArticleClick,
-                        onMyClick = openMy,
-                        onInputControllerChange = { aiInputController = it },
-                    )
-                    else -> UnifiedNewsScreen(settingsViewModel = settingsViewModel, onArticleClick = onArticleClick, onMyClick = openMy)
                 }
             }
         }
@@ -158,97 +184,152 @@ fun HomeScreen(
 private fun HomeBottomBarSurface(
     selectedIndex: Int,
     aiInputController: AiChatInputController?,
+    hazeState: HazeState,
     onTabSelected: (Int) -> Unit,
     onHomeClick: () -> Unit,
 ) {
-    val transition = updateTransition(targetState = selectedIndex == AI_CHAT_TAB_INDEX, label = "home-bottom-ai")
-    val aiProgress by transition.animateFloat(label = "home-bottom-ai-progress") { isAiMode ->
-        if (isAiMode) 1f else 0f
-    }
-    val inputWeight by transition.animateFloat(label = "home-bottom-ai-input-weight") { isAiMode ->
-        if (isAiMode) 1f else 0.001f
-    }
-    val tabsWeight by transition.animateFloat(label = "home-bottom-tabs-weight") { isAiMode ->
-        if (isAiMode) 0.001f else 1f
-    }
-    val containerAlpha by transition.animateFloat(label = "home-bottom-container-alpha") { isAiMode ->
-        if (isAiMode) 0f else 0.92f
-    }
-    Surface(
-        modifier = Modifier.navigationBarsPadding()
+    val isAiMode = selectedIndex == AI_CHAT_TAB_INDEX
+    Box(
+        modifier = Modifier
+            .navigationBarsPadding()
+            .imePadding()
             .padding(horizontal = Spacing.m, vertical = Spacing.s),
-        shape = RoundedCornerShape(Radius.circular),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = containerAlpha),
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 0.dp,
-        shadowElevation = 10.dp,
-        border = BorderStroke(BorderWidth.s, MaterialTheme.colorScheme.outlineVariant.copy(alpha = containerAlpha)),
+    ) {
+        HomeGlassSurface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = HomeBottomBarGlassAlpha),
+            hazeState = hazeState,
+        ) {
+            AnimatedVisibility(
+                visible = !isAiMode,
+                enter = fadeIn(),
+                exit = fadeOut(animationSpec = tween(HomeBottomBarSlideDurationMillis)),
+                modifier = Modifier.fillMaxWidth(),
+                label = "home-bottom-tabs",
+            ) {
+                HomeTabNavigationBar(
+                    selectedIndex = selectedIndex,
+                    onTabSelected = onTabSelected,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            AnimatedVisibility(
+                visible = isAiMode,
+                enter = homeBottomBarEnterTransition(),
+                exit = homeBottomBarExitTransition(),
+                modifier = Modifier.fillMaxWidth(),
+                label = "home-bottom-ai-overlay",
+            ) {
+                AiCompactInputRow(
+                    aiInputController = aiInputController,
+                    hazeState = hazeState,
+                    onHomeClick = onHomeClick,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+private fun homeBottomBarEnterTransition(): EnterTransition =
+    slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(HomeBottomBarSlideDurationMillis)) + fadeIn()
+
+private fun homeBottomBarExitTransition(): ExitTransition =
+    slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(HomeBottomBarSlideDurationMillis)) + fadeOut(
+        animationSpec = tween(HomeBottomBarSlideDurationMillis),
+    )
+
+@Composable
+private fun AiCompactInputRow(
+    aiInputController: AiChatInputController?,
+    hazeState: HazeState,
+    onHomeClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    HomeGlassSurface(
+        modifier = modifier.padding(Spacing.xs),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = HomeBottomBarAiGlassAlpha),
+        hazeState = hazeState,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(HomeBottomBarHeight).padding(Spacing.xs),
+            modifier = Modifier.height(HomeBottomBarHeight - Spacing.s).padding(horizontal = Spacing.xs),
             horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AiCompactInputRow(
-                aiInputController = aiInputController,
-                inputWeight = inputWeight,
-                progress = aiProgress,
-                onHomeClick = onHomeClick,
-                modifier = Modifier.weight(inputWeight),
-            )
-            HomeTabNavigationBar(
-                selectedIndex = selectedIndex,
-                tabsWeight = tabsWeight,
-                progress = aiProgress,
-                onTabSelected = onTabSelected,
-                modifier = Modifier.weight(tabsWeight),
+            IconButton(onClick = onHomeClick, modifier = Modifier.size(HomeBottomBarHeight - Spacing.s)) {
+                Icon(
+                    Icons.Filled.Language,
+                    contentDescription = "回到今日",
+                    modifier = Modifier.size(HomeBottomBarIconSize),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            ChatInputField(
+                inputText = aiInputController?.inputText.orEmpty(),
+                onInputChange = aiInputController?.onInputChange ?: {},
+                onSend = aiInputController?.onSend ?: {},
+                onStop = aiInputController?.onStop ?: {},
+                isProcessing = aiInputController?.isProcessing ?: false,
+                modifier = Modifier.weight(1f),
+                compact = true,
             )
         }
     }
 }
 
 @Composable
-private fun AiCompactInputRow(
-    aiInputController: AiChatInputController?,
-    inputWeight: Float,
-    progress: Float,
-    onHomeClick: () -> Unit,
+private fun HomeGlassSurface(
     modifier: Modifier = Modifier,
+    color: Color,
+    hazeState: HazeState,
+    content: @Composable BoxScope.() -> Unit,
 ) {
-    Row(
-        modifier = modifier.alpha(progress),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
-        verticalAlignment = Alignment.CenterVertically,
+    val shape = RoundedCornerShape(Radius.circular)
+    Box(
+        modifier = modifier.clip(shape).hazeEffect(
+            state = hazeState,
+            style = HazeDefaults.style(
+                backgroundColor = Color.Transparent,
+                tint = HazeDefaults.tint(MaterialTheme.colorScheme.surface.copy(alpha = HomeBottomBarHazeTintAlpha)),
+                blurRadius = HomeBottomBarHazeBlurRadius,
+                noiseFactor = HomeBottomBarHazeNoiseFactor,
+            ),
+        ).background(color),
     ) {
-        IconButton(onClick = onHomeClick, modifier = Modifier.size(HomeBottomBarHeight - Spacing.s)) {
-            Icon(
-                Icons.Filled.Language,
-                contentDescription = "回到今日",
-                modifier = Modifier.size(HomeBottomBarIconSize),
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
-        ChatInputField(
-            inputText = aiInputController?.inputText.orEmpty(),
-            onInputChange = aiInputController?.onInputChange ?: {},
-            onSend = aiInputController?.onSend ?: {},
-            onStop = aiInputController?.onStop ?: {},
-            isProcessing = aiInputController?.isProcessing ?: false,
-            modifier = Modifier.weight(1f),
+        Box(
+            modifier = Modifier.matchParentSize().background(
+                Brush.verticalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = HomeBottomBarGlassTopHighlightAlpha),
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.10f),
+                        MaterialTheme.colorScheme.primary.copy(alpha = HomeBottomBarGlassBottomRefractionAlpha),
+                    ),
+                ),
+            ),
         )
+        Box(
+            modifier = Modifier.matchParentSize().background(
+                Brush.horizontalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                        Color.Transparent,
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f),
+                    ),
+                ),
+            ),
+        )
+        content()
     }
 }
 
 @Composable
 private fun HomeTabNavigationBar(
     selectedIndex: Int,
-    tabsWeight: Float,
-    progress: Float,
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     NavigationBar(
-        modifier = modifier.height(HomeBottomBarHeight).alpha(1f - progress),
+        modifier = modifier.height(HomeBottomBarHeight).padding(Spacing.xs),
         containerColor = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 0.dp,
