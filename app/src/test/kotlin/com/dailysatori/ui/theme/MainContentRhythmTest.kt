@@ -30,18 +30,16 @@ class MainContentRhythmTest {
     @Test
     fun booksReadingUsesCompactHeaderAndReadableBody() {
         val spacing = File("src/main/kotlin/com/dailysatori/ui/theme/Spacing.kt").readText()
-        val appTopBar = File("src/main/kotlin/com/dailysatori/ui/component/appbar/AppTopBar.kt").readText()
         val books = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
         val viewpoint = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
-        val booksTopBar = books.extractCallExpression("AppTopBar(")
         val readingPager = books.extractCallBlock("HorizontalPager(")
         val viewpointBody = viewpoint.extractCallBlock("fun ViewpointCard(")
         val viewpointContent = viewpoint.extractCallBlock("private fun ViewpointBody(")
 
         assertTrue(spacing.contains("val appBarCompact = 48.dp"))
-        assertTrue(appTopBar.contains("expandedHeight: Dp = Height.appBar"))
-        assertTrue(appTopBar.contains("expandedHeight = expandedHeight"))
-        assertTrue(booksTopBar.contains("expandedHeight = Height.appBarCompact"))
+        assertTrue(books.contains("AppScaffold("))
+        assertTrue(books.contains("Column(modifier = modifier.fillMaxSize())"))
+        assertFalse(books.contains("AppTopBar("))
         assertTrue(readingPager.contains("modifier = Modifier.fillMaxSize()"))
         assertFalse(readingPager.contains("modifier = Modifier.padding(horizontal = Spacing.m, vertical = Spacing.m)"))
         assertTrue(viewpointBody.contains("verticalScroll(rememberScrollState())"))
