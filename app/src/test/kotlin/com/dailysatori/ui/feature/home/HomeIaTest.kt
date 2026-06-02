@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.home
 
+import com.dailysatori.ui.theme.Height
+import com.dailysatori.ui.theme.Spacing
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -54,5 +56,33 @@ class HomeIaTest {
         assertTrue(source.contains("consumeWindowInsets(innerPadding)"))
         assertTrue(source.contains("alwaysShowLabel = false"))
         assertTrue(source.contains("contentDescription = tab.label"))
+    }
+
+    @Test
+    fun tabContentReservesFloatingBottomBarSpace() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+        val tabContent = source.extractCallBlock("Crossfade(")
+
+        assertEquals(Height.navBar + Spacing.s + Spacing.s, homeBottomBarContentBottomPadding())
+        assertTrue(tabContent.contains("modifier = Modifier.fillMaxSize().padding(bottom = homeBottomBarContentBottomPadding())"))
+    }
+
+    private fun String.extractCallBlock(anchor: String): String {
+        assertTrue(contains(anchor), "Missing call anchor: $anchor")
+        val start = indexOf(anchor)
+        val bodyStart = indexOf('{', start)
+        assertTrue(bodyStart >= 0, "Missing block body for call anchor: $anchor")
+
+        var depth = 0
+        for (index in bodyStart until length) {
+            when (this[index]) {
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) return substring(start, index + 1)
+                }
+            }
+        }
+        throw AssertionError("Missing closing brace for call anchor: $anchor")
     }
 }

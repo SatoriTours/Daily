@@ -7,8 +7,8 @@ import kotlin.test.assertTrue
 class UnifiedNewsSourceTabsStyleTest {
     @Test
     fun sourceTabsUsePrimaryBlueSelectedAccent() {
-        val source = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val tabsBody = source.extractCallBlock("private fun UnifiedNewsSourceTabs(")
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSourceSwitcher.kt").readText()
+        val tabsBody = source.extractCallBlock("internal fun UnifiedNewsSourceTabs(")
 
         assertTrue(tabsBody.contains("FilterChipDefaults.filterChipColors"))
         assertTrue(tabsBody.contains("selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)"))
@@ -18,10 +18,21 @@ class UnifiedNewsSourceTabsStyleTest {
 
     @Test
     fun refreshActionUsesSubduedSurfaceVariantTone() {
-        val source = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val switcherBody = source.extractCallBlock("private fun UnifiedNewsSourceSwitcher(")
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSourceSwitcher.kt").readText()
+        val switcherBody = source.extractCallBlock("internal fun UnifiedNewsSourceSwitcher(")
 
         assertTrue(switcherBody.contains("tint = MaterialTheme.colorScheme.onSurfaceVariant"))
+    }
+
+    @Test
+    fun unifiedNewsListsUseStableKeysAndSharedPadding() {
+        val summary = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSummaryContent.kt").readText()
+        val remote = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsRemoteSourceContent.kt").readText()
+
+        assertTrue(summary.contains("contentPadding = newsCompactListContentPadding()"))
+        assertTrue(summary.contains("items(visibleSummaries, key = { it.id })"))
+        assertTrue(remote.contains("contentPadding = newsCompactListContentPadding()"))
+        assertTrue(remote.contains("items(articles, key = { it.id })"))
     }
 
     private fun String.extractCallBlock(anchor: String): String {

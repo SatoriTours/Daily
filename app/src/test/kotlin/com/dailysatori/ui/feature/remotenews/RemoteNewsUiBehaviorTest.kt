@@ -35,6 +35,20 @@ class RemoteNewsUiBehaviorTest {
     }
 
     @Test
+    fun remoteNewsListsUseStableKeysAndDerivedLoadMoreState() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsScreen.kt").readText()
+
+        assertTrue(source.contains("derivedStateOf"))
+        assertTrue(source.contains("items(state.digests, key = { it.id })"))
+        assertTrue(source.contains("items(state.articles, key = { it.id })"))
+        assertTrue(source.contains("items(state.feeds, key = { it.id })"))
+        assertTrue(source.contains("item(key = \"remote-news-loading-more\")"))
+        assertTrue(source.contains("item(key = \"remote-news-load-more-error\")"))
+        assertTrue(source.contains("contentPadding = newsListContentPadding()"))
+        assertTrue(source.contains("NewsStateMessage("))
+    }
+
+    @Test
     fun remoteNewsDetailErrorsDoNotReuseListErrorState() {
         val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsViewModel.kt").readText()
         val screen = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsScreen.kt").readText()

@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,6 +36,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,8 +50,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.service.remotenews.RemoteFeed
 import com.dailysatori.ui.component.card.CustomCard
-import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
+import com.dailysatori.ui.component.news.NewsStateMessage
+import com.dailysatori.ui.component.news.newsListContentPadding
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.crayfishnews.CrayfishNewsScreen
 import com.dailysatori.ui.theme.Spacing
@@ -132,8 +133,13 @@ private fun RemoteNewsListContent(state: RemoteNewsState, viewModel: RemoteNewsV
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             state.isLoading && itemsCount == 0 -> LoadingIndicator()
-            state.error != null && itemsCount == 0 -> RemoteNewsError(state.error, viewModel::refresh)
-            itemsCount == 0 -> EmptyState(
+            state.error != null && itemsCount == 0 -> NewsStateMessage(
+                title = state.error,
+                actionLabel = "重试",
+                onAction = viewModel::refresh,
+                isError = true,
+            )
+            itemsCount == 0 -> NewsStateMessage(
                 icon = Icons.Default.Article,
                 title = "暂无内容",
                 subtitle = "远程新闻暂时没有可显示的数据",
@@ -145,20 +151,14 @@ private fun RemoteNewsListContent(state: RemoteNewsState, viewModel: RemoteNewsV
 
 @Composable
 private fun LoadMoreWhenAtEnd(listState: LazyListState, itemCount: Int, onLoadMore: () -> Unit) {
-    LaunchedEffect(listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index, itemCount) {
-        if (itemCount > 0 && listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index == itemCount - 1) onLoadMore()
+    val shouldLoadMore by remember(listState, itemCount) {
+        derivedStateOf {
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            itemCount > 0 && lastVisible >= itemCount - 1
+        }
     }
-}
-
-@Composable
-private fun RemoteNewsError(message: String, onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(Spacing.m),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(message, color = MaterialTheme.colorScheme.error)
-        TextButton(onClick = onRetry) { Text("重试") }
+    LaunchedEffect(shouldLoadMore, itemCount) {
+        if (shouldLoadMore) onLoadMore()
     }
 }
 
@@ -179,7 +179,7 @@ private fun RemoteNewsLazyList(state: RemoteNewsState, listState: LazyListState,
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(Spacing.m),
+        contentPadding = newsListContentPadding(),
         verticalArrangement = Arrangement.spacedBy(Spacing.m),
     ) {
         when (state.mode) {
@@ -192,12 +192,12 @@ private fun RemoteNewsLazyList(state: RemoteNewsState, listState: LazyListState,
             RemoteNewsMode.FEEDS -> items(state.feeds, key = { it.id }) { FeedCard(it) }
             RemoteNewsMode.CRAYFISH -> Unit
         }
-        if (state.isLoadingMore) item {
+        if (state.isLoadingMore) item(key = "remote-news-loading-more") {
             Box(modifier = Modifier.fillMaxWidth().padding(Spacing.s), contentAlignment = Alignment.Center) {
                 Text("加载中...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        if (state.loadMoreError != null) item {
+        if (state.loadMoreError != null) item(key = "remote-news-load-more-error") {
             Text(state.loadMoreError, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(Spacing.s))
         }
     }

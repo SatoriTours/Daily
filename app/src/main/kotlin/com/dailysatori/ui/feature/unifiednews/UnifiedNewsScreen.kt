@@ -9,37 +9,23 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,18 +43,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.dailysatori.service.remotenews.RemoteArticle
-import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
-import com.dailysatori.shared.db.Unified_news_source
-import com.dailysatori.shared.db.Unified_news_summary
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.article.ArticleListScreen
-import com.dailysatori.ui.feature.remotenews.RemoteArticleSummaryCard
 import com.dailysatori.ui.feature.remotenews.RemoteArticleDetailScreen
 import com.dailysatori.ui.feature.remotenews.RemoteDigestDetailScreen
 import com.dailysatori.ui.feature.settings.SettingsScreen
@@ -208,170 +188,6 @@ private fun UnifiedNewsSummaryPage(
 }
 
 @Composable
-private fun UnifiedNewsSummaryContent(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel) {
-    val visibleSummaries = if (state.isRegenerating) {
-        state.summaries.filter { summary -> summary.summary_date != state.regeneratingSummaryDate }
-    } else {
-        state.summaries
-    }
-    val listState = rememberLazyListState()
-    if (state.summaryRefreshCompletedToken > 0) {
-        LaunchedEffect(state.summaryRefreshCompletedToken) {
-            listState.scrollToItem(0)
-        }
-    }
-    when {
-        state.isLoading -> LoadingIndicator()
-        visibleSummaries.isEmpty() -> EmptyState(
-            icon = Icons.AutoMirrored.Filled.Article,
-            title = "暂无新闻汇总",
-            subtitle = "点击上方刷新按钮生成新闻汇总",
-        )
-        else -> LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m),
-            verticalArrangement = Arrangement.spacedBy(Spacing.m),
-        ) {
-            items(visibleSummaries, key = { it.id }) { summary ->
-                TodayUnifiedNewsCard(
-                    summary = summary,
-                    sources = state.sourcesBySummaryId[summary.id].orEmpty(),
-                    onCitationClick = viewModel::openCitation,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun UnifiedNewsSourceSwitcher(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Spacing.m, vertical = Spacing.xs),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-    ) {
-        UnifiedNewsSourceTabs(state = state, viewModel = viewModel, modifier = Modifier.weight(1f))
-        IconButton(onClick = viewModel::refreshSelectedSource) {
-            Icon(Icons.Default.Refresh, contentDescription = "刷新", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun UnifiedNewsSourceTabs(state: UnifiedNewsState, viewModel: UnifiedNewsViewModel, modifier: Modifier = Modifier) {
-    val sourceChipColors = FilterChipDefaults.filterChipColors(
-        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-        selectedLabelColor = MaterialTheme.colorScheme.primary,
-        selectedLeadingIconColor = MaterialTheme.colorScheme.primary,
-    )
-    Row(
-        modifier = modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
-    ) {
-        FilterChip(
-            selected = state.sourceSelection is UnifiedNewsSourceSelection.Summary,
-            onClick = viewModel::selectSummarySource,
-            label = { Text("汇总") },
-            colors = sourceChipColors,
-        )
-        state.remoteSources.forEach { source ->
-            FilterChip(
-                selected = (state.sourceSelection as? UnifiedNewsSourceSelection.RemoteSource)?.id == source.id,
-                onClick = { viewModel.selectRemoteSource(source) },
-                label = { Text(source.name) },
-                colors = sourceChipColors,
-            )
-        }
-        FilterChip(
-            selected = state.sourceSelection is UnifiedNewsSourceSelection.LocalArticles,
-            onClick = viewModel::selectLocalArticlesSource,
-            label = { Text("本地新闻") },
-            colors = sourceChipColors,
-        )
-    }
-}
-
-@Composable
-private fun UnifiedNewsSourceArticleContent(
-    state: UnifiedNewsState,
-    selection: UnifiedNewsSourceSelection.RemoteSource,
-    viewModel: UnifiedNewsViewModel,
-) {
-    val cacheKey = sourceArticleCacheKey(selection.id, dailyUnifiedNewsWindowFor().summaryDate)
-    val articles = state.sourceArticlesByCacheKey[cacheKey].orEmpty()
-    val isLoading = state.sourceArticlesLoadingSourceId == selection.id
-    when {
-        isLoading && articles.isEmpty() -> LoadingIndicator()
-        state.sourceArticlesError != null && articles.isEmpty() -> UnifiedNewsSourceArticleMessage(
-            title = state.sourceArticlesError,
-            actionLabel = "刷新",
-            onAction = viewModel::refreshSelectedRemoteSource,
-        )
-        articles.isEmpty() -> UnifiedNewsSourceArticleMessage(
-            title = "这个来源今天还没有新闻",
-            actionLabel = "刷新",
-            onAction = viewModel::refreshSelectedRemoteSource,
-        )
-        else -> UnifiedNewsSourceArticleList(
-            selection = selection,
-            articles = articles,
-            isLoading = isLoading,
-            sourceArticlesError = state.sourceArticlesError,
-            viewModel = viewModel,
-        )
-    }
-}
-
-@Composable
-private fun UnifiedNewsSourceArticleList(
-    selection: UnifiedNewsSourceSelection.RemoteSource,
-    articles: List<RemoteArticle>,
-    isLoading: Boolean,
-    sourceArticlesError: String?,
-    viewModel: UnifiedNewsViewModel,
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.m),
-        verticalArrangement = Arrangement.spacedBy(Spacing.m),
-    ) {
-        if (sourceArticlesError != null) item {
-            Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-                Text(
-                    text = "刷新失败，正在显示上次结果：$sourceArticlesError",
-                    modifier = Modifier.fillMaxWidth().padding(Spacing.m),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        items(articles, key = { it.id }) { article ->
-            RemoteArticleSummaryCard(article) { viewModel.openSourceArticle(article) }
-        }
-        if (isLoading) item {
-            Box(modifier = Modifier.fillMaxWidth().padding(Spacing.s), contentAlignment = Alignment.Center) {
-                Text("刷新中...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-@Composable
-private fun UnifiedNewsSourceArticleMessage(title: String, actionLabel: String, onAction: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(Spacing.m),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        TextButton(onClick = onAction) { Text(actionLabel) }
-    }
-}
-
-@Composable
 private fun UnifiedNewsRefreshMessage(message: String) {
     Surface(
         modifier = Modifier.fillMaxWidth().padding(start = Spacing.m, end = Spacing.m, top = Spacing.xs, bottom = Spacing.s),
@@ -475,196 +291,4 @@ private fun UnifiedNewsMenu(viewModel: UnifiedNewsViewModel) {
 @Composable
 private fun MenuItem(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     DropdownMenuItem(text = { Text(text) }, leadingIcon = { Icon(icon, contentDescription = null) }, onClick = onClick)
-}
-
-@Composable
-private fun TodayUnifiedNewsCard(
-    summary: Unified_news_summary,
-    sources: List<Unified_news_source>,
-    onCitationClick: (Unified_news_source) -> Unit,
-) {
-    val briefing = remember(summary.content) { unifiedNewsBriefingContent(summary.content) }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radius.xl),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(Spacing.l),
-            verticalArrangement = Arrangement.spacedBy(Spacing.l),
-        ) {
-            UnifiedNewsMagazineCover(summary = summary, sources = sources, briefing = briefing)
-            if (briefing.points.isNotEmpty()) {
-                UnifiedNewsMagazineStoryList(
-                    points = briefing.points,
-                    sources = sources,
-                    onCitationClick = onCitationClick,
-                )
-            } else {
-                UnifiedNewsBriefingFallback(summary = summary, sources = sources, onCitationClick = onCitationClick)
-            }
-            UnifiedNewsBriefingSourceRow(sources)
-        }
-    }
-}
-
-@Composable
-private fun UnifiedNewsMagazineCover(
-    summary: Unified_news_summary,
-    sources: List<Unified_news_source>,
-    briefing: UnifiedNewsBriefingContent,
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(Spacing.m),
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            UnifiedNewsBriefingBadge(unifiedNewsSummaryTitle(summary.summary_date))
-            if (sources.isNotEmpty()) UnifiedNewsBriefingBadge("${sources.size} 个来源")
-        }
-        Text(
-            text = briefing.title,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        briefing.lead?.let { lead ->
-            Text(
-                text = lead,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun UnifiedNewsBriefingBadge(text: String) {
-    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-        )
-    }
-}
-
-@Composable
-private fun UnifiedNewsMagazineStoryList(
-    points: List<UnifiedNewsBriefingPoint>,
-    sources: List<Unified_news_source>,
-    onCitationClick: (Unified_news_source) -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text("关键要点", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        points.forEachIndexed { index, point ->
-            val source = point.citation?.let { citation -> sources.firstOrNull { it.ref_key == citation } }
-            UnifiedNewsMagazineStoryRow(
-                index = index,
-                point = point,
-                source = source,
-                showDivider = index > 0,
-                onCitationClick = onCitationClick,
-            )
-        }
-    }
-}
-
-@Composable
-private fun UnifiedNewsMagazineStoryRow(
-    index: Int,
-    point: UnifiedNewsBriefingPoint,
-    source: Unified_news_source?,
-    showDivider: Boolean,
-    onCitationClick: (Unified_news_source) -> Unit,
-) {
-    val rowModifier = if (source != null) Modifier.clickable { onCitationClick(source) } else Modifier
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        if (showDivider) HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f))
-        Row(
-            modifier = rowModifier.fillMaxWidth().padding(vertical = Spacing.m),
-            horizontalArrangement = Arrangement.spacedBy(Spacing.m),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Text(
-                text = (index + 1).toString().padStart(2, '0'),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                Text(
-                    text = point.text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = unifiedNewsBriefingSourceHint(point.citation, source),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun UnifiedNewsBriefingFallback(
-    summary: Unified_news_summary,
-    sources: List<Unified_news_source>,
-    onCitationClick: (Unified_news_source) -> Unit,
-) {
-    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text("完整简报", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        CitationText(
-            content = summary.content.ifBlank { "暂无正文" },
-            modifier = Modifier.fillMaxWidth(),
-        ) { citation ->
-            sources.firstOrNull { it.ref_key == citation }?.let(onCitationClick)
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun UnifiedNewsBriefingSourceRow(sources: List<Unified_news_source>) {
-    if (sources.isEmpty()) return
-
-    val visibleSources = sources.take(4)
-    val hiddenCount = sources.size - visibleSources.size
-
-    Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Text("来源覆盖", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-            visibleSources.forEach { source -> UnifiedNewsBriefingSourceChip(source.title) }
-            if (hiddenCount > 0) UnifiedNewsBriefingSourceChip("+$hiddenCount")
-        }
-    }
-}
-
-@Composable
-private fun UnifiedNewsBriefingSourceChip(label: String) {
-    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-private fun unifiedNewsBriefingSourceHint(citation: String?, source: Unified_news_source?): String = when {
-    source != null && citation != null -> "引用 $citation · ${source.title}"
-    citation != null -> "引用 $citation"
-    else -> "未关联来源"
 }
