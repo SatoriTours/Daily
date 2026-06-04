@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -37,6 +39,7 @@ fun ViewpointCard(
     total: Int,
     modifier: Modifier = Modifier,
     fillAvailableHeight: Boolean = false,
+    reserveBottomSpace: Boolean = false,
     showProgress: Boolean = false,
     status: String = "ready",
     errorMessage: String = "",
@@ -66,6 +69,10 @@ fun ViewpointCard(
                 "failed" -> ViewpointRetryBody(errorMessage = errorMessage, onRetry = onRetry)
                 "generating" -> ViewpointGeneratingBody()
                 else -> ViewpointBody(content = content, example = example)
+            }
+
+            if (reserveBottomSpace) {
+                Spacer(modifier = Modifier.height(bookReadingBottomSpace()))
             }
         }
     }
@@ -215,6 +222,8 @@ fun viewpointCardFillsAvailableHeight(fillAvailableHeight: Boolean): Boolean = f
 fun viewpointCardContentStartsAtTop(): Boolean = true
 
 fun viewpointShouldShowPageCounter(showProgress: Boolean, total: Int): Boolean = showProgress || total > 1
+
+fun bookReadingBottomSpace() = Height.navBar + Spacing.xxl
 
 fun viewpointDisplayTitle(title: String, bookTitle: String): String {
     val cleanTitle = title.trim()

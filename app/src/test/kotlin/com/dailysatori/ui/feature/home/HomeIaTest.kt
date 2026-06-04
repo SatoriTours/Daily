@@ -1,7 +1,5 @@
 package com.dailysatori.ui.feature.home
 
-import com.dailysatori.ui.theme.Height
-import com.dailysatori.ui.theme.Spacing
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -59,12 +57,13 @@ class HomeIaTest {
     }
 
     @Test
-    fun tabContentReservesFloatingBottomBarSpace() {
+    fun tabContentKeepsFloatingBottomBarOverlayArea() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
         val tabContent = source.extractCallBlock("Crossfade(")
 
-        assertEquals(Height.navBar + Spacing.s + Spacing.s, homeBottomBarContentBottomPadding())
-        assertTrue(tabContent.contains("modifier = Modifier.fillMaxSize().padding(bottom = homeBottomBarContentBottomPadding())"))
+        assertTrue(tabContent.contains("modifier = Modifier.fillMaxSize()"))
+        assertFalse(tabContent.contains("padding(bottom ="))
+        assertFalse(source.contains("homeBottomBarContentBottomPadding"))
     }
 
     private fun String.extractCallBlock(anchor: String): String {

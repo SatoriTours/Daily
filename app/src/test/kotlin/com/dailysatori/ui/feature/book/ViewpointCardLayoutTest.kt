@@ -17,6 +17,10 @@ class ViewpointCardLayoutTest {
         assertTrue(body.contains("Column("))
         assertTrue(body.contains("modifier = contentModifier"))
         assertTrue(body.contains(".verticalScroll(rememberScrollState())"))
+        assertTrue(body.contains("reserveBottomSpace: Boolean = false"))
+        assertTrue(body.contains("if (reserveBottomSpace)"))
+        assertTrue(body.contains("Spacer(modifier = Modifier.height(bookReadingBottomSpace()))"))
+        assertEquals(true, bookReadingBottomSpace() > com.dailysatori.ui.theme.Height.navBar)
     }
 
     @Test

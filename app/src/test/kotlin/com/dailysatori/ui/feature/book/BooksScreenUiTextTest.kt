@@ -35,6 +35,7 @@ class BooksScreenUiTextTest {
         assertTrue(pagerBlock.contains("ViewpointCard("))
         assertTrue(pagerBlock.contains("bookTitle = currentBook?.title.orEmpty()"))
         assertTrue(pagerBlock.contains("author = currentBook?.author.orEmpty()"))
+        assertTrue(pagerBlock.contains("reserveBottomSpace = true"))
         assertFalse(pagerBlock.contains("showProgress = true"))
         assertFalse(readerFlow.contains("BookReadingProgressStrip("))
         assertFalse(readerFlow.contains("BookReadingNavigationBar("))

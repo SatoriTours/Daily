@@ -234,6 +234,7 @@ fun BooksScreen(
                             page = page,
                             total = state.viewpoints.size,
                             fillAvailableHeight = true,
+                            reserveBottomSpace = true,
                             status = vp.status,
                             errorMessage = vp.error_message,
                             onRetry = { viewModel.regenerateViewpoint(vp.id) },

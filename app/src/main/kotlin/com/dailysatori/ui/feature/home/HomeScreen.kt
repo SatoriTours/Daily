@@ -106,8 +106,6 @@ private const val HomeBottomBarGlassBottomRefractionAlpha = 0.04f
 
 fun homeBottomBarVisibleForTab(index: Int): Boolean = index in tabs.indices
 
-internal fun homeBottomBarContentBottomPadding() = HomeBottomBarHeight + Spacing.s + Spacing.s
-
 @Composable
 fun HomeScreen(
     selectedBookId: Long? = null,
@@ -141,7 +139,7 @@ fun HomeScreen(
             Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).hazeSource(state = hazeState)) {
                 Crossfade(
                     targetState = selectedIndex,
-                    modifier = Modifier.fillMaxSize().padding(bottom = homeBottomBarContentBottomPadding()),
+                    modifier = Modifier.fillMaxSize(),
                 ) { index ->
                     if (showMy) {
                         SettingsScreen(settingsViewModel, onBack = { showMy = false })

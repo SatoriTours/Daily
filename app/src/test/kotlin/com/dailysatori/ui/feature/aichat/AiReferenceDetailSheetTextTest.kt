@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.aichat
 
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AiReferenceDetailSheetTextTest {
@@ -16,5 +17,6 @@ class AiReferenceDetailSheetTextTest {
         assertTrue(viewpointCardCall.contains("page = 0"))
         assertTrue(viewpointCardCall.contains("total = 1"))
         assertTrue(viewpointCardCall.contains("showProgress = false"))
+        assertFalse(viewpointCardCall.contains("reserveBottomSpace = true"))
     }
 }
