@@ -243,6 +243,7 @@ fun BooksScreen(
                             errorMessage = vp.error_message,
                             onRetry = { viewModel.regenerateViewpoint(vp.id) },
                             onReflect = {
+                                reflectionInput = ""
                                 reflectionViewModel.openViewpoint(
                                     viewpointId = vp.id,
                                     bookTitle = currentBook?.title.orEmpty(),
@@ -298,7 +299,10 @@ fun BooksScreen(
     if (showReflectionSheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
-            onDismissRequest = { showReflectionSheet = false },
+            onDismissRequest = {
+                reflectionInput = ""
+                showReflectionSheet = false
+            },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             contentColor = MaterialTheme.colorScheme.onSurface,

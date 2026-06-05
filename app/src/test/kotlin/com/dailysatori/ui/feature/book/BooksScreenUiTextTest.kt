@@ -98,6 +98,25 @@ class BooksScreenUiTextTest {
     }
 
     @Test
+    fun reflectionDraftClearsWhenOpeningAndDismissingSheet() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
+        val reflectionOpenBlock = source.extractBetween(
+            start = "                            onReflect = {\n",
+            end = "                                showReflectionSheet = true",
+        )
+
+        assertTrue(reflectionOpenBlock.contains("reflectionInput = \"\""))
+        assertTrue(
+            source.contains(
+                "onDismissRequest = {\n" +
+                    "                reflectionInput = \"\"\n" +
+                    "                showReflectionSheet = false\n" +
+                    "            }",
+            ),
+        )
+    }
+
+    @Test
     fun keepsPreviousReadingLocationAfterOpeningSearchResult() {
         val location = BookReadingLocation(bookId = 7, page = 3)
 
