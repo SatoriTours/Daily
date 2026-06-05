@@ -218,4 +218,34 @@ class BookReflectionStateTest {
         assertTrue(source.contains("summaryError"))
         assertTrue(source.contains("沉淀失败，请稍后重试。"))
     }
+
+    @Test
+    fun reflectionSheetDisablesSwitchingAndSummaryActionsWhileProcessing() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/book/BookReflectionSheet.kt").readText()
+
+        assertTrue(source.contains("isProcessing = state.isProcessing"))
+        assertTrue(source.contains("enabled = !isProcessing"))
+        assertTrue(source.contains("enabled = !(isProcessing || isSummarizing)"))
+        assertTrue(source.contains("BookReflectionHistory(state.sessions, state.isProcessing"))
+    }
+
+    @Test
+    fun viewModelCancelsStreamingBeforeChangingReflectionSessions() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/book/BookReflectionViewModel.kt").readText()
+        val createNewSegmentBody = source.substringAfter("fun createNewSegment()").substringBefore("fun generateSummary()")
+        val selectSessionBody = source.substringAfter("fun selectSession(sessionId: Long)").substringBefore("fun stopGeneration()")
+
+        assertTrue(createNewSegmentBody.contains("stopGeneration()"))
+        assertTrue(selectSessionBody.contains("stopGeneration()"))
+    }
+
+    @Test
+    fun viewModelDoesNotSummarizeWhileAnswerIsStreaming() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/book/BookReflectionViewModel.kt").readText()
+        val generateSummaryBody = source.substringAfter("fun generateSummary()").substringBefore("fun retryLatest()")
+
+        assertTrue(generateSummaryBody.contains("snapshot.isProcessing"))
+        assertTrue(generateSummaryBody.contains("isStreaming"))
+        assertTrue(generateSummaryBody.contains("status == \"streaming\""))
+    }
 }

@@ -173,6 +173,7 @@ class BookReflectionViewModel(
 
     fun createNewSegment() {
         val viewpointId = _state.value.viewpointId ?: return
+        stopGeneration()
         viewModelScope.launch(Dispatchers.IO) {
             val sessionId = reflectionRepo.createSession(viewpointId)
             reloadActiveSession(sessionId, force = true)
@@ -182,7 +183,8 @@ class BookReflectionViewModel(
     fun generateSummary() {
         val snapshot = _state.value
         val session = snapshot.activeSession ?: return
-        if (snapshot.isSummarizing || snapshot.messages.isEmpty()) return
+        val hasStreamingMessage = snapshot.messages.any { it.isStreaming || it.status == "streaming" }
+        if (snapshot.isProcessing || snapshot.isSummarizing || snapshot.messages.isEmpty() || hasStreamingMessage) return
         viewModelScope.launch(Dispatchers.IO) {
             _state.update { it.copy(isSummarizing = true) }
             reflectionRepo.updateSummaryStatus(session.id, "generating")
@@ -216,6 +218,7 @@ class BookReflectionViewModel(
     }
 
     fun selectSession(sessionId: Long) {
+        stopGeneration()
         viewModelScope.launch(Dispatchers.IO) {
             reflectionRepo.markOpened(sessionId)
             reloadActiveSession(sessionId, force = true)

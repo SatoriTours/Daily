@@ -59,6 +59,7 @@ fun BookReflectionSheet(
         item {
             BookReflectionActions(
                 summary = state.activeSession?.summary.orEmpty(),
+                isProcessing = state.isProcessing,
                 isSummarizing = state.isSummarizing,
                 showHistory = state.showHistory,
                 onGenerateSummary = onGenerateSummary,
@@ -99,7 +100,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.BookReflectionContent
     if (state.isLoading) {
         item { BookReflectionStatusCard("正在加载思考片段...") }
     } else if (state.showHistory) {
-        BookReflectionHistory(state.sessions, onSelectSession, onViewSessionProcess, onToggleHistory)
+        BookReflectionHistory(state.sessions, state.isProcessing, onSelectSession, onViewSessionProcess, onToggleHistory)
     } else {
         BookReflectionMessages(state, onPromptClick, onRetryLatest)
     }
@@ -128,6 +129,7 @@ private fun BookReflectionHeader(state: BookReflectionState) {
 @Composable
 private fun BookReflectionActions(
     summary: String,
+    isProcessing: Boolean,
     isSummarizing: Boolean,
     showHistory: Boolean,
     onGenerateSummary: () -> Unit,
@@ -135,11 +137,11 @@ private fun BookReflectionActions(
     onToggleHistory: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Button(onClick = onGenerateSummary, enabled = !isSummarizing, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = onGenerateSummary, enabled = !(isProcessing || isSummarizing), modifier = Modifier.fillMaxWidth()) {
             Text(if (isSummarizing) "沉淀中" else if (summary.isBlank()) "沉淀这一段" else "更新沉淀")
         }
-        OutlinedButton(onClick = onNewSegment, modifier = Modifier.fillMaxWidth()) { Text("换个角度聊") }
-        OutlinedButton(onClick = onToggleHistory, modifier = Modifier.fillMaxWidth()) { Text(if (showHistory) "当前" else "历史") }
+        OutlinedButton(onClick = onNewSegment, enabled = !isProcessing, modifier = Modifier.fillMaxWidth()) { Text("换个角度聊") }
+        OutlinedButton(onClick = onToggleHistory, enabled = !isProcessing, modifier = Modifier.fillMaxWidth()) { Text(if (showHistory) "当前" else "历史") }
     }
 }
 
@@ -193,6 +195,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.BookReflectionMessage
 
 private fun androidx.compose.foundation.lazy.LazyListScope.BookReflectionHistory(
     sessions: List<BookReflectionSessionUi>,
+    isProcessing: Boolean,
     onSelectSession: (Long) -> Unit,
     onViewSessionProcess: (Long) -> Unit,
     onToggleHistory: () -> Unit,
@@ -207,6 +210,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.BookReflectionHistory
                         onSelectSession(session.id)
                         onToggleHistory()
                     },
+                    enabled = !isProcessing,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("继续聊") }
                 OutlinedButton(
@@ -214,6 +218,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.BookReflectionHistory
                         onViewSessionProcess(session.id)
                         onToggleHistory()
                     },
+                    enabled = !isProcessing,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("查看过程") }
             }
