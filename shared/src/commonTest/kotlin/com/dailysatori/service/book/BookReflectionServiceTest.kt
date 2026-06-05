@@ -22,6 +22,7 @@ class BookReflectionServiceTest {
         assertTrue(prompt.contains("作者：塔勒布"))
         assertTrue(prompt.contains("当前观点标题：压力让系统暴露真实结构"))
         assertTrue(prompt.contains("系统在压力下会显露隐藏脆弱点。"))
+        assertTrue(prompt.contains("健身通过负荷暴露身体短板。"))
         assertTrue(prompt.contains("我理解到的核心：压力不是坏事。"))
         assertTrue(prompt.contains("user：这个点和拖延有什么关系？"))
         assertTrue(prompt.contains("用户本次问题：我还是不理解为什么压力有价值"))
