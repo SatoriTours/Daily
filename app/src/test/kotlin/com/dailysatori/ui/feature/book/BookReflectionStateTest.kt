@@ -112,6 +112,9 @@ class BookReflectionStateTest {
         assertTrue(source.contains("fun createNewSegment("))
         assertTrue(source.contains("fun generateSummary("))
         assertTrue(source.contains("fun retryLatest("))
+        assertTrue(source.contains("fun toggleHistory("))
+        assertTrue(source.contains("fun selectSession("))
+        assertTrue(source.contains("fun stopGeneration("))
         assertTrue(source.contains("BookViewpointAiRepository"))
         assertTrue(source.contains("BookReflectionService"))
     }
