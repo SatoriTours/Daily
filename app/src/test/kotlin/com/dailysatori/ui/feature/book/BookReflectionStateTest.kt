@@ -40,6 +40,7 @@ class BookReflectionStateTest {
         """.trimIndent()
 
         assertEquals("真正的问题是把短期情绪当成长期判断", bookReflectionTitleFromSummary(summary))
+        assertEquals("12345678901234567890", bookReflectionTitleFromSummary("我理解到的核心：1234567890123456789012345。"))
         assertEquals("新的思考", bookReflectionTitleFromSummary("没有固定结构"))
     }
 
