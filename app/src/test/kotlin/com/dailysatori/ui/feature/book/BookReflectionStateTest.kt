@@ -127,4 +127,29 @@ class BookReflectionStateTest {
         assertTrue(source.contains("reflectionRepo = get<BookViewpointAiRepository>()"))
         assertTrue(source.contains("reflectionService = get<BookReflectionService>()"))
     }
+
+    @Test
+    fun viewModelRetriesWithoutDuplicatingUserMessage() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/book/BookReflectionViewModel.kt").readText()
+
+        assertFalse(source.contains("sendMessage(latestQuestion)"))
+        assertTrue(source.contains("insertUserMessage: Boolean"))
+    }
+
+    @Test
+    fun viewModelHandlesCancellationSeparately() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/book/BookReflectionViewModel.kt").readText()
+
+        assertTrue(source.contains("CancellationException"))
+        assertTrue(source.contains("已停止生成"))
+    }
+
+    @Test
+    fun viewModelGuardsAsyncReloadsForCurrentSession() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/book/BookReflectionViewModel.kt").readText()
+
+        assertTrue(source.contains("force: Boolean = false"))
+        assertTrue(source.contains("activeSession?.id != sessionId"))
+        assertTrue(source.contains("force = true"))
+    }
 }

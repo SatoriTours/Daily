@@ -7,6 +7,7 @@ import com.dailysatori.service.book.BookReflectionPromptMessage
 import com.dailysatori.service.book.BookReflectionService
 import com.dailysatori.shared.db.Book_viewpoint_ai_message
 import com.dailysatori.shared.db.Book_viewpoint_ai_session
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -99,46 +100,62 @@ class BookReflectionViewModel(
         val snapshot = _state.value
         val session = snapshot.activeSession ?: return
         if (question.isBlank() || snapshot.isProcessing) return
-        activeJob = viewModelScope.launch(Dispatchers.IO) {
-            reflectionRepo.insertMessage(session.id, "user", question)
+        _state.update { it.copy(isProcessing = true) }
+        activeJob = sendAssistantResponse(session.id, question, snapshot, insertUserMessage = true)
+    }
+
+    private fun sendAssistantResponse(
+        sessionId: Long,
+        question: String,
+        snapshot: BookReflectionState,
+        insertUserMessage: Boolean,
+    ): Job = viewModelScope.launch(Dispatchers.IO) {
+        if (insertUserMessage) {
+            reflectionRepo.insertMessage(sessionId, "user", question)
             if (snapshot.messages.none { it.role == "user" }) {
-                reflectionRepo.updateTitle(session.id, bookReflectionTitleFromQuestion(question))
+                reflectionRepo.updateTitle(sessionId, bookReflectionTitleFromQuestion(question))
             }
-            reloadActiveSession(session.id)
-            _state.update { it.copy(isProcessing = true) }
-            val assistantId = reflectionRepo.insertMessage(session.id, "assistant", "", status = "streaming")
-            val streamed = StringBuilder()
-            try {
-                val result = reflectionService.answer(
-                    bookTitle = snapshot.bookTitle,
-                    author = snapshot.author,
-                    viewpointTitle = snapshot.viewpointTitle,
-                    viewpointContent = snapshot.viewpointContent,
-                    viewpointExample = snapshot.viewpointExample,
-                    existingSummaries = snapshot.sessions.mapNotNull { it.summary.takeIf(String::isNotBlank) },
-                    recentMessages = reflectionRepo.getMessagesBySession(session.id).takeLast(12).map {
-                        BookReflectionPromptMessage(it.role, it.content)
-                    },
-                    userQuestion = question,
-                    onChunk = { chunk ->
-                        streamed.append(chunk)
-                        reflectionRepo.updateMessage(assistantId, streamed.toString(), "streaming")
-                        reloadMessages(session.id)
-                    },
-                )
-                reflectionRepo.updateMessage(assistantId, result.content, "ready")
-            } catch (error: Exception) {
-                reflectionRepo.updateMessage(
-                    messageId = assistantId,
-                    content = "AI 回复失败，请稍后重试。",
-                    status = "failed",
-                    errorMessage = error.message.orEmpty(),
-                )
-            } finally {
-                reloadActiveSession(session.id)
-                _state.update { it.copy(isProcessing = false) }
-                activeJob = null
-            }
+            reloadActiveSession(sessionId)
+        }
+        val assistantId = reflectionRepo.insertMessage(sessionId, "assistant", "", status = "streaming")
+        val streamed = StringBuilder()
+        try {
+            val result = reflectionService.answer(
+                bookTitle = snapshot.bookTitle,
+                author = snapshot.author,
+                viewpointTitle = snapshot.viewpointTitle,
+                viewpointContent = snapshot.viewpointContent,
+                viewpointExample = snapshot.viewpointExample,
+                existingSummaries = snapshot.sessions.mapNotNull { it.summary.takeIf(String::isNotBlank) },
+                recentMessages = reflectionRepo.getMessagesBySession(sessionId).takeLast(12).map {
+                    BookReflectionPromptMessage(it.role, it.content)
+                },
+                userQuestion = question,
+                onChunk = { chunk ->
+                    streamed.append(chunk)
+                    reflectionRepo.updateMessage(assistantId, streamed.toString(), "streaming")
+                    reloadMessages(sessionId)
+                },
+            )
+            reflectionRepo.updateMessage(assistantId, result.content, "ready")
+        } catch (error: CancellationException) {
+            reflectionRepo.updateMessage(
+                messageId = assistantId,
+                content = "已停止生成",
+                status = "ready",
+                errorMessage = "",
+            )
+        } catch (error: Exception) {
+            reflectionRepo.updateMessage(
+                messageId = assistantId,
+                content = "AI 回复失败，请稍后重试。",
+                status = "failed",
+                errorMessage = error.message.orEmpty(),
+            )
+        } finally {
+            reloadActiveSession(sessionId)
+            _state.update { it.copy(isProcessing = false) }
+            activeJob = null
         }
     }
 
@@ -146,7 +163,7 @@ class BookReflectionViewModel(
         val viewpointId = _state.value.viewpointId ?: return
         viewModelScope.launch(Dispatchers.IO) {
             val sessionId = reflectionRepo.createSession(viewpointId)
-            reloadActiveSession(sessionId)
+            reloadActiveSession(sessionId, force = true)
         }
     }
 
@@ -173,10 +190,13 @@ class BookReflectionViewModel(
     }
 
     fun retryLatest() {
-        val messages = _state.value.messages
-        if (!bookReflectionCanRetryLatest(messages)) return
+        val snapshot = _state.value
+        val session = snapshot.activeSession ?: return
+        val messages = snapshot.messages
+        if (!bookReflectionCanRetryLatest(messages) || snapshot.isProcessing) return
         val latestQuestion = messages.asReversed().firstOrNull { it.role == "user" }?.content ?: return
-        sendMessage(latestQuestion)
+        _state.update { it.copy(isProcessing = true) }
+        activeJob = sendAssistantResponse(session.id, latestQuestion, snapshot, insertUserMessage = false)
     }
 
     fun toggleHistory() {
@@ -186,7 +206,7 @@ class BookReflectionViewModel(
     fun selectSession(sessionId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             reflectionRepo.markOpened(sessionId)
-            reloadActiveSession(sessionId)
+            reloadActiveSession(sessionId, force = true)
         }
     }
 
@@ -196,18 +216,22 @@ class BookReflectionViewModel(
         _state.update { it.copy(isProcessing = false) }
     }
 
-    private fun reloadActiveSession(sessionId: Long) {
+    private fun reloadActiveSession(sessionId: Long, force: Boolean = false) {
         val session = reflectionRepo.getSessionById(sessionId) ?: return
         val sessions = reflectionRepo.getSessionsByViewpoint(session.viewpoint_id).map(::toSessionUi)
         val messages = reflectionRepo.getMessagesBySession(sessionId).map(::toMessageUi)
         _state.update {
+            if (!force && it.activeSession?.id != sessionId) return@update it
             it.copy(activeSession = toSessionUi(session), sessions = sessions, messages = messages, isLoading = false)
         }
     }
 
-    private fun reloadMessages(sessionId: Long) {
+    private fun reloadMessages(sessionId: Long, force: Boolean = false) {
         val messages = reflectionRepo.getMessagesBySession(sessionId).map(::toMessageUi)
-        _state.update { it.copy(messages = messages) }
+        _state.update {
+            if (!force && it.activeSession?.id != sessionId) return@update it
+            it.copy(messages = messages)
+        }
     }
 }
 
