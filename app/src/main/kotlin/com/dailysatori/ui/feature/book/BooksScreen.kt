@@ -74,11 +74,15 @@ fun BooksScreen(
     val viewModel: BooksViewModel = koinViewModel()
     val addBookViewModel: BookSearchViewModel = koinViewModel()
     val contentSearchViewModel: BookContentSearchViewModel = koinViewModel()
+    val reflectionViewModel: BookReflectionViewModel = koinViewModel()
     val state by viewModel.state.collectAsState()
     val addState by addBookViewModel.state.collectAsState()
     val contentSearchState by contentSearchViewModel.state.collectAsState()
+    val reflectionState by reflectionViewModel.state.collectAsState()
     var showDeleteDialog by remember { mutableStateOf<Book?>(null) }
     var showBookSheet by remember { mutableStateOf(false) }
+    var showReflectionSheet by remember { mutableStateOf(false) }
+    var reflectionInput by remember { mutableStateOf("") }
     var targetViewpointId by remember { mutableStateOf<Long?>(null) }
     var inlineMode by remember { mutableStateOf(BooksInlineMode.Reading) }
     var inlineBookAnalysisMessage by remember { mutableStateOf<String?>(null) }
@@ -238,6 +242,17 @@ fun BooksScreen(
                             status = vp.status,
                             errorMessage = vp.error_message,
                             onRetry = { viewModel.regenerateViewpoint(vp.id) },
+                            onReflect = {
+                                reflectionViewModel.openViewpoint(
+                                    viewpointId = vp.id,
+                                    bookTitle = currentBook?.title.orEmpty(),
+                                    author = currentBook?.author.orEmpty(),
+                                    viewpointTitle = vp.title,
+                                    viewpointContent = vp.content,
+                                    viewpointExample = vp.example,
+                                )
+                                showReflectionSheet = true
+                            },
                         )
                     }
                 }
@@ -277,6 +292,41 @@ fun BooksScreen(
                 )
                 BooksInlineMode.Reading -> Unit
             }
+        }
+    }
+
+    if (showReflectionSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showReflectionSheet = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
+            tonalElevation = 0.dp,
+        ) {
+            BookReflectionSheet(
+                state = reflectionState,
+                inputText = reflectionInput,
+                onInputChange = { reflectionInput = it },
+                onSend = {
+                    if (reflectionInput.isNotBlank()) {
+                        reflectionViewModel.sendMessage(reflectionInput)
+                        reflectionInput = ""
+                    }
+                },
+                onStop = reflectionViewModel::stopGeneration,
+                onPromptClick = { prompt ->
+                    reflectionInput = prompt
+                    reflectionViewModel.sendMessage(prompt)
+                    reflectionInput = ""
+                },
+                onGenerateSummary = reflectionViewModel::generateSummary,
+                onNewSegment = reflectionViewModel::createNewSegment,
+                onToggleHistory = reflectionViewModel::toggleHistory,
+                onSelectSession = reflectionViewModel::selectSession,
+                onRetryLatest = reflectionViewModel::retryLatest,
+            )
         }
     }
 
@@ -390,6 +440,7 @@ fun booksAddSheetTitle(): String = "添加书籍"
 fun booksContentSearchSheetTitle(): String = "搜索读书内容"
 fun booksAddSearchLoadingText(): String = "正在搜索全网书籍资料，通常需要 5-10 秒"
 fun booksContentSearchLoadingText(): String = "正在搜索本地书籍和观点"
+fun booksReflectionActionText(): String = "深入想想"
 fun booksRestoreReadingText(): String = "返回搜索前阅读"
 fun booksSwipeDeleteActionText(): String = "删除"
 fun booksPickerUsesSwipeDelete(): Boolean = true

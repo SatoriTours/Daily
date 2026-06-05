@@ -141,6 +141,14 @@ class ViewpointCardLayoutTest {
         assertTrue(source.contains("正在重新生成这个观点"))
     }
 
+    @Test
+    fun viewpointCardCanShowReflectionAction() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
+
+        assertTrue(source.contains("onReflect"))
+        assertTrue(source.contains("booksReflectionActionText()"))
+    }
+
     private fun String.extractCallBlock(anchor: String): String {
         assertTrue(contains(anchor), "Missing call anchor: $anchor")
         val start = indexOf(anchor)

@@ -93,6 +93,11 @@ class BooksScreenUiTextTest {
     }
 
     @Test
+    fun booksReflectionActionTextIsRestrained() {
+        assertEquals("深入想想", booksReflectionActionText())
+    }
+
+    @Test
     fun keepsPreviousReadingLocationAfterOpeningSearchResult() {
         val location = BookReadingLocation(bookId = 7, page = 3)
 

@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -44,6 +45,7 @@ fun ViewpointCard(
     status: String = "ready",
     errorMessage: String = "",
     onRetry: () -> Unit = {},
+    onReflect: () -> Unit = {},
 ) {
     val contentModifier = if (fillAvailableHeight) modifier.fillMaxWidth().fillMaxHeight() else modifier.fillMaxWidth()
     Box(
@@ -68,7 +70,12 @@ fun ViewpointCard(
             when (status) {
                 "failed" -> ViewpointRetryBody(errorMessage = errorMessage, onRetry = onRetry)
                 "generating" -> ViewpointGeneratingBody()
-                else -> ViewpointBody(content = content, example = example)
+                else -> {
+                    ViewpointBody(content = content, example = example)
+                    OutlinedButton(onClick = onReflect, modifier = Modifier.align(Alignment.End)) {
+                        Text(booksReflectionActionText())
+                    }
+                }
             }
 
             if (reserveBottomSpace) {
