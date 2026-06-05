@@ -3,6 +3,7 @@ package com.dailysatori.di
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.data.repository.BookRepository
+import com.dailysatori.data.repository.BookViewpointAiRepository
 import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.data.repository.ChatConversationRepository
 import com.dailysatori.data.repository.DiaryRepository
@@ -65,6 +66,7 @@ val sharedModule: Module = module {
     single { ArticleRepository(get()) }
     single { AIConfigRepository(get(), get()) }
     single { BookRepository(get()) }
+    single { BookViewpointAiRepository(get()) }
     single { BookViewpointRepository(get()) }
     single { ChatConversationRepository(get()) }
     single { DiaryRepository(get()) }

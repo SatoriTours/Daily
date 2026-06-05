@@ -58,14 +58,13 @@ class DatabaseMigration(
         if (currentVersion < 11) {
             migrateV10ToV11()
         }
+        if (currentVersion < 12) {
+            migrateV11ToV12()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
         log.i { "Migration complete, updated to version ${DatabaseConfig.currentSchemaVersion}" }
-    }
-
-    private fun getCurrentVersion(): Long {
-        return settingRepo.get(SettingKeys.schemaVersion)?.toLongOrNull() ?: 0L
     }
 
     /**
@@ -419,6 +418,50 @@ class DatabaseMigration(
         } catch (e: Exception) {
             log.w(e) { "Could not create diary_month_summary table" }
         }
+    }
+
+    private fun migrateV11ToV12() {
+        log.i { "Migration V11 -> V12: Book viewpoint AI reflection tables" }
+        try {
+            runSql("""
+                CREATE TABLE IF NOT EXISTS book_viewpoint_ai_session (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    viewpoint_id INTEGER NOT NULL REFERENCES book_viewpoint(id) ON DELETE CASCADE,
+                    title TEXT NOT NULL,
+                    summary TEXT NOT NULL DEFAULT '',
+                    summary_status TEXT NOT NULL DEFAULT 'none',
+                    summary_error TEXT NOT NULL DEFAULT '',
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    last_opened_at INTEGER NOT NULL,
+                    summarized_at INTEGER
+                )
+            """.trimIndent())
+            log.i { "Created book_viewpoint_ai_session table" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not create book_viewpoint_ai_session table" }
+        }
+
+        try {
+            runSql("""
+                CREATE TABLE IF NOT EXISTS book_viewpoint_ai_message (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id INTEGER NOT NULL REFERENCES book_viewpoint_ai_session(id) ON DELETE CASCADE,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'ready',
+                    error_message TEXT NOT NULL DEFAULT '',
+                    created_at INTEGER NOT NULL
+                )
+            """.trimIndent())
+            log.i { "Created book_viewpoint_ai_message table" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not create book_viewpoint_ai_message table" }
+        }
+    }
+
+    private fun getCurrentVersion(): Long {
+        return settingRepo.get(SettingKeys.schemaVersion)?.toLongOrNull() ?: 0L
     }
 
     private fun migratedWeReadTokenValue(legacyToken: String): String = when {

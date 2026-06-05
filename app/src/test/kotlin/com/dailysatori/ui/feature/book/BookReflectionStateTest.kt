@@ -61,4 +61,27 @@ class BookReflectionStateTest {
         val onlyUser = listOf(BookReflectionMessageUi("1", "user", "问题一", 1L, "ready", ""))
         assertTrue(bookReflectionCanRetryLatest(onlyUser))
     }
+
+    @Test
+    fun schemaDefinesBookReflectionTablesAndQueries() {
+        val schema = java.io.File("../shared/src/commonMain/sqldelight/com/dailysatori/shared/db/DailySatori.sq").readText()
+
+        assertTrue(schema.contains("CREATE TABLE book_viewpoint_ai_session"))
+        assertTrue(schema.contains("CREATE TABLE book_viewpoint_ai_message"))
+        assertTrue(schema.contains("selectBookReflectionSessionsByViewpoint:"))
+        assertTrue(schema.contains("insertBookReflectionMessage:"))
+        assertTrue(schema.contains("updateBookReflectionSummary:"))
+    }
+
+    @Test
+    fun migrationDefinesVersionTwelveForBookReflection() {
+        val config = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/config/Config.kt").readText()
+        val migration = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
+
+        assertTrue(config.contains("currentSchemaVersion = 12L"))
+        assertTrue(migration.contains("if (currentVersion < 12)"))
+        assertTrue(migration.contains("migrateV11ToV12()"))
+        assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS book_viewpoint_ai_session"))
+        assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS book_viewpoint_ai_message"))
+    }
 }

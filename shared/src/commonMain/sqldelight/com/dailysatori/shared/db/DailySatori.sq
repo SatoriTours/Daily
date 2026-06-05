@@ -66,6 +66,29 @@ CREATE TABLE book_viewpoint (
     updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE book_viewpoint_ai_session (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    viewpoint_id INTEGER NOT NULL REFERENCES book_viewpoint(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL DEFAULT '',
+    summary_status TEXT NOT NULL DEFAULT 'none',
+    summary_error TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    last_opened_at INTEGER NOT NULL,
+    summarized_at INTEGER
+);
+
+CREATE TABLE book_viewpoint_ai_message (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES book_viewpoint_ai_session(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ready',
+    error_message TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL
+);
+
 -- Diary
 CREATE TABLE diary (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -442,6 +465,63 @@ DELETE FROM book_viewpoint WHERE id = ?;
 
 deleteViewpointsByBook:
 DELETE FROM book_viewpoint WHERE book_id = ?;
+
+-- Book viewpoint AI reflection queries
+selectBookReflectionSessionsByViewpoint:
+SELECT * FROM book_viewpoint_ai_session WHERE viewpoint_id = ? ORDER BY updated_at DESC;
+
+selectLastOpenedBookReflectionSession:
+SELECT * FROM book_viewpoint_ai_session WHERE viewpoint_id = ? ORDER BY last_opened_at DESC LIMIT 1;
+
+selectLatestUnsummarizedBookReflectionSession:
+SELECT * FROM book_viewpoint_ai_session
+WHERE viewpoint_id = ? AND summary_status != 'ready'
+ORDER BY updated_at DESC LIMIT 1;
+
+selectBookReflectionSessionById:
+SELECT * FROM book_viewpoint_ai_session WHERE id = ?;
+
+insertBookReflectionSession:
+INSERT INTO book_viewpoint_ai_session (
+    viewpoint_id, title, summary, summary_status, summary_error,
+    created_at, updated_at, last_opened_at, summarized_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectLastInsertedBookReflectionSessionId:
+SELECT id FROM book_viewpoint_ai_session ORDER BY id DESC LIMIT 1;
+
+markBookReflectionSessionOpened:
+UPDATE book_viewpoint_ai_session SET last_opened_at = ?, updated_at = ? WHERE id = ?;
+
+updateBookReflectionSessionTitle:
+UPDATE book_viewpoint_ai_session SET title = ?, updated_at = ? WHERE id = ?;
+
+updateBookReflectionSummaryStatus:
+UPDATE book_viewpoint_ai_session SET summary_status = ?, summary_error = ?, updated_at = ? WHERE id = ?;
+
+updateBookReflectionSummary:
+UPDATE book_viewpoint_ai_session
+SET title = ?, summary = ?, summary_status = ?, summary_error = '', summarized_at = ?, updated_at = ?
+WHERE id = ?;
+
+deleteBookReflectionSession:
+DELETE FROM book_viewpoint_ai_session WHERE id = ?;
+
+selectBookReflectionMessagesBySession:
+SELECT * FROM book_viewpoint_ai_message WHERE session_id = ? ORDER BY created_at ASC;
+
+insertBookReflectionMessage:
+INSERT INTO book_viewpoint_ai_message (session_id, role, content, status, error_message, created_at)
+VALUES (?, ?, ?, ?, ?, ?);
+
+selectLastInsertedBookReflectionMessageId:
+SELECT id FROM book_viewpoint_ai_message ORDER BY id DESC LIMIT 1;
+
+updateBookReflectionMessage:
+UPDATE book_viewpoint_ai_message SET content = ?, status = ?, error_message = ? WHERE id = ?;
+
+deleteBookReflectionMessagesBySession:
+DELETE FROM book_viewpoint_ai_message WHERE session_id = ?;
 
 -- Diary queries
 selectAllDiaries:
