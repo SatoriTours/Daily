@@ -3,9 +3,8 @@ package com.dailysatori.ui.feature.book
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,7 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.dailysatori.ui.feature.aichat.ChatInputField
 import com.dailysatori.ui.feature.aichat.ChatMessageUi
 import com.dailysatori.ui.feature.aichat.MessageBubble
@@ -44,34 +42,63 @@ fun BookReflectionSheet(
     onToggleHistory: () -> Unit,
     onSelectSession: (Long) -> Unit,
     onRetryLatest: () -> Unit,
+    onViewSessionProcess: (Long) -> Unit = onSelectSession,
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.m).padding(bottom = Spacing.xxl),
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(start = Spacing.m, end = Spacing.m, bottom = Spacing.xxl),
         verticalArrangement = Arrangement.spacedBy(Spacing.m),
     ) {
-        BookReflectionHeader(state)
-        state.activeSession?.takeIf { it.summary.isNotBlank() }?.let { BookReflectionSummaryCard(it) }
-        BookReflectionActions(
-            summary = state.activeSession?.summary.orEmpty(),
-            isSummarizing = state.isSummarizing,
-            showHistory = state.showHistory,
-            onGenerateSummary = onGenerateSummary,
-            onNewSegment = onNewSegment,
+        item { BookReflectionHeader(state) }
+        state.activeSession?.takeIf { it.summary.isNotBlank() }?.let { session ->
+            item { BookReflectionSummaryCard(session) }
+        }
+        item {
+            BookReflectionActions(
+                summary = state.activeSession?.summary.orEmpty(),
+                isSummarizing = state.isSummarizing,
+                showHistory = state.showHistory,
+                onGenerateSummary = onGenerateSummary,
+                onNewSegment = onNewSegment,
+                onToggleHistory = onToggleHistory,
+            )
+        }
+        state.error?.takeIf { it.isNotBlank() }?.let { error -> item { BookReflectionStatusCard(error) } }
+        BookReflectionContent(
+            state = state,
+            onPromptClick = onPromptClick,
+            onRetryLatest = onRetryLatest,
+            onSelectSession = onSelectSession,
+            onViewSessionProcess = onViewSessionProcess,
             onToggleHistory = onToggleHistory,
         )
-        if (state.showHistory) {
-            BookReflectionHistory(state.sessions, onSelectSession)
-        } else {
-            BookReflectionMessages(state, onPromptClick, onRetryLatest)
+        item {
+            ChatInputField(
+                inputText = inputText,
+                onInputChange = onInputChange,
+                onSend = onSend,
+                onStop = onStop,
+                isProcessing = state.isProcessing,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
-        ChatInputField(
-            inputText = inputText,
-            onInputChange = onInputChange,
-            onSend = onSend,
-            onStop = onStop,
-            isProcessing = state.isProcessing,
-            modifier = Modifier.fillMaxWidth(),
-        )
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.BookReflectionContent(
+    state: BookReflectionState,
+    onPromptClick: (String) -> Unit,
+    onRetryLatest: () -> Unit,
+    onSelectSession: (Long) -> Unit,
+    onViewSessionProcess: (Long) -> Unit,
+    onToggleHistory: () -> Unit,
+) {
+    if (state.isLoading) {
+        item { BookReflectionStatusCard("正在加载思考片段...") }
+    } else if (state.showHistory) {
+        BookReflectionHistory(state.sessions, onSelectSession, onViewSessionProcess, onToggleHistory)
+    } else {
+        BookReflectionMessages(state, onPromptClick, onRetryLatest)
     }
 }
 
@@ -104,12 +131,24 @@ private fun BookReflectionActions(
     onNewSegment: () -> Unit,
     onToggleHistory: () -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        Button(onClick = onGenerateSummary, enabled = !isSummarizing) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Button(onClick = onGenerateSummary, enabled = !isSummarizing, modifier = Modifier.fillMaxWidth()) {
             Text(if (isSummarizing) "沉淀中" else if (summary.isBlank()) "沉淀这一段" else "更新沉淀")
         }
-        OutlinedButton(onClick = onNewSegment) { Text("换个角度聊") }
-        OutlinedButton(onClick = onToggleHistory) { Text(if (showHistory) "当前" else "历史") }
+        OutlinedButton(onClick = onNewSegment, modifier = Modifier.fillMaxWidth()) { Text("换个角度聊") }
+        OutlinedButton(onClick = onToggleHistory, modifier = Modifier.fillMaxWidth()) { Text(if (showHistory) "当前" else "历史") }
+    }
+}
+
+@Composable
+private fun BookReflectionStatusCard(text: String) {
+    Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surfaceContainer) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(Spacing.m),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -124,45 +163,56 @@ private fun BookReflectionSummaryCard(session: BookReflectionSessionUi) {
 }
 
 @Composable
-private fun BookReflectionMessages(
+private fun EmptyBookReflectionPrompts(onPromptClick: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+        bookReflectionStartingPrompts().forEach { prompt ->
+            AssistChip(onClick = { onPromptClick(prompt) }, label = { Text(prompt) })
+        }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.BookReflectionMessages(
     state: BookReflectionState,
     onPromptClick: (String) -> Unit,
     onRetryLatest: () -> Unit,
 ) {
     if (state.messages.isEmpty()) {
-        Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            bookReflectionStartingPrompts().forEach { prompt ->
-                AssistChip(onClick = { onPromptClick(prompt) }, label = { Text(prompt) })
-            }
-        }
+        item { EmptyBookReflectionPrompts(onPromptClick) }
         return
     }
-    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        items(state.messages, key = { it.id }) { message ->
-            MessageBubble(message = message.toChatMessageUi())
-        }
-        if (bookReflectionCanRetryLatest(state.messages)) {
-            item { OutlinedButton(onClick = onRetryLatest) { Text("重新生成") } }
-        }
+    items(state.messages, key = { it.id }) { message ->
+        MessageBubble(message = message.toChatMessageUi())
+    }
+    if (bookReflectionCanRetryLatest(state.messages)) {
+        item { OutlinedButton(onClick = onRetryLatest, modifier = Modifier.fillMaxWidth()) { Text("重新生成") } }
     }
 }
 
-@Composable
-private fun BookReflectionHistory(
+private fun androidx.compose.foundation.lazy.LazyListScope.BookReflectionHistory(
     sessions: List<BookReflectionSessionUi>,
     onSelectSession: (Long) -> Unit,
+    onViewSessionProcess: (Long) -> Unit,
+    onToggleHistory: () -> Unit,
 ) {
-    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        items(sessions, key = { it.id }) { session ->
-            Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surfaceContainer) {
-                Column(modifier = Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(session.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                    Text(session.summary.ifBlank { "还没有沉淀" }, style = MaterialTheme.typography.bodySmall, maxLines = 4, overflow = TextOverflow.Ellipsis)
-                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                        OutlinedButton(onClick = { onSelectSession(session.id) }) { Text("继续聊") }
-                        OutlinedButton(onClick = { onSelectSession(session.id) }) { Text("查看过程") }
-                    }
-                }
+    items(sessions, key = { it.id }) { session ->
+        Surface(shape = RoundedCornerShape(Radius.l), color = MaterialTheme.colorScheme.surfaceContainer) {
+            Column(modifier = Modifier.padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text(session.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(session.summary.ifBlank { "还没有沉淀" }, style = MaterialTheme.typography.bodySmall, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                OutlinedButton(
+                    onClick = {
+                        onSelectSession(session.id)
+                        onToggleHistory()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("继续聊") }
+                OutlinedButton(
+                    onClick = {
+                        onViewSessionProcess(session.id)
+                        onToggleHistory()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("查看过程") }
             }
         }
     }

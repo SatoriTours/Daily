@@ -165,4 +165,18 @@ class BookReflectionStateTest {
         assertTrue(source.contains("查看过程"))
         assertTrue(source.contains("继续聊"))
     }
+
+    @Test
+    fun reflectionSheetHandlesScrollStateAndHistoryActions() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/book/BookReflectionSheet.kt").readText()
+
+        assertTrue(source.contains("LazyColumn("))
+        assertTrue(source.contains("state.isLoading"))
+        assertTrue(source.contains("正在加载思考片段..."))
+        assertTrue(source.contains("state.error"))
+        assertTrue(source.contains("onViewSessionProcess"))
+        assertTrue(source.contains("onToggleHistory()"))
+        assertFalse(source.contains("Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s))"))
+        assertEquals(1, "LazyColumn\\(".toRegex().findAll(source).count())
+    }
 }
