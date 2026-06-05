@@ -84,4 +84,22 @@ class BookReflectionStateTest {
         assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS book_viewpoint_ai_session"))
         assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS book_viewpoint_ai_message"))
     }
+
+    @Test
+    fun bookReflectionQueriesUseStableOrdering() {
+        val schema = java.io.File("../shared/src/commonMain/sqldelight/com/dailysatori/shared/db/DailySatori.sq").readText()
+
+        assertEquals(2, "ORDER BY updated_at DESC, id DESC".toRegex().findAll(schema).count())
+        assertTrue(schema.contains("ORDER BY last_opened_at DESC, id DESC LIMIT 1"))
+        assertTrue(schema.contains("ORDER BY created_at ASC, id ASC"))
+    }
+
+    @Test
+    fun bookReflectionRepositoryReadsInsertedIdsInTransactions() {
+        val repository = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/data/repository/BookViewpointAiRepository.kt").readText()
+
+        assertTrue(repository.contains("fun createSession"))
+        assertTrue(repository.contains("fun insertMessage"))
+        assertEquals(2, "q.transactionWithResult".toRegex().findAll(repository).count())
+    }
 }

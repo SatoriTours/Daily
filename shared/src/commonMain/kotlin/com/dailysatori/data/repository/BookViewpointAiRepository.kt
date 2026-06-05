@@ -20,7 +20,7 @@ class BookViewpointAiRepository(private val db: DailySatoriDatabase) {
     fun getSessionById(sessionId: Long): Book_viewpoint_ai_session? =
         q.selectBookReflectionSessionById(sessionId).executeAsOneOrNull()
 
-    fun createSession(viewpointId: Long, title: String = "新的思考", now: Long = now()): Long {
+    fun createSession(viewpointId: Long, title: String = "新的思考", now: Long = now()): Long = q.transactionWithResult {
         q.insertBookReflectionSession(
             viewpoint_id = viewpointId,
             title = title,
@@ -32,7 +32,7 @@ class BookViewpointAiRepository(private val db: DailySatoriDatabase) {
             last_opened_at = now,
             summarized_at = null,
         )
-        return q.selectLastInsertedBookReflectionSessionId().executeAsOne()
+        q.selectLastInsertedBookReflectionSessionId().executeAsOne()
     }
 
     fun markOpened(sessionId: Long, now: Long = now()) {
@@ -70,9 +70,9 @@ class BookViewpointAiRepository(private val db: DailySatoriDatabase) {
         status: String = "ready",
         errorMessage: String = "",
         now: Long = now(),
-    ): Long {
+    ): Long = q.transactionWithResult {
         q.insertBookReflectionMessage(sessionId, role, content, status, errorMessage, now)
-        return q.selectLastInsertedBookReflectionMessageId().executeAsOne()
+        q.selectLastInsertedBookReflectionMessageId().executeAsOne()
     }
 
     fun updateMessage(messageId: Long, content: String, status: String, errorMessage: String = "") {

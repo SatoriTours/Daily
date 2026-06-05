@@ -468,15 +468,15 @@ DELETE FROM book_viewpoint WHERE book_id = ?;
 
 -- Book viewpoint AI reflection queries
 selectBookReflectionSessionsByViewpoint:
-SELECT * FROM book_viewpoint_ai_session WHERE viewpoint_id = ? ORDER BY updated_at DESC;
+SELECT * FROM book_viewpoint_ai_session WHERE viewpoint_id = ? ORDER BY updated_at DESC, id DESC;
 
 selectLastOpenedBookReflectionSession:
-SELECT * FROM book_viewpoint_ai_session WHERE viewpoint_id = ? ORDER BY last_opened_at DESC LIMIT 1;
+SELECT * FROM book_viewpoint_ai_session WHERE viewpoint_id = ? ORDER BY last_opened_at DESC, id DESC LIMIT 1;
 
 selectLatestUnsummarizedBookReflectionSession:
 SELECT * FROM book_viewpoint_ai_session
 WHERE viewpoint_id = ? AND summary_status != 'ready'
-ORDER BY updated_at DESC LIMIT 1;
+ORDER BY updated_at DESC, id DESC LIMIT 1;
 
 selectBookReflectionSessionById:
 SELECT * FROM book_viewpoint_ai_session WHERE id = ?;
@@ -508,7 +508,7 @@ deleteBookReflectionSession:
 DELETE FROM book_viewpoint_ai_session WHERE id = ?;
 
 selectBookReflectionMessagesBySession:
-SELECT * FROM book_viewpoint_ai_message WHERE session_id = ? ORDER BY created_at ASC;
+SELECT * FROM book_viewpoint_ai_message WHERE session_id = ? ORDER BY created_at ASC, id ASC;
 
 insertBookReflectionMessage:
 INSERT INTO book_viewpoint_ai_message (session_id, role, content, status, error_message, created_at)
