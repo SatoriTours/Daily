@@ -152,4 +152,17 @@ class BookReflectionStateTest {
         assertTrue(source.contains("activeSession?.id != sessionId"))
         assertTrue(source.contains("force = true"))
     }
+
+    @Test
+    fun reflectionSheetUsesRequiredUserFacingLabels() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/book/BookReflectionSheet.kt").readText()
+
+        assertTrue(source.contains("深入想想"))
+        assertTrue(source.contains("沉淀这一段"))
+        assertTrue(source.contains("更新沉淀"))
+        assertTrue(source.contains("换个角度聊"))
+        assertTrue(source.contains("历史"))
+        assertTrue(source.contains("查看过程"))
+        assertTrue(source.contains("继续聊"))
+    }
 }
