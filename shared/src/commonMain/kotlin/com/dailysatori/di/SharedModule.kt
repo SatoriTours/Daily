@@ -28,6 +28,7 @@ import com.dailysatori.service.backup.BackupService
 import com.dailysatori.service.backup.BackupPasswordStore
 import com.dailysatori.service.book.BookIntelligenceService
 import com.dailysatori.service.book.BookIntelligenceSource
+import com.dailysatori.service.book.BookReflectionService
 import com.dailysatori.service.book.BookSearchService
 import com.dailysatori.service.book.BookAiFallbackGenerator
 import com.dailysatori.service.book.DefaultBookAiFallbackGenerator
@@ -119,6 +120,7 @@ val sharedModule: Module = module {
     single<BookAiFallbackGenerator> { DefaultBookAiFallbackGenerator(get(), get(), get(), get()) }
     single { WeReadSkillService(get(), get(), get(), get(), get()) }
     single<BookIntelligenceSource> { get<WeReadSkillService>() }
+    single { BookReflectionService(get(), get()) }
     single { RemoteMcpClient(get()) }
     single { LocalSqlQueryService(get()) }
     single { BookIntelligenceService(get<BookIntelligenceSource>()) }
