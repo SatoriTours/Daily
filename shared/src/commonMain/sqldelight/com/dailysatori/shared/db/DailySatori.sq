@@ -507,6 +507,13 @@ WHERE id = ?;
 deleteBookReflectionSession:
 DELETE FROM book_viewpoint_ai_session WHERE id = ?;
 
+deleteBookReflectionSessionsByViewpoint:
+DELETE FROM book_viewpoint_ai_session WHERE viewpoint_id = ?;
+
+deleteBookReflectionSessionsByBook:
+DELETE FROM book_viewpoint_ai_session
+WHERE viewpoint_id IN (SELECT id FROM book_viewpoint WHERE book_id = ?);
+
 selectBookReflectionMessagesBySession:
 SELECT * FROM book_viewpoint_ai_message WHERE session_id = ? ORDER BY created_at ASC, id ASC;
 
@@ -522,6 +529,19 @@ UPDATE book_viewpoint_ai_message SET content = ?, status = ?, error_message = ? 
 
 deleteBookReflectionMessagesBySession:
 DELETE FROM book_viewpoint_ai_message WHERE session_id = ?;
+
+deleteBookReflectionMessagesByViewpoint:
+DELETE FROM book_viewpoint_ai_message
+WHERE session_id IN (SELECT id FROM book_viewpoint_ai_session WHERE viewpoint_id = ?);
+
+deleteBookReflectionMessagesByBook:
+DELETE FROM book_viewpoint_ai_message
+WHERE session_id IN (
+    SELECT book_viewpoint_ai_session.id
+    FROM book_viewpoint_ai_session
+    JOIN book_viewpoint ON book_viewpoint.id = book_viewpoint_ai_session.viewpoint_id
+    WHERE book_viewpoint.book_id = ?
+);
 
 -- Diary queries
 selectAllDiaries:

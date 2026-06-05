@@ -74,6 +74,28 @@ class BookReflectionStateTest {
     }
 
     @Test
+    fun schemaDefinesExplicitBookReflectionCascadeDeleteQueries() {
+        val schema = java.io.File("../shared/src/commonMain/sqldelight/com/dailysatori/shared/db/DailySatori.sq").readText()
+
+        assertTrue(schema.contains("deleteBookReflectionMessagesByViewpoint:"))
+        assertTrue(schema.contains("deleteBookReflectionSessionsByViewpoint:"))
+        assertTrue(schema.contains("deleteBookReflectionMessagesByBook:"))
+        assertTrue(schema.contains("deleteBookReflectionSessionsByBook:"))
+    }
+
+    @Test
+    fun viewpointRepositoryDeletesReflectionRowsBeforeViewpoints() {
+        val source = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/data/repository/BookViewpointRepository.kt").readText()
+        val deleteBody = source.substringAfter("fun delete(id: Long)").substringBefore("fun deleteByBook")
+        val deleteByBookBody = source.substringAfter("fun deleteByBook(bookId: Long)").substringBefore("fun getAllSync")
+
+        assertTrue(deleteBody.indexOf("deleteBookReflectionMessagesByViewpoint") in 0 until deleteBody.indexOf("deleteBookReflectionSessionsByViewpoint"))
+        assertTrue(deleteBody.indexOf("deleteBookReflectionSessionsByViewpoint") in 0 until deleteBody.indexOf("deleteViewpoint"))
+        assertTrue(deleteByBookBody.indexOf("deleteBookReflectionMessagesByBook") in 0 until deleteByBookBody.indexOf("deleteBookReflectionSessionsByBook"))
+        assertTrue(deleteByBookBody.indexOf("deleteBookReflectionSessionsByBook") in 0 until deleteByBookBody.indexOf("deleteViewpointsByBook"))
+    }
+
+    @Test
     fun migrationDefinesVersionTwelveForBookReflection() {
         val config = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/config/Config.kt").readText()
         val migration = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
@@ -145,6 +167,14 @@ class BookReflectionStateTest {
     }
 
     @Test
+    fun viewModelDoesNotLetStaleJobsClearNewProcessingState() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/book/BookReflectionViewModel.kt").readText()
+
+        assertTrue(source.contains("currentCoroutineContext()[Job]"))
+        assertTrue(source.contains("if (activeJob == finishedJob)"))
+    }
+
+    @Test
     fun viewModelGuardsAsyncReloadsForCurrentSession() {
         val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/book/BookReflectionViewModel.kt").readText()
 
@@ -178,5 +208,14 @@ class BookReflectionStateTest {
         assertTrue(source.contains("onToggleHistory()"))
         assertFalse(source.contains("Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s))"))
         assertEquals(1, "LazyColumn\\(".toRegex().findAll(source).count())
+    }
+
+    @Test
+    fun reflectionSheetSurfacesSummaryFailure() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/book/BookReflectionSheet.kt").readText()
+
+        assertTrue(source.contains("summaryStatus == \"failed\""))
+        assertTrue(source.contains("summaryError"))
+        assertTrue(source.contains("沉淀失败，请稍后重试。"))
     }
 }

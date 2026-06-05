@@ -53,6 +53,9 @@ fun BookReflectionSheet(
         state.activeSession?.takeIf { it.summary.isNotBlank() }?.let { session ->
             item { BookReflectionSummaryCard(session) }
         }
+        state.activeSession?.takeIf { it.summaryStatus == "failed" }?.let { session ->
+            item { BookReflectionStatusCard(session.summaryError.ifBlank { "沉淀失败，请稍后重试。" }) }
+        }
         item {
             BookReflectionActions(
                 summary = state.activeSession?.summary.orEmpty(),

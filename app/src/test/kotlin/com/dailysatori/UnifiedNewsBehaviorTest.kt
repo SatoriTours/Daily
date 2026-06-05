@@ -655,7 +655,7 @@ class UnifiedNewsBehaviorTest {
         assertFalse(repo.contains("fun replaceSources"))
         assertTrue(articleRepo.contains("fun getFavoritesByDateRangeSync"))
         assertTrue(migration.contains("migrateV6ToV7"))
-        assertTrue(config.contains("currentSchemaVersion = 11L"))
+        assertTrue(config.contains("currentSchemaVersion = 12L"))
     }
 
     @Test
@@ -681,7 +681,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(schema.contains("updateRemoteNewsSource"))
         assertTrue(schema.contains("upsertRemoteNewsSource"))
         assertTrue(schema.contains("deleteRemoteNewsSource"))
-        assertTrue(config.contains("currentSchemaVersion = 11L"))
+        assertTrue(config.contains("currentSchemaVersion = 12L"))
         assertTrue(migration.contains("if (currentVersion < 8)"))
         assertTrue(migration.contains("migrateV7ToV8()"))
         assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS remote_news_source"))

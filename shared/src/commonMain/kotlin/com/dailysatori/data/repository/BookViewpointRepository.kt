@@ -62,9 +62,17 @@ class BookViewpointRepository(private val db: DailySatoriDatabase) {
         q.updateViewpointStatusContext(title, content, example, status, errorMessage, outlineJson, sourceNotes, now, id)
     }
 
-    fun delete(id: Long) = q.deleteViewpoint(id)
+    fun delete(id: Long) {
+        q.deleteBookReflectionMessagesByViewpoint(id)
+        q.deleteBookReflectionSessionsByViewpoint(id)
+        q.deleteViewpoint(id)
+    }
 
-    fun deleteByBook(bookId: Long) = q.deleteViewpointsByBook(bookId)
+    fun deleteByBook(bookId: Long) {
+        q.deleteBookReflectionMessagesByBook(bookId)
+        q.deleteBookReflectionSessionsByBook(bookId)
+        q.deleteViewpointsByBook(bookId)
+    }
 
     fun getAllSync(): List<Book_viewpoint> = q.selectAllViewpoints().executeAsList()
 

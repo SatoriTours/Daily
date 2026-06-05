@@ -243,6 +243,7 @@ fun BooksScreen(
                             errorMessage = vp.error_message,
                             onRetry = { viewModel.regenerateViewpoint(vp.id) },
                             onReflect = {
+                                reflectionViewModel.stopGeneration()
                                 reflectionInput = ""
                                 reflectionViewModel.openViewpoint(
                                     viewpointId = vp.id,
@@ -300,6 +301,7 @@ fun BooksScreen(
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = {
+                reflectionViewModel.stopGeneration()
                 reflectionInput = ""
                 showReflectionSheet = false
             },

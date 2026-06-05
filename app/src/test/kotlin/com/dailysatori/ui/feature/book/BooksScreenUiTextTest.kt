@@ -109,6 +109,7 @@ class BooksScreenUiTextTest {
         assertTrue(
             source.contains(
                 "onDismissRequest = {\n" +
+                    "                reflectionViewModel.stopGeneration()\n" +
                     "                reflectionInput = \"\"\n" +
                     "                showReflectionSheet = false\n" +
                     "            }",

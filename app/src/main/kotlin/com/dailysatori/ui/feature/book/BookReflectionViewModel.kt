@@ -10,6 +10,7 @@ import com.dailysatori.shared.db.Book_viewpoint_ai_session
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -70,8 +71,16 @@ class BookReflectionViewModel(
         viewpointContent: String,
         viewpointExample: String,
     ) {
+        stopGeneration()
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(isLoading = true, error = null) }
+            _state.update {
+                it.copy(
+                    isLoading = true,
+                    isProcessing = false,
+                    isSummarizing = false,
+                    error = null,
+                )
+            }
             val session = reflectionRepo.getLastOpenedSession(viewpointId)
                 ?: reflectionRepo.getLatestUnsummarizedSession(viewpointId)
                 ?: reflectionRepo.createSession(viewpointId).let { reflectionRepo.getSessionById(it)!! }
@@ -153,9 +162,12 @@ class BookReflectionViewModel(
                 errorMessage = error.message.orEmpty(),
             )
         } finally {
+            val finishedJob = currentCoroutineContext()[Job]
             reloadActiveSession(sessionId)
-            _state.update { it.copy(isProcessing = false) }
-            activeJob = null
+            if (activeJob == finishedJob) {
+                _state.update { it.copy(isProcessing = false) }
+                activeJob = null
+            }
         }
     }
 
