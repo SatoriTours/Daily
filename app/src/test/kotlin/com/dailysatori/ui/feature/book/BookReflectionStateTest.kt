@@ -102,4 +102,26 @@ class BookReflectionStateTest {
         assertTrue(repository.contains("fun insertMessage"))
         assertEquals(2, "q.transactionWithResult".toRegex().findAll(repository).count())
     }
+
+    @Test
+    fun viewModelHasReadingReflectionActions() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/book/BookReflectionViewModel.kt").readText()
+
+        assertTrue(source.contains("fun openViewpoint("))
+        assertTrue(source.contains("fun sendMessage("))
+        assertTrue(source.contains("fun createNewSegment("))
+        assertTrue(source.contains("fun generateSummary("))
+        assertTrue(source.contains("fun retryLatest("))
+        assertTrue(source.contains("BookViewpointAiRepository"))
+        assertTrue(source.contains("BookReflectionService"))
+    }
+
+    @Test
+    fun viewModelIsRegisteredInKoin() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/core/di/ViewModelModule.kt").readText()
+
+        assertTrue(source.contains("BookReflectionViewModel"))
+        assertTrue(source.contains("reflectionRepo = get<BookViewpointAiRepository>()"))
+        assertTrue(source.contains("reflectionService = get<BookReflectionService>()"))
+    }
 }

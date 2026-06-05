@@ -4,6 +4,7 @@ import com.dailysatori.data.repository.AIConfigRepository
 import com.dailysatori.AppUrlIntakeViewModel
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.BookRepository
+import com.dailysatori.data.repository.BookViewpointAiRepository
 import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.data.repository.ChatConversationRepository
 import com.dailysatori.data.repository.DiaryRepository
@@ -14,6 +15,7 @@ import com.dailysatori.platform.FileManager
 import com.dailysatori.core.service.AppUpgradeService
 import com.dailysatori.core.service.WebServerService
 import com.dailysatori.service.backup.BackupService
+import com.dailysatori.service.book.BookReflectionService
 import com.dailysatori.service.import.ImportService
 import com.dailysatori.service.mcp.McpAgentService
 import com.dailysatori.service.memory.MemoryExtractService
@@ -33,6 +35,7 @@ import com.dailysatori.ui.feature.settings.backup.BackupSettingsViewModel
 import com.dailysatori.ui.feature.settings.importing.DataImportViewModel
 import com.dailysatori.ui.feature.book.BookSearchViewModel
 import com.dailysatori.ui.feature.book.BookContentSearchViewModel
+import com.dailysatori.ui.feature.book.BookReflectionViewModel
 import com.dailysatori.ui.feature.book.BooksViewModel
 import com.dailysatori.ui.feature.diary.DiaryViewModel
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterViewModel
@@ -97,6 +100,12 @@ val viewModelModule: Module = module {
     viewModel {
         BookContentSearchViewModel(
             viewpointRepo = get<BookViewpointRepository>(),
+        )
+    }
+    viewModel {
+        BookReflectionViewModel(
+            reflectionRepo = get<BookViewpointAiRepository>(),
+            reflectionService = get<BookReflectionService>(),
         )
     }
     viewModel {
