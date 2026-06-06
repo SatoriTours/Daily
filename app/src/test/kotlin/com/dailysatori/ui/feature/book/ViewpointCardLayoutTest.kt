@@ -3,6 +3,7 @@ package com.dailysatori.ui.feature.book
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ViewpointCardLayoutTest {
@@ -142,11 +143,13 @@ class ViewpointCardLayoutTest {
     }
 
     @Test
-    fun viewpointCardCanShowReflectionAction() {
+    fun viewpointCardDoesNotPlaceReflectionActionInReadingBody() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/ViewpointCard.kt").readText()
 
         assertTrue(source.contains("onReflect"))
-        assertTrue(source.contains("booksReflectionActionText()"))
+        assertFalse(source.contains("booksReflectionActionText()"))
+        assertFalse(source.contains("ReflectionActionChip("))
+        assertFalse(source.contains("OutlinedButton(onClick = onReflect, modifier = Modifier.align(Alignment.End))"))
     }
 
     private fun String.extractCallBlock(anchor: String): String {

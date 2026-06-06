@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.book
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,26 +13,32 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -46,6 +53,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dailysatori.shared.db.Book
@@ -62,7 +71,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BooksScreen(
     selectedBookId: Long? = null,
@@ -132,6 +141,21 @@ fun BooksScreen(
 
     val currentBook = state.books.find { it.id == state.currentBookId }
 
+    fun openReflectionForCurrentPage() {
+        val vp = state.viewpoints.getOrNull(state.currentPage) ?: return
+        reflectionViewModel.stopGeneration()
+        reflectionInput = ""
+        reflectionViewModel.openViewpoint(
+            viewpointId = vp.id,
+            bookTitle = currentBook?.title.orEmpty(),
+            author = currentBook?.author.orEmpty(),
+            viewpointTitle = vp.title,
+            viewpointContent = vp.content,
+            viewpointExample = vp.example,
+        )
+        showReflectionSheet = true
+    }
+
     AppScaffold(
         title = booksReaderTitle(currentBook?.title, currentBook?.author),
         showBack = false,
@@ -175,6 +199,11 @@ fun BooksScreen(
                         )
                     }
                 }
+            }
+        },
+        floatingActionButton = {
+            if (state.viewpoints.isNotEmpty()) {
+                MiniReflectButton(onClick = ::openReflectionForCurrentPage)
             }
         },
     ) { modifier ->
@@ -242,19 +271,6 @@ fun BooksScreen(
                             status = vp.status,
                             errorMessage = vp.error_message,
                             onRetry = { viewModel.regenerateViewpoint(vp.id) },
-                            onReflect = {
-                                reflectionViewModel.stopGeneration()
-                                reflectionInput = ""
-                                reflectionViewModel.openViewpoint(
-                                    viewpointId = vp.id,
-                                    bookTitle = currentBook?.title.orEmpty(),
-                                    author = currentBook?.author.orEmpty(),
-                                    viewpointTitle = vp.title,
-                                    viewpointContent = vp.content,
-                                    viewpointExample = vp.example,
-                                )
-                                showReflectionSheet = true
-                            },
                         )
                     }
                 }
@@ -298,14 +314,21 @@ fun BooksScreen(
     }
 
     if (showReflectionSheet) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val sheetState = rememberModalBottomSheetState(
+            skipPartiallyExpanded = true,
+            confirmValueChange = { it != SheetValue.Hidden },
+        )
+        val closeReflectionSheet = {
+            reflectionViewModel.stopGeneration()
+            reflectionInput = ""
+            showReflectionSheet = false
+        }
         ModalBottomSheet(
-            onDismissRequest = {
-                reflectionViewModel.stopGeneration()
-                reflectionInput = ""
-                showReflectionSheet = false
-            },
+            onDismissRequest = closeReflectionSheet,
             sheetState = sheetState,
+            dragHandle = {
+                ReflectionSheetDragHandle(onDismiss = closeReflectionSheet)
+            },
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = RoundedCornerShape(topStart = Radius.xl, topEnd = Radius.xl),
@@ -328,9 +351,12 @@ fun BooksScreen(
                     reflectionInput = ""
                 },
                 onGenerateSummary = reflectionViewModel::generateSummary,
-                onNewSegment = reflectionViewModel::createNewSegment,
-                onToggleHistory = reflectionViewModel::toggleHistory,
+                onNewQuestion = reflectionViewModel::createNewSegment,
+                onShowCurrent = reflectionViewModel::showCurrent,
+                onShowHistory = reflectionViewModel::showHistory,
+                onShowSettled = reflectionViewModel::showSettled,
                 onSelectSession = reflectionViewModel::selectSession,
+                onDeleteSession = reflectionViewModel::deleteSession,
                 onRetryLatest = reflectionViewModel::retryLatest,
             )
         }
@@ -412,6 +438,66 @@ fun BooksScreen(
 }
 
 @Composable
+private fun MiniReflectButton(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .padding(bottom = 88.dp)
+            .size(48.dp)
+            .clip(CircleShape)
+            .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            modifier = Modifier.size(36.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            shadowElevation = 6.dp,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.AutoAwesome, contentDescription = booksReflectionActionText(), modifier = Modifier.size(21.dp))
+            }
+        }
+    }
+}
+
+private const val reflectionSheetDragDismissThresholdPx = 80f
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReflectionSheetDragHandle(onDismiss: () -> Unit) {
+    var dragDistancePx by remember { mutableStateOf(0f) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = Spacing.s, bottom = Spacing.xs)
+            .pointerInput(onDismiss) {
+                detectVerticalDragGestures(
+                    onDragStart = { dragDistancePx = 0f },
+                    onVerticalDrag = { _, dragAmount ->
+                        if (dragAmount > 0f) {
+                            dragDistancePx += dragAmount
+                        }
+                    },
+                    onDragEnd = {
+                        if (dragDistancePx >= reflectionSheetDragDismissThresholdPx) {
+                            onDismiss()
+                        }
+                        dragDistancePx = 0f
+                    },
+                    onDragCancel = {
+                        dragDistancePx = 0f
+                    },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        BottomSheetDefaults.DragHandle()
+    }
+}
+
+@Composable
 private fun BooksInlineNotice(text: String, onClick: (() -> Unit)? = null) {
     Surface(
         modifier = Modifier
@@ -446,7 +532,7 @@ fun booksAddSheetTitle(): String = "添加书籍"
 fun booksContentSearchSheetTitle(): String = "搜索读书内容"
 fun booksAddSearchLoadingText(): String = "正在搜索全网书籍资料，通常需要 5-10 秒"
 fun booksContentSearchLoadingText(): String = "正在搜索本地书籍和观点"
-fun booksReflectionActionText(): String = "深入想想"
+fun booksReflectionActionText(): String = "想一想"
 fun booksRestoreReadingText(): String = "返回搜索前阅读"
 fun booksSwipeDeleteActionText(): String = "删除"
 fun booksPickerUsesSwipeDelete(): Boolean = true

@@ -38,6 +38,12 @@ data class BookReflectionSessionUi(
     val summarizedAt: Long?,
 )
 
+enum class BookReflectionView {
+    Current,
+    History,
+    Settled,
+}
+
 data class BookReflectionState(
     val viewpointId: Long? = null,
     val bookTitle: String = "",
@@ -51,7 +57,7 @@ data class BookReflectionState(
     val isLoading: Boolean = false,
     val isProcessing: Boolean = false,
     val isSummarizing: Boolean = false,
-    val showHistory: Boolean = false,
+    val reflectionView: BookReflectionView = BookReflectionView.Current,
     val error: String? = null,
 )
 
@@ -214,7 +220,27 @@ class BookReflectionViewModel(
     }
 
     fun toggleHistory() {
-        _state.update { it.copy(showHistory = !it.showHistory) }
+        _state.update {
+            it.copy(
+                reflectionView = if (it.reflectionView == BookReflectionView.History) {
+                    BookReflectionView.Current
+                } else {
+                    BookReflectionView.History
+                },
+            )
+        }
+    }
+
+    fun showCurrent() {
+        _state.update { it.copy(reflectionView = BookReflectionView.Current) }
+    }
+
+    fun showHistory() {
+        _state.update { it.copy(reflectionView = BookReflectionView.History) }
+    }
+
+    fun showSettled() {
+        _state.update { it.copy(reflectionView = BookReflectionView.Settled) }
     }
 
     fun selectSession(sessionId: Long) {
@@ -222,6 +248,29 @@ class BookReflectionViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             reflectionRepo.markOpened(sessionId)
             reloadActiveSession(sessionId, force = true)
+            _state.update { it.copy(reflectionView = BookReflectionView.Current) }
+        }
+    }
+
+    fun deleteSession(sessionId: Long) {
+        val viewpointId = _state.value.viewpointId ?: return
+        val deletedActiveSession = _state.value.activeSession?.id == sessionId
+        stopGeneration()
+        viewModelScope.launch(Dispatchers.IO) {
+            reflectionRepo.deleteMessagesBySession(sessionId)
+            reflectionRepo.deleteSession(sessionId)
+            val sessions = reflectionRepo.getSessionsByViewpoint(viewpointId)
+            val nextSession = if (deletedActiveSession) {
+                sessions.firstOrNull()
+                    ?: reflectionRepo.createSession(viewpointId).let { reflectionRepo.getSessionById(it) }
+            } else {
+                _state.value.activeSession?.id?.let(reflectionRepo::getSessionById)
+            }
+            if (nextSession != null) {
+                reloadActiveSession(nextSession.id, force = true)
+            } else {
+                _state.update { it.copy(sessions = sessions.map(::toSessionUi), messages = emptyList()) }
+            }
         }
     }
 
@@ -282,6 +331,8 @@ fun bookReflectionStartingPrompts(): List<String> = listOf(
     "你反问我几个问题，帮我想清楚",
 )
 
+fun bookReflectionAlternativePrompt(): String = "换个角度看这个观点，它还可能提醒我什么？"
+
 fun bookReflectionTitleFromQuestion(question: String): String {
     val firstLine = question.trim().lineSequence().firstOrNull()?.trim().orEmpty()
         .trimEnd('？', '?', '。', '.', '！', '!')
@@ -302,4 +353,42 @@ fun bookReflectionTitleFromSummary(summary: String): String {
 fun bookReflectionCanRetryLatest(messages: List<BookReflectionMessageUi>): Boolean {
     val last = messages.lastOrNull() ?: return false
     return last.role == "user" || (last.role == "assistant" && last.status == "failed")
+}
+
+data class BookReflectionHeaderActionState(
+    val newQuestionEnabled: Boolean,
+    val historySelected: Boolean,
+    val settledSelected: Boolean,
+    val historyEnabled: Boolean,
+    val settledEnabled: Boolean,
+)
+
+fun bookReflectionHeaderActionState(state: BookReflectionState): BookReflectionHeaderActionState {
+    val isBusy = state.isLoading || state.isProcessing || state.isSummarizing
+    return BookReflectionHeaderActionState(
+        newQuestionEnabled = !isBusy,
+        historySelected = state.reflectionView == BookReflectionView.History,
+        settledSelected = state.reflectionView == BookReflectionView.Settled,
+        historyEnabled = !isBusy,
+        settledEnabled = !isBusy,
+    )
+}
+
+fun bookReflectionSettledSessions(sessions: List<BookReflectionSessionUi>): List<BookReflectionSessionUi> =
+    sessions.filter { it.summary.isNotBlank() }
+
+fun bookReflectionHistorySessions(
+    sessions: List<BookReflectionSessionUi>,
+    activeSession: BookReflectionSessionUi?,
+    activeMessages: List<BookReflectionMessageUi>,
+): List<BookReflectionSessionUi> =
+    if (activeSession != null && activeMessages.isEmpty()) {
+        sessions.filterNot { it.id == activeSession.id }
+    } else {
+        sessions
+    }
+
+fun bookReflectionShouldShowSettleAction(messages: List<BookReflectionMessageUi>, reflectionView: BookReflectionView): Boolean {
+    if (reflectionView != BookReflectionView.Current) return false
+    return messages.any { it.role == "assistant" && it.status == "ready" && it.content.isNotBlank() }
 }

@@ -17,7 +17,6 @@ import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -70,12 +69,7 @@ fun ViewpointCard(
             when (status) {
                 "failed" -> ViewpointRetryBody(errorMessage = errorMessage, onRetry = onRetry)
                 "generating" -> ViewpointGeneratingBody()
-                else -> {
-                    ViewpointBody(content = content, example = example)
-                    OutlinedButton(onClick = onReflect, modifier = Modifier.align(Alignment.End)) {
-                        Text(booksReflectionActionText())
-                    }
-                }
+                else -> ViewpointBody(content = content, example = example)
             }
 
             if (reserveBottomSpace) {

@@ -94,27 +94,52 @@ class BooksScreenUiTextTest {
 
     @Test
     fun booksReflectionActionTextIsRestrained() {
-        assertEquals("深入想想", booksReflectionActionText())
+        assertEquals("想一想", booksReflectionActionText())
     }
 
     @Test
     fun reflectionDraftClearsWhenOpeningAndDismissingSheet() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
         val reflectionOpenBlock = source.extractBetween(
-            start = "                            onReflect = {\n",
-            end = "                                showReflectionSheet = true",
+            start = "fun openReflectionForCurrentPage()",
+            end = "        showReflectionSheet = true",
         )
 
         assertTrue(reflectionOpenBlock.contains("reflectionInput = \"\""))
-        assertTrue(
-            source.contains(
-                "onDismissRequest = {\n" +
-                    "                reflectionViewModel.stopGeneration()\n" +
-                    "                reflectionInput = \"\"\n" +
-                    "                showReflectionSheet = false\n" +
-                    "            }",
-            ),
+        assertTrue(source.contains("val closeReflectionSheet = {"))
+        assertTrue(source.contains("reflectionViewModel.stopGeneration()"))
+        assertTrue(source.contains("reflectionInput = \"\""))
+        assertTrue(source.contains("showReflectionSheet = false"))
+        assertTrue(source.contains("onDismissRequest = closeReflectionSheet"))
+    }
+
+    @Test
+    fun reflectionSheetDisablesContentSwipeDismissButKeepsHandleDismiss() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
+        val reflectionSheetBlock = source.extractBetween(
+            start = "if (showReflectionSheet) {",
+            end = "\n    if (showBookSheet)",
         )
+
+        assertTrue(reflectionSheetBlock.contains("confirmValueChange = { it != SheetValue.Hidden }"))
+        assertTrue(reflectionSheetBlock.contains("dragHandle = {"))
+        assertTrue(reflectionSheetBlock.contains("ReflectionSheetDragHandle("))
+        assertTrue(source.contains("detectVerticalDragGestures"))
+        assertTrue(source.contains("reflectionSheetDragDismissThresholdPx"))
+        assertTrue(reflectionSheetBlock.contains("onDismiss = closeReflectionSheet"))
+        assertTrue(reflectionSheetBlock.contains("onDismissRequest = closeReflectionSheet"))
+    }
+
+    @Test
+    fun floatingReflectButtonOpensCurrentViewpoint() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
+
+        assertTrue(source.contains("floatingActionButton = {"))
+        assertTrue(source.contains("MiniReflectButton(onClick = ::openReflectionForCurrentPage)"))
+        assertTrue(source.contains("Icons.Filled.AutoAwesome"))
+        assertFalse(source.contains("text = { Text(booksReflectionActionText()) }"))
+        assertTrue(source.contains("fun openReflectionForCurrentPage()"))
+        assertTrue(source.contains("val vp = state.viewpoints.getOrNull(state.currentPage) ?: return"))
     }
 
     @Test
