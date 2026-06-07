@@ -216,7 +216,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
             title = existing.title.fillBlankWith(title),
             aiTitle = existing.ai_title,
             aiContent = existing.ai_content.fillBlankWith(summary),
-            aiMarkdownContent = existing.ai_markdown_content.preserveIfRicherThan(markdown),
+            aiMarkdownContent = existing.ai_markdown_content.mergeExternalFavoriteMarkdown(markdown),
             url = existing.url ?: url,
             isFavorite = 1,
             comment = existing.comment,
@@ -315,10 +315,25 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     private fun String?.fillBlankWith(fallback: String?): String? =
         if (this.isNullOrBlank()) fallback else this
 
-    private fun String?.preserveIfRicherThan(importedMarkdown: String): String =
-        if (!this.isNullOrBlank() && this.trim().length >= importedMarkdown.trim().length) {
-            this
-        } else {
+    private fun String?.mergeExternalFavoriteMarkdown(importedMarkdown: String): String {
+        val existingMarkdown = this
+        return if (existingMarkdown.isNullOrBlank()) {
             importedMarkdown
+        } else if (existingMarkdown.isDeterministicExternalFavoriteMarkdown() && existingMarkdown != importedMarkdown) {
+            importedMarkdown
+        } else {
+            existingMarkdown
         }
+    }
+
+    private fun String.isDeterministicExternalFavoriteMarkdown(): Boolean {
+        val markdown = trim()
+        return markdown.startsWith("# X 收藏") &&
+            markdown.contains("\n## 原文\n") &&
+            markdown.contains("\n- 作者：") &&
+            markdown.contains("\n- 时间：") &&
+            markdown.contains("\n- 链接：") &&
+            markdown.contains("\n## AI 整理\n") &&
+            markdown.endsWith("待整理")
+    }
 }

@@ -149,6 +149,96 @@ class ExternalFavoriteImporterTest {
     }
 
     @Test
+    fun importerDoesNotOverwriteShortUserAuthoredMarkdown() = withRepositories { _, sources, items, articles ->
+        val canonicalUrl = "https://x.com/daily/status/302"
+        val existingMarkdown = "# My note\n\nImportant."
+        val articleId = articles.insert(
+            title = "Existing title",
+            aiContent = "Existing summary",
+            aiMarkdownContent = existingMarkdown,
+            url = canonicalUrl,
+            isFavorite = 0,
+            comment = "user comment",
+            status = "pending",
+        )
+        val sourceId = saveXSource(sources)
+        items.upsertDraft(
+            sourceId,
+            xDraft(
+                externalId = "post-302",
+                canonicalUrl = canonicalUrl,
+                text = "Imported text that makes deterministic markdown longer than the note.",
+            ),
+        )
+
+        val imported = ExternalFavoriteImporter(items, articles).importPending()
+
+        assertEquals(1, imported)
+        val article = articles.getById(articleId)
+        assertNotNull(article)
+        assertEquals("completed", article.status)
+        assertEquals("user comment", article.comment)
+        assertEquals(existingMarkdown, article.ai_markdown_content)
+
+        val item = items.getBySource(sourceId).single()
+        assertEquals(articleId, item.article_id)
+        assertEquals("duplicate_linked", item.import_status)
+    }
+
+    @Test
+    fun importerRefreshesOlderDeterministicExternalFavoriteMarkdown() = withRepositories { _, sources, items, articles ->
+        val canonicalUrl = "https://x.com/daily/status/303"
+        val existingMarkdown = """
+            # X 收藏
+
+            ## 原文
+
+            - 作者：Old Author
+            - 时间：2023-11-14T22:13:20Z
+            - 链接：$canonicalUrl
+
+            Older deterministic imported text that is intentionally much longer than the new item text.
+
+            ## AI 整理
+
+            待整理
+        """.trimIndent()
+        val articleId = articles.insert(
+            title = "Existing placeholder",
+            aiContent = "Existing summary",
+            aiMarkdownContent = existingMarkdown,
+            url = canonicalUrl,
+            isFavorite = 1,
+            comment = "user comment",
+            status = "completed",
+        )
+        val sourceId = saveXSource(sources)
+        items.upsertDraft(
+            sourceId,
+            xDraft(
+                externalId = "post-303",
+                canonicalUrl = canonicalUrl,
+                text = "New text.",
+                authorName = "New Author",
+            ),
+        )
+
+        val imported = ExternalFavoriteImporter(items, articles).importPending()
+
+        assertEquals(1, imported)
+        val article = articles.getById(articleId)
+        assertNotNull(article)
+        assertTrue(article.ai_markdown_content.orEmpty().contains("New Author"))
+        assertTrue(article.ai_markdown_content.orEmpty().contains("New text."))
+        assertTrue(article.ai_markdown_content.orEmpty().contains("## 原文"))
+        assertEquals("user comment", article.comment)
+
+        val item = items.getBySource(sourceId).single()
+        assertEquals(articleId, item.article_id)
+        assertEquals("duplicate_linked", item.import_status)
+    }
+
+    @Test
     fun itemWithoutCanonicalUrlIsMarkedImportFailed() = withRepositories { _, sources, items, articles ->
         val sourceId = saveXSource(sources)
         items.upsertDraft(sourceId, xDraft(externalId = "post-missing-url", canonicalUrl = null))
