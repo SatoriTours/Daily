@@ -1,7 +1,10 @@
 package com.dailysatori.core.worker
 
 import androidx.work.NetworkType
+import androidx.work.ListenableWorker
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
+import com.dailysatori.service.externalfavorites.XFavoriteAuthException
+import com.dailysatori.service.externalfavorites.XFavoriteRateLimitException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -37,5 +40,25 @@ class ExternalFavoriteSyncWorkerTest {
         assertEquals(FavoriteSyncMode.retry_failed, externalFavoriteSyncMode("retry_failed"))
         assertEquals(null, externalFavoriteSyncMode("unknown"))
         assertEquals(null, externalFavoriteSyncMode(null))
+    }
+
+    @Test
+    fun authAndRateLimitFailuresDoNotRequestImmediateWorkRetry() {
+        assertEquals(
+            ListenableWorker.Result.failure(),
+            externalFavoriteSyncFailureResult(XFavoriteAuthException(statusCode = 401)),
+        )
+        assertEquals(
+            ListenableWorker.Result.failure(),
+            externalFavoriteSyncFailureResult(XFavoriteRateLimitException(statusCode = 429, rateLimitResetAt = 1L)),
+        )
+    }
+
+    @Test
+    fun transientFailuresRequestWorkRetry() {
+        assertEquals(
+            ListenableWorker.Result.retry(),
+            externalFavoriteSyncFailureResult(RuntimeException("temporary network failure")),
+        )
     }
 }

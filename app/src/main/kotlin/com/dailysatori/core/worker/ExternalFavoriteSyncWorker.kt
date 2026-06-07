@@ -5,6 +5,7 @@ import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ListenableWorker
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
@@ -15,6 +16,8 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
 import com.dailysatori.service.externalfavorites.FavoriteSyncService
+import com.dailysatori.service.externalfavorites.XFavoriteAuthException
+import com.dailysatori.service.externalfavorites.XFavoriteRateLimitException
 import kotlinx.coroutines.CancellationException
 import org.koin.core.context.GlobalContext
 import java.util.concurrent.TimeUnit
@@ -55,8 +58,8 @@ class ExternalFavoriteSyncWorker(
             throw error
         } catch (_: IllegalArgumentException) {
             Result.failure()
-        } catch (_: Exception) {
-            Result.retry()
+        } catch (error: Exception) {
+            externalFavoriteSyncFailureResult(error)
         }
     }
 
@@ -102,3 +105,9 @@ internal fun buildExternalFavoritePeriodicSyncWorkRequest(
 
 internal fun externalFavoriteSyncMode(value: String?): FavoriteSyncMode? =
     FavoriteSyncMode.entries.firstOrNull { it.name == value }
+
+internal fun externalFavoriteSyncFailureResult(error: Exception): ListenableWorker.Result = when (error) {
+    is XFavoriteAuthException -> ListenableWorker.Result.failure()
+    is XFavoriteRateLimitException -> ListenableWorker.Result.failure()
+    else -> ListenableWorker.Result.retry()
+}
