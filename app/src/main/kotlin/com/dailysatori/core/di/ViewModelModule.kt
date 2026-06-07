@@ -209,6 +209,7 @@ val viewModelModule: Module = module {
         ExternalFavoritesSettingsViewModel(
             sourceRepo = get(),
             scheduler = get(),
+            xOAuthCoordinator = get(),
         )
     }
     viewModel {

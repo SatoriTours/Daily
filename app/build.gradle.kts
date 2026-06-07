@@ -15,12 +15,17 @@ kotlin {
 android {
     namespace = "com.dailysatori"
     compileSdk = 36
+    val xOAuthClientId = System.getenv("X_OAUTH_CLIENT_ID")
+        .orEmpty()
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
     defaultConfig {
         applicationId = "com.dailysatori"
         minSdk = 26
         targetSdk = 36
         versionCode = 50122
         versionName = "5.1.22"
+        buildConfigField("String", "X_OAUTH_CLIENT_ID", "\"$xOAuthClientId\"")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -89,6 +94,7 @@ dependencies {
     implementation(libs.ktor.server.cors)
     implementation(libs.ktor.server.status.pages)
     implementation(libs.ktor.server.websockets)
+    implementation(libs.ktor.client.core)
     implementation(libs.ktor.serialization.json)
     implementation(libs.kermit)
     implementation(libs.kotlinx.datetime)

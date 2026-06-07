@@ -6,6 +6,7 @@ import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.service.externalfavorites.ExternalSourceStatus
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
+import com.dailysatori.service.externalfavorites.XOAuthCoordinator
 import com.dailysatori.service.externalfavorites.sourceHealth
 import com.dailysatori.shared.db.External_favorite_source
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,7 @@ data class ExternalFavoriteSourceUi(
 class ExternalFavoritesSettingsViewModel(
     private val sourceRepo: ExternalFavoriteSourceRepository,
     private val scheduler: ExternalFavoriteSyncScheduler,
+    private val xOAuthCoordinator: XOAuthCoordinator,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ExternalFavoritesSettingsState())
     val state: StateFlow<ExternalFavoritesSettingsState> = _state.asStateFlow()
@@ -101,6 +103,12 @@ class ExternalFavoritesSettingsViewModel(
             }
         }
     }
+
+    fun createXAuthorizationUrl(): String? = runCatching {
+        xOAuthCoordinator.beginAuthorization()
+    }.onFailure {
+        _state.update { state -> state.copy(message = "请先配置 X OAuth Client ID") }
+    }.getOrNull()
 
     private fun enqueueManualSync(sourceId: Long, mode: FavoriteSyncMode) {
         if (_state.value.syncingSourceId != null) return

@@ -1,5 +1,7 @@
 package com.dailysatori.ui.feature.settings.externalfavorites
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,6 +17,7 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -27,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.scaffold.AppScaffold
@@ -39,11 +43,21 @@ import org.koin.androidx.compose.koinViewModel
 fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
     val viewModel: ExternalFavoritesSettingsViewModel = koinViewModel()
     val state = viewModel.state.collectAsStateWithLifecycle().value
+    val context = LocalContext.current
+    val addX = {
+        viewModel.createXAuthorizationUrl()?.let { url ->
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }
+        Unit
+    }
 
     AppScaffold(
         title = "外部收藏同步",
         onBack = onBack,
         actions = {
+            IconButton(onClick = addX) {
+                Icon(Icons.Default.Add, contentDescription = "连接 X")
+            }
             IconButton(onClick = viewModel::markRestoredSourcesAuthCheckRequired) {
                 Icon(Icons.Default.Refresh, contentDescription = "重新验证授权")
             }
@@ -53,8 +67,10 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
             EmptyState(
                 icon = Icons.Default.Bookmark,
                 title = "暂无外部收藏来源",
-                subtitle = "X 授权连接将在 OAuth 步骤加入，连接后会定期同步到本地收藏。",
+                subtitle = "通过 X 授权连接后，会定期同步到本地收藏。",
                 modifier = modifier.fillMaxSize(),
+                actionLabel = "连接 X",
+                onAction = addX,
             )
         } else {
             ExternalFavoriteSourceList(state = state, viewModel = viewModel, modifier = modifier)
