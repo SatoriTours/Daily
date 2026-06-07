@@ -125,6 +125,60 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
+    fun importerFailureAfterSuccessfulFetchDoesNotFailSourceSync() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val connector = FakeConnector(
+                pages = listOf(FavoriteFetchPage(listOf(xDraft("post-1")), null)),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { _, _ -> error("import failed after fetch") },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.recent)
+
+            sources.getById(sourceId)!!.let { source ->
+                assertEquals("idle", source.status)
+                assertEquals(1, source.last_items_seen_count)
+                assertEquals(1, source.last_pages_seen_count)
+                assertTrue(source.last_success_at != null)
+                assertEquals("", source.last_error_code)
+            }
+        }
+    }
+
+    @Test
+    fun organizerFailureAfterSuccessfulFetchDoesNotFailSourceSync() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val connector = FakeConnector(
+                pages = listOf(FavoriteFetchPage(listOf(xDraft("post-1")), null)),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { _, _ -> 0 },
+                organizePending = { error("organizer failed after fetch") },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.recent)
+
+            sources.getById(sourceId)!!.let { source ->
+                assertEquals("idle", source.status)
+                assertEquals(1, source.last_items_seen_count)
+                assertEquals(1, source.last_pages_seen_count)
+                assertTrue(source.last_success_at != null)
+                assertEquals("", source.last_error_code)
+            }
+        }
+    }
+
+    @Test
     fun rateLimitFailureStoresResetTimeOnSource() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
@@ -146,6 +200,50 @@ class FavoriteSyncServiceTest {
                 assertEquals("rate_limited", source.status)
                 assertEquals("rate_limited", source.last_error_code)
                 assertEquals(resetAt, source.rate_limit_reset_at)
+            }
+        }
+    }
+
+    @Test
+    fun disabledSourceDoesNotRefreshFetchImportOrOrganize() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(
+                sources = sources,
+                enabled = false,
+            )
+            val connector = RefreshingConnector(
+                refreshedAuthJson = """{"access_token":"new"}""",
+                pages = listOf(FavoriteFetchPage(listOf(xDraft("post-1")), null)),
+            )
+            var imported = 0
+            var organized = 0
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { _, _ ->
+                    imported += 1
+                    0
+                },
+                organizePending = {
+                    organized += 1
+                    0
+                },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.recent)
+
+            assertEquals(0, connector.refreshCalls)
+            assertEquals(0, connector.fetchCalls)
+            assertEquals(0, imported)
+            assertEquals(0, organized)
+            assertEquals(emptyList(), items.getBySource(sourceId))
+            sources.getById(sourceId)!!.let { source ->
+                assertEquals(0L, source.enabled)
+                assertEquals("paused", source.status)
+                assertEquals(null, source.last_sync_started_at)
+                assertEquals(0, source.last_items_seen_count)
+                assertEquals(0, source.last_pages_seen_count)
             }
         }
     }
@@ -349,12 +447,14 @@ class FavoriteSyncServiceTest {
         sources: ExternalFavoriteSourceRepository,
         accountId: String = "acct-1",
         authJson: String = """{"access_token":"secret"}""",
+        enabled: Boolean = true,
     ): Long = sources.save(
         provider = ExternalFavoriteProvider.X.id,
         displayName = "X Favorites",
         accountId = accountId,
         accountName = "@daily",
         authJson = authJson,
+        enabled = enabled,
     )
 
     private companion object {

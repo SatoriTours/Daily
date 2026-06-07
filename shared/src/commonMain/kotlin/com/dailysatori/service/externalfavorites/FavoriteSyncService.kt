@@ -28,9 +28,15 @@ class FavoriteSyncService(
 
     private suspend fun syncSourceGuarded(sourceId: Long, mode: FavoriteSyncMode) {
         val source = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found")
+        if (source.enabled == 0L) {
+            sourceRepo.markPaused(sourceId)
+            return
+        }
+
         val connector = registry.get(source.provider)
             ?: error("No external favorite connector registered for provider ${source.provider}")
         val policy = syncPolicy(mode, connector.capabilities)
+        var result = SyncRunResult(itemsSeen = 0, pagesSeen = 0, changedItems = 0)
 
         sourceRepo.markSyncStarted(sourceId, mode.name)
         try {
@@ -38,17 +44,10 @@ class FavoriteSyncService(
                 refreshSourceAuth(sourceId, connector)
             }
 
-            val result = if (!policy.shouldFetch) {
-                SyncRunResult(itemsSeen = 0, pagesSeen = 0, changedItems = 0)
-            } else {
-                fetchAndUpsert(sourceId, connector, policy)
+            if (policy.shouldFetch) {
+                result = fetchAndUpsert(sourceId, connector, policy)
             }
 
-            val importLimit = policy.importLimit(result.changedItems)
-            if (importLimit > 0) {
-                importPendingForSource(sourceId, importLimit)
-            }
-            organizePending(policy.aiBudget)
             sourceRepo.markSyncSucceeded(
                 id = sourceId,
                 itemsSeen = result.itemsSeen.toLong(),
@@ -64,6 +63,20 @@ class FavoriteSyncService(
                 rateLimitResetAt = error.syncFailureRateLimitResetAt(),
             )
             throw error
+        }
+
+        runLocalWork(sourceId, policy, result)
+    }
+
+    private fun runLocalWork(sourceId: Long, policy: SyncPolicy, result: SyncRunResult) {
+        runCatching {
+            val importLimit = policy.importLimit(result.changedItems)
+            if (importLimit > 0) {
+                importPendingForSource(sourceId, importLimit)
+            }
+        }
+        runCatching {
+            organizePending(policy.aiBudget)
         }
     }
 

@@ -85,6 +85,22 @@ class ExternalFavoriteSourceRepository(
 
     fun delete(id: Long) = q.deleteExternalFavoriteSource(id)
 
+    fun markPaused(id: Long) {
+        val source = q.selectExternalFavoriteSourceById(id).executeAsOneOrNull() ?: return
+        q.updateExternalFavoriteSource(
+            source.display_name,
+            source.account_name,
+            source.enabled,
+            source.sync_interval_minutes,
+            ExternalSourceStatus.paused.name,
+            source.auth_json,
+            source.config_json,
+            source.capabilities_json,
+            Clock.System.now().toEpochMilliseconds(),
+            id,
+        )
+    }
+
     fun updateAuthJson(id: Long, authJson: String) {
         val source = q.selectExternalFavoriteSourceById(id).executeAsOneOrNull() ?: return
         q.updateExternalFavoriteSource(
