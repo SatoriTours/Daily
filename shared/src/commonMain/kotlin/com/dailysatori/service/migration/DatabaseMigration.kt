@@ -61,6 +61,9 @@ class DatabaseMigration(
         if (currentVersion < 12) {
             migrateV11ToV12()
         }
+        if (currentVersion < 13) {
+            migrateV12ToV13()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -457,6 +460,79 @@ class DatabaseMigration(
             log.i { "Created book_viewpoint_ai_message table" }
         } catch (e: Exception) {
             log.w(e) { "Could not create book_viewpoint_ai_message table" }
+        }
+    }
+
+    private fun migrateV12ToV13() {
+        log.i { "Migration V12 -> V13: External favorite tables" }
+        try {
+            runSql("""
+                CREATE TABLE IF NOT EXISTS external_favorite_source (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    provider TEXT NOT NULL,
+                    display_name TEXT NOT NULL,
+                    account_id TEXT NOT NULL,
+                    account_name TEXT NOT NULL DEFAULT '',
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    sync_interval_minutes INTEGER NOT NULL DEFAULT 720,
+                    last_sync_started_at INTEGER,
+                    last_sync_completed_at INTEGER,
+                    last_success_at INTEGER,
+                    last_sync_window_started_at INTEGER,
+                    last_items_seen_count INTEGER NOT NULL DEFAULT 0,
+                    last_pages_seen_count INTEGER NOT NULL DEFAULT 0,
+                    last_error TEXT NOT NULL DEFAULT '',
+                    last_error_code TEXT NOT NULL DEFAULT '',
+                    last_error_message TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'idle',
+                    last_sync_mode TEXT NOT NULL DEFAULT 'recent',
+                    rate_limit_reset_at INTEGER,
+                    auth_json TEXT NOT NULL DEFAULT '',
+                    config_json TEXT NOT NULL DEFAULT '',
+                    capabilities_json TEXT NOT NULL DEFAULT '',
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    UNIQUE(provider, account_id)
+                )
+            """.trimIndent())
+            log.i { "Created external_favorite_source table" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not create external_favorite_source table" }
+        }
+
+        try {
+            runSql("""
+                CREATE TABLE IF NOT EXISTS external_favorite_item (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    source_id INTEGER NOT NULL REFERENCES external_favorite_source(id) ON DELETE CASCADE,
+                    provider TEXT NOT NULL,
+                    external_id TEXT NOT NULL,
+                    canonical_url TEXT,
+                    title TEXT NOT NULL DEFAULT '',
+                    text TEXT NOT NULL DEFAULT '',
+                    author_name TEXT NOT NULL DEFAULT '',
+                    source_created_at INTEGER,
+                    favorited_at INTEGER,
+                    normalized_json TEXT NOT NULL DEFAULT '',
+                    debug_json TEXT NOT NULL DEFAULT '',
+                    content_hash TEXT NOT NULL DEFAULT '',
+                    ai_input_hash TEXT NOT NULL DEFAULT '',
+                    article_id INTEGER REFERENCES article(id) ON DELETE SET NULL,
+                    sync_status TEXT NOT NULL DEFAULT 'seen',
+                    import_status TEXT NOT NULL DEFAULT 'not_imported',
+                    ai_status TEXT NOT NULL DEFAULT 'pending',
+                    last_error_code TEXT NOT NULL DEFAULT '',
+                    last_error_message TEXT NOT NULL DEFAULT '',
+                    first_seen_at INTEGER NOT NULL,
+                    last_seen_at INTEGER NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    UNIQUE(source_id, external_id)
+                )
+            """.trimIndent())
+            log.i { "Created external_favorite_item table" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not create external_favorite_item table" }
         }
     }
 
