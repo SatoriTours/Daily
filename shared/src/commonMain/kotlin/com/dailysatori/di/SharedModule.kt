@@ -50,6 +50,11 @@ import com.dailysatori.service.parser.WebpageParserService
 import com.dailysatori.service.plugin.PluginService
 import com.dailysatori.service.crayfishnews.CrayfishNewsService
 import com.dailysatori.service.diary.DiaryMonthSummaryService
+import com.dailysatori.service.externalfavorites.ExternalFavoriteAiOrganizer
+import com.dailysatori.service.externalfavorites.ExternalFavoriteImporter
+import com.dailysatori.service.externalfavorites.FavoriteConnectorRegistry
+import com.dailysatori.service.externalfavorites.FavoriteSyncService
+import com.dailysatori.service.externalfavorites.XBookmarksConnector
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.setting.SettingService
@@ -98,6 +103,11 @@ val sharedModule: Module = module {
     single { PluginService(get(), get()) }
     single { RemoteNewsService(get()) }
     single { CrayfishNewsService(get()) }
+    single { XBookmarksConnector(get()) }
+    single { FavoriteConnectorRegistry(listOf(get<XBookmarksConnector>())) }
+    single { ExternalFavoriteImporter(get(), get()) }
+    single { ExternalFavoriteAiOrganizer(get()) }
+    single { FavoriteSyncService(get(), get(), get(), get(), get()) }
     single { DiaryMonthSummaryService(get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }
     single { UnifiedNewsSummaryService(get(), get(), get(), get(), get(), get()) }
