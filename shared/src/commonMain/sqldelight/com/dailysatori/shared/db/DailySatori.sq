@@ -813,6 +813,16 @@ WHERE import_status IN ('not_imported', 'failed')
 ORDER BY first_seen_at DESC
 LIMIT ?;
 
+selectExternalFavoriteItemsPendingImportBySource:
+SELECT * FROM external_favorite_item
+WHERE source_id = ?
+  AND (
+    import_status IN ('not_imported', 'failed')
+    OR (article_id IS NULL AND import_status IN ('imported', 'duplicate_linked'))
+  )
+ORDER BY first_seen_at DESC
+LIMIT ?;
+
 selectExternalFavoriteItemsPendingAi:
 SELECT * FROM external_favorite_item
 WHERE ai_status IN ('pending', 'failed') AND article_id IS NOT NULL

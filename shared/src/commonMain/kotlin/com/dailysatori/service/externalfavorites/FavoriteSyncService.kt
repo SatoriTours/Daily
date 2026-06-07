@@ -13,6 +13,9 @@ class FavoriteSyncService(
     private val organizer: ExternalFavoriteAiOrganizer? = null,
     private val importPending: (Long) -> Int = { limit -> importer?.importPending(limit) ?: 0 },
     private val organizePending: (Long) -> Int = { limit -> organizer?.organizePending(limit) ?: 0 },
+    private val importPendingForSource: (Long, Long) -> Int = { scopedSourceId, limit ->
+        importer?.importPendingForSource(scopedSourceId, limit) ?: importPending(limit)
+    },
 ) {
     private val guards = mutableMapOf<Long, Mutex>()
     private val guardsMutex = Mutex()
@@ -33,7 +36,7 @@ class FavoriteSyncService(
             val result = if (mode == FavoriteSyncMode.retry_failed) {
                 SyncRunResult(itemsSeen = 0, pagesSeen = 0, changedItems = 0)
             } else {
-                fetchAndUpsert(sourceId, connector)
+                fetchAndUpsert(sourceId, connector, mode)
             }
 
             val importLimit = if (mode == FavoriteSyncMode.retry_failed) {
@@ -42,7 +45,7 @@ class FavoriteSyncService(
                 result.changedItems.toLong()
             }
             if (importLimit > 0) {
-                importPending(importLimit)
+                importPendingForSource(sourceId, importLimit)
             }
             organizePending(AI_ORGANIZE_LIMIT)
             sourceRepo.markSyncSucceeded(
@@ -65,6 +68,7 @@ class FavoriteSyncService(
     private suspend fun fetchAndUpsert(
         sourceId: Long,
         connector: FavoriteConnector,
+        mode: FavoriteSyncMode,
     ): SyncRunResult {
         val capabilities = connector.capabilities
         val maxPages = capabilities.maxPagesPerRun.coerceAtLeast(1)
@@ -94,7 +98,7 @@ class FavoriteSyncService(
             }
 
             cursor = page.nextCursor
-            if (page.exhausted || pageChangedItems == 0 || itemsSeen >= maxItems) {
+            if (page.exhausted || itemsSeen >= maxItems || (mode == FavoriteSyncMode.recent && pageChangedItems == 0)) {
                 break
             }
         }

@@ -9,9 +9,15 @@ class ExternalFavoriteImporter(
     private val itemRepo: ExternalFavoriteItemRepository,
     private val articleRepo: ArticleRepository,
 ) {
-    fun importPending(limit: Long = 50): Int {
+    fun importPending(limit: Long = 50): Int =
+        importItems(itemRepo.pendingImport(limit))
+
+    fun importPendingForSource(sourceId: Long, limit: Long = 50): Int =
+        importItems(itemRepo.pendingImportBySource(sourceId, limit))
+
+    private fun importItems(items: List<External_favorite_item>): Int {
         var importedCount = 0
-        itemRepo.pendingImport(limit).forEach { item ->
+        items.forEach { item ->
             val url = item.canonical_url?.trim().orEmpty()
             if (url.isBlank()) {
                 itemRepo.markImportFailed(item.id, "missing_url", "External favorite item has no canonical URL.")

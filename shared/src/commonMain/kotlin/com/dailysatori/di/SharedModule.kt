@@ -106,7 +106,7 @@ val sharedModule: Module = module {
     single { XBookmarksConnector(get()) }
     single { FavoriteConnectorRegistry(listOf(get<XBookmarksConnector>())) }
     single { ExternalFavoriteImporter(get(), get()) }
-    single { ExternalFavoriteAiOrganizer(get()) }
+    single { ExternalFavoriteAiOrganizer(get(), get()) }
     single { FavoriteSyncService(get(), get(), get(), get(), get()) }
     single { DiaryMonthSummaryService(get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }

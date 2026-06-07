@@ -1,6 +1,7 @@
 package com.dailysatori.service.externalfavorites
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.ExternalFavoriteItemRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.shared.db.DailySatoriDatabase
@@ -16,7 +17,7 @@ import kotlin.test.assertTrue
 class FavoriteSyncServiceTest {
     @Test
     fun recentSyncUsesConnectorLimitsAndUpsertsItems() = runBlocking {
-        withRepositories { _, sources, items ->
+        withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
             val connector = FakeConnector(
                 capabilities = xCapabilities(maxPagesPerRun = 2, maxItemsPerRun = 10),
@@ -61,7 +62,7 @@ class FavoriteSyncServiceTest {
 
     @Test
     fun retryFailedDoesNotFetchProviderPages() = runBlocking {
-        withRepositories { _, sources, items ->
+        withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
             items.upsertDraft(sourceId, xDraft("post-1"))
             val connector = FakeConnector(
@@ -100,7 +101,7 @@ class FavoriteSyncServiceTest {
 
     @Test
     fun concurrentSyncsForSameSourceAreSerialized() = runBlocking {
-        withRepositories { _, sources, items ->
+        withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
             val connector = SerializingConnector()
             val service = FavoriteSyncService(
@@ -126,11 +127,132 @@ class FavoriteSyncServiceTest {
         }
     }
 
+    @Test
+    fun historyContinuesWhenRecentWouldStopOnUnchangedPage() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            items.upsertDraft(sourceId, xDraft("post-1"))
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 3, maxItemsPerRun = 10),
+                pages = listOf(
+                    FavoriteFetchPage(listOf(xDraft("post-1")), "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("post-2")), "cursor-3"),
+                    FavoriteFetchPage(listOf(xDraft("post-3")), null),
+                ),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.history)
+
+            assertEquals(listOf(null, "cursor-2", "cursor-3"), connector.cursors)
+            assertEquals(listOf("post-1", "post-2", "post-3"), items.getBySource(sourceId).map { it.external_id }.sorted())
+            assertEquals(3, sources.getById(sourceId)!!.last_pages_seen_count)
+        }
+    }
+
+    @Test
+    fun fullRescanContinuesWhenRecentWouldStopOnUnchangedPage() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            items.upsertDraft(sourceId, xDraft("post-1"))
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 3, maxItemsPerRun = 10),
+                pages = listOf(
+                    FavoriteFetchPage(listOf(xDraft("post-1")), "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("post-2")), "cursor-3"),
+                    FavoriteFetchPage(listOf(xDraft("post-3")), null),
+                ),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.full_rescan)
+
+            assertEquals(listOf(null, "cursor-2", "cursor-3"), connector.cursors)
+            assertEquals(listOf("post-1", "post-2", "post-3"), items.getBySource(sourceId).map { it.external_id }.sorted())
+            assertEquals(3, sources.getById(sourceId)!!.last_pages_seen_count)
+        }
+    }
+
+    @Test
+    fun syncImportsPendingItemsForSyncedSourceBeforeOtherPendingSources() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceA = saveXSource(sources, accountId = "acct-a")
+            val sourceB = saveXSource(sources, accountId = "acct-b")
+            items.upsertDraft(sourceA, xDraft("post-a", text = "old source A text"))
+            delay(2)
+            items.upsertDraft(sourceB, xDraft("post-b"))
+            val connector = FakeConnector(
+                pages = listOf(FavoriteFetchPage(listOf(xDraft("post-a", text = "new source A text")), null)),
+            )
+            val importer = ExternalFavoriteImporter(items, articles)
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importer = importer,
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceA, FavoriteSyncMode.recent)
+
+            val sourceAItem = items.getBySource(sourceA).single()
+            val sourceBItem = items.getBySource(sourceB).single()
+            assertEquals("imported", sourceAItem.import_status)
+            assertEquals("not_imported", sourceBItem.import_status)
+            assertEquals("https://x.com/daily/status/post-a", articles.getAllSync().single().url)
+        }
+    }
+
+    @Test
+    fun organizerMarksLinkedPendingAiItemsNotNeeded() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            val (item, _) = items.upsertDraft(sourceId, xDraft("post-1"))
+            val articleId = articles.insert(
+                title = "Imported favorite",
+                aiContent = "summary",
+                aiMarkdownContent = """
+                    # X 收藏
+
+                    ## 原文
+
+                    Body post-1
+
+                    ## AI 整理
+
+                    待整理
+                """.trimIndent(),
+                url = "https://x.com/daily/status/post-1",
+                isFavorite = 1,
+                status = "completed",
+            )
+            items.markImported(item.id, articleId, duplicateLinked = false)
+
+            val organized = ExternalFavoriteAiOrganizer(items, articles).organizePending(limit = 10)
+
+            assertEquals(1, organized)
+            assertEquals("not_needed", items.getBySource(sourceId).single().ai_status)
+        }
+    }
+
     private suspend fun withRepositories(
         block: suspend (
             db: DailySatoriDatabase,
             sources: ExternalFavoriteSourceRepository,
             items: ExternalFavoriteItemRepository,
+            articles: ArticleRepository,
         ) -> Unit,
     ) {
         val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
@@ -144,7 +266,8 @@ class FavoriteSyncServiceTest {
             isSecretEncrypted = { value -> value.startsWith("enc:v1:") },
         )
         val items = ExternalFavoriteItemRepository(db)
-        block(db, sources, items)
+        val articles = ArticleRepository(db)
+        block(db, sources, items, articles)
     }
 
     private fun saveXSource(
@@ -159,18 +282,21 @@ class FavoriteSyncServiceTest {
     )
 
     private companion object {
-        fun xDraft(externalId: String): ExternalFavoriteItemDraft = ExternalFavoriteItemDraft(
+        fun xDraft(
+            externalId: String,
+            text: String = "Body $externalId",
+        ): ExternalFavoriteItemDraft = ExternalFavoriteItemDraft(
             provider = ExternalFavoriteProvider.X.id,
             externalId = externalId,
             canonicalUrl = "https://x.com/daily/status/$externalId",
             title = "Title $externalId",
-            text = "Body $externalId",
+            text = text,
             authorName = "Author",
             sourceCreatedAt = 1_700_000_000_000,
             favoritedAt = 1_700_000_100_000,
             normalizedJson = """{"id":"$externalId"}""",
-            contentHash = "content-$externalId",
-            aiInputHash = "ai-$externalId",
+            contentHash = "content-$externalId-$text",
+            aiInputHash = "ai-$externalId-$text",
         )
 
         fun xCapabilities(

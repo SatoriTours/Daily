@@ -84,6 +84,9 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
     fun pendingImport(limit: Long): List<External_favorite_item> =
         q.selectExternalFavoriteItemsPendingImport(limit).executeAsList()
 
+    fun pendingImportBySource(sourceId: Long, limit: Long): List<External_favorite_item> =
+        q.selectExternalFavoriteItemsPendingImportBySource(sourceId, limit).executeAsList()
+
     fun pendingAi(limit: Long): List<External_favorite_item> =
         q.selectExternalFavoriteItemsPendingAi(limit).executeAsList().map { item ->
             item.toExternalFavoriteItem()
