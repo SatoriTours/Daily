@@ -190,6 +190,44 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         }
     }
 
+    fun saveExternalFavoriteArticle(
+        title: String,
+        url: String,
+        summary: String,
+        markdown: String,
+        pubDate: Long?,
+    ): Article {
+        val existing = getByUrl(url)
+        if (existing == null) {
+            val id = insert(
+                title = title,
+                aiContent = summary,
+                aiMarkdownContent = markdown,
+                url = url,
+                isFavorite = 1,
+                status = "completed",
+                pubDate = pubDate,
+            )
+            return getById(id) ?: error("Inserted external favorite article not found: $url")
+        }
+
+        update(
+            id = existing.id,
+            title = existing.title.fillBlankWith(title),
+            aiTitle = existing.ai_title,
+            aiContent = existing.ai_content.fillBlankWith(summary),
+            aiMarkdownContent = existing.ai_markdown_content.preserveIfRicherThan(markdown),
+            url = existing.url ?: url,
+            isFavorite = 1,
+            comment = existing.comment,
+            status = existing.status?.ifBlank { "completed" } ?: "completed",
+            coverImage = existing.cover_image,
+            coverImageUrl = existing.cover_image_url,
+            pubDate = existing.pub_date ?: pubDate,
+        )
+        return getById(existing.id) ?: error("Updated external favorite article not found: ${existing.id}")
+    }
+
     fun cacheRemoteArticle(remoteArticle: RemoteArticle, sourceTime: Long? = null): Article? {
         val fields = remoteArticle.toLocalCachedArticleFields(sourceTime)
         val url = fields.url
@@ -273,4 +311,14 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         )
         return q.selectArticlesPaginated(1, 0).executeAsOneOrNull()
     }
+
+    private fun String?.fillBlankWith(fallback: String?): String? =
+        if (this.isNullOrBlank()) fallback else this
+
+    private fun String?.preserveIfRicherThan(importedMarkdown: String): String =
+        if (!this.isNullOrBlank() && this.trim().length >= importedMarkdown.trim().length) {
+            this
+        } else {
+            importedMarkdown
+        }
 }
