@@ -39,6 +39,33 @@ class ExternalFavoriteRepositoryTest {
     }
 
     @Test
+    fun sourceRepositoryEncryptsLegacyPlaintextAuthJson() = withRepositories { db, sources, _ ->
+        val now = 1_700_000_000_000
+        db.dailySatoriQueries.insertExternalFavoriteSource(
+            provider = ExternalFavoriteProvider.X.id,
+            display_name = "Legacy X Favorites",
+            account_id = "legacy-acct",
+            account_name = "@legacy",
+            enabled = 1,
+            sync_interval_minutes = 720,
+            status = "idle",
+            auth_json = """{"access_token":"legacy"}""",
+            config_json = "",
+            capabilities_json = "",
+            created_at = now,
+            updated_at = now,
+        )
+
+        sources.encryptStoredSecrets()
+
+        val raw = db.dailySatoriQueries
+            .selectExternalFavoriteSourceByProviderAccount(ExternalFavoriteProvider.X.id, "legacy-acct")
+            .executeAsOne()
+        assertEquals("""enc:v1:{"access_token":"legacy"}""", raw.auth_json)
+        assertEquals("""{"access_token":"legacy"}""", sources.getById(raw.id)?.auth_json)
+    }
+
+    @Test
     fun itemRepositoryUpsertsBySourceScopedExternalId() = withRepositories { _, sources, items ->
         val firstSourceId = saveXSource(sources, accountId = "acct-1")
         val secondSourceId = saveXSource(sources, accountId = "acct-2")
@@ -46,15 +73,65 @@ class ExternalFavoriteRepositoryTest {
         val (firstItem, firstInserted) = items.upsertDraft(firstSourceId, xDraft(externalId = "post-1", title = "Old"))
         val (updatedItem, secondInserted) = items.upsertDraft(firstSourceId, xDraft(externalId = "post-1", title = "New"))
         val (otherSourceItem, otherInserted) = items.upsertDraft(secondSourceId, xDraft(externalId = "post-1", title = "Other"))
+        val (_, unchangedInserted) = items.upsertDraft(firstSourceId, xDraft(externalId = "post-1", title = "New"))
 
         assertTrue(firstInserted)
-        assertEquals(false, secondInserted)
+        assertTrue(secondInserted)
         assertTrue(otherInserted)
+        assertEquals(false, unchangedInserted)
         assertEquals(firstItem.id, updatedItem.id)
         assertEquals("New", updatedItem.title)
         assertEquals(otherSourceItem.id, items.getBySource(secondSourceId).single().id)
         assertEquals(1, items.getBySource(firstSourceId).size)
         assertEquals(1, items.getBySource(secondSourceId).size)
+    }
+
+    @Test
+    fun itemRepositoryResetsImportAndAiStateWhenImportedDraftContentChanges() = withRepositories { db, sources, items ->
+        val articleRepository = ArticleRepository(db)
+        val sourceId = saveXSource(sources)
+        val (item, _) = items.upsertDraft(sourceId, xDraft(externalId = "post-1", title = "Old"))
+        val articleId = articleRepository.insert(
+            title = "Imported",
+            aiContent = "Imported body",
+            url = "https://example.com/imported-for-reset",
+            isFavorite = 1,
+            status = "completed",
+        )
+        items.markImported(item.id, articleId, duplicateLinked = false)
+        items.markAiState(item.id, "completed")
+
+        val (changed, changedFlag) = items.upsertDraft(sourceId, xDraft(externalId = "post-1", title = "New"))
+
+        assertTrue(changedFlag)
+        assertEquals(articleId, changed.article_id)
+        assertEquals("not_imported", changed.import_status)
+        assertEquals("pending", changed.ai_status)
+        assertEquals("", changed.last_error_code)
+        assertEquals("", changed.last_error_message)
+        assertEquals(listOf(changed.id), items.pendingImport(10).map { it.id })
+    }
+
+    @Test
+    fun pendingImportIncludesImportedItemsWhoseLinkedArticleWasDeleted() = withRepositories { db, sources, items ->
+        val articleRepository = ArticleRepository(db)
+        val sourceId = saveXSource(sources)
+        val (item, _) = items.upsertDraft(sourceId, xDraft(externalId = "post-1"))
+        val articleId = articleRepository.insert(
+            title = "Imported",
+            aiContent = "Imported body",
+            url = "https://example.com/deleted-imported",
+            isFavorite = 1,
+            status = "completed",
+        )
+        items.markImported(item.id, articleId, duplicateLinked = false)
+
+        articleRepository.delete(articleId)
+
+        val pending = items.pendingImport(10).single()
+        assertEquals(item.id, pending.id)
+        assertNull(pending.article_id)
+        assertEquals("imported", pending.import_status)
     }
 
     @Test
@@ -93,6 +170,7 @@ class ExternalFavoriteRepositoryTest {
             db = db,
             encryptSecret = { value -> if (value.isBlank()) value else "enc:v1:$value" },
             decryptSecret = { value -> value.removePrefix("enc:v1:") },
+            isSecretEncrypted = { value -> value.startsWith("enc:v1:") },
         )
         val items = ExternalFavoriteItemRepository(db)
         block(db, sources, items)

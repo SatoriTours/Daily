@@ -44,6 +44,7 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
             val inserted = q.selectExternalFavoriteItemBySourceExternalId(sourceId, draft.externalId).executeAsOne()
             inserted to true
         } else {
+            val changed = existing.hasChangedDraftContent(draft)
             q.updateExternalFavoriteItem(
                 draft.canonicalUrl,
                 draft.title,
@@ -62,7 +63,18 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
                 now,
                 existing.id,
             )
-            q.selectExternalFavoriteItemBySourceExternalId(sourceId, draft.externalId).executeAsOne() to false
+            if (changed) {
+                q.updateExternalFavoriteItemImportState(
+                    existing.article_id,
+                    ExternalItemImportStatus.not_imported.name,
+                    ExternalItemAiStatus.pending.name,
+                    "",
+                    "",
+                    now,
+                    existing.id,
+                )
+            }
+            q.selectExternalFavoriteItemBySourceExternalId(sourceId, draft.externalId).executeAsOne() to changed
         }
     }
 
@@ -110,6 +122,16 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
             itemId,
         )
     }
+
+    private fun External_favorite_item.hasChangedDraftContent(draft: ExternalFavoriteItemDraft): Boolean =
+        content_hash != draft.contentHash ||
+            ai_input_hash != draft.aiInputHash ||
+            canonical_url != draft.canonicalUrl ||
+            title != draft.title ||
+            text != draft.text ||
+            author_name != draft.authorName ||
+            normalized_json != draft.normalizedJson ||
+            debug_json != draft.debugJson
 
     private fun SelectExternalFavoriteItemsPendingAi.toExternalFavoriteItem(): External_favorite_item =
         External_favorite_item(

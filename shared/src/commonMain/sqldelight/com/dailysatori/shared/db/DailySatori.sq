@@ -809,6 +809,7 @@ SELECT * FROM external_favorite_item WHERE source_id = ? ORDER BY first_seen_at 
 selectExternalFavoriteItemsPendingImport:
 SELECT * FROM external_favorite_item
 WHERE import_status IN ('not_imported', 'failed')
+   OR (article_id IS NULL AND import_status IN ('imported', 'duplicate_linked'))
 ORDER BY first_seen_at DESC
 LIMIT ?;
 

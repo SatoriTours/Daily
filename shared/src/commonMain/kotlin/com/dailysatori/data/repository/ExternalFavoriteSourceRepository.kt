@@ -11,11 +11,13 @@ class ExternalFavoriteSourceRepository(
     private val db: DailySatoriDatabase,
     private val encryptSecret: (String) -> String,
     private val decryptSecret: (String) -> String,
+    private val isSecretEncrypted: (String) -> Boolean = { false },
 ) {
     constructor(db: DailySatoriDatabase, secretCipher: SecretCipher) : this(
         db = db,
         encryptSecret = { value -> secretCipher.encrypt(value) },
         decryptSecret = { value -> secretCipher.decrypt(value) },
+        isSecretEncrypted = { value -> secretCipher.isEncrypted(value) },
     )
 
     private val q get() = db.dailySatoriQueries
@@ -82,6 +84,25 @@ class ExternalFavoriteSourceRepository(
     }
 
     fun delete(id: Long) = q.deleteExternalFavoriteSource(id)
+
+    fun encryptStoredSecrets() {
+        q.selectExternalFavoriteSources().executeAsList()
+            .filter { it.auth_json.isNotBlank() && !isSecretEncrypted(it.auth_json) }
+            .forEach { source ->
+                q.updateExternalFavoriteSource(
+                    source.display_name,
+                    source.account_name,
+                    source.enabled,
+                    source.sync_interval_minutes,
+                    source.status,
+                    encryptSecret(source.auth_json),
+                    source.config_json,
+                    source.capabilities_json,
+                    Clock.System.now().toEpochMilliseconds(),
+                    source.id,
+                )
+            }
+    }
 
     fun markAuthCheckRequiredAfterRestore() {
         q.selectExternalFavoriteSources().executeAsList()
