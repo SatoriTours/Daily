@@ -1,0 +1,196 @@
+package com.dailysatori.ui.feature.settings.externalfavorites
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dailysatori.ui.component.indicator.EmptyState
+import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.component.settings.SettingsSectionCard
+import com.dailysatori.ui.theme.Radius
+import com.dailysatori.ui.theme.Spacing
+import org.koin.androidx.compose.koinViewModel
+
+@Composable
+fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
+    val viewModel: ExternalFavoritesSettingsViewModel = koinViewModel()
+    val state = viewModel.state.collectAsStateWithLifecycle().value
+
+    AppScaffold(
+        title = "外部收藏同步",
+        onBack = onBack,
+        actions = {
+            IconButton(onClick = viewModel::markRestoredSourcesAuthCheckRequired) {
+                Icon(Icons.Default.Refresh, contentDescription = "重新验证授权")
+            }
+        },
+    ) { modifier ->
+        if (state.sources.isEmpty()) {
+            EmptyState(
+                icon = Icons.Default.Bookmark,
+                title = "暂无外部收藏来源",
+                subtitle = "X 授权连接将在 OAuth 步骤加入，连接后会定期同步到本地收藏。",
+                modifier = modifier.fillMaxSize(),
+            )
+        } else {
+            ExternalFavoriteSourceList(state = state, viewModel = viewModel, modifier = modifier)
+        }
+    }
+}
+
+@Composable
+private fun ExternalFavoriteSourceList(
+    state: ExternalFavoritesSettingsState,
+    viewModel: ExternalFavoritesSettingsViewModel,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(Spacing.m),
+        verticalArrangement = Arrangement.spacedBy(Spacing.m),
+    ) {
+        state.message?.let { message ->
+            item {
+                ExternalFavoriteMessage(message)
+            }
+        }
+        item {
+            SettingsSectionCard("同步来源") {
+                Text(
+                    "外部平台收藏会先写入本地收藏，再由 AI 整理内容。当前版本使用定期同步，不承诺实时导入。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+                )
+            }
+        }
+        items(state.sources, key = { it.id }) { source ->
+            ExternalFavoriteSourceCard(
+                item = source,
+                syncing = state.syncingSourceId == source.id,
+                onSyncNow = { viewModel.syncNow(source.id) },
+                onImportOlder = { viewModel.importOlder(source.id) },
+                onToggleEnabled = { viewModel.toggleEnabled(source.id, it) },
+                onDelete = { viewModel.deleteSource(source.id) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExternalFavoriteSourceCard(
+    item: ExternalFavoriteSourceUi,
+    syncing: Boolean,
+    onSyncNow: () -> Unit,
+    onImportOlder: () -> Unit,
+    onToggleEnabled: (Boolean) -> Unit,
+    onDelete: () -> Unit,
+) {
+    val source = item.source
+    Card(
+        shape = RoundedCornerShape(Radius.m),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text(source.display_name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        listOf(source.provider.uppercase(), source.account_name.ifBlank { source.account_id }).joinToString(" / "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = item.enabled, onCheckedChange = onToggleEnabled)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+                ExternalFavoriteChip(externalFavoriteHealthLabel(item.health))
+                ExternalFavoriteChip(externalFavoritePeriodicSyncSubtitle(item.health))
+            }
+            Text(
+                externalFavoriteLastSyncText(source.last_sync_started_at, source.last_success_at),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (source.last_error_message.isNotBlank()) {
+                Text(
+                    source.last_error_message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = onSyncNow, enabled = item.enabled && !syncing) {
+                    Icon(Icons.Default.Refresh, contentDescription = null)
+                    Text(if (syncing) "同步中" else "同步")
+                }
+                OutlinedButton(onClick = onImportOlder, enabled = item.enabled && !syncing) {
+                    Icon(Icons.Default.History, contentDescription = null)
+                    Text("历史")
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = "删除")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExternalFavoriteChip(text: String) {
+    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun ExternalFavoriteMessage(message: String) {
+    Surface(shape = RoundedCornerShape(Radius.m), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+        Text(
+            text = message,
+            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+internal fun externalFavoriteLastSyncText(lastAttemptAt: Long?, lastSuccessAt: Long?): String = when {
+    lastSuccessAt != null -> "上次成功：$lastSuccessAt"
+    lastAttemptAt != null -> "上次尝试：$lastAttemptAt"
+    else -> "尚未同步"
+}

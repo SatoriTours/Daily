@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
@@ -52,6 +53,9 @@ import com.dailysatori.ui.feature.settings.backup.BackupSettingsScreen
 import com.dailysatori.ui.feature.settings.importing.DataImportScreen
 import com.dailysatori.ui.feature.settings.mcp.McpServerScreen
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterScreen
+import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsScreen
+import com.dailysatori.ui.feature.settings.externalfavorites.externalFavoriteSettingsRowSubtitle
+import com.dailysatori.ui.feature.settings.externalfavorites.externalFavoriteSettingsRowTitle
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
 import com.dailysatori.ui.feature.settings.skills.SkillSettingsScreen
 import com.dailysatori.ui.feature.settings.skills.skillSettingsRowSubtitle
@@ -67,6 +71,7 @@ private enum class SettingsPage {
     BACKUP_RESTORE,
     DATA_IMPORT,
     REMOTE_NEWS_SETTINGS,
+    EXTERNAL_FAVORITES,
     SKILLS,
 }
 
@@ -102,6 +107,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
         SettingsPage.BACKUP_RESTORE -> BackupRestoreScreen(onBack = { currentPage = SettingsPage.BACKUP_SETTINGS })
         SettingsPage.DATA_IMPORT -> DataImportScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.REMOTE_NEWS_SETTINGS -> RemoteNewsSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
+        SettingsPage.EXTERNAL_FAVORITES -> ExternalFavoritesSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.SKILLS -> SkillSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
     }
 }
@@ -210,6 +216,12 @@ private fun NetworkSection(
             title = "远程新闻设置",
             subtitle = "配置服务地址和 API Token",
             onClick = { onNavigate(SettingsPage.REMOTE_NEWS_SETTINGS) },
+        )
+        SettingsRow(
+            icon = Icons.Default.Bookmark,
+            title = externalFavoriteSettingsRowTitle(),
+            subtitle = externalFavoriteSettingsRowSubtitle(),
+            onClick = { onNavigate(SettingsPage.EXTERNAL_FAVORITES) },
         )
         WebServerRow(state, viewModel)
         if (state.webServerToken.isNotEmpty()) ApiTokenRow(state, viewModel)

@@ -39,6 +39,7 @@ import com.dailysatori.ui.feature.book.BookReflectionViewModel
 import com.dailysatori.ui.feature.book.BooksViewModel
 import com.dailysatori.ui.feature.diary.DiaryViewModel
 import com.dailysatori.ui.feature.settings.plugin.PluginCenterViewModel
+import com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesSettingsViewModel
 import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsViewModel
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.mcp.McpServerViewModel
@@ -202,6 +203,12 @@ val viewModelModule: Module = module {
         RemoteNewsSettingsViewModel(
             sourceRepo = get(),
             remoteNewsService = get(),
+        )
+    }
+    viewModel {
+        ExternalFavoritesSettingsViewModel(
+            sourceRepo = get(),
+            scheduler = get(),
         )
     }
     viewModel {
