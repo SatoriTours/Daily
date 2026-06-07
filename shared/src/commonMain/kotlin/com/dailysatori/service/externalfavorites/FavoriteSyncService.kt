@@ -2,6 +2,7 @@ package com.dailysatori.service.externalfavorites
 
 import com.dailysatori.data.repository.ExternalFavoriteItemRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -53,6 +54,8 @@ class FavoriteSyncService(
                 itemsSeen = result.itemsSeen.toLong(),
                 pagesSeen = result.pagesSeen.toLong(),
             )
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Throwable) {
             val status = error.syncFailureStatus()
             sourceRepo.markSyncFailed(

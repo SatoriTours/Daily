@@ -6,6 +6,7 @@ import com.dailysatori.data.repository.ExternalFavoriteItemRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.External_favorite_source
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -200,6 +201,31 @@ class FavoriteSyncServiceTest {
                 assertEquals("rate_limited", source.status)
                 assertEquals("rate_limited", source.last_error_code)
                 assertEquals(resetAt, source.rate_limit_reset_at)
+            }
+        }
+    }
+
+    @Test
+    fun cancellationDuringFetchIsRethrownWithoutMarkingSourceFailed() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val connector = CancellingConnector()
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            assertFailsWith<CancellationException> {
+                service.syncSource(sourceId, FavoriteSyncMode.recent)
+            }
+
+            sources.getById(sourceId)!!.let { source ->
+                assertEquals("syncing", source.status)
+                assertEquals("", source.last_error_code)
+                assertEquals("", source.last_error_message)
             }
         }
     }
@@ -539,6 +565,19 @@ class FavoriteSyncServiceTest {
             pageSize: Int,
         ): FavoriteFetchPage {
             throw XFavoriteRateLimitException(statusCode = 429, rateLimitResetAt = resetAt)
+        }
+    }
+
+    private class CancellingConnector : FavoriteConnector {
+        override val provider: String = ExternalFavoriteProvider.X.id
+        override val capabilities: FavoriteConnectorCapabilities = xCapabilities()
+
+        override suspend fun fetchPage(
+            source: External_favorite_source,
+            cursor: String?,
+            pageSize: Int,
+        ): FavoriteFetchPage {
+            throw CancellationException("sync cancelled")
         }
     }
 
