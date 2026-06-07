@@ -33,7 +33,11 @@ data class XOAuthProviderConfig(
 
 data class XOAuthCallback(val code: String, val state: String)
 
-data class XOAuthPendingSession(val state: String, val codeVerifier: String)
+data class XOAuthPendingSession(
+    val state: String,
+    val codeVerifier: String,
+    val clientId: String = "",
+)
 
 interface XOAuthSessionStore {
     fun save(session: XOAuthPendingSession)
@@ -48,13 +52,15 @@ class SharedPreferencesXOAuthSessionStore(context: Context) : XOAuthSessionStore
         prefs.edit()
             .putString(KEY_STATE, session.state)
             .putString(KEY_CODE_VERIFIER, session.codeVerifier)
+            .putString(KEY_CLIENT_ID, session.clientId)
             .apply()
     }
 
     override fun load(): XOAuthPendingSession? {
         val state = prefs.getString(KEY_STATE, null)?.takeIf { it.isNotBlank() } ?: return null
         val verifier = prefs.getString(KEY_CODE_VERIFIER, null)?.takeIf { it.isNotBlank() } ?: return null
-        return XOAuthPendingSession(state, verifier)
+        val clientId = prefs.getString(KEY_CLIENT_ID, null).orEmpty()
+        return XOAuthPendingSession(state, verifier, clientId)
     }
 
     override fun clear() {
@@ -64,6 +70,7 @@ class SharedPreferencesXOAuthSessionStore(context: Context) : XOAuthSessionStore
     private companion object {
         const val KEY_STATE = "state"
         const val KEY_CODE_VERIFIER = "code_verifier"
+        const val KEY_CLIENT_ID = "client_id"
     }
 }
 
@@ -74,19 +81,21 @@ class XOAuthCoordinator(
     private val sourceRepo: ExternalFavoriteSourceRepository? = null,
     private val sessionStore: XOAuthSessionStore? = null,
     private val config: XOAuthProviderConfig = XOAuthProviderConfig(clientId, redirectUri),
+    private val clientIdProvider: () -> String = { clientId },
 ) {
     fun beginAuthorization(): String {
         val verifier = xOAuthCodeVerifier()
         val state = xOAuthState()
-        sessionStore?.save(XOAuthPendingSession(state = state, codeVerifier = verifier))
-        return authorizationUrl(state = state, codeChallenge = xOAuthCodeChallenge(verifier))
+        val resolvedClientId = currentClientId()
+        sessionStore?.save(XOAuthPendingSession(state = state, codeVerifier = verifier, clientId = resolvedClientId))
+        return authorizationUrl(state = state, codeChallenge = xOAuthCodeChallenge(verifier), clientId = resolvedClientId)
     }
 
-    fun authorizationUrl(state: String, codeChallenge: String): String {
-        require(config.clientId.isNotBlank()) { "X OAuth client id is not configured" }
+    fun authorizationUrl(state: String, codeChallenge: String, clientId: String = currentClientId()): String {
+        require(clientId.isNotBlank()) { "X OAuth client id is not configured" }
         val params = linkedMapOf(
             "response_type" to "code",
-            "client_id" to config.clientId,
+            "client_id" to clientId,
             "redirect_uri" to config.redirectUri,
             "scope" to X_OAUTH_SCOPES.joinToString(" "),
             "state" to state,
@@ -108,7 +117,8 @@ class XOAuthCoordinator(
             }
             throw error
         }
-        val token = exchangeCodeForToken(callback.code, pending.codeVerifier)
+        val clientId = pending.clientId.ifBlank { currentClientId() }
+        val token = exchangeCodeForToken(callback.code, pending.codeVerifier, clientId)
         val user = fetchCurrentUser(token.accessToken)
         val repo = sourceRepo ?: error("X OAuth source repository is not configured")
         val sourceId = repo.save(
@@ -116,21 +126,25 @@ class XOAuthCoordinator(
             displayName = "X @${user.username.ifBlank { user.id }}",
             accountId = user.id,
             accountName = user.username.ifBlank { user.name },
-            authJson = xOAuthAuthJson(token, config.clientId),
+            authJson = xOAuthAuthJson(token, clientId),
             enabled = true,
         )
         sessionStore?.clear()
         return sourceId
     }
 
-    suspend fun exchangeCodeForToken(code: String, codeVerifier: String): XOAuthTokenPayload {
+    suspend fun exchangeCodeForToken(
+        code: String,
+        codeVerifier: String,
+        clientId: String = currentClientId(),
+    ): XOAuthTokenPayload {
         val client = httpClient ?: error("X OAuth coordinator requires an HttpClient to exchange tokens")
         val response = client.submitForm(
             url = config.tokenUrl,
             formParameters = parameters {
                 append("grant_type", "authorization_code")
                 append("code", code)
-                append("client_id", config.clientId)
+                append("client_id", clientId)
                 append("redirect_uri", config.redirectUri)
                 append("code_verifier", codeVerifier)
             },
@@ -154,6 +168,9 @@ class XOAuthCoordinator(
         }
         return parseXOAuthUser(body)
     }
+
+    private fun currentClientId(): String =
+        clientIdProvider().ifBlank { config.clientId }.trim()
 }
 
 data class XOAuthTokenPayload(

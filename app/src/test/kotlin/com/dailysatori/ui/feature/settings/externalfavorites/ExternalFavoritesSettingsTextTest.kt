@@ -27,6 +27,12 @@ class ExternalFavoritesSettingsTextTest {
     }
 
     @Test
+    fun addServiceDialogPromptsForXOAuthClientId() {
+        assertEquals("X OAuth Client ID", externalFavoriteXClientIdLabel())
+        assertEquals("保存并连接 X", externalFavoriteConnectXActionLabel())
+    }
+
+    @Test
     fun emptyStateSubtitleIncludesVisibleMessageWhenActionFails() {
         val subtitle = externalFavoriteEmptyStateSubtitle("请先配置 X OAuth Client ID")
 

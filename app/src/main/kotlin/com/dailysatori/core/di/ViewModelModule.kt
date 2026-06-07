@@ -210,6 +210,7 @@ val viewModelModule: Module = module {
             sourceRepo = get(),
             scheduler = get(),
             xOAuthCoordinator = get(),
+            settingRepo = get<SettingRepository>(),
         )
     }
     viewModel {

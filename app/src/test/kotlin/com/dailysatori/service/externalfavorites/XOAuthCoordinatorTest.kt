@@ -74,6 +74,23 @@ class XOAuthCoordinatorTest {
         assertEquals("expected", store.load()?.state)
     }
 
+    @Test
+    fun beginAuthorizationUsesRuntimeClientIdProviderAndStoresItWithPendingSession() {
+        val store = FakeSessionStore()
+        val coordinator = XOAuthCoordinator(
+            clientId = "",
+            redirectUri = "dailysatori://oauth/x",
+            httpClient = null,
+            sessionStore = store,
+            clientIdProvider = { "runtime-client" },
+        )
+
+        val url = coordinator.beginAuthorization()
+
+        assertTrue(url.contains("client_id=runtime-client"))
+        assertEquals("runtime-client", store.load()?.clientId)
+    }
+
     private class FakeSessionStore : XOAuthSessionStore {
         private var session: XOAuthPendingSession? = null
         override fun save(session: XOAuthPendingSession) {

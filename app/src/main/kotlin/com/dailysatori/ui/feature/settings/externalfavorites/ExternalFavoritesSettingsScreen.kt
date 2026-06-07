@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -65,10 +66,15 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
 
     if (showAddServiceDialog) {
         AddExternalFavoriteServiceDialog(
+            clientId = state.xOAuthClientId,
+            message = state.message,
+            onClientIdChange = viewModel::updateXOAuthClientId,
             onDismiss = { showAddServiceDialog = false },
             onConnectX = {
-                showAddServiceDialog = false
-                connectX()
+                if (viewModel.saveXOAuthClientIdForConnect()) {
+                    showAddServiceDialog = false
+                    connectX()
+                }
             },
         )
     }
@@ -102,6 +108,9 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
 
 @Composable
 private fun AddExternalFavoriteServiceDialog(
+    clientId: String,
+    message: String?,
+    onClientIdChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onConnectX: () -> Unit,
 ) {
@@ -111,13 +120,27 @@ private fun AddExternalFavoriteServiceDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 Text(
-                    "选择要同步收藏的平台。当前版本先支持 X，后续 connector 可复用同一套同步流程。",
+                    "选择要同步收藏的平台。当前版本先支持 X。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                OutlinedTextField(
+                    value = clientId,
+                    onValueChange = onClientIdChange,
+                    label = { Text(externalFavoriteXClientIdLabel()) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                message?.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 OutlinedButton(onClick = onConnectX, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.Bookmark, contentDescription = null)
-                    Text("连接 X")
+                    Text(externalFavoriteConnectXActionLabel())
                 }
             }
         },

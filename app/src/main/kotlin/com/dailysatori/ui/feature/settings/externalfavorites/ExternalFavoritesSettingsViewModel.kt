@@ -2,8 +2,10 @@ package com.dailysatori.ui.feature.settings.externalfavorites
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailysatori.config.SettingKeys
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
+import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.externalfavorites.ExternalSourceStatus
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
 import com.dailysatori.service.externalfavorites.XOAuthCoordinator
@@ -20,6 +22,7 @@ data class ExternalFavoritesSettingsState(
     val sources: List<ExternalFavoriteSourceUi> = emptyList(),
     val message: String? = null,
     val syncingSourceId: Long? = null,
+    val xOAuthClientId: String = "",
 )
 
 data class ExternalFavoriteSourceUi(
@@ -34,6 +37,7 @@ class ExternalFavoritesSettingsViewModel(
     private val sourceRepo: ExternalFavoriteSourceRepository,
     private val scheduler: ExternalFavoriteSyncScheduler,
     private val xOAuthCoordinator: XOAuthCoordinator,
+    private val settingRepo: SettingRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ExternalFavoritesSettingsState())
     val state: StateFlow<ExternalFavoritesSettingsState> = _state.asStateFlow()
@@ -42,8 +46,30 @@ class ExternalFavoritesSettingsViewModel(
 
     fun load() {
         viewModelScope.launch(Dispatchers.IO) {
-            _state.update { it.copy(sources = sourceRepo.getAll().map(::toUiSource)) }
+            _state.update {
+                it.copy(
+                    sources = sourceRepo.getAll().map(::toUiSource),
+                    xOAuthClientId = settingRepo.get(SettingKeys.xOAuthClientId).orEmpty(),
+                )
+            }
         }
+    }
+
+    fun updateXOAuthClientId(value: String) =
+        _state.update { it.copy(xOAuthClientId = value, message = null) }
+
+    fun saveXOAuthClientIdForConnect(): Boolean {
+        val clientId = _state.value.xOAuthClientId.trim()
+        if (clientId.isBlank()) {
+            _state.update { it.copy(message = "请先填写 X OAuth Client ID") }
+            return false
+        }
+        return runCatching {
+            settingRepo.upsert(SettingKeys.xOAuthClientId, clientId)
+            _state.update { it.copy(xOAuthClientId = clientId, message = null) }
+        }.onFailure {
+            _state.update { state -> state.copy(message = "X OAuth Client ID 保存失败") }
+        }.isSuccess
     }
 
     fun syncNow(sourceId: Long) {
@@ -157,6 +183,10 @@ fun externalFavoriteEmptyStateSubtitle(message: String? = null): String =
     ).joinToString("\n")
 
 fun externalFavoriteAddServiceActionLabel(): String = "添加服务"
+
+fun externalFavoriteXClientIdLabel(): String = "X OAuth Client ID"
+
+fun externalFavoriteConnectXActionLabel(): String = "保存并连接 X"
 
 fun externalFavoritePeriodicSyncSubtitle(health: String): String = when (health) {
     "needs_auth" -> "需要重新授权后才能定期同步"

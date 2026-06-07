@@ -5,6 +5,8 @@ import com.dailysatori.core.service.ClipboardMonitorService
 import com.dailysatori.core.service.WebServerService
 import com.dailysatori.core.worker.ArticleProcessingScheduler
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
+import com.dailysatori.config.SettingKeys
+import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.externalfavorites.SharedPreferencesXOAuthSessionStore
 import com.dailysatori.service.externalfavorites.XOAuthCoordinator
 import org.koin.android.ext.koin.androidContext
@@ -23,6 +25,11 @@ val appModule: Module = module {
             httpClient = get(),
             sourceRepo = get(),
             sessionStore = get<SharedPreferencesXOAuthSessionStore>(),
+            clientIdProvider = {
+                get<SettingRepository>().get(SettingKeys.xOAuthClientId)
+                    ?.takeIf { it.isNotBlank() }
+                    ?: com.dailysatori.BuildConfig.X_OAUTH_CLIENT_ID
+            },
         )
     }
     single { WebServerService(androidContext()) }
