@@ -30,24 +30,25 @@ class FavoriteSyncService(
         val source = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found")
         val connector = registry.get(source.provider)
             ?: error("No external favorite connector registered for provider ${source.provider}")
+        val policy = syncPolicy(mode, connector.capabilities)
 
         sourceRepo.markSyncStarted(sourceId, mode.name)
         try {
-            val result = if (mode == FavoriteSyncMode.retry_failed) {
-                SyncRunResult(itemsSeen = 0, pagesSeen = 0, changedItems = 0)
-            } else {
-                fetchAndUpsert(sourceId, connector, mode)
+            if (policy.shouldFetch) {
+                refreshSourceAuth(sourceId, connector)
             }
 
-            val importLimit = if (mode == FavoriteSyncMode.retry_failed) {
-                IMPORT_RETRY_LIMIT
+            val result = if (!policy.shouldFetch) {
+                SyncRunResult(itemsSeen = 0, pagesSeen = 0, changedItems = 0)
             } else {
-                result.changedItems.toLong()
+                fetchAndUpsert(sourceId, connector, policy)
             }
+
+            val importLimit = policy.importLimit(result.changedItems)
             if (importLimit > 0) {
                 importPendingForSource(sourceId, importLimit)
             }
-            organizePending(AI_ORGANIZE_LIMIT)
+            organizePending(policy.aiBudget)
             sourceRepo.markSyncSucceeded(
                 id = sourceId,
                 itemsSeen = result.itemsSeen.toLong(),
@@ -60,26 +61,33 @@ class FavoriteSyncService(
                 code = error.syncFailureCode(),
                 message = error.message.orEmpty().ifBlank { "External favorite sync failed." },
                 status = status.name,
+                rateLimitResetAt = error.syncFailureRateLimitResetAt(),
             )
             throw error
+        }
+    }
+
+    private suspend fun refreshSourceAuth(sourceId: Long, connector: FavoriteConnector) {
+        val current = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found")
+        val refreshed = connector.refreshAuth(current)
+        if (refreshed.auth_json != current.auth_json) {
+            sourceRepo.updateAuthJson(sourceId, refreshed.auth_json)
         }
     }
 
     private suspend fun fetchAndUpsert(
         sourceId: Long,
         connector: FavoriteConnector,
-        mode: FavoriteSyncMode,
+        policy: SyncPolicy,
     ): SyncRunResult {
         val capabilities = connector.capabilities
-        val maxPages = capabilities.maxPagesPerRun.coerceAtLeast(1)
-        val maxItems = capabilities.maxItemsPerRun.coerceAtLeast(1)
         var cursor: String? = null
         var pagesSeen = 0
         var itemsSeen = 0
         var changedItems = 0
 
-        while (pagesSeen < maxPages && itemsSeen < maxItems) {
-            val remaining = maxItems - itemsSeen
+        while (pagesSeen < policy.maxPages && itemsSeen < policy.maxItems) {
+            val remaining = policy.maxItems - itemsSeen
             val page = connector.fetchPage(
                 source = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found"),
                 cursor = cursor,
@@ -98,7 +106,7 @@ class FavoriteSyncService(
             }
 
             cursor = page.nextCursor
-            if (page.exhausted || itemsSeen >= maxItems || (mode == FavoriteSyncMode.recent && pageChangedItems == 0)) {
+            if (page.exhausted || itemsSeen >= policy.maxItems || (policy.earlyStopOnUnchanged && pageChangedItems == 0)) {
                 break
             }
         }
@@ -128,6 +136,62 @@ class FavoriteSyncService(
         else -> "sync_failed"
     }
 
+    private fun Throwable.syncFailureRateLimitResetAt(): Long? = when (this) {
+        is XFavoriteRateLimitException -> rateLimitResetAt
+        else -> null
+    }
+
+    private fun syncPolicy(
+        mode: FavoriteSyncMode,
+        capabilities: FavoriteConnectorCapabilities,
+    ): SyncPolicy {
+        val cappedPages = capabilities.maxPagesPerRun.coerceAtLeast(1)
+        val cappedItems = capabilities.maxItemsPerRun.coerceAtLeast(1)
+        return when (mode) {
+            FavoriteSyncMode.recent -> SyncPolicy(
+                shouldFetch = true,
+                maxPages = cappedPages,
+                maxItems = cappedItems,
+                earlyStopOnUnchanged = true,
+                importLimit = { changedItems -> changedItems.toLong() },
+                aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,
+            )
+            FavoriteSyncMode.history -> SyncPolicy(
+                shouldFetch = true,
+                maxPages = cappedPages,
+                maxItems = cappedItems,
+                earlyStopOnUnchanged = false,
+                importLimit = { changedItems -> changedItems.toLong() },
+                aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,
+            )
+            FavoriteSyncMode.full_rescan -> SyncPolicy(
+                shouldFetch = true,
+                maxPages = cappedPages,
+                maxItems = cappedItems,
+                earlyStopOnUnchanged = false,
+                importLimit = { changedItems -> changedItems.toLong() },
+                aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,
+            )
+            FavoriteSyncMode.retry_failed -> SyncPolicy(
+                shouldFetch = false,
+                maxPages = 0,
+                maxItems = 0,
+                earlyStopOnUnchanged = false,
+                importLimit = { IMPORT_RETRY_LIMIT },
+                aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,
+            )
+        }
+    }
+
+    private data class SyncPolicy(
+        val shouldFetch: Boolean,
+        val maxPages: Int,
+        val maxItems: Int,
+        val earlyStopOnUnchanged: Boolean,
+        val importLimit: (changedItems: Int) -> Long,
+        val aiBudget: Long,
+    )
+
     private data class SyncRunResult(
         val itemsSeen: Int,
         val pagesSeen: Int,
@@ -136,6 +200,6 @@ class FavoriteSyncService(
 
     private companion object {
         const val IMPORT_RETRY_LIMIT = 50L
-        const val AI_ORGANIZE_LIMIT = 10L
+        const val DEFAULT_AI_ORGANIZE_LIMIT = 10L
     }
 }

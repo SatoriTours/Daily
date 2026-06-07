@@ -11,6 +11,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -88,14 +89,88 @@ class FavoriteSyncServiceTest {
             service.syncSource(sourceId, FavoriteSyncMode.retry_failed)
 
             assertEquals(0, connector.fetchCalls)
-            assertTrue(imported > 0)
-            assertTrue(organized > 0)
+            assertEquals(50, imported)
+            assertEquals(10, organized)
             sources.getById(sourceId)!!.let { source ->
                 assertEquals("idle", source.status)
                 assertEquals(0, source.last_pages_seen_count)
                 assertEquals(0, source.last_items_seen_count)
                 assertEquals("retry_failed", source.last_sync_mode)
             }
+        }
+    }
+
+    @Test
+    fun syncRefreshesAuthBeforeFetchAndPersistsUpdatedAuth() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources, authJson = """{"access_token":"old"}""")
+            val connector = RefreshingConnector(
+                refreshedAuthJson = """{"access_token":"new"}""",
+                pages = listOf(FavoriteFetchPage(listOf(xDraft("post-1")), null)),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.recent)
+
+            assertEquals(1, connector.refreshCalls)
+            assertEquals(listOf("""{"access_token":"new"}"""), connector.fetchAuthJsons)
+            assertEquals("""{"access_token":"new"}""", sources.getById(sourceId)!!.auth_json)
+        }
+    }
+
+    @Test
+    fun rateLimitFailureStoresResetTimeOnSource() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val resetAt = 1_780_272_000_000L
+            val connector = RateLimitedConnector(resetAt)
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            assertFailsWith<XFavoriteRateLimitException> {
+                service.syncSource(sourceId, FavoriteSyncMode.recent)
+            }
+
+            sources.getById(sourceId)!!.let { source ->
+                assertEquals("rate_limited", source.status)
+                assertEquals("rate_limited", source.last_error_code)
+                assertEquals(resetAt, source.rate_limit_reset_at)
+            }
+        }
+    }
+
+    @Test
+    fun historyUsesPolicyItemCapForFetchPageSize() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 3, maxItemsPerRun = 1),
+                pages = listOf(FavoriteFetchPage(listOf(xDraft("post-1"), xDraft("post-2")), "cursor-2")),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.history)
+
+            assertEquals(listOf(1), connector.pageSizes)
+            assertEquals(listOf("post-1"), items.getBySource(sourceId).map { it.external_id })
+            assertEquals(1, sources.getById(sourceId)!!.last_items_seen_count)
         }
     }
 
@@ -273,12 +348,13 @@ class FavoriteSyncServiceTest {
     private fun saveXSource(
         sources: ExternalFavoriteSourceRepository,
         accountId: String = "acct-1",
+        authJson: String = """{"access_token":"secret"}""",
     ): Long = sources.save(
         provider = ExternalFavoriteProvider.X.id,
         displayName = "X Favorites",
         accountId = accountId,
         accountName = "@daily",
-        authJson = """{"access_token":"secret"}""",
+        authJson = authJson,
     )
 
     private companion object {
@@ -314,13 +390,15 @@ class FavoriteSyncServiceTest {
         )
     }
 
-    private class FakeConnector(
+    private open class FakeConnector(
         override val capabilities: FavoriteConnectorCapabilities = xCapabilities(),
         private val pages: List<FavoriteFetchPage>,
         private val failOnFetch: Boolean = false,
     ) : FavoriteConnector {
         override val provider: String = ExternalFavoriteProvider.X.id
         val cursors = mutableListOf<String?>()
+        val pageSizes = mutableListOf<Int>()
+        val fetchAuthJsons = mutableListOf<String>()
         var fetchCalls = 0
 
         override suspend fun fetchPage(
@@ -330,8 +408,37 @@ class FavoriteSyncServiceTest {
         ): FavoriteFetchPage {
             fetchCalls += 1
             cursors += cursor
+            pageSizes += pageSize
+            fetchAuthJsons += source.auth_json
             if (failOnFetch) error("retry_failed must not fetch provider pages")
             return pages.getOrElse(fetchCalls - 1) { FavoriteFetchPage(emptyList(), null) }
+        }
+    }
+
+    private class RefreshingConnector(
+        private val refreshedAuthJson: String,
+        pages: List<FavoriteFetchPage>,
+    ) : FakeConnector(pages = pages) {
+        var refreshCalls = 0
+
+        override suspend fun refreshAuth(source: External_favorite_source): External_favorite_source {
+            refreshCalls += 1
+            return source.copy(auth_json = refreshedAuthJson)
+        }
+    }
+
+    private class RateLimitedConnector(
+        private val resetAt: Long,
+    ) : FavoriteConnector {
+        override val provider: String = ExternalFavoriteProvider.X.id
+        override val capabilities: FavoriteConnectorCapabilities = xCapabilities()
+
+        override suspend fun fetchPage(
+            source: External_favorite_source,
+            cursor: String?,
+            pageSize: Int,
+        ): FavoriteFetchPage {
+            throw XFavoriteRateLimitException(statusCode = 429, rateLimitResetAt = resetAt)
         }
     }
 

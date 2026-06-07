@@ -6,6 +6,8 @@ interface FavoriteConnector {
     val provider: String
     val capabilities: FavoriteConnectorCapabilities
 
+    suspend fun refreshAuth(source: External_favorite_source): External_favorite_source = source
+
     suspend fun fetchPage(
         source: External_favorite_source,
         cursor: String? = null,

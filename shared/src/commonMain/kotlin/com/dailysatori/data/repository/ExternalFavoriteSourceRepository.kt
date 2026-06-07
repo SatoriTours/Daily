@@ -85,6 +85,22 @@ class ExternalFavoriteSourceRepository(
 
     fun delete(id: Long) = q.deleteExternalFavoriteSource(id)
 
+    fun updateAuthJson(id: Long, authJson: String) {
+        val source = q.selectExternalFavoriteSourceById(id).executeAsOneOrNull() ?: return
+        q.updateExternalFavoriteSource(
+            source.display_name,
+            source.account_name,
+            source.enabled,
+            source.sync_interval_minutes,
+            source.status,
+            encryptSecret(authJson.trim()),
+            source.config_json,
+            source.capabilities_json,
+            Clock.System.now().toEpochMilliseconds(),
+            id,
+        )
+    }
+
     fun encryptStoredSecrets() {
         q.selectExternalFavoriteSources().executeAsList()
             .filter { it.auth_json.isNotBlank() && !isSecretEncrypted(it.auth_json) }
@@ -164,7 +180,13 @@ class ExternalFavoriteSourceRepository(
         )
     }
 
-    fun markSyncFailed(id: Long, code: String, message: String, status: String = ExternalSourceStatus.failed.name) {
+    fun markSyncFailed(
+        id: Long,
+        code: String,
+        message: String,
+        status: String = ExternalSourceStatus.failed.name,
+        rateLimitResetAt: Long? = null,
+    ) {
         val source = q.selectExternalFavoriteSourceById(id).executeAsOneOrNull() ?: return
         val now = Clock.System.now().toEpochMilliseconds()
         q.updateExternalFavoriteSourceSyncState(
@@ -179,7 +201,7 @@ class ExternalFavoriteSourceRepository(
             message,
             status,
             source.last_sync_mode,
-            source.rate_limit_reset_at,
+            rateLimitResetAt ?: source.rate_limit_reset_at,
             now,
             id,
         )
