@@ -7,7 +7,7 @@ import kotlin.test.assertEquals
 class McpServerRepositoryPresetApiTest {
     @Test
     fun schemaVersionTracksMcpPresetMetadata() {
-        assertEquals(12L, DatabaseConfig.currentSchemaVersion)
+        assertEquals(13L, DatabaseConfig.currentSchemaVersion)
     }
 
     @Suppress("unused")
