@@ -8,6 +8,8 @@ import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.data.repository.ChatConversationRepository
 import com.dailysatori.data.repository.DiaryRepository
 import com.dailysatori.data.repository.DiaryMonthSummaryRepository
+import com.dailysatori.data.repository.ExternalFavoriteItemRepository
+import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.ImageRepository
 import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.data.repository.MemoryRepository
@@ -72,6 +74,8 @@ val sharedModule: Module = module {
     single { ChatConversationRepository(get()) }
     single { DiaryRepository(get()) }
     single { DiaryMonthSummaryRepository(get()) }
+    single { ExternalFavoriteSourceRepository(get(), get()) }
+    single { ExternalFavoriteItemRepository(get()) }
     single { ImageRepository(get()) }
     single { MemoryRepository(get()) }
     single { RemoteNewsSourceRepository(get(), get()) }
