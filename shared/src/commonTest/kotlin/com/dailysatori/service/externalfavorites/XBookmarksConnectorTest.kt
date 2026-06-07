@@ -152,4 +152,25 @@ class XBookmarksConnectorTest {
         assertNull(canonicalizeXStatusUrl("https://x.com/bad-handle/status/20"))
         assertEquals("https://x.com/i/status/20", canonicalizeXStatusUrl("https://x.com/i/status/20"))
     }
+
+    @Test
+    fun expiredAuthJsonCanBeRefreshedWithoutLosingRefreshToken() {
+        val authJson = """{"client_id":"client","access_token":"old","refresh_token":"refresh","expires_at":1000}"""
+
+        assertTrue(xAuthShouldRefresh(authJson, nowMillis = 2_000))
+
+        val refreshed = xRefreshedAuthJson(
+            existingAuthJson = authJson,
+            accessToken = "new",
+            refreshToken = "",
+            expiresInSeconds = 7200,
+            nowMillis = 2_000,
+            scope = "bookmark.read tweet.read users.read offline.access",
+            tokenType = "bearer",
+        )
+
+        assertTrue(refreshed.contains(""""access_token":"new""""))
+        assertTrue(refreshed.contains(""""refresh_token":"refresh""""))
+        assertTrue(refreshed.contains(""""expires_at":7202000"""))
+    }
 }

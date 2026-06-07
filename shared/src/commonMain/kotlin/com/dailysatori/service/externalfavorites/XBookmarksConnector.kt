@@ -3,9 +3,12 @@ package com.dailysatori.service.externalfavorites
 import com.dailysatori.shared.db.External_favorite_source
 import io.ktor.client.HttpClient
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.parameters
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -37,6 +40,42 @@ class XBookmarksConnector(
         supportsWriteBack = false,
         supportsRefreshToken = true,
     )
+
+    override suspend fun refreshAuth(source: External_favorite_source): External_favorite_source {
+        val now = Clock.System.now().toEpochMilliseconds()
+        if (!xAuthShouldRefresh(source.auth_json, now)) return source
+        val auth = parseXAuth(source.auth_json) ?: return source
+        if (auth.clientId.isBlank() || auth.refreshToken.isBlank()) return source
+        val httpClient = client ?: error("XBookmarksConnector requires an HttpClient to refresh OAuth tokens")
+        val response = httpClient.submitForm(
+            url = "$apiBaseUrl/2/oauth2/token",
+            formParameters = parameters {
+                append("grant_type", "refresh_token")
+                append("refresh_token", auth.refreshToken)
+                append("client_id", auth.clientId)
+            },
+        )
+        val body = response.bodyAsText()
+        if (response.status.value == 401 || response.status.value == 403) throw XFavoriteAuthException(response.status.value)
+        if (response.status.value !in 200..299) {
+            throw XFavoriteProviderException(
+                statusCode = response.status.value,
+                message = "X OAuth token refresh failed with HTTP ${response.status.value}",
+            )
+        }
+        val token = parseXRefreshTokenResponse(body)
+        return source.copy(
+            auth_json = xRefreshedAuthJson(
+                existingAuthJson = source.auth_json,
+                accessToken = token.accessToken,
+                refreshToken = token.refreshToken,
+                expiresInSeconds = token.expiresInSeconds,
+                nowMillis = now,
+                scope = token.scope,
+                tokenType = token.tokenType,
+            ),
+        )
+    }
 
     override suspend fun fetchPage(
         source: External_favorite_source,
@@ -86,6 +125,7 @@ class XFavoriteRateLimitException(
 )
 
 private const val X_RATE_LIMIT_RESET_HEADER = "x-rate-limit-reset"
+private const val X_REFRESH_BUFFER_MS = 60_000L
 
 fun parseXBookmarksHttpResponse(
     statusCode: Int,
@@ -240,6 +280,85 @@ private data class XUser(
     val name: String?,
 )
 
+private data class XAuth(
+    val clientId: String,
+    val accessToken: String,
+    val refreshToken: String,
+    val expiresAt: Long?,
+)
+
+private data class XRefreshTokenPayload(
+    val accessToken: String,
+    val refreshToken: String,
+    val expiresInSeconds: Long?,
+    val scope: String,
+    val tokenType: String,
+)
+
+internal fun xAuthShouldRefresh(authJson: String, nowMillis: Long): Boolean {
+    val auth = parseXAuth(authJson) ?: return false
+    val expiresAt = auth.expiresAt ?: return false
+    return auth.refreshToken.isNotBlank() && expiresAt <= nowMillis + X_REFRESH_BUFFER_MS
+}
+
+internal fun xRefreshedAuthJson(
+    existingAuthJson: String,
+    accessToken: String,
+    refreshToken: String,
+    expiresInSeconds: Long?,
+    nowMillis: Long,
+    scope: String,
+    tokenType: String,
+): String {
+    val existing = parseXAuthJson(existingAuthJson)
+    val nextRefreshToken = refreshToken.ifBlank {
+        existing?.string("refresh_token").orEmpty()
+    }
+    val clientId = existing?.string("client_id").orEmpty()
+    return Json.encodeToString(
+        buildJsonObject {
+            if (clientId.isNotBlank()) put("client_id", clientId)
+            put("access_token", accessToken)
+            if (nextRefreshToken.isNotBlank()) put("refresh_token", nextRefreshToken)
+            expiresInSeconds?.let {
+                put("expires_in", it)
+                put("expires_at", nowMillis + it * 1_000L)
+            }
+            put("issued_at", nowMillis)
+            val nextScope = scope.ifBlank { existing?.string("scope").orEmpty() }
+            if (nextScope.isNotBlank()) put("scope", nextScope)
+            val nextTokenType = tokenType.ifBlank { existing?.string("token_type").orEmpty() }
+            if (nextTokenType.isNotBlank()) put("token_type", nextTokenType)
+        },
+    )
+}
+
+private fun parseXAuth(authJson: String): XAuth? = parseXAuthJson(authJson)?.let { auth ->
+    XAuth(
+        clientId = auth.string("client_id").orEmpty(),
+        accessToken = auth.string("access_token") ?: auth.string("bearer_token") ?: auth.string("token").orEmpty(),
+        refreshToken = auth.string("refresh_token").orEmpty(),
+        expiresAt = auth.long("expires_at"),
+    )
+}
+
+private fun parseXAuthJson(authJson: String): JsonObject? = runCatching {
+    Json.parseToJsonElement(authJson).jsonObject
+}.getOrNull()
+
+private fun parseXRefreshTokenResponse(body: String): XRefreshTokenPayload {
+    val root = Json.parseToJsonElement(body).jsonObject
+    return XRefreshTokenPayload(
+        accessToken = root.string("access_token").orEmpty(),
+        refreshToken = root.string("refresh_token").orEmpty(),
+        expiresInSeconds = root.long("expires_in"),
+        scope = root.string("scope").orEmpty(),
+        tokenType = root.string("token_type").orEmpty(),
+    ).also {
+        if (it.accessToken.isBlank()) error("X OAuth refresh response missing access_token")
+    }
+}
+
 private fun extractAccessToken(authJson: String): String? = runCatching {
     Json.parseToJsonElement(authJson).jsonObject.let { auth ->
         auth.string("access_token")
@@ -281,6 +400,9 @@ private fun String.toRateLimitResetMillis(): Long? {
 
 private fun JsonObject.string(key: String): String? =
     get(key)?.jsonPrimitiveOrNull()?.contentOrNull
+
+private fun JsonObject.long(key: String): Long? =
+    string(key)?.toLongOrNull()
 
 private fun JsonElement.jsonObjectOrNull(): JsonObject? = runCatching { jsonObject }.getOrNull()
 

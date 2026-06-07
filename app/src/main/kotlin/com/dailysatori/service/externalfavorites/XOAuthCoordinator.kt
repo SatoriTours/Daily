@@ -100,22 +100,27 @@ class XOAuthCoordinator(
 
     suspend fun handleCallbackUrl(callbackUrl: String): Long {
         val pending = sessionStore?.load() ?: error("X OAuth session was not started")
-        return try {
-            val callback = parseXOAuthCallback(callbackUrl, pending.state)
-            val token = exchangeCodeForToken(callback.code, pending.codeVerifier)
-            val user = fetchCurrentUser(token.accessToken)
-            val repo = sourceRepo ?: error("X OAuth source repository is not configured")
-            repo.save(
-                provider = ExternalFavoriteProvider.X.id,
-                displayName = "X @${user.username.ifBlank { user.id }}",
-                accountId = user.id,
-                accountName = user.username.ifBlank { user.name },
-                authJson = xOAuthAuthJson(token),
-                enabled = true,
-            )
-        } finally {
-            sessionStore?.clear()
+        val callback = try {
+            parseXOAuthCallback(callbackUrl, pending.state)
+        } catch (error: Throwable) {
+            if (xOAuthCallbackHasMatchingProviderError(callbackUrl, pending.state)) {
+                sessionStore?.clear()
+            }
+            throw error
         }
+        val token = exchangeCodeForToken(callback.code, pending.codeVerifier)
+        val user = fetchCurrentUser(token.accessToken)
+        val repo = sourceRepo ?: error("X OAuth source repository is not configured")
+        val sourceId = repo.save(
+            provider = ExternalFavoriteProvider.X.id,
+            displayName = "X @${user.username.ifBlank { user.id }}",
+            accountId = user.id,
+            accountName = user.username.ifBlank { user.name },
+            authJson = xOAuthAuthJson(token, config.clientId),
+            enabled = true,
+        )
+        sessionStore?.clear()
+        return sourceId
     }
 
     suspend fun exchangeCodeForToken(code: String, codeVerifier: String): XOAuthTokenPayload {
@@ -162,21 +167,13 @@ data class XOAuthTokenPayload(
 data class XOAuthUser(val id: String, val username: String, val name: String)
 
 fun parseXOAuthCallback(callbackUrl: String, expectedState: String): XOAuthCallback {
-    val params = URI(callbackUrl).rawQuery.orEmpty().split("&")
-        .filter { it.isNotBlank() }
-        .mapNotNull { part ->
-            val pieces = part.split("=", limit = 2)
-            val key = pieces.getOrNull(0)?.urlDecoded() ?: return@mapNotNull null
-            val value = pieces.getOrNull(1)?.urlDecoded().orEmpty()
-            key to value
-        }
-        .toMap()
-    val error = params["error"].orEmpty()
-    require(error.isBlank()) { "X OAuth callback returned error: $error" }
+    val params = xOAuthCallbackParams(callbackUrl)
     val code = params["code"].orEmpty()
     val state = params["state"].orEmpty()
-    require(code.isNotBlank()) { "X OAuth callback missing code" }
     require(state == expectedState) { "X OAuth callback state mismatch" }
+    val error = params["error"].orEmpty()
+    require(error.isBlank()) { "X OAuth callback returned error: $error" }
+    require(code.isNotBlank()) { "X OAuth callback missing code" }
     return XOAuthCallback(code = code, state = state)
 }
 
@@ -218,15 +215,38 @@ private fun parseXOAuthUser(body: String): XOAuthUser {
     )
 }
 
-private fun xOAuthAuthJson(token: XOAuthTokenPayload): String = xOAuthJson.encodeToString(
+private fun xOAuthCallbackHasMatchingProviderError(callbackUrl: String, expectedState: String): Boolean {
+    val params = xOAuthCallbackParams(callbackUrl)
+    return params["state"] == expectedState && params["error"].orEmpty().isNotBlank()
+}
+
+private fun xOAuthCallbackParams(callbackUrl: String): Map<String, String> =
+    URI(callbackUrl).rawQuery.orEmpty().split("&")
+        .filter { it.isNotBlank() }
+        .mapNotNull { part ->
+            val pieces = part.split("=", limit = 2)
+            val key = pieces.getOrNull(0)?.urlDecoded() ?: return@mapNotNull null
+            val value = pieces.getOrNull(1)?.urlDecoded().orEmpty()
+            key to value
+        }
+        .toMap()
+
+private fun xOAuthAuthJson(token: XOAuthTokenPayload, clientId: String): String {
+    val issuedAt = System.currentTimeMillis()
+    val expiresAt = token.expiresInSeconds?.let { issuedAt + it * 1_000L }
+    return xOAuthJson.encodeToString(
     buildJsonObject {
+        put("client_id", clientId)
         put("access_token", token.accessToken)
         if (token.refreshToken.isNotBlank()) put("refresh_token", token.refreshToken)
         token.expiresInSeconds?.let { put("expires_in", it) }
+        expiresAt?.let { put("expires_at", it) }
+        put("issued_at", issuedAt)
         if (token.scope.isNotBlank()) put("scope", token.scope)
         if (token.tokenType.isNotBlank()) put("token_type", token.tokenType)
     },
-)
+    )
+}
 
 private fun kotlinx.serialization.json.JsonObject.string(key: String): String =
     this[key]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } ?: error("X OAuth response missing $key")
