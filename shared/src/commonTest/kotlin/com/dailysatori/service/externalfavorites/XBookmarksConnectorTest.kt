@@ -2,8 +2,10 @@ package com.dailysatori.service.externalfavorites
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class XBookmarksConnectorTest {
     @Test
@@ -28,6 +30,7 @@ class XBookmarksConnectorTest {
         assertEquals("Daily", page.items.single().authorName)
         assertEquals(1_780_272_000_000L, page.items.single().sourceCreatedAt)
         assertNull(page.items.single().favoritedAt)
+        assertEquals("", page.items.single().debugJson)
         assertEquals(null, page.nextCursor)
     }
 
@@ -68,5 +71,85 @@ class XBookmarksConnectorTest {
         assertNotNull(connector)
         assertEquals(ExternalFavoriteProvider.X.id, connector.provider)
         assertNull(registry.get("unknown"))
+    }
+
+    @Test
+    fun responseHandlerThrowsAuthRateLimitAndProviderErrorsForNonSuccess() {
+        val emptyPageJson = """{"data":[],"meta":{"result_count":0}}"""
+
+        val authError = assertFailsWith<XFavoriteAuthException> {
+            parseXBookmarksHttpResponse(statusCode = 401, body = emptyPageJson)
+        }
+        assertEquals(401, authError.statusCode)
+
+        val rateLimitError = assertFailsWith<XFavoriteRateLimitException> {
+            parseXBookmarksHttpResponse(
+                statusCode = 429,
+                body = emptyPageJson,
+                headers = mapOf("x-rate-limit-reset" to "1780272000"),
+            )
+        }
+        assertEquals(1_780_272_000_000L, rateLimitError.rateLimitResetAt)
+
+        val providerError = assertFailsWith<XFavoriteProviderException> {
+            parseXBookmarksHttpResponse(statusCode = 500, body = emptyPageJson)
+        }
+        assertEquals(500, providerError.statusCode)
+    }
+
+    @Test
+    fun aiInputHashIgnoresNonPromptMetadataChanges() {
+        val firstJson = """
+            {
+              "data": [
+                {
+                  "id": "789",
+                  "text": "Stable prompt text",
+                  "author_id": "42",
+                  "created_at": "2026-06-01T00:00:00.000Z",
+                  "attachments": {"media_keys": ["media-a"]}
+                }
+              ],
+              "includes": {
+                "users": [{"id": "42", "username": "daily", "name": "Daily"}],
+                "media": [{"media_key": "media-a", "type": "photo", "url": "https://cdn.example.com/image.jpg"}]
+              },
+              "meta": {"result_count": 1}
+            }
+        """.trimIndent()
+        val secondJson = """
+            {
+              "data": [
+                {
+                  "id": "789",
+                  "text": "Stable prompt text",
+                  "author_id": "42",
+                  "created_at": "2026-06-01T00:00:00.000Z",
+                  "attachments": {"media_keys": ["media-b"]}
+                }
+              ],
+              "includes": {
+                "users": [{"id": "42", "username": "daily", "name": "Daily"}],
+                "media": [{"media_key": "media-b", "type": "animated_gif", "url": "https://cdn.example.com/image.jpg"}]
+              },
+              "meta": {"result_count": 1, "next_token": "different-page-metadata"}
+            }
+        """.trimIndent()
+
+        val first = XBookmarksResponseParser.parse(firstJson).items.single()
+        val second = XBookmarksResponseParser.parse(secondJson).items.single()
+
+        assertEquals(first.aiInputHash, second.aiInputHash)
+        assertTrue(first.normalizedJson != second.normalizedJson)
+        assertEquals("", first.debugJson)
+        assertEquals("", second.debugJson)
+    }
+
+    @Test
+    fun canonicalizerRejectsInvalidHandlesAndNonStatusUrls() {
+        assertNull(canonicalizeXStatusUrl("https://x.com/jack"))
+        assertNull(canonicalizeXStatusUrl("https://x.com/home/status/20"))
+        assertNull(canonicalizeXStatusUrl("https://x.com/bad-handle/status/20"))
+        assertEquals("https://x.com/i/status/20", canonicalizeXStatusUrl("https://x.com/i/status/20"))
     }
 }

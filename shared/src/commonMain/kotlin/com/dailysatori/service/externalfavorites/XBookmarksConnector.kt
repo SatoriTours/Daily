@@ -21,17 +21,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 
-interface FavoriteConnector {
-    val provider: String
-    val capabilities: FavoriteConnectorCapabilities
-
-    suspend fun fetchPage(
-        source: External_favorite_source,
-        cursor: String? = null,
-        pageSize: Int = capabilities.maxPageSize,
-    ): FavoriteFetchPage
-}
-
 class XBookmarksConnector(
     private val client: HttpClient? = null,
     private val apiBaseUrl: String = "https://api.x.com",
@@ -57,7 +46,7 @@ class XBookmarksConnector(
         val httpClient = client ?: error("XBookmarksConnector requires an HttpClient to fetch remote bookmarks")
         val token = extractAccessToken(source.auth_json)
             ?: error("X bookmarks auth_json must contain access_token, bearer_token, or token")
-        val body = httpClient.get("$apiBaseUrl/2/users/${source.account_id}/bookmarks") {
+        val response = httpClient.get("$apiBaseUrl/2/users/${source.account_id}/bookmarks") {
             bearerAuth(token)
             parameter("max_results", pageSize.coerceIn(1, capabilities.maxPageSize))
             parameter("tweet.fields", "created_at,author_id,attachments")
@@ -67,9 +56,54 @@ class XBookmarksConnector(
             if (!cursor.isNullOrBlank()) {
                 parameter("pagination_token", cursor)
             }
-        }.bodyAsText()
-        return XBookmarksResponseParser.parse(body)
+        }
+        return parseXBookmarksHttpResponse(
+            statusCode = response.status.value,
+            body = response.bodyAsText(),
+            headers = mapOf(
+                X_RATE_LIMIT_RESET_HEADER to response.headers[X_RATE_LIMIT_RESET_HEADER].orEmpty(),
+            ),
+        )
     }
+}
+
+open class XFavoriteProviderException(
+    val statusCode: Int,
+    message: String,
+) : RuntimeException(message)
+
+class XFavoriteAuthException(statusCode: Int) : XFavoriteProviderException(
+    statusCode = statusCode,
+    message = "X bookmarks authorization failed with HTTP $statusCode",
+)
+
+class XFavoriteRateLimitException(
+    statusCode: Int,
+    val rateLimitResetAt: Long?,
+) : XFavoriteProviderException(
+    statusCode = statusCode,
+    message = "X bookmarks rate limited with HTTP $statusCode",
+)
+
+private const val X_RATE_LIMIT_RESET_HEADER = "x-rate-limit-reset"
+
+fun parseXBookmarksHttpResponse(
+    statusCode: Int,
+    body: String,
+    headers: Map<String, String> = emptyMap(),
+): FavoriteFetchPage {
+    if (statusCode in 200..299) return XBookmarksResponseParser.parse(body)
+    if (statusCode == 401 || statusCode == 403) throw XFavoriteAuthException(statusCode)
+    if (statusCode == 429) {
+        throw XFavoriteRateLimitException(
+            statusCode = statusCode,
+            rateLimitResetAt = headers.headerValue(X_RATE_LIMIT_RESET_HEADER)?.toRateLimitResetMillis(),
+        )
+    }
+    throw XFavoriteProviderException(
+        statusCode = statusCode,
+        message = "X bookmarks provider request failed with HTTP $statusCode",
+    )
 }
 
 object XBookmarksResponseParser {
@@ -108,7 +142,7 @@ object XBookmarksResponseParser {
 
         val items = root["data"]
             ?.jsonArrayOrNull()
-            ?.mapNotNull { tweet -> tweet.toDraft(usersById, mediaByKey, rawJson) }
+            ?.mapNotNull { tweet -> tweet.toDraft(usersById, mediaByKey) }
             .orEmpty()
         val nextCursor = root["meta"]
             ?.jsonObjectOrNull()
@@ -125,7 +159,6 @@ object XBookmarksResponseParser {
     private fun JsonElement.toDraft(
         usersById: Map<String, XUser>,
         mediaByKey: Map<String, JsonObject>,
-        rawJson: String,
     ): ExternalFavoriteItemDraft? {
         val tweet = jsonObjectOrNull() ?: return null
         val id = tweet.string("id") ?: return null
@@ -148,20 +181,22 @@ object XBookmarksResponseParser {
         )
         val authorName = author?.name ?: author?.username.orEmpty()
         val hashInput = listOf(id, text, authorName, normalizedJson).joinToString("\n")
+        val canonicalUrl = xStatusUrl(id, author?.username)
+        val mediaUrls = media.mapNotNull { it.string("url") ?: it.string("preview_image_url") }.sorted()
 
         return ExternalFavoriteItemDraft(
             provider = ExternalFavoriteProvider.X.id,
             externalId = id,
-            canonicalUrl = xStatusUrl(id, author?.username),
+            canonicalUrl = canonicalUrl,
             title = text,
             text = text,
             authorName = authorName,
             sourceCreatedAt = createdAt,
             favoritedAt = null,
             normalizedJson = normalizedJson,
-            debugJson = rawJson,
+            debugJson = "",
             contentHash = sha256Hex(hashInput),
-            aiInputHash = sha256Hex(listOf(text, authorName, normalizedJson).joinToString("\n")),
+            aiInputHash = sha256Hex(aiInputHashText(id, canonicalUrl, text, authorName, createdAt, mediaUrls)),
         )
     }
 
@@ -216,6 +251,33 @@ private fun extractAccessToken(authJson: String): String? = runCatching {
 private fun parseInstantMillis(value: String): Long? = runCatching {
     Instant.parse(value).toEpochMilliseconds()
 }.getOrNull()
+
+private fun aiInputHashText(
+    externalId: String,
+    canonicalUrl: String?,
+    text: String,
+    authorName: String,
+    sourceCreatedAt: Long?,
+    mediaUrls: List<String>,
+): String = buildString {
+    appendLine(ExternalFavoriteProvider.X.id)
+    appendLine(externalId)
+    appendLine(canonicalUrl.orEmpty())
+    appendLine(text)
+    appendLine(authorName)
+    appendLine(sourceCreatedAt?.toString().orEmpty())
+    mediaUrls.forEach { appendLine(it) }
+}
+
+private fun Map<String, String>.headerValue(name: String): String? {
+    val target = name.lowercase()
+    return entries.firstOrNull { it.key.lowercase() == target }?.value?.takeIf { it.isNotBlank() }
+}
+
+private fun String.toRateLimitResetMillis(): Long? {
+    val value = trim().toLongOrNull() ?: return null
+    return if (value > 10_000_000_000L) value else value * 1_000L
+}
 
 private fun JsonObject.string(key: String): String? =
     get(key)?.jsonPrimitiveOrNull()?.contentOrNull
