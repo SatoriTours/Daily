@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -27,7 +28,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -44,19 +50,35 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
     val viewModel: ExternalFavoritesSettingsViewModel = koinViewModel()
     val state = viewModel.state.collectAsStateWithLifecycle().value
     val context = LocalContext.current
-    val addX = {
+    var showAddServiceDialog by remember { mutableStateOf(false) }
+    val connectX = {
         viewModel.createXAuthorizationUrl()?.let { url ->
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            runCatching {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            }.onFailure {
+                viewModel.showMessage("无法打开授权页面，请确认设备已安装浏览器")
+            }
         }
         Unit
+    }
+    val openAddServiceDialog = { showAddServiceDialog = true }
+
+    if (showAddServiceDialog) {
+        AddExternalFavoriteServiceDialog(
+            onDismiss = { showAddServiceDialog = false },
+            onConnectX = {
+                showAddServiceDialog = false
+                connectX()
+            },
+        )
     }
 
     AppScaffold(
         title = "外部收藏同步",
         onBack = onBack,
         actions = {
-            IconButton(onClick = addX) {
-                Icon(Icons.Default.Add, contentDescription = "连接 X")
+            IconButton(onClick = openAddServiceDialog) {
+                Icon(Icons.Default.Add, contentDescription = externalFavoriteAddServiceActionLabel())
             }
             IconButton(onClick = viewModel::markRestoredSourcesAuthCheckRequired) {
                 Icon(Icons.Default.Refresh, contentDescription = "重新验证授权")
@@ -66,16 +88,44 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
         if (state.sources.isEmpty()) {
             EmptyState(
                 icon = Icons.Default.Bookmark,
-                title = "暂无外部收藏来源",
-                subtitle = "通过 X 授权连接后，会定期同步到本地收藏。",
+                title = externalFavoriteEmptyStateTitle(),
+                subtitle = externalFavoriteEmptyStateSubtitle(state.message),
                 modifier = modifier.fillMaxSize(),
-                actionLabel = "连接 X",
-                onAction = addX,
+                actionLabel = externalFavoriteAddServiceActionLabel(),
+                onAction = openAddServiceDialog,
             )
         } else {
             ExternalFavoriteSourceList(state = state, viewModel = viewModel, modifier = modifier)
         }
     }
+}
+
+@Composable
+private fun AddExternalFavoriteServiceDialog(
+    onDismiss: () -> Unit,
+    onConnectX: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("添加外部收藏服务") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                Text(
+                    "选择要同步收藏的平台。当前版本先支持 X，后续 connector 可复用同一套同步流程。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(onClick = onConnectX, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Bookmark, contentDescription = null)
+                    Text("连接 X")
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
 }
 
 @Composable

@@ -21,6 +21,19 @@ class ExternalFavoritesSettingsTextTest {
     }
 
     @Test
+    fun emptyStatePromptsAddingExternalFavoriteService() {
+        assertEquals("添加外部收藏服务", externalFavoriteEmptyStateTitle())
+        assertEquals("添加服务", externalFavoriteAddServiceActionLabel())
+    }
+
+    @Test
+    fun emptyStateSubtitleIncludesVisibleMessageWhenActionFails() {
+        val subtitle = externalFavoriteEmptyStateSubtitle("请先配置 X OAuth Client ID")
+
+        assertTrue(subtitle.contains("请先配置 X OAuth Client ID"))
+    }
+
+    @Test
     fun healthLabelsUseActionableChineseText() {
         assertEquals("需要授权", externalFavoriteHealthLabel("needs_auth"))
         assertEquals("限流中", externalFavoriteHealthLabel("limited"))

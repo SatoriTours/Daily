@@ -110,6 +110,10 @@ class ExternalFavoritesSettingsViewModel(
         _state.update { state -> state.copy(message = "请先配置 X OAuth Client ID") }
     }.getOrNull()
 
+    fun showMessage(message: String) {
+        _state.update { it.copy(message = message) }
+    }
+
     private fun enqueueManualSync(sourceId: Long, mode: FavoriteSyncMode) {
         if (_state.value.syncingSourceId != null) return
         _state.update { it.copy(syncingSourceId = sourceId, message = null) }
@@ -143,6 +147,16 @@ class ExternalFavoritesSettingsViewModel(
 fun externalFavoriteSettingsRowTitle(): String = "外部收藏同步"
 
 fun externalFavoriteSettingsRowSubtitle(): String = "同步 X 等平台收藏到本地收藏"
+
+fun externalFavoriteEmptyStateTitle(): String = "添加外部收藏服务"
+
+fun externalFavoriteEmptyStateSubtitle(message: String? = null): String =
+    listOfNotNull(
+        "添加 X 等平台后，收藏会定期同步到本地收藏，并由 AI 整理内容。",
+        message?.takeIf { it.isNotBlank() },
+    ).joinToString("\n")
+
+fun externalFavoriteAddServiceActionLabel(): String = "添加服务"
 
 fun externalFavoritePeriodicSyncSubtitle(health: String): String = when (health) {
     "needs_auth" -> "需要重新授权后才能定期同步"
