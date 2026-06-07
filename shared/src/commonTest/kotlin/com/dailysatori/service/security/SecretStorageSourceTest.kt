@@ -11,10 +11,13 @@ class SecretStorageSourceTest {
         val ai = File("src/commonMain/kotlin/com/dailysatori/data/repository/AIConfigRepository.kt").readText()
         val mcp = File("src/commonMain/kotlin/com/dailysatori/data/repository/McpServerRepository.kt").readText()
         val remote = File("src/commonMain/kotlin/com/dailysatori/data/repository/RemoteNewsSourceRepository.kt").readText()
+        val externalFavorites =
+            File("src/commonMain/kotlin/com/dailysatori/data/repository/ExternalFavoriteSourceRepository.kt").readText()
 
         assertTrue(ai.contains("secretCipher.encrypt(apiToken)"))
         assertTrue(mcp.contains("secretCipher.encrypt(apiKey)"))
         assertTrue(remote.contains("secretCipher.encrypt(apiToken.trim())"))
+        assertTrue(externalFavorites.contains("secretCipher.encrypt(value)"))
     }
 
     @Test
@@ -22,15 +25,19 @@ class SecretStorageSourceTest {
         val ai = File("src/commonMain/kotlin/com/dailysatori/data/repository/AIConfigRepository.kt").readText()
         val mcp = File("src/commonMain/kotlin/com/dailysatori/data/repository/McpServerRepository.kt").readText()
         val remote = File("src/commonMain/kotlin/com/dailysatori/data/repository/RemoteNewsSourceRepository.kt").readText()
+        val externalFavorites =
+            File("src/commonMain/kotlin/com/dailysatori/data/repository/ExternalFavoriteSourceRepository.kt").readText()
         val app = File("../app/src/main/kotlin/com/dailysatori/DailySatoriApplication.kt").readText()
 
         assertTrue(ai.contains("fun encryptStoredSecrets()"))
         assertTrue(mcp.contains("fun encryptStoredSecrets()"))
         assertTrue(remote.contains("fun encryptStoredSecrets()"))
+        assertTrue(externalFavorites.contains("fun encryptStoredSecrets()"))
         assertTrue(app.contains("encryptStoredSecrets()"))
         assertTrue(app.contains("AIConfigRepository"))
         assertTrue(app.contains("McpServerRepository"))
         assertTrue(app.contains("RemoteNewsSourceRepository"))
+        assertTrue(app.contains("ExternalFavoriteSourceRepository"))
     }
 
     @Test
@@ -38,6 +45,8 @@ class SecretStorageSourceTest {
         val ai = File("src/commonMain/kotlin/com/dailysatori/data/repository/AIConfigRepository.kt").readText()
         val mcp = File("src/commonMain/kotlin/com/dailysatori/data/repository/McpServerRepository.kt").readText()
         val remote = File("src/commonMain/kotlin/com/dailysatori/data/repository/RemoteNewsSourceRepository.kt").readText()
+        val externalFavorites =
+            File("src/commonMain/kotlin/com/dailysatori/data/repository/ExternalFavoriteSourceRepository.kt").readText()
 
         assertTrue(ai.contains("decryptConfig"))
         assertTrue(ai.contains("secretCipher.decrypt(config.api_token)"))
@@ -45,6 +54,8 @@ class SecretStorageSourceTest {
         assertTrue(mcp.contains("secretCipher.decrypt(server.api_key)"))
         assertTrue(remote.contains("decryptSource"))
         assertTrue(remote.contains("secretCipher.decrypt(source.api_token)"))
+        assertTrue(externalFavorites.contains("decryptSource"))
+        assertTrue(externalFavorites.contains("secretCipher.decrypt(value)"))
     }
 
     @Test

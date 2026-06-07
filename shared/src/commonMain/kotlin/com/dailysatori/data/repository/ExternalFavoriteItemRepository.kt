@@ -130,6 +130,8 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
             title != draft.title ||
             text != draft.text ||
             author_name != draft.authorName ||
+            source_created_at != draft.sourceCreatedAt ||
+            favorited_at != draft.favoritedAt ||
             normalized_json != draft.normalizedJson ||
             debug_json != draft.debugJson
 

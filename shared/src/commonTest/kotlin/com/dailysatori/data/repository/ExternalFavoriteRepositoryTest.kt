@@ -113,6 +113,34 @@ class ExternalFavoriteRepositoryTest {
     }
 
     @Test
+    fun itemRepositoryTreatsSourceCreatedAtChangeAsChangedDraftContent() = withRepositories { db, sources, items ->
+        val articleRepository = ArticleRepository(db)
+        val sourceId = saveXSource(sources)
+        val originalDraft = xDraft(externalId = "post-1", title = "Same")
+        val (item, _) = items.upsertDraft(sourceId, originalDraft)
+        val articleId = articleRepository.insert(
+            title = "Imported",
+            aiContent = "Imported body",
+            url = "https://example.com/timestamp-reset",
+            isFavorite = 1,
+            status = "completed",
+        )
+        items.markImported(item.id, articleId, duplicateLinked = false)
+        items.markAiState(item.id, "completed")
+
+        val (changed, changedFlag) = items.upsertDraft(
+            sourceId,
+            originalDraft.copy(sourceCreatedAt = originalDraft.sourceCreatedAt?.plus(1_000)),
+        )
+
+        assertTrue(changedFlag)
+        assertEquals(originalDraft.sourceCreatedAt?.plus(1_000), changed.source_created_at)
+        assertEquals(articleId, changed.article_id)
+        assertEquals("not_imported", changed.import_status)
+        assertEquals("pending", changed.ai_status)
+    }
+
+    @Test
     fun pendingImportIncludesImportedItemsWhoseLinkedArticleWasDeleted() = withRepositories { db, sources, items ->
         val articleRepository = ArticleRepository(db)
         val sourceId = saveXSource(sources)

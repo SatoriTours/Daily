@@ -11,6 +11,7 @@ import com.dailysatori.core.worker.ArticleProcessingScheduler
 import com.dailysatori.core.worker.BackupScheduler
 import com.dailysatori.core.worker.UnifiedNewsScheduler
 import com.dailysatori.data.repository.AIConfigRepository
+import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.data.repository.SettingRepository
@@ -57,6 +58,7 @@ class DailySatoriApplication : Application() {
             get<AIConfigRepository>(AIConfigRepository::class.java).encryptStoredSecrets()
             get<McpServerRepository>(McpServerRepository::class.java).encryptStoredSecrets()
             get<RemoteNewsSourceRepository>(RemoteNewsSourceRepository::class.java).encryptStoredSecrets()
+            get<ExternalFavoriteSourceRepository>(ExternalFavoriteSourceRepository::class.java).encryptStoredSecrets()
         } catch (_: Exception) {}
     }
 }
