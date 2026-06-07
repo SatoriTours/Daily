@@ -35,6 +35,21 @@ X Bookmarks are read through X API v2:
 
 X Bookmarks are private user data. The app should only request read scopes in the first version and must make reauthorization clear if credentials expire or scopes are insufficient.
 
+## Provider Auth Config
+
+Provider-level OAuth configuration is separate from account-level secrets.
+
+For X, the first version uses OAuth 2.0 Authorization Code with PKCE as a public mobile client. The app must not store or require a client secret on device. The provider config contains non-user-secret values:
+
+- `provider`: `x`
+- `client_id`
+- `redirect_uri`
+- `scopes`: `bookmark.read tweet.read users.read offline.access`
+- `authorization_url`: `https://api.x.com/2/oauth2/authorize`
+- `token_url`: `https://api.x.com/2/oauth2/token`
+
+This config can be built into the X OAuth coordinator for the first version. `external_favorite_source.auth_json` stores only account-specific token data after authorization, not provider client configuration.
+
 ## User Experience
 
 Settings gains an "External Favorites" entry. The first source type is X. A user can add more than one account for the same provider; rows are displayed by provider plus account name.
@@ -54,6 +69,7 @@ Sync behavior:
 - Each imported item has enough local content to be readable even before AI processing finishes.
 - The source row shows states such as idle, syncing, needs auth, rate limited, failed, and last successful sync time.
 - The detail view can show counts for fetched items, imported articles, pending AI整理, and failed items so sync failures are not confused with AI failures.
+- First sync imports only a bounded recent window by default. A separate "import older bookmarks" action can continue history import in batches.
 
 First version non-goals:
 
@@ -112,7 +128,12 @@ Add `external_favorite_source`:
 - `last_sync_started_at`
 - `last_sync_completed_at`
 - `last_success_at`
+- `last_sync_window_started_at`
+- `last_items_seen_count`
+- `last_pages_seen_count`
 - `last_error`
+- `last_error_code`
+- `last_error_message`
 - `status`
 - `rate_limit_reset_at`
 - `auth_json`
@@ -141,11 +162,13 @@ Add `external_favorite_item`:
 - `favorited_at`
 - `raw_json`
 - `content_hash`
+- `ai_input_hash`
 - `article_id`
 - `sync_status`
 - `import_status`
 - `ai_status`
-- `error_message`
+- `last_error_code`
+- `last_error_message`
 - `first_seen_at`
 - `last_seen_at`
 - `created_at`
@@ -163,6 +186,8 @@ Suggested status values:
 - `ai_status`: `not_needed`, `pending`, `processing`, `completed`, `failed`.
 
 These statuses must remain independent. A synced X item can be imported successfully even if AI整理 fails, and an AI retry should not re-fetch X data.
+
+Use structured error codes for retry and UI logic, with human-readable messages kept separate. Suggested codes include `auth_missing_scope`, `auth_refresh_failed`, `rate_limited`, `network_timeout`, `invalid_payload`, `import_conflict`, `ai_config_missing`, and `ai_generation_failed`.
 
 ## Connector Interface
 
@@ -216,6 +241,8 @@ The connector only fetches and normalizes platform data. It must not write `arti
 
 The sync service passes an intended page limit, but each connector clamps it according to `capabilities.maxPageSize`. This avoids putting X-specific page-size or rate-limit rules in the generic sync engine.
 
+Each connector should expose or use provider-specific canonicalization rules. For X, all status URLs for the same Post should collapse to one canonical form regardless of `x.com`, `twitter.com`, `i/status`, username path, or tracking query parameters.
+
 ## X Connector Mapping
 
 For each bookmarked Post:
@@ -250,6 +277,12 @@ Local article import:
 
 If the Post contains external URLs, the first version records them inside Markdown. A later version can optionally enqueue external URL article parsing and link the parsed article back to the X favorite.
 
+Canonical URL rules:
+
+- Prefer `https://x.com/{username}/status/{postId}` when username is known.
+- Fall back to `https://x.com/i/status/{postId}`.
+- Treat `twitter.com`, `x.com`, `mobile.twitter.com`, and common tracking query variants as the same Post when the status id matches.
+
 ## Sync Flow
 
 `FavoriteSyncWorker` schedules and runs sync work. It should use unique work names per source so duplicate manual taps do not create concurrent syncs for the same account.
@@ -260,9 +293,9 @@ Per-source flow:
 2. Refresh OAuth token through the connector if needed and supported.
 3. Fetch pages from the connector, letting the connector clamp page size.
 4. For each page, upsert `external_favorite_item` by `(source_id, external_id)`.
-5. Stop early when a page contains only items already seen recently, unless this is a full resync.
+5. Stop early only after a conservative repeated-known threshold, unless this is a full or older-history import.
 6. Mark changed/new items for import.
-7. Update source sync status, timestamps, and rate-limit backoff.
+7. Update source sync status, timestamps, seen counts, page counts, and rate-limit backoff.
 8. Call `ExternalFavoriteImporter` for the changed/new items.
 9. Call `ExternalFavoriteAiOrganizer` for imported items that need AI整理 and fit the batch budget.
 
@@ -270,13 +303,39 @@ Pagination cursors are per run state. Do not rely on persisted X pagination toke
 
 Sync service completion means external data was fetched and stored. Import and AI整理 can partially fail without changing source `last_success_at` for the fetch phase. Their failures live on item-level statuses and can be retried independently.
 
+First-sync protection:
+
+- Default first sync imports a bounded recent window, such as 100 to 300 items.
+- Manual "import older bookmarks" continues in bounded batches.
+- Periodic sync never performs an unbounded historical import.
+- AI整理 has its own smaller per-run budget, so a large import does not produce a large immediate AI bill.
+
+Checkpoint and early-stop rules:
+
+- Each run records `last_sync_window_started_at`, `last_items_seen_count`, and `last_pages_seen_count`.
+- Default sync fetches up to a configured max page count or max item count.
+- Early stop is allowed only after consecutive known unchanged items or pages cross a threshold.
+- Full resync and older-history import ignore the normal early-stop threshold but still obey page, item, rate-limit, and battery/network limits.
+
+## Background Scheduling
+
+WorkManager-based automatic sync is best-effort, not real-time.
+
+Rules:
+
+- Manual sync is the deterministic user-controlled path.
+- Periodic sync should require network connectivity.
+- Periodic sync may be delayed by Android battery saver, Doze, low power, metered network policy, or WorkManager scheduling.
+- UI copy should say "automatic periodic sync" rather than "real-time sync".
+- Source rows should show last successful sync and last attempted sync so delays are visible.
+
 ## Import Flow
 
 `ExternalFavoriteImporter` is the only component that writes local articles for external favorite items.
 
 Import rules:
 
-- Match an existing local article by normalized `canonical_url` first.
+- Normalize provider URLs before matching, then match an existing local article by normalized `canonical_url` first.
 - If URL is missing or unstable, match by `content_hash` only within conservative provider-specific rules.
 - If an existing article is found, mark it favorite and fill only missing safe metadata.
 - If no article is found, create a favorite article with deterministic readable content.
@@ -284,6 +343,20 @@ Import rules:
 - Multiple external items from different sources may link to the same `article_id`.
 
 This keeps source identity and local dedupe separate. It also protects user-edited article fields from being overwritten by later syncs.
+
+Overwrite rules:
+
+- Never overwrite user-owned `comment` or manually edited tags during automatic import.
+- `is_favorite` may be set to `1`; absence from a later external sync must not set it back to `0`.
+- `title`, `pub_date`, and `cover_image_url` are filled only when local values are empty or clearly auto-generated.
+- `ai_title`, `ai_content`, and `ai_markdown_content` are overwritten only when `ai_input_hash` changes or the user explicitly requests reorganization.
+- If an existing article has richer content than the deterministic imported Markdown, preserve the richer local content.
+
+Collection semantics:
+
+- First version stores imported favorites as `article` rows because the existing favorites list and AI Chat context use articles.
+- `external_favorite_item` is the canonical cross-platform favorite object.
+- If the app later introduces a generic `collection_item` or knowledge-object table, `external_favorite_item` can migrate to that model while keeping local article links for backward compatibility.
 
 ## AI整理
 
@@ -297,6 +370,7 @@ Rules:
 - If no AI config exists, imported favorites remain readable and marked as pending AI without failing sync.
 - Existing article processing and X/Twitter Markdown helpers should be reused where practical, but connector imports should not depend on WebView extraction to succeed.
 - AI retries should operate from stored `external_favorite_item` plus linked `article`, not from another external API fetch.
+- `ai_input_hash` is computed from normalized provider, external id, text, canonical URL, media URLs, and relevant metadata. AI整理 runs only when that hash is new or changed.
 
 AI output should fill the existing article fields and tags:
 
@@ -312,16 +386,16 @@ The prompt should treat short social content differently from long articles: pre
 Source-level errors:
 
 - Missing or expired refresh token: set source `status = auth_required`.
-- Missing scope: set `auth_required` with a specific message mentioning `bookmark.read`.
-- Rate limit: set `rate_limited` and store `rateLimitResetAt` when available.
-- Network/server failure: retry through WorkManager with bounded attempts.
-- Unknown provider or unsupported capability: disable the affected source with an actionable settings error.
+- Missing scope: set `auth_required`, `last_error_code = auth_missing_scope`, and a specific message mentioning `bookmark.read`.
+- Rate limit: set `rate_limited`, `last_error_code = rate_limited`, and store `rateLimitResetAt` when available.
+- Network/server failure: set a structured error such as `network_timeout` and retry through WorkManager with bounded attempts.
+- Unknown provider or unsupported capability: disable the affected source with an actionable settings error and `last_error_code`.
 
 Item-level errors:
 
-- Invalid or empty item: store raw item with `sync_status = skipped` and an error message.
-- Article insert conflict: link to the existing article by URL or content hash.
-- AI failure: keep the article and item; mark AI status failed separately so sync does not repeatedly reimport the same item.
+- Invalid or empty item: store sanitized raw item with `sync_status = skipped`, `last_error_code = invalid_payload`, and a display-safe message.
+- Article insert conflict: link to the existing article by URL or content hash, or mark `import_status = failed` with `last_error_code = import_conflict`.
+- AI failure: keep the article and item; set `ai_status = failed` and a structured AI error so sync does not repeatedly reimport the same item.
 - Duplicate across accounts: link both external items to the same local article when URL/content matching is confident.
 
 Local favorites should not be removed just because a later sync does not see an item. Absence can mean pagination window, API behavior, permission changes, or user unbookmarking; deletion sync is outside first-version scope.
@@ -329,24 +403,27 @@ Local favorites should not be removed just because a later sync does not see an 
 ## Privacy and Security
 
 - Store access tokens and refresh tokens encrypted with `SecretCipher`.
-- Do not log tokens, OAuth callback codes, raw Authorization headers, or full raw JSON in normal logs.
+- Do not log tokens, OAuth callback codes, raw Authorization headers, full raw JSON, or full response bodies in normal logs.
 - Only request read scopes for the first version.
 - Make it clear in UI that imported X content becomes local app data.
 - Preserve local-first behavior: sync is optional, and disabling a source stops future sync without deleting imported local favorites.
 - Keep OAuth callback handling in Android code and avoid storing authorization codes after token exchange.
 - Redact raw provider payloads from bug-report/export surfaces unless the user explicitly includes local app data.
+- `raw_json` stores only fields required for display, import, reorganization, and debugging. Do not persist entire HTTP responses.
+- If provider payloads become large, truncate nonessential fields or introduce compression only after evaluating database size, backup size, and restore compatibility.
+- Backup/export documentation should state that external favorite records may contain imported social content and metadata.
 
 ## Completeness Checks
 
 The design covers the first-version lifecycle end to end:
 
 - Source onboarding: Android OAuth, source storage, encrypted credentials, multi-account uniqueness.
-- Fetching: connector registry, provider capabilities, pagination, token refresh, rate-limit status.
-- Persistence: source records, source-scoped external items, independent sync/import/AI states.
-- Import: deterministic local favorite creation, existing article dedupe, cross-account item linking.
-- AI整理: bounded queue, no-AI fallback, retry from local stored data, social-content-specific prompt behavior.
-- Operations: manual sync, periodic sync, unique work per source, partial failure isolation.
-- Privacy: read-only scopes, encrypted secrets, no token logging, optional sync.
+- Fetching: connector registry, provider capabilities, pagination, token refresh, rate-limit status, first-sync limits, conservative checkpoints.
+- Persistence: source records, source-scoped external items, independent sync/import/AI states, structured errors, sanitized payloads.
+- Import: deterministic local favorite creation, provider URL canonicalization, existing article dedupe, cross-account item linking, overwrite protection.
+- AI整理: bounded queue, no-AI fallback, retry from local stored data, social-content-specific prompt behavior, `ai_input_hash` idempotency.
+- Operations: manual sync, best-effort periodic sync, unique work per source, partial failure isolation, visible sync attempts.
+- Privacy: read-only scopes, encrypted secrets, no token logging, optional sync, raw payload minimization.
 
 First-version decision: keep item-level `ai_status` and update article fields when AI succeeds. Do not reuse the existing article-processing status as the source of truth for external favorite AI state, because article status currently serves multiple workflows.
 
@@ -358,17 +435,23 @@ Unit tests:
 - Connector registry returns the X connector and rejects unknown providers.
 - Source repository encrypts/decrypts auth JSON.
 - Item repository upserts by `(source_id, external_id)` and links article ids.
-- Importer creates favorite local articles and dedupes by canonical URL.
+- Importer creates favorite local articles and dedupes by canonical provider URL.
+- X URL canonicalizer treats `x.com`, `twitter.com`, `mobile.twitter.com`, `/i/status`, username status paths, and tracking query variants for the same status id as one canonical URL.
+- Importer preserves user-owned fields and does not overwrite richer local content during automatic import.
+- `ai_input_hash` prevents repeated AI整理 for unchanged external items.
 - Two X sources can sync the same post without overwriting each other's external item rows, while linking to one local article when URL matching is confident.
 - Sync service stops early on known items and does not fail the whole run on one bad item.
+- First sync respects the bounded import window, and older-history import continues in batches.
 - Import and AI failures do not turn a successful fetch into a failed source sync.
 - Auth-required and rate-limit responses update source status.
+- Structured error codes drive retry/UI behavior without parsing display text.
 
 Worker/UI tests:
 
 - Manual sync enqueues unique work for a source.
-- Periodic sync only includes enabled sources.
+- Periodic sync only includes enabled sources and requires network connectivity.
 - Settings screen displays source status, last sync, and actionable auth errors.
+- UI does not present periodic sync as real-time.
 
 Manual verification:
 
@@ -385,10 +468,11 @@ This design is one implementation slice:
 2. Repository models and encrypted auth storage.
 3. Android OAuth coordinator for X authorization and callback handling.
 4. Connector abstraction, capabilities, registry, and X connector.
-5. Sync service and WorkManager scheduling.
-6. External favorite importer and local article linking.
-7. AI整理 queue integration with bounded batches.
-8. Settings UI for X source setup, status, manual sync, and enable/disable.
-9. Focused tests for mapping, persistence, dedupe, sync, import, AI state, and UI state.
+5. Provider auth config, X URL canonicalizer, and sanitized payload mapping.
+6. Sync service, checkpoint policy, first-sync limit, and WorkManager scheduling constraints.
+7. External favorite importer, overwrite rules, and local article linking.
+8. AI整理 queue integration with bounded batches and `ai_input_hash`.
+9. Settings UI for X source setup, status, manual sync, older-history import, and enable/disable.
+10. Focused tests for mapping, persistence, dedupe, sync, import, AI state, and UI state.
 
 Future slices can add bookmark folders, bidirectional write support, non-X connectors, external URL expansion from social posts, and user-configurable connector definitions.
