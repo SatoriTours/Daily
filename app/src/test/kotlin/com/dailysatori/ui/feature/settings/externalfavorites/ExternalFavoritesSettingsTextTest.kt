@@ -29,4 +29,18 @@ class ExternalFavoritesSettingsTextTest {
         assertEquals("未同步", externalFavoriteHealthLabel("never_synced"))
         assertEquals("正常", externalFavoriteHealthLabel("healthy"))
     }
+
+    @Test
+    fun reEnablePreservesActionRequiredStatus() {
+        assertEquals("auth_required", externalFavoriteStatusAfterToggle("auth_required", enabled = true))
+        assertEquals("auth_check_required", externalFavoriteStatusAfterToggle("auth_check_required", enabled = true))
+        assertEquals("rate_limited", externalFavoriteStatusAfterToggle("rate_limited", enabled = true))
+        assertEquals("failed", externalFavoriteStatusAfterToggle("failed", enabled = true))
+    }
+
+    @Test
+    fun reEnableOnlyRestoresPausedSourceToIdle() {
+        assertEquals("idle", externalFavoriteStatusAfterToggle("paused", enabled = true))
+        assertEquals("paused", externalFavoriteStatusAfterToggle("idle", enabled = false))
+    }
 }

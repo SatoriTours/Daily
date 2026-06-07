@@ -64,7 +64,7 @@ class ExternalFavoritesSettingsViewModel(
                 authJson = source.auth_json,
                 enabled = enabled,
                 syncIntervalMinutes = source.sync_interval_minutes,
-                status = if (enabled) ExternalSourceStatus.idle.name else ExternalSourceStatus.paused.name,
+                status = externalFavoriteStatusAfterToggle(source.status, enabled),
                 configJson = source.config_json,
                 capabilitiesJson = source.capabilities_json,
             )
@@ -152,4 +152,10 @@ fun externalFavoriteHealthLabel(health: String): String = when (health) {
     "failing" -> "异常"
     "never_synced" -> "未同步"
     else -> "正常"
+}
+
+fun externalFavoriteStatusAfterToggle(currentStatus: String, enabled: Boolean): String = when {
+    !enabled -> ExternalSourceStatus.paused.name
+    currentStatus == ExternalSourceStatus.paused.name -> ExternalSourceStatus.idle.name
+    else -> currentStatus
 }
