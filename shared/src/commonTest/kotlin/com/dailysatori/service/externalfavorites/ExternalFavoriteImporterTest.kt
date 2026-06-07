@@ -106,6 +106,49 @@ class ExternalFavoriteImporterTest {
     }
 
     @Test
+    fun importerCompletesExistingArticleWhilePreservingCommentAndRicherMarkdown() = withRepositories { _, sources, items, articles ->
+        val canonicalUrl = "https://x.com/daily/status/301"
+        val existingMarkdown = """
+            # Existing Pending Analysis
+
+            This existing markdown has already been expanded with a longer user-reviewed note,
+            so importing a shorter deterministic favorite should keep it in place.
+        """.trimIndent()
+        val articleId = articles.insert(
+            title = "Existing pending title",
+            aiContent = "Existing pending summary",
+            aiMarkdownContent = existingMarkdown,
+            url = canonicalUrl,
+            isFavorite = 0,
+            comment = "keep this user comment",
+            status = "pending",
+        )
+        val sourceId = saveXSource(sources)
+        items.upsertDraft(
+            sourceId,
+            xDraft(
+                externalId = "post-301",
+                canonicalUrl = canonicalUrl,
+                text = "Short import text.",
+            ),
+        )
+
+        val imported = ExternalFavoriteImporter(items, articles).importPending()
+
+        assertEquals(1, imported)
+        val article = articles.getById(articleId)
+        assertNotNull(article)
+        assertEquals(1, article.is_favorite)
+        assertEquals("completed", article.status)
+        assertEquals("keep this user comment", article.comment)
+        assertEquals(existingMarkdown, article.ai_markdown_content)
+
+        val item = items.getBySource(sourceId).single()
+        assertEquals(articleId, item.article_id)
+        assertEquals("duplicate_linked", item.import_status)
+    }
+
+    @Test
     fun itemWithoutCanonicalUrlIsMarkedImportFailed() = withRepositories { _, sources, items, articles ->
         val sourceId = saveXSource(sources)
         items.upsertDraft(sourceId, xDraft(externalId = "post-missing-url", canonicalUrl = null))

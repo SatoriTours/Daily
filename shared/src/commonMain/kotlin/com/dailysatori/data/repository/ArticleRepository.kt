@@ -220,7 +220,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
             url = existing.url ?: url,
             isFavorite = 1,
             comment = existing.comment,
-            status = existing.status?.ifBlank { "completed" } ?: "completed",
+            status = "completed",
             coverImage = existing.cover_image,
             coverImageUrl = existing.cover_image_url,
             pubDate = existing.pub_date ?: pubDate,
