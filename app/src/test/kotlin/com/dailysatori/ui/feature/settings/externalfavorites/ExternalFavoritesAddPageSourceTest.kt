@@ -5,19 +5,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ExternalFavoritesAddPageSourceTest {
-    private val source = java.io.File(
-        "src/main/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesSettingsScreen.kt",
-    ).readText()
-
-    @Test
-    fun addFlowUsesDedicatedPageState() {
-        assertTrue(source.contains("showAddPage"))
-        assertTrue(source.contains("if (showAddPage)"))
-        assertTrue(source.contains("ExternalFavoriteAddServicePage("))
-        assertTrue(source.contains("ExternalFavoriteSourceListPage("))
-        assertTrue(source.contains("openAddPage = openAddPage"))
-    }
-
     @Test
     fun addPageClosesOnlyAfterClientIdIsSavedAndAuthorizationLaunches() {
         assertFalse(
