@@ -62,9 +62,8 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
             }.onFailure {
                 viewModel.showMessage("无法打开授权页面，请确认设备已安装浏览器")
-            }
-        }
-        Unit
+            }.isSuccess
+        } ?: false
     }
     val openAddPage = { showAddPage = true }
 
@@ -74,9 +73,8 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
             viewModel = viewModel,
             onBack = { showAddPage = false },
             onConnectX = {
-                if (viewModel.saveXOAuthClientIdForConnect()) {
+                if (viewModel.saveXOAuthClientIdForConnect() && connectX()) {
                     showAddPage = false
-                    connectX()
                 }
             },
         )
