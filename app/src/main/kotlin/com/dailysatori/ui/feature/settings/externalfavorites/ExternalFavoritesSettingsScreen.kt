@@ -31,7 +31,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -293,7 +292,7 @@ private fun ExternalFavoriteSourceCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Switch(checked = item.enabled, onCheckedChange = onToggleEnabled)
+                androidx.compose.material3.Switch(checked = item.enabled, onCheckedChange = onToggleEnabled)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
                 ExternalFavoriteChip(externalFavoriteHealthLabel(item.health))

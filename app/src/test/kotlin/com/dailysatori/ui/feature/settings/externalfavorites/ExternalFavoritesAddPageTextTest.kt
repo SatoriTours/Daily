@@ -17,7 +17,9 @@ class ExternalFavoritesAddPageTextTest {
     @Test
     fun addPageExplainsPostAuthorizationSyncWithoutPretendingToSaveIt() {
         assertEquals("授权成功后启用定期同步", externalFavoriteAddPageSyncNoteTitle())
-        assertTrue(externalFavoriteAddPageSyncNoteText().contains("授权成功"))
-        assertTrue(externalFavoriteAddPageSyncNoteText().contains("来源列表"))
+        assertEquals(
+            "授权成功后，新来源会出现在来源列表，可在那里停用定期同步、手动同步或导入历史收藏。",
+            externalFavoriteAddPageSyncNoteText(),
+        )
     }
 }
