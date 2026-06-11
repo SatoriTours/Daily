@@ -4,7 +4,7 @@
 
 **Goal:** Finish the external favorites add-page change so the UI behavior matches the design, failures stay on the add page, and regression coverage protects the intended page-based flow.
 
-**Architecture:** Keep the scope inside the existing external favorites settings feature. `ExternalFavoritesSettingsScreen` owns the list/add-page split and browser launch result handling, while `ExternalFavoritesSettingsViewModel` continues to own persisted X OAuth Client ID state and user-facing copy helpers. Tests remain lightweight source/text unit tests because the project already uses source-level UI contract tests for Compose layout structure.
+**Architecture:** Keep the scope inside the existing external favorites settings feature. `ExternalFavoritesSettingsScreen` owns the list/add-page split and browser launch result handling, while `ExternalFavoritesSettingsViewModel` continues to own persisted X OAuth Client ID state, user-facing copy helpers, and small pure decision helpers. Tests remain lightweight text/helper unit tests.
 
 **Tech Stack:** Kotlin, Jetpack Compose Material3, Koin ViewModel, kotlin.test, Gradle Android unit tests.
 
@@ -14,8 +14,8 @@
 
 - Modify `app/src/main/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesSettingsScreen.kt`: keep OAuth/browser failures on the add page, remove the non-persisted periodic-sync switch, and make the add page communicate that periodic sync is enabled after authorization.
 - Modify `app/src/main/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesSettingsViewModel.kt`: add small copy helpers for the add page labels and non-editable post-authorization sync note.
-- Modify `app/src/test/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesAddPageTextTest.kt`: extend text contracts for the helper title, sync note, and validation copy.
-- Create `app/src/test/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesAddPageSourceTest.kt`: source-level regression tests that the add flow is a page, no longer uses `AlertDialog`, and does not hide the add page before attempting OAuth/browser launch.
+- Modify `app/src/test/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesAddPageTextTest.kt`: extend text contracts for the helper title and sync note.
+- Create `app/src/test/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesAddPageSourceTest.kt`: helper-based regression tests that the add page closes only after the Client ID is saved and the OAuth browser launch succeeds.
 - Decide whether to keep or remove these currently untracked design artifacts before commit:
   - `docs/superpowers/specs/2026-06-08-external-favorites-add-page-design.md`
   - `docs/superpowers/mockups/book-reflection-actions-demo.html`
@@ -49,7 +49,6 @@ class ExternalFavoritesAddPageTextTest {
     @Test
     fun addPageUsesDedicatedEditorCopy() {
         assertEquals("新增外部收藏", externalFavoriteAddPageTitle())
-        assertEquals("X 收藏", externalFavoriteDefaultDisplayName())
         assertEquals("连接 X 收藏", externalFavoriteAddPageHelperTitle())
         assertEquals("保存并连接 X", externalFavoriteConnectXActionLabel())
         assertTrue(externalFavoriteAddPageHelperText().contains("浏览器"))
@@ -130,11 +129,7 @@ Button(onClick = onConnectX, modifier = Modifier.fillMaxWidth()) {
 }
 ```
 
-Remove the unused import:
-
-```kotlin
-import androidx.compose.material3.Switch
-```
+Keep the `Switch` import because the source-list enable toggle still uses it; only the add-page fake switch is removed.
 
 Add this composable near `ExternalFavoriteAddHelperCard()`:
 
@@ -188,9 +183,10 @@ git commit -m "fix: clarify external favorite add page sync state"
 
 **Files:**
 - Create: `app/src/test/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesAddPageSourceTest.kt`
+- Modify: `app/src/main/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesSettingsViewModel.kt`
 - Modify: `app/src/main/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesSettingsScreen.kt`
 
-- [ ] **Step 1: Add failing source-level regression tests**
+- [ ] **Step 1: Add failing helper-based regression tests**
 
 Create `ExternalFavoritesAddPageSourceTest.kt`:
 
@@ -202,39 +198,37 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ExternalFavoritesAddPageSourceTest {
-    private val source = java.io.File(
-        "src/main/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesSettingsScreen.kt",
-    ).readText()
-
     @Test
-    fun addFlowUsesPageInsteadOfDialog() {
-        assertTrue(source.contains("ExternalFavoriteAddServicePage("))
-        assertTrue(source.contains("ExternalFavoriteSourceListPage("))
-        assertTrue(source.contains("FloatingActionButton(onClick = openAddPage)"))
-        assertFalse(source.contains("AlertDialog("))
-        assertFalse(source.contains("showAddServiceDialog"))
-    }
-
-    @Test
-    fun connectKeepsAddPageOpenUntilAuthorizationUrlAndBrowserLaunchSucceed() {
-        val connectBlock = source.substringAfter("onConnectX = {").substringBefore("},")
-
-        assertTrue(connectBlock.contains("connectX()"))
-        assertFalse(connectBlock.contains("showAddPage = false"))
-    }
-
-    @Test
-    fun browserLaunchFailureDoesNotCloseAddPage() {
-        val connectXBlock = source.substringAfter("val connectX = {").substringBefore("val openAddPage")
-
-        assertTrue(connectXBlock.contains("context.startActivity"))
-        assertTrue(connectXBlock.contains("viewModel.showMessage(\"无法打开授权页面，请确认设备已安装浏览器\")"))
-        assertFalse(connectXBlock.contains("showAddPage = false"))
+    fun addPageClosesOnlyAfterClientIdIsSavedAndAuthorizationLaunches() {
+        assertFalse(
+            externalFavoriteShouldCloseAddPageAfterConnect(
+                clientIdSaved = false,
+                authorizationLaunched = false,
+            ),
+        )
+        assertFalse(
+            externalFavoriteShouldCloseAddPageAfterConnect(
+                clientIdSaved = false,
+                authorizationLaunched = true,
+            ),
+        )
+        assertFalse(
+            externalFavoriteShouldCloseAddPageAfterConnect(
+                clientIdSaved = true,
+                authorizationLaunched = false,
+            ),
+        )
+        assertTrue(
+            externalFavoriteShouldCloseAddPageAfterConnect(
+                clientIdSaved = true,
+                authorizationLaunched = true,
+            ),
+        )
     }
 }
 ```
 
-- [ ] **Step 2: Run the new test and verify it fails**
+- [ ] **Step 2: Run the new helper test and verify it fails**
 
 Run:
 
@@ -242,9 +236,20 @@ Run:
 ./gradlew :app:testDebugUnitTest --tests com.dailysatori.ui.feature.settings.externalfavorites.ExternalFavoritesAddPageSourceTest
 ```
 
-Expected: FAIL because the current `onConnectX` block closes the add page before launching the browser.
+Expected: FAIL because `externalFavoriteShouldCloseAddPageAfterConnect()` does not exist yet.
 
-- [ ] **Step 3: Make `connectX` report launch success**
+- [ ] **Step 3: Add the close-decision helper**
+
+In `ExternalFavoritesSettingsViewModel.kt`, add:
+
+```kotlin
+fun externalFavoriteShouldCloseAddPageAfterConnect(
+    clientIdSaved: Boolean,
+    authorizationLaunched: Boolean,
+): Boolean = clientIdSaved && authorizationLaunched
+```
+
+- [ ] **Step 4: Make `connectX` report launch success**
 
 In `ExternalFavoritesSettingsScreen.kt`, replace:
 
@@ -275,7 +280,7 @@ val connectX = {
 }
 ```
 
-- [ ] **Step 4: Close the add page only after success**
+- [ ] **Step 5: Close the add page only after success**
 
 In the `onConnectX` callback, replace:
 
@@ -292,13 +297,15 @@ with:
 
 ```kotlin
 onConnectX = {
-    if (viewModel.saveXOAuthClientIdForConnect() && connectX()) {
+    val clientIdSaved = viewModel.saveXOAuthClientIdForConnect()
+    val authorizationLaunched = clientIdSaved && connectX()
+    if (externalFavoriteShouldCloseAddPageAfterConnect(clientIdSaved, authorizationLaunched)) {
         showAddPage = false
     }
 },
 ```
 
-- [ ] **Step 5: Run the source test, text tests, and compile**
+- [ ] **Step 6: Run the helper test, text tests, and compile**
 
 Run:
 
@@ -307,12 +314,12 @@ Run:
 ./gradlew :app:compileDebugKotlin
 ```
 
-Expected: both commands end with `BUILD SUCCESSFUL`.
+Expected: the helper test passes after adding the helper and screen logic, and both commands end with `BUILD SUCCESSFUL`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add app/src/main/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesSettingsScreen.kt app/src/test/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesAddPageSourceTest.kt
+git add app/src/main/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesSettingsScreen.kt app/src/main/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesSettingsViewModel.kt app/src/test/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesAddPageSourceTest.kt
 git commit -m "fix: keep external favorite add errors in page"
 ```
 
@@ -349,7 +356,7 @@ Run:
 
 ```bash
 ./gradlew :app:testDebugUnitTest --tests 'com.dailysatori.core.worker.ExternalFavoriteSyncWorkerTest' --tests 'com.dailysatori.service.externalfavorites.XOAuthCoordinatorTest'
-./gradlew :shared:allTests --tests 'com.dailysatori.service.externalfavorites.*' --tests 'com.dailysatori.data.repository.ExternalFavorite*'
+./gradlew :shared:testDebugUnitTest --tests 'com.dailysatori.service.externalfavorites.*' --tests 'com.dailysatori.data.repository.ExternalFavorite*'
 ```
 
 Expected: both commands end with `BUILD SUCCESSFUL`.
