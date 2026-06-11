@@ -10,12 +10,12 @@ class ExternalFavoritesAddPageSourceTest {
     ).readText()
 
     @Test
-    fun addFlowUsesPageInsteadOfDialog() {
+    fun addFlowUsesDedicatedPageState() {
+        assertTrue(source.contains("showAddPage"))
+        assertTrue(source.contains("if (showAddPage)"))
         assertTrue(source.contains("ExternalFavoriteAddServicePage("))
         assertTrue(source.contains("ExternalFavoriteSourceListPage("))
-        assertTrue(source.contains("FloatingActionButton(onClick = openAddPage)"))
-        assertFalse(source.contains("AlertDialog("))
-        assertFalse(source.contains("showAddServiceDialog"))
+        assertTrue(source.contains("openAddPage = openAddPage"))
     }
 
     @Test
