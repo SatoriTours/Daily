@@ -184,6 +184,19 @@ fun externalFavoriteEmptyStateSubtitle(message: String? = null): String =
 
 fun externalFavoriteAddServiceActionLabel(): String = "添加服务"
 
+fun externalFavoriteAddPageTitle(): String = "新增外部收藏"
+
+fun externalFavoriteDefaultDisplayName(): String = "X 收藏"
+
+fun externalFavoriteAddPageHelperTitle(): String = "连接 X 收藏"
+
+fun externalFavoriteAddPageHelperText(): String = "填写 OAuth Client ID 后，会打开浏览器完成 X 授权。授权成功后，收藏会定期同步到本地收藏。"
+
+fun externalFavoriteAddPageSyncNoteTitle(): String = "授权成功后启用定期同步"
+
+fun externalFavoriteAddPageSyncNoteText(): String =
+    "授权成功后，新来源会出现在来源列表，可在那里停用定期同步、手动同步或导入历史收藏。"
+
 fun externalFavoriteXClientIdLabel(): String = "X OAuth Client ID"
 
 fun externalFavoriteConnectXActionLabel(): String = "保存并连接 X"

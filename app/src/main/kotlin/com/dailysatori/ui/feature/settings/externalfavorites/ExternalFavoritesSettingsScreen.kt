@@ -11,16 +11,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +55,7 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
     val viewModel: ExternalFavoritesSettingsViewModel = koinViewModel()
     val state = viewModel.state.collectAsStateWithLifecycle().value
     val context = LocalContext.current
-    var showAddServiceDialog by remember { mutableStateOf(false) }
+    var showAddPage by remember { mutableStateOf(false) }
     val connectX = {
         viewModel.createXAuthorizationUrl()?.let { url ->
             runCatching {
@@ -62,32 +66,48 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
         }
         Unit
     }
-    val openAddServiceDialog = { showAddServiceDialog = true }
+    val openAddPage = { showAddPage = true }
 
-    if (showAddServiceDialog) {
-        AddExternalFavoriteServiceDialog(
-            clientId = state.xOAuthClientId,
-            message = state.message,
-            onClientIdChange = viewModel::updateXOAuthClientId,
-            onDismiss = { showAddServiceDialog = false },
+    if (showAddPage) {
+        ExternalFavoriteAddServicePage(
+            state = state,
+            viewModel = viewModel,
+            onBack = { showAddPage = false },
             onConnectX = {
                 if (viewModel.saveXOAuthClientIdForConnect()) {
-                    showAddServiceDialog = false
+                    showAddPage = false
                     connectX()
                 }
             },
         )
+    } else {
+        ExternalFavoriteSourceListPage(
+            state = state,
+            viewModel = viewModel,
+            onBack = onBack,
+            openAddPage = openAddPage,
+        )
     }
+}
 
+@Composable
+private fun ExternalFavoriteSourceListPage(
+    state: ExternalFavoritesSettingsState,
+    viewModel: ExternalFavoritesSettingsViewModel,
+    onBack: () -> Unit,
+    openAddPage: () -> Unit,
+) {
     AppScaffold(
         title = "外部收藏同步",
         onBack = onBack,
         actions = {
-            IconButton(onClick = openAddServiceDialog) {
-                Icon(Icons.Default.Add, contentDescription = externalFavoriteAddServiceActionLabel())
-            }
             IconButton(onClick = viewModel::markRestoredSourcesAuthCheckRequired) {
                 Icon(Icons.Default.Refresh, contentDescription = "重新验证授权")
+            }
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = openAddPage) {
+                Icon(Icons.Default.Add, contentDescription = externalFavoriteAddServiceActionLabel())
             }
         },
     ) { modifier ->
@@ -98,7 +118,7 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
                 subtitle = externalFavoriteEmptyStateSubtitle(state.message),
                 modifier = modifier.fillMaxSize(),
                 actionLabel = externalFavoriteAddServiceActionLabel(),
-                onAction = openAddServiceDialog,
+                onAction = openAddPage,
             )
         } else {
             ExternalFavoriteSourceList(state = state, viewModel = viewModel, modifier = modifier)
@@ -107,48 +127,102 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
 }
 
 @Composable
-private fun AddExternalFavoriteServiceDialog(
-    clientId: String,
-    message: String?,
-    onClientIdChange: (String) -> Unit,
-    onDismiss: () -> Unit,
+private fun ExternalFavoriteAddServicePage(
+    state: ExternalFavoritesSettingsState,
+    viewModel: ExternalFavoritesSettingsViewModel,
+    onBack: () -> Unit,
     onConnectX: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("添加外部收藏服务") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                Text(
-                    "选择要同步收藏的平台。当前版本先支持 X。",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedTextField(
-                    value = clientId,
-                    onValueChange = onClientIdChange,
-                    label = { Text(externalFavoriteXClientIdLabel()) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                message?.takeIf { it.isNotBlank() }?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                OutlinedButton(onClick = onConnectX, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.Bookmark, contentDescription = null)
-                    Text(externalFavoriteConnectXActionLabel())
-                }
+    var displayName by remember { mutableStateOf(externalFavoriteDefaultDisplayName()) }
+    AppScaffold(
+        title = externalFavoriteAddPageTitle(),
+        onBack = onBack,
+    ) { modifier ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(Spacing.m)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(Spacing.m),
+        ) {
+            ExternalFavoriteAddHelperCard()
+            OutlinedTextField(
+                value = displayName,
+                onValueChange = { displayName = it },
+                label = { Text("名称") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            OutlinedTextField(
+                value = state.xOAuthClientId,
+                onValueChange = viewModel::updateXOAuthClientId,
+                label = { Text(externalFavoriteXClientIdLabel()) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            ExternalFavoriteAddSyncNote()
+            state.message?.takeIf { it.isNotBlank() }?.let { ExternalFavoriteMessage(it) }
+            Button(onClick = onConnectX, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.Bookmark, contentDescription = null)
+                Text(externalFavoriteConnectXActionLabel())
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
-        },
-    )
+            TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+                Text("取消")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExternalFavoriteAddSyncNote() {
+    Surface(
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+        ) {
+            Text(
+                externalFavoriteAddPageSyncNoteTitle(),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                externalFavoriteAddPageSyncNoteText(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExternalFavoriteAddHelperCard() {
+    Surface(
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                Text(
+                    externalFavoriteAddPageHelperTitle(),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    externalFavoriteAddPageHelperText(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+        }
+    }
 }
 
 @Composable
