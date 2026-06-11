@@ -73,7 +73,9 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
             viewModel = viewModel,
             onBack = { showAddPage = false },
             onConnectX = {
-                if (viewModel.saveXOAuthClientIdForConnect() && connectX()) {
+                val clientIdSaved = viewModel.saveXOAuthClientIdForConnect()
+                val authorizationLaunched = if (clientIdSaved) connectX() else false
+                if (externalFavoriteShouldCloseAddPageAfterConnect(clientIdSaved, authorizationLaunched)) {
                     showAddPage = false
                 }
             },

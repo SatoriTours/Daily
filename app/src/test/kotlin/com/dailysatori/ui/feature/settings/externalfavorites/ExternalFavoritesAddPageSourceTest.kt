@@ -19,22 +19,30 @@ class ExternalFavoritesAddPageSourceTest {
     }
 
     @Test
-    fun connectKeepsAddPageOpenUntilAuthorizationUrlAndBrowserLaunchSucceed() {
-        val connectBlock = source.substringAfter("onConnectX = {").substringBefore("},")
-
-        assertTrue(connectBlock.contains("viewModel.saveXOAuthClientIdForConnect() && connectX()"))
-        assertTrue(connectBlock.contains("showAddPage = false"))
-        assertFalse(connectBlock.contains("showAddPage = false\n                    connectX()"))
-    }
-
-    @Test
-    fun browserLaunchFailureDoesNotCloseAddPage() {
-        val connectXBlock = source.substringAfter("val connectX = {").substringBefore("val openAddPage")
-
-        assertTrue(connectXBlock.contains("context.startActivity"))
-        assertTrue(connectXBlock.contains("viewModel.showMessage(\"无法打开授权页面，请确认设备已安装浏览器\")"))
-        assertTrue(connectXBlock.contains(".isSuccess"))
-        assertTrue(connectXBlock.contains("?: false"))
-        assertFalse(connectXBlock.contains("showAddPage = false"))
+    fun addPageClosesOnlyAfterClientIdIsSavedAndAuthorizationLaunches() {
+        assertFalse(
+            externalFavoriteShouldCloseAddPageAfterConnect(
+                clientIdSaved = false,
+                authorizationLaunched = false,
+            ),
+        )
+        assertFalse(
+            externalFavoriteShouldCloseAddPageAfterConnect(
+                clientIdSaved = false,
+                authorizationLaunched = true,
+            ),
+        )
+        assertFalse(
+            externalFavoriteShouldCloseAddPageAfterConnect(
+                clientIdSaved = true,
+                authorizationLaunched = false,
+            ),
+        )
+        assertTrue(
+            externalFavoriteShouldCloseAddPageAfterConnect(
+                clientIdSaved = true,
+                authorizationLaunched = true,
+            ),
+        )
     }
 }
