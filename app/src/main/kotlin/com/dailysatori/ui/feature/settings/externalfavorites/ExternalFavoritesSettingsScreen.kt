@@ -337,7 +337,7 @@ private fun ExternalFavoriteSourceCard(
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     Text(source.display_name, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        listOf(source.provider.uppercase(), source.account_name.ifBlank { source.account_id }).joinToString(" / "),
+                        externalFavoriteAccountIdentity(source.account_name, source.account_id),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -353,6 +353,20 @@ private fun ExternalFavoriteSourceCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            externalFavoriteSeenCountText(source.last_items_seen_count, source.last_pages_seen_count)?.let { countText ->
+                Text(
+                    countText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (item.health == "limited") {
+                Text(
+                    externalFavoriteRateLimitText(source.rate_limit_reset_at),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             if (source.last_error_message.isNotBlank()) {
                 Text(
                     source.last_error_message,
@@ -362,16 +376,24 @@ private fun ExternalFavoriteSourceCard(
             }
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 OutlinedButton(
-                    onClick = onSyncNow,
-                    enabled = item.enabled && item.health != "needs_auth" && !syncing,
+                    onClick = if (item.health == "paused") {
+                        { onToggleEnabled(true) }
+                    } else {
+                        onSyncNow
+                    },
+                    enabled = when (item.health) {
+                        "limited", "needs_auth" -> false
+                        "paused" -> !syncing
+                        else -> externalFavoriteCanRunSyncAction(item.health, item.enabled) && !syncing
+                    },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Default.Refresh, contentDescription = null)
-                    Text(if (syncing) "同步中" else "同步")
+                    Text(if (syncing) "已加入队列" else externalFavoritePrimaryActionLabel(item.health))
                 }
                 OutlinedButton(
                     onClick = onImportOlder,
-                    enabled = item.enabled && item.health != "needs_auth" && !syncing,
+                    enabled = externalFavoriteCanRunSyncAction(item.health, item.enabled) && !syncing,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Default.History, contentDescription = null)

@@ -230,6 +230,12 @@ fun externalFavoritePrimaryActionLabel(health: String): String = when (health) {
     else -> "同步"
 }
 
+fun externalFavoriteAccountIdentity(accountName: String, accountId: String): String =
+    accountName.ifBlank { accountId }
+
+fun externalFavoriteCanRunSyncAction(health: String, enabled: Boolean): Boolean =
+    enabled && health !in setOf("paused", "needs_auth", "limited")
+
 fun externalFavoriteDeleteDialogTitle(): String = "删除外部收藏来源？"
 
 fun externalFavoriteDeleteDialogText(): String =

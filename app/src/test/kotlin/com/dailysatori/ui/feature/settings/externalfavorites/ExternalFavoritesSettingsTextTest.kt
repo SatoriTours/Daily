@@ -108,6 +108,22 @@ class ExternalFavoritesSettingsTextTest {
     }
 
     @Test
+    fun sourceIdentityPrefersAccountName() {
+        assertEquals("@jim", externalFavoriteAccountIdentity(accountName = "@jim", accountId = "123"))
+        assertEquals("123", externalFavoriteAccountIdentity(accountName = "", accountId = "123"))
+    }
+
+    @Test
+    fun syncActionsDisableForBlockedStates() {
+        assertTrue(externalFavoriteCanRunSyncAction("healthy", enabled = true))
+        assertTrue(externalFavoriteCanRunSyncAction("never_synced", enabled = true))
+        assertTrue(externalFavoriteCanRunSyncAction("failing", enabled = true))
+        assertFalse(externalFavoriteCanRunSyncAction("paused", enabled = false))
+        assertFalse(externalFavoriteCanRunSyncAction("needs_auth", enabled = true))
+        assertFalse(externalFavoriteCanRunSyncAction("limited", enabled = true))
+    }
+
+    @Test
     fun deleteConfirmationExplainsLocalFavoritesAreKept() {
         assertEquals("删除外部收藏来源？", externalFavoriteDeleteDialogTitle())
         assertEquals("删除来源", externalFavoriteDeleteConfirmLabel())
