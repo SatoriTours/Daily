@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Add
@@ -26,7 +25,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -346,12 +344,12 @@ private fun ExternalFavoriteSourceCard(
                 }
                 Switch(checked = item.enabled, onCheckedChange = onToggleEnabled)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 ExternalFavoriteChip(externalFavoriteHealthLabel(item.health))
                 ExternalFavoriteChip(externalFavoritePeriodicSyncSubtitle(item.health))
             }
             Text(
-                externalFavoriteLastSyncText(source.last_sync_started_at, source.last_success_at),
+                externalFavoriteSyncAttemptText(source.last_sync_started_at, source.last_success_at),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -362,17 +360,25 @@ private fun ExternalFavoriteSourceCard(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(onClick = onSyncNow, enabled = item.enabled && !syncing) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                OutlinedButton(
+                    onClick = onSyncNow,
+                    enabled = item.enabled && !syncing,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Icon(Icons.Default.Refresh, contentDescription = null)
                     Text(if (syncing) "同步中" else "同步")
                 }
-                OutlinedButton(onClick = onImportOlder, enabled = item.enabled && !syncing) {
+                OutlinedButton(
+                    onClick = onImportOlder,
+                    enabled = item.enabled && !syncing,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Icon(Icons.Default.History, contentDescription = null)
                     Text("历史")
                 }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "删除")
+                TextButton(onClick = onDelete, modifier = Modifier.fillMaxWidth()) {
+                    Text("删除", color = MaterialTheme.colorScheme.error)
                 }
             }
         }
@@ -401,10 +407,4 @@ private fun ExternalFavoriteMessage(message: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
-}
-
-internal fun externalFavoriteLastSyncText(lastAttemptAt: Long?, lastSuccessAt: Long?): String = when {
-    lastSuccessAt != null -> "上次成功：$lastSuccessAt"
-    lastAttemptAt != null -> "上次尝试：$lastAttemptAt"
-    else -> "尚未同步"
 }
