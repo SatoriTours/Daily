@@ -164,7 +164,19 @@ class ExternalFavoritesSettingsTextTest {
         )
     }
 
-    private fun sourceUi(health: String, enabled: Boolean = true): ExternalFavoriteSourceUi =
+    @Test
+    fun authCheckActionOnlyShowsForRestoredAuthState() {
+        assertFalse(externalFavoriteShouldShowAuthCheckAction(emptyList()))
+        assertFalse(externalFavoriteShouldShowAuthCheckAction(listOf(sourceUi("healthy"))))
+        assertTrue(externalFavoriteShouldShowAuthCheckAction(listOf(sourceUi("needs_auth", status = "auth_check_required"))))
+        assertEquals("检查已恢复授权", externalFavoriteAuthCheckActionLabel())
+    }
+
+    private fun sourceUi(
+        health: String,
+        enabled: Boolean = true,
+        status: String = "idle",
+    ): ExternalFavoriteSourceUi =
         ExternalFavoriteSourceUi(
             source = com.dailysatori.shared.db.External_favorite_source(
                 id = health.hashCode().toLong(),
@@ -183,7 +195,7 @@ class ExternalFavoritesSettingsTextTest {
                 last_error = "",
                 last_error_code = "",
                 last_error_message = "",
-                status = "idle",
+                status = status,
                 last_sync_mode = "recent",
                 rate_limit_reset_at = null,
                 auth_json = "",

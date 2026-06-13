@@ -101,27 +101,52 @@ private fun ExternalFavoriteSourceListPage(
         title = "外部收藏同步",
         onBack = onBack,
         actions = {
-            IconButton(onClick = viewModel::markRestoredSourcesAuthCheckRequired) {
-                Icon(Icons.Default.Refresh, contentDescription = "重新验证授权")
+            if (externalFavoriteShouldShowAuthCheckAction(state.sources)) {
+                IconButton(onClick = viewModel::markRestoredSourcesAuthCheckRequired) {
+                    Icon(Icons.Default.Refresh, contentDescription = externalFavoriteAuthCheckActionLabel())
+                }
             }
         },
         floatingActionButton = {
             FloatingActionButton(onClick = openAddPage) {
-                Icon(Icons.Default.Add, contentDescription = externalFavoriteAddServiceActionLabel())
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = externalFavoriteAddServiceActionLabel(hasSources = state.sources.isNotEmpty()),
+                )
             }
         },
     ) { modifier ->
         if (state.sources.isEmpty()) {
-            EmptyState(
-                icon = Icons.Default.Bookmark,
-                title = externalFavoriteEmptyStateTitle(),
-                subtitle = externalFavoriteEmptyStateSubtitle(state.message),
+            LazyColumn(
                 modifier = modifier.fillMaxSize(),
-                actionLabel = externalFavoriteAddServiceActionLabel(),
-                onAction = openAddPage,
-            )
+                contentPadding = PaddingValues(Spacing.m),
+                verticalArrangement = Arrangement.spacedBy(Spacing.m),
+            ) {
+                item {
+                    ExternalFavoriteManagementSummary(
+                        state = state,
+                        onAdd = openAddPage,
+                        onAuthCheck = viewModel::markRestoredSourcesAuthCheckRequired,
+                    )
+                }
+                item {
+                    EmptyState(
+                        icon = Icons.Default.Bookmark,
+                        title = externalFavoriteEmptyStateTitle(),
+                        subtitle = externalFavoriteEmptyStateSubtitle(state.message),
+                        modifier = Modifier.fillMaxWidth(),
+                        actionLabel = externalFavoriteAddServiceActionLabel(hasSources = false),
+                        onAction = openAddPage,
+                    )
+                }
+            }
         } else {
-            ExternalFavoriteSourceList(state = state, viewModel = viewModel, modifier = modifier)
+            ExternalFavoriteSourceList(
+                state = state,
+                viewModel = viewModel,
+                openAddPage = openAddPage,
+                modifier = modifier,
+            )
         }
     }
 }
@@ -218,9 +243,47 @@ private fun ExternalFavoriteAddHelperCard() {
 }
 
 @Composable
+private fun ExternalFavoriteManagementSummary(
+    state: ExternalFavoritesSettingsState,
+    onAdd: () -> Unit,
+    onAuthCheck: () -> Unit,
+) {
+    SettingsSectionCard("连接状态") {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
+            verticalArrangement = Arrangement.spacedBy(Spacing.s),
+        ) {
+            Text(
+                externalFavoriteManagementSummaryTitle(state.sources),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                externalFavoriteManagementSummarySubtitle(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedButton(onClick = onAdd) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Text(externalFavoriteAddServiceActionLabel(hasSources = state.sources.isNotEmpty()))
+                }
+                if (externalFavoriteShouldShowAuthCheckAction(state.sources)) {
+                    OutlinedButton(onClick = onAuthCheck) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Text(externalFavoriteAuthCheckActionLabel())
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ExternalFavoriteSourceList(
     state: ExternalFavoritesSettingsState,
     viewModel: ExternalFavoritesSettingsViewModel,
+    openAddPage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -228,6 +291,13 @@ private fun ExternalFavoriteSourceList(
         contentPadding = PaddingValues(Spacing.m),
         verticalArrangement = Arrangement.spacedBy(Spacing.m),
     ) {
+        item {
+            ExternalFavoriteManagementSummary(
+                state = state,
+                onAdd = openAddPage,
+                onAuthCheck = viewModel::markRestoredSourcesAuthCheckRequired,
+            )
+        }
         state.message?.let { message ->
             item {
                 ExternalFavoriteMessage(message)
