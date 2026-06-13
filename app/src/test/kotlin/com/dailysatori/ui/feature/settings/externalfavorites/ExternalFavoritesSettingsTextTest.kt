@@ -165,11 +165,11 @@ class ExternalFavoritesSettingsTextTest {
     }
 
     @Test
-    fun authCheckActionOnlyShowsForRestoredAuthState() {
-        assertFalse(externalFavoriteShouldShowAuthCheckAction(emptyList()))
-        assertFalse(externalFavoriteShouldShowAuthCheckAction(listOf(sourceUi("healthy"))))
-        assertTrue(externalFavoriteShouldShowAuthCheckAction(listOf(sourceUi("needs_auth", status = "auth_check_required"))))
-        assertEquals("检查已恢复授权", externalFavoriteAuthCheckActionLabel())
+    fun authCheckNoticeOnlyShowsForRestoredAuthState() {
+        assertFalse(externalFavoriteShouldShowAuthCheckNotice(emptyList()))
+        assertFalse(externalFavoriteShouldShowAuthCheckNotice(listOf(sourceUi("healthy"))))
+        assertTrue(externalFavoriteShouldShowAuthCheckNotice(listOf(sourceUi("needs_auth", status = "auth_check_required"))))
+        assertEquals("已恢复的授权需要重新连接后才能继续同步。", externalFavoriteAuthCheckNoticeText())
     }
 
     private fun sourceUi(

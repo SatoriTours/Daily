@@ -100,13 +100,6 @@ private fun ExternalFavoriteSourceListPage(
     AppScaffold(
         title = "外部收藏同步",
         onBack = onBack,
-        actions = {
-            if (externalFavoriteShouldShowAuthCheckAction(state.sources)) {
-                IconButton(onClick = viewModel::markRestoredSourcesAuthCheckRequired) {
-                    Icon(Icons.Default.Refresh, contentDescription = externalFavoriteAuthCheckActionLabel())
-                }
-            }
-        },
         floatingActionButton = {
             FloatingActionButton(onClick = openAddPage) {
                 Icon(
@@ -126,7 +119,6 @@ private fun ExternalFavoriteSourceListPage(
                     ExternalFavoriteManagementSummary(
                         state = state,
                         onAdd = openAddPage,
-                        onAuthCheck = viewModel::markRestoredSourcesAuthCheckRequired,
                     )
                 }
                 item {
@@ -246,7 +238,6 @@ private fun ExternalFavoriteAddHelperCard() {
 private fun ExternalFavoriteManagementSummary(
     state: ExternalFavoritesSettingsState,
     onAdd: () -> Unit,
-    onAuthCheck: () -> Unit,
 ) {
     SettingsSectionCard("连接状态") {
         Column(
@@ -263,17 +254,16 @@ private fun ExternalFavoriteManagementSummary(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(onClick = onAdd) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Text(externalFavoriteAddServiceActionLabel(hasSources = state.sources.isNotEmpty()))
-                }
-                if (externalFavoriteShouldShowAuthCheckAction(state.sources)) {
-                    OutlinedButton(onClick = onAuthCheck) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
-                        Text(externalFavoriteAuthCheckActionLabel())
-                    }
-                }
+            if (externalFavoriteShouldShowAuthCheckNotice(state.sources)) {
+                Text(
+                    externalFavoriteAuthCheckNoticeText(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            OutlinedButton(onClick = onAdd, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Text(externalFavoriteAddServiceActionLabel(hasSources = state.sources.isNotEmpty()))
             }
         }
     }
@@ -295,7 +285,6 @@ private fun ExternalFavoriteSourceList(
             ExternalFavoriteManagementSummary(
                 state = state,
                 onAdd = openAddPage,
-                onAuthCheck = viewModel::markRestoredSourcesAuthCheckRequired,
             )
         }
         state.message?.let { message ->

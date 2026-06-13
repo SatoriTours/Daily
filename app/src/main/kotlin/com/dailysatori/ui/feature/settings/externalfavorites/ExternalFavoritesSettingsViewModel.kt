@@ -185,10 +185,10 @@ fun externalFavoriteManagementSummaryTitle(sources: List<ExternalFavoriteSourceU
 fun externalFavoriteManagementSummarySubtitle(): String =
     "收藏会定期同步到本地收藏，可手动同步或导入历史收藏。"
 
-fun externalFavoriteShouldShowAuthCheckAction(sources: List<ExternalFavoriteSourceUi>): Boolean =
+fun externalFavoriteShouldShowAuthCheckNotice(sources: List<ExternalFavoriteSourceUi>): Boolean =
     sources.any { it.source.status == ExternalSourceStatus.auth_check_required.name }
 
-fun externalFavoriteAuthCheckActionLabel(): String = "检查已恢复授权"
+fun externalFavoriteAuthCheckNoticeText(): String = "已恢复的授权需要重新连接后才能继续同步。"
 
 fun externalFavoriteEmptyStateTitle(): String = "连接外部收藏"
 
