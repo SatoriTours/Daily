@@ -363,7 +363,7 @@ private fun ExternalFavoriteSourceCard(
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 OutlinedButton(
                     onClick = onSyncNow,
-                    enabled = item.enabled && !syncing,
+                    enabled = item.enabled && item.health != "needs_auth" && !syncing,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Default.Refresh, contentDescription = null)
@@ -371,7 +371,7 @@ private fun ExternalFavoriteSourceCard(
                 }
                 OutlinedButton(
                     onClick = onImportOlder,
-                    enabled = item.enabled && !syncing,
+                    enabled = item.enabled && item.health != "needs_auth" && !syncing,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Default.History, contentDescription = null)
