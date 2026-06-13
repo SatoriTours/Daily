@@ -205,7 +205,8 @@ fun externalFavoriteAddPageTitle(): String = "新增外部收藏"
 
 fun externalFavoriteAddPageHelperTitle(): String = "连接 X 收藏"
 
-fun externalFavoriteAddPageHelperText(): String = "填写 OAuth Client ID 后，会打开浏览器完成 X 授权。授权成功后，收藏会定期同步到本地收藏。"
+fun externalFavoriteAddPageHelperText(): String =
+    "填写 OAuth Client ID 后，会打开浏览器完成 X 授权。授权完成后回到 Daily Satori，新来源会出现在列表里。"
 
 fun externalFavoriteAddPageSyncNoteTitle(): String = "授权成功后启用定期同步"
 

@@ -11,6 +11,7 @@ class ExternalFavoritesAddPageTextTest {
         assertEquals("连接 X 收藏", externalFavoriteAddPageHelperTitle())
         assertEquals("保存并连接 X", externalFavoriteConnectXActionLabel())
         assertTrue(externalFavoriteAddPageHelperText().contains("浏览器"))
+        assertTrue(externalFavoriteAddPageHelperText().contains("回到 Daily Satori"))
     }
 
     @Test
