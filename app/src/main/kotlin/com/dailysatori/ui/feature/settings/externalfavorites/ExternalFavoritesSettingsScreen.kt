@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -274,6 +275,8 @@ private fun ExternalFavoriteSourceList(
     openAddPage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var pendingDeleteSourceId by remember { mutableStateOf<Long?>(null) }
+
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(Spacing.m),
@@ -307,9 +310,32 @@ private fun ExternalFavoriteSourceList(
                 onSyncNow = { viewModel.syncNow(source.id) },
                 onImportOlder = { viewModel.importOlder(source.id) },
                 onToggleEnabled = { viewModel.toggleEnabled(source.id, it) },
-                onDelete = { viewModel.deleteSource(source.id) },
+                onDelete = { pendingDeleteSourceId = source.id },
             )
         }
+    }
+
+    pendingDeleteSourceId?.let { sourceId ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteSourceId = null },
+            title = { Text(externalFavoriteDeleteDialogTitle()) },
+            text = { Text(externalFavoriteDeleteDialogText()) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingDeleteSourceId = null
+                        viewModel.deleteSource(sourceId)
+                    },
+                ) {
+                    Text(externalFavoriteDeleteConfirmLabel(), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteSourceId = null }) {
+                    Text(externalFavoriteDeleteCancelLabel())
+                }
+            },
+        )
     }
 }
 
