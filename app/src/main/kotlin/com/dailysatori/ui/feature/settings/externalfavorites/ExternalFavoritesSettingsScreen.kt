@@ -33,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -276,6 +277,13 @@ private fun ExternalFavoriteSourceList(
     modifier: Modifier = Modifier,
 ) {
     var pendingDeleteSourceId by remember { mutableStateOf<Long?>(null) }
+    val pendingDeleteSource = state.sources.firstOrNull { it.id == pendingDeleteSourceId }
+
+    LaunchedEffect(pendingDeleteSourceId, pendingDeleteSource) {
+        if (pendingDeleteSourceId != null && pendingDeleteSource == null) {
+            pendingDeleteSourceId = null
+        }
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -315,7 +323,7 @@ private fun ExternalFavoriteSourceList(
         }
     }
 
-    pendingDeleteSourceId?.let { sourceId ->
+    pendingDeleteSource?.let { pendingSource ->
         AlertDialog(
             onDismissRequest = { pendingDeleteSourceId = null },
             title = { Text(externalFavoriteDeleteDialogTitle()) },
@@ -324,7 +332,7 @@ private fun ExternalFavoriteSourceList(
                 TextButton(
                     onClick = {
                         pendingDeleteSourceId = null
-                        viewModel.deleteSource(sourceId)
+                        viewModel.deleteSource(pendingSource.id)
                     },
                 ) {
                     Text(externalFavoriteDeleteConfirmLabel(), color = MaterialTheme.colorScheme.error)
