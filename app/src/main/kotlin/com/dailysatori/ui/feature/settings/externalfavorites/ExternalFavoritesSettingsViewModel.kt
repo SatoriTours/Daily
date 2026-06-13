@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.toLocalDateTime
 
 data class ExternalFavoritesSettingsState(
     val sources: List<ExternalFavoriteSourceUi> = emptyList(),
@@ -174,15 +175,26 @@ fun externalFavoriteSettingsRowTitle(): String = "外部收藏同步"
 
 fun externalFavoriteSettingsRowSubtitle(): String = "同步 X 等平台收藏到本地收藏"
 
-fun externalFavoriteEmptyStateTitle(): String = "添加外部收藏服务"
+fun externalFavoriteManagementSummaryTitle(sources: List<ExternalFavoriteSourceUi>): String {
+    if (sources.isEmpty()) return "还没有连接外部收藏来源"
+    if (sources.all { !it.enabled || it.health == "paused" }) return "外部收藏同步已暂停"
+    val attentionCount = sources.count { it.health in setOf("needs_auth", "limited", "failing") }
+    return if (attentionCount > 0) "${attentionCount} 个来源需要处理" else "所有外部收藏来源同步正常"
+}
+
+fun externalFavoriteManagementSummarySubtitle(): String =
+    "收藏会定期同步到本地收藏，可手动同步或导入历史收藏。"
+
+fun externalFavoriteEmptyStateTitle(): String = "连接外部收藏"
 
 fun externalFavoriteEmptyStateSubtitle(message: String? = null): String =
     listOfNotNull(
-        "添加 X 等平台后，收藏会定期同步到本地收藏，并由 AI 整理内容。",
+        "当前先支持 X 收藏。连接后，收藏会同步到本地收藏，并保留手动同步和历史导入入口。",
         message?.takeIf { it.isNotBlank() },
     ).joinToString("\n")
 
-fun externalFavoriteAddServiceActionLabel(): String = "添加服务"
+fun externalFavoriteAddServiceActionLabel(hasSources: Boolean = false): String =
+    if (hasSources) "连接新来源" else "连接 X 收藏"
 
 fun externalFavoriteAddPageTitle(): String = "新增外部收藏"
 
@@ -203,6 +215,50 @@ fun externalFavoriteShouldCloseAddPageAfterConnect(
 fun externalFavoriteXClientIdLabel(): String = "X OAuth Client ID"
 
 fun externalFavoriteConnectXActionLabel(): String = "保存并连接 X"
+
+fun externalFavoritePrimaryActionLabel(health: String): String = when (health) {
+    "never_synced" -> "开始同步"
+    "paused" -> "启用同步"
+    "needs_auth" -> "重新连接"
+    "limited" -> "稍后自动恢复"
+    "failing" -> "重试同步"
+    else -> "同步"
+}
+
+fun externalFavoriteDeleteDialogTitle(): String = "删除外部收藏来源？"
+
+fun externalFavoriteDeleteDialogText(): String =
+    "这会删除该来源的授权信息和同步记录。已经导入到本地收藏的内容不会被删除。"
+
+fun externalFavoriteDeleteConfirmLabel(): String = "删除来源"
+
+fun externalFavoriteDeleteCancelLabel(): String = "取消"
+
+fun externalFavoriteSyncAttemptText(
+    lastAttemptAt: Long?,
+    lastSuccessAt: Long?,
+    nowMillis: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+): String = when {
+    lastSuccessAt != null -> "上次成功：${externalFavoriteRelativeTimeText(lastSuccessAt, nowMillis)}"
+    lastAttemptAt != null -> "上次尝试：${externalFavoriteRelativeTimeText(lastAttemptAt, nowMillis)}"
+    else -> "尚未同步"
+}
+
+fun externalFavoriteSeenCountText(itemsSeen: Long, pagesSeen: Long): String? {
+    val parts = buildList {
+        if (itemsSeen > 0) add("上次看到 ${itemsSeen} 条收藏")
+        if (pagesSeen > 1) add("读取 ${pagesSeen} 页")
+    }
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+}
+
+fun externalFavoriteRateLimitText(
+    resetAt: Long?,
+    nowMillis: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+): String =
+    resetAt?.takeIf { it > nowMillis }?.let {
+        "平台限流中，预计 ${externalFavoriteFutureDurationText(it, nowMillis)}恢复"
+    } ?: "平台限流中，稍后自动恢复"
 
 fun externalFavoritePeriodicSyncSubtitle(health: String): String = when (health) {
     "needs_auth" -> "需要重新授权后才能定期同步"
@@ -226,4 +282,21 @@ fun externalFavoriteStatusAfterToggle(currentStatus: String, enabled: Boolean): 
     !enabled -> ExternalSourceStatus.paused.name
     currentStatus == ExternalSourceStatus.paused.name -> ExternalSourceStatus.idle.name
     else -> currentStatus
+}
+
+private fun externalFavoriteRelativeTimeText(timestampMillis: Long, nowMillis: Long): String {
+    val diffMinutes = ((nowMillis - timestampMillis).coerceAtLeast(0L) / 60_000L)
+    if (diffMinutes < 1) return "刚刚"
+    if (diffMinutes < 60) return "${diffMinutes} 分钟前"
+    val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(timestampMillis)
+    val local = instant.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault())
+    return "${local.hour.toString().padStart(2, '0')}:${local.minute.toString().padStart(2, '0')}"
+}
+
+private fun externalFavoriteFutureDurationText(timestampMillis: Long, nowMillis: Long): String {
+    val diffMinutes = ((timestampMillis - nowMillis).coerceAtLeast(0L) / 60_000L).coerceAtLeast(1L)
+    if (diffMinutes <= 60) return "${diffMinutes} 分钟后"
+    val hours = diffMinutes / 60L
+    val minutes = diffMinutes % 60L
+    return if (minutes == 0L) "${hours} 小时后" else "${hours} 小时 ${minutes} 分钟后"
 }
