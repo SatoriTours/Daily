@@ -224,7 +224,7 @@ fun externalFavoriteConnectXActionLabel(): String = "保存并连接 X"
 fun externalFavoritePrimaryActionLabel(health: String): String = when (health) {
     "never_synced" -> "开始同步"
     "paused" -> "启用同步"
-    "needs_auth" -> "重新连接"
+    "needs_auth" -> "需要授权"
     "limited" -> "稍后自动恢复"
     "failing" -> "重试同步"
     else -> "同步"

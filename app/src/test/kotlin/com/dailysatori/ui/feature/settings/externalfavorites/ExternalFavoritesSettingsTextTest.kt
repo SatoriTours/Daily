@@ -102,7 +102,7 @@ class ExternalFavoritesSettingsTextTest {
         assertEquals("同步", externalFavoritePrimaryActionLabel("healthy"))
         assertEquals("开始同步", externalFavoritePrimaryActionLabel("never_synced"))
         assertEquals("启用同步", externalFavoritePrimaryActionLabel("paused"))
-        assertEquals("重新连接", externalFavoritePrimaryActionLabel("needs_auth"))
+        assertEquals("需要授权", externalFavoritePrimaryActionLabel("needs_auth"))
         assertEquals("稍后自动恢复", externalFavoritePrimaryActionLabel("limited"))
         assertEquals("重试同步", externalFavoritePrimaryActionLabel("failing"))
     }
