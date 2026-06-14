@@ -1,14 +1,17 @@
 package com.dailysatori.ui.feature.settings.externalfavorites
 
+import com.dailysatori.service.externalfavorites.ExternalSourceHealth
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class ExternalFavoritesSettingsTextTest {
     @Test
     fun healthSubtitleDoesNotPromiseRealtimeSync() {
-        val subtitle = externalFavoritePeriodicSyncSubtitle("healthy")
+        val subtitle = externalFavoritePeriodicSyncSubtitle(ExternalSourceHealth.healthy)
 
         assertFalse(subtitle.contains("实时"))
         assertTrue(subtitle.contains("定期"))
@@ -41,12 +44,12 @@ class ExternalFavoritesSettingsTextTest {
 
     @Test
     fun healthLabelsUseActionableChineseText() {
-        assertEquals("需要授权", externalFavoriteHealthLabel("needs_auth"))
-        assertEquals("限流中", externalFavoriteHealthLabel("limited"))
-        assertEquals("已暂停", externalFavoriteHealthLabel("paused"))
-        assertEquals("异常", externalFavoriteHealthLabel("failing"))
-        assertEquals("未同步", externalFavoriteHealthLabel("never_synced"))
-        assertEquals("正常", externalFavoriteHealthLabel("healthy"))
+        assertEquals("需要授权", externalFavoriteHealthLabel(ExternalSourceHealth.needs_auth))
+        assertEquals("限流中", externalFavoriteHealthLabel(ExternalSourceHealth.limited))
+        assertEquals("已暂停", externalFavoriteHealthLabel(ExternalSourceHealth.paused))
+        assertEquals("异常", externalFavoriteHealthLabel(ExternalSourceHealth.failing))
+        assertEquals("未同步", externalFavoriteHealthLabel(ExternalSourceHealth.never_synced))
+        assertEquals("正常", externalFavoriteHealthLabel(ExternalSourceHealth.healthy))
     }
 
     @Test
@@ -69,18 +72,27 @@ class ExternalFavoritesSettingsTextTest {
         assertEquals(
             "外部收藏同步已暂停",
             externalFavoriteManagementSummaryTitle(
-                listOf(sourceUi("paused", enabled = false), sourceUi("paused", enabled = false)),
+                listOf(
+                    sourceUi(ExternalSourceHealth.paused, enabled = false),
+                    sourceUi(ExternalSourceHealth.paused, enabled = false),
+                ),
             ),
         )
         assertEquals(
             "2 个来源需要处理",
             externalFavoriteManagementSummaryTitle(
-                listOf(sourceUi("healthy"), sourceUi("needs_auth"), sourceUi("failing")),
+                listOf(
+                    sourceUi(ExternalSourceHealth.healthy),
+                    sourceUi(ExternalSourceHealth.needs_auth),
+                    sourceUi(ExternalSourceHealth.failing),
+                ),
             ),
         )
         assertEquals(
             "所有外部收藏来源同步正常",
-            externalFavoriteManagementSummaryTitle(listOf(sourceUi("healthy"), sourceUi("never_synced"))),
+            externalFavoriteManagementSummaryTitle(
+                listOf(sourceUi(ExternalSourceHealth.healthy), sourceUi(ExternalSourceHealth.never_synced)),
+            ),
         )
         assertEquals(
             "收藏会定期同步到本地收藏，可手动同步或导入历史收藏。",
@@ -99,12 +111,12 @@ class ExternalFavoritesSettingsTextTest {
 
     @Test
     fun primaryActionsFollowHealthState() {
-        assertEquals("同步", externalFavoritePrimaryActionLabel("healthy"))
-        assertEquals("开始同步", externalFavoritePrimaryActionLabel("never_synced"))
-        assertEquals("启用同步", externalFavoritePrimaryActionLabel("paused"))
-        assertEquals("需要授权", externalFavoritePrimaryActionLabel("needs_auth"))
-        assertEquals("稍后自动恢复", externalFavoritePrimaryActionLabel("limited"))
-        assertEquals("重试同步", externalFavoritePrimaryActionLabel("failing"))
+        assertEquals("同步", externalFavoritePrimaryActionLabel(ExternalSourceHealth.healthy))
+        assertEquals("开始同步", externalFavoritePrimaryActionLabel(ExternalSourceHealth.never_synced))
+        assertEquals("启用同步", externalFavoritePrimaryActionLabel(ExternalSourceHealth.paused))
+        assertEquals("需要授权", externalFavoritePrimaryActionLabel(ExternalSourceHealth.needs_auth))
+        assertEquals("稍后自动恢复", externalFavoritePrimaryActionLabel(ExternalSourceHealth.limited))
+        assertEquals("重试同步", externalFavoritePrimaryActionLabel(ExternalSourceHealth.failing))
     }
 
     @Test
@@ -115,12 +127,12 @@ class ExternalFavoritesSettingsTextTest {
 
     @Test
     fun syncActionsDisableForBlockedStates() {
-        assertTrue(externalFavoriteCanRunSyncAction("healthy", enabled = true))
-        assertTrue(externalFavoriteCanRunSyncAction("never_synced", enabled = true))
-        assertTrue(externalFavoriteCanRunSyncAction("failing", enabled = true))
-        assertFalse(externalFavoriteCanRunSyncAction("paused", enabled = false))
-        assertFalse(externalFavoriteCanRunSyncAction("needs_auth", enabled = true))
-        assertFalse(externalFavoriteCanRunSyncAction("limited", enabled = true))
+        assertTrue(externalFavoriteCanRunSyncAction(ExternalSourceHealth.healthy, enabled = true))
+        assertTrue(externalFavoriteCanRunSyncAction(ExternalSourceHealth.never_synced, enabled = true))
+        assertTrue(externalFavoriteCanRunSyncAction(ExternalSourceHealth.failing, enabled = true))
+        assertFalse(externalFavoriteCanRunSyncAction(ExternalSourceHealth.paused, enabled = false))
+        assertFalse(externalFavoriteCanRunSyncAction(ExternalSourceHealth.needs_auth, enabled = true))
+        assertFalse(externalFavoriteCanRunSyncAction(ExternalSourceHealth.limited, enabled = true))
     }
 
     @Test
@@ -183,22 +195,37 @@ class ExternalFavoritesSettingsTextTest {
     @Test
     fun authCheckNoticeOnlyShowsForRestoredAuthState() {
         assertFalse(externalFavoriteShouldShowAuthCheckNotice(emptyList()))
-        assertFalse(externalFavoriteShouldShowAuthCheckNotice(listOf(sourceUi("healthy"))))
-        assertTrue(externalFavoriteShouldShowAuthCheckNotice(listOf(sourceUi("needs_auth", status = "auth_check_required"))))
+        assertFalse(externalFavoriteShouldShowAuthCheckNotice(listOf(sourceUi(ExternalSourceHealth.healthy))))
+        assertTrue(
+            externalFavoriteShouldShowAuthCheckNotice(
+                listOf(sourceUi(ExternalSourceHealth.needs_auth, status = "auth_check_required")),
+            ),
+        )
         assertEquals("已恢复的授权需要重新连接后才能继续同步。", externalFavoriteAuthCheckNoticeText())
     }
 
+    @Test
+    fun pendingDeleteSourceResolvesOnlyExistingSource() {
+        val existingSource = sourceUi(ExternalSourceHealth.healthy, id = 42)
+        val sources = listOf(existingSource)
+
+        assertSame(existingSource, externalFavoritePendingDeleteSource(42, sources))
+        assertNull(externalFavoritePendingDeleteSource(99, sources))
+        assertNull(externalFavoritePendingDeleteSource(null, sources))
+    }
+
     private fun sourceUi(
-        health: String,
+        health: ExternalSourceHealth,
+        id: Long = health.name.hashCode().toLong(),
         enabled: Boolean = true,
         status: String = "idle",
     ): ExternalFavoriteSourceUi =
         ExternalFavoriteSourceUi(
             source = com.dailysatori.shared.db.External_favorite_source(
-                id = health.hashCode().toLong(),
+                id = id,
                 provider = "x",
                 display_name = "X 收藏",
-                account_id = "account-$health",
+                account_id = "account-${health.name}",
                 account_name = "",
                 enabled = if (enabled) 1L else 0L,
                 sync_interval_minutes = 720,

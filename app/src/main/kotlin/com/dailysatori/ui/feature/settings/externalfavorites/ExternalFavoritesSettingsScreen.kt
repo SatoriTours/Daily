@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.component.settings.SettingsSectionCard
+import com.dailysatori.service.externalfavorites.ExternalSourceHealth
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -277,7 +278,7 @@ private fun ExternalFavoriteSourceList(
     modifier: Modifier = Modifier,
 ) {
     var pendingDeleteSourceId by remember { mutableStateOf<Long?>(null) }
-    val pendingDeleteSource = state.sources.firstOrNull { it.id == pendingDeleteSourceId }
+    val pendingDeleteSource = externalFavoritePendingDeleteSource(pendingDeleteSourceId, state.sources)
 
     LaunchedEffect(pendingDeleteSourceId, pendingDeleteSource) {
         if (pendingDeleteSourceId != null && pendingDeleteSource == null) {
@@ -394,7 +395,7 @@ private fun ExternalFavoriteSourceCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (item.health == "limited") {
+            if (item.health == ExternalSourceHealth.limited) {
                 Text(
                     externalFavoriteRateLimitText(source.rate_limit_reset_at),
                     style = MaterialTheme.typography.bodySmall,
@@ -410,14 +411,14 @@ private fun ExternalFavoriteSourceCard(
             }
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 OutlinedButton(
-                    onClick = if (item.health == "paused") {
+                    onClick = if (item.health == ExternalSourceHealth.paused) {
                         { onToggleEnabled(true) }
                     } else {
                         onSyncNow
                     },
                     enabled = when (item.health) {
-                        "limited", "needs_auth" -> false
-                        "paused" -> !syncing
+                        ExternalSourceHealth.limited, ExternalSourceHealth.needs_auth -> false
+                        ExternalSourceHealth.paused -> !syncing
                         else -> externalFavoriteCanRunSyncAction(item.health, item.enabled) && !syncing
                     },
                     modifier = Modifier.fillMaxWidth(),

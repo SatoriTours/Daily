@@ -6,6 +6,7 @@ import com.dailysatori.config.SettingKeys
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.service.externalfavorites.ExternalSourceHealth
 import com.dailysatori.service.externalfavorites.ExternalSourceStatus
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
 import com.dailysatori.service.externalfavorites.XOAuthCoordinator
@@ -28,7 +29,7 @@ data class ExternalFavoritesSettingsState(
 
 data class ExternalFavoriteSourceUi(
     val source: External_favorite_source,
-    val health: String,
+    val health: ExternalSourceHealth,
 ) {
     val id: Long get() = source.id
     val enabled: Boolean get() = source.enabled == 1L
@@ -167,7 +168,7 @@ class ExternalFavoritesSettingsViewModel(
                 status = source.status,
                 lastSuccessAt = source.last_success_at,
                 lastErrorCode = source.last_error_code,
-            ).name,
+            ),
         )
 }
 
@@ -177,8 +178,10 @@ fun externalFavoriteSettingsRowSubtitle(): String = "同步 X 等平台收藏到
 
 fun externalFavoriteManagementSummaryTitle(sources: List<ExternalFavoriteSourceUi>): String {
     if (sources.isEmpty()) return "还没有连接外部收藏来源"
-    if (sources.all { !it.enabled || it.health == "paused" }) return "外部收藏同步已暂停"
-    val attentionCount = sources.count { it.health in setOf("needs_auth", "limited", "failing") }
+    if (sources.all { !it.enabled || it.health == ExternalSourceHealth.paused }) return "外部收藏同步已暂停"
+    val attentionCount = sources.count {
+        it.health in setOf(ExternalSourceHealth.needs_auth, ExternalSourceHealth.limited, ExternalSourceHealth.failing)
+    }
     return if (attentionCount > 0) "${attentionCount} 个来源需要处理" else "所有外部收藏来源同步正常"
 }
 
@@ -222,20 +225,26 @@ fun externalFavoriteXClientIdLabel(): String = "X OAuth Client ID"
 
 fun externalFavoriteConnectXActionLabel(): String = "保存并连接 X"
 
-fun externalFavoritePrimaryActionLabel(health: String): String = when (health) {
-    "never_synced" -> "开始同步"
-    "paused" -> "启用同步"
-    "needs_auth" -> "需要授权"
-    "limited" -> "稍后自动恢复"
-    "failing" -> "重试同步"
-    else -> "同步"
+fun externalFavoritePrimaryActionLabel(health: ExternalSourceHealth): String = when (health) {
+    ExternalSourceHealth.never_synced -> "开始同步"
+    ExternalSourceHealth.paused -> "启用同步"
+    ExternalSourceHealth.needs_auth -> "需要授权"
+    ExternalSourceHealth.limited -> "稍后自动恢复"
+    ExternalSourceHealth.failing -> "重试同步"
+    ExternalSourceHealth.healthy -> "同步"
 }
 
 fun externalFavoriteAccountIdentity(accountName: String, accountId: String): String =
     accountName.ifBlank { accountId }
 
-fun externalFavoriteCanRunSyncAction(health: String, enabled: Boolean): Boolean =
-    enabled && health !in setOf("paused", "needs_auth", "limited")
+fun externalFavoriteCanRunSyncAction(health: ExternalSourceHealth, enabled: Boolean): Boolean =
+    enabled && health !in setOf(ExternalSourceHealth.paused, ExternalSourceHealth.needs_auth, ExternalSourceHealth.limited)
+
+fun externalFavoritePendingDeleteSource(
+    pendingDeleteSourceId: Long?,
+    sources: List<ExternalFavoriteSourceUi>,
+): ExternalFavoriteSourceUi? =
+    pendingDeleteSourceId?.let { id -> sources.firstOrNull { it.id == id } }
 
 fun externalFavoriteDeleteDialogTitle(): String = "删除外部收藏来源？"
 
@@ -272,22 +281,22 @@ fun externalFavoriteRateLimitText(
         "平台限流中，预计 ${externalFavoriteFutureDurationText(it, nowMillis)}恢复"
     } ?: "平台限流中，稍后自动恢复"
 
-fun externalFavoritePeriodicSyncSubtitle(health: String): String = when (health) {
-    "needs_auth" -> "需要重新授权后才能定期同步"
-    "limited" -> "平台限流中，稍后自动恢复定期同步"
-    "paused" -> "已停用，不会定期同步"
-    "failing" -> "最近同步失败，可手动重试"
-    "never_synced" -> "尚未同步，启用后将定期导入"
-    else -> "已启用定期同步"
+fun externalFavoritePeriodicSyncSubtitle(health: ExternalSourceHealth): String = when (health) {
+    ExternalSourceHealth.needs_auth -> "需要重新授权后才能定期同步"
+    ExternalSourceHealth.limited -> "平台限流中，稍后自动恢复定期同步"
+    ExternalSourceHealth.paused -> "已停用，不会定期同步"
+    ExternalSourceHealth.failing -> "最近同步失败，可手动重试"
+    ExternalSourceHealth.never_synced -> "尚未同步，启用后将定期导入"
+    ExternalSourceHealth.healthy -> "已启用定期同步"
 }
 
-fun externalFavoriteHealthLabel(health: String): String = when (health) {
-    "needs_auth" -> "需要授权"
-    "limited" -> "限流中"
-    "paused" -> "已暂停"
-    "failing" -> "异常"
-    "never_synced" -> "未同步"
-    else -> "正常"
+fun externalFavoriteHealthLabel(health: ExternalSourceHealth): String = when (health) {
+    ExternalSourceHealth.needs_auth -> "需要授权"
+    ExternalSourceHealth.limited -> "限流中"
+    ExternalSourceHealth.paused -> "已暂停"
+    ExternalSourceHealth.failing -> "异常"
+    ExternalSourceHealth.never_synced -> "未同步"
+    ExternalSourceHealth.healthy -> "正常"
 }
 
 fun externalFavoriteStatusAfterToggle(currentStatus: String, enabled: Boolean): String = when {
