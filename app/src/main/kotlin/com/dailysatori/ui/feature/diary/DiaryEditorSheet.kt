@@ -13,29 +13,41 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.imeNestedScroll
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextRange
@@ -53,11 +65,33 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
+private data class DiaryEditorColors(
+    val sheet: androidx.compose.ui.graphics.Color,
+    val text: androidx.compose.ui.graphics.Color,
+    val muted: androidx.compose.ui.graphics.Color,
+    val line: androidx.compose.ui.graphics.Color,
+    val chip: androidx.compose.ui.graphics.Color,
+    val primary: androidx.compose.ui.graphics.Color,
+    val primarySoft: androidx.compose.ui.graphics.Color,
+)
+
+@Composable
+private fun diaryEditorColors(): DiaryEditorColors = DiaryEditorColors(
+    sheet = MaterialTheme.colorScheme.surface,
+    text = MaterialTheme.colorScheme.onSurface,
+    muted = MaterialTheme.colorScheme.onSurfaceVariant,
+    line = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+    chip = MaterialTheme.colorScheme.surfaceContainer,
+    primary = MaterialTheme.colorScheme.primary,
+    primarySoft = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.48f),
+)
+
 private fun sanitizeNull(value: String?): String {
     if (value == null || value == "null") return ""
     return value
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DiaryEditorSheet(
     onDismiss: () -> Unit,
@@ -65,12 +99,15 @@ fun DiaryEditorSheet(
     existingDiary: Diary? = null,
 ) {
     val context = LocalContext.current
+    val editorColors = diaryEditorColors()
 
     var content by remember(existingDiary) {
         mutableStateOf(TextFieldValue(existingDiary?.content ?: ""))
     }
+    val editorScrollState = rememberScrollState()
     var showMediaPicker by remember { mutableStateOf(false) }
     var showTagEditor by remember { mutableStateOf(false) }
+    var showTagEntry by remember { mutableStateOf(false) }
     var showMoodEditor by remember { mutableStateOf(false) }
     var showMoreFormats by remember { mutableStateOf(false) }
     var tagsText by remember(existingDiary) { mutableStateOf(sanitizeNull(existingDiary?.tags)) }
@@ -84,6 +121,13 @@ fun DiaryEditorSheet(
             ?.filter { it.isNotBlank() && it != "null" }
             ?: emptyList()
         mutableStateListOf<String>().apply { addAll(existingImages) }
+    }
+
+    LaunchedEffect(content.text, content.selection) {
+        if (content.selection.collapsed && content.selection.end == content.text.length) {
+            withFrameNanos { }
+            editorScrollState.scrollTo(editorScrollState.maxValue)
+        }
     }
 
     fun pushUndo() {
@@ -224,12 +268,15 @@ fun DiaryEditorSheet(
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.36f))
                 .padding(horizontal = Spacing.s),
             contentAlignment = Alignment.BottomCenter,
         ) {
@@ -239,7 +286,7 @@ fun DiaryEditorSheet(
                     .fillMaxHeight(0.92f)
                     .padding(bottom = Spacing.s),
                 shape = RoundedCornerShape(topStart = Radius.l, topEnd = Radius.l),
-                color = MaterialTheme.colorScheme.surface,
+                color = editorColors.sheet,
             ) {
                 Column(
                     modifier = Modifier
@@ -251,56 +298,72 @@ fun DiaryEditorSheet(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        TextButton(onClick = onDismiss) { Text("取消") }
-                        Text(text = if (existingDiary != null) "编辑日记" else "新建日记", style = MaterialTheme.typography.titleSmall)
+                        TextButton(onClick = onDismiss) { Text("取消", color = editorColors.primary) }
+                        DiaryEditorMetaRow(
+                            dateText = diaryEditorDateText(existingDiary),
+                            mood = moodText,
+                            colors = editorColors,
+                            onMood = { showMoodEditor = true },
+                        )
                         TextButton(
                             enabled = content.text.isNotBlank(),
                             onClick = { onSave(content.text, tagsText.ifBlank { null }, moodText.ifBlank { null }, images.joinToString(",").ifBlank { null }) },
-                        ) { Text("保存") }
+                        ) {
+                            Text(
+                                "保存",
+                                color = if (content.text.isNotBlank()) editorColors.primary else editorColors.muted.copy(alpha = 0.44f),
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.height(Spacing.xs))
-                    Text(
-                        text = diaryEditorMetaText(existingDiary, moodText),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Spacer(modifier = Modifier.height(Spacing.s))
+                    DiaryEditorTagRow(
+                        tagsText = tagsText,
+                        showAddEntry = showTagEntry,
+                        colors = editorColors,
+                        onAddTag = { showTagEditor = true },
                     )
                     Spacer(modifier = Modifier.height(Spacing.xs))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
-                            .clip(RoundedCornerShape(Radius.xl))
-                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                            .padding(horizontal = Spacing.m, vertical = Spacing.s),
+                            .padding(vertical = Spacing.s),
                     ) {
-                        Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(editorScrollState)
+                                .imeNestedScroll(),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.s),
+                        ) {
                             DiaryImageRow(images = images, onRemove = { images.remove(it) })
                             BasicTextField(
                                 value = content,
                                 onValueChange = { pushUndo(); content = it },
-                                modifier = Modifier.fillMaxWidth().weight(1f),
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
-                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 260.dp),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(color = editorColors.text),
+                                cursorBrush = SolidColor(editorColors.primary),
                                 decorationBox = { innerTextField ->
                                     if (content.text.isEmpty()) {
-                                        Text("写点东西...", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                                        Text("写点东西...", style = MaterialTheme.typography.bodyMedium, color = editorColors.muted.copy(alpha = 0.62f))
                                     }
                                     innerTextField()
                                 },
                             )
-                            DiaryEditorTagRow(tagsText = tagsText, onAddTag = { showTagEditor = true })
                         }
                     }
 
                     Spacer(modifier = Modifier.height(Spacing.xs))
 
-                    Box {
+                    Box(modifier = Modifier.navigationBarsPadding().imePadding()) {
                         DiaryEditorToolbar(
                             onTitle = { insertLineStart("# ") },
                             onOrderedList = { insertLineStart("1. ") },
                             onUnorderedList = { insertLineStart("- ") },
                             onMedia = { showMediaPicker = true },
-                            onTags = { showTagEditor = true },
+                            onTags = { showTagEntry = true },
                             onMood = { showMoodEditor = true },
                             onUndo = { performUndo() },
                             onRedo = { performRedo() },
@@ -328,6 +391,58 @@ fun DiaryEditorSheet(
 }
 
 @Composable
+private fun DiaryEditorMetaRow(
+    dateText: String,
+    mood: String,
+    colors: DiaryEditorColors,
+    onMood: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .padding(horizontal = Spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.CalendarToday,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = colors.muted,
+            )
+            Text(
+                text = dateText,
+                style = MaterialTheme.typography.labelMedium,
+                color = colors.muted,
+            )
+        }
+        Surface(
+            onClick = onMood,
+            shape = RoundedCornerShape(Radius.circular),
+            color = if (mood.isBlank()) {
+                colors.chip
+            } else {
+                colors.primarySoft
+            },
+        ) {
+            Text(
+                text = mood.ifBlank { "心情" },
+                modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (mood.isBlank()) {
+                    colors.muted
+                } else {
+                    colors.primary
+                },
+            )
+        }
+    }
+}
+
+@Composable
 private fun MediaPickerButton(label: String, onClick: () -> Unit) {
     TextButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Text(label, modifier = Modifier.weight(1f))
@@ -335,18 +450,70 @@ private fun MediaPickerButton(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun DiaryEditorTagRow(tagsText: String, onAddTag: () -> Unit) {
+private fun DiaryEditorTagRow(
+    tagsText: String,
+    showAddEntry: Boolean,
+    colors: DiaryEditorColors,
+    onAddTag: () -> Unit,
+) {
     val tags = tagsText.split(",").map { it.trim() }.filter { it.isNotBlank() && it != "null" }
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
-        item { DiaryEditorChip("+ 标签", onAddTag) }
-        items(tags, key = { it }) { tag -> DiaryEditorChip("#$tag", onAddTag) }
+    if (tags.isNotEmpty() || showAddEntry) {
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+        ) {
+            if (showAddEntry) item { DiaryEditorAddTagChip(colors, onAddTag) }
+            items(tags, key = { it }) { tag -> DiaryEditorTagChip("#$tag", colors, onAddTag) }
+        }
     }
 }
 
 @Composable
-private fun DiaryEditorChip(text: String, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-        Text(text = text, modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xxs), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun DiaryEditorAddTagChip(colors: DiaryEditorColors, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.height(30.dp),
+        shape = RoundedCornerShape(Radius.circular),
+        color = colors.chip,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = Spacing.s),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = null,
+                modifier = Modifier.size(15.dp),
+                tint = colors.primary,
+            )
+            Text(
+                text = "标签",
+                style = MaterialTheme.typography.labelMedium,
+                color = colors.primary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DiaryEditorTagChip(text: String, colors: DiaryEditorColors, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.height(30.dp),
+        shape = RoundedCornerShape(Radius.circular),
+        color = colors.chip,
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = Spacing.s),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+                color = colors.muted,
+            )
+        }
     }
 }
 
@@ -391,8 +558,7 @@ private fun DiaryTextEditDialog(
     )
 }
 
-private fun diaryEditorMetaText(existingDiary: Diary?, mood: String): String {
+private fun diaryEditorDateText(existingDiary: Diary?): String {
     val time = existingDiary?.created_at ?: System.currentTimeMillis()
-    val dateText = SimpleDateFormat("M月d日 HH:mm", Locale.CHINA).format(Date(time))
-    return mood.takeIf { it.isNotBlank() }?.let { "$dateText · $it" } ?: dateText
+    return SimpleDateFormat("M月d日 HH:mm", Locale.CHINA).format(Date(time))
 }

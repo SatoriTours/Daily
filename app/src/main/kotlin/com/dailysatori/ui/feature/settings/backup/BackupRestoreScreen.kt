@@ -5,11 +5,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,6 +52,8 @@ import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
+private val HomeBottomBarAvoidancePadding = 96.dp
+
 @Composable
 fun BackupRestoreScreen(onBack: () -> Unit = {}) {
     val viewModel: BackupRestoreViewModel = koinViewModel()
@@ -76,7 +80,13 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(Spacing.m)
+                        .navigationBarsPadding()
+                        .padding(
+                            start = Spacing.m,
+                            top = Spacing.m,
+                            end = Spacing.m,
+                            bottom = HomeBottomBarAvoidancePadding,
+                        )
                         .height(Height.button),
                     enabled = state.selectedBackupIndex >= 0 && !state.isRestoring,
                 ) {
@@ -136,7 +146,10 @@ fun BackupRestoreScreen(onBack: () -> Unit = {}) {
         } else {
             Column(modifier = modifier.fillMaxSize().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 RestoreFeedback(state)
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(Spacing.s),
+                    contentPadding = PaddingValues(bottom = HomeBottomBarAvoidancePadding),
+                ) {
                     itemsIndexed(state.backupList) { index, path ->
                         BackupFileCard(
                             selected = index == state.selectedBackupIndex,

@@ -23,8 +23,8 @@ android {
         applicationId = "com.dailysatori"
         minSdk = 26
         targetSdk = 36
-        versionCode = 50122
-        versionName = "5.1.22"
+        versionCode = 50123
+        versionName = "5.1.23"
         buildConfigField("String", "X_OAUTH_CLIENT_ID", "\"$xOAuthClientId\"")
     }
     compileOptions {

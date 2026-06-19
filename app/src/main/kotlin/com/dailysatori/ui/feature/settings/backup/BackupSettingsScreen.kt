@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -48,6 +49,8 @@ import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
+private val HomeBottomBarAvoidancePadding = 96.dp
+
 @Composable
 fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
     val viewModel: BackupSettingsViewModel = koinViewModel()
@@ -63,6 +66,7 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
             modifier = modifier
                 .fillMaxSize()
                 .padding(Spacing.m)
+                .navigationBarsPadding()
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {
@@ -124,6 +128,7 @@ fun BackupSettingsScreen(onBack: () -> Unit = {}, onRestore: () -> Unit = {}) {
                 Spacer(modifier = Modifier.width(Spacing.xs))
                 Text("恢复备份")
             }
+            Spacer(modifier = Modifier.height(HomeBottomBarAvoidancePadding))
         }
     }
 }
