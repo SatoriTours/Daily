@@ -89,6 +89,7 @@ val viewModelModule: Module = module {
             bookRepo = get<BookRepository>(),
             viewpointRepo = get<BookViewpointRepository>(),
             bookAiFallbackGenerator = get(),
+            bookIntelligenceService = get(),
         )
     }
     viewModel {

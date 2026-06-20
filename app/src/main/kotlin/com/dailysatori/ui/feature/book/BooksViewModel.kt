@@ -2,9 +2,13 @@ package com.dailysatori.ui.feature.book
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
 import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointRepository
 import com.dailysatori.service.book.BookAiFallbackGenerator
+import com.dailysatori.service.book.BookIntelligenceService
+import com.dailysatori.service.book.BookSearchResult
+import com.dailysatori.service.book.parseBookViewpointRetryContext
 import com.dailysatori.shared.db.Book
 import com.dailysatori.shared.db.Book_viewpoint
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +24,8 @@ data class BooksState(
     val currentBookId: Long? = null,
     val currentPage: Int = 0,
     val isLoading: Boolean = false,
+    val refreshingBookId: Long? = null,
+    val refreshMessage: String? = null,
     val error: String? = null,
 )
 
@@ -27,9 +33,11 @@ class BooksViewModel(
     private val bookRepo: BookRepository,
     private val viewpointRepo: BookViewpointRepository,
     private val bookAiFallbackGenerator: BookAiFallbackGenerator,
+    private val bookIntelligenceService: BookIntelligenceService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(BooksState())
     val state: StateFlow<BooksState> = _state.asStateFlow()
+    private val log = Logger.withTag("BooksRefresh")
 
     init {
         loadBooks()
@@ -72,6 +80,84 @@ class BooksViewModel(
 
     fun refresh() {
         loadBooks()
+    }
+
+    fun refreshCurrentBook() {
+        val snapshot = _state.value
+        val bookId = snapshot.currentBookId ?: snapshot.viewpoints.getOrNull(snapshot.currentPage)?.book_id ?: return
+        refreshBook(bookId)
+    }
+
+    fun refreshBook(bookId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val book = bookRepo.getById(bookId) ?: return@launch
+            _state.update {
+                it.copy(
+                    refreshingBookId = bookId,
+                    refreshMessage = null,
+                    error = null,
+                )
+            }
+            val refreshSourceUrl = refreshSourceUrlFromViewpoints(bookId)
+            log.i {
+                "Book refresh started title=${book.title} id=$bookId hasStoredWeReadBookId=${refreshSourceUrl.isNotBlank()}"
+            }
+            val result = BookSearchResult(
+                title = book.title,
+                author = book.author,
+                category = book.category,
+                coverUrl = book.cover_image,
+                introduction = book.introduction,
+                sourceUrl = refreshSourceUrl,
+            )
+            val generationResult = runCatching { bookIntelligenceService.generateViewpoints(result) }.getOrElse { error ->
+                log.e(error) { "Book refresh failed title=${book.title} id=$bookId" }
+                _state.update {
+                    it.copy(
+                        refreshingBookId = null,
+                        refreshMessage = null,
+                        error = bookAnalysisFailureError(error),
+                    )
+                }
+                return@launch
+            }
+            val drafts = bookViewpointDraftsForImport(generationResult.drafts)
+            log.i { "Book refresh finished title=${book.title} id=$bookId draftCount=${drafts.size}" }
+            viewpointRepo.deleteByBook(bookId)
+            drafts.forEach { draft ->
+                viewpointRepo.insert(
+                    bookId = bookId,
+                    title = draft.title,
+                    content = draft.content,
+                    example = draft.example,
+                    status = draft.status,
+                    errorMessage = draft.errorMessage,
+                    outlineJson = draft.outlineJson,
+                    sourceNotes = draft.sourceNotes,
+                )
+            }
+            _state.update {
+                it.copy(
+                    currentBookId = bookId,
+                    currentPage = 0,
+                    refreshingBookId = null,
+                    refreshMessage = booksRefreshSuccessText(book.title),
+                    error = null,
+                )
+            }
+        }
+    }
+
+    fun clearRefreshMessage() {
+        _state.update { it.copy(refreshMessage = null) }
+    }
+
+    private fun refreshSourceUrlFromViewpoints(bookId: Long): String {
+        val bookIdFromContext = viewpointRepo.getByBookSync(bookId)
+            .asSequence()
+            .mapNotNull { parseBookViewpointRetryContext(it.outline_json)?.info?.bookId?.trim() }
+            .firstOrNull { it.isNotBlank() }
+        return bookIdFromContext?.let(::weReadSourceUrlFromBookId).orEmpty()
     }
 
     fun setPage(page: Int) {
@@ -124,3 +210,5 @@ class BooksViewModel(
         }
     }
 }
+
+internal fun weReadSourceUrlFromBookId(bookId: String): String = "weread://reading?bId=${bookId.trim()}"

@@ -57,6 +57,9 @@ fun DailySatoriNavHost(navController: NavHostController, settingsViewModel: Sett
                     backStackEntry.savedStateHandle[SELECTED_BOOK_ID_KEY] = null
                     backStackEntry.savedStateHandle[SELECTED_VIEWPOINT_ID_KEY] = null
                 },
+                onBookAnalysisMessageConsumed = {
+                    backStackEntry.savedStateHandle[BOOK_ANALYSIS_MESSAGE_KEY] = null
+                },
                 onArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
                 onAiArticleClick = { id -> navController.navigate(ArticleDetailRoute(id)) },
                 settingsViewModel = settingsViewModel,

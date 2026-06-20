@@ -1,5 +1,6 @@
 package com.dailysatori.service.book
 
+import co.touchlab.kermit.Logger
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.data.repository.SettingRepository
@@ -38,7 +39,7 @@ import kotlinx.serialization.Serializable
 
 private const val WE_READ_GATEWAY = "https://i.weread.qq.com/api/agent/gateway"
 private const val WE_READ_SKILL_VERSION = "1.0.3"
-private const val BOOK_VIEWPOINT_ENRICH_CONCURRENCY = 4
+private const val BOOK_VIEWPOINT_ENRICH_CONCURRENCY = 10
 
 private val weReadJson = Json {
     ignoreUnknownKeys = true
@@ -119,6 +120,8 @@ class DefaultBookAiFallbackGenerator(
     private val mcpServerRepository: McpServerRepository,
     private val remoteMcpClient: RemoteMcpClient,
 ) : BookAiFallbackGenerator {
+    private val log = Logger.withTag("BookAiFallback")
+
     override suspend fun generate(
         book: BookSearchResult,
         info: WeReadBookInfo,
@@ -159,9 +162,51 @@ class DefaultBookAiFallbackGenerator(
             systemPrompt = buildBookViewpointOutlinePrompt(book, info, chapters, reviews),
             failure = "AI 观点生成失败，请稍后重试",
         )
-        val outlines = parseBookViewpointOutlineJson(response)
-        if (outlines.size < 10) throw WeReadSkillException(WeReadSkillErrorType.AiFallbackFailure, "AI 观点生成失败，请稍后重试")
-        return outlines
+        val parsedOutlines = parseBookViewpointOutlineJson(response)
+        val supplementedOutlines = supplementBookViewpointOutlines(parsedOutlines, book, info, chapters, reviews, config)
+        val completedOutlines = completeBookViewpointOutlines(supplementedOutlines, book, info, chapters, reviews)
+        if (parsedOutlines.size < 10) {
+            log.w {
+                "AI outline response parsed ${parsedOutlines.size}/10; supplemented to ${supplementedOutlines.size}; completed to ${completedOutlines.size} for ${info.title.ifBlank { book.title }}"
+            }
+        }
+        if (completedOutlines.size < 10) {
+            throw WeReadSkillException(WeReadSkillErrorType.AiFallbackFailure, "AI 观点生成失败，请稍后重试")
+        }
+        return completedOutlines
+    }
+
+    private suspend fun supplementBookViewpointOutlines(
+        outlines: List<BookViewpointOutline>,
+        book: BookSearchResult,
+        info: WeReadBookInfo,
+        chapters: List<WeReadChapter>,
+        reviews: List<WeReadReview>,
+        config: Ai_config,
+    ): List<BookViewpointOutline> {
+        var completed = outlines.distinctBy { it.title.normalizedOutlineKey() }.take(10)
+        while (completed.size < 10) {
+            val missingCount = 10 - completed.size
+            val response = try {
+                completeWithAi(
+                    prompt = info.title.ifBlank { book.title },
+                    config = config,
+                    systemPrompt = buildBookViewpointOutlineSupplementPrompt(book, info, chapters, reviews, completed, missingCount),
+                    failure = "AI 观点生成失败，请稍后重试",
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                log.w(error) { "AI outline supplement failed for ${info.title.ifBlank { book.title }}" }
+                return completed
+            }
+            val existing = completed.map { it.title.normalizedOutlineKey() }.toSet()
+            val additions = parseBookViewpointOutlineJson(response)
+                .filterNot { it.title.normalizedOutlineKey() in existing }
+            if (additions.isEmpty()) return completed
+            completed = (completed + additions).distinctBy { it.title.normalizedOutlineKey() }.take(10)
+        }
+        return completed
     }
 
     private suspend fun enrichOutlines(
@@ -303,6 +348,8 @@ class WeReadSkillService(
 fun requireWeReadApiKey(value: String?): String = value?.trim()?.takeIf { it.isNotBlank() }
     ?: throw WeReadSkillException(WeReadSkillErrorType.MissingApiKey, "请先在 Skills 中配置微信读书 Token")
 
+fun bookViewpointEnrichConcurrency(): Int = BOOK_VIEWPOINT_ENRICH_CONCURRENCY
+
 fun hasSufficientWeReadMaterial(
     info: WeReadBookInfo,
     chapters: List<WeReadChapter>,
@@ -340,10 +387,11 @@ suspend fun selectWeReadOrAiViewpoints(
     aiFallbackGenerator: BookAiFallbackGenerator,
 ): BookViewpointGenerationResult {
     val aiDrafts = aiFallbackGenerator.generate(book, info, chapters, reviews)
-    if (aiDrafts.size < 10) {
+    val readyDrafts = aiDrafts.filter { it.status == "ready" }
+    if (readyDrafts.size < 10) {
         throw WeReadSkillException(WeReadSkillErrorType.AiFallbackFailure, "AI 观点生成失败，请稍后重试")
     }
-    return BookViewpointGenerationResult(aiDrafts, BookViewpointSource.AiFallback)
+    return BookViewpointGenerationResult(readyDrafts.take(10), BookViewpointSource.AiFallback)
 }
 
 fun resolveStoredWeReadApiKey(
@@ -500,9 +548,12 @@ fun buildAiFallbackViewpointPrompt(
 
         只返回 JSON 数组，不要 Markdown、解释或额外文本。
         数组必须包含 10 个对象，每个对象必须包含字段：title、content、example。
-        title 必须是完整判断句，直接表达书中观点。
-        content 是观点总结，控制在 80 到 160 个中文字符，必须讲清核心主张，并同时解释风险、条件和边界。
+        title 尽量使用书中原有短语、章节概念、命题或公案关键词，像观点标题，不要把解释、否定、强调、说明写进 title。
+        如果原始短语像半句或不完整，要保留核心词并补成完整观点标题，但不要补成讲解句。
+        content 是观点正文，控制在 100 到 200 个中文字符，不超过 200 个中文字符；直接说明观点本身，优先用书籍资料中的原始表述，并交代它在书中的背景、位置或语境，再自然说明风险、条件和边界，不要使用“此观点”“这个观点”“这说明”“这意味着”等讲解口吻。
+        content 不要使用“此观点”“这个观点”“这说明”“这意味着”等开头或转述句。
         example 至少 120 个中文字符，直接讲故事，不要写“在某某书中”“书中情境”这类套话；故事要写清人物或组织、冲突、行动、转折和结果。
+        example 必须使用白话、现代中文，像给普通读者解释一个具体场景；不要写成古文、半文言、格言体或晦涩摘要。古书也要把情境翻译成今天能直接理解的说法。
         如果资料有限，可以做合理概括，但不要编造书中原文、页码、章节细节或具体引文。
     """.trimIndent()
 }
@@ -528,10 +579,48 @@ fun buildBookViewpointOutlinePrompt(
 
         只返回 JSON 数组，数组包含 10 个对象。
         每个对象字段：title、brief、focus、searchQuery、caseIntent。
-        title 是完整判断句；brief 用 40-80 字说明观点；focus 是 2-8 个字的观点主题。
+        title 尽量使用书中原有短语、章节概念、命题或公案关键词，不要把解释写进 title。
+        如果原始短语像半句或不完整，要保留核心词并补成完整观点标题，但不要补成讲解句。
+        brief 优先保留书籍资料中的原始表述，用 40-80 字直接呈现观点本身，不要写成“此观点……”式讲解。
+        focus 是 2-8 个字的观点主题。
         searchQuery 必须适合 MCP 联网搜索，包含书名 + 作者 + 观点主题 + 关键词。
         caseIntent 说明这个观点适合真实案例、思想来源、寓言故事、童话故事或组织类比。
         不要编造章节正文、页码或原文引文。
+    """.trimIndent()
+}
+
+fun buildBookViewpointOutlineSupplementPrompt(
+    book: BookSearchResult,
+    info: WeReadBookInfo,
+    chapters: List<WeReadChapter>,
+    reviews: List<WeReadReview>,
+    existingOutlines: List<BookViewpointOutline>,
+    missingCount: Int,
+): String {
+    val title = info.title.ifBlank { book.title }
+    val author = info.author.ifBlank { book.author }
+    return """
+        请基于微信读书资料补齐缺少的 $missingCount 个观点骨架，不要写长解释和案例。
+        这些观点骨架用于后续联网 MCP 检索和 AI 补全。
+
+        书名：$title
+        作者：$author
+        分类：${book.category.ifBlank { info.category }}
+        简介：${info.intro.ifBlank { book.introduction }}
+        可用目录：${chapters.filter(::isUsefulBookChapterForViewpoint).take(12).joinToString("、") { cleanBookChapterTitle(it.title) }}
+        可用书评：${reviews.take(5).joinToString("\n") { it.content }}
+
+        已有观点：
+        ${existingOutlines.joinToString("\n") { "- ${it.title}：${it.brief}" }}
+
+        只返回 JSON 数组，数组只包含缺少的 $missingCount 个对象。
+        每个对象字段：title、brief、focus、searchQuery、caseIntent。
+        不要重复已有观点，也不要用封面、版权信息、目录、作者简介这类非正文项目凑数。
+        title 尽量使用书中原有短语、章节概念、命题或公案关键词，不要把解释写进 title。
+        如果原始短语像半句或不完整，要保留核心词并补成完整观点标题，但不要补成讲解句。
+        brief 优先保留书籍资料中的原始表述，用 40-80 字直接呈现观点本身，不要写成“此观点……”式讲解。
+        searchQuery 必须适合 MCP 联网搜索，包含书名 + 作者 + 观点主题 + 关键词。
+        不要编造章节正文、页码、原文引文或微信读书内部 ID。
     """.trimIndent()
 }
 
@@ -560,8 +649,11 @@ fun buildBookViewpointEnrichmentPrompt(
         ${sourceNotes.ifBlank { "无可用外部资料" }}
 
         先判断 MCP 资料是否与书名、作者、观点主题匹配；无关资料必须忽略。
-        content 控制在 80 到 160 个中文字符，讲清观点的风险、条件和边界。
+        title 优先沿用观点骨架中的书中短语；如果 MCP 或微信读书资料提供了更接近原文的短语，可替换为该短语。不要在 title 里追加解释句。
+        如果标题像半句或不完整，要保留核心词并补成完整观点标题，但不要补成讲解句。
+        content 直接说明观点本身，控制在 100 到 200 个中文字符，不超过 200 个中文字符；优先引用或贴近可用资料中的原始说法，并交代观点在书中的背景、位置或语境，再说明它的条件、边界和误用风险，不要写“此观点”“这个观点”“这说明”“这意味着”等讲解口吻。
         example 至少 120 个中文字符。真实案例必须来自微信读书资料或 MCP 资料；如果没有可靠真实案例，可以写寓言、童话、组织场景或类比故事。
+        example 必须使用白话、现代中文，像给普通读者解释一个具体场景；不要写成古文、半文言、格言体或晦涩摘要。古书也要把情境翻译成今天能直接理解的说法。
         不能把类比或想象场景写成真实发生，也不要写“某知名企业曾经”这类无法验证的套话。
     """.trimIndent()
 }
@@ -581,6 +673,127 @@ fun parseBookViewpointOutlineJson(response: String): List<BookViewpointOutline> 
         if (outline.title.length < 4 || outline.brief.length < 10 || outline.searchQuery.isBlank()) null else outline
     }.take(10)
 }
+
+fun completeBookViewpointOutlines(
+    outlines: List<BookViewpointOutline>,
+    book: BookSearchResult,
+    info: WeReadBookInfo,
+    chapters: List<WeReadChapter>,
+    reviews: List<WeReadReview>,
+): List<BookViewpointOutline> {
+    val title = info.title.ifBlank { book.title }.ifBlank { "这本书" }
+    val author = info.author.ifBlank { book.author }
+    val intro = info.intro.ifBlank { book.introduction }
+    val completed = outlines.distinctBy { it.title.normalizedOutlineKey() }.toMutableList()
+    val existing = completed.map { it.title.normalizedOutlineKey() }.toMutableSet()
+
+    fun addOutline(seedTitle: String, brief: String, focus: String, caseIntent: String) {
+        if (completed.size >= 10) return
+        val cleanTitle = seedTitle.trim().trim('。', '，', ',', '.', '：', ':')
+        if (cleanTitle.isBlank()) return
+        val key = cleanTitle.normalizedOutlineKey()
+        if (!existing.add(key)) return
+        completed += BookViewpointOutline(
+            title = cleanTitle,
+            brief = brief.trim().ifBlank { "$cleanTitle 是《$title》中可继续展开的核心线索，需要结合资料判断它的条件、边界和风险。" },
+            focus = focus.trim().ifBlank { cleanTitle.take(8) },
+            searchQuery = listOf(title, author, focus.ifBlank { cleanTitle }, cleanTitle)
+                .filter { it.isNotBlank() }
+                .joinToString(" "),
+            caseIntent = caseIntent,
+        )
+    }
+
+    chapters
+        .sortedBy { it.chapterIdx }
+        .filter(::isUsefulBookChapterForViewpoint)
+        .forEach { chapter ->
+            val chapterTitle = cleanBookChapterTitle(chapter.title)
+            addOutline(
+                seedTitle = chapterTitle,
+                brief = "目录中的“$chapterTitle”提示这本书围绕这一线索展开判断，可从问答、处境和回应方式中提炼观点。",
+                focus = chapterTitle.take(8),
+                caseIntent = "书中情境、寓言或现代类比故事",
+            )
+        }
+
+    if (intro.isNotBlank()) {
+        addOutline(
+            seedTitle = "${title}的核心问题",
+            brief = intro.take(80),
+            focus = "核心问题",
+            caseIntent = "思想来源或现代类比故事",
+        )
+    }
+
+    reviews
+        .filter { it.content.isNotBlank() }
+        .forEachIndexed { index, review ->
+            addOutline(
+                seedTitle = "读者反复注意的线索${index + 1}",
+                brief = review.content.take(80),
+                focus = "读者线索",
+                caseIntent = "书评线索或现代类比故事",
+            )
+        }
+
+    fallbackOutlineThemes().forEach { (seedTitle, focus) ->
+        addOutline(
+            seedTitle = seedTitle,
+            brief = "$seedTitle 是《$title》中可用于阅读思考的补位线索，需要回到书籍资料中说明它成立的条件、边界和误用风险。",
+            focus = focus,
+            caseIntent = "寓言、组织场景或生活类比故事",
+        )
+    }
+
+    return completed.take(10)
+}
+
+private val nonContentBookChapterTitles = setOf(
+    "封面",
+    "版权信息",
+    "目录",
+    "扉页",
+    "前言",
+    "序",
+    "序言",
+    "出版说明",
+    "作者简介",
+    "后记",
+    "附录",
+    "致谢",
+    "参考文献",
+)
+
+private fun isUsefulBookChapterForViewpoint(chapter: WeReadChapter): Boolean {
+    val title = cleanBookChapterTitle(chapter.title)
+    if (title.isBlank()) return false
+    if (title in nonContentBookChapterTitles) return false
+    if (title.length <= 2) return false
+    if (chapter.wordCount in 1..79) return false
+    return true
+}
+
+private fun cleanBookChapterTitle(title: String): String = title
+    .trim()
+    .replace(Regex("""^\s*(第?[一二三四五六七八九十百千万\d]+[章节回讲篇])?[、.．:\s]+"""), "")
+    .trim()
+    .trim('。', '，', ',', '.', '：', ':')
+
+private fun String.normalizedOutlineKey(): String = trim().trim('。', '，', ',', '.', '：', ':')
+
+private fun fallbackOutlineThemes(): List<Pair<String, String>> = listOf(
+    "从关键问答看见问题本身" to "关键问答",
+    "先识别执着再谈行动" to "识别执着",
+    "把抽象判断放回具体处境" to "具体处境",
+    "不要把方法误认为答案" to "方法边界",
+    "真正的转变发生在回应方式里" to "回应方式",
+    "语言只能指向经验不能替代经验" to "语言边界",
+    "用当下处境检验理解" to "当下检验",
+    "看见分别心如何制造障碍" to "分别心",
+    "从反常回应里打断惯性" to "打断惯性",
+    "把理解落实到日常选择" to "日常选择",
+)
 
 fun failedBookViewpointDraft(outline: BookViewpointOutline, errorMessage: String, sourceNotes: String): BookViewpointDraft =
     BookViewpointDraft(

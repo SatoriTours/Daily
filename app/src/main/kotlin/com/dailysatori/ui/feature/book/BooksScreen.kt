@@ -78,6 +78,7 @@ fun BooksScreen(
     selectedViewpointId: Long? = null,
     bookAnalysisMessage: String? = null,
     onSelectedBookConsumed: () -> Unit = {},
+    onBookAnalysisMessageConsumed: () -> Unit = {},
     onMyClick: () -> Unit = {},
 ) {
     val viewModel: BooksViewModel = koinViewModel()
@@ -103,6 +104,27 @@ fun BooksScreen(
             inlineBookAnalysisMessage = addState.analysisMessage
             inlineMode = BooksInlineMode.Reading
             addBookViewModel.clearAdded()
+        }
+    }
+
+    LaunchedEffect(bookAnalysisMessage) {
+        if (bookAnalysisMessage != null) {
+            inlineBookAnalysisMessage = bookAnalysisMessage
+            onBookAnalysisMessageConsumed()
+        }
+    }
+
+    LaunchedEffect(inlineBookAnalysisMessage) {
+        if (inlineBookAnalysisMessage != null) {
+            delay(booksAnalysisNoticeDurationMs())
+            inlineBookAnalysisMessage = null
+        }
+    }
+
+    LaunchedEffect(state.refreshMessage) {
+        if (state.refreshMessage != null) {
+            delay(booksAnalysisNoticeDurationMs())
+            viewModel.clearRefreshMessage()
         }
     }
 
@@ -183,6 +205,14 @@ fun BooksScreen(
                         leadingIcon = { Icon(Icons.Default.FilterList, null) },
                         onClick = { showBookSheet = true; showMenu = false },
                     )
+                    if (state.currentBookId != null) {
+                        DropdownMenuItem(
+                            text = { Text(booksRefreshCurrentBookMenuText()) },
+                            leadingIcon = { Icon(Icons.Default.Refresh, null) },
+                            enabled = state.refreshingBookId == null,
+                            onClick = { viewModel.refreshCurrentBook(); showMenu = false },
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text("随机") },
                         leadingIcon = { Icon(Icons.Default.Refresh, null) },
@@ -211,6 +241,16 @@ fun BooksScreen(
             val visibleAnalysisMessage = booksAnalysisBannerMessage(bookAnalysisMessage, inlineBookAnalysisMessage)
             if (visibleAnalysisMessage != null) {
                 BooksInlineNotice(text = visibleAnalysisMessage)
+            }
+            if (state.refreshingBookId != null) {
+                val refreshingTitle = state.books.find { it.id == state.refreshingBookId }?.title ?: currentBook?.title.orEmpty()
+                BooksInlineNotice(text = booksRefreshInProgressText(refreshingTitle))
+            }
+            state.refreshMessage?.let { message ->
+                BooksInlineNotice(text = message)
+            }
+            state.error?.let { error ->
+                BooksInlineNotice(text = error)
             }
             searchReturnLocation?.let { location ->
                 BooksInlineNotice(
@@ -416,6 +456,8 @@ fun BooksScreen(
                                 }
                             },
                             onDelete = { viewModel.deleteBook(book.id) },
+                            onRefresh = { viewModel.refreshBook(book.id) },
+                            isRefreshing = state.refreshingBookId == book.id,
                         )
                         Spacer(modifier = Modifier.height(Spacing.xs))
                     }
@@ -524,10 +566,14 @@ fun booksAddActionContentDescription(): String = "添加新书"
 fun booksContentSearchActionContentDescription(): String = "搜索读书内容"
 fun booksMoreActionsContentDescription(): String = "更多读书操作"
 fun booksFilterMenuText(): String = "筛选书籍"
+fun booksRefreshCurrentBookMenuText(): String = "刷新此书"
 fun booksTopLevelActionCount(): Int = 1
 fun booksReaderTitle(title: String?, author: String?): String = title?.takeIf { it.isNotBlank() } ?: "读书"
 fun booksReadingProgressText(page: Int, total: Int): String = "${(page + 1).coerceAtMost(total.coerceAtLeast(1))} / ${total.coerceAtLeast(1)}"
 fun booksAnalysisBannerMessage(routeMessage: String?, inlineMessage: String?): String? = routeMessage ?: inlineMessage
+fun booksAnalysisNoticeDurationMs(): Long = 4_000L
+fun booksRefreshInProgressText(title: String): String = "正在更新《${title.ifBlank { "这本书" }}》的读书观点"
+fun booksRefreshSuccessText(title: String): String = "《${title.ifBlank { "这本书" }}》读书观点已更新"
 fun booksAddSheetTitle(): String = "添加书籍"
 fun booksContentSearchSheetTitle(): String = "搜索读书内容"
 fun booksAddSearchLoadingText(): String = "正在搜索全网书籍资料，通常需要 5-10 秒"
@@ -535,18 +581,26 @@ fun booksContentSearchLoadingText(): String = "正在搜索本地书籍和观点
 fun booksReflectionActionText(): String = "想一想"
 fun booksRestoreReadingText(): String = "返回搜索前阅读"
 fun booksSwipeDeleteActionText(): String = "删除"
+fun booksSwipeRefreshActionText(): String = "更新"
+fun booksSwipeRefreshingActionText(): String = "更新中"
 fun booksPickerUsesSwipeDelete(): Boolean = true
+fun booksPickerUsesSwipeRefresh(): Boolean = true
 fun booksSwipeDeleteRequiresConfirmation(): Boolean = false
 fun booksSwipeDeleteStateKeyedByBookId(): Boolean = true
 fun booksSwipeDeleteActionWidthDp(): Int = 72
+fun booksSwipeRefreshActionWidthDp(): Int = 72
 fun booksSwipeDeleteUsesFullRowBackground(): Boolean = false
 fun booksSwipeDeleteMaxRevealDp(): Int = booksSwipeDeleteActionWidthDp()
+fun booksSwipeRefreshMaxRevealDp(): Int = booksSwipeRefreshActionWidthDp()
 fun booksPickerRowMinHeightDp(): Int = 72
 fun booksSwipeDeleteActionMatchesRowHeight(): Boolean = booksSwipeDeleteActionWidthDp() == booksPickerRowMinHeightDp()
+fun booksSwipeRefreshActionMatchesRowHeight(): Boolean = booksSwipeRefreshActionWidthDp() == booksPickerRowMinHeightDp()
 fun booksSwipeDeleteActionIsSquare(): Boolean = true
+fun booksSwipeRefreshActionIsSquare(): Boolean = true
 fun booksPickerRowUsesFixedHeight(): Boolean = true
 fun booksPickerRowTextUsesSingleLine(): Boolean = true
 fun booksSwipeDeleteUsesJoinedEdgeShapes(): Boolean = true
+fun booksSwipeRefreshUsesJoinedEdgeShapes(): Boolean = true
 fun bookPickerUsesLazyList(): Boolean = true
 fun bookPickerBottomPaddingDp(): Int = 48
 fun bookResultSourceActionDescription(): String = "打开微信读书介绍"

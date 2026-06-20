@@ -112,6 +112,7 @@ fun HomeScreen(
     selectedViewpointId: Long? = null,
     bookAnalysisMessage: String? = null,
     onSelectedBookConsumed: () -> Unit = {},
+    onBookAnalysisMessageConsumed: () -> Unit = {},
     onArticleClick: (Long) -> Unit = {},
     onAiArticleClick: (Long) -> Unit = {},
     settingsViewModel: SettingsViewModel,
@@ -154,6 +155,7 @@ fun HomeScreen(
                             selectedViewpointId = selectedViewpointId,
                             bookAnalysisMessage = bookAnalysisMessage,
                             onSelectedBookConsumed = onSelectedBookConsumed,
+                            onBookAnalysisMessageConsumed = onBookAnalysisMessageConsumed,
                             onMyClick = openMy,
                         )
                         AI_CHAT_TAB_INDEX -> AiChatScreen(

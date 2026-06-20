@@ -12,7 +12,21 @@ class BooksScreenUiTextTest {
         assertEquals("添加新书", booksAddActionContentDescription())
         assertEquals("搜索读书内容", booksContentSearchActionContentDescription())
         assertEquals("筛选书籍", booksFilterMenuText())
+        assertEquals("刷新此书", booksRefreshCurrentBookMenuText())
         assertEquals(1, booksTopLevelActionCount())
+    }
+
+    @Test
+    fun moreMenuRefreshesCurrentBookOnly() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
+        val menuBlock = source.extractBetween(
+            start = "DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {",
+            end = "\n                }",
+        )
+
+        assertTrue(menuBlock.contains("booksRefreshCurrentBookMenuText()"))
+        assertTrue(menuBlock.contains("viewModel.refreshCurrentBook()"))
+        assertTrue(menuBlock.contains("state.currentBookId != null"))
     }
 
     @Test
@@ -85,6 +99,62 @@ class BooksScreenUiTextTest {
     }
 
     @Test
+    fun bookAnalysisNoticeAutoDismissesAfterShortDelay() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
+
+        assertEquals(4_000L, booksAnalysisNoticeDurationMs())
+        assertTrue(source.contains("LaunchedEffect(bookAnalysisMessage)"))
+        assertTrue(source.contains("LaunchedEffect(inlineBookAnalysisMessage)"))
+        assertTrue(source.contains("delay(booksAnalysisNoticeDurationMs())"))
+        assertTrue(source.contains("inlineBookAnalysisMessage = null"))
+        assertTrue(source.contains("onBookAnalysisMessageConsumed()"))
+    }
+
+    @Test
+    fun readerShowsBookRefreshErrorNotice() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
+
+        assertTrue(source.contains("state.error?.let { error ->"))
+        assertTrue(source.contains("BooksInlineNotice(text = error)"))
+    }
+
+    @Test
+    fun readerShowsBookRefreshProgressAndSuccessNotice() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksScreen.kt").readText()
+        val viewModelSource = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksViewModel.kt").readText()
+
+        assertEquals("正在更新《禅宗公案》的读书观点", booksRefreshInProgressText("禅宗公案"))
+        assertEquals("《禅宗公案》读书观点已更新", booksRefreshSuccessText("禅宗公案"))
+        assertTrue(source.contains("state.refreshingBookId != null"))
+        assertTrue(source.contains("booksRefreshInProgressText"))
+        assertTrue(source.contains("state.refreshMessage?.let { message ->"))
+        assertTrue(viewModelSource.contains("refreshingBookId = bookId"))
+        assertTrue(viewModelSource.contains("refreshMessage = booksRefreshSuccessText(book.title)"))
+        assertTrue(viewModelSource.contains("refreshingBookId = null"))
+    }
+
+    @Test
+    fun refreshBookWritesDiagnosticLogsAtGenerationBoundary() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksViewModel.kt").readText()
+
+        assertTrue(source.contains("Logger.withTag(\"BooksRefresh\")"))
+        assertTrue(source.contains("refreshSourceUrl.isNotBlank()"))
+        assertTrue(source.contains("Book refresh failed"))
+        assertTrue(source.contains("Book refresh finished"))
+    }
+
+    @Test
+    fun refreshBookReusesStoredWeReadBookIdFromViewpointContext() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksViewModel.kt").readText()
+
+        assertTrue(source.contains("parseBookViewpointRetryContext"))
+        assertTrue(source.contains("viewpointRepo.getByBookSync(bookId)"))
+        assertTrue(source.contains("weReadSourceUrlFromBookId"))
+        assertTrue(source.contains("sourceUrl = refreshSourceUrl"))
+        assertEquals("weread://reading?bId=3300045871", weReadSourceUrlFromBookId("3300045871"))
+    }
+
+    @Test
     fun bottomSheetLabelsExplainSearchProgress() {
         assertEquals("添加书籍", booksAddSheetTitle())
         assertEquals("搜索读书内容", booksContentSearchSheetTitle())
@@ -152,20 +222,27 @@ class BooksScreenUiTextTest {
     }
 
     @Test
-    fun bookPickerSupportsDirectSwipeDelete() {
+    fun bookPickerSupportsDirectSwipeDeleteAndRightSwipeRefresh() {
         assertEquals("删除", booksSwipeDeleteActionText())
+        assertEquals("更新", booksSwipeRefreshActionText())
         assertEquals(true, booksPickerUsesSwipeDelete())
+        assertEquals(true, booksPickerUsesSwipeRefresh())
         assertEquals(false, booksSwipeDeleteRequiresConfirmation())
         assertEquals(true, booksSwipeDeleteStateKeyedByBookId())
         assertEquals(72, booksSwipeDeleteActionWidthDp())
+        assertEquals(72, booksSwipeRefreshActionWidthDp())
         assertEquals(false, booksSwipeDeleteUsesFullRowBackground())
         assertEquals(72, booksSwipeDeleteMaxRevealDp())
+        assertEquals(72, booksSwipeRefreshMaxRevealDp())
         assertEquals(72, booksPickerRowMinHeightDp())
         assertEquals(true, booksSwipeDeleteActionMatchesRowHeight())
+        assertEquals(true, booksSwipeRefreshActionMatchesRowHeight())
         assertEquals(true, booksSwipeDeleteActionIsSquare())
+        assertEquals(true, booksSwipeRefreshActionIsSquare())
         assertEquals(true, booksPickerRowUsesFixedHeight())
         assertEquals(true, booksPickerRowTextUsesSingleLine())
         assertEquals(true, booksSwipeDeleteUsesJoinedEdgeShapes())
+        assertEquals(true, booksSwipeRefreshUsesJoinedEdgeShapes())
     }
 
     private fun String.extractBetween(start: String, end: String): String {

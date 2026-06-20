@@ -365,10 +365,20 @@ class WeReadSkillServiceTest {
         assertTrue(prompt.contains("书中核心观点"))
         assertTrue(prompt.contains("不要写书评"))
         assertTrue(prompt.contains("不要写读后感"))
-        assertTrue(prompt.contains("控制在 80 到 160 个中文字符"))
+        assertTrue(prompt.contains("控制在 100 到 200 个中文字符"))
         assertTrue(prompt.contains("风险、条件和边界"))
         assertTrue(prompt.contains("直接讲故事"))
         assertTrue(prompt.contains("不要写“在某某书中”“书中情境”"))
+        assertTrue(prompt.contains("白话、现代中文"))
+        assertTrue(prompt.contains("不要写成古文、半文言"))
+        assertTrue(prompt.contains("title 尽量使用书中原有短语"))
+        assertTrue(prompt.contains("如果原始短语像半句或不完整"))
+        assertTrue(prompt.contains("补成完整观点标题"))
+        assertTrue(prompt.contains("不要把解释、否定、强调、说明写进 title"))
+        assertTrue(prompt.contains("content 不要使用“此观点”“这个观点”“这说明”“这意味着”"))
+        assertTrue(prompt.contains("不超过 200 个中文字符"))
+        assertTrue(prompt.contains("交代它在书中的背景、位置或语境"))
+        assertTrue(prompt.contains("优先用书籍资料中的原始表述"))
         assertTrue(prompt.contains("供应链架构师"))
     }
 
@@ -382,9 +392,53 @@ class WeReadSkillServiceTest {
         )
 
         assertTrue(prompt.contains("10 个观点骨架"))
+        assertTrue(prompt.contains("title 尽量使用书中原有短语"))
+        assertTrue(prompt.contains("如果原始短语像半句或不完整"))
+        assertTrue(prompt.contains("补成完整观点标题"))
+        assertTrue(prompt.contains("不要把解释写进 title"))
+        assertTrue(prompt.contains("brief 优先保留书籍资料中的原始表述"))
         assertTrue(prompt.contains("searchQuery"))
         assertTrue(prompt.contains("caseIntent"))
         assertTrue(prompt.contains("书名 + 作者 + 观点主题"))
+    }
+
+    @Test
+    fun buildsOutlineSupplementPromptWithoutWeReadBookId() {
+        val prompt = buildBookViewpointOutlineSupplementPrompt(
+            book = BookSearchResult(title = "禅宗公案", author = "佚名", category = "宗教哲学"),
+            info = WeReadBookInfo(
+                bookId = "3300045871",
+                title = "禅宗公案",
+                author = "佚名",
+                intro = "记录禅门机锋与问答。",
+                category = "宗教哲学",
+            ),
+            chapters = listOf(WeReadChapter(chapterUid = 1, chapterIdx = 1, title = "直指本心", wordCount = 1200)),
+            reviews = listOf(WeReadReview(content = "这些公案常用简短问答打断惯常理解。")),
+            existingOutlines = listOf(
+                BookViewpointOutline(
+                    title = "不落阶级",
+                    brief = "不把悟入理解成逐级攀登。",
+                    focus = "不落阶级",
+                    searchQuery = "禅宗公案 佚名 不落阶级",
+                    caseIntent = "公案或类比故事",
+                ),
+            ),
+            missingCount = 1,
+        )
+
+        assertTrue(prompt.contains("补齐缺少的 1 个观点骨架"))
+        assertTrue(prompt.contains("不要重复已有观点"))
+        assertTrue(prompt.contains("不落阶级"))
+        assertTrue(prompt.contains("只返回 JSON 数组"))
+        assertTrue(prompt.contains("补成完整观点标题"))
+        assertTrue(prompt.contains("书名 + 作者 + 观点主题"))
+        assertTrue(!prompt.contains("3300045871"))
+    }
+
+    @Test
+    fun bookViewpointEnrichmentRunsTenRequestsConcurrently() {
+        assertEquals(10, bookViewpointEnrichConcurrency())
     }
 
     @Test
@@ -407,6 +461,16 @@ class WeReadSkillServiceTest {
         assertTrue(prompt.contains("外部 MCP 资料"))
         assertTrue(prompt.contains("判断 MCP 资料是否与书名、作者、观点主题匹配"))
         assertTrue(prompt.contains("类比故事"))
+        assertTrue(prompt.contains("白话、现代中文"))
+        assertTrue(prompt.contains("不要写成古文、半文言"))
+        assertTrue(prompt.contains("title 优先沿用观点骨架中的书中短语"))
+        assertTrue(prompt.contains("如果标题像半句或不完整"))
+        assertTrue(prompt.contains("补成完整观点标题"))
+        assertTrue(prompt.contains("content 直接说明观点本身"))
+        assertTrue(prompt.contains("不超过 200 个中文字符"))
+        assertTrue(prompt.contains("交代观点在书中的背景、位置或语境"))
+        assertTrue(prompt.contains("不要写“此观点”“这个观点”“这说明”“这意味着”"))
+        assertTrue(prompt.contains("优先引用或贴近可用资料中的原始说法"))
         assertTrue(prompt.contains("不能把类比或想象场景写成真实发生"))
     }
 
@@ -422,6 +486,38 @@ class WeReadSkillServiceTest {
 
         assertEquals(1, outlines.size)
         assertEquals("新书 作者 约束判断", outlines.first().searchQuery)
+    }
+
+    @Test
+    fun completesSparseAiOutlinesWithWeReadMaterial() {
+        val aiOutlines = listOf(
+            BookViewpointOutline(
+                title = "不落阶级",
+                brief = "不把悟入理解成逐级攀登。",
+                focus = "不落阶级",
+                searchQuery = "禅宗公案 不落阶级",
+                caseIntent = "公案或类比故事",
+            ),
+        )
+
+        val completed = completeBookViewpointOutlines(
+            outlines = aiOutlines,
+            book = BookSearchResult(title = "禅宗公案", author = "佚名", introduction = "记录禅门机锋与问答。"),
+            info = WeReadBookInfo(bookId = "3300045871", title = "禅宗公案", author = "佚名", intro = "记录禅门机锋与问答。"),
+            chapters = listOf(
+                WeReadChapter(chapterUid = 1, chapterIdx = 1, title = "封面", wordCount = 1),
+                WeReadChapter(chapterUid = 2, chapterIdx = 2, title = "版权信息", wordCount = 606),
+                WeReadChapter(chapterUid = 3, chapterIdx = 3, title = "不落阶级", wordCount = 800),
+                WeReadChapter(chapterUid = 4, chapterIdx = 4, title = "直指本心", wordCount = 900),
+            ),
+            reviews = listOf(WeReadReview("这些公案常用简短问答打断惯常理解。")),
+        )
+
+        assertEquals(10, completed.size)
+        assertEquals("不落阶级", completed.first().title)
+        assertTrue(completed.none { it.title == "封面" || it.title == "版权信息" })
+        assertTrue(completed.drop(1).any { it.title == "直指本心" })
+        assertTrue(completed.all { it.searchQuery.contains("禅宗公案") })
     }
 
     @Test
@@ -514,6 +610,43 @@ class WeReadSkillServiceTest {
 
         assertEquals(WeReadSkillErrorType.AiFallbackFailure, error.type)
         assertEquals("AI 观点生成失败，请稍后重试", weReadUserMessage(error))
+    }
+
+    @Test
+    fun sparseWeReadMaterialFailsWhenAiDraftsContainFailedCards() = runBlocking {
+        val book = BookSearchResult(title = "待上架新书", author = "作者", introduction = "一句简介")
+        val info = WeReadBookInfo(bookId = "123", title = "待上架新书", intro = "")
+        val readyDrafts = List(9) { index ->
+            BookViewpointDraft(
+                title = "AI 生成观点 ${index + 1} 要先界定问题。",
+                content = "当微信读书材料不足时，系统应清楚承认观点来自 AI，并基于有限元数据建立判断边界，避免把不存在的目录、原文或书评写成事实。",
+                example = "例如一位读者添加一本待上架新书时，系统只有书名和一句简介。AI 没有编造章节，而是围绕简介中的核心问题生成场景：团队先确认信息缺口，再把观点用于提出阅读问题，等正式资料补齐后再回到原书内容验证。",
+            )
+        }
+        val generator = object : BookAiFallbackGenerator {
+            override suspend fun generate(
+                book: BookSearchResult,
+                info: WeReadBookInfo,
+                chapters: List<WeReadChapter>,
+                reviews: List<WeReadReview>,
+            ): List<BookViewpointDraft> = readyDrafts + failedBookViewpointDraft(
+                outline = BookViewpointOutline(
+                    title = "封面",
+                    brief = "无效目录项。",
+                    focus = "封面",
+                    searchQuery = "待上架新书 作者 封面",
+                    caseIntent = "类比故事",
+                ),
+                errorMessage = "AI 观点生成失败，请稍后重试",
+                sourceNotes = "",
+            )
+        }
+
+        val error = assertFailsWith<WeReadSkillException> {
+            selectWeReadOrAiViewpoints(book, info, emptyList(), emptyList(), generator)
+        }
+
+        assertEquals(WeReadSkillErrorType.AiFallbackFailure, error.type)
     }
 
     @Test

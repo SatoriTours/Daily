@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -40,6 +42,10 @@ import com.dailysatori.ui.feature.book.booksPickerRowMinHeightDp
 import com.dailysatori.ui.feature.book.booksSwipeDeleteActionText
 import com.dailysatori.ui.feature.book.booksSwipeDeleteActionWidthDp
 import com.dailysatori.ui.feature.book.booksSwipeDeleteMaxRevealDp
+import com.dailysatori.ui.feature.book.booksSwipeRefreshActionText
+import com.dailysatori.ui.feature.book.booksSwipeRefreshActionWidthDp
+import com.dailysatori.ui.feature.book.booksSwipeRefreshMaxRevealDp
+import com.dailysatori.ui.feature.book.booksSwipeRefreshingActionText
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import kotlin.math.roundToInt
@@ -50,10 +56,52 @@ internal fun BookPickerSwipeRow(
     isSelected: Boolean,
     onSelect: () -> Unit,
     onDelete: () -> Unit,
+    onRefresh: () -> Unit,
+    isRefreshing: Boolean = false,
 ) {
-    val revealWidthPx = with(LocalDensity.current) { booksSwipeDeleteMaxRevealDp().dp.toPx() }
+    val deleteRevealWidthPx = with(LocalDensity.current) { booksSwipeDeleteMaxRevealDp().dp.toPx() }
+    val refreshRevealWidthPx = with(LocalDensity.current) { booksSwipeRefreshMaxRevealDp().dp.toPx() }
     var offsetX by remember(book.id) { mutableFloatStateOf(0f) }
     Box(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier.matchParentSize(),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Column(
+                modifier = Modifier
+                    .size(booksSwipeRefreshActionWidthDp().dp)
+                    .clip(bookPickerRefreshActionShape())
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .clickable(enabled = !isRefreshing) {
+                        offsetX = 0f
+                        onRefresh()
+                    },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                if (isRefreshing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.height(Spacing.xxs))
+                Text(
+                    if (isRefreshing) booksSwipeRefreshingActionText() else booksSwipeRefreshActionText(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
         Box(
             modifier = Modifier.matchParentSize(),
             contentAlignment = Alignment.CenterEnd,
@@ -63,7 +111,10 @@ internal fun BookPickerSwipeRow(
                     .size(booksSwipeDeleteActionWidthDp().dp)
                     .clip(bookPickerDeleteActionShape())
                     .background(MaterialTheme.colorScheme.errorContainer)
-                    .clickable(onClick = onDelete),
+                    .clickable {
+                        offsetX = 0f
+                        onDelete()
+                    },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -85,17 +136,32 @@ internal fun BookPickerSwipeRow(
         Box(
             modifier = Modifier
                 .offset { IntOffset(offsetX.roundToInt(), 0) }
-                .pointerInput(revealWidthPx) {
+                .pointerInput(deleteRevealWidthPx, refreshRevealWidthPx) {
                     detectHorizontalDragGestures(
-                        onDragEnd = { offsetX = if (offsetX <= -revealWidthPx / 2f) -revealWidthPx else 0f },
+                        onDragEnd = {
+                            offsetX = when {
+                                offsetX <= -deleteRevealWidthPx / 2f -> -deleteRevealWidthPx
+                                offsetX >= refreshRevealWidthPx / 2f -> refreshRevealWidthPx
+                                else -> 0f
+                            }
+                        },
                         onHorizontalDrag = { change, dragAmount ->
                             change.consume()
-                            offsetX = (offsetX + dragAmount).coerceIn(-revealWidthPx, 0f)
+                            offsetX = (offsetX + dragAmount).coerceIn(-deleteRevealWidthPx, refreshRevealWidthPx)
                         },
                     )
                 },
         ) {
-            BookPickerRow(book = book, isSelected = isSelected, onSelect = onSelect)
+            BookPickerRow(
+                book = book,
+                isSelected = isSelected,
+                onSelect = onSelect,
+                actionSide = when {
+                    offsetX > 0f -> BookPickerActionSide.Start
+                    offsetX < 0f -> BookPickerActionSide.End
+                    else -> BookPickerActionSide.None
+                },
+            )
         }
     }
 }
@@ -105,13 +171,14 @@ private fun BookPickerRow(
     book: Book,
     isSelected: Boolean,
     onSelect: () -> Unit,
+    actionSide: BookPickerActionSide,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .height(booksPickerRowMinHeightDp().dp)
-            .clip(bookPickerRowShape())
+            .clip(bookPickerRowShape(actionSide))
             .background(
                 if (isSelected) MaterialTheme.colorScheme.primaryContainer
                 else MaterialTheme.colorScheme.surface,
@@ -148,7 +215,25 @@ private fun BookPickerRow(
     }
 }
 
-private fun bookPickerRowShape() = RoundedCornerShape(
+private enum class BookPickerActionSide { None, Start, End }
+
+private fun bookPickerRowShape(actionSide: BookPickerActionSide) = when (actionSide) {
+    BookPickerActionSide.Start -> RoundedCornerShape(
+        topStart = 0.dp,
+        bottomStart = 0.dp,
+        topEnd = Radius.s,
+        bottomEnd = Radius.s,
+    )
+    BookPickerActionSide.End -> RoundedCornerShape(
+        topStart = Radius.s,
+        bottomStart = Radius.s,
+        topEnd = 0.dp,
+        bottomEnd = 0.dp,
+    )
+    BookPickerActionSide.None -> RoundedCornerShape(Radius.s)
+}
+
+private fun bookPickerRefreshActionShape() = RoundedCornerShape(
     topStart = Radius.s,
     bottomStart = Radius.s,
     topEnd = 0.dp,
