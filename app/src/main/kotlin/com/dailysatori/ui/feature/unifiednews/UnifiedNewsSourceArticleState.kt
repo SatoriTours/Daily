@@ -5,12 +5,18 @@ import com.dailysatori.service.remotenews.RemoteArticle
 internal fun shouldResetUnifiedNewsSourceSelection(
     selection: UnifiedNewsSourceSelection,
     remoteSources: List<UnifiedNewsRemoteSourceOption>,
-): Boolean = selection is UnifiedNewsSourceSelection.RemoteSource && remoteSources.none { it.id == selection.id }
+    externalFavoriteSources: List<UnifiedNewsExternalFavoriteSourceOption> = emptyList(),
+): Boolean = when (selection) {
+    is UnifiedNewsSourceSelection.RemoteSource -> remoteSources.none { it.id == selection.id }
+    is UnifiedNewsSourceSelection.ExternalFavoriteSource -> externalFavoriteSources.none { it.id == selection.id }
+    else -> false
+}
 
 internal fun resolvedUnifiedNewsSourceSelection(
     selection: UnifiedNewsSourceSelection,
     remoteSources: List<UnifiedNewsRemoteSourceOption>,
-): UnifiedNewsSourceSelection = if (shouldResetUnifiedNewsSourceSelection(selection, remoteSources)) {
+    externalFavoriteSources: List<UnifiedNewsExternalFavoriteSourceOption> = emptyList(),
+): UnifiedNewsSourceSelection = if (shouldResetUnifiedNewsSourceSelection(selection, remoteSources, externalFavoriteSources)) {
     UnifiedNewsSourceSelection.Summary
 } else {
     selection

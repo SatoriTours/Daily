@@ -1,6 +1,7 @@
 package com.dailysatori.service.externalfavorites
 
 import android.content.Context
+import android.net.Uri
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.request.bearerAuth
@@ -16,6 +17,9 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import net.openid.appauth.AuthorizationRequest
+import net.openid.appauth.AuthorizationServiceConfiguration
+import net.openid.appauth.ResponseTypeValues
 import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -26,7 +30,7 @@ import java.util.Base64
 data class XOAuthProviderConfig(
     val clientId: String,
     val redirectUri: String,
-    val authorizationUrl: String = "https://api.x.com/2/oauth2/authorize",
+    val authorizationUrl: String = "https://twitter.com/i/oauth2/authorize",
     val tokenUrl: String = "https://api.x.com/2/oauth2/token",
     val currentUserUrl: String = "https://api.x.com/2/users/me",
 )
@@ -84,11 +88,23 @@ class XOAuthCoordinator(
     private val clientIdProvider: () -> String = { clientId },
 ) {
     fun beginAuthorization(): String {
-        val verifier = xOAuthCodeVerifier()
-        val state = xOAuthState()
         val resolvedClientId = currentClientId()
-        sessionStore?.save(XOAuthPendingSession(state = state, codeVerifier = verifier, clientId = resolvedClientId))
-        return authorizationUrl(state = state, codeChallenge = xOAuthCodeChallenge(verifier), clientId = resolvedClientId)
+        return runCatching {
+            val request = appAuthAuthorizationRequest(resolvedClientId)
+            sessionStore?.save(
+                XOAuthPendingSession(
+                    state = request.state.orEmpty(),
+                    codeVerifier = request.codeVerifier.orEmpty(),
+                    clientId = resolvedClientId,
+                ),
+            )
+            request.toUri().toString()
+        }.getOrElse {
+            val verifier = xOAuthCodeVerifier()
+            val state = xOAuthState()
+            sessionStore?.save(XOAuthPendingSession(state = state, codeVerifier = verifier, clientId = resolvedClientId))
+            authorizationUrl(state = state, codeChallenge = xOAuthCodeChallenge(verifier), clientId = resolvedClientId)
+        }
     }
 
     fun authorizationUrl(state: String, codeChallenge: String, clientId: String = currentClientId()): String {
@@ -171,6 +187,22 @@ class XOAuthCoordinator(
 
     private fun currentClientId(): String =
         clientIdProvider().ifBlank { config.clientId }.trim()
+
+    private fun appAuthAuthorizationRequest(clientId: String): AuthorizationRequest {
+        require(clientId.isNotBlank()) { "X OAuth client id is not configured" }
+        val serviceConfig = AuthorizationServiceConfiguration(
+            Uri.parse(config.authorizationUrl),
+            Uri.parse(config.tokenUrl),
+        )
+        return AuthorizationRequest.Builder(
+            serviceConfig,
+            clientId,
+            ResponseTypeValues.CODE,
+            Uri.parse(config.redirectUri),
+        )
+            .setScope(X_OAUTH_SCOPES.joinToString(" "))
+            .build()
+    }
 }
 
 data class XOAuthTokenPayload(
@@ -212,11 +244,11 @@ private fun xOAuthState(): String {
     return bytes.base64Url()
 }
 
-private fun parseXOAuthTokenPayload(body: String): XOAuthTokenPayload {
+internal fun parseXOAuthTokenPayload(body: String): XOAuthTokenPayload {
     val root = xOAuthJson.parseToJsonElement(body).jsonObject
     return XOAuthTokenPayload(
         accessToken = root.string("access_token"),
-        refreshToken = root.string("refresh_token"),
+        refreshToken = root["refresh_token"]?.jsonPrimitive?.contentOrNull.orEmpty(),
         expiresInSeconds = root["expires_in"]?.jsonPrimitive?.contentOrNull?.toLongOrNull(),
         scope = root["scope"]?.jsonPrimitive?.contentOrNull.orEmpty(),
         tokenType = root["token_type"]?.jsonPrimitive?.contentOrNull.orEmpty(),
@@ -279,4 +311,4 @@ private fun String.urlDecoded(): String =
 
 private val xOAuthJson = Json { ignoreUnknownKeys = true; isLenient = true }
 
-private val X_OAUTH_SCOPES = listOf("bookmark.read", "tweet.read", "users.read", "offline.access")
+private val X_OAUTH_SCOPES = listOf("users.read", "tweet.read", "bookmark.read")

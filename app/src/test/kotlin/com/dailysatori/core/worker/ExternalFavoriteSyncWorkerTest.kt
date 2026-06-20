@@ -61,4 +61,11 @@ class ExternalFavoriteSyncWorkerTest {
             externalFavoriteSyncFailureResult(RuntimeException("temporary network failure")),
         )
     }
+
+    @Test
+    fun workerTriggersArticleProcessingResumeAfterExternalFavoriteSync() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/core/worker/ExternalFavoriteSyncWorker.kt").readText()
+
+        assertEquals(true, source.contains("ArticleProcessingScheduler(applicationContext).enqueueResume()"))
+    }
 }

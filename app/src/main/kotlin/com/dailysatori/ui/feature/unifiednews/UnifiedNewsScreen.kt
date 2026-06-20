@@ -176,6 +176,12 @@ private fun UnifiedNewsSummaryPage(
                 when (val selection = state.sourceSelection) {
                     UnifiedNewsSourceSelection.Summary -> UnifiedNewsSummaryContent(state, viewModel)
                     is UnifiedNewsSourceSelection.RemoteSource -> UnifiedNewsSourceArticleContent(state, selection, viewModel)
+                    is UnifiedNewsSourceSelection.ExternalFavoriteSource -> ArticleListScreen(
+                        onArticleClick = onArticleClick,
+                        showTopBar = false,
+                        refreshRequestKey = state.localArticleRefreshRequestKey,
+                        externalFavoriteSourceId = selection.id,
+                    )
                     UnifiedNewsSourceSelection.LocalArticles -> ArticleListScreen(
                         onArticleClick = onArticleClick,
                         showTopBar = false,

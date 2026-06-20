@@ -6,6 +6,8 @@ import com.dailysatori.service.externalfavorites.ExternalItemImportStatus
 import com.dailysatori.service.externalfavorites.ExternalItemSyncStatus
 import com.dailysatori.shared.db.DailySatoriDatabase
 import com.dailysatori.shared.db.External_favorite_item
+import com.dailysatori.shared.db.SelectExternalFavoriteItemsImportedWithArticleMissingCover
+import com.dailysatori.shared.db.SelectExternalFavoriteItemsImportedWithPlaceholderArticle
 import com.dailysatori.shared.db.SelectExternalFavoriteItemsPendingAi
 import kotlinx.datetime.Clock
 
@@ -92,6 +94,16 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
             item.toExternalFavoriteItem()
         }
 
+    fun importedWithMissingArticleCover(limit: Long): List<External_favorite_item> =
+        q.selectExternalFavoriteItemsImportedWithArticleMissingCover(limit).executeAsList().map { item ->
+            item.toExternalFavoriteItem()
+        }
+
+    fun importedWithPlaceholderArticle(limit: Long): List<External_favorite_item> =
+        q.selectExternalFavoriteItemsImportedWithPlaceholderArticle(limit).executeAsList().map { item ->
+            item.toExternalFavoriteItem()
+        }
+
     fun markImported(itemId: Long, articleId: Long, duplicateLinked: Boolean) {
         q.updateExternalFavoriteItemImportState(
             articleId,
@@ -139,6 +151,62 @@ class ExternalFavoriteItemRepository(private val db: DailySatoriDatabase) {
             debug_json != draft.debugJson
 
     private fun SelectExternalFavoriteItemsPendingAi.toExternalFavoriteItem(): External_favorite_item =
+        External_favorite_item(
+            id = id,
+            source_id = source_id,
+            provider = provider,
+            external_id = external_id,
+            canonical_url = canonical_url,
+            title = title,
+            text = text,
+            author_name = author_name,
+            source_created_at = source_created_at,
+            favorited_at = favorited_at,
+            normalized_json = normalized_json,
+            debug_json = debug_json,
+            content_hash = content_hash,
+            ai_input_hash = ai_input_hash,
+            article_id = article_id,
+            sync_status = sync_status,
+            import_status = import_status,
+            ai_status = ai_status,
+            last_error_code = last_error_code,
+            last_error_message = last_error_message,
+            first_seen_at = first_seen_at,
+            last_seen_at = last_seen_at,
+            created_at = created_at,
+            updated_at = updated_at,
+        )
+
+    private fun SelectExternalFavoriteItemsImportedWithArticleMissingCover.toExternalFavoriteItem(): External_favorite_item =
+        External_favorite_item(
+            id = id,
+            source_id = source_id,
+            provider = provider,
+            external_id = external_id,
+            canonical_url = canonical_url,
+            title = title,
+            text = text,
+            author_name = author_name,
+            source_created_at = source_created_at,
+            favorited_at = favorited_at,
+            normalized_json = normalized_json,
+            debug_json = debug_json,
+            content_hash = content_hash,
+            ai_input_hash = ai_input_hash,
+            article_id = article_id,
+            sync_status = sync_status,
+            import_status = import_status,
+            ai_status = ai_status,
+            last_error_code = last_error_code,
+            last_error_message = last_error_message,
+            first_seen_at = first_seen_at,
+            last_seen_at = last_seen_at,
+            created_at = created_at,
+            updated_at = updated_at,
+        )
+
+    private fun SelectExternalFavoriteItemsImportedWithPlaceholderArticle.toExternalFavoriteItem(): External_favorite_item =
         External_favorite_item(
             id = id,
             source_id = source_id,

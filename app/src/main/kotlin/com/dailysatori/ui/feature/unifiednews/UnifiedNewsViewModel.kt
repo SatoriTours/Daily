@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.ArticleRepository
+import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.needsLocalAiReprocessingForChineseOutput
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.data.repository.SettingRepository
@@ -40,10 +41,12 @@ enum class UnifiedNewsPage {
 sealed class UnifiedNewsSourceSelection {
     data object Summary : UnifiedNewsSourceSelection()
     data class RemoteSource(val id: Long, val name: String) : UnifiedNewsSourceSelection()
+    data class ExternalFavoriteSource(val id: Long, val name: String) : UnifiedNewsSourceSelection()
     data object LocalArticles : UnifiedNewsSourceSelection()
 }
 
 data class UnifiedNewsRemoteSourceOption(val id: Long, val name: String)
+data class UnifiedNewsExternalFavoriteSourceOption(val id: Long, val name: String)
 
 data class SourceArticleCacheKey(val sourceId: Long, val summaryDate: String)
 
@@ -60,6 +63,7 @@ data class UnifiedNewsState(
     val page: UnifiedNewsPage = UnifiedNewsPage.SUMMARY,
     val sourceSelection: UnifiedNewsSourceSelection = UnifiedNewsSourceSelection.Summary,
     val remoteSources: List<UnifiedNewsRemoteSourceOption> = emptyList(),
+    val externalFavoriteSources: List<UnifiedNewsExternalFavoriteSourceOption> = emptyList(),
     val sourceArticlesByCacheKey: Map<SourceArticleCacheKey, List<RemoteArticle>> = emptyMap(),
     val sourceArticlesLoadingSourceId: Long? = null,
     val sourceArticlesError: String? = null,
@@ -89,6 +93,7 @@ class UnifiedNewsViewModel(
     private val settingRepo: SettingRepository,
     private val remoteNewsService: RemoteNewsService,
     private val remoteNewsSourceRepo: RemoteNewsSourceRepository,
+    private val externalFavoriteSourceRepo: ExternalFavoriteSourceRepository,
     private val articleRepo: ArticleRepository,
     private val webpageParserService: WebpageParserService,
     private val isDebugBuild: Boolean = false,
@@ -112,12 +117,15 @@ class UnifiedNewsViewModel(
                     val displaySummaries = summaries.withDisplayFallback(summaryRepo.getLatestSuccessful())
                     val sourcesBySummaryId = displaySummaries.associate { summary -> summary.id to summaryRepo.getSources(summary.id) }
                     val remoteSources = remoteNewsSourceRepo.getEnabled().map { source -> UnifiedNewsRemoteSourceOption(source.id, source.name) }
+                    val externalFavoriteSources = externalFavoriteSourceRepo.getAll().map { source ->
+                        UnifiedNewsExternalFavoriteSourceOption(source.id, source.display_name)
+                    }
                     val currentState = _state.value
                     val currentSelection = currentState.sourceSelection
-                    if (shouldResetUnifiedNewsSourceSelection(currentSelection, remoteSources)) {
+                    if (shouldResetUnifiedNewsSourceSelection(currentSelection, remoteSources, externalFavoriteSources)) {
                         invalidateSourceArticleRequest()
                     }
-                    val nextSelection = resolvedUnifiedNewsSourceSelection(currentSelection, remoteSources)
+                    val nextSelection = resolvedUnifiedNewsSourceSelection(currentSelection, remoteSources, externalFavoriteSources)
                     val latestSuccessfulFallback = summaryRepo.getLatestSuccessful()
                     val lastSuccessful = if (todaySummary.isSuccessfulDisplaySummary) todaySummary else latestSuccessfulFallback ?: currentState.lastSuccessfulSummary
                     val lastSources = lastSuccessful?.let { summary -> sourcesBySummaryId[summary.id] ?: summaryRepo.getSources(summary.id) }.orEmpty()
@@ -125,6 +133,7 @@ class UnifiedNewsViewModel(
                         it.copy(
                             sourceSelection = nextSelection,
                             remoteSources = remoteSources,
+                            externalFavoriteSources = externalFavoriteSources,
                             summaries = displaySummaries,
                             selectedSummary = displaySummaries.firstOrNull(),
                             lastSuccessfulSummary = lastSuccessful,
@@ -199,6 +208,13 @@ class UnifiedNewsViewModel(
         }
     }
 
+    fun selectExternalFavoriteSource(source: UnifiedNewsExternalFavoriteSourceOption) {
+        invalidateSourceArticleRequest()
+        _state.update {
+            it.copy(sourceSelection = UnifiedNewsSourceSelection.ExternalFavoriteSource(source.id, source.name))
+        }
+    }
+
     fun selectLocalArticlesSource() {
         invalidateSourceArticleRequest()
         _state.update {
@@ -210,6 +226,7 @@ class UnifiedNewsViewModel(
         when (_state.value.sourceSelection) {
             UnifiedNewsSourceSelection.Summary -> regenerateCurrentWindow()
             is UnifiedNewsSourceSelection.RemoteSource -> refreshSelectedRemoteSource()
+            is UnifiedNewsSourceSelection.ExternalFavoriteSource -> incrementLocalArticleRefreshRequest()
             UnifiedNewsSourceSelection.LocalArticles -> incrementLocalArticleRefreshRequest()
         }
     }
@@ -227,6 +244,7 @@ class UnifiedNewsViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             _state.update {
                 it.withUnifiedNewsSourceDetailCleared().copy(
+                    navigationTarget = null,
                     selectedRemoteArticle = article,
                     selectedRemoteArticleLocalId = null,
                     selectedRemoteArticleIsFavorite = false,

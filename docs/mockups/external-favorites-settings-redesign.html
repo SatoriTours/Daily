@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>外部收藏同步设置页设计稿</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101113;
+      --panel: #181a1f;
+      --panel-2: #202329;
+      --panel-3: #252932;
+      --line: #30343d;
+      --text: #eef0f4;
+      --muted: #a9afba;
+      --soft: #7f8794;
+      --brand: #89b7ff;
+      --brand-2: #b7d4ff;
+      --ok: #71d7a2;
+      --warn: #f0c267;
+      --bad: #ff8c8c;
+      --pause: #9aa4b2;
+      --shadow: 0 18px 60px rgba(0,0,0,.34);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(137,183,255,.09), transparent 28%),
+        linear-gradient(180deg, #14161a 0%, var(--bg) 42%, #0d0e10 100%);
+      color: var(--text);
+    }
+    .page {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 28px;
+    }
+    .intro {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      font-weight: 720;
+      letter-spacing: 0;
+    }
+    .intro p {
+      margin: 0;
+      max-width: 640px;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 14px;
+    }
+    .legend {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .legend span {
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: rgba(255,255,255,.03);
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 12px;
+    }
+    .mockups {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 22px;
+      align-items: start;
+    }
+    .phone {
+      width: 100%;
+      max-width: 390px;
+      margin: 0 auto;
+      border: 1px solid #2b2f37;
+      border-radius: 28px;
+      background: #0b0c0e;
+      box-shadow: var(--shadow);
+      padding: 10px;
+    }
+    .screen {
+      min-height: 780px;
+      overflow: hidden;
+      border-radius: 22px;
+      background: var(--bg);
+      position: relative;
+    }
+    .status {
+      height: 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 18px;
+      color: #d9dde5;
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .appbar {
+      height: 54px;
+      display: grid;
+      grid-template-columns: 44px 1fr 44px;
+      align-items: center;
+      padding: 0 8px;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 13px;
+      color: var(--text);
+      background: transparent;
+    }
+    .appbar-title {
+      text-align: center;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    .content {
+      padding: 14px 16px 92px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .summary {
+      border: 1px solid #2a3341;
+      background: linear-gradient(180deg, #1a2029 0%, #171a20 100%);
+      border-radius: 18px;
+      padding: 15px;
+    }
+    .summary-top {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .summary-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 15px;
+      display: grid;
+      place-items: center;
+      background: rgba(137,183,255,.14);
+      color: var(--brand-2);
+      flex: 0 0 auto;
+    }
+    .summary h2 {
+      margin: 1px 0 5px;
+      font-size: 17px;
+      line-height: 1.25;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+    .summary p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .metric {
+      min-height: 58px;
+      border: 1px solid rgba(255,255,255,.05);
+      background: rgba(255,255,255,.035);
+      border-radius: 13px;
+      padding: 9px;
+    }
+    .metric strong {
+      display: block;
+      font-size: 18px;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .metric span {
+      color: var(--soft);
+      font-size: 11px;
+      line-height: 1.2;
+    }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 3px;
+      padding: 0 1px;
+    }
+    .section-head h3 {
+      margin: 0;
+      color: #dce0e8;
+      font-size: 13px;
+      letter-spacing: 0;
+      font-weight: 700;
+    }
+    .section-head button {
+      border: 0;
+      background: transparent;
+      color: var(--brand);
+      font-size: 12px;
+      padding: 6px 0;
+    }
+    .source-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      overflow: hidden;
+    }
+    .source-main {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+    }
+    .source-id {
+      display: grid;
+      grid-template-columns: 42px 1fr auto;
+      gap: 11px;
+      align-items: center;
+    }
+    .provider-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 15px;
+      display: grid;
+      place-items: center;
+      background: #eef0f4;
+      color: #111317;
+      font-weight: 850;
+      font-size: 20px;
+    }
+    .source-title {
+      min-width: 0;
+    }
+    .source-title strong {
+      display: block;
+      font-size: 15px;
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+    .source-title span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 28px;
+      border-radius: 999px;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 660;
+      white-space: nowrap;
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .pill::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: currentColor;
+    }
+    .ok { color: var(--ok); background: rgba(113,215,162,.10); }
+    .warn { color: var(--warn); background: rgba(240,194,103,.11); }
+    .bad { color: var(--bad); background: rgba(255,140,140,.11); }
+    .pause { color: var(--pause); background: rgba(154,164,178,.11); }
+    .details {
+      display: grid;
+      gap: 7px;
+      padding: 11px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.035);
+      border: 1px solid rgba(255,255,255,.045);
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .detail-row span:first-child {
+      color: var(--soft);
+      flex: 0 0 auto;
+    }
+    .detail-row span:last-child {
+      text-align: right;
+      color: #c7ccd5;
+    }
+    .error-line {
+      display: flex;
+      gap: 8px;
+      color: #ffd0d0;
+      background: rgba(255,140,140,.08);
+      border: 1px solid rgba(255,140,140,.14);
+      border-radius: 13px;
+      padding: 9px 10px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 38px;
+      gap: 8px;
+      align-items: center;
+    }
+    .btn {
+      height: 40px;
+      border-radius: 13px;
+      border: 1px solid #39404b;
+      background: transparent;
+      color: #dfe5ee;
+      font-size: 13px;
+      font-weight: 690;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+    .btn.primary {
+      border-color: rgba(137,183,255,.35);
+      background: rgba(137,183,255,.14);
+      color: #d8e8ff;
+    }
+    .btn.disabled {
+      color: #737b88;
+      border-color: #2b3038;
+      background: rgba(255,255,255,.015);
+    }
+    .more {
+      width: 38px;
+      height: 40px;
+      border-radius: 13px;
+      border: 1px solid #343a44;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+    }
+    .notice {
+      border: 1px solid rgba(240,194,103,.16);
+      background: rgba(240,194,103,.07);
+      border-radius: 16px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      gap: 9px;
+      color: #f3d28a;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .empty {
+      border: 1px dashed #3a414d;
+      border-radius: 19px;
+      padding: 28px 18px;
+      background: rgba(255,255,255,.025);
+      text-align: center;
+    }
+    .empty .big {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 14px;
+      border-radius: 22px;
+      display: grid;
+      place-items: center;
+      background: rgba(137,183,255,.12);
+      color: var(--brand-2);
+    }
+    .empty h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+    .empty p {
+      margin: 0 auto 18px;
+      max-width: 270px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .full-btn {
+      width: 100%;
+      height: 46px;
+      border: 0;
+      border-radius: 15px;
+      background: #d6e6ff;
+      color: #101724;
+      font-size: 14px;
+      font-weight: 760;
+    }
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+    .field label {
+      color: #d9dee7;
+      font-size: 13px;
+      font-weight: 690;
+    }
+    .input {
+      height: 50px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border: 1px solid #3b4350;
+      border-radius: 15px;
+      color: #dfe5ef;
+      background: #15171c;
+      font-size: 13px;
+    }
+    .helper {
+      border: 1px solid #303846;
+      background: #19202a;
+      border-radius: 18px;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 12px;
+    }
+    .helper h2 {
+      margin: 1px 0 6px;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+    .helper p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.58;
+    }
+    .step-list {
+      display: grid;
+      gap: 9px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 18px;
+      padding: 13px;
+    }
+    .step {
+      display: grid;
+      grid-template-columns: 26px 1fr;
+      gap: 10px;
+      align-items: start;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+    .step b {
+      width: 26px;
+      height: 26px;
+      border-radius: 10px;
+      background: var(--panel-3);
+      color: var(--brand-2);
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+    }
+    .bottom-fab {
+      position: absolute;
+      right: 18px;
+      bottom: 22px;
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      color: #101724;
+      background: #d6e6ff;
+      box-shadow: 0 14px 30px rgba(0,0,0,.38);
+      font-size: 26px;
+      font-weight: 550;
+    }
+    svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex: 0 0 auto;
+    }
+    .label {
+      color: var(--soft);
+      font-size: 12px;
+      margin: 0 0 9px 4px;
+    }
+    @media (max-width: 1100px) {
+      .mockups { grid-template-columns: 1fr; }
+      .intro { align-items: start; flex-direction: column; }
+      .legend { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="intro">
+      <div>
+        <h1>外部收藏同步设置页设计稿</h1>
+        <p>目标是把页面从“设置项堆叠”整理成“连接健康管理”。第一屏先回答：现在是否正常、哪个来源需要处理、下一步该点什么。</p>
+      </div>
+      <div class="legend">
+        <span>深色主题</span>
+        <span>移动端 390px</span>
+        <span>Compose 可落地</span>
+      </div>
+    </header>
+
+    <section class="mockups">
+      <article>
+        <p class="label">方案 A：已有来源，含异常状态</p>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>9:41</span><span>5G  88%</span></div>
+            <div class="appbar">
+              <div class="icon-btn">
+                <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+              </div>
+              <div class="appbar-title">外部收藏同步</div>
+              <div class="icon-btn"></div>
+            </div>
+            <div class="content">
+              <div class="summary">
+                <div class="summary-top">
+                  <div class="summary-mark">
+                    <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                  </div>
+                  <div>
+                    <h2>1 个来源需要处理</h2>
+                    <p>收藏会定期同步到本地收藏，可手动同步或导入历史收藏。</p>
+                  </div>
+                </div>
+                <div class="metrics">
+                  <div class="metric"><strong>2</strong><span>已连接来源</span></div>
+                  <div class="metric"><strong>128</strong><span>上次看到收藏</span></div>
+                  <div class="metric"><strong>6h</strong><span>定期同步间隔</span></div>
+                </div>
+              </div>
+
+              <div class="notice">
+                <svg viewBox="0 0 24 24"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+                <div>已恢复的授权需要重新连接后才能继续同步。处理后会恢复定期导入。</div>
+              </div>
+
+              <div class="section-head">
+                <h3>同步来源</h3>
+                <button>连接新来源</button>
+              </div>
+
+              <div class="source-card">
+                <div class="source-main">
+                  <div class="source-id">
+                    <div class="provider-icon">X</div>
+                    <div class="source-title">
+                      <strong>X 收藏</strong>
+                      <span>@satori_daily</span>
+                    </div>
+                    <div class="pill ok">正常</div>
+                  </div>
+                  <div class="details">
+                    <div class="detail-row"><span>同步</span><span>上次成功：12 分钟前</span></div>
+                    <div class="detail-row"><span>结果</span><span>上次看到 128 条收藏 · 读取 3 页</span></div>
+                    <div class="detail-row"><span>状态</span><span>已启用定期同步</span></div>
+                  </div>
+                  <div class="actions">
+                    <div class="btn primary">
+                      <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.7-2.7"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.7 2.7"/><path d="M3 22v-5h5"/><path d="M21 2v5h-5"/></svg>
+                      同步
+                    </div>
+                    <div class="btn">
+                      <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/><path d="M12 7v5l3 2"/></svg>
+                      导入历史
+                    </div>
+                    <div class="more"><svg viewBox="0 0 24 24"><path d="M12 12h.01"/><path d="M19 12h.01"/><path d="M5 12h.01"/></svg></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="source-card">
+                <div class="source-main">
+                  <div class="source-id">
+                    <div class="provider-icon">X</div>
+                    <div class="source-title">
+                      <strong>X 收藏</strong>
+                      <span>@work_notes</span>
+                    </div>
+                    <div class="pill bad">需要授权</div>
+                  </div>
+                  <div class="details">
+                    <div class="detail-row"><span>同步</span><span>上次尝试：09:30</span></div>
+                    <div class="detail-row"><span>结果</span><span>尚未恢复</span></div>
+                    <div class="detail-row"><span>状态</span><span>需要重新授权后才能定期同步</span></div>
+                  </div>
+                  <div class="error-line">
+                    <svg viewBox="0 0 24 24"><path d="M12 8v4"/><path d="M12 16h.01"/><circle cx="12" cy="12" r="10"/></svg>
+                    <span>授权已失效，请重新连接这个账号。</span>
+                  </div>
+                  <div class="actions">
+                    <div class="btn primary">
+                      <svg viewBox="0 0 24 24"><path d="M15 7h3a5 5 0 0 1 0 10h-3"/><path d="M9 17H6A5 5 0 0 1 6 7h3"/><path d="M8 12h8"/></svg>
+                      重新连接
+                    </div>
+                    <div class="btn disabled">
+                      <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>
+                      导入历史
+                    </div>
+                    <div class="more"><svg viewBox="0 0 24 24"><path d="M12 12h.01"/><path d="M19 12h.01"/><path d="M5 12h.01"/></svg></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="bottom-fab">+</div>
+          </div>
+        </div>
+      </article>
+
+      <article>
+        <p class="label">方案 B：空状态</p>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>9:41</span><span>5G  88%</span></div>
+            <div class="appbar">
+              <div class="icon-btn">
+                <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+              </div>
+              <div class="appbar-title">外部收藏同步</div>
+              <div class="icon-btn"></div>
+            </div>
+            <div class="content">
+              <div class="summary">
+                <div class="summary-top">
+                  <div class="summary-mark">
+                    <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                  </div>
+                  <div>
+                    <h2>还没有连接外部收藏来源</h2>
+                    <p>连接后，平台收藏会进入本地收藏，并保留手动同步和历史导入入口。</p>
+                  </div>
+                </div>
+                <div class="metrics">
+                  <div class="metric"><strong>0</strong><span>已连接来源</span></div>
+                  <div class="metric"><strong>X</strong><span>当前支持平台</span></div>
+                  <div class="metric"><strong>6h</strong><span>默认同步间隔</span></div>
+                </div>
+              </div>
+
+              <div class="empty">
+                <div class="big">
+                  <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                </div>
+                <h2>连接外部收藏</h2>
+                <p>当前先支持 X 收藏。授权完成后，收藏会同步到本地收藏，并可继续导入历史收藏。</p>
+                <button class="full-btn">连接 X 收藏</button>
+              </div>
+
+              <div class="step-list">
+                <div class="step"><b>1</b><span>填写 X OAuth Client ID，打开浏览器完成授权。</span></div>
+                <div class="step"><b>2</b><span>Daily Satori 保存授权，并自动启用定期同步。</span></div>
+                <div class="step"><b>3</b><span>同步结果进入本地收藏，后续由 AI 整理标题、摘要和标签。</span></div>
+              </div>
+            </div>
+            <div class="bottom-fab">+</div>
+          </div>
+        </div>
+      </article>
+
+      <article>
+        <p class="label">方案 C：新增 X 收藏页</p>
+        <div class="phone">
+          <div class="screen">
+            <div class="status"><span>9:41</span><span>5G  88%</span></div>
+            <div class="appbar">
+              <div class="icon-btn">
+                <svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+              </div>
+              <div class="appbar-title">新增外部收藏</div>
+              <div class="icon-btn"></div>
+            </div>
+            <div class="content">
+              <div class="helper">
+                <div class="summary-mark">
+                  <svg viewBox="0 0 24 24"><path d="M15 7h3a5 5 0 0 1 0 10h-3"/><path d="M9 17H6A5 5 0 0 1 6 7h3"/><path d="M8 12h8"/></svg>
+                </div>
+                <div>
+                  <h2>连接 X 收藏</h2>
+                  <p>填写 OAuth Client ID 后，会打开浏览器完成 X 授权。授权完成后回到 Daily Satori。</p>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>X OAuth Client ID</label>
+                <div class="input">abc1234.apps.x.com</div>
+              </div>
+
+              <div class="step-list">
+                <div class="step"><b>只读</b><span>Daily Satori 只请求读取收藏所需权限，不会修改或删除平台收藏。</span></div>
+                <div class="step"><b>同步</b><span>授权成功后，新来源会出现在列表里，可停用、手动同步或导入历史收藏。</span></div>
+                <div class="step"><b>整理</b><span>导入到本地收藏后，再交给本地配置的 AI 整理内容。</span></div>
+              </div>
+
+              <button class="full-btn">保存并连接 X</button>
+              <div class="btn">取消</div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

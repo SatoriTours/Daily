@@ -6,6 +6,7 @@ import com.dailysatori.config.SettingKeys
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.service.externalfavorites.ExternalFavoriteProvider
 import com.dailysatori.service.externalfavorites.ExternalSourceHealth
 import com.dailysatori.service.externalfavorites.ExternalSourceStatus
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
@@ -34,6 +35,11 @@ data class ExternalFavoriteSourceUi(
     val id: Long get() = source.id
     val enabled: Boolean get() = source.enabled == 1L
 }
+
+data class ExternalFavoriteSummaryMetric(
+    val value: String,
+    val label: String,
+)
 
 class ExternalFavoritesSettingsViewModel(
     private val sourceRepo: ExternalFavoriteSourceRepository,
@@ -74,12 +80,18 @@ class ExternalFavoritesSettingsViewModel(
         }.isSuccess
     }
 
+    fun createXAuthorizationUrl(): String? = runCatching {
+        xOAuthCoordinator.beginAuthorization()
+    }.onFailure {
+        _state.update { state -> state.copy(message = "请先配置 X OAuth Client ID") }
+    }.getOrNull()
+
     fun syncNow(sourceId: Long) {
-        enqueueManualSync(sourceId, FavoriteSyncMode.recent)
+        enqueueManualSync(sourceId, FavoriteSyncMode.history)
     }
 
-    fun importOlder(sourceId: Long) {
-        enqueueManualSync(sourceId, FavoriteSyncMode.history)
+    fun rescanAll(sourceId: Long) {
+        enqueueManualSync(sourceId, FavoriteSyncMode.full_rescan)
     }
 
     fun toggleEnabled(sourceId: Long, enabled: Boolean) {
@@ -132,12 +144,6 @@ class ExternalFavoritesSettingsViewModel(
         }
     }
 
-    fun createXAuthorizationUrl(): String? = runCatching {
-        xOAuthCoordinator.beginAuthorization()
-    }.onFailure {
-        _state.update { state -> state.copy(message = "请先配置 X OAuth Client ID") }
-    }.getOrNull()
-
     fun showMessage(message: String) {
         _state.update { it.copy(message = message) }
     }
@@ -151,7 +157,7 @@ class ExternalFavoritesSettingsViewModel(
                 _state.update {
                     it.copy(
                         syncingSourceId = null,
-                        message = if (mode == FavoriteSyncMode.history) "已加入历史收藏导入队列" else "已加入同步队列",
+                        message = externalFavoriteSyncQueuedMessage(mode),
                         sources = sourceRepo.getAll().map(::toUiSource),
                     )
                 }
@@ -186,7 +192,7 @@ fun externalFavoriteManagementSummaryTitle(sources: List<ExternalFavoriteSourceU
 }
 
 fun externalFavoriteManagementSummarySubtitle(): String =
-    "收藏会定期同步到本地收藏，可手动同步或导入历史收藏。"
+    "手动同步会完整拉取收藏；后台会定期增量同步到本地收藏。"
 
 fun externalFavoriteShouldShowAuthCheckNotice(sources: List<ExternalFavoriteSourceUi>): Boolean =
     sources.any { it.source.status == ExternalSourceStatus.auth_check_required.name }
@@ -209,12 +215,12 @@ fun externalFavoriteAddPageTitle(): String = "新增外部收藏"
 fun externalFavoriteAddPageHelperTitle(): String = "连接 X 收藏"
 
 fun externalFavoriteAddPageHelperText(): String =
-    "填写 OAuth Client ID 后，会打开浏览器完成 X 授权。授权完成后回到 Daily Satori，新来源会出现在列表里。"
+    "填写 X OAuth Client ID 后，会用 OAuth2 + PKCE 打开 X 授权页面。请在 X Developer Portal 配置下面的回调地址。"
 
 fun externalFavoriteAddPageSyncNoteTitle(): String = "授权成功后启用定期同步"
 
 fun externalFavoriteAddPageSyncNoteText(): String =
-    "授权成功后，新来源会出现在来源列表，可在那里停用定期同步、手动同步或导入历史收藏。"
+    "授权成功后，新来源会出现在来源列表，也会作为新闻汇总页的来源筛选。"
 
 fun externalFavoriteShouldCloseAddPageAfterConnect(
     clientIdSaved: Boolean,
@@ -223,16 +229,61 @@ fun externalFavoriteShouldCloseAddPageAfterConnect(
 
 fun externalFavoriteXClientIdLabel(): String = "X OAuth Client ID"
 
-fun externalFavoriteConnectXActionLabel(): String = "保存并连接 X"
+fun externalFavoriteConnectXActionLabel(): String = "保存并打开 X 授权"
+
+fun externalFavoriteXOAuthRedirectUriLabel(): String = "回调地址"
+
+fun externalFavoriteXOAuthRedirectUri(): String = "dailysatori://oauth/x"
 
 fun externalFavoritePrimaryActionLabel(health: ExternalSourceHealth): String = when (health) {
-    ExternalSourceHealth.never_synced -> "开始同步"
+    ExternalSourceHealth.never_synced -> "同步全部"
     ExternalSourceHealth.paused -> "启用同步"
-    ExternalSourceHealth.needs_auth -> "需要授权"
+    ExternalSourceHealth.needs_auth -> "重新连接"
     ExternalSourceHealth.limited -> "稍后自动恢复"
     ExternalSourceHealth.failing -> "重试同步"
-    ExternalSourceHealth.healthy -> "同步"
+    ExternalSourceHealth.healthy -> "同步全部"
 }
+
+fun externalFavoriteSummaryMetrics(sources: List<ExternalFavoriteSourceUi>): List<ExternalFavoriteSummaryMetric> {
+    if (sources.isEmpty()) {
+        return listOf(
+            ExternalFavoriteSummaryMetric("0", "已连接来源"),
+            ExternalFavoriteSummaryMetric("X", "当前支持平台"),
+            ExternalFavoriteSummaryMetric("6h", "默认同步间隔"),
+        )
+    }
+    val latestItemsSeen = sources.maxOfOrNull { it.source.last_items_seen_count } ?: 0L
+    val syncIntervalMinutes = sources
+        .map { it.source.sync_interval_minutes }
+        .filter { it > 0L }
+        .minOrNull() ?: 360L
+    return listOf(
+        ExternalFavoriteSummaryMetric(sources.size.toString(), "已连接来源"),
+        ExternalFavoriteSummaryMetric(latestItemsSeen.toString(), "上次看到收藏"),
+        ExternalFavoriteSummaryMetric(externalFavoriteIntervalText(syncIntervalMinutes), "定期同步间隔"),
+    )
+}
+
+fun externalFavoriteProviderBadge(provider: String): String = when (provider.lowercase()) {
+    ExternalFavoriteProvider.X.id -> "X"
+    else -> provider.take(1).uppercase().ifBlank { "?" }
+}
+
+fun externalFavoriteDeleteMenuLabel(): String = "删除"
+
+fun externalFavoriteToggleSyncMenuLabel(enabled: Boolean): String =
+    if (enabled) "停用同步" else "启用同步"
+
+fun externalFavoriteRescanMenuLabel(): String = "重新扫描全部"
+
+fun externalFavoriteSyncQueuedMessage(mode: FavoriteSyncMode): String = when (mode) {
+    FavoriteSyncMode.history -> "已开始同步完整收藏"
+    FavoriteSyncMode.full_rescan -> "已开始重新扫描全部收藏"
+    FavoriteSyncMode.recent -> "已开始增量同步"
+    FavoriteSyncMode.retry_failed -> "已开始重试失败项"
+}
+
+fun externalFavoriteReadOnlyStepLabel(): String = "只读"
 
 fun externalFavoriteAccountIdentity(accountName: String, accountId: String): String =
     accountName.ifBlank { accountId }
@@ -320,4 +371,11 @@ private fun externalFavoriteFutureDurationText(timestampMillis: Long, nowMillis:
     val hours = diffMinutes / 60L
     val minutes = diffMinutes % 60L
     return if (minutes == 0L) "${hours} 小时后" else "${hours} 小时 ${minutes} 分钟后"
+}
+
+private fun externalFavoriteIntervalText(minutes: Long): String {
+    if (minutes < 60L) return "${minutes}m"
+    val hours = minutes / 60L
+    val restMinutes = minutes % 60L
+    return if (restMinutes == 0L) "${hours}h" else "${hours}h ${restMinutes}m"
 }

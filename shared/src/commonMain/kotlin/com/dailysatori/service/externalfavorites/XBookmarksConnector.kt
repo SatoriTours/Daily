@@ -1,6 +1,7 @@
 package com.dailysatori.service.externalfavorites
 
 import com.dailysatori.shared.db.External_favorite_source
+import com.dailysatori.shared.isDevelopmentBuild
 import io.ktor.client.HttpClient
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.forms.submitForm
@@ -27,18 +28,19 @@ import kotlinx.serialization.json.putJsonArray
 class XBookmarksConnector(
     private val client: HttpClient? = null,
     private val apiBaseUrl: String = "https://api.x.com",
+    private val developmentMode: Boolean = isDevelopmentBuild(),
 ) : FavoriteConnector {
     override val provider: String = ExternalFavoriteProvider.X.id
 
     override val capabilities: FavoriteConnectorCapabilities = FavoriteConnectorCapabilities(
-        maxPageSize = 100,
+        maxPageSize = if (developmentMode) 1 else X_BOOKMARKS_MAX_PAGE_SIZE,
         defaultBackoffMinutes = 15,
         maxPagesPerRun = 3,
         maxItemsPerRun = 300,
         supportsFolders = false,
         supportsFavoritedAt = false,
         supportsWriteBack = false,
-        supportsRefreshToken = true,
+        supportsRefreshToken = false,
     )
 
     override suspend fun refreshAuth(source: External_favorite_source): External_favorite_source {
@@ -85,13 +87,13 @@ class XBookmarksConnector(
         val httpClient = client ?: error("XBookmarksConnector requires an HttpClient to fetch remote bookmarks")
         val token = extractAccessToken(source.auth_json)
             ?: error("X bookmarks auth_json must contain access_token, bearer_token, or token")
-        val response = httpClient.get("$apiBaseUrl/2/users/${source.account_id}/bookmarks") {
+        val response = httpClient.get("$apiBaseUrl${xBookmarksEndpointPath(source.account_id)}") {
             bearerAuth(token)
             parameter("max_results", pageSize.coerceIn(1, capabilities.maxPageSize))
-            parameter("tweet.fields", "created_at,author_id,attachments")
-            parameter("user.fields", "username,name")
-            parameter("expansions", "author_id,attachments.media_keys")
-            parameter("media.fields", "type,url,preview_image_url")
+            parameter("tweet.fields", X_BOOKMARKS_TWEET_FIELDS)
+            parameter("user.fields", X_BOOKMARKS_USER_FIELDS)
+            parameter("expansions", X_BOOKMARKS_EXPANSIONS)
+            parameter("media.fields", X_BOOKMARKS_MEDIA_FIELDS)
             if (!cursor.isNullOrBlank()) {
                 parameter("pagination_token", cursor)
             }
@@ -105,6 +107,9 @@ class XBookmarksConnector(
         )
     }
 }
+
+internal fun xBookmarksEndpointPath(userId: String): String =
+    "/2/users/${userId.trim()}/bookmarks"
 
 open class XFavoriteProviderException(
     val statusCode: Int,
@@ -126,6 +131,12 @@ class XFavoriteRateLimitException(
 
 private const val X_RATE_LIMIT_RESET_HEADER = "x-rate-limit-reset"
 private const val X_REFRESH_BUFFER_MS = 60_000L
+private const val X_BOOKMARKS_MAX_PAGE_SIZE = 100
+private const val X_BOOKMARKS_TWEET_FIELDS =
+    "created_at,author_id,attachments,entities,note_tweet,referenced_tweets,conversation_id,lang,public_metrics"
+private const val X_BOOKMARKS_USER_FIELDS = "username,name,profile_image_url,verified"
+private const val X_BOOKMARKS_EXPANSIONS = "author_id,attachments.media_keys,referenced_tweets.id,referenced_tweets.id.author_id"
+private const val X_BOOKMARKS_MEDIA_FIELDS = "media_key,type,url,preview_image_url,alt_text,width,height"
 
 fun parseXBookmarksHttpResponse(
     statusCode: Int,
@@ -164,6 +175,8 @@ object XBookmarksResponseParser {
                 id to XUser(
                     username = obj.string("username"),
                     name = obj.string("name"),
+                    profileImageUrl = obj.string("profile_image_url"),
+                    verified = obj.boolean("verified"),
                 )
             }
             ?.toMap()
@@ -202,8 +215,10 @@ object XBookmarksResponseParser {
     ): ExternalFavoriteItemDraft? {
         val tweet = jsonObjectOrNull() ?: return null
         val id = tweet.string("id") ?: return null
-        val text = tweet.string("text").orEmpty()
+        val noteText = tweet["note_tweet"]?.jsonObjectOrNull()?.string("text")
+        val text = noteText?.takeIf { it.isNotBlank() } ?: tweet.string("text").orEmpty()
         val author = usersById[tweet.string("author_id")]
+        val urls = tweet.xUrlEntities()
         val media = tweet["attachments"]
             ?.jsonObjectOrNull()
             ?.get("media_keys")
@@ -212,23 +227,37 @@ object XBookmarksResponseParser {
             ?.mapNotNull { mediaByKey[it] }
             .orEmpty()
         val createdAt = tweet.string("created_at")?.let(::parseInstantMillis)
+        val primaryUrl = urls.firstNotNullOfOrNull { it.primaryUrl }
+        val cardTitle = urls.firstNotNullOfOrNull { it.title }
+        val cardDescription = urls.firstNotNullOfOrNull { it.description }
+        val urlImages = urls.flatMap { it.images }
+        val tweetUrl = xStatusUrl(id, author?.username)
         val normalizedJson = normalizedTweetJson(
             id = id,
-            text = text,
+            text = tweet.string("text").orEmpty(),
+            noteText = noteText,
             author = author,
             createdAt = tweet.string("created_at"),
+            canonicalTweetUrl = tweetUrl,
+            primaryUrl = primaryUrl,
+            urlTitle = cardTitle,
+            urlDescription = cardDescription,
+            urlImages = urlImages,
             media = media,
+            referencedTweets = tweet["referenced_tweets"]?.jsonArrayOrNull().orEmpty(),
+            publicMetrics = tweet["public_metrics"]?.jsonObjectOrNull(),
+            lang = tweet.string("lang"),
         )
         val authorName = author?.name ?: author?.username.orEmpty()
         val hashInput = listOf(id, text, authorName, normalizedJson).joinToString("\n")
-        val canonicalUrl = xStatusUrl(id, author?.username)
+        val canonicalUrl = primaryUrl ?: tweetUrl
         val mediaUrls = media.mapNotNull { it.string("url") ?: it.string("preview_image_url") }.sorted()
 
         return ExternalFavoriteItemDraft(
             provider = ExternalFavoriteProvider.X.id,
             externalId = id,
             canonicalUrl = canonicalUrl,
-            title = text,
+            title = cardTitle ?: text,
             text = text,
             authorName = authorName,
             sourceCreatedAt = createdAt,
@@ -243,20 +272,41 @@ object XBookmarksResponseParser {
     private fun normalizedTweetJson(
         id: String,
         text: String,
+        noteText: String?,
         author: XUser?,
         createdAt: String?,
+        canonicalTweetUrl: String,
+        primaryUrl: String?,
+        urlTitle: String?,
+        urlDescription: String?,
+        urlImages: List<String>,
         media: List<JsonObject>,
+        referencedTweets: List<JsonElement>,
+        publicMetrics: JsonObject?,
+        lang: String?,
     ): String = json.encodeToString(
         buildJsonObject {
             put("id", id)
             put("text", text)
+            noteText?.let { put("note_text", it) }
             if (author != null) {
                 put("author", buildJsonObject {
                     author.username?.let { put("username", it) }
                     author.name?.let { put("name", it) }
+                    author.profileImageUrl?.let { put("profile_image_url", it) }
+                    author.verified?.let { put("verified", it) }
                 })
             }
             createdAt?.let { put("created_at", it) }
+            put("canonical_tweet_url", canonicalTweetUrl)
+            primaryUrl?.let { put("primary_url", it) }
+            urlTitle?.let { put("url_title", it) }
+            urlDescription?.let { put("url_description", it) }
+            if (urlImages.isNotEmpty()) {
+                putJsonArray("url_images") {
+                    urlImages.forEach { add(JsonPrimitive(it)) }
+                }
+            }
             if (media.isNotEmpty()) {
                 putJsonArray("media") {
                     media.forEach { item ->
@@ -266,11 +316,21 @@ object XBookmarksResponseParser {
                                 item.string("type")?.let { put("type", it) }
                                 item.string("url")?.let { put("url", it) }
                                 item.string("preview_image_url")?.let { put("preview_image_url", it) }
+                                item.string("alt_text")?.let { put("alt_text", it) }
+                                item.long("width")?.let { put("width", it) }
+                                item.long("height")?.let { put("height", it) }
                             },
                         )
                     }
                 }
             }
+            if (referencedTweets.isNotEmpty()) {
+                putJsonArray("referenced_tweets") {
+                    referencedTweets.forEach { add(it) }
+                }
+            }
+            publicMetrics?.let { put("public_metrics", it) }
+            lang?.let { put("lang", it) }
         },
     )
 }
@@ -278,7 +338,49 @@ object XBookmarksResponseParser {
 private data class XUser(
     val username: String?,
     val name: String?,
+    val profileImageUrl: String?,
+    val verified: Boolean?,
 )
+
+private data class XUrlEntity(
+    val primaryUrl: String?,
+    val title: String?,
+    val description: String?,
+    val images: List<String>,
+)
+
+private fun JsonObject.xUrlEntities(): List<XUrlEntity> {
+    val noteUrls = this["note_tweet"]
+        ?.jsonObjectOrNull()
+        ?.get("entities")
+        ?.jsonObjectOrNull()
+        ?.get("urls")
+        ?.jsonArrayOrNull()
+        .orEmpty()
+    val tweetUrls = this["entities"]
+        ?.jsonObjectOrNull()
+        ?.get("urls")
+        ?.jsonArrayOrNull()
+        .orEmpty()
+    return (noteUrls + tweetUrls)
+        .mapNotNull { it.jsonObjectOrNull()?.toXUrlEntity() }
+}
+
+private fun JsonObject.toXUrlEntity(): XUrlEntity? {
+    val primaryUrl = string("unwound_url")
+        ?: string("expanded_url")
+        ?: string("url")
+    if (primaryUrl.isNullOrBlank() && string("title").isNullOrBlank() && string("description").isNullOrBlank()) return null
+    return XUrlEntity(
+        primaryUrl = primaryUrl,
+        title = string("title")?.takeIf { it.isNotBlank() },
+        description = string("description")?.takeIf { it.isNotBlank() },
+        images = get("images")
+            ?.jsonArrayOrNull()
+            ?.mapNotNull { image -> image.jsonObjectOrNull()?.string("url")?.takeIf { it.isNotBlank() } }
+            .orEmpty(),
+    )
+}
 
 private data class XAuth(
     val clientId: String,
@@ -403,6 +505,9 @@ private fun JsonObject.string(key: String): String? =
 
 private fun JsonObject.long(key: String): Long? =
     string(key)?.toLongOrNull()
+
+private fun JsonObject.boolean(key: String): Boolean? =
+    get(key)?.jsonPrimitiveOrNull()?.contentOrNull?.toBooleanStrictOrNull()
 
 private fun JsonElement.jsonObjectOrNull(): JsonObject? = runCatching { jsonObject }.getOrNull()
 

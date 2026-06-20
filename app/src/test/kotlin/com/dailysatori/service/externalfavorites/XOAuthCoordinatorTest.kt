@@ -22,7 +22,7 @@ class XOAuthCoordinatorTest {
         assertTrue(url.contains("bookmark.read"))
         assertTrue(url.contains("tweet.read"))
         assertTrue(url.contains("users.read"))
-        assertTrue(url.contains("offline.access"))
+        assertFalse(url.contains("offline.access"))
         assertFalse(url.contains("client_secret"))
     }
 
@@ -32,7 +32,20 @@ class XOAuthCoordinatorTest {
 
         assertEquals("client", config.clientId)
         assertEquals("dailysatori://oauth/x", config.redirectUri)
+        assertEquals("https://twitter.com/i/oauth2/authorize", config.authorizationUrl)
         assertFalse(config.toString().contains("secret", ignoreCase = true))
+    }
+
+    @Test
+    fun tokenPayloadAllowsMissingRefreshTokenWhenOfflineAccessIsNotRequested() {
+        val token = parseXOAuthTokenPayload(
+            """{"access_token":"access","expires_in":7200,"scope":"users.read tweet.read bookmark.read","token_type":"bearer"}""",
+        )
+
+        assertEquals("access", token.accessToken)
+        assertEquals("", token.refreshToken)
+        assertEquals(7200, token.expiresInSeconds)
+        assertEquals("users.read tweet.read bookmark.read", token.scope)
     }
 
     @Test

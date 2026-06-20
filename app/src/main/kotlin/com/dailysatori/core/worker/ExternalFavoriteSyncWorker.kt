@@ -53,6 +53,7 @@ class ExternalFavoriteSyncWorker(
 
         return try {
             GlobalContext.get().get<FavoriteSyncService>().syncSource(sourceId, mode)
+            ArticleProcessingScheduler(applicationContext).enqueueResume()
             Result.success()
         } catch (error: CancellationException) {
             throw error

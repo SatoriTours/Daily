@@ -17,6 +17,12 @@ class FavoriteSyncService(
     private val importPendingForSource: (Long, Long) -> Int = { scopedSourceId, limit ->
         importer?.importPendingForSource(scopedSourceId, limit) ?: importPending(limit)
     },
+    private val repairImportedArticleCovers: (Long) -> Int = { limit ->
+        importer?.repairImportedArticleCovers(limit) ?: 0
+    },
+    private val repairImportedPlaceholderArticles: (Long) -> Int = { limit ->
+        importer?.repairImportedPlaceholderArticles(limit) ?: 0
+    },
 ) {
     private val guards = mutableMapOf<Long, Mutex>()
     private val guardsMutex = Mutex()
@@ -80,6 +86,12 @@ class FavoriteSyncService(
         }
         runCatching {
             organizePending(policy.aiBudget)
+        }
+        runCatching {
+            repairImportedArticleCovers(IMPORT_RETRY_LIMIT)
+        }
+        runCatching {
+            repairImportedPlaceholderArticles(IMPORT_RETRY_LIMIT)
         }
     }
 
@@ -174,16 +186,16 @@ class FavoriteSyncService(
             )
             FavoriteSyncMode.history -> SyncPolicy(
                 shouldFetch = true,
-                maxPages = cappedPages,
-                maxItems = cappedItems,
+                maxPages = Int.MAX_VALUE,
+                maxItems = Int.MAX_VALUE,
                 earlyStopOnUnchanged = false,
                 importLimit = { changedItems -> changedItems.toLong() },
                 aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,
             )
             FavoriteSyncMode.full_rescan -> SyncPolicy(
                 shouldFetch = true,
-                maxPages = cappedPages,
-                maxItems = cappedItems,
+                maxPages = Int.MAX_VALUE,
+                maxItems = Int.MAX_VALUE,
                 earlyStopOnUnchanged = false,
                 importLimit = { changedItems -> changedItems.toLong() },
                 aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,

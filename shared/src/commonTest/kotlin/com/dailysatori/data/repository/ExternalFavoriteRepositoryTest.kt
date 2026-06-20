@@ -183,6 +183,35 @@ class ExternalFavoriteRepositoryTest {
         assertNotNull(articleRepository.getById(articleId))
     }
 
+    @Test
+    fun articleRepositoryCanListImportedArticlesForOneExternalFavoriteSource() = withRepositories { db, sources, items ->
+        val articleRepository = ArticleRepository(db)
+        val firstSourceId = saveXSource(sources, accountId = "acct-1", displayName = "X One")
+        val secondSourceId = saveXSource(sources, accountId = "acct-2", displayName = "X Two")
+        val (firstItem, _) = items.upsertDraft(firstSourceId, xDraft(externalId = "post-1", title = "First"))
+        val (secondItem, _) = items.upsertDraft(secondSourceId, xDraft(externalId = "post-2", title = "Second"))
+        val firstArticleId = articleRepository.insert(
+            title = "First",
+            aiContent = "First body",
+            url = "https://example.com/first-imported-source",
+            isFavorite = 1,
+            status = "completed",
+        )
+        val secondArticleId = articleRepository.insert(
+            title = "Second",
+            aiContent = "Second body",
+            url = "https://example.com/second-imported-source",
+            isFavorite = 1,
+            status = "completed",
+        )
+        items.markImported(firstItem.id, firstArticleId, duplicateLinked = false)
+        items.markImported(secondItem.id, secondArticleId, duplicateLinked = false)
+
+        assertEquals(listOf(firstArticleId), articleRepository.getExternalFavoritesBySourceSync(firstSourceId).map { it.id })
+        assertEquals(listOf(secondArticleId), articleRepository.getExternalFavoritesBySourceSync(secondSourceId).map { it.id })
+        assertEquals(setOf(firstArticleId, secondArticleId), articleRepository.getExternalFavoritesSync().map { it.id }.toSet())
+    }
+
     private fun withRepositories(
         block: (
             db: DailySatoriDatabase,

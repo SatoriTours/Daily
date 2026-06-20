@@ -60,6 +60,14 @@ internal fun UnifiedNewsSourceTabs(state: UnifiedNewsState, viewModel: UnifiedNe
                 colors = sourceChipColors,
             )
         }
+        state.externalFavoriteSources.forEach { source ->
+            FilterChip(
+                selected = (state.sourceSelection as? UnifiedNewsSourceSelection.ExternalFavoriteSource)?.id == source.id,
+                onClick = { viewModel.selectExternalFavoriteSource(source) },
+                label = { Text(source.name) },
+                colors = sourceChipColors,
+            )
+        }
         FilterChip(
             selected = state.sourceSelection is UnifiedNewsSourceSelection.LocalArticles,
             onClick = viewModel::selectLocalArticlesSource,

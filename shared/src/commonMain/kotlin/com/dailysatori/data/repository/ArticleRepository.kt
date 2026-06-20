@@ -37,6 +37,12 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     fun getFavorites(): Flow<List<Article>> =
         q.selectFavoriteArticles().asFlow().mapToList(Dispatchers.IO)
 
+    fun getExternalFavorites(): Flow<List<Article>> =
+        q.selectExternalFavoriteArticles().asFlow().mapToList(Dispatchers.IO)
+
+    fun getExternalFavoritesBySource(sourceId: Long): Flow<List<Article>> =
+        q.selectExternalFavoriteArticlesBySource(sourceId).asFlow().mapToList(Dispatchers.IO)
+
     fun getDailyCounts(): Flow<Map<Long, Long>> =
         q.selectArticleDailyCounts().asFlow().mapToList(Dispatchers.IO)
             .map { list -> list.associate { it.article_day to it.article_count } }
@@ -112,6 +118,26 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         q.updateArticleProcessingCompletion(status, coverImage, coverImageUrl, now, id)
     }
 
+    fun fillCoverImageUrlIfMissing(id: Long, coverImageUrl: String): Boolean {
+        val existing = getById(id) ?: return false
+        if (!existing.cover_image_url.isNullOrBlank() || coverImageUrl.isBlank()) return false
+        update(
+            id = existing.id,
+            title = existing.title,
+            aiTitle = existing.ai_title,
+            aiContent = existing.ai_content,
+            aiMarkdownContent = existing.ai_markdown_content,
+            url = existing.url,
+            isFavorite = existing.is_favorite ?: 0,
+            comment = existing.comment,
+            status = existing.status ?: "completed",
+            coverImage = existing.cover_image,
+            coverImageUrl = coverImageUrl,
+            pubDate = existing.pub_date,
+        )
+        return true
+    }
+
     fun delete(id: Long) = q.deleteArticle(id)
 
     fun toggleFavorite(id: Long) {
@@ -129,6 +155,11 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         q.searchArticlesFavoriteFirst(query, query, query).executeAsList()
 
     fun getFavoritesSync(): List<Article> = q.selectFavoriteArticles().executeAsList()
+
+    fun getExternalFavoritesSync(): List<Article> = q.selectExternalFavoriteArticles().executeAsList()
+
+    fun getExternalFavoritesBySourceSync(sourceId: Long): List<Article> =
+        q.selectExternalFavoriteArticlesBySource(sourceId).executeAsList()
 
     fun getFavoritesByDateRangeSync(startMs: Long, endMs: Long): List<Article> =
         q.selectFavoriteArticlesByDateRange(startMs, endMs).executeAsList()
@@ -196,6 +227,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         summary: String,
         markdown: String,
         pubDate: Long?,
+        coverImageUrl: String? = null,
     ): Article {
         val existing = getByUrl(url)
         if (existing == null) {
@@ -205,24 +237,26 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
                 aiMarkdownContent = markdown,
                 url = url,
                 isFavorite = 1,
-                status = "completed",
+                status = "pending",
+                coverImageUrl = coverImageUrl,
                 pubDate = pubDate,
             )
             return getById(id) ?: error("Inserted external favorite article not found: $url")
         }
 
+        val nextMarkdown = existing.ai_markdown_content.mergeExternalFavoriteMarkdown(markdown)
         update(
             id = existing.id,
             title = existing.title.fillBlankWith(title),
             aiTitle = existing.ai_title,
             aiContent = existing.ai_content.fillBlankWith(summary),
-            aiMarkdownContent = existing.ai_markdown_content.mergeExternalFavoriteMarkdown(markdown),
+            aiMarkdownContent = nextMarkdown,
             url = existing.url ?: url,
             isFavorite = 1,
             comment = existing.comment,
-            status = "completed",
+            status = existing.externalFavoriteStatusAfterImport(nextMarkdown),
             coverImage = existing.cover_image,
-            coverImageUrl = existing.cover_image_url,
+            coverImageUrl = existing.cover_image_url ?: coverImageUrl,
             pubDate = existing.pub_date ?: pubDate,
         )
         return getById(existing.id) ?: error("Updated external favorite article not found: ${existing.id}")
@@ -326,8 +360,8 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         }
     }
 
-    private fun String.isDeterministicExternalFavoriteMarkdown(): Boolean {
-        val markdown = trim()
+    private fun String?.isDeterministicExternalFavoriteMarkdown(): Boolean {
+        val markdown = this?.trim().orEmpty()
         return markdown.startsWith("# X 收藏") &&
             markdown.contains("\n## 原文\n") &&
             markdown.contains("\n- 作者：") &&
@@ -336,4 +370,14 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
             markdown.contains("\n## AI 整理\n") &&
             markdown.endsWith("待整理")
     }
+
+    private fun Article.externalFavoriteStatusAfterImport(nextMarkdown: String?): String {
+        if (isRecoverableImportedArticleStatus(status)) return "pending"
+        if (ai_markdown_content.isDeterministicExternalFavoriteMarkdown()) return "pending"
+        if (nextMarkdown.isDeterministicExternalFavoriteMarkdown()) return "pending"
+        return status ?: "completed"
+    }
+
+    private fun isRecoverableImportedArticleStatus(status: String?): Boolean =
+        status in setOf("pending", "webContentFetched", "aiProcessing", "error")
 }

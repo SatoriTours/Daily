@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import com.dailysatori.service.parser.sanitizeArticleAiTitle
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Article
 import com.dailysatori.ui.component.content.MarkdownTabPager
@@ -458,8 +459,8 @@ private fun extractDomain(url: String?): String {
 }
 
 private fun articleMagazineTitle(article: Article): String = listOfNotNull(
-    article.ai_title,
-    article.title,
+    sanitizeArticleAiTitle(article.ai_title),
+    sanitizeArticleAiTitle(article.title),
     extractDomain(article.url),
 ).firstOrNull { it.isNotBlank() }.orEmpty()
 

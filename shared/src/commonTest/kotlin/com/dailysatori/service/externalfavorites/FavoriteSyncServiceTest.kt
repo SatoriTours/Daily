@@ -275,7 +275,7 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
-    fun historyUsesPolicyItemCapForFetchPageSize() = runBlocking {
+    fun recentUsesPolicyItemCapForFetchPageSize() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
             val connector = FakeConnector(
@@ -290,7 +290,7 @@ class FavoriteSyncServiceTest {
                 organizePending = { 0 },
             )
 
-            service.syncSource(sourceId, FavoriteSyncMode.history)
+            service.syncSource(sourceId, FavoriteSyncMode.recent)
 
             assertEquals(listOf(1), connector.pageSizes)
             assertEquals(listOf("post-1"), items.getBySource(sourceId).map { it.external_id })
@@ -333,6 +333,34 @@ class FavoriteSyncServiceTest {
             items.upsertDraft(sourceId, xDraft("post-1"))
             val connector = FakeConnector(
                 capabilities = xCapabilities(maxPagesPerRun = 3, maxItemsPerRun = 10),
+                pages = listOf(
+                    FavoriteFetchPage(listOf(xDraft("post-1")), "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("post-2")), "cursor-3"),
+                    FavoriteFetchPage(listOf(xDraft("post-3")), null),
+                ),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.history)
+
+            assertEquals(listOf(null, "cursor-2", "cursor-3"), connector.cursors)
+            assertEquals(listOf("post-1", "post-2", "post-3"), items.getBySource(sourceId).map { it.external_id }.sorted())
+            assertEquals(3, sources.getById(sourceId)!!.last_pages_seen_count)
+        }
+    }
+
+    @Test
+    fun historyFetchesAllPagesUntilCursorIsExhausted() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 1, maxItemsPerRun = 1),
                 pages = listOf(
                     FavoriteFetchPage(listOf(xDraft("post-1")), "cursor-2"),
                     FavoriteFetchPage(listOf(xDraft("post-2")), "cursor-3"),

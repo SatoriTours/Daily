@@ -355,6 +355,17 @@ SELECT * FROM article
 WHERE is_favorite = 1 AND created_at >= ? AND created_at <= ?
 ORDER BY created_at DESC;
 
+selectExternalFavoriteArticles:
+SELECT article.* FROM article
+INNER JOIN external_favorite_item ON external_favorite_item.article_id = article.id
+ORDER BY COALESCE(external_favorite_item.favorited_at, external_favorite_item.first_seen_at) DESC;
+
+selectExternalFavoriteArticlesBySource:
+SELECT article.* FROM article
+INNER JOIN external_favorite_item ON external_favorite_item.article_id = article.id
+WHERE external_favorite_item.source_id = ?
+ORDER BY COALESCE(external_favorite_item.favorited_at, external_favorite_item.first_seen_at) DESC;
+
 selectArticleDailyCounts:
 SELECT (created_at / 86400000) AS article_day, COUNT(*) AS article_count
 FROM article
@@ -827,6 +838,27 @@ selectExternalFavoriteItemsPendingAi:
 SELECT * FROM external_favorite_item
 WHERE ai_status IN ('pending', 'failed') AND article_id IS NOT NULL
 ORDER BY first_seen_at DESC
+LIMIT ?;
+
+selectExternalFavoriteItemsImportedWithArticleMissingCover:
+SELECT external_favorite_item.* FROM external_favorite_item
+INNER JOIN article ON article.id = external_favorite_item.article_id
+WHERE external_favorite_item.article_id IS NOT NULL
+  AND (article.cover_image_url IS NULL OR article.cover_image_url = '')
+  AND external_favorite_item.normalized_json LIKE '%"media"%'
+ORDER BY external_favorite_item.first_seen_at DESC
+LIMIT ?;
+
+selectExternalFavoriteItemsImportedWithPlaceholderArticle:
+SELECT external_favorite_item.* FROM external_favorite_item
+INNER JOIN article ON article.id = external_favorite_item.article_id
+WHERE external_favorite_item.article_id IS NOT NULL
+  AND article.status = 'completed'
+  AND article.ai_markdown_content LIKE '# X 收藏%'
+  AND article.ai_markdown_content LIKE '%## 原文%'
+  AND article.ai_markdown_content LIKE '%## AI 整理%'
+  AND article.ai_markdown_content LIKE '%待整理'
+ORDER BY external_favorite_item.first_seen_at DESC
 LIMIT ?;
 
 insertExternalFavoriteItem:

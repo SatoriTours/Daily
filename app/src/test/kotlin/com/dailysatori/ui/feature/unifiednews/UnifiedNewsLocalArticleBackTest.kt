@@ -72,15 +72,15 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("_state.update { it.withUnifiedNewsSourceArticleRequestInvalidated() }"))
         assertTrue(source.contains("_state.update { it.withUnifiedNewsSourceArticlesLoading(sourceId) }"))
         assertTrue(source.contains("if (!sourceArticlesCached)"))
-        assertTrue(source.contains("shouldResetUnifiedNewsSourceSelection(currentSelection, remoteSources)"))
-        assertTrue(source.contains("resolvedUnifiedNewsSourceSelection(currentSelection, remoteSources)"))
+        assertTrue(source.contains("shouldResetUnifiedNewsSourceSelection(currentSelection, remoteSources, externalFavoriteSources)"))
+        assertTrue(source.contains("resolvedUnifiedNewsSourceSelection(currentSelection, remoteSources, externalFavoriteSources)"))
         assertTrue(selectRemoteSource.indexOf("invalidateSourceArticleRequest()") < selectRemoteSource.indexOf("_state.update"))
         assertTrue(selectRemoteSource.indexOf("_state.update") < selectRemoteSource.indexOf("fetchSourceArticles(source.id, force = false)"))
     }
 
     @Test
     fun unifiedNewsScreenRendersSourceSwitcherAndSourceArticleStates() {
-        val source = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val source = unifiedNewsFeatureUiSource()
 
         assertTrue(source.contains("UnifiedNewsSourceSwitcher("))
         assertTrue(source.contains("UnifiedNewsSourceArticleContent("))
@@ -93,10 +93,9 @@ class UnifiedNewsLocalArticleBackTest {
 
     @Test
     fun unifiedNewsSourceSwitcherProvidesRefreshActionAndRemoteListHasNoHeader() {
-        val source = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val sourceSwitcher = source.substringAfter("private fun UnifiedNewsSourceSwitcher(")
-            .substringBefore("@Composable\nprivate fun UnifiedNewsSourceArticleContent")
-        val articleList = source.substringAfter("private fun UnifiedNewsSourceArticleList(")
+        val sourceSwitcher = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSourceSwitcher.kt").readText()
+        val remoteSourceContent = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsRemoteSourceContent.kt").readText()
+        val articleList = remoteSourceContent.substringAfter("private fun UnifiedNewsSourceArticleList(")
             .substringBefore("@Composable\nprivate fun UnifiedNewsSourceArticleMessage")
 
         assertTrue(sourceSwitcher.contains("Icons.Default.Refresh") || sourceSwitcher.contains("refreshSelectedSource"))
@@ -120,7 +119,7 @@ class UnifiedNewsLocalArticleBackTest {
     @Test
     fun sourceArticleClickUsesRenderedSourceIdInsteadOfCurrentSelection() {
         val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val screen = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsRemoteSourceContent.kt").readText()
 
         assertTrue(viewModel.contains("fun openSourceArticle(article: RemoteArticle)"))
         assertTrue(viewModel.contains("selectedRemoteArticle = article"))
@@ -131,8 +130,8 @@ class UnifiedNewsLocalArticleBackTest {
 
     @Test
     fun cachedSourceArticleListShowsRefreshFailureMessage() {
-        val source = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val content = source.substringAfter("private fun UnifiedNewsSourceArticleContent(")
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsRemoteSourceContent.kt").readText()
+        val content = source.substringAfter("internal fun UnifiedNewsSourceArticleContent(")
             .substringBefore("@Composable\nprivate fun UnifiedNewsSourceArticleList")
         val list = source.substringAfter("private fun UnifiedNewsSourceArticleList(")
             .substringBefore("@Composable\nprivate fun UnifiedNewsSourceArticleMessage")
@@ -142,4 +141,13 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(list.contains("刷新失败，正在显示上次结果"))
         assertTrue(list.contains("sourceArticlesError != null"))
     }
+
+    private fun unifiedNewsFeatureUiSource(): String =
+        listOf(
+            "UnifiedNewsScreen.kt",
+            "UnifiedNewsSourceSwitcher.kt",
+            "UnifiedNewsRemoteSourceContent.kt",
+        ).joinToString("\n") { fileName ->
+            File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/$fileName").readText()
+        }
 }

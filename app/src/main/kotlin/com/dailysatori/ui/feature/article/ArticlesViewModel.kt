@@ -23,6 +23,7 @@ data class ArticlesState(
     val searchQuery: String = "",
     val selectedTagId: Long? = null,
     val showFavoritesOnly: Boolean = false,
+    val externalFavoriteSourceId: Long? = null,
     val isSearchVisible: Boolean = false,
     val tags: List<Tag> = emptyList(),
     val dailyCounts: Map<Long, Long> = emptyMap(),
@@ -67,6 +68,7 @@ class ArticlesViewModel(
             val flow = when {
                 currentState.searchQuery.isNotBlank() -> articleRepo.search(currentState.searchQuery)
                 currentState.selectedTagId != null -> articleRepo.getByTag(currentState.selectedTagId!!)
+                currentState.externalFavoriteSourceId != null -> articleRepo.getExternalFavoritesBySource(currentState.externalFavoriteSourceId)
                 currentState.showFavoritesOnly -> articleRepo.getFavorites()
                 else -> articleRepo.getAll()
             }
@@ -86,6 +88,7 @@ class ArticlesViewModel(
             val flow = when {
                 currentState.searchQuery.isNotBlank() -> articleRepo.search(currentState.searchQuery)
                 currentState.selectedTagId != null -> articleRepo.getByTag(currentState.selectedTagId!!)
+                currentState.externalFavoriteSourceId != null -> articleRepo.getExternalFavoritesBySource(currentState.externalFavoriteSourceId)
                 currentState.showFavoritesOnly -> articleRepo.getFavorites()
                 else -> articleRepo.getAll()
             }
@@ -112,7 +115,20 @@ class ArticlesViewModel(
 
     fun setFavoritesOnly(enabled: Boolean) {
         if (_state.value.showFavoritesOnly == enabled) return
-        _state.update { it.copy(showFavoritesOnly = enabled) }
+        _state.update { it.copy(showFavoritesOnly = enabled, externalFavoriteSourceId = null) }
+        loadArticles()
+    }
+
+    fun setExternalFavoriteSource(sourceId: Long?) {
+        if (_state.value.externalFavoriteSourceId == sourceId) return
+        _state.update {
+            it.copy(
+                externalFavoriteSourceId = sourceId,
+                showFavoritesOnly = if (sourceId != null) false else it.showFavoritesOnly,
+                searchQuery = if (sourceId != null) "" else it.searchQuery,
+                selectedTagId = if (sourceId != null) null else it.selectedTagId,
+            )
+        }
         loadArticles()
     }
 

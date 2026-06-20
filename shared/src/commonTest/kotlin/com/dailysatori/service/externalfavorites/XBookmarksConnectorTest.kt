@@ -6,8 +6,17 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 class XBookmarksConnectorTest {
+    @Test
+    fun bookmarkEndpointUsesAuthenticatedUserIdPath() {
+        assertEquals("/2/users/2244994945/bookmarks", xBookmarksEndpointPath("2244994945"))
+    }
+
     @Test
     fun canonicalizesXAndTwitterStatusUrls() {
         assertEquals("https://x.com/jack/status/20", canonicalizeXStatusUrl("https://twitter.com/jack/status/20?s=20"))
@@ -35,11 +44,69 @@ class XBookmarksConnectorTest {
     }
 
     @Test
+    fun parsesLongPostAndLinkCardFieldsForArticleImport() {
+        val json = """
+            {
+              "data": [
+                {
+                  "id": "123",
+                  "text": "Short text https://t.co/a",
+                  "author_id": "42",
+                  "created_at": "2026-06-01T00:00:00.000Z",
+                  "note_tweet": {
+                    "text": "This is the full long-form post body with much more useful context.",
+                    "entities": {
+                      "urls": [
+                        {
+                          "url": "https://t.co/a",
+                          "expanded_url": "https://example.com/article",
+                          "unwound_url": "https://example.com/article-final",
+                          "display_url": "example.com/article",
+                          "title": "External Article Title",
+                          "description": "External article description",
+                          "images": [{"url": "https://example.com/cover.jpg"}]
+                        }
+                      ]
+                    }
+                  },
+                  "entities": {
+                    "urls": [
+                      {
+                        "url": "https://t.co/a",
+                        "expanded_url": "https://example.com/article",
+                        "title": "Short Card Title"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "includes": {
+                "users": [{"id": "42", "username": "daily", "name": "Daily", "profile_image_url": "https://x.com/avatar.jpg"}]
+              },
+              "meta": {"result_count": 1}
+            }
+        """.trimIndent()
+
+        val item = XBookmarksResponseParser.parse(json).items.single()
+        val normalized = Json.parseToJsonElement(item.normalizedJson).jsonObject
+
+        assertEquals("This is the full long-form post body with much more useful context.", item.text)
+        assertEquals("External Article Title", item.title)
+        assertEquals("https://example.com/article-final", item.canonicalUrl)
+        assertEquals("This is the full long-form post body with much more useful context.", normalized["note_text"]?.jsonPrimitive?.contentOrNull)
+        assertEquals("https://example.com/article-final", normalized["primary_url"]?.jsonPrimitive?.contentOrNull)
+        assertEquals("External Article Title", normalized["url_title"]?.jsonPrimitive?.contentOrNull)
+        assertEquals("External article description", normalized["url_description"]?.jsonPrimitive?.contentOrNull)
+        assertTrue(item.normalizedJson.contains("https://example.com/cover.jpg"))
+        assertTrue(item.normalizedJson.contains("profile_image_url"))
+    }
+
+    @Test
     fun parsesNextTokenAndCapabilities() {
         val json = """{"data":[],"meta":{"next_token":"cursor-2","result_count":0}}"""
 
         val page = XBookmarksResponseParser.parse(json)
-        val connector = XBookmarksConnector()
+        val connector = XBookmarksConnector(developmentMode = false)
 
         assertEquals("cursor-2", page.nextCursor)
         assertEquals(100, connector.capabilities.maxPageSize)
@@ -49,7 +116,13 @@ class XBookmarksConnectorTest {
         assertEquals(false, connector.capabilities.supportsFolders)
         assertEquals(false, connector.capabilities.supportsFavoritedAt)
         assertEquals(false, connector.capabilities.supportsWriteBack)
-        assertEquals(true, connector.capabilities.supportsRefreshToken)
+        assertEquals(false, connector.capabilities.supportsRefreshToken)
+    }
+
+    @Test
+    fun developmentModeLimitsBookmarkPageSizeToOne() {
+        assertEquals(1, XBookmarksConnector(developmentMode = true).capabilities.maxPageSize)
+        assertEquals(100, XBookmarksConnector(developmentMode = false).capabilities.maxPageSize)
     }
 
     @Test
@@ -173,4 +246,5 @@ class XBookmarksConnectorTest {
         assertTrue(refreshed.contains(""""refresh_token":"refresh""""))
         assertTrue(refreshed.contains(""""expires_at":7202000"""))
     }
+
 }

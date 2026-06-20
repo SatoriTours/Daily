@@ -457,9 +457,34 @@ internal fun selectedArticleAiTitle(
     extractedTitle: String?,
     originalTitle: String?,
 ): String = listOf(generatedTitle, summaryTitle, extractedTitle, originalTitle)
-    .map { it?.trim().orEmpty() }
-    .firstOrNull { it.isNotBlank() && it != "正在加载..." }
+    .mapNotNull { sanitizeArticleAiTitle(it) }
+    .firstOrNull()
     .orEmpty()
+
+fun sanitizeArticleAiTitle(value: String?): String? {
+    val firstLine = value
+        ?.lineSequence()
+        ?.firstOrNull { it.isNotBlank() }
+        ?.trim()
+        .orEmpty()
+    if (firstLine.isBlank() || firstLine == "正在加载...") return null
+    if (firstLine.startsWith("##")) return null
+    val cleaned = firstLine
+        .removePrefix("#")
+        .trim()
+        .removeSurrounding("\"")
+        .removeSurrounding("“", "”")
+        .removeSurrounding("'")
+        .replace(Regex("""^\s*(?:[-*]|\d+[.)、]|[一二三四五六七八九十]+[、.])\s*"""), "")
+        .replace(Regex("""\s+"""), " ")
+        .trim()
+    if (cleaned.isBlank() || cleaned == "正在加载...") return null
+    if (cleaned.length > 30) return null
+    if (cleaned.contains("##") || cleaned.startsWith("- ") || cleaned.startsWith("* ")) return null
+    val punctuationCount = cleaned.count { it in listOf('，', ',', '。', '.', '；', ';', '：', ':') }
+    if (cleaned.length > 24 && punctuationCount > 1) return null
+    return cleaned
+}
 
 internal fun shouldPersistArticleProcessingError(error: Throwable): Boolean =
     error !is CancellationException || error is TimeoutCancellationException
@@ -861,7 +886,8 @@ class WebpageParserService(
 
     private fun updateArticleAiTitle(articleId: Long, aiTitle: String) {
         val article = articleRepo.getById(articleId) ?: return
-        articleRepo.updateAiTitle(articleId, aiTitle.ifBlank { article.ai_title })
+        val selected = selectedArticleAiTitle(aiTitle, null, article.title, article.ai_title)
+        articleRepo.updateAiTitle(articleId, selected.ifBlank { article.ai_title })
     }
 
     private suspend fun generateArticleAnalysis(

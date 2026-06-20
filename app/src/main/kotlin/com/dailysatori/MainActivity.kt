@@ -6,6 +6,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
+import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
+import com.dailysatori.service.externalfavorites.FavoriteSyncMode
 import com.dailysatori.service.externalfavorites.XOAuthCoordinator
 import com.dailysatori.ui.theme.DailySatoriTheme
 import kotlinx.coroutines.launch
@@ -33,7 +35,9 @@ class MainActivity : ComponentActivity() {
         val uri = intent?.data?.toString()?.takeIf { it.startsWith("dailysatori://oauth/x") } ?: return
         lifecycleScope.launch {
             runCatching {
-                GlobalContext.get().get<XOAuthCoordinator>().handleCallbackUrl(uri)
+                val koin = GlobalContext.get()
+                val sourceId = koin.get<XOAuthCoordinator>().handleCallbackUrl(uri)
+                koin.get<ExternalFavoriteSyncScheduler>().enqueue(sourceId, FavoriteSyncMode.history.name)
             }
         }
     }

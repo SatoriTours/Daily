@@ -165,7 +165,7 @@ fun HomeScreen(
                     }
                 }
             }
-            if (homeBottomBarVisibleForTab(selectedIndex)) {
+            if (!showMy && homeBottomBarVisibleForTab(selectedIndex)) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.BottomCenter,

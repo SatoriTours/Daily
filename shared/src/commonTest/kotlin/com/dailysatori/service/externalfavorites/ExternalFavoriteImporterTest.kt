@@ -32,7 +32,7 @@ class ExternalFavoriteImporterTest {
         val article = articles.getByUrl("https://x.com/daily/status/100")
         assertNotNull(article)
         assertEquals(1, article.is_favorite)
-        assertEquals("completed", article.status)
+        assertEquals("pending", article.status)
         assertTrue(article.ai_markdown_content.orEmpty().contains("## 原文"))
         assertTrue(article.ai_markdown_content.orEmpty().contains("这是一条值得保存的原文。"))
         assertTrue(article.ai_markdown_content.orEmpty().contains("https://x.com/daily/status/100"))
@@ -40,6 +40,120 @@ class ExternalFavoriteImporterTest {
         val item = items.getBySource(sourceId).single()
         assertEquals(article.id, item.article_id)
         assertEquals("imported", item.import_status)
+    }
+
+    @Test
+    fun importingXItemLeavesArticlePendingForStandardArticleProcessing() = withRepositories { _, sources, items, articles ->
+        val sourceId = saveXSource(sources)
+        items.upsertDraft(sourceId, xDraft(externalId = "post-pending"))
+
+        ExternalFavoriteImporter(items, articles).importPending()
+
+        val article = articles.getByUrl("https://x.com/daily/status/post-pending")
+        assertNotNull(article)
+        assertEquals("pending", article.status)
+        assertTrue(articles.getRecoverableForProcessingSync().map { it.id }.contains(article.id))
+    }
+
+    @Test
+    fun importsXItemMediaAsArticleCoverImageUrl() = withRepositories { _, sources, items, articles ->
+        val sourceId = saveXSource(sources)
+        items.upsertDraft(
+            sourceId,
+            xDraft(
+                externalId = "post-cover",
+                canonicalUrl = "https://x.com/daily/status/cover",
+                normalizedJson = """
+                    {
+                      "id": "post-cover",
+                      "media": [
+                        {
+                          "type": "photo",
+                          "url": "https://pbs.twimg.com/media/cover?format=jpg&name=large"
+                        }
+                      ]
+                    }
+                """.trimIndent(),
+            ),
+        )
+
+        ExternalFavoriteImporter(items, articles).importPending()
+
+        val article = articles.getByUrl("https://x.com/daily/status/cover")
+        assertNotNull(article)
+        assertEquals("https://pbs.twimg.com/media/cover?format=jpg&name=large", article.cover_image_url)
+    }
+
+    @Test
+    fun repairsCoverImageUrlForAlreadyImportedXItems() = withRepositories { _, sources, items, articles ->
+        val sourceId = saveXSource(sources)
+        val (item, _) = items.upsertDraft(
+            sourceId,
+            xDraft(
+                externalId = "post-existing-cover",
+                normalizedJson = """
+                    {
+                      "id": "post-existing-cover",
+                      "media": [
+                        {
+                          "type": "video",
+                          "preview_image_url": "https://pbs.twimg.com/media/video-preview.jpg"
+                        }
+                      ]
+                    }
+                """.trimIndent(),
+            ),
+        )
+        val articleId = articles.insert(
+            title = "Existing X",
+            aiContent = "Existing body",
+            aiMarkdownContent = "# Existing",
+            url = "https://x.com/daily/status/post-existing-cover",
+            isFavorite = 1,
+            status = "completed",
+        )
+        items.markImported(item.id, articleId, duplicateLinked = false)
+
+        val repaired = ExternalFavoriteImporter(items, articles).repairImportedArticleCovers(limit = 10)
+
+        assertEquals(1, repaired)
+        assertEquals("https://pbs.twimg.com/media/video-preview.jpg", articles.getById(articleId)?.cover_image_url)
+    }
+
+    @Test
+    fun repairsAlreadyImportedPlaceholderArticlesForStandardProcessing() = withRepositories { _, sources, items, articles ->
+        val sourceId = saveXSource(sources)
+        val (item, _) = items.upsertDraft(sourceId, xDraft(externalId = "post-placeholder"))
+        val placeholderMarkdown = """
+            # X 收藏
+
+            ## 原文
+
+            - 作者：Author
+            - 时间：2023-11-14T22:13:20Z
+            - 链接：https://x.com/daily/status/post-placeholder
+
+            Body for post-placeholder
+
+            ## AI 整理
+
+            待整理
+        """.trimIndent()
+        val articleId = articles.insert(
+            title = "X 收藏",
+            aiContent = "Body for post-placeholder",
+            aiMarkdownContent = placeholderMarkdown,
+            url = "https://x.com/daily/status/post-placeholder",
+            isFavorite = 1,
+            status = "completed",
+        )
+        items.markImported(item.id, articleId, duplicateLinked = false)
+
+        val repaired = ExternalFavoriteImporter(items, articles).repairImportedPlaceholderArticles(limit = 10)
+
+        assertEquals(1, repaired)
+        assertEquals("pending", articles.getById(articleId)?.status)
+        assertTrue(articles.getRecoverableForProcessingSync().map { it.id }.contains(articleId))
     }
 
     @Test
@@ -139,7 +253,7 @@ class ExternalFavoriteImporterTest {
         val article = articles.getById(articleId)
         assertNotNull(article)
         assertEquals(1, article.is_favorite)
-        assertEquals("completed", article.status)
+        assertEquals("pending", article.status)
         assertEquals("keep this user comment", article.comment)
         assertEquals(existingMarkdown, article.ai_markdown_content)
 
@@ -176,7 +290,7 @@ class ExternalFavoriteImporterTest {
         assertEquals(1, imported)
         val article = articles.getById(articleId)
         assertNotNull(article)
-        assertEquals("completed", article.status)
+        assertEquals("pending", article.status)
         assertEquals("user comment", article.comment)
         assertEquals(existingMarkdown, article.ai_markdown_content)
 
@@ -295,6 +409,7 @@ class ExternalFavoriteImporterTest {
         text: String = "Body for $externalId",
         authorName: String = "Author",
         sourceCreatedAt: Long? = 1_700_000_000_000,
+        normalizedJson: String = """{"id":"$externalId"}""",
     ): ExternalFavoriteItemDraft = ExternalFavoriteItemDraft(
         provider = ExternalFavoriteProvider.X.id,
         externalId = externalId,
@@ -304,7 +419,7 @@ class ExternalFavoriteImporterTest {
         authorName = authorName,
         sourceCreatedAt = sourceCreatedAt,
         favoritedAt = 1_700_000_100_000,
-        normalizedJson = """{"id":"$externalId"}""",
+        normalizedJson = normalizedJson,
         contentHash = "content-$externalId-$title-$text",
         aiInputHash = "ai-$externalId-$title-$text",
     )

@@ -2,51 +2,67 @@ package com.dailysatori.ui.feature.settings.externalfavorites
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PauseCircle
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.dailysatori.ui.component.indicator.EmptyState
-import com.dailysatori.ui.component.scaffold.AppScaffold
-import com.dailysatori.ui.component.settings.SettingsSectionCard
 import com.dailysatori.service.externalfavorites.ExternalSourceHealth
+import com.dailysatori.ui.component.scaffold.AppScaffold
+import com.dailysatori.ui.theme.IconSize
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
@@ -67,6 +83,10 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
         } ?: false
     }
     val openAddPage = { showAddPage = true }
+
+    BackHandler(enabled = showAddPage) {
+        showAddPage = false
+    }
 
     if (showAddPage) {
         ExternalFavoriteAddServicePage(
@@ -116,22 +136,17 @@ private fun ExternalFavoriteSourceListPage(
                 contentPadding = PaddingValues(Spacing.m),
                 verticalArrangement = Arrangement.spacedBy(Spacing.m),
             ) {
-                item {
-                    ExternalFavoriteManagementSummary(
-                        state = state,
-                        onAdd = openAddPage,
-                    )
+                item { ExternalFavoriteManagementSummary(state) }
+                state.message?.takeIf { it.isNotBlank() }?.let { message ->
+                    item { ExternalFavoriteMessage(message) }
                 }
                 item {
-                    EmptyState(
-                        icon = Icons.Default.Bookmark,
-                        title = externalFavoriteEmptyStateTitle(),
-                        subtitle = externalFavoriteEmptyStateSubtitle(state.message),
-                        modifier = Modifier.fillMaxWidth(),
-                        actionLabel = externalFavoriteAddServiceActionLabel(hasSources = false),
+                    ExternalFavoriteEmptyConnectionCard(
+                        message = null,
                         onAction = openAddPage,
                     )
                 }
+                item { ExternalFavoriteConnectionSteps() }
             }
         } else {
             ExternalFavoriteSourceList(
@@ -158,6 +173,8 @@ private fun ExternalFavoriteAddServicePage(
         Column(
             modifier = modifier
                 .fillMaxSize()
+                .navigationBarsPadding()
+                .imePadding()
                 .padding(Spacing.m)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
@@ -170,7 +187,7 @@ private fun ExternalFavoriteAddServicePage(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            ExternalFavoriteAddSyncNote()
+            ExternalFavoriteAddNotes()
             state.message?.takeIf { it.isNotBlank() }?.let { ExternalFavoriteMessage(it) }
             Button(onClick = onConnectX, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Bookmark, contentDescription = null)
@@ -184,45 +201,25 @@ private fun ExternalFavoriteAddServicePage(
 }
 
 @Composable
-private fun ExternalFavoriteAddSyncNote() {
-    Surface(
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(Spacing.m),
-            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-        ) {
-            Text(
-                externalFavoriteAddPageSyncNoteTitle(),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                externalFavoriteAddPageSyncNoteText(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
 private fun ExternalFavoriteAddHelperCard() {
     Surface(
-        shape = RoundedCornerShape(Radius.m),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+        shape = RoundedCornerShape(Radius.xl),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.42f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(Spacing.m),
             horizontalArrangement = Arrangement.spacedBy(Spacing.s),
             verticalAlignment = Alignment.Top,
         ) {
-            Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            ExternalFavoriteIconBox {
+                Icon(Icons.Default.Link, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(
                     externalFavoriteAddPageHelperTitle(),
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
                 Text(
@@ -236,35 +233,93 @@ private fun ExternalFavoriteAddHelperCard() {
 }
 
 @Composable
-private fun ExternalFavoriteManagementSummary(
-    state: ExternalFavoritesSettingsState,
-    onAdd: () -> Unit,
-) {
-    SettingsSectionCard("连接状态") {
+private fun ExternalFavoriteAddNotes() {
+    ExternalFavoriteStepList(
+        steps = listOf(
+            externalFavoriteReadOnlyStepLabel() to "Daily Satori 只请求读取收藏所需权限，不会修改或删除平台收藏。",
+            externalFavoriteXOAuthRedirectUriLabel() to externalFavoriteXOAuthRedirectUri(),
+            "同步" to externalFavoriteAddPageSyncNoteText(),
+            "整理" to "导入到本地收藏后，再交给本地配置的 AI 整理内容。",
+        ),
+    )
+}
+
+@Composable
+private fun ExternalFavoriteManagementSummary(state: ExternalFavoritesSettingsState) {
+    Surface(
+        shape = RoundedCornerShape(Radius.xl),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+    ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(Spacing.m),
-            verticalArrangement = Arrangement.spacedBy(Spacing.s),
+            verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {
-            Text(
-                externalFavoriteManagementSummaryTitle(state.sources),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                externalFavoriteManagementSummarySubtitle(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.Top) {
+                ExternalFavoriteIconBox {
+                    Icon(Icons.Default.Bookmark, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text(
+                        externalFavoriteManagementSummaryTitle(state.sources),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        externalFavoriteManagementSummarySubtitle(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            ExternalFavoriteSummaryMetrics(externalFavoriteSummaryMetrics(state.sources))
             if (externalFavoriteShouldShowAuthCheckNotice(state.sources)) {
-                Text(
-                    externalFavoriteAuthCheckNoticeText(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                ExternalFavoriteInlineNotice(
+                    text = externalFavoriteAuthCheckNoticeText(),
+                    warning = true,
                 )
             }
-            OutlinedButton(onClick = onAdd, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Text(externalFavoriteAddServiceActionLabel(hasSources = state.sources.isNotEmpty()))
+        }
+    }
+}
+
+@Composable
+private fun ExternalFavoriteIconBox(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(RoundedCornerShape(Radius.l))
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun ExternalFavoriteSummaryMetrics(metrics: List<ExternalFavoriteSummaryMetric>) {
+    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), modifier = Modifier.fillMaxWidth()) {
+        metrics.forEach { metric ->
+            Surface(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(Radius.m),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+            ) {
+                Column(modifier = Modifier.padding(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text(
+                        metric.value,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        metric.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
@@ -291,34 +346,21 @@ private fun ExternalFavoriteSourceList(
         contentPadding = PaddingValues(Spacing.m),
         verticalArrangement = Arrangement.spacedBy(Spacing.m),
     ) {
-        item {
-            ExternalFavoriteManagementSummary(
-                state = state,
-                onAdd = openAddPage,
-            )
-        }
+        item { ExternalFavoriteManagementSummary(state) }
         state.message?.let { message ->
-            item {
-                ExternalFavoriteMessage(message)
-            }
+            item { ExternalFavoriteMessage(message) }
         }
         item {
-            SettingsSectionCard("同步来源") {
-                Text(
-                    "外部平台收藏会先写入本地收藏，再由 AI 整理内容。当前版本使用定期同步，不承诺实时导入。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth().padding(Spacing.m),
-                )
-            }
+            ExternalFavoriteSourceSectionHeader(openAddPage = openAddPage, hasSources = state.sources.isNotEmpty())
         }
         items(state.sources, key = { it.id }) { source ->
             ExternalFavoriteSourceCard(
                 item = source,
                 syncing = state.syncingSourceId == source.id,
                 onSyncNow = { viewModel.syncNow(source.id) },
-                onImportOlder = { viewModel.importOlder(source.id) },
+                onRescanAll = { viewModel.rescanAll(source.id) },
                 onToggleEnabled = { viewModel.toggleEnabled(source.id, it) },
+                onReconnect = openAddPage,
                 onDelete = { pendingDeleteSourceId = source.id },
             )
         }
@@ -349,93 +391,145 @@ private fun ExternalFavoriteSourceList(
 }
 
 @Composable
+private fun ExternalFavoriteSourceSectionHeader(openAddPage: () -> Unit, hasSources: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "同步来源",
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(onClick = openAddPage) {
+            Icon(Icons.Default.Add, contentDescription = null)
+            Text(externalFavoriteAddServiceActionLabel(hasSources))
+        }
+    }
+}
+
+@Composable
 private fun ExternalFavoriteSourceCard(
     item: ExternalFavoriteSourceUi,
     syncing: Boolean,
     onSyncNow: () -> Unit,
-    onImportOlder: () -> Unit,
+    onRescanAll: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
+    onReconnect: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val source = item.source
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Card(
-        shape = RoundedCornerShape(Radius.m),
+        shape = RoundedCornerShape(Radius.xl),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.s),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                ExternalFavoriteProviderBadge(source.provider)
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                    Text(source.display_name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        source.display_name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                     Text(
                         externalFavoriteAccountIdentity(source.account_name, source.account_id),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Switch(checked = item.enabled, onCheckedChange = onToggleEnabled)
+                ExternalFavoriteHealthPill(item.health)
             }
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                ExternalFavoriteChip(externalFavoriteHealthLabel(item.health))
-                ExternalFavoriteChip(externalFavoritePeriodicSyncSubtitle(item.health))
-            }
-            Text(
-                externalFavoriteSyncAttemptText(source.last_sync_started_at, source.last_success_at),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            externalFavoriteSeenCountText(source.last_items_seen_count, source.last_pages_seen_count)?.let { countText ->
-                Text(
-                    countText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+
+            ExternalFavoriteSourceDetails(item)
+
             if (item.health == ExternalSourceHealth.limited) {
-                Text(
-                    externalFavoriteRateLimitText(source.rate_limit_reset_at),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                ExternalFavoriteInlineNotice(
+                    text = externalFavoriteRateLimitText(source.rate_limit_reset_at),
+                    warning = true,
                 )
             }
             if (source.last_error_message.isNotBlank()) {
-                Text(
-                    source.last_error_message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                ExternalFavoriteInlineNotice(
+                    text = source.last_error_message,
+                    error = true,
                 )
             }
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-                OutlinedButton(
-                    onClick = if (item.health == ExternalSourceHealth.paused) {
-                        { onToggleEnabled(true) }
-                    } else {
-                        onSyncNow
+
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+                Button(
+                    onClick = when (item.health) {
+                        ExternalSourceHealth.paused -> {
+                            { onToggleEnabled(true) }
+                        }
+                        ExternalSourceHealth.needs_auth -> onReconnect
+                        else -> onSyncNow
                     },
                     enabled = when (item.health) {
-                        ExternalSourceHealth.limited, ExternalSourceHealth.needs_auth -> false
-                        ExternalSourceHealth.paused -> !syncing
+                        ExternalSourceHealth.limited -> false
+                        ExternalSourceHealth.paused, ExternalSourceHealth.needs_auth -> !syncing
                         else -> externalFavoriteCanRunSyncAction(item.health, item.enabled) && !syncing
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.weight(1f),
                 ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null)
-                    Text(if (syncing) "已加入队列" else externalFavoritePrimaryActionLabel(item.health))
+                    Icon(
+                        if (item.health == ExternalSourceHealth.needs_auth) Icons.Default.Link else Icons.Default.Refresh,
+                        contentDescription = null,
+                    )
+                    Text(if (syncing) "同步中" else externalFavoritePrimaryActionLabel(item.health))
                 }
-                OutlinedButton(
-                    onClick = onImportOlder,
-                    enabled = externalFavoriteCanRunSyncAction(item.health, item.enabled) && !syncing,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Default.History, contentDescription = null)
-                    Text("历史")
-                }
-                TextButton(onClick = onDelete, modifier = Modifier.fillMaxWidth()) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "更多")
+                    }
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        DropdownMenuItem(
+                            text = { Text(externalFavoriteRescanMenuLabel()) },
+                            leadingIcon = { Icon(Icons.Default.History, contentDescription = null) },
+                            enabled = externalFavoriteCanRunSyncAction(item.health, item.enabled) && !syncing,
+                            onClick = {
+                                menuExpanded = false
+                                onRescanAll()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(externalFavoriteToggleSyncMenuLabel(item.enabled)) },
+                            leadingIcon = {
+                                Icon(
+                                    if (item.enabled) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
+                                    contentDescription = null,
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onToggleEnabled(!item.enabled)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(externalFavoriteDeleteMenuLabel(), color = MaterialTheme.colorScheme.error) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete()
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -443,14 +537,182 @@ private fun ExternalFavoriteSourceCard(
 }
 
 @Composable
-private fun ExternalFavoriteChip(text: String) {
-    Surface(shape = RoundedCornerShape(Radius.circular), color = MaterialTheme.colorScheme.surfaceContainerHighest) {
-        Text(
-            text = text,
+private fun ExternalFavoriteProviderBadge(provider: String) {
+    Surface(
+        shape = RoundedCornerShape(Radius.l),
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.size(44.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                externalFavoriteProviderBadge(provider),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.surface,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExternalFavoriteHealthPill(health: ExternalSourceHealth) {
+    val color = when (health) {
+        ExternalSourceHealth.healthy -> MaterialTheme.colorScheme.primary
+        ExternalSourceHealth.never_synced, ExternalSourceHealth.limited -> MaterialTheme.colorScheme.tertiary
+        ExternalSourceHealth.needs_auth, ExternalSourceHealth.failing -> MaterialTheme.colorScheme.error
+        ExternalSourceHealth.paused -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        shape = RoundedCornerShape(Radius.circular),
+        color = color.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.22f)),
+    ) {
+        Row(
             modifier = Modifier.padding(horizontal = Spacing.s, vertical = Spacing.xs),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(IconSize.xs)
+                    .clip(RoundedCornerShape(Radius.circular))
+                    .background(color),
+            )
+            Text(externalFavoriteHealthLabel(health), style = MaterialTheme.typography.labelSmall, color = color)
+        }
+    }
+}
+
+@Composable
+private fun ExternalFavoriteSourceDetails(item: ExternalFavoriteSourceUi) {
+    val source = item.source
+    Surface(
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+            ExternalFavoriteDetailRow("同步", externalFavoriteSyncAttemptText(source.last_sync_started_at, source.last_success_at))
+            ExternalFavoriteDetailRow("结果", externalFavoriteSeenCountText(source.last_items_seen_count, source.last_pages_seen_count) ?: "尚未同步")
+            ExternalFavoriteDetailRow("状态", externalFavoritePeriodicSyncSubtitle(item.health))
+        }
+    }
+}
+
+@Composable
+private fun ExternalFavoriteDetailRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).padding(start = Spacing.s),
         )
+    }
+}
+
+@Composable
+private fun ExternalFavoriteInlineNotice(
+    text: String,
+    warning: Boolean = false,
+    error: Boolean = false,
+) {
+    val color = when {
+        error -> MaterialTheme.colorScheme.error
+        warning -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.primary
+    }
+    Surface(
+        shape = RoundedCornerShape(Radius.m),
+        color = color.copy(alpha = 0.09f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.16f)),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.s),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.s),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(Icons.Default.Warning, contentDescription = null, tint = color)
+            Text(
+                text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExternalFavoriteEmptyConnectionCard(message: String?, onAction: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(Radius.xl),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(Spacing.l),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Spacing.s),
+        ) {
+            ExternalFavoriteIconBox {
+                Icon(Icons.Default.Bookmark, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            }
+            Text(externalFavoriteEmptyStateTitle(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                externalFavoriteEmptyStateSubtitle(message),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(onClick = onAction, modifier = Modifier.fillMaxWidth()) {
+                Text(externalFavoriteAddServiceActionLabel(hasSources = false))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExternalFavoriteConnectionSteps() {
+    ExternalFavoriteStepList(
+        steps = listOf(
+            "1" to "在 X Developer Portal 配置回调地址 dailysatori://oauth/x。",
+            "2" to "填写 X OAuth Client ID，打开浏览器完成授权。",
+            "3" to "同步结果进入本地收藏，后续由 AI 整理标题、摘要和标签。",
+        ),
+    )
+}
+
+@Composable
+private fun ExternalFavoriteStepList(steps: List<Pair<String, String>>) {
+    Surface(
+        shape = RoundedCornerShape(Radius.xl),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.m), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            steps.forEach { (label, text) ->
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.Top) {
+                    Surface(
+                        shape = RoundedCornerShape(Radius.s),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier.size(32.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    Text(
+                        text,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
     }
 }
 

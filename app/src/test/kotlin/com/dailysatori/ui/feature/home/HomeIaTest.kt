@@ -66,6 +66,15 @@ class HomeIaTest {
         assertFalse(source.contains("homeBottomBarContentBottomPadding"))
     }
 
+    @Test
+    fun settingsPageHidesHomeBottomBarOverlay() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/home/HomeScreen.kt").readText()
+        val bottomBarGate = source.substringAfter("if (!showMy && homeBottomBarVisibleForTab(selectedIndex))")
+
+        assertTrue(bottomBarGate.contains("HomeBottomBarSurface("))
+        assertFalse(source.contains("if (homeBottomBarVisibleForTab(selectedIndex))"))
+    }
+
     private fun String.extractCallBlock(anchor: String): String {
         assertTrue(contains(anchor), "Missing call anchor: $anchor")
         val start = indexOf(anchor)

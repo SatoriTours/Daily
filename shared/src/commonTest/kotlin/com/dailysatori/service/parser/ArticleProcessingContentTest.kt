@@ -174,7 +174,9 @@ class ArticleProcessingContentTest {
         val prompt = articleTitlePrompt()
 
         assertEquals(true, prompt.contains("用中文输出"))
-        assertEquals(true, prompt.contains("15-25 字"))
+        assertEquals(true, prompt.contains("8-18 个中文字符"))
+        assertEquals(true, prompt.contains("最多不超过 24 个字符"))
+        assertEquals(true, prompt.contains("禁止换行"))
         assertEquals(true, prompt.contains("只返回标题"))
     }
 
@@ -202,6 +204,20 @@ class ArticleProcessingContentTest {
         assertEquals(
             "原标题",
             selectedArticleAiTitle("", null, null, "原标题"),
+        )
+    }
+
+    @Test
+    fun rejectsBodyLikeAiTitlesBeforePersisting() {
+        val bodyLikeTitle = "这是一段很长的正文内容，包含多个逗号，多个事实，并且明显不是一个适合展示在详情页顶部的标题"
+
+        assertEquals(
+            "网页标题",
+            selectedArticleAiTitle(bodyLikeTitle, "## 核心内容\n正文", "网页标题", "原标题"),
+        )
+        assertEquals(
+            "短标题",
+            selectedArticleAiTitle("\"1. 短标题\"", null, null, "原标题"),
         )
     }
 

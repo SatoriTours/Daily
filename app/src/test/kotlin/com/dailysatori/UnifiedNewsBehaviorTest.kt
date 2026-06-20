@@ -261,7 +261,7 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedRemoteSourceListOpensArticleFromLoadedPayloadWithoutDetailApi() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsRemoteSourceContentSource()
         val openSourceArticleBody = viewModel.substringAfter("fun openSourceArticle(").substringBefore("fun toggleSelectedRemoteArticleFavorite")
 
         assertTrue(viewModel.contains("fun openSourceArticle(article: RemoteArticle)"))
@@ -330,8 +330,8 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedRemoteSourceRefreshFailureKeepsCachedArticlesVisible() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val contentBody = screen.substringAfter("private fun UnifiedNewsSourceArticleContent").substringBefore("private fun UnifiedNewsSourceArticleList")
+        val screen = unifiedNewsRemoteSourceContentSource()
+        val contentBody = screen.substringAfter("internal fun UnifiedNewsSourceArticleContent").substringBefore("private fun UnifiedNewsSourceArticleList")
         val listBody = screen.substringAfter("private fun UnifiedNewsSourceArticleList").substringBefore("private fun UnifiedNewsSourceArticleMessage")
 
         assertTrue(contentBody.contains("state.sourceArticlesError != null && articles.isEmpty()"))
@@ -366,11 +366,25 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedDigestReferencedArticleOpensLoadedPayloadDirectly() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsFeatureUiSource()
         val digestRoute = screen.substringAfter("if (remoteDigest != null)").substringBefore("if (state.navigationTarget != null && state.isLoading)")
 
         assertTrue(digestRoute.contains("onArticleClick = viewModel::openSourceArticle"))
         assertFalse(digestRoute.contains("openCitationSource(\"remote_article\", article.id, null)"))
+    }
+
+    @Test
+    fun unifiedExternalFavoriteArticlesUseSameLocalArticleDetailRoute() {
+        val screen = unifiedNewsFeatureUiSource()
+        val externalFavoriteBranch = screen
+            .substringAfter("is UnifiedNewsSourceSelection.ExternalFavoriteSource -> ArticleListScreen")
+            .substringBefore("UnifiedNewsSourceSelection.LocalArticles -> ArticleListScreen")
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+
+        assertTrue(externalFavoriteBranch.contains("onArticleClick = onArticleClick"))
+        assertFalse(externalFavoriteBranch.contains("onArticleClick = viewModel::openExternalFavoriteArticle"))
+        assertFalse(viewModel.contains("fun openExternalFavoriteArticle(articleId: Long)"))
+        assertFalse(viewModel.contains("private fun Article.toExternalFavoriteRemoteArticle(): RemoteArticle"))
     }
 
     @Test
@@ -1519,7 +1533,7 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsUiRemovesCrayfishDistinction() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsFeatureUiSource()
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val contentFormat = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsContentFormat.kt").readText()
         val viewModelModule = java.io.File("src/main/kotlin/com/dailysatori/core/di/ViewModelModule.kt").readText()
@@ -1557,7 +1571,7 @@ class UnifiedNewsBehaviorTest {
         assertFalse(settings.contains("小龙虾新闻设置"))
         assertTrue(settings.contains("远程新闻设置"))
         assertFalse(screen.substringAfter("private fun SkeletonLine").substringBefore("private fun UnifiedNewsMenu").contains("14.dp"))
-        assertFalse(screen.substringAfter("private fun TodayUnifiedNewsCard").substringBefore("CitationText(").contains("1.dp"))
+        assertFalse(unifiedNewsBriefingCardSource().substringAfter("internal fun TodayUnifiedNewsCard").contains("1.dp"))
         assertFalse(citationText.substringAfter("private fun UnifiedNewsBulletItem").substringBefore("private fun unifiedNewsDisplayBlocks").contains("6.dp"))
         assertFalse(screen.substringAfter("private fun UnifiedNewsMenu").contains("设置"))
         assertFalse(screen.contains("生成/更新当日新闻"))
@@ -1594,10 +1608,10 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsSourceTabsExposeLocalNewsAndInlineRefreshWithoutDuplicateMenuActions() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsFeatureUiSource()
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val menuBody = screen.requiredSubstringAfter("private fun UnifiedNewsMenu").requiredSubstringBefore("private fun MenuItem")
-        val sourceSwitcher = screen.requiredSubstringAfter("private fun UnifiedNewsSourceSwitcher").requiredSubstringBefore("private fun UnifiedNewsSourceArticleContent")
+        val sourceSwitcher = unifiedNewsSourceSwitcherSource().requiredSubstringAfter("internal fun UnifiedNewsSourceSwitcher")
         val refreshBody = viewModel.requiredSubstringAfter("fun refreshSelectedSource()").requiredSubstringBefore("fun refreshSelectedRemoteSource")
         val localSourceBody = viewModel.requiredSubstringAfter("fun selectLocalArticlesSource()").requiredSubstringBefore("fun refreshSelectedSource")
 
@@ -1638,9 +1652,9 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsSourceSwitcherKeepsRefreshButtonFixedOutsideScrollableTabs() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val switcher = screen.requiredSubstringAfter("private fun UnifiedNewsSourceSwitcher").requiredSubstringBefore("private fun UnifiedNewsSourceTabs")
-        val tabs = screen.requiredSubstringAfter("private fun UnifiedNewsSourceTabs").requiredSubstringBefore("private fun UnifiedNewsSourceArticleContent")
+        val screen = unifiedNewsSourceSwitcherSource()
+        val switcher = screen.requiredSubstringAfter("internal fun UnifiedNewsSourceSwitcher").requiredSubstringBefore("internal fun UnifiedNewsSourceTabs")
+        val tabs = screen.requiredSubstringAfter("internal fun UnifiedNewsSourceTabs")
 
         assertTrue(switcher.contains("UnifiedNewsSourceTabs("))
         assertTrue(switcher.contains("Modifier.weight(1f)"))
@@ -1673,8 +1687,8 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsSummaryDoesNotExposeSourceWarningsToReaders() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val cardBody = screen.requiredSubstringAfter("private fun TodayUnifiedNewsCard")
+        val screen = unifiedNewsScreenSource()
+        val cardBody = unifiedNewsBriefingCardSource().requiredSubstringAfter("internal fun TodayUnifiedNewsCard")
         val menuBody = screen.requiredSubstringAfter("private fun UnifiedNewsMenu")
 
         assertFalse(screen.contains("UnifiedNewsStatusBanner"))
@@ -1767,8 +1781,8 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsSummaryCardUsesMagazineCoverStructureWithoutStatTiles() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val cardBody = screen.requiredSubstringAfter("private fun TodayUnifiedNewsCard")
+        val screen = unifiedNewsBriefingCardSource()
+        val cardBody = screen.requiredSubstringAfter("internal fun TodayUnifiedNewsCard")
 
         assertTrue(cardBody.contains("unifiedNewsBriefingContent(summary.content)"))
         assertTrue(cardBody.contains("UnifiedNewsMagazineCover"))
@@ -1877,7 +1891,7 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsSecondaryPagesReturnToSummaryAndLockFavorites() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsScreenSource()
         val articleList = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleListScreen.kt").readText()
 
         assertTrue(screen.contains("BackHandler"))
@@ -1888,7 +1902,7 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsScreenStaysFocusedByDelegatingRoutingAndPageRendering() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsScreenSource()
         val body = screen
             .requiredSubstringAfter("fun UnifiedNewsScreen")
             .requiredSubstringBefore("@Composable\nprivate fun UnifiedNewsDetailRoute")
@@ -1905,7 +1919,7 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsViewModelGuardsLoadCollectorAndHandlesCitationClicks() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsSummaryContentSource()
 
         assertTrue(viewModel.contains("private var loadJob: Job?"))
         assertTrue(viewModel.contains("if (loadJob != null) return"))
@@ -1916,7 +1930,7 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsSummaryRendersSummaryList() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsSummaryContentSource() + "\n" + unifiedNewsBriefingCardSource()
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
 
         assertTrue(screen.contains("visibleSummaries.isEmpty()"))
@@ -1931,8 +1945,8 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsSummaryFeedHidesSourceCards() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val cardBody = screen.requiredSubstringAfter("private fun TodayUnifiedNewsCard")
+        val screen = unifiedNewsBriefingCardSource()
+        val cardBody = screen.requiredSubstringAfter("internal fun TodayUnifiedNewsCard")
 
         assertTrue(screen.contains("TodayUnifiedNewsCard"))
         assertFalse(cardBody.contains("UnifiedNewsSourceCard"))
@@ -1944,7 +1958,7 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsSummaryHeaderUsesSingleLineDateAndSourceCount() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsBriefingCardSource()
         val format = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsContentFormat.kt").readText()
 
         assertTrue(format.contains("unifiedNewsSummaryTitle"))
@@ -1958,8 +1972,8 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsSummaryCardDoesNotRenderErrorsInsideContent() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
-        val cardBody = screen.requiredSubstringAfter("private fun TodayUnifiedNewsCard")
+        val screen = unifiedNewsBriefingCardSource()
+        val cardBody = screen.requiredSubstringAfter("internal fun TodayUnifiedNewsCard")
 
         assertFalse(cardBody.contains("error_message"))
         assertFalse(cardBody.contains("source_warnings"))
@@ -1989,7 +2003,7 @@ class UnifiedNewsBehaviorTest {
     fun unifiedNewsSummaryDailyContentAvoidsVisibleBorderedBlock() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
         val skeletonCard = screen.substringAfter("private fun UnifiedNewsGeneratingSkeleton").substringBefore("@Composable\nprivate fun UnifiedNewsSourceDetailLoadingScreen")
-        val summaryCard = screen.substringAfter("private fun TodayUnifiedNewsCard")
+        val summaryCard = unifiedNewsBriefingCardSource().substringAfter("internal fun TodayUnifiedNewsCard")
 
         assertFalse(skeletonCard.contains("outlineVariant"))
         assertFalse(summaryCard.contains("outlineVariant"))
@@ -1999,7 +2013,7 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsTransientStatesMatchBriefingCardSystem() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsScreenSource()
         val refreshMessage = screen.substringAfter("private fun UnifiedNewsRefreshMessage").substringBefore("@Composable\nprivate fun UnifiedNewsGeneratingSkeleton")
         val skeletonCard = screen.substringAfter("private fun UnifiedNewsGeneratingSkeleton").substringBefore("@Composable\nprivate fun UnifiedNewsSourceDetailLoadingScreen")
 
@@ -2017,7 +2031,7 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsBriefingCardAvoidsHeavyBordersAndBlueHeroBlock() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsBriefingCardSource()
         val cover = screen.substringAfter("private fun UnifiedNewsMagazineCover").substringBefore("@Composable\nprivate fun UnifiedNewsBriefingBadge")
         val storyRow = screen.substringAfter("private fun UnifiedNewsMagazineStoryRow").substringBefore("@Composable\nprivate fun UnifiedNewsBriefingFallback")
         val fallback = screen.substringAfter("private fun UnifiedNewsBriefingFallback").substringBefore("@OptIn(ExperimentalLayoutApi::class)")
@@ -2034,7 +2048,7 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsSummaryLoadKeepsPreviousSummariesVisible() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsSummaryContentSource()
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
 
         assertTrue(screen.contains("sources = state.sourcesBySummaryId[summary.id].orEmpty()"))
@@ -2054,7 +2068,7 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsSummaryDoesNotUseTimelinePagination() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsBriefingCardSource()
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
 
         assertFalse(viewModel.contains("visibleSummaryLimit"))
@@ -2066,12 +2080,12 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsSummaryCardsUseEditorialSeparation() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsBriefingCardSource()
 
         assertTrue(screen.contains("Card("))
         assertTrue(screen.contains("CardDefaults"))
-        assertTrue(screen.contains("RoundedCornerShape(Radius.l)"))
-        assertTrue(screen.contains("BorderStroke"))
+        assertTrue(screen.contains("RoundedCornerShape(Radius.xl)"))
+        assertFalse(screen.contains("border = BorderStroke"))
         assertTrue(screen.contains("${'$'}{sources.size} 个来源"))
         assertTrue(screen.contains("UnifiedNewsMagazineStoryRow"))
         assertFalse(screen.contains("UnifiedNewsSourceCard"))
@@ -2079,7 +2093,7 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsFeedAvoidsTopGapAndSingleDailySummaryHasNoLoadMore() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsFeatureUiSource()
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
 
         assertFalse(viewModel.contains("visibleSummaryLimit"))
@@ -2090,27 +2104,29 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsRegenerationKeepsStatusVisibleOutsideEmptyState() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsSummaryContentSource()
 
-        assertTrue(screen.contains("UnifiedNewsGeneratingSkeleton("))
-        assertTrue(screen.indexOf("UnifiedNewsGeneratingSkeleton(") < screen.indexOf("when {"))
-        assertFalse(screen.contains("UnifiedNewsStatusBanner("))
+        val scaffold = unifiedNewsScreenSource()
+        assertTrue(scaffold.contains("UnifiedNewsGeneratingSkeleton("))
+        assertTrue(screen.contains("when {"))
+        assertFalse(scaffold.contains("UnifiedNewsStatusBanner("))
     }
 
     @Test
     fun unifiedNewsRegenerationHidesTodaySummaryAndTitlesSkeleton() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsSummaryContentSource()
 
         assertTrue(screen.contains("visibleSummaries"))
         assertTrue(screen.contains("state.isRegenerating"))
         assertTrue(screen.contains("summary.summary_date != state.regeneratingSummaryDate"))
-        assertTrue(screen.contains("UnifiedNewsGeneratingSkeleton(summaryDate = state.regeneratingSummaryDate)"))
-        assertTrue(screen.contains("unifiedNewsSummaryTitle(summaryDate)"))
+        val scaffold = unifiedNewsScreenSource()
+        assertTrue(scaffold.contains("UnifiedNewsGeneratingSkeleton(summaryDate = state.regeneratingSummaryDate)"))
+        assertTrue(scaffold.contains("unifiedNewsSummaryTitle(summaryDate)"))
     }
 
     @Test
     fun unifiedNewsDetailLoadingAndFailureStayOnDetailSurface() {
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsScreenSource()
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val detailState = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsDetailState.kt").readText()
 
@@ -2126,7 +2142,7 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsRegenerationUsesSummaryListState() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsFeatureUiSource()
 
         assertTrue(viewModel.contains("selectedSummary = displaySummaries.firstOrNull()"))
         assertTrue(viewModel.contains("sourcesBySummaryId = sourcesBySummaryId"))
@@ -2140,7 +2156,7 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsManualRegenerationShowsEmptyResultMessage() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsFeatureUiSource()
 
         assertTrue(viewModel.contains("manualRefreshMessage"))
         assertTrue(viewModel.contains("UnifiedNewsSummaryStatus.EMPTY"))
@@ -2212,7 +2228,7 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsCitationRoutingDoesNotOpenCrayfishDetails() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsFeatureUiSource()
 
         assertFalse(viewModel.contains("CrayfishArticle"))
         assertFalse(viewModel.contains("parseCrayfishArticleRouteKey"))
@@ -2226,7 +2242,7 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsScreenDoesNotOwnCrayfishArticleDetailFormatting() {
         val models = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/crayfishnews/CrayfishNewsModels.kt").readText()
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsFeatureUiSource()
 
         assertTrue(models.contains("val content: String? = null"))
         assertTrue(models.contains("val markdown: String? = null"))
@@ -2247,7 +2263,7 @@ class UnifiedNewsBehaviorTest {
     @Test
     fun unifiedNewsCitationRoutingHandlesAllSourceTypes() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+        val screen = unifiedNewsFeatureUiSource()
 
         assertTrue(viewModel.contains("sealed class UnifiedNewsNavigationTarget"))
         assertTrue(viewModel.contains("RemoteDigest"))
@@ -2332,5 +2348,29 @@ class UnifiedNewsBehaviorTest {
         require(contains(marker)) { "Missing marker: $marker" }
         return substringBefore(marker)
     }
+
+    private fun unifiedNewsScreenSource(): String =
+        java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsScreen.kt").readText()
+
+    private fun unifiedNewsSourceSwitcherSource(): String =
+        java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSourceSwitcher.kt").readText()
+
+    private fun unifiedNewsRemoteSourceContentSource(): String =
+        java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsRemoteSourceContent.kt").readText()
+
+    private fun unifiedNewsSummaryContentSource(): String =
+        java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsSummaryContent.kt").readText()
+
+    private fun unifiedNewsBriefingCardSource(): String =
+        java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsBriefingCard.kt").readText()
+
+    private fun unifiedNewsFeatureUiSource(): String =
+        listOf(
+            unifiedNewsScreenSource(),
+            unifiedNewsSourceSwitcherSource(),
+            unifiedNewsRemoteSourceContentSource(),
+            unifiedNewsSummaryContentSource(),
+            unifiedNewsBriefingCardSource(),
+        ).joinToString("\n")
 
 }

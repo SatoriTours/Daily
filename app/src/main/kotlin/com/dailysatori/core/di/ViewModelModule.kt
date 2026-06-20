@@ -186,6 +186,7 @@ val viewModelModule: Module = module {
             settingRepo = get<SettingRepository>(),
             remoteNewsService = get(),
             remoteNewsSourceRepo = get(),
+            externalFavoriteSourceRepo = get(),
             articleRepo = get<ArticleRepository>(),
             webpageParserService = get<WebpageParserService>(),
             isDebugBuild = com.dailysatori.BuildConfig.DEBUG,

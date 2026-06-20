@@ -35,6 +35,26 @@ class UnifiedNewsSourceArticleStateTest {
     }
 
     @Test
+    fun removedExternalFavoriteSourceResetsSelectionToSummary() {
+        val selection = UnifiedNewsSourceSelection.ExternalFavoriteSource(id = 9L, name = "X 收藏")
+        val remoteSources = emptyList<UnifiedNewsRemoteSourceOption>()
+        val externalSources = listOf(UnifiedNewsExternalFavoriteSourceOption(id = 10L, name = "另一个收藏源"))
+
+        assertTrue(shouldResetUnifiedNewsSourceSelection(selection, remoteSources, externalSources))
+        assertEquals(UnifiedNewsSourceSelection.Summary, resolvedUnifiedNewsSourceSelection(selection, remoteSources, externalSources))
+    }
+
+    @Test
+    fun existingExternalFavoriteSourceKeepsSelection() {
+        val selection = UnifiedNewsSourceSelection.ExternalFavoriteSource(id = 9L, name = "X 收藏")
+        val remoteSources = emptyList<UnifiedNewsRemoteSourceOption>()
+        val externalSources = listOf(UnifiedNewsExternalFavoriteSourceOption(id = 9L, name = "X 收藏"))
+
+        assertFalse(shouldResetUnifiedNewsSourceSelection(selection, remoteSources, externalSources))
+        assertEquals(selection, resolvedUnifiedNewsSourceSelection(selection, remoteSources, externalSources))
+    }
+
+    @Test
     fun cacheChecksUseSourceIdAndSummaryDate() {
         val cachedArticle = RemoteArticle(id = 1L, title = "已缓存")
         val state = UnifiedNewsState(

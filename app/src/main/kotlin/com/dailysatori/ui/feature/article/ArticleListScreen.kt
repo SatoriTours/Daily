@@ -70,6 +70,7 @@ fun ArticleListScreen(
     lockFavoritesFilter: Boolean = false,
     showTopBar: Boolean = true,
     refreshRequestKey: Int = 0,
+    externalFavoriteSourceId: Long? = null,
 ) {
     val viewModel: ArticlesViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -81,7 +82,15 @@ fun ArticleListScreen(
     val coroutineScope = rememberCoroutineScope()
     val effectiveShowFavoritesOnly = if (lockFavoritesFilter) true else showFavoritesOnly
 
-    ArticleListEffects(state, listState, lifecycleOwner, effectiveShowFavoritesOnly, refreshRequestKey, viewModel)
+    ArticleListEffects(
+        state = state,
+        listState = listState,
+        lifecycleOwner = lifecycleOwner,
+        effectiveShowFavoritesOnly = effectiveShowFavoritesOnly,
+        externalFavoriteSourceId = externalFavoriteSourceId,
+        refreshRequestKey = refreshRequestKey,
+        viewModel = viewModel,
+    )
     ArticleListContent(
         state = state,
         listState = listState,
@@ -127,12 +136,14 @@ private fun ArticleListEffects(
     listState: androidx.compose.foundation.lazy.LazyListState,
     lifecycleOwner: LifecycleOwner,
     effectiveShowFavoritesOnly: Boolean,
+    externalFavoriteSourceId: Long?,
     refreshRequestKey: Int,
     viewModel: ArticlesViewModel,
 ) {
     fun firstVisibleArticleId(): Long? = state.articles.getOrNull(listState.firstVisibleItemIndex)?.id
     fun isAtTop(): Boolean = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
     LaunchedEffect(effectiveShowFavoritesOnly) { viewModel.setFavoritesOnly(effectiveShowFavoritesOnly) }
+    LaunchedEffect(externalFavoriteSourceId) { viewModel.setExternalFavoriteSource(externalFavoriteSourceId) }
     LaunchedEffect(refreshRequestKey) { if (refreshRequestKey > 0) viewModel.refreshArticles() }
     LaunchedEffect(state.scrollToTopRequest, state.articles.isNotEmpty()) {
         if (shouldScrollToTopAfterArticleAdded(state.scrollToTopRequest) && state.articles.isNotEmpty()) {

@@ -9,17 +9,26 @@ class ExternalFavoritesAddPageTextTest {
     fun addPageUsesDedicatedEditorCopy() {
         assertEquals("新增外部收藏", externalFavoriteAddPageTitle())
         assertEquals("连接 X 收藏", externalFavoriteAddPageHelperTitle())
-        assertEquals("保存并连接 X", externalFavoriteConnectXActionLabel())
-        assertTrue(externalFavoriteAddPageHelperText().contains("浏览器"))
-        assertTrue(externalFavoriteAddPageHelperText().contains("回到 Daily Satori"))
+        assertEquals("保存并打开 X 授权", externalFavoriteConnectXActionLabel())
+        assertEquals("X OAuth Client ID", externalFavoriteXClientIdLabel())
+        assertEquals("dailysatori://oauth/x", externalFavoriteXOAuthRedirectUri())
+        assertTrue(externalFavoriteAddPageHelperText().contains("OAuth2"))
+        assertTrue(externalFavoriteAddPageHelperText().contains("PKCE"))
+        assertTrue(externalFavoriteAddPageHelperText().contains("回调地址"))
     }
 
     @Test
     fun addPageExplainsPostAuthorizationSyncWithoutPretendingToSaveIt() {
         assertEquals("授权成功后启用定期同步", externalFavoriteAddPageSyncNoteTitle())
         assertEquals(
-            "授权成功后，新来源会出现在来源列表，可在那里停用定期同步、手动同步或导入历史收藏。",
+            "授权成功后，新来源会出现在来源列表，也会作为新闻汇总页的来源筛选。",
             externalFavoriteAddPageSyncNoteText(),
         )
+    }
+
+    @Test
+    fun addPageShowsRedirectUriForXDeveloperConsole() {
+        assertEquals("回调地址", externalFavoriteXOAuthRedirectUriLabel())
+        assertEquals("dailysatori://oauth/x", externalFavoriteXOAuthRedirectUri())
     }
 }
