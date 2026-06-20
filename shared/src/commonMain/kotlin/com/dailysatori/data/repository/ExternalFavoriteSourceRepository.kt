@@ -50,7 +50,10 @@ class ExternalFavoriteSourceRepository(
         val now = Clock.System.now().toEpochMilliseconds()
         val enabledValue = if (enabled) 1L else 0L
         val encryptedAuth = encryptSecret(authJson.trim())
-        if (id == null) {
+        val resolvedId = id ?: q.selectExternalFavoriteSourceByProviderAccount(provider.trim(), accountId.trim())
+            .executeAsOneOrNull()
+            ?.id
+        if (resolvedId == null) {
             q.insertExternalFavoriteSource(
                 provider.trim(),
                 displayName.trim(),
@@ -78,9 +81,9 @@ class ExternalFavoriteSourceRepository(
             configJson,
             capabilitiesJson,
             now,
-            id,
+            resolvedId,
         )
-        return id
+        return resolvedId
     }
 
     fun delete(id: Long) = q.deleteExternalFavoriteSource(id)
@@ -111,6 +114,22 @@ class ExternalFavoriteSourceRepository(
             source.status,
             encryptSecret(authJson.trim()),
             source.config_json,
+            source.capabilities_json,
+            Clock.System.now().toEpochMilliseconds(),
+            id,
+        )
+    }
+
+    fun updateConfigJson(id: Long, configJson: String) {
+        val source = q.selectExternalFavoriteSourceById(id).executeAsOneOrNull() ?: return
+        q.updateExternalFavoriteSource(
+            source.display_name,
+            source.account_name,
+            source.enabled,
+            source.sync_interval_minutes,
+            source.status,
+            source.auth_json,
+            configJson,
             source.capabilities_json,
             Clock.System.now().toEpochMilliseconds(),
             id,
@@ -155,7 +174,7 @@ class ExternalFavoriteSourceRepository(
             }
     }
 
-    fun markSyncStarted(id: Long, mode: String = FavoriteSyncMode.recent.name) {
+    fun markSyncStarted(id: Long, mode: String = FavoriteSyncMode.sync.name) {
         val source = q.selectExternalFavoriteSourceById(id).executeAsOneOrNull() ?: return
         q.updateExternalFavoriteSourceSyncState(
             Clock.System.now().toEpochMilliseconds(),

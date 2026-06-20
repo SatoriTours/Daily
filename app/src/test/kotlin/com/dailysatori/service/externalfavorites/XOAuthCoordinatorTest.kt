@@ -22,8 +22,19 @@ class XOAuthCoordinatorTest {
         assertTrue(url.contains("bookmark.read"))
         assertTrue(url.contains("tweet.read"))
         assertTrue(url.contains("users.read"))
-        assertFalse(url.contains("offline.access"))
+        assertTrue(url.contains("offline.access"))
         assertFalse(url.contains("client_secret"))
+    }
+
+    @Test
+    fun tokenPayloadStoresRefreshTokenWhenOfflineAccessIsGranted() {
+        val token = parseXOAuthTokenPayload(
+            """{"access_token":"access","refresh_token":"refresh","expires_in":7200,"scope":"users.read tweet.read bookmark.read offline.access","token_type":"bearer"}""",
+        )
+
+        assertEquals("access", token.accessToken)
+        assertEquals("refresh", token.refreshToken)
+        assertEquals("users.read tweet.read bookmark.read offline.access", token.scope)
     }
 
     @Test
@@ -33,6 +44,8 @@ class XOAuthCoordinatorTest {
         assertEquals("client", config.clientId)
         assertEquals("dailysatori://oauth/x", config.redirectUri)
         assertEquals("https://twitter.com/i/oauth2/authorize", config.authorizationUrl)
+        assertEquals("https://api.x.com/2/oauth2/token", config.tokenUrl)
+        assertEquals("https://api.x.com/2/users/me", config.currentUserUrl)
         assertFalse(config.toString().contains("secret", ignoreCase = true))
     }
 
@@ -85,6 +98,26 @@ class XOAuthCoordinatorTest {
         }
 
         assertEquals("expected", store.load()?.state)
+    }
+
+    @Test
+    fun matchingCallbackClearsPendingSessionWhenTokenExchangeFails() {
+        val store = FakeSessionStore()
+        store.save(XOAuthPendingSession(state = "expected", codeVerifier = "verifier"))
+        val coordinator = XOAuthCoordinator(
+            clientId = "client",
+            redirectUri = "dailysatori://oauth/x",
+            httpClient = null,
+            sessionStore = store,
+        )
+
+        assertFailsWith<IllegalStateException> {
+            runBlocking {
+                coordinator.handleCallbackUrl("dailysatori://oauth/x?code=abc&state=expected")
+            }
+        }
+
+        assertEquals(null, store.load())
     }
 
     @Test

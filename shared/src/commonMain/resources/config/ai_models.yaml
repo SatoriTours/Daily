@@ -2,15 +2,15 @@ ai_models:
   - name: OpenAI API
     apiAddress: https://api.openai.com/v1
     models:
-      - gpt-5.1-chat-latest
-      - gpt-5.1-turbo
-      - gpt-4-turbo
-      - gpt-4-vision
+      - gpt-5.5
+      - gpt-5.4
+      - gpt-5.4-mini
+      - gpt-5.4-nano
   - name: DeepSeek API
     apiAddress: https://api.deepseek.com
     models:
-      - deepseek-v3
-      - deepseek-coder
+      - deepseek-v4-flash
+      - deepseek-v4-pro
       - deepseek-chat
   - name: 阿里云百炼
     apiAddress: https://dashscope.aliyuncs.com/compatible-mode/v1
@@ -27,16 +27,29 @@ ai_models:
   - name: Anthropic API
     apiAddress: https://api.anthropic.com
     models:
-      - claude-3-opus
-      - claude-3-sonnet
-      - claude-3-haiku
-      - claude-3.5-sonnet
+      - claude-opus-4-8
+      - claude-sonnet-4-6
+      - claude-haiku-4-5
+  - name: Google Gemini
+    apiAddress: https://generativelanguage.googleapis.com
+    models:
+      - gemini-3.1-pro-preview
+      - gemini-3.5-flash
+      - gemini-3-flash-preview
+      - gemini-3.1-flash-lite
+      - gemini-2.5-pro
+      - gemini-2.5-flash
+  - name: xAI Grok
+    apiAddress: https://api.x.ai
+    models:
+      - grok-4.3
+      - grok-build-0.1
   - name: 火山云
     apiAddress: https://ark.cn-beijing.volces.com/api/v3
     models:
-      - deepseek-v3-250324
-      - doubao-1-5-lite-32k-250115
-      - doubao-1-5-pro-32k-250115
+      - doubao-seed-2-0-pro-260215
+      - doubao-seed-2-0-lite-260215
+      - doubao-seed-1-8-251228
   - name: kimi
     apiAddress: https://api.moonshot.cn/v1
     models:
@@ -47,12 +60,17 @@ ai_models:
   - name: GLM
     apiAddress: https://open.bigmodel.cn/api/paas/v4
     models:
-      - glm-4.7
+      - GLM-5.2
+      - GLM-5.1
+      - GLM-5
+      - GLM-4.7
   - name: MiniMax
     apiAddress: https://api.minimaxi.com/v1
     models:
-      - MiniMax-M2.1
-      - MiniMax-M2.1-lightning
+      - MiniMax-M3
+      - MiniMax-M2.7
+      - MiniMax-M2.7-highspeed
+      - MiniMax-M2.5
   - name: 自定义
     apiAddress: ""
     models: []

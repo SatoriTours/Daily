@@ -25,6 +25,7 @@ import com.dailysatori.platform.FileManager
 import com.dailysatori.platform.WebViewLoader
 import com.dailysatori.service.adblock.AdBlockService
 import com.dailysatori.service.ai.AiConfigService
+import com.dailysatori.service.ai.AiModelCatalogService
 import com.dailysatori.service.ai.AiService
 import com.dailysatori.service.backup.BackupService
 import com.dailysatori.service.backup.BackupPasswordStore
@@ -98,6 +99,7 @@ val sharedModule: Module = module {
     single { I18nService(get()) }
     single { AiConfigService(get()) }
     single { AiService(get()) }
+    single { AiModelCatalogService(get(), get()) }
     single { BackupPasswordStore(get()) }
     single { SecretCipher(get()) }
     single { SecretFieldProcessor(get(), get<SecretCipher>()) }

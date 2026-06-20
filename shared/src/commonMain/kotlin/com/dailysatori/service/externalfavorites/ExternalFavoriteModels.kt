@@ -1,7 +1,7 @@
 package com.dailysatori.service.externalfavorites
 
 enum class ExternalFavoriteProvider(val id: String) { X("x") }
-enum class FavoriteSyncMode { recent, history, full_rescan, retry_failed }
+enum class FavoriteSyncMode { sync, recent, history, full_rescan, retry_failed }
 enum class ExternalSourceStatus { idle, syncing, auth_required, auth_check_required, rate_limited, paused, failed }
 enum class ExternalSourceHealth { healthy, needs_auth, limited, paused, failing, never_synced }
 enum class ExternalItemSyncStatus { seen, skipped, stale, deleted_remote_unknown, failed }
@@ -41,6 +41,14 @@ data class FavoriteFetchPage(
 ) {
     val exhausted: Boolean get() = nextCursor == null
 }
+
+data class FavoriteSyncProgress(
+    val phase: String,
+    val pagesSeen: Int,
+    val maxPages: Int,
+    val itemsSeen: Int,
+    val historyComplete: Boolean,
+)
 
 fun sourceHealth(status: String, lastSuccessAt: Long?, lastErrorCode: String): ExternalSourceHealth = when (status) {
     "auth_required", "auth_check_required" -> ExternalSourceHealth.needs_auth

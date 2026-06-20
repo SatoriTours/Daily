@@ -2,6 +2,7 @@ package com.dailysatori.ui.feature.settings.externalfavorites
 
 import com.dailysatori.service.externalfavorites.ExternalSourceHealth
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
+import androidx.work.WorkInfo
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -10,6 +11,14 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class ExternalFavoritesSettingsTextTest {
+    @Test
+    fun settingsScreenReloadsSourcesWhenReturningFromOAuthBrowser() {
+        val source = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesSettingsScreen.kt").readText()
+
+        assertTrue(source.contains("Lifecycle.Event.ON_RESUME"))
+        assertTrue(source.contains("viewModel.load()"))
+    }
+
     @Test
     fun healthSubtitleDoesNotPromiseRealtimeSync() {
         val subtitle = externalFavoritePeriodicSyncSubtitle(ExternalSourceHealth.healthy)
@@ -21,7 +30,7 @@ class ExternalFavoritesSettingsTextTest {
     @Test
     fun settingsRowTextDescribesLocalFavoriteSync() {
         assertEquals("外部收藏同步", externalFavoriteSettingsRowTitle())
-        assertEquals("同步 X 等平台收藏到本地收藏", externalFavoriteSettingsRowSubtitle())
+        assertEquals("同步 X 等平台收藏到本地文章库", externalFavoriteSettingsRowSubtitle())
     }
 
     @Test
@@ -96,7 +105,7 @@ class ExternalFavoritesSettingsTextTest {
             ),
         )
         assertEquals(
-            "手动同步会完整拉取收藏；后台会定期增量同步到本地收藏。",
+            "同步会先检查最新收藏，并逐步补全较早收藏。",
             externalFavoriteManagementSummarySubtitle(),
         )
     }
@@ -107,13 +116,13 @@ class ExternalFavoritesSettingsTextTest {
         assertEquals("连接 X 收藏", externalFavoriteAddServiceActionLabel(hasSources = false))
         assertEquals("连接新来源", externalFavoriteAddServiceActionLabel(hasSources = true))
         assertTrue(externalFavoriteEmptyStateSubtitle().contains("当前先支持 X 收藏"))
-        assertTrue(externalFavoriteEmptyStateSubtitle().contains("本地收藏"))
+        assertTrue(externalFavoriteEmptyStateSubtitle().contains("本地文章库"))
     }
 
     @Test
     fun primaryActionsFollowHealthState() {
-        assertEquals("同步全部", externalFavoritePrimaryActionLabel(ExternalSourceHealth.healthy))
-        assertEquals("同步全部", externalFavoritePrimaryActionLabel(ExternalSourceHealth.never_synced))
+        assertEquals("同步收藏", externalFavoritePrimaryActionLabel(ExternalSourceHealth.healthy))
+        assertEquals("同步收藏", externalFavoritePrimaryActionLabel(ExternalSourceHealth.never_synced))
         assertEquals("启用同步", externalFavoritePrimaryActionLabel(ExternalSourceHealth.paused))
         assertEquals("重新连接", externalFavoritePrimaryActionLabel(ExternalSourceHealth.needs_auth))
         assertEquals("稍后自动恢复", externalFavoritePrimaryActionLabel(ExternalSourceHealth.limited))
@@ -145,7 +154,7 @@ class ExternalFavoritesSettingsTextTest {
             listOf(
                 ExternalFavoriteSummaryMetric("0", "已连接来源"),
                 ExternalFavoriteSummaryMetric("X", "当前支持平台"),
-                ExternalFavoriteSummaryMetric("6h", "默认同步间隔"),
+                ExternalFavoriteSummaryMetric("12h", "默认同步间隔"),
             ),
             externalFavoriteSummaryMetrics(emptyList()),
         )
@@ -155,8 +164,9 @@ class ExternalFavoritesSettingsTextTest {
     fun sourceCardUsesProviderBadgeAndOverflowDeleteCopy() {
         assertEquals("X", externalFavoriteProviderBadge("x"))
         assertEquals("删除", externalFavoriteDeleteMenuLabel())
-        assertEquals("重新扫描全部", externalFavoriteRescanMenuLabel())
         assertEquals("只读", externalFavoriteReadOnlyStepLabel())
+        assertTrue(externalFavoriteAddPageOrganizeNoteText().contains("本地文章库"))
+        assertFalse(externalFavoriteAddPageOrganizeNoteText().contains("本地收藏"))
     }
 
     @Test
@@ -176,10 +186,80 @@ class ExternalFavoritesSettingsTextTest {
     }
 
     @Test
-    fun manualSyncMessagesDescribeRealWork() {
-        assertEquals("已开始同步完整收藏", externalFavoriteSyncQueuedMessage(FavoriteSyncMode.history))
-        assertEquals("已开始重新扫描全部收藏", externalFavoriteSyncQueuedMessage(FavoriteSyncMode.full_rescan))
-        assertEquals("已开始增量同步", externalFavoriteSyncQueuedMessage(FavoriteSyncMode.recent))
+    fun syncWorkStateUsesProgressCopyAndCancelAction() {
+        val running = ExternalFavoriteSyncWorkUi(
+            state = WorkInfo.State.RUNNING,
+            pagesSeen = 2,
+            maxPages = 3,
+            itemsSeen = 168,
+            phase = "backfill",
+        )
+
+        assertEquals("同步中", externalFavoriteEffectiveHealthLabel(ExternalSourceHealth.healthy, running))
+        assertEquals("正在补全较早收藏", externalFavoriteSyncProgressTitle(running))
+        assertEquals("第 2 / 3 页", externalFavoriteSyncProgressPageText(running))
+        assertEquals(
+            listOf(
+                ExternalFavoriteProgressMetric("2 页", "本次已读取"),
+                ExternalFavoriteProgressMetric("168 条", "本次看到"),
+                ExternalFavoriteProgressMetric("未完成", "历史补全"),
+            ),
+            externalFavoriteProgressMetrics(running, historyComplete = false),
+        )
+        assertEquals("取消同步", externalFavoriteSyncActionLabel(ExternalSourceHealth.healthy, running))
+        assertTrue(externalFavoriteSyncActionEnabled(ExternalSourceHealth.limited, enabled = true, running))
+        assertEquals(
+            listOf(
+                ExternalFavoriteDetailLine("当前阶段", "读取 X bookmarks"),
+                ExternalFavoriteDetailLine("同步策略", "每次最多 3 页 / 300 条"),
+                ExternalFavoriteDetailLine("取消后", "保留已同步内容，下次继续"),
+            ),
+            externalFavoriteRunningDetailLines(running),
+        )
+    }
+
+    @Test
+    fun queuedSyncShowsWaitingCopy() {
+        val queued = ExternalFavoriteSyncWorkUi(
+            state = WorkInfo.State.ENQUEUED,
+            pagesSeen = 0,
+            maxPages = 3,
+            itemsSeen = 0,
+            phase = "",
+        )
+
+        assertEquals("等待同步", externalFavoriteSyncProgressTitle(queued))
+        assertEquals("第 0 / 3 页", externalFavoriteSyncProgressPageText(queued))
+    }
+
+    @Test
+    fun manualSyncMessagesDoNotDuplicateVisibleProgress() {
+        assertEquals(null, externalFavoriteSyncQueuedMessage(FavoriteSyncMode.sync))
+        assertEquals(null, externalFavoriteSyncQueuedMessage(FavoriteSyncMode.history))
+        assertEquals(null, externalFavoriteSyncQueuedMessage(FavoriteSyncMode.full_rescan))
+        assertEquals(null, externalFavoriteSyncQueuedMessage(FavoriteSyncMode.recent))
+        assertEquals("已开始重试失败项", externalFavoriteSyncQueuedMessage(FavoriteSyncMode.retry_failed))
+    }
+
+    @Test
+    fun idleSourceDetailsMatchProgressMockup() {
+        val source = sourceUi(
+            ExternalSourceHealth.healthy,
+            itemsSeen = 241,
+            pagesSeen = 3,
+            configJson = """{"history_complete":false}""",
+        )
+
+        assertEquals(
+            listOf(
+                ExternalFavoriteDetailLine("上次结果", "读取 3 页 · 看到 241 条"),
+                ExternalFavoriteDetailLine("历史状态", "仍在逐步补全"),
+                ExternalFavoriteDetailLine("本地收藏", "不会自动标记"),
+            ),
+            externalFavoriteIdleDetailLines(source),
+        )
+        assertEquals("@daily · 上次成功：刚刚", externalFavoriteSourceSubtitle("@daily", 1_700_000_000_000, 720, 1_700_000_030_000))
+        assertEquals("@daily · 每 12 小时自动同步", externalFavoriteSourceSubtitle("@daily", null, 720, 1_700_000_030_000))
     }
 
     @Test
@@ -188,7 +268,7 @@ class ExternalFavoritesSettingsTextTest {
         assertEquals("删除来源", externalFavoriteDeleteConfirmLabel())
         assertEquals("取消", externalFavoriteDeleteCancelLabel())
         assertTrue(externalFavoriteDeleteDialogText().contains("授权信息和同步记录"))
-        assertTrue(externalFavoriteDeleteDialogText().contains("本地收藏的内容不会被删除"))
+        assertTrue(externalFavoriteDeleteDialogText().contains("已经导入的文章不会被删除"))
     }
 
     @Test
@@ -269,6 +349,7 @@ class ExternalFavoritesSettingsTextTest {
         itemsSeen: Long = 0,
         pagesSeen: Long = 0,
         syncIntervalMinutes: Long = 720,
+        configJson: String = "",
     ): ExternalFavoriteSourceUi =
         ExternalFavoriteSourceUi(
             source = com.dailysatori.shared.db.External_favorite_source(
@@ -292,7 +373,7 @@ class ExternalFavoritesSettingsTextTest {
                 last_sync_mode = "recent",
                 rate_limit_reset_at = null,
                 auth_json = "",
-                config_json = "",
+                config_json = configJson,
                 capabilities_json = "",
                 created_at = 0,
                 updated_at = 0,

@@ -2,7 +2,9 @@ package com.dailysatori.ui.feature.settings.externalfavorites
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkInfo
 import com.dailysatori.config.SettingKeys
+import com.dailysatori.core.worker.ExternalFavoriteSyncWorker
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.SettingRepository
@@ -17,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.datetime.toLocalDateTime
@@ -25,6 +28,7 @@ data class ExternalFavoritesSettingsState(
     val sources: List<ExternalFavoriteSourceUi> = emptyList(),
     val message: String? = null,
     val syncingSourceId: Long? = null,
+    val syncWorkBySourceId: Map<Long, ExternalFavoriteSyncWorkUi> = emptyMap(),
     val xOAuthClientId: String = "",
 )
 
@@ -41,6 +45,27 @@ data class ExternalFavoriteSummaryMetric(
     val label: String,
 )
 
+data class ExternalFavoriteProgressMetric(
+    val value: String,
+    val label: String,
+)
+
+data class ExternalFavoriteDetailLine(
+    val label: String,
+    val value: String,
+)
+
+data class ExternalFavoriteSyncWorkUi(
+    val state: WorkInfo.State,
+    val pagesSeen: Int,
+    val maxPages: Int,
+    val itemsSeen: Int,
+    val phase: String,
+    val historyComplete: Boolean = false,
+) {
+    val active: Boolean get() = state == WorkInfo.State.ENQUEUED || state == WorkInfo.State.RUNNING
+}
+
 class ExternalFavoritesSettingsViewModel(
     private val sourceRepo: ExternalFavoriteSourceRepository,
     private val scheduler: ExternalFavoriteSyncScheduler,
@@ -49,6 +74,7 @@ class ExternalFavoritesSettingsViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(ExternalFavoritesSettingsState())
     val state: StateFlow<ExternalFavoritesSettingsState> = _state.asStateFlow()
+    private val observedSyncSources = mutableSetOf<Long>()
 
     init { load() }
 
@@ -60,6 +86,7 @@ class ExternalFavoritesSettingsViewModel(
                     xOAuthClientId = settingRepo.get(SettingKeys.xOAuthClientId).orEmpty(),
                 )
             }
+            _state.value.sources.forEach { observeSyncWork(it.id) }
         }
     }
 
@@ -87,11 +114,19 @@ class ExternalFavoritesSettingsViewModel(
     }.getOrNull()
 
     fun syncNow(sourceId: Long) {
-        enqueueManualSync(sourceId, FavoriteSyncMode.history)
+        enqueueManualSync(sourceId, FavoriteSyncMode.sync)
     }
 
-    fun rescanAll(sourceId: Long) {
-        enqueueManualSync(sourceId, FavoriteSyncMode.full_rescan)
+    fun cancelSync(sourceId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            scheduler.cancelSync(sourceId)
+            _state.update {
+                it.copy(
+                    syncingSourceId = if (it.syncingSourceId == sourceId) null else it.syncingSourceId,
+                    message = "已取消本次同步",
+                )
+            }
+        }
     }
 
     fun toggleEnabled(sourceId: Long, enabled: Boolean) {
@@ -110,6 +145,11 @@ class ExternalFavoritesSettingsViewModel(
                 configJson = source.config_json,
                 capabilitiesJson = source.capabilities_json,
             )
+            if (enabled) {
+                sourceRepo.getById(sourceId)?.let { scheduler.enqueuePeriodic(it.id, it.sync_interval_minutes) }
+            } else {
+                scheduler.cancelPeriodic(sourceId)
+            }
             _state.update {
                 it.copy(
                     sources = sourceRepo.getAll().map(::toUiSource),
@@ -122,6 +162,7 @@ class ExternalFavoritesSettingsViewModel(
     fun deleteSource(sourceId: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             sourceRepo.delete(sourceId)
+            scheduler.cancelPeriodic(sourceId)
             _state.update {
                 it.copy(
                     sources = sourceRepo.getAll().map(::toUiSource),
@@ -151,6 +192,7 @@ class ExternalFavoritesSettingsViewModel(
     private fun enqueueManualSync(sourceId: Long, mode: FavoriteSyncMode) {
         if (_state.value.syncingSourceId != null) return
         _state.update { it.copy(syncingSourceId = sourceId, message = null) }
+        observeSyncWork(sourceId)
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 scheduler.enqueue(sourceId, mode.name)
@@ -167,6 +209,27 @@ class ExternalFavoritesSettingsViewModel(
         }
     }
 
+    private fun observeSyncWork(sourceId: Long) {
+        if (!observedSyncSources.add(sourceId)) return
+        viewModelScope.launch {
+            scheduler.observeSync(sourceId).collect { workInfo ->
+                val workUi = workInfo?.toExternalFavoriteSyncWorkUi()
+                _state.update { state ->
+                    val nextMap = if (workUi == null || workUi.state in finishedWorkStates) {
+                        state.syncWorkBySourceId - sourceId
+                    } else {
+                        state.syncWorkBySourceId + (sourceId to workUi)
+                    }
+                    state.copy(
+                        syncWorkBySourceId = nextMap,
+                        syncingSourceId = if (workUi?.active == true) sourceId else if (state.syncingSourceId == sourceId) null else state.syncingSourceId,
+                    )
+                }
+                if (workUi?.state in finishedWorkStates) load()
+            }
+        }
+    }
+
     private fun toUiSource(source: External_favorite_source): ExternalFavoriteSourceUi =
         ExternalFavoriteSourceUi(
             source = source,
@@ -178,9 +241,25 @@ class ExternalFavoritesSettingsViewModel(
         )
 }
 
+private val finishedWorkStates = setOf(
+    WorkInfo.State.SUCCEEDED,
+    WorkInfo.State.FAILED,
+    WorkInfo.State.CANCELLED,
+)
+
+private fun WorkInfo.toExternalFavoriteSyncWorkUi(): ExternalFavoriteSyncWorkUi =
+    ExternalFavoriteSyncWorkUi(
+        state = state,
+        pagesSeen = progress.getInt(ExternalFavoriteSyncWorker.PROGRESS_PAGES_SEEN, 0),
+        maxPages = progress.getInt(ExternalFavoriteSyncWorker.PROGRESS_MAX_PAGES, 3).coerceAtLeast(1),
+        itemsSeen = progress.getInt(ExternalFavoriteSyncWorker.PROGRESS_ITEMS_SEEN, 0),
+        phase = progress.getString(ExternalFavoriteSyncWorker.PROGRESS_PHASE).orEmpty(),
+        historyComplete = progress.getBoolean(ExternalFavoriteSyncWorker.PROGRESS_HISTORY_COMPLETE, false),
+    )
+
 fun externalFavoriteSettingsRowTitle(): String = "外部收藏同步"
 
-fun externalFavoriteSettingsRowSubtitle(): String = "同步 X 等平台收藏到本地收藏"
+fun externalFavoriteSettingsRowSubtitle(): String = "同步 X 等平台收藏到本地文章库"
 
 fun externalFavoriteManagementSummaryTitle(sources: List<ExternalFavoriteSourceUi>): String {
     if (sources.isEmpty()) return "还没有连接外部收藏来源"
@@ -192,7 +271,7 @@ fun externalFavoriteManagementSummaryTitle(sources: List<ExternalFavoriteSourceU
 }
 
 fun externalFavoriteManagementSummarySubtitle(): String =
-    "手动同步会完整拉取收藏；后台会定期增量同步到本地收藏。"
+    "同步会先检查最新收藏，并逐步补全较早收藏。"
 
 fun externalFavoriteShouldShowAuthCheckNotice(sources: List<ExternalFavoriteSourceUi>): Boolean =
     sources.any { it.source.status == ExternalSourceStatus.auth_check_required.name }
@@ -203,7 +282,7 @@ fun externalFavoriteEmptyStateTitle(): String = "连接外部收藏"
 
 fun externalFavoriteEmptyStateSubtitle(message: String? = null): String =
     listOfNotNull(
-        "当前先支持 X 收藏。连接后，收藏会同步到本地收藏，并保留手动同步和历史导入入口。",
+        "当前先支持 X 收藏。连接后，收藏会同步到本地文章库，并在后台逐步补全历史。",
         message?.takeIf { it.isNotBlank() },
     ).joinToString("\n")
 
@@ -222,6 +301,9 @@ fun externalFavoriteAddPageSyncNoteTitle(): String = "授权成功后启用定�
 fun externalFavoriteAddPageSyncNoteText(): String =
     "授权成功后，新来源会出现在来源列表，也会作为新闻汇总页的来源筛选。"
 
+fun externalFavoriteAddPageOrganizeNoteText(): String =
+    "导入到本地文章库后，再交给本地配置的 AI 整理内容。"
+
 fun externalFavoriteShouldCloseAddPageAfterConnect(
     clientIdSaved: Boolean,
     authorizationLaunched: Boolean,
@@ -236,20 +318,101 @@ fun externalFavoriteXOAuthRedirectUriLabel(): String = "回调地址"
 fun externalFavoriteXOAuthRedirectUri(): String = "dailysatori://oauth/x"
 
 fun externalFavoritePrimaryActionLabel(health: ExternalSourceHealth): String = when (health) {
-    ExternalSourceHealth.never_synced -> "同步全部"
+    ExternalSourceHealth.never_synced -> "同步收藏"
     ExternalSourceHealth.paused -> "启用同步"
     ExternalSourceHealth.needs_auth -> "重新连接"
     ExternalSourceHealth.limited -> "稍后自动恢复"
     ExternalSourceHealth.failing -> "重试同步"
-    ExternalSourceHealth.healthy -> "同步全部"
+    ExternalSourceHealth.healthy -> "同步收藏"
 }
+
+fun externalFavoriteSyncActionLabel(
+    health: ExternalSourceHealth,
+    work: ExternalFavoriteSyncWorkUi?,
+): String = if (work?.active == true) "取消同步" else externalFavoritePrimaryActionLabel(health)
+
+fun externalFavoriteSyncActionEnabled(
+    health: ExternalSourceHealth,
+    enabled: Boolean,
+    work: ExternalFavoriteSyncWorkUi?,
+): Boolean = if (work?.active == true) {
+    true
+} else {
+    when (health) {
+        ExternalSourceHealth.limited -> false
+        ExternalSourceHealth.paused, ExternalSourceHealth.needs_auth -> true
+        else -> externalFavoriteCanRunSyncAction(health, enabled)
+    }
+}
+
+fun externalFavoriteEffectiveHealthLabel(
+    health: ExternalSourceHealth,
+    work: ExternalFavoriteSyncWorkUi?,
+): String = if (work?.active == true) "同步中" else externalFavoriteHealthLabel(health)
+
+fun externalFavoriteSyncProgressTitle(work: ExternalFavoriteSyncWorkUi): String = when {
+    work.state == WorkInfo.State.ENQUEUED -> "等待同步"
+    work.phase == "backfill" -> "正在补全较早收藏"
+    work.phase == "complete" -> "正在完成同步"
+    else -> "正在同步最新收藏"
+}
+
+fun externalFavoriteSyncProgressPageText(work: ExternalFavoriteSyncWorkUi): String =
+    "第 ${work.pagesSeen.coerceAtLeast(0)} / ${work.maxPages.coerceAtLeast(1)} 页"
+
+fun externalFavoriteProgressMetrics(
+    work: ExternalFavoriteSyncWorkUi,
+    historyComplete: Boolean,
+): List<ExternalFavoriteProgressMetric> = listOf(
+    ExternalFavoriteProgressMetric("${work.pagesSeen.coerceAtLeast(0)} 页", "本次已读取"),
+    ExternalFavoriteProgressMetric("${work.itemsSeen.coerceAtLeast(0)} 条", "本次看到"),
+    ExternalFavoriteProgressMetric(if (historyComplete || work.historyComplete) "已完成" else "未完成", "历史补全"),
+)
+
+fun externalFavoriteRunningDetailLines(work: ExternalFavoriteSyncWorkUi): List<ExternalFavoriteDetailLine> = listOf(
+    ExternalFavoriteDetailLine("当前阶段", "读取 X bookmarks"),
+    ExternalFavoriteDetailLine("同步策略", "每次最多 ${work.maxPages.coerceAtLeast(1)} 页 / 300 条"),
+    ExternalFavoriteDetailLine("取消后", "保留已同步内容，下次继续"),
+)
+
+fun externalFavoriteIdleDetailLines(item: ExternalFavoriteSourceUi): List<ExternalFavoriteDetailLine> = listOf(
+    ExternalFavoriteDetailLine("上次结果", externalFavoriteLastResultText(item.source.last_items_seen_count, item.source.last_pages_seen_count)),
+    ExternalFavoriteDetailLine("历史状态", externalFavoriteHistoryStatusText(item.source.config_json)),
+    ExternalFavoriteDetailLine("本地收藏", "不会自动标记"),
+)
+
+fun externalFavoriteSourceSubtitle(
+    identity: String,
+    lastSuccessAt: Long?,
+    syncIntervalMinutes: Long,
+    nowMillis: Long = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+): String {
+    val suffix = lastSuccessAt?.let { "上次成功：${externalFavoriteRelativeTimeText(it, nowMillis)}" }
+        ?: "每 ${externalFavoriteReadableIntervalText(syncIntervalMinutes)}自动同步"
+    return listOf(identity, suffix)
+        .filter { it.isNotBlank() }
+        .joinToString(" · ")
+}
+
+fun externalFavoriteLastResultText(itemsSeen: Long, pagesSeen: Long): String =
+    if (itemsSeen <= 0 && pagesSeen <= 0) {
+        "尚未同步"
+    } else {
+        buildList {
+            if (pagesSeen > 0) add("读取 ${pagesSeen} 页")
+            if (itemsSeen > 0) add("看到 ${itemsSeen} 条")
+        }.joinToString(" · ")
+    }
+
+fun externalFavoriteHistoryStatusText(configJson: String): String =
+    if (configJson.contains(""""history_complete":true""")) "已完成" else "仍在逐步补全"
 
 fun externalFavoriteSummaryMetrics(sources: List<ExternalFavoriteSourceUi>): List<ExternalFavoriteSummaryMetric> {
     if (sources.isEmpty()) {
         return listOf(
             ExternalFavoriteSummaryMetric("0", "已连接来源"),
             ExternalFavoriteSummaryMetric("X", "当前支持平台"),
-            ExternalFavoriteSummaryMetric("6h", "默认同步间隔"),
+            ExternalFavoriteSummaryMetric("12h", "默认同步间隔"),
         )
     }
     val latestItemsSeen = sources.maxOfOrNull { it.source.last_items_seen_count } ?: 0L
@@ -274,12 +437,11 @@ fun externalFavoriteDeleteMenuLabel(): String = "删除"
 fun externalFavoriteToggleSyncMenuLabel(enabled: Boolean): String =
     if (enabled) "停用同步" else "启用同步"
 
-fun externalFavoriteRescanMenuLabel(): String = "重新扫描全部"
-
-fun externalFavoriteSyncQueuedMessage(mode: FavoriteSyncMode): String = when (mode) {
-    FavoriteSyncMode.history -> "已开始同步完整收藏"
-    FavoriteSyncMode.full_rescan -> "已开始重新扫描全部收藏"
-    FavoriteSyncMode.recent -> "已开始增量同步"
+fun externalFavoriteSyncQueuedMessage(mode: FavoriteSyncMode): String? = when (mode) {
+    FavoriteSyncMode.sync,
+    FavoriteSyncMode.history,
+    FavoriteSyncMode.full_rescan,
+    FavoriteSyncMode.recent -> null
     FavoriteSyncMode.retry_failed -> "已开始重试失败项"
 }
 
@@ -300,7 +462,7 @@ fun externalFavoritePendingDeleteSource(
 fun externalFavoriteDeleteDialogTitle(): String = "删除外部收藏来源？"
 
 fun externalFavoriteDeleteDialogText(): String =
-    "这会删除该来源的授权信息和同步记录。已经导入到本地收藏的内容不会被删除。"
+    "这会删除该来源的授权信息和同步记录。已经导入的文章不会被删除。"
 
 fun externalFavoriteDeleteConfirmLabel(): String = "删除来源"
 
@@ -378,4 +540,11 @@ private fun externalFavoriteIntervalText(minutes: Long): String {
     val hours = minutes / 60L
     val restMinutes = minutes % 60L
     return if (restMinutes == 0L) "${hours}h" else "${hours}h ${restMinutes}m"
+}
+
+private fun externalFavoriteReadableIntervalText(minutes: Long): String {
+    if (minutes < 60L) return "${minutes} 分钟"
+    val hours = minutes / 60L
+    val restMinutes = minutes % 60L
+    return if (restMinutes == 0L) "${hours} 小时" else "${hours} 小时 ${restMinutes} 分钟"
 }

@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 
 class ExternalFavoriteImporterTest {
     @Test
-    fun importsXItemAsFavoriteArticleWithOriginalBlockAndSourceUrl() = withRepositories { _, sources, items, articles ->
+    fun importsXItemAsArticleWithOriginalBlockAndSourceUrlWithoutLocalFavoriteFlag() = withRepositories { _, sources, items, articles ->
         val sourceId = saveXSource(sources)
         items.upsertDraft(
             sourceId,
@@ -31,7 +31,7 @@ class ExternalFavoriteImporterTest {
         assertEquals(1, imported)
         val article = articles.getByUrl("https://x.com/daily/status/100")
         assertNotNull(article)
-        assertEquals(1, article.is_favorite)
+        assertEquals(0, article.is_favorite)
         assertEquals("pending", article.status)
         assertTrue(article.ai_markdown_content.orEmpty().contains("## 原文"))
         assertTrue(article.ai_markdown_content.orEmpty().contains("这是一条值得保存的原文。"))
@@ -209,7 +209,7 @@ class ExternalFavoriteImporterTest {
         assertEquals(1, imported)
         val article = articles.getById(articleId)
         assertNotNull(article)
-        assertEquals(1, article.is_favorite)
+        assertEquals(0, article.is_favorite)
         assertEquals("user comment", article.comment)
         assertEquals(existingMarkdown, article.ai_markdown_content)
         assertEquals("completed", article.status)
@@ -252,7 +252,7 @@ class ExternalFavoriteImporterTest {
         assertEquals(1, imported)
         val article = articles.getById(articleId)
         assertNotNull(article)
-        assertEquals(1, article.is_favorite)
+        assertEquals(0, article.is_favorite)
         assertEquals("pending", article.status)
         assertEquals("keep this user comment", article.comment)
         assertEquals(existingMarkdown, article.ai_markdown_content)

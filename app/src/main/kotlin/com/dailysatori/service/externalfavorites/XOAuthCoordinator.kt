@@ -125,28 +125,30 @@ class XOAuthCoordinator(
 
     suspend fun handleCallbackUrl(callbackUrl: String): Long {
         val pending = sessionStore?.load() ?: error("X OAuth session was not started")
-        val callback = try {
-            parseXOAuthCallback(callbackUrl, pending.state)
+        try {
+            val callback = parseXOAuthCallback(callbackUrl, pending.state)
+            val clientId = pending.clientId.ifBlank { currentClientId() }
+            val token = exchangeCodeForToken(callback.code, pending.codeVerifier, clientId)
+            val user = fetchCurrentUser(token.accessToken)
+            val repo = sourceRepo ?: error("X OAuth source repository is not configured")
+            val sourceId = repo.save(
+                provider = ExternalFavoriteProvider.X.id,
+                displayName = "X @${user.username.ifBlank { user.id }}",
+                accountId = user.id,
+                accountName = user.username.ifBlank { user.name },
+                authJson = xOAuthAuthJson(token, clientId),
+                enabled = true,
+            )
+            sessionStore?.clear()
+            return sourceId
         } catch (error: Throwable) {
-            if (xOAuthCallbackHasMatchingProviderError(callbackUrl, pending.state)) {
+            if (xOAuthCallbackHasMatchingProviderError(callbackUrl, pending.state) ||
+                xOAuthCallbackHasMatchingCode(callbackUrl, pending.state)
+            ) {
                 sessionStore?.clear()
             }
             throw error
         }
-        val clientId = pending.clientId.ifBlank { currentClientId() }
-        val token = exchangeCodeForToken(callback.code, pending.codeVerifier, clientId)
-        val user = fetchCurrentUser(token.accessToken)
-        val repo = sourceRepo ?: error("X OAuth source repository is not configured")
-        val sourceId = repo.save(
-            provider = ExternalFavoriteProvider.X.id,
-            displayName = "X @${user.username.ifBlank { user.id }}",
-            accountId = user.id,
-            accountName = user.username.ifBlank { user.name },
-            authJson = xOAuthAuthJson(token, clientId),
-            enabled = true,
-        )
-        sessionStore?.clear()
-        return sourceId
     }
 
     suspend fun exchangeCodeForToken(
@@ -269,6 +271,11 @@ private fun xOAuthCallbackHasMatchingProviderError(callbackUrl: String, expected
     return params["state"] == expectedState && params["error"].orEmpty().isNotBlank()
 }
 
+private fun xOAuthCallbackHasMatchingCode(callbackUrl: String, expectedState: String): Boolean {
+    val params = xOAuthCallbackParams(callbackUrl)
+    return params["state"] == expectedState && params["code"].orEmpty().isNotBlank()
+}
+
 private fun xOAuthCallbackParams(callbackUrl: String): Map<String, String> =
     URI(callbackUrl).rawQuery.orEmpty().split("&")
         .filter { it.isNotBlank() }
@@ -311,4 +318,4 @@ private fun String.urlDecoded(): String =
 
 private val xOAuthJson = Json { ignoreUnknownKeys = true; isLenient = true }
 
-private val X_OAUTH_SCOPES = listOf("users.read", "tweet.read", "bookmark.read")
+private val X_OAUTH_SCOPES = listOf("users.read", "tweet.read", "bookmark.read", "offline.access")

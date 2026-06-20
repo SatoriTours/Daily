@@ -66,6 +66,36 @@ class ExternalFavoriteRepositoryTest {
     }
 
     @Test
+    fun sourceRepositoryUpdatesExistingProviderAccountWhenSavingAgain() = withRepositories { db, sources, _ ->
+        val firstId = saveXSource(
+            sources = sources,
+            displayName = "Old X",
+            accountId = "acct-1",
+            accountName = "old",
+            authJson = """{"access_token":"old"}""",
+        )
+
+        val secondId = sources.save(
+            provider = ExternalFavoriteProvider.X.id,
+            displayName = "New X",
+            accountId = "acct-1",
+            accountName = "new",
+            authJson = """{"access_token":"new"}""",
+            status = "idle",
+        )
+
+        assertEquals(firstId, secondId)
+        assertEquals(1, sources.getAll().size)
+        val updated = sources.getById(firstId)
+        assertNotNull(updated)
+        assertEquals("New X", updated.display_name)
+        assertEquals("new", updated.account_name)
+        assertEquals("idle", updated.status)
+        assertEquals("""{"access_token":"new"}""", updated.auth_json)
+        assertEquals("""enc:v1:{"access_token":"new"}""", db.dailySatoriQueries.selectExternalFavoriteSourceById(firstId).executeAsOne().auth_json)
+    }
+
+    @Test
     fun itemRepositoryUpsertsBySourceScopedExternalId() = withRepositories { _, sources, items ->
         val firstSourceId = saveXSource(sources, accountId = "acct-1")
         val secondSourceId = saveXSource(sources, accountId = "acct-2")

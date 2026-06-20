@@ -50,7 +50,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import com.dailysatori.service.parser.sanitizeArticleAiTitle
+import com.dailysatori.ui.component.card.articleDisplayDomain
+import com.dailysatori.ui.component.card.articleDisplayTitle
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Article
 import com.dailysatori.ui.component.content.MarkdownTabPager
@@ -449,20 +450,9 @@ internal fun articleDeleteDialogTitle(): String = "删除文章"
 
 internal fun articleDeleteDialogMessage(): String = "确定要删除这篇文章吗？"
 
-private fun extractDomain(url: String?): String {
-    if (url.isNullOrBlank()) return "文章详情"
-    return url.removePrefix("https://")
-        .removePrefix("http://")
-        .substringBefore("/")
-        .removePrefix("www.")
-        .ifBlank { "文章详情" }
-}
+private fun extractDomain(url: String?): String = articleDisplayDomain(url)
 
-private fun articleMagazineTitle(article: Article): String = listOfNotNull(
-    sanitizeArticleAiTitle(article.ai_title),
-    sanitizeArticleAiTitle(article.title),
-    extractDomain(article.url),
-).firstOrNull { it.isNotBlank() }.orEmpty()
+private fun articleMagazineTitle(article: Article): String = articleDisplayTitle(article)
 
 private fun articleMagazineMetaChips(article: Article): List<String> = listOfNotNull(
     extractDomain(article.url).takeIf { it != "文章详情" },

@@ -37,4 +37,26 @@ class AiConfigLayoutTest {
         assertEquals(true, viewModelSource.contains("val defaultValue = snapshot.isDefault"))
         assertEquals(false, screenSource.contains("val token = apiToken"))
     }
+
+    @Test
+    fun editorAlwaysAllowsManualModelNameAndModelRefresh() {
+        val screenSource = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aiconfig/AiConfigEditScreen.kt").readText()
+        val viewModelSource = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aiconfig/AiConfigEditViewModel.kt").readText()
+
+        assertEquals(false, screenSource.contains("isCustomModel"))
+        assertEquals(true, screenSource.contains("自定义模型名称"))
+        assertEquals(true, screenSource.contains("刷新模型"))
+        assertEquals(true, viewModelSource.contains("refreshModels()"))
+        assertEquals(true, viewModelSource.contains("customModelName.ifBlank"))
+    }
+
+    @Test
+    fun modelRefreshButtonCanBeClickedWithoutApiTokenToShowGuidance() {
+        val screenSource = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aiconfig/AiConfigEditScreen.kt").readText()
+        val viewModelSource = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/aiconfig/AiConfigEditViewModel.kt").readText()
+
+        assertEquals(false, screenSource.contains("apiToken.isNotBlank() && !isRefreshingModels"))
+        assertEquals(true, screenSource.contains("enabled = selectedProvider != null && !isRefreshingModels"))
+        assertEquals(true, viewModelSource.contains("请先填写 API Token"))
+    }
 }

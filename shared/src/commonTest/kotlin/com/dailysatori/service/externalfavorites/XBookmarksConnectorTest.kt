@@ -116,12 +116,12 @@ class XBookmarksConnectorTest {
         assertEquals(false, connector.capabilities.supportsFolders)
         assertEquals(false, connector.capabilities.supportsFavoritedAt)
         assertEquals(false, connector.capabilities.supportsWriteBack)
-        assertEquals(false, connector.capabilities.supportsRefreshToken)
+        assertEquals(true, connector.capabilities.supportsRefreshToken)
     }
 
     @Test
-    fun developmentModeLimitsBookmarkPageSizeToOne() {
-        assertEquals(1, XBookmarksConnector(developmentMode = true).capabilities.maxPageSize)
+    fun developmentModeUsesProductionBookmarkPageSizeForRealApiSafety() {
+        assertEquals(100, XBookmarksConnector(developmentMode = true).capabilities.maxPageSize)
         assertEquals(100, XBookmarksConnector(developmentMode = false).capabilities.maxPageSize)
     }
 
@@ -168,6 +168,27 @@ class XBookmarksConnectorTest {
             parseXBookmarksHttpResponse(statusCode = 500, body = emptyPageJson)
         }
         assertEquals(500, providerError.statusCode)
+    }
+
+    @Test
+    fun authErrorIncludesSanitizedProviderDetails() {
+        val body = """
+            {
+              "title": "Unauthorized",
+              "detail": "Access token does not have required scope bookmark.read",
+              "type": "https://api.x.com/2/problems/not-authorized-for-resource"
+            }
+        """.trimIndent()
+
+        val error = assertFailsWith<XFavoriteAuthException> {
+            parseXBookmarksHttpResponse(statusCode = 401, body = body)
+        }
+
+        assertEquals(401, error.statusCode)
+        assertEquals(
+            "X bookmarks authorization failed with HTTP 401: Unauthorized - Access token does not have required scope bookmark.read",
+            error.message,
+        )
     }
 
     @Test

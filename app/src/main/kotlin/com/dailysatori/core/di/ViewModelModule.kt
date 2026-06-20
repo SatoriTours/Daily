@@ -143,6 +143,7 @@ val viewModelModule: Module = module {
         AiConfigEditViewModel(
             repo = get<AIConfigRepository>(),
             aiService = get(),
+            modelCatalogService = get(),
         )
     }
     viewModel {

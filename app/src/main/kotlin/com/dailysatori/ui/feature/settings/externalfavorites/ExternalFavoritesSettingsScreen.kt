@@ -25,7 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PauseCircle
@@ -34,6 +33,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -41,12 +41,14 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,7 +61,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.dailysatori.service.externalfavorites.ExternalSourceHealth
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.IconSize
@@ -72,6 +77,7 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
     val viewModel: ExternalFavoritesSettingsViewModel = koinViewModel()
     val state = viewModel.state.collectAsStateWithLifecycle().value
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var showAddPage by remember { mutableStateOf(false) }
     val connectX = {
         viewModel.createXAuthorizationUrl()?.let { url ->
@@ -86,6 +92,18 @@ fun ExternalFavoritesSettingsScreen(onBack: () -> Unit) {
 
     BackHandler(enabled = showAddPage) {
         showAddPage = false
+    }
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.load()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     if (showAddPage) {
@@ -239,7 +257,7 @@ private fun ExternalFavoriteAddNotes() {
             externalFavoriteReadOnlyStepLabel() to "Daily Satori 只请求读取收藏所需权限，不会修改或删除平台收藏。",
             externalFavoriteXOAuthRedirectUriLabel() to externalFavoriteXOAuthRedirectUri(),
             "同步" to externalFavoriteAddPageSyncNoteText(),
-            "整理" to "导入到本地收藏后，再交给本地配置的 AI 整理内容。",
+            "整理" to externalFavoriteAddPageOrganizeNoteText(),
         ),
     )
 }
@@ -356,9 +374,9 @@ private fun ExternalFavoriteSourceList(
         items(state.sources, key = { it.id }) { source ->
             ExternalFavoriteSourceCard(
                 item = source,
-                syncing = state.syncingSourceId == source.id,
+                syncWork = state.syncWorkBySourceId[source.id],
                 onSyncNow = { viewModel.syncNow(source.id) },
-                onRescanAll = { viewModel.rescanAll(source.id) },
+                onCancelSync = { viewModel.cancelSync(source.id) },
                 onToggleEnabled = { viewModel.toggleEnabled(source.id, it) },
                 onReconnect = openAddPage,
                 onDelete = { pendingDeleteSourceId = source.id },
@@ -413,15 +431,16 @@ private fun ExternalFavoriteSourceSectionHeader(openAddPage: () -> Unit, hasSour
 @Composable
 private fun ExternalFavoriteSourceCard(
     item: ExternalFavoriteSourceUi,
-    syncing: Boolean,
+    syncWork: ExternalFavoriteSyncWorkUi?,
     onSyncNow: () -> Unit,
-    onRescanAll: () -> Unit,
+    onCancelSync: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
     onReconnect: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val source = item.source
     var menuExpanded by remember { mutableStateOf(false) }
+    val syncing = syncWork?.active == true
 
     Card(
         shape = RoundedCornerShape(Radius.xl),
@@ -445,17 +464,27 @@ private fun ExternalFavoriteSourceCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        externalFavoriteAccountIdentity(source.account_name, source.account_id),
+                        externalFavoriteSourceSubtitle(
+                            identity = externalFavoriteAccountIdentity(source.account_name, source.account_id),
+                            lastSuccessAt = if (syncing) null else source.last_success_at,
+                            syncIntervalMinutes = source.sync_interval_minutes,
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                ExternalFavoriteHealthPill(item.health)
+                ExternalFavoriteHealthPill(item.health, syncWork)
             }
 
-            ExternalFavoriteSourceDetails(item)
+            if (syncWork != null && syncWork.active) {
+                ExternalFavoriteSyncProgressBox(
+                    work = syncWork,
+                    historyComplete = source.config_json.contains(""""history_complete":true"""),
+                )
+            }
+            ExternalFavoriteSourceDetails(item, syncWork)
 
             if (item.health == ExternalSourceHealth.limited) {
                 ExternalFavoriteInlineNotice(
@@ -472,40 +501,37 @@ private fun ExternalFavoriteSourceCard(
 
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
                 Button(
-                    onClick = when (item.health) {
+                    onClick = if (syncing) {
+                        onCancelSync
+                    } else when (item.health) {
                         ExternalSourceHealth.paused -> {
                             { onToggleEnabled(true) }
                         }
                         ExternalSourceHealth.needs_auth -> onReconnect
                         else -> onSyncNow
                     },
-                    enabled = when (item.health) {
-                        ExternalSourceHealth.limited -> false
-                        ExternalSourceHealth.paused, ExternalSourceHealth.needs_auth -> !syncing
-                        else -> externalFavoriteCanRunSyncAction(item.health, item.enabled) && !syncing
+                    enabled = externalFavoriteSyncActionEnabled(item.health, item.enabled, syncWork),
+                    colors = if (syncing) {
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
+                        )
+                    } else {
+                        ButtonDefaults.buttonColors()
                     },
                     modifier = Modifier.weight(1f),
                 ) {
                     Icon(
-                        if (item.health == ExternalSourceHealth.needs_auth) Icons.Default.Link else Icons.Default.Refresh,
+                        if (item.health == ExternalSourceHealth.needs_auth && !syncing) Icons.Default.Link else Icons.Default.Refresh,
                         contentDescription = null,
                     )
-                    Text(if (syncing) "同步中" else externalFavoritePrimaryActionLabel(item.health))
+                    Text(externalFavoriteSyncActionLabel(item.health, syncWork))
                 }
                 Box {
                     IconButton(onClick = { menuExpanded = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "更多")
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        DropdownMenuItem(
-                            text = { Text(externalFavoriteRescanMenuLabel()) },
-                            leadingIcon = { Icon(Icons.Default.History, contentDescription = null) },
-                            enabled = externalFavoriteCanRunSyncAction(item.health, item.enabled) && !syncing,
-                            onClick = {
-                                menuExpanded = false
-                                onRescanAll()
-                            },
-                        )
                         DropdownMenuItem(
                             text = { Text(externalFavoriteToggleSyncMenuLabel(item.enabled)) },
                             leadingIcon = {
@@ -555,12 +581,13 @@ private fun ExternalFavoriteProviderBadge(provider: String) {
 }
 
 @Composable
-private fun ExternalFavoriteHealthPill(health: ExternalSourceHealth) {
-    val color = when (health) {
-        ExternalSourceHealth.healthy -> MaterialTheme.colorScheme.primary
-        ExternalSourceHealth.never_synced, ExternalSourceHealth.limited -> MaterialTheme.colorScheme.tertiary
-        ExternalSourceHealth.needs_auth, ExternalSourceHealth.failing -> MaterialTheme.colorScheme.error
-        ExternalSourceHealth.paused -> MaterialTheme.colorScheme.onSurfaceVariant
+private fun ExternalFavoriteHealthPill(health: ExternalSourceHealth, syncWork: ExternalFavoriteSyncWorkUi? = null) {
+    val color = when {
+        syncWork?.active == true -> MaterialTheme.colorScheme.primary
+        health == ExternalSourceHealth.healthy -> MaterialTheme.colorScheme.primary
+        health == ExternalSourceHealth.never_synced || health == ExternalSourceHealth.limited -> MaterialTheme.colorScheme.tertiary
+        health == ExternalSourceHealth.needs_auth || health == ExternalSourceHealth.failing -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Surface(
         shape = RoundedCornerShape(Radius.circular),
@@ -578,23 +605,75 @@ private fun ExternalFavoriteHealthPill(health: ExternalSourceHealth) {
                     .clip(RoundedCornerShape(Radius.circular))
                     .background(color),
             )
-            Text(externalFavoriteHealthLabel(health), style = MaterialTheme.typography.labelSmall, color = color)
+            Text(externalFavoriteEffectiveHealthLabel(health, syncWork), style = MaterialTheme.typography.labelSmall, color = color)
         }
     }
 }
 
 @Composable
-private fun ExternalFavoriteSourceDetails(item: ExternalFavoriteSourceUi) {
-    val source = item.source
+private fun ExternalFavoriteSyncProgressBox(work: ExternalFavoriteSyncWorkUi, historyComplete: Boolean) {
+    Surface(
+        shape = RoundedCornerShape(Radius.m),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    externalFavoriteSyncProgressTitle(work),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    externalFavoriteSyncProgressPageText(work),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            LinearProgressIndicator(
+                progress = { (work.pagesSeen.toFloat() / work.maxPages.coerceAtLeast(1)).coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), modifier = Modifier.fillMaxWidth()) {
+                externalFavoriteProgressMetrics(work, historyComplete).forEach { metric ->
+                    Surface(
+                        shape = RoundedCornerShape(Radius.s),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Column(modifier = Modifier.padding(Spacing.s)) {
+                            Text(metric.value, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                metric.label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExternalFavoriteSourceDetails(item: ExternalFavoriteSourceUi, syncWork: ExternalFavoriteSyncWorkUi?) {
+    val detailLines = if (syncWork?.active == true) {
+        externalFavoriteRunningDetailLines(syncWork)
+    } else {
+        externalFavoriteIdleDetailLines(item)
+    }
     Surface(
         shape = RoundedCornerShape(Radius.m),
         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
-            ExternalFavoriteDetailRow("同步", externalFavoriteSyncAttemptText(source.last_sync_started_at, source.last_success_at))
-            ExternalFavoriteDetailRow("结果", externalFavoriteSeenCountText(source.last_items_seen_count, source.last_pages_seen_count) ?: "尚未同步")
-            ExternalFavoriteDetailRow("状态", externalFavoritePeriodicSyncSubtitle(item.health))
+            detailLines.forEach { line ->
+                ExternalFavoriteDetailRow(line.label, line.value)
+            }
         }
     }
 }
@@ -680,7 +759,7 @@ private fun ExternalFavoriteConnectionSteps() {
         steps = listOf(
             "1" to "在 X Developer Portal 配置回调地址 dailysatori://oauth/x。",
             "2" to "填写 X OAuth Client ID，打开浏览器完成授权。",
-            "3" to "同步结果进入本地收藏，后续由 AI 整理标题、摘要和标签。",
+            "3" to "同步结果进入本地文章库，后续由 AI 整理标题、摘要和标签。",
         ),
     )
 }

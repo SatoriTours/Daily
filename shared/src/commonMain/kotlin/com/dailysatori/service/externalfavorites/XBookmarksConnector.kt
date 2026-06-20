@@ -28,19 +28,19 @@ import kotlinx.serialization.json.putJsonArray
 class XBookmarksConnector(
     private val client: HttpClient? = null,
     private val apiBaseUrl: String = "https://api.x.com",
-    private val developmentMode: Boolean = isDevelopmentBuild(),
+    @Suppress("unused") private val developmentMode: Boolean = isDevelopmentBuild(),
 ) : FavoriteConnector {
     override val provider: String = ExternalFavoriteProvider.X.id
 
     override val capabilities: FavoriteConnectorCapabilities = FavoriteConnectorCapabilities(
-        maxPageSize = if (developmentMode) 1 else X_BOOKMARKS_MAX_PAGE_SIZE,
+        maxPageSize = X_BOOKMARKS_MAX_PAGE_SIZE,
         defaultBackoffMinutes = 15,
         maxPagesPerRun = 3,
         maxItemsPerRun = 300,
         supportsFolders = false,
         supportsFavoritedAt = false,
         supportsWriteBack = false,
-        supportsRefreshToken = false,
+        supportsRefreshToken = true,
     )
 
     override suspend fun refreshAuth(source: External_favorite_source): External_favorite_source {
@@ -58,7 +58,9 @@ class XBookmarksConnector(
             },
         )
         val body = response.bodyAsText()
-        if (response.status.value == 401 || response.status.value == 403) throw XFavoriteAuthException(response.status.value)
+        if (response.status.value == 401 || response.status.value == 403) {
+            throw XFavoriteAuthException(response.status.value, xProviderErrorDetail(body))
+        }
         if (response.status.value !in 200..299) {
             throw XFavoriteProviderException(
                 statusCode = response.status.value,
@@ -116,9 +118,19 @@ open class XFavoriteProviderException(
     message: String,
 ) : RuntimeException(message)
 
-class XFavoriteAuthException(statusCode: Int) : XFavoriteProviderException(
+class XFavoriteAuthException(
+    statusCode: Int,
+    providerDetail: String? = null,
+) : XFavoriteProviderException(
     statusCode = statusCode,
-    message = "X bookmarks authorization failed with HTTP $statusCode",
+    message = buildString {
+        append("X bookmarks authorization failed with HTTP ")
+        append(statusCode)
+        providerDetail?.takeIf { it.isNotBlank() }?.let {
+            append(": ")
+            append(it)
+        }
+    },
 )
 
 class XFavoriteRateLimitException(
@@ -144,7 +156,7 @@ fun parseXBookmarksHttpResponse(
     headers: Map<String, String> = emptyMap(),
 ): FavoriteFetchPage {
     if (statusCode in 200..299) return XBookmarksResponseParser.parse(body)
-    if (statusCode == 401 || statusCode == 403) throw XFavoriteAuthException(statusCode)
+    if (statusCode == 401 || statusCode == 403) throw XFavoriteAuthException(statusCode, xProviderErrorDetail(body))
     if (statusCode == 429) {
         throw XFavoriteRateLimitException(
             statusCode = statusCode,
@@ -153,7 +165,14 @@ fun parseXBookmarksHttpResponse(
     }
     throw XFavoriteProviderException(
         statusCode = statusCode,
-        message = "X bookmarks provider request failed with HTTP $statusCode",
+        message = buildString {
+            append("X bookmarks provider request failed with HTTP ")
+            append(statusCode)
+            xProviderErrorDetail(body)?.let {
+                append(": ")
+                append(it)
+            }
+        },
     )
 }
 
@@ -460,6 +479,25 @@ private fun parseXRefreshTokenResponse(body: String): XRefreshTokenPayload {
         if (it.accessToken.isBlank()) error("X OAuth refresh response missing access_token")
     }
 }
+
+private fun xProviderErrorDetail(body: String): String? = runCatching {
+    val root = Json.parseToJsonElement(body).jsonObject
+    val title = root.string("title")
+    val detail = root.string("detail")
+    val errors = root["errors"]
+        ?.jsonArrayOrNull()
+        ?.mapNotNull { error ->
+            error.jsonObjectOrNull()?.let { obj ->
+                obj.string("message") ?: obj.string("detail") ?: obj.string("title")
+            }
+        }
+        .orEmpty()
+    (listOfNotNull(title, detail) + errors)
+        .joinToString(" - ")
+        .replace(Regex("\\s+"), " ")
+        .take(240)
+        .takeIf { it.isNotBlank() }
+}.getOrNull()
 
 private fun extractAccessToken(authJson: String): String? = runCatching {
     Json.parseToJsonElement(authJson).jsonObject.let { auth ->

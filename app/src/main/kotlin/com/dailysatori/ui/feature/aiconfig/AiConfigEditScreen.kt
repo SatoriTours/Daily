@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -58,11 +59,12 @@ fun AiConfigEditScreen(
     val wasDefault = state.wasDefault
     val isSaving = state.isSaving
     val isTesting = state.isTesting
+    val isRefreshingModels = state.isRefreshingModels
+    val modelRefreshMessage = state.modelRefreshMessage
     val testResult = state.testResult
     val testSuccess = state.testSuccess
-    val models = selectedProvider?.models ?: emptyList()
-    val isCustomModel = selectedProvider != null && models.isEmpty()
-    val currentModel = currentModelId(isCustomModel, customModelName, selectedModel)
+    val models = state.availableModels
+    val currentModel = currentModelId(customModelName, selectedModel)
     val canTest = selectedProvider != null && apiToken.isNotBlank() && currentModel != null
     val canSave = selectedProvider != null && apiToken.isNotBlank() && currentModel != null
 
@@ -136,7 +138,23 @@ fun AiConfigEditScreen(
             }
 
             item {
-                Text("选择模型", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "选择模型",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        onClick = viewModel::refreshModels,
+                        enabled = selectedProvider != null && !isRefreshingModels,
+                    ) {
+                        Text(if (isRefreshingModels) "刷新中" else "刷新模型")
+                    }
+                }
                 Spacer(modifier = Modifier.height(Spacing.xs))
                 if (selectedProvider == null) {
                     OutlinedTextField(
@@ -148,14 +166,15 @@ fun AiConfigEditScreen(
                         singleLine = true,
                         enabled = false,
                     )
-                } else if (isCustomModel) {
+                } else if (models.isEmpty()) {
                     OutlinedTextField(
-                        value = customModelName,
-                        onValueChange = viewModel::updateCustomModelName,
+                        value = "",
+                        onValueChange = {},
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("输入模型名称") },
+                        placeholder = { Text("暂无可选模型，可在下方手动输入") },
                         shape = RoundedCornerShape(Radius.s),
                         singleLine = true,
+                        enabled = false,
                     )
                 } else {
                     ExposedDropdownMenuBox(
@@ -186,6 +205,24 @@ fun AiConfigEditScreen(
                             }
                         }
                     }
+                }
+                Spacer(modifier = Modifier.height(Spacing.s))
+                OutlinedTextField(
+                    value = customModelName,
+                    onValueChange = viewModel::updateCustomModelName,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("自定义模型名称") },
+                    shape = RoundedCornerShape(Radius.s),
+                    singleLine = true,
+                    enabled = selectedProvider != null,
+                )
+                if (modelRefreshMessage != null) {
+                    Spacer(modifier = Modifier.height(Spacing.xs))
+                    Text(
+                        modelRefreshMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
 
@@ -226,13 +263,8 @@ fun AiConfigEditScreen(
 }
 
 private fun currentModelId(
-    isCustomModel: Boolean,
     customModelName: String,
     selectedModel: AiModel?,
 ): String? {
-    return when {
-        isCustomModel && customModelName.isNotBlank() -> customModelName.trim()
-        selectedModel != null -> selectedModel.id
-        else -> null
-    }
+    return customModelName.ifBlank { selectedModel?.id.orEmpty() }.trim().takeIf { it.isNotBlank() }
 }

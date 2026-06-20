@@ -27,7 +27,7 @@ fun ArticleCard(
     onFavoriteClick: (() -> Unit)? = null,
     onShareClick: (() -> Unit)? = null,
 ) {
-    val title = article.title.orEmpty()
+    val title = articleDisplayTitle(article)
     val coverImage = article.cover_image ?: article.cover_image_url
     val domain = remember(article.url) { extractDomain(article.url) }
     val createdAt = remember(article.created_at) { TimeUtils.formatRelativeTime(article.created_at) }

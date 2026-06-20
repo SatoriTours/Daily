@@ -111,4 +111,5 @@ object SettingKeys {
     const val xOAuthClientId = "x_oauth_client_id"
     const val weReadApiKey = "weread_api_key"
     const val legacyWeReadApiKey = weReadApiKey
+    const val aiModelCatalogCache = "ai_model_catalog_cache"
 }
