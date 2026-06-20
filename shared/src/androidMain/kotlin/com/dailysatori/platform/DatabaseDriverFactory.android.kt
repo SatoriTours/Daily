@@ -6,5 +6,8 @@ import com.dailysatori.shared.db.DailySatoriDatabase
 
 actual class DatabaseDriverFactory(private val context: PlatformContext) {
     actual fun createDriver(): SqlDriver =
-        AndroidSqliteDriver(DailySatoriDatabase.Schema, context.context, "daily_satori.db")
+        createDriver("daily_satori.db")
+
+    actual fun createDriver(name: String): SqlDriver =
+        AndroidSqliteDriver(DailySatoriDatabase.Schema, context.context, name)
 }

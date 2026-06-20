@@ -11,7 +11,8 @@ import org.koin.dsl.module
 
 val platformModule: Module = module {
     single { PlatformContext(androidContext()) }
-    single { DatabaseDriverFactory(get()).createDriver() }
+    single { DatabaseDriverFactory(get()) }
+    single { get<DatabaseDriverFactory>().createDriver() }
     single { DailySatoriDatabase(get()) }
     single { FileManager().apply { init(get<PlatformContext>().context) } }
     single { WebViewLoader() }

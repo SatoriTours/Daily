@@ -10,13 +10,10 @@ import com.dailysatori.core.service.WebServerService
 import com.dailysatori.core.worker.ArticleProcessingScheduler
 import com.dailysatori.core.worker.BackupScheduler
 import com.dailysatori.core.worker.UnifiedNewsScheduler
-import com.dailysatori.data.repository.AIConfigRepository
-import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
-import com.dailysatori.data.repository.McpServerRepository
-import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.i18n.I18nService
 import com.dailysatori.service.migration.DatabaseMigration
+import com.dailysatori.service.security.SecretFieldProcessor
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -55,10 +52,7 @@ class DailySatoriApplication : Application() {
 
     private fun encryptStoredSecrets() {
         try {
-            get<AIConfigRepository>(AIConfigRepository::class.java).encryptStoredSecrets()
-            get<McpServerRepository>(McpServerRepository::class.java).encryptStoredSecrets()
-            get<RemoteNewsSourceRepository>(RemoteNewsSourceRepository::class.java).encryptStoredSecrets()
-            get<ExternalFavoriteSourceRepository>(ExternalFavoriteSourceRepository::class.java).encryptStoredSecrets()
+            get<SecretFieldProcessor>(SecretFieldProcessor::class.java).encryptPlaintextSecrets()
         } catch (_: Exception) {}
     }
 }

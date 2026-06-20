@@ -57,6 +57,7 @@ import com.dailysatori.service.externalfavorites.FavoriteSyncService
 import com.dailysatori.service.externalfavorites.XBookmarksConnector
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.security.SecretCipher
+import com.dailysatori.service.security.SecretFieldProcessor
 import com.dailysatori.service.setting.SettingService
 import com.dailysatori.service.skill.DefaultSkillConnectionTester
 import com.dailysatori.service.skill.SkillConnectionTester
@@ -99,7 +100,8 @@ val sharedModule: Module = module {
     single { AiService(get()) }
     single { BackupPasswordStore(get()) }
     single { SecretCipher(get()) }
-    single { BackupService(get(), get(), get()) }
+    single { SecretFieldProcessor(get(), get<SecretCipher>()) }
+    single { BackupService(get(), get(), get(), get(), get<SecretCipher>()) }
     single { PluginService(get(), get()) }
     single { RemoteNewsService(get()) }
     single { CrayfishNewsService(get()) }

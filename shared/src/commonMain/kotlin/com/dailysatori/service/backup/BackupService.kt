@@ -5,7 +5,10 @@ import com.dailysatori.config.BackupConfig
 import com.dailysatori.config.DatabaseConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.platform.DatabaseDriverFactory
 import com.dailysatori.platform.FileManager
+import com.dailysatori.service.security.SecretCipher
+import com.dailysatori.service.security.SecretFieldProcessor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.Clock
@@ -31,6 +34,8 @@ class BackupService(
     private val fileManager: FileManager,
     private val settingRepo: SettingRepository,
     private val passwordStore: BackupPasswordStore,
+    private val databaseDriverFactory: DatabaseDriverFactory,
+    private val secretCipher: SecretCipher,
 ) {
     private val log = Logger.withTag("Backup")
     private val _isBackingUp = MutableStateFlow(false)
@@ -44,14 +49,19 @@ class BackupService(
         if (_isBackingUp.value) return false
         _isBackingUp.value = true
         _progress.value = 0.0
+        var tempDirToClean: String? = null
+        var zipPathToClean: String? = null
+        var encryptedPathToClean: String? = null
         return try {
             val backupDir = selectedBackupDir() ?: return failBackup("请先选择备份目录")
             val password = currentBackupPassword() ?: return failBackup("请先设置备份密码")
             val timestamp = Clock.System.now().toString().replace(Regex("[:T]"), "-").take(19)
             val zipName = "daily_satori_backup_$timestamp.zip"
-            val tempRoot = fileManager.getBackupDir()
+            val tempRoot = fileManager.getCacheDir()
             val zipPath = "$tempRoot/$zipName"
+            zipPathToClean = zipPath
             val tempDir = "$tempRoot/temp_$timestamp"
+            tempDirToClean = tempDir
             fileManager.createDirectory(tempDir)
 
             _progress.value = 0.05
@@ -62,7 +72,10 @@ class BackupService(
             // Database file
             val dbPath = fileManager.getDatabasePath()
             if (fileManager.exists(dbPath)) {
-                filesToBackup.add(dbPath)
+                val tempDbPath = "$tempDir/${DatabaseConfig.name}"
+                fileManager.copyFile(dbPath, tempDbPath)
+                decryptSecretsForBackup(tempDbPath)
+                filesToBackup.add(tempDbPath)
             } else {
                 log.w { "Database file not found: $dbPath" }
                 return failBackup("数据库文件不存在，无法创建完整备份")
@@ -104,6 +117,7 @@ class BackupService(
 
             val finalName = backupFileName(timestamp, password)
             val encPath = "$tempRoot/$finalName"
+            encryptedPathToClean = encPath
             fileManager.encryptFile(zipPath, encPath, password)
             fileManager.deleteFile(zipPath)
             fileManager.writeFileToDirectory(backupDir, finalName, encPath)
@@ -130,6 +144,9 @@ class BackupService(
             _lastMessage.value = "Backup failed: ${e.message}"
             false
         } finally {
+            tempDirToClean?.let { deleteRecursive(it) }
+            zipPathToClean?.let { fileManager.deleteFile(it) }
+            encryptedPathToClean?.let { fileManager.deleteFile(it) }
             _isBackingUp.value = false
         }
     }
@@ -167,6 +184,7 @@ class BackupService(
             val dbDest = fileManager.getDatabasePath()
             if (fileManager.exists(dbSrc)) {
                 fileManager.copyFile(dbSrc, dbDest)
+                prepareRestoredSecrets(dbDest)
             } else {
                 return failRestore("备份中未找到数据库文件")
             }
@@ -252,6 +270,24 @@ class BackupService(
     }
 
     private fun selectedBackupDir(): String? = settingRepo.get(SettingKeys.backupDir)?.takeIf { it.isNotBlank() }
+
+    private fun decryptSecretsForBackup(databasePath: String) {
+        val driver = databaseDriverFactory.createDriver(databasePath)
+        try {
+            SecretFieldProcessor(driver, secretCipher).decryptSecretsForBackup()
+        } finally {
+            driver.close()
+        }
+    }
+
+    private fun prepareRestoredSecrets(databasePath: String) {
+        val driver = databaseDriverFactory.createDriver(databasePath)
+        try {
+            SecretFieldProcessor(driver, secretCipher).prepareRestoredSecrets()
+        } finally {
+            driver.close()
+        }
+    }
 
     private fun currentBackupPassword(): String? {
         val password = passwordStore.get()?.takeIf { it.length >= MinBackupPasswordLength }

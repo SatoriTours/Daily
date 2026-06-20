@@ -10,8 +10,8 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-actual class SecretCipher actual constructor(context: PlatformContext) {
-    actual fun encrypt(value: String): String {
+actual class SecretCipher actual constructor(context: PlatformContext) : SecretValueCipher {
+    actual override fun encrypt(value: String): String {
         if (value.isBlank() || isEncrypted(value)) return value
         val cipher = Cipher.getInstance(Transformation)
         cipher.init(Cipher.ENCRYPT_MODE, secretKey())
@@ -19,7 +19,7 @@ actual class SecretCipher actual constructor(context: PlatformContext) {
         return SecretCipherPrefix + encode(cipher.iv) + ":" + encode(encrypted)
     }
 
-    actual fun decrypt(value: String): String {
+    actual override fun decrypt(value: String): String {
         if (!isEncrypted(value)) return value
         return runCatching {
             val parts = value.removePrefix(SecretCipherPrefix).split(':', limit = 2)
@@ -30,7 +30,7 @@ actual class SecretCipher actual constructor(context: PlatformContext) {
         }.getOrDefault(value)
     }
 
-    actual fun isEncrypted(value: String): Boolean = value.startsWith(SecretCipherPrefix)
+    actual override fun isEncrypted(value: String): Boolean = value.startsWith(SecretCipherPrefix)
 
     private fun secretKey(): SecretKey {
         val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
