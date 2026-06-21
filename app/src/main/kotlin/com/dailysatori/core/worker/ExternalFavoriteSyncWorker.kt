@@ -108,7 +108,6 @@ class ExternalFavoriteSyncWorker(
             GlobalContext.get().get<FavoriteSyncService>().syncSource(sourceId, mode) { progress ->
                 setProgress(externalFavoriteSyncProgressData(progress))
             }
-            ArticleProcessingScheduler(applicationContext).enqueueResume()
             Result.success()
         } catch (error: CancellationException) {
             throw error

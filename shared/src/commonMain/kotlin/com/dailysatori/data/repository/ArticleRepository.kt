@@ -237,7 +237,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
                 aiMarkdownContent = markdown,
                 url = url,
                 isFavorite = 0,
-                status = "pending",
+                status = "completed",
                 coverImageUrl = coverImageUrl,
                 pubDate = pubDate,
             )
@@ -245,16 +245,17 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         }
 
         val nextMarkdown = existing.ai_markdown_content.mergeExternalFavoriteMarkdown(markdown)
+        val shouldUpdateExternalFavoriteContent = isExternalFavoritePlaceholder(existing)
         update(
             id = existing.id,
-            title = existing.title.fillBlankWith(title),
+            title = if (shouldUpdateExternalFavoriteContent) existing.title.fillBlankWith(title) else existing.title,
             aiTitle = existing.ai_title,
-            aiContent = existing.ai_content.fillBlankWith(summary),
-            aiMarkdownContent = nextMarkdown,
+            aiContent = if (shouldUpdateExternalFavoriteContent) existing.ai_content.fillBlankWith(summary) else existing.ai_content,
+            aiMarkdownContent = if (shouldUpdateExternalFavoriteContent) nextMarkdown else existing.ai_markdown_content,
             url = existing.url ?: url,
             isFavorite = existing.is_favorite ?: 0,
             comment = existing.comment,
-            status = existing.externalFavoriteStatusAfterImport(nextMarkdown),
+            status = if (shouldUpdateExternalFavoriteContent) "completed" else existing.status ?: "completed",
             coverImage = existing.cover_image,
             coverImageUrl = existing.cover_image_url ?: coverImageUrl,
             pubDate = existing.pub_date ?: pubDate,
@@ -364,20 +365,10 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         val markdown = this?.trim().orEmpty()
         return markdown.startsWith("# X 收藏") &&
             markdown.contains("\n## 原文\n") &&
-            markdown.contains("\n- 作者：") &&
-            markdown.contains("\n- 时间：") &&
-            markdown.contains("\n- 链接：") &&
             markdown.contains("\n## AI 整理\n") &&
             markdown.endsWith("待整理")
     }
 
-    private fun Article.externalFavoriteStatusAfterImport(nextMarkdown: String?): String {
-        if (isRecoverableImportedArticleStatus(status)) return "pending"
-        if (ai_markdown_content.isDeterministicExternalFavoriteMarkdown()) return "pending"
-        if (nextMarkdown.isDeterministicExternalFavoriteMarkdown()) return "pending"
-        return status ?: "completed"
-    }
-
-    private fun isRecoverableImportedArticleStatus(status: String?): Boolean =
-        status in setOf("pending", "webContentFetched", "aiProcessing", "error")
+    fun isExternalFavoritePlaceholder(article: Article): Boolean =
+        article.ai_markdown_content.isDeterministicExternalFavoriteMarkdown()
 }

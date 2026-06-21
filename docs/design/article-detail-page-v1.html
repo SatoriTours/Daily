@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>文章详情页设计稿 v4</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f6f7f8;
+      --surface: #ffffff;
+      --text: #161718;
+      --muted: #697079;
+      --line: #e4e7eb;
+      --accent: #246b70;
+      --danger: #b24545;
+      --shadow: 0 16px 42px rgba(24, 32, 38, .12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--page);
+      color: var(--text);
+    }
+
+    .stage {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) minmax(360px, 560px);
+      gap: 34px;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+    }
+
+    .notes {
+      max-width: 520px;
+    }
+
+    .notes h1 {
+      margin: 0 0 18px;
+      font-size: 30px;
+      line-height: 1.18;
+      font-weight: 760;
+    }
+
+    .notes p {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.75;
+    }
+
+    .notes ul {
+      padding-left: 20px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 14px;
+    }
+
+    .phone {
+      width: min(100%, 390px);
+      height: 820px;
+      border-radius: 30px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      border: 1px solid rgba(20, 24, 28, .08);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      height: 54px;
+      display: grid;
+      grid-template-columns: 44px 1fr 44px;
+      align-items: center;
+      padding: 0 10px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, .96);
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border: 0;
+      border-radius: 18px;
+      background: transparent;
+      color: var(--text);
+      font-size: 19px;
+      display: grid;
+      place-items: center;
+    }
+
+    .source {
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .source-name {
+      font-size: 13px;
+      font-weight: 680;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .source-url {
+      margin-top: 2px;
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: flex-end;
+      position: relative;
+    }
+
+    .overflow-menu {
+      position: absolute;
+      right: 0;
+      top: 42px;
+      width: 164px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 14px 30px rgba(20, 28, 34, .14);
+      padding: 6px;
+      z-index: 8;
+    }
+
+    .menu-item {
+      width: 100%;
+      height: 38px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      padding: 0 10px;
+      font-size: 13px;
+      font-weight: 620;
+    }
+
+    .menu-item:active {
+      background: #f0f2f4;
+    }
+
+    .scroll {
+      overflow: auto;
+      flex: 1;
+      background: var(--surface);
+    }
+
+    .hero {
+      padding: 18px 22px 8px;
+      background: #ffffff;
+    }
+
+    .hero-img {
+      width: 100%;
+      aspect-ratio: 16 / 7.6;
+      border-radius: 8px;
+      object-fit: cover;
+      display: block;
+      margin-bottom: 16px;
+      background: #dde4e7;
+    }
+
+    .eyebrow {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+      flex-wrap: wrap;
+    }
+
+    .dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #aab2ba;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 27px;
+      line-height: 1.22;
+      font-weight: 780;
+    }
+
+    .article {
+      padding: 10px 22px 48px;
+      background: var(--surface);
+    }
+
+    .article p {
+      margin: 0 0 16px;
+      font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
+      font-size: 18px;
+      line-height: 1.86;
+      color: #242628;
+    }
+
+    .article ul {
+      margin: 0 0 18px;
+      padding-left: 22px;
+    }
+
+    .article li {
+      margin-bottom: 10px;
+      font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
+      font-size: 17px;
+      line-height: 1.76;
+    }
+
+    .quote {
+      border-left: 3px solid var(--accent);
+      padding: 2px 0 2px 14px;
+      margin: 20px 0;
+      color: #3f474c;
+    }
+
+    .quote p {
+      font-size: 16px;
+      line-height: 1.72;
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .chip {
+      border: 0;
+      border-radius: 0;
+      padding: 0;
+      color: inherit;
+      background: transparent;
+    }
+
+    .chip + .chip::before {
+      content: "·";
+      color: #a0a7ae;
+      padding: 0 7px;
+    }
+
+    .hidden { display: none; }
+
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 14, 18, .34);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 18px;
+      z-index: 20;
+    }
+
+    .sheet-backdrop.open {
+      display: flex;
+    }
+
+    .sheet {
+      width: min(100%, 390px);
+      max-height: min(78vh, 650px);
+      border-radius: 16px 16px 10px 10px;
+      background: #ffffff;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, .28);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sheet-head {
+      min-height: 54px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 1fr 44px;
+      align-items: center;
+      padding-left: 18px;
+    }
+
+    .sheet-title {
+      font-weight: 760;
+      font-size: 16px;
+    }
+
+    .sheet-body {
+      overflow: auto;
+      padding: 20px 20px 32px;
+    }
+
+    .sheet-body p {
+      margin: 0 0 16px;
+      font-family: Georgia, "Times New Roman", "Noto Serif SC", serif;
+      font-size: 17px;
+      line-height: 1.82;
+      color: #242628;
+    }
+
+    @media (max-width: 860px) {
+      .stage {
+        grid-template-columns: 1fr;
+        padding: 18px;
+      }
+
+      .notes {
+        order: 2;
+      }
+
+      .phone {
+        height: 780px;
+        margin: 0 auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <section class="phone" aria-label="文章详情页设计稿">
+      <header class="topbar">
+        <button class="icon-btn" aria-label="返回">‹</button>
+        <div class="source">
+          <div class="source-name">The Verge</div>
+          <div class="source-url">www.theverge.com</div>
+        </div>
+          <div class="toolbar">
+            <button class="icon-btn" id="menuBtn" aria-label="更多">⋯</button>
+            <div class="overflow-menu hidden" id="overflowMenu">
+              <button class="menu-item" id="openOriginal">查看原文</button>
+              <button class="menu-item">收藏</button>
+              <button class="menu-item">在浏览器打开</button>
+              <button class="menu-item">刷新文章</button>
+              <button class="menu-item">删除文章</button>
+            </div>
+        </div>
+      </header>
+
+      <div class="scroll">
+        <section class="hero">
+          <img class="hero-img" alt="" src="https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=900&q=80">
+          <h1 class="title">AI 浏览器正在重新定义个人知识入口</h1>
+          <div class="eyebrow">
+            <span>2026-06-21</span>
+            <span class="dot"></span>
+            <div class="meta-row">
+              <span class="chip">收藏文章</span>
+              <span class="chip">已整理</span>
+              <span class="chip">科技</span>
+            </div>
+          </div>
+        </section>
+
+        <article id="summary" class="article">
+          <p>浏览器正在从“网页容器”变成“任务入口”。用户真正需要的不是更多标签页，而是把信息找到、读懂、保存，并在下一次需要时重新调用。</p>
+          <ul>
+            <li>收藏不应该只是 URL 列表，而应该带有上下文、摘要和可搜索的正文。</li>
+            <li>AI 处理适合放在导入之后，但正文阅读区应该保持安静，避免被工具面板抢走注意力。</li>
+            <li>移动端详情页需要更明确的层级：来源、标题、摘要、正文，每一层只承担一个任务。</li>
+          </ul>
+          <div class="quote">
+            <p>设计重点是降低页面噪声，让用户进入文章后可以马上阅读，而不是先理解界面结构。</p>
+          </div>
+          <p>详情页可以保留顶部操作，但不要让操作按钮和正文争夺视觉中心。正文区域直接铺在页面上，不使用卡片背景。</p>
+        </article>
+      </div>
+
+    </section>
+
+    <section class="notes">
+      <h1>文章详情页 v4</h1>
+      <p>这版把详情页压成一个干净的阅读流：封面、标题、时间/tag、AI 摘要自然连续，不在标题下加横线，也不再给摘要额外加“核心观点”分组标题。所有操作统一收进右上角更多菜单，原文通过底部弹层查看。</p>
+      <ul>
+        <li>顶部只显示来源和常用操作，标题不挤在导航栏里。</li>
+        <li>封面、标题和轻量元信息在文章头部，下面直接是 AI 摘要正文。</li>
+        <li>tag 不再做成一排胶囊按钮，而是变成一行轻量元信息。</li>
+        <li>收藏、刷新、打开、删除、查看原文都在右上角菜单中。</li>
+      </ul>
+    </section>
+  </main>
+
+  <div class="sheet-backdrop" id="originalSheet">
+    <section class="sheet" aria-label="原文弹层">
+      <header class="sheet-head">
+        <div class="sheet-title">原文</div>
+        <button class="icon-btn" id="closeSheet" aria-label="关闭">×</button>
+      </header>
+      <div class="sheet-body">
+        <p>AI browser products are shifting from passive navigation to active reading workflows. The most useful layer is not another toolbar, but a clean path from source to understanding.</p>
+        <p>For saved articles, the page should preserve provenance, show a stable title, and keep the reading surface uninterrupted. Controls remain available, but they should not dominate the content.</p>
+        <p>The article body is intentionally unframed in this concept. It uses the page surface directly, with typography, spacing, and section rhythm doing the work that a background card used to do.</p>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const menuBtn = document.getElementById('menuBtn');
+    const overflowMenu = document.getElementById('overflowMenu');
+    const openOriginal = document.getElementById('openOriginal');
+    const originalSheet = document.getElementById('originalSheet');
+    const closeSheet = document.getElementById('closeSheet');
+
+    menuBtn.addEventListener('click', () => {
+      overflowMenu.classList.toggle('hidden');
+    });
+
+    openOriginal.addEventListener('click', () => {
+      overflowMenu.classList.add('hidden');
+      originalSheet.classList.add('open');
+    });
+
+    closeSheet.addEventListener('click', () => {
+      originalSheet.classList.remove('open');
+    });
+
+    originalSheet.addEventListener('click', (event) => {
+      if (event.target === originalSheet) originalSheet.classList.remove('open');
+    });
+  </script>
+</body>
+</html>

@@ -17,20 +17,20 @@ class RemoteArticleDetailLayoutTest {
     }
 
     @Test
-    fun remoteArticleDetailOrdersCoverThenHeaderThenSegmentedTabsThenContent() {
+    fun remoteArticleDetailOrdersCoverThenHeaderThenSummaryContentWithoutTabs() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
         val pagerContent = source.functionBody("RemoteArticleDetailPage")
 
         val coverIndex = pagerContent.indexOf("RemoteArticleCoverImage(")
-        val tabsIndex = pagerContent.indexOf("MagazineArticleTabSelector(")
-        val headerIndex = pagerContent.indexOf("MagazineArticleHeader(")
+        val headerIndex = pagerContent.indexOf("ArticleReaderHeader(")
         val contentIndex = pagerContent.indexOf("LazyColumn(")
 
         assertTrue(coverIndex >= 0)
         assertTrue(headerIndex > coverIndex)
-        assertTrue(tabsIndex > headerIndex)
-        assertTrue(contentIndex > tabsIndex)
+        assertTrue(contentIndex > headerIndex)
         assertFalse(pagerContent.contains("intro = article.summary"))
+        assertFalse(source.contains("MagazineArticleTabSelector("))
+        assertFalse(source.contains("MarkdownTabPager("))
         assertFalse(source.contains("MarkdownTabRow(remoteArticleDetailTabTitles"))
     }
 
@@ -38,23 +38,24 @@ class RemoteArticleDetailLayoutTest {
     fun remoteArticleHeaderUsesCompactMetadataInsteadOfHeavyHeroLabel() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
 
-        assertTrue(source.contains("MagazineArticleHeader("))
+        assertTrue(source.contains("ArticleReaderHeader("))
+        assertFalse(source.contains("MagazineArticleHeader("))
         assertFalse(source.contains("阅读详情"))
         assertTrue(source.contains("remoteArticleMetaChips(article)"))
     }
 
     @Test
-    fun remoteArticleDetailUsesBorderlessSharedMagazineReader() {
+    fun remoteArticleDetailUsesLightweightReaderWithoutBodySurface() {
         val screen = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
         val styles = File("src/main/kotlin/com/dailysatori/ui/theme/MarkdownStyles.kt").readText()
         val readerBody = screen.functionBody("RemoteArticleDetailBody")
 
-        assertTrue(screen.contains("MagazineArticleBody("))
+        assertTrue(screen.contains("ArticleReaderBody("))
+        assertFalse(screen.contains("MagazineArticleBody("))
         assertFalse(screen.contains("import com.dailysatori.ui.component.content.MarkdownContent"))
         assertTrue(screen.contains("MarkdownStyles.remoteArticleTypography()"))
         assertTrue(screen.contains("MarkdownStyles.remoteArticlePadding()"))
         assertFalse(readerBody.contains("border = BorderStroke"))
-        assertTrue(screen.contains("MagazineArticle"))
         assertTrue(styles.contains("fun remoteArticleTypography()"))
         assertTrue(styles.contains("fun remoteArticlePadding()"))
     }
@@ -77,15 +78,31 @@ class RemoteArticleDetailLayoutTest {
     @Test
     fun remoteArticleDetailExposesFavoriteAction() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
+        val actionsBody = source.functionBody("RemoteArticleDetailActions")
 
         assertTrue(source.contains("isFavorite: Boolean = false"))
         assertTrue(source.contains("onFavoriteClick: () -> Unit = {}"))
         assertTrue(source.contains("showFavoriteAction: Boolean = false"))
         assertTrue(source.contains("if (showFavoriteAction)"))
-        assertTrue(source.contains("IconButton(onClick = onFavoriteClick)"))
+        assertTrue(actionsBody.contains("Icons.Default.MoreVert"))
+        assertTrue(actionsBody.contains("DropdownMenu("))
+        assertTrue(actionsBody.contains("RemoteArticleOriginalMenuItem("))
+        assertTrue(actionsBody.contains("RemoteArticleFavoriteMenuItem("))
+        assertTrue(actionsBody.contains("RemoteArticleOpenMenuItem("))
+        assertFalse(actionsBody.contains("IconButton(onClick = onFavoriteClick)"))
+        assertFalse(actionsBody.contains("IconButton(onClick = { openArticleUrl"))
         assertTrue(source.contains("Icons.Default.Favorite"))
         assertTrue(source.contains("Icons.Default.FavoriteBorder"))
         assertTrue(source.contains("contentDescription = if (isFavorite) \"取消收藏\" else \"收藏\""))
+    }
+
+    @Test
+    fun remoteArticleDetailShowsOriginalFromOverflowBottomSheet() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
+
+        assertTrue(source.contains("RemoteArticleOriginalBottomSheet("))
+        assertTrue(source.contains("showOriginalSheet"))
+        assertTrue(source.contains("remoteArticleOriginalPageContent("))
     }
 }
 

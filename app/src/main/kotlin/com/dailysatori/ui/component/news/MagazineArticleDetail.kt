@@ -26,6 +26,47 @@ import com.mikepenz.markdown.model.MarkdownTypography
 import com.mikepenz.markdown.m3.Markdown
 
 @Composable
+fun ArticleReaderHeader(
+    title: String,
+    metaChips: List<String>,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.l, vertical = Spacing.m),
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+    ) {
+        Text(
+            text = title.ifBlank { "文章详情" },
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        val meta = metaChips.map { it.trim() }.filter { it.isNotBlank() }.joinToString(" · ")
+        if (meta.isNotBlank()) {
+            Text(
+                text = meta,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+fun ArticleReaderBody(
+    content: String,
+    modifier: Modifier = Modifier,
+    typography: MarkdownTypography = MarkdownStyles.readingTypography(),
+    padding: MarkdownPadding = MarkdownStyles.readingPadding(),
+) {
+    SelectionContainer {
+        Box(modifier = modifier.fillMaxWidth()) {
+            Markdown(content = content, typography = typography, padding = padding)
+        }
+    }
+}
+
+@Composable
 fun MagazineArticleHeader(
     title: String,
     metaChips: List<String>,

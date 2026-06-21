@@ -32,7 +32,7 @@ class ExternalFavoriteImporterTest {
         val article = articles.getByUrl("https://x.com/daily/status/100")
         assertNotNull(article)
         assertEquals(0, article.is_favorite)
-        assertEquals("pending", article.status)
+        assertEquals("completed", article.status)
         assertTrue(article.ai_markdown_content.orEmpty().contains("## 原文"))
         assertTrue(article.ai_markdown_content.orEmpty().contains("这是一条值得保存的原文。"))
         assertTrue(article.ai_markdown_content.orEmpty().contains("https://x.com/daily/status/100"))
@@ -43,7 +43,7 @@ class ExternalFavoriteImporterTest {
     }
 
     @Test
-    fun importingXItemLeavesArticlePendingForStandardArticleProcessing() = withRepositories { _, sources, items, articles ->
+    fun importingXItemLeavesArticleOutOfStandardArticleProcessing() = withRepositories { _, sources, items, articles ->
         val sourceId = saveXSource(sources)
         items.upsertDraft(sourceId, xDraft(externalId = "post-pending"))
 
@@ -51,8 +51,8 @@ class ExternalFavoriteImporterTest {
 
         val article = articles.getByUrl("https://x.com/daily/status/post-pending")
         assertNotNull(article)
-        assertEquals("pending", article.status)
-        assertTrue(articles.getRecoverableForProcessingSync().map { it.id }.contains(article.id))
+        assertEquals("completed", article.status)
+        assertEquals(false, articles.getRecoverableForProcessingSync().map { it.id }.contains(article.id))
     }
 
     @Test
@@ -121,7 +121,7 @@ class ExternalFavoriteImporterTest {
     }
 
     @Test
-    fun repairsAlreadyImportedPlaceholderArticlesForStandardProcessing() = withRepositories { _, sources, items, articles ->
+    fun repairsAlreadyImportedPlaceholderArticlesForExternalAiProcessing() = withRepositories { _, sources, items, articles ->
         val sourceId = saveXSource(sources)
         val (item, _) = items.upsertDraft(sourceId, xDraft(externalId = "post-placeholder"))
         val placeholderMarkdown = """
@@ -152,8 +152,9 @@ class ExternalFavoriteImporterTest {
         val repaired = ExternalFavoriteImporter(items, articles).repairImportedPlaceholderArticles(limit = 10)
 
         assertEquals(1, repaired)
-        assertEquals("pending", articles.getById(articleId)?.status)
-        assertTrue(articles.getRecoverableForProcessingSync().map { it.id }.contains(articleId))
+        assertEquals("completed", articles.getById(articleId)?.status)
+        assertEquals("pending", items.getBySource(sourceId).single().ai_status)
+        assertEquals(false, articles.getRecoverableForProcessingSync().map { it.id }.contains(articleId))
     }
 
     @Test
@@ -220,7 +221,7 @@ class ExternalFavoriteImporterTest {
     }
 
     @Test
-    fun importerCompletesExistingArticleWhilePreservingCommentAndRicherMarkdown() = withRepositories { _, sources, items, articles ->
+    fun importerPreservesExistingUserArticleStatusCommentAndRicherMarkdown() = withRepositories { _, sources, items, articles ->
         val canonicalUrl = "https://x.com/daily/status/301"
         val existingMarkdown = """
             # Existing Pending Analysis
@@ -260,6 +261,45 @@ class ExternalFavoriteImporterTest {
         val item = items.getBySource(sourceId).single()
         assertEquals(articleId, item.article_id)
         assertEquals("duplicate_linked", item.import_status)
+        assertEquals("not_needed", item.ai_status)
+    }
+
+    @Test
+    fun importerDoesNotCompleteOrQueueAiForExistingUserArticle() = withRepositories { _, sources, items, articles ->
+        val canonicalUrl = "https://x.com/daily/status/304"
+        val existingMarkdown = "# User article\n\nStill waiting for normal processing."
+        val articleId = articles.insert(
+            title = "Existing user article",
+            aiContent = "Existing user summary",
+            aiMarkdownContent = existingMarkdown,
+            url = canonicalUrl,
+            isFavorite = 0,
+            comment = "keep user article",
+            status = "pending",
+        )
+        val sourceId = saveXSource(sources)
+        items.upsertDraft(
+            sourceId,
+            xDraft(
+                externalId = "post-304",
+                canonicalUrl = canonicalUrl,
+                text = "External favorite text should not overwrite user article.",
+            ),
+        )
+
+        val imported = ExternalFavoriteImporter(items, articles).importPending()
+
+        assertEquals(1, imported)
+        val article = articles.getById(articleId)
+        assertNotNull(article)
+        assertEquals("pending", article.status)
+        assertEquals("Existing user summary", article.ai_content)
+        assertEquals(existingMarkdown, article.ai_markdown_content)
+        assertTrue(articles.getRecoverableForProcessingSync().map { it.id }.contains(articleId))
+
+        val item = items.getBySource(sourceId).single()
+        assertEquals("duplicate_linked", item.import_status)
+        assertEquals("not_needed", item.ai_status)
     }
 
     @Test
@@ -297,6 +337,7 @@ class ExternalFavoriteImporterTest {
         val item = items.getBySource(sourceId).single()
         assertEquals(articleId, item.article_id)
         assertEquals("duplicate_linked", item.import_status)
+        assertEquals("not_needed", item.ai_status)
     }
 
     @Test
@@ -365,6 +406,21 @@ class ExternalFavoriteImporterTest {
         assertNull(item.article_id)
         assertEquals("failed", item.import_status)
         assertEquals("missing_url", item.last_error_code)
+    }
+
+    @Test
+    fun itemWithoutCanonicalUrlIsNotRetriedUntilRemoteContentChanges() = withRepositories { _, sources, items, articles ->
+        val sourceId = saveXSource(sources)
+        items.upsertDraft(sourceId, xDraft(externalId = "post-missing-url", canonicalUrl = null))
+
+        val first = ExternalFavoriteImporter(items, articles).importPending()
+        val second = ExternalFavoriteImporter(items, articles).importPending()
+
+        assertEquals(0, first)
+        assertEquals(0, second)
+        assertEquals("failed", items.getBySource(sourceId).single().import_status)
+        assertEquals("missing_url", items.getBySource(sourceId).single().last_error_code)
+        assertEquals(emptyList(), items.pendingImport(10))
     }
 
     private fun withRepositories(

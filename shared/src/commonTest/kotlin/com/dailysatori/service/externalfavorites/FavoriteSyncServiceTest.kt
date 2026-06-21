@@ -129,6 +129,40 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
+    fun unifiedSyncStartsBackfillInSameRunWhenLatestPageIsUnchangedAndNoCursorIsSaved() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            items.upsertDraft(sourceId, xDraft("post-1"))
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 3, maxItemsPerRun = 300),
+                pages = listOf(
+                    FavoriteFetchPage(listOf(xDraft("post-1")), "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("post-2")), "cursor-3"),
+                    FavoriteFetchPage(listOf(xDraft("post-3")), "cursor-4"),
+                ),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals(listOf(null, "cursor-2", "cursor-3"), connector.cursors)
+            assertEquals(listOf("post-1", "post-2", "post-3"), items.getBySource(sourceId).map { it.external_id }.sorted())
+            sources.getById(sourceId)!!.let { source ->
+                assertEquals(3, source.last_pages_seen_count)
+                assertEquals(3, source.last_items_seen_count)
+                assertTrue(source.config_json.contains(""""history_cursor":"cursor-4""""))
+                assertTrue(source.config_json.contains(""""history_complete":false"""))
+            }
+        }
+    }
+
+    @Test
     fun retryFailedDoesNotFetchProviderPages() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
@@ -164,6 +198,33 @@ class FavoriteSyncServiceTest {
                 assertEquals(0, source.last_items_seen_count)
                 assertEquals("retry_failed", source.last_sync_mode)
             }
+        }
+    }
+
+    @Test
+    fun normalSyncStillRetriesLocalImportFailuresWhenFetchedItemsAreUnchanged() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            items.upsertDraft(sourceId, xDraft("post-1"))
+            val connector = FakeConnector(
+                pages = listOf(FavoriteFetchPage(listOf(xDraft("post-1")), null)),
+            )
+            var importLimit = 0L
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { scopedSourceId, limit ->
+                    assertEquals(sourceId, scopedSourceId)
+                    importLimit = limit
+                    1
+                },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals(IMPORT_RETRY_EXPECTED_LIMIT, importLimit)
         }
     }
 
@@ -424,7 +485,7 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
-    fun historyUsesUnifiedBatchPolicyForQueuedCompatibility() = runBlocking {
+    fun historyUsesUnifiedBackfillPolicyWhenLatestPageIsUnchanged() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
             items.upsertDraft(sourceId, xDraft("post-1"))
@@ -446,9 +507,9 @@ class FavoriteSyncServiceTest {
 
             service.syncSource(sourceId, FavoriteSyncMode.history)
 
-            assertEquals(listOf<String?>(null), connector.cursors)
-            assertEquals(listOf("post-1"), items.getBySource(sourceId).map { it.external_id }.sorted())
-            assertEquals(1, sources.getById(sourceId)!!.last_pages_seen_count)
+            assertEquals(listOf(null, "cursor-2", "cursor-3"), connector.cursors)
+            assertEquals(listOf("post-1", "post-2", "post-3"), items.getBySource(sourceId).map { it.external_id }.sorted())
+            assertEquals(3, sources.getById(sourceId)!!.last_pages_seen_count)
         }
     }
 
@@ -484,7 +545,7 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
-    fun fullRescanUsesUnifiedBatchPolicyForQueuedCompatibility() = runBlocking {
+    fun fullRescanUsesUnifiedBackfillPolicyWhenLatestPageIsUnchanged() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
             items.upsertDraft(sourceId, xDraft("post-1"))
@@ -506,9 +567,9 @@ class FavoriteSyncServiceTest {
 
             service.syncSource(sourceId, FavoriteSyncMode.full_rescan)
 
-            assertEquals(listOf<String?>(null), connector.cursors)
-            assertEquals(listOf("post-1"), items.getBySource(sourceId).map { it.external_id }.sorted())
-            assertEquals(1, sources.getById(sourceId)!!.last_pages_seen_count)
+            assertEquals(listOf(null, "cursor-2", "cursor-3"), connector.cursors)
+            assertEquals(listOf("post-1", "post-2", "post-3"), items.getBySource(sourceId).map { it.external_id }.sorted())
+            assertEquals(3, sources.getById(sourceId)!!.last_pages_seen_count)
         }
     }
 
@@ -543,10 +604,115 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
-    fun organizerMarksLinkedPendingAiItemsNotNeeded() = runBlocking {
+    fun syncRepairsOldPlaceholderBeforeOrganizingSoItIsProcessedInSameRun() = runBlocking {
         withRepositories { _, sources, items, articles ->
             val sourceId = saveXSource(sources)
-            val (item, _) = items.upsertDraft(sourceId, xDraft("post-1"))
+            val (item, _) = items.upsertDraft(sourceId, xDraft("post-placeholder", text = "旧占位原文"))
+            val articleId = articles.insert(
+                title = "X 收藏",
+                aiContent = "旧占位原文",
+                aiMarkdownContent = """
+                    # X 收藏
+
+                    ## 原文
+
+                    - 作者：Author
+                    - 时间：2023-11-14T22:13:20Z
+                    - 链接：https://x.com/daily/status/post-placeholder
+
+                    旧占位原文
+
+                    ## AI 整理
+
+                    待整理
+                """.trimIndent(),
+                url = "https://x.com/daily/status/post-placeholder",
+                isFavorite = 0,
+                status = "completed",
+            )
+            items.markImported(item.id, articleId, duplicateLinked = false)
+            items.markAiState(item.id, ExternalItemAiStatus.completed.name)
+            val connector = FakeConnector(
+                pages = listOf(FavoriteFetchPage(emptyList(), null)),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importer = ExternalFavoriteImporter(items, articles),
+                organizer = ExternalFavoriteAiOrganizer(
+                    itemRepo = items,
+                    articleRepo = articles,
+                    generateAnalysis = {
+                        ExternalFavoriteAiAnalysis("AI 标题", "AI 摘要", "AI 正文")
+                    },
+                ),
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals("completed", items.getBySource(sourceId).single().ai_status)
+            assertTrue(articles.getById(articleId)!!.ai_markdown_content.orEmpty().contains("AI 正文"))
+        }
+    }
+
+    @Test
+    fun syncOrganizesPendingAiOnlyForSyncedSource() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceA = saveXSource(sources, accountId = "acct-a")
+            val sourceB = saveXSource(sources, accountId = "acct-b")
+            val (itemA, _) = items.upsertDraft(sourceA, xDraft("post-a", text = "source A text"))
+            val (itemB, _) = items.upsertDraft(sourceB, xDraft("post-b", text = "source B text"))
+            val articleA = articles.insert(
+                title = "A",
+                aiContent = "source A text",
+                aiMarkdownContent = "# X 收藏\n\n## 原文\n\nsource A text\n\n## AI 整理\n\n待整理",
+                url = "https://x.com/daily/status/post-a",
+                status = "completed",
+            )
+            val articleB = articles.insert(
+                title = "B",
+                aiContent = "source B text",
+                aiMarkdownContent = "# X 收藏\n\n## 原文\n\nsource B text\n\n## AI 整理\n\n待整理",
+                url = "https://x.com/daily/status/post-b",
+                status = "completed",
+            )
+            items.markImported(itemA.id, articleA, duplicateLinked = false)
+            items.markImported(itemB.id, articleB, duplicateLinked = false)
+            val connector = FakeConnector(
+                pages = listOf(FavoriteFetchPage(emptyList(), null)),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { _, _ -> 0 },
+                organizePendingForSource = { scopedSourceId, limit ->
+                    assertEquals(sourceA, scopedSourceId)
+                    ExternalFavoriteAiOrganizer(
+                        itemRepo = items,
+                        articleRepo = articles,
+                        generateAnalysis = {
+                            ExternalFavoriteAiAnalysis("AI ${it.text}", "摘要 ${it.text}", "正文 ${it.text}")
+                        },
+                    ).organizePendingForSource(scopedSourceId, limit)
+                },
+            )
+
+            service.syncSource(sourceA, FavoriteSyncMode.sync)
+
+            assertEquals("completed", items.getBySource(sourceA).single().ai_status)
+            assertEquals("pending", items.getBySource(sourceB).single().ai_status)
+            assertTrue(articles.getById(articleA)!!.ai_markdown_content.orEmpty().contains("source A text"))
+            assertEquals("# X 收藏\n\n## 原文\n\nsource B text\n\n## AI 整理\n\n待整理", articles.getById(articleB)!!.ai_markdown_content)
+        }
+    }
+
+    @Test
+    fun organizerUsesExternalFavoriteContentForAiAndCompletesLinkedArticle() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            val (item, _) = items.upsertDraft(sourceId, xDraft("post-1", text = "原文内容"))
             val articleId = articles.insert(
                 title = "Imported favorite",
                 aiContent = "summary",
@@ -567,10 +733,90 @@ class FavoriteSyncServiceTest {
             )
             items.markImported(item.id, articleId, duplicateLinked = false)
 
-            val organized = ExternalFavoriteAiOrganizer(items, articles).organizePending(limit = 10)
+            val organized = ExternalFavoriteAiOrganizer(
+                itemRepo = items,
+                articleRepo = articles,
+                generateAnalysis = { input ->
+                    assertEquals("原文内容", input.text)
+                    ExternalFavoriteAiAnalysis(
+                        title = "AI 标题",
+                        summary = "AI 摘要",
+                        markdown = "AI 正文整理",
+                    )
+                },
+            ).organizePending(limit = 10)
 
             assertEquals(1, organized)
-            assertEquals("not_needed", items.getBySource(sourceId).single().ai_status)
+            assertEquals("completed", items.getBySource(sourceId).single().ai_status)
+            articles.getById(articleId)!!.let { article ->
+                assertEquals("AI 标题", article.ai_title)
+                assertEquals("AI 摘要", article.ai_content)
+                assertEquals("completed", article.status)
+                assertTrue(article.ai_markdown_content.orEmpty().contains("## 原文"))
+                assertTrue(article.ai_markdown_content.orEmpty().contains("原文内容"))
+                assertTrue(article.ai_markdown_content.orEmpty().contains("## AI 整理"))
+                assertTrue(article.ai_markdown_content.orEmpty().contains("AI 正文整理"))
+            }
+        }
+    }
+
+    @Test
+    fun organizerDoesNotRetryFailedAiItemsDuringNormalSyncBudget() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            val (item, _) = items.upsertDraft(sourceId, xDraft("post-failed", text = "failed text"))
+            val articleId = articles.insert(
+                title = "Failed favorite",
+                aiContent = "failed text",
+                aiMarkdownContent = "# X 收藏\n\n## 原文\n\nfailed text\n\n## AI 整理\n\n待整理",
+                url = "https://x.com/daily/status/post-failed",
+                status = "completed",
+            )
+            items.markImported(item.id, articleId, duplicateLinked = false)
+            items.markAiState(item.id, ExternalItemAiStatus.failed.name, "ai_failed", "previous failure")
+            var aiCalls = 0
+
+            val organized = ExternalFavoriteAiOrganizer(
+                itemRepo = items,
+                articleRepo = articles,
+                generateAnalysis = {
+                    aiCalls += 1
+                    ExternalFavoriteAiAnalysis("AI title", "AI summary", "AI markdown")
+                },
+            ).organizePendingForSource(sourceId, limit = 10, includeFailed = false)
+
+            assertEquals(0, organized)
+            assertEquals(0, aiCalls)
+            assertEquals("failed", items.getBySource(sourceId).single().ai_status)
+        }
+    }
+
+    @Test
+    fun organizerRetriesFailedAiItemsWhenExplicitlyRequested() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            val (item, _) = items.upsertDraft(sourceId, xDraft("post-failed-retry", text = "retry text"))
+            val articleId = articles.insert(
+                title = "Retry favorite",
+                aiContent = "retry text",
+                aiMarkdownContent = "# X 收藏\n\n## 原文\n\nretry text\n\n## AI 整理\n\n待整理",
+                url = "https://x.com/daily/status/post-failed-retry",
+                status = "completed",
+            )
+            items.markImported(item.id, articleId, duplicateLinked = false)
+            items.markAiState(item.id, ExternalItemAiStatus.failed.name, "ai_failed", "previous failure")
+
+            val organized = ExternalFavoriteAiOrganizer(
+                itemRepo = items,
+                articleRepo = articles,
+                generateAnalysis = {
+                    ExternalFavoriteAiAnalysis("Retry AI title", "Retry AI summary", "Retry AI markdown")
+                },
+            ).organizePendingForSource(sourceId, limit = 10, includeFailed = true)
+
+            assertEquals(1, organized)
+            assertEquals("completed", items.getBySource(sourceId).single().ai_status)
+            assertTrue(articles.getById(articleId)!!.ai_markdown_content.orEmpty().contains("Retry AI markdown"))
         }
     }
 
@@ -644,6 +890,8 @@ class FavoriteSyncServiceTest {
             supportsWriteBack = false,
             supportsRefreshToken = true,
         )
+
+        const val IMPORT_RETRY_EXPECTED_LIMIT = 50L
     }
 
     private open class FakeConnector(

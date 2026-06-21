@@ -312,14 +312,24 @@ SELECT * FROM article WHERE status = ? ORDER BY created_at DESC;
 
 selectRecoverableArticles:
 SELECT * FROM article
-WHERE status IN ('pending', 'webContentFetched', 'aiProcessing')
-   OR (status = 'error' AND lower(coalesce(ai_content, '')) LIKE '%cancelled%')
-   OR (
-       status = 'error'
-       AND ai_content = 'AI summary generation returned empty result'
-       AND ai_markdown_content IS NOT NULL
-       AND trim(ai_markdown_content) != ''
-   )
+WHERE NOT EXISTS (
+    SELECT 1 FROM external_favorite_item
+    WHERE external_favorite_item.article_id = article.id
+      AND article.ai_markdown_content LIKE '# X 收藏%'
+      AND article.ai_markdown_content LIKE '%## 原文%'
+      AND article.ai_markdown_content LIKE '%## AI 整理%'
+      AND article.ai_markdown_content LIKE '%待整理'
+)
+  AND (
+      status IN ('pending', 'webContentFetched', 'aiProcessing')
+      OR (status = 'error' AND lower(coalesce(ai_content, '')) LIKE '%cancelled%')
+      OR (
+          status = 'error'
+          AND ai_content = 'AI summary generation returned empty result'
+          AND ai_markdown_content IS NOT NULL
+          AND trim(ai_markdown_content) != ''
+      )
+  )
 ORDER BY updated_at ASC;
 
 selectArticlesByTag:
@@ -819,7 +829,8 @@ SELECT * FROM external_favorite_item WHERE source_id = ? ORDER BY first_seen_at 
 
 selectExternalFavoriteItemsPendingImport:
 SELECT * FROM external_favorite_item
-WHERE import_status IN ('not_imported', 'failed')
+WHERE import_status = 'not_imported'
+   OR (import_status = 'failed' AND last_error_code != 'missing_url')
    OR (article_id IS NULL AND import_status IN ('imported', 'duplicate_linked'))
 ORDER BY first_seen_at DESC
 LIMIT ?;
@@ -828,7 +839,8 @@ selectExternalFavoriteItemsPendingImportBySource:
 SELECT * FROM external_favorite_item
 WHERE source_id = ?
   AND (
-    import_status IN ('not_imported', 'failed')
+    import_status = 'not_imported'
+    OR (import_status = 'failed' AND last_error_code != 'missing_url')
     OR (article_id IS NULL AND import_status IN ('imported', 'duplicate_linked'))
   )
 ORDER BY first_seen_at DESC
@@ -836,7 +848,25 @@ LIMIT ?;
 
 selectExternalFavoriteItemsPendingAi:
 SELECT * FROM external_favorite_item
+WHERE ai_status = 'pending' AND article_id IS NOT NULL
+ORDER BY first_seen_at DESC
+LIMIT ?;
+
+selectExternalFavoriteItemsPendingAiBySource:
+SELECT * FROM external_favorite_item
+WHERE source_id = ? AND ai_status = 'pending' AND article_id IS NOT NULL
+ORDER BY first_seen_at DESC
+LIMIT ?;
+
+selectExternalFavoriteItemsRetryableAi:
+SELECT * FROM external_favorite_item
 WHERE ai_status IN ('pending', 'failed') AND article_id IS NOT NULL
+ORDER BY first_seen_at DESC
+LIMIT ?;
+
+selectExternalFavoriteItemsRetryableAiBySource:
+SELECT * FROM external_favorite_item
+WHERE source_id = ? AND ai_status IN ('pending', 'failed') AND article_id IS NOT NULL
 ORDER BY first_seen_at DESC
 LIMIT ?;
 

@@ -3,7 +3,6 @@ package com.dailysatori.ui.feature.remotenews
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -11,21 +10,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.PagerState
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
@@ -42,19 +45,14 @@ import com.dailysatori.service.parser.normalizeArticleMarkdownImages
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.dailysatori.service.remotenews.RemoteArticle
-import com.dailysatori.ui.component.content.MarkdownTabPager
-import com.dailysatori.ui.component.news.MagazineArticleBody
-import com.dailysatori.ui.component.news.MagazineArticleHeader
-import com.dailysatori.ui.component.news.MagazineArticleTabSelector
+import com.dailysatori.ui.component.news.ArticleReaderBody
+import com.dailysatori.ui.component.news.ArticleReaderHeader
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.feature.article.articleCoverHeightAfterScroll
 import com.dailysatori.ui.feature.article.articleCoverMaxHeightDp
 import com.dailysatori.ui.feature.article.openArticleUrl
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Spacing
-import kotlinx.coroutines.launch
-
-private val remoteArticleDetailTabTitles = listOf("AI 摘要", "原文")
 
 @Composable
 fun RemoteArticleDetailScreen(
@@ -65,37 +63,39 @@ fun RemoteArticleDetailScreen(
     showFavoriteAction: Boolean = false,
 ) {
     val density = LocalDensity.current
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    var showMenu by remember { mutableStateOf(false) }
+    var showOriginalSheet by remember { mutableStateOf(false) }
     var coverHeightDp by remember { mutableIntStateOf(articleCoverMaxHeightDp) }
-    val pagerState = rememberPagerState(pageCount = { 2 })
-    val coroutineScope = rememberCoroutineScope()
-
-    LaunchedEffect(pagerState.currentPage) {
-        if (selectedTabIndex != pagerState.currentPage) selectedTabIndex = pagerState.currentPage
-    }
-
-    LaunchedEffect(selectedTabIndex) {
-        if (pagerState.currentPage != selectedTabIndex) pagerState.animateScrollToPage(selectedTabIndex)
-    }
 
     BackHandler(onBack = onBack)
 
     AppScaffold(
         title = article.domain ?: article.feedName ?: "文章",
         onBack = onBack,
-        actions = { RemoteArticleDetailActions(article, isFavorite, showFavoriteAction, onFavoriteClick) },
+        actions = {
+            RemoteArticleDetailActions(
+                article = article,
+                isFavorite = isFavorite,
+                showFavoriteAction = showFavoriteAction,
+                expanded = showMenu,
+                onExpandedChange = { showMenu = it },
+                onOriginalClick = { showOriginalSheet = true },
+                onFavoriteClick = onFavoriteClick,
+            )
+        },
     ) { modifier ->
         Column(modifier = modifier.fillMaxSize()) {
             RemoteArticleDetailPager(
                 article = article,
-                pagerState = pagerState,
-                selectedTabIndex = selectedTabIndex,
                 coverHeightDp = coverHeightDp,
                 onCoverHeightChange = { coverHeightDp = it },
                 density = density,
-                onTabSelected = { index -> coroutineScope.launch { pagerState.animateScrollToPage(index) } },
             )
         }
+    }
+
+    if (showOriginalSheet) {
+        RemoteArticleOriginalBottomSheet(article = article, onDismiss = { showOriginalSheet = false })
     }
 }
 
@@ -104,53 +104,92 @@ private fun RemoteArticleDetailActions(
     article: RemoteArticle,
     isFavorite: Boolean,
     showFavoriteAction: Boolean,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onOriginalClick: () -> Unit,
     onFavoriteClick: () -> Unit,
 ) {
-    val context = LocalContext.current
-    if (showFavoriteAction) {
-        IconButton(onClick = onFavoriteClick) {
+    Box {
+        IconButton(onClick = { onExpandedChange(true) }) {
+            Icon(Icons.Default.MoreVert, contentDescription = "更多操作")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
+            RemoteArticleOriginalMenuItem(onExpandedChange, onOriginalClick)
+            if (showFavoriteAction) {
+                RemoteArticleFavoriteMenuItem(isFavorite, onExpandedChange, onFavoriteClick)
+            }
+            RemoteArticleOpenMenuItem(article, onExpandedChange)
+        }
+    }
+}
+
+@Composable
+private fun RemoteArticleOriginalMenuItem(onExpandedChange: (Boolean) -> Unit, onOriginalClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text("查看原文") },
+        leadingIcon = { Icon(Icons.Default.Article, contentDescription = null) },
+        onClick = {
+            onExpandedChange(false)
+            onOriginalClick()
+        },
+    )
+}
+
+@Composable
+private fun RemoteArticleFavoriteMenuItem(
+    isFavorite: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onFavoriteClick: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text(if (isFavorite) "取消收藏" else "收藏") },
+        leadingIcon = {
             Icon(
                 if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                 contentDescription = if (isFavorite) "取消收藏" else "收藏",
                 tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-    }
-    IconButton(onClick = { openArticleUrl(context, article.url) }) {
-        Icon(Icons.Default.OpenInBrowser, contentDescription = "在浏览器打开")
-    }
+        },
+        onClick = {
+            onExpandedChange(false)
+            onFavoriteClick()
+        },
+    )
 }
 
 @Composable
-private fun ColumnScope.RemoteArticleDetailPager(
+private fun RemoteArticleOpenMenuItem(article: RemoteArticle, onExpandedChange: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    DropdownMenuItem(
+        text = { Text("在浏览器打开") },
+        leadingIcon = { Icon(Icons.Default.OpenInBrowser, contentDescription = null) },
+        onClick = {
+            onExpandedChange(false)
+            openArticleUrl(context, article.url)
+        },
+    )
+}
+
+@Composable
+private fun RemoteArticleDetailPager(
     article: RemoteArticle,
-    pagerState: PagerState,
-    selectedTabIndex: Int,
     coverHeightDp: Int,
     onCoverHeightChange: (Int) -> Unit,
     density: Density,
-    onTabSelected: (Int) -> Unit,
 ) {
     val coverImage = article.coverUrl
     val hasCover = !coverImage.isNullOrBlank()
-    MarkdownTabPager(pagerState = pagerState, modifier = Modifier.weight(1f)) { page ->
-        RemoteArticleDetailPage(
-            article, page, selectedTabIndex, coverImage, hasCover, coverHeightDp, onCoverHeightChange, density, onTabSelected,
-        )
-    }
+    RemoteArticleDetailPage(article, coverImage, hasCover, coverHeightDp, onCoverHeightChange, density)
 }
 
 @Composable
 private fun RemoteArticleDetailPage(
     article: RemoteArticle,
-    page: Int,
-    selectedTabIndex: Int,
     coverImage: String?,
     hasCover: Boolean,
     coverHeightDp: Int,
     onCoverHeightChange: (Int) -> Unit,
     density: Density,
-    onTabSelected: (Int) -> Unit,
 ) {
     val listState = rememberLazyListState()
     val nestedScrollConnection = rememberRemoteArticleDetailNestedScrollConnection(
@@ -160,20 +199,19 @@ private fun RemoteArticleDetailPage(
         if (hasCover && coverHeightDp > 0) {
             RemoteArticleCoverImage(imageUrl = coverImage.orEmpty(), modifier = Modifier.fillMaxWidth().height(coverHeightDp.dp))
         }
-        MagazineArticleHeader(remoteArticleDisplayTitle(article), remoteArticleMetaChips(article), intro = null)
-        MagazineArticleTabSelector(remoteArticleDetailTabTitles, selectedTabIndex, onTabSelected)
+        ArticleReaderHeader(remoteArticleDisplayTitle(article), remoteArticleMetaChips(article))
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(nestedScrollConnection)) {
-            item(key = "remote-content-$page") { RemoteArticleDetailBody(article, page) }
+            item(key = "remote-summary-content") { RemoteArticleDetailBody(article) }
         }
     }
 }
 
 @Composable
-private fun RemoteArticleDetailBody(article: RemoteArticle, page: Int) {
+private fun RemoteArticleDetailBody(article: RemoteArticle) {
     Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)) {
-        MagazineArticleBody(
+        ArticleReaderBody(
             content = remoteArticleDetailPageContent(
-                page = page,
+                page = 0,
                 summary = article.summary,
                 viewpoints = article.viewpoints,
                 original = article.content,
@@ -182,6 +220,25 @@ private fun RemoteArticleDetailBody(article: RemoteArticle, page: Int) {
             typography = MarkdownStyles.remoteArticleTypography(),
             padding = MarkdownStyles.remoteArticlePadding(),
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RemoteArticleOriginalBottomSheet(article: RemoteArticle, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            "原文",
+            modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s),
+            style = MaterialTheme.typography.titleLarge,
+        )
+        Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)) {
+            ArticleReaderBody(
+                content = remoteArticleOriginalPageContent(article.content, listOfNotNull(article.coverUrl)),
+                typography = MarkdownStyles.remoteArticleTypography(),
+                padding = MarkdownStyles.remoteArticlePadding(),
+            )
+        }
     }
 }
 
@@ -226,7 +283,7 @@ private fun remoteArticleSummaryPageContent(summary: String?, viewpoints: List<S
 
     return listOfNotNull(
         summaryContent,
-        viewpointContent.takeIf { it.isNotBlank() }?.let { "## 关键观点\n\n$it" },
+        viewpointContent.takeIf { it.isNotBlank() },
     ).joinToString(separator = "\n\n").ifBlank { "暂无摘要内容，请刷新当前来源后重试。" }
 }
 

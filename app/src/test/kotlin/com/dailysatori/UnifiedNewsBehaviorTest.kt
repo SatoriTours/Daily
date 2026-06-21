@@ -792,16 +792,19 @@ class UnifiedNewsBehaviorTest {
     fun remoteArticleDetailUsesReadableArticleLayout() {
         val screen = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
 
-        assertTrue(screen.contains("MarkdownTabPager"))
-        assertTrue(screen.contains("MagazineArticleTabSelector"))
-        assertTrue(screen.contains("AI 摘要"))
+        assertFalse(screen.contains("MarkdownTabPager"))
+        assertFalse(screen.contains("MagazineArticleTabSelector"))
+        assertTrue(screen.contains("RemoteArticleOriginalBottomSheet("))
+        assertTrue(screen.contains("RemoteArticleOriginalMenuItem("))
+        assertTrue(screen.contains("Icons.Default.MoreVert"))
         assertTrue(screen.contains("原文"))
-        assertTrue(screen.contains("MagazineArticleHeader("))
-        assertTrue(screen.contains("MagazineArticleBody("))
+        assertTrue(screen.contains("ArticleReaderHeader("))
+        assertTrue(screen.contains("ArticleReaderBody("))
+        assertFalse(screen.contains("MagazineArticleHeader("))
+        assertFalse(screen.contains("MagazineArticleBody("))
         assertTrue(screen.contains("MarkdownStyles.remoteArticleTypography()"))
         assertTrue(screen.contains("MarkdownStyles.remoteArticlePadding()"))
         assertTrue(screen.contains("Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)"))
-        assertFalse(screen.substringAfter("item(key = \"remote-content-${'$'}page\")").substringBefore("RemoteArticleDetailBody(").contains("Modifier.padding(Spacing.m)"))
         assertFalse(screen.contains("RemoteArticleHeroCard"))
         assertFalse(screen.contains("RemoteArticleMetaChips"))
         assertFalse(screen.contains("RemoteArticleViewpointsSection"))
@@ -811,19 +814,24 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun articleDetailsUseSharedMarkdownTabPager() {
+    fun articleDetailsUseSingleSummaryStreamAndOriginalSheets() {
         val localDetail = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
         val remoteDetail = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteArticleDetailScreen.kt").readText()
-        val sharedPager = java.io.File("src/main/kotlin/com/dailysatori/ui/component/content/MarkdownTabPager.kt")
 
-        assertTrue(sharedPager.exists())
-        assertTrue(localDetail.contains("MarkdownTabPager("))
-        assertTrue(remoteDetail.contains("MarkdownTabPager("))
+        assertFalse(localDetail.contains("MarkdownTabPager("))
+        assertFalse(remoteDetail.contains("MarkdownTabPager("))
+        assertFalse(localDetail.contains("MagazineArticleTabSelector("))
+        assertFalse(remoteDetail.contains("MagazineArticleTabSelector("))
+        assertTrue(localDetail.contains("ArticleOriginalBottomSheet("))
+        assertTrue(remoteDetail.contains("RemoteArticleOriginalBottomSheet("))
+        assertTrue(localDetail.contains("ArticleOriginalMenuItem("))
+        assertTrue(remoteDetail.contains("RemoteArticleOriginalMenuItem("))
         assertFalse(localDetail.contains("ArticleMarkdownTabRow"))
         assertFalse(localDetail.contains("private fun ArticleTabRow"))
         assertFalse(localDetail.contains("private fun ArticleMarkdownTabRow"))
         assertFalse(remoteDetail.contains("private fun RemoteArticleTabRow"))
-        assertTrue(remoteDetail.substringAfter("MarkdownTabPager(").contains("RemoteArticleDetailBody("))
+        assertTrue(localDetail.contains("Icons.Default.MoreVert"))
+        assertTrue(remoteDetail.contains("Icons.Default.MoreVert"))
         assertTrue(remoteDetail.contains("MarkdownStyles.remoteArticleTypography()"))
     }
 
@@ -2297,7 +2305,7 @@ class UnifiedNewsBehaviorTest {
         )
 
         assertTrue(content.contains("AI 摘要内容"))
-        assertTrue(content.contains("## 关键观点"))
+        assertFalse(content.contains("## 关键观点"))
         assertTrue(content.contains("- 观点一"))
         assertTrue(content.contains("- 观点二"))
         assertFalse(content.contains("原文内容"))

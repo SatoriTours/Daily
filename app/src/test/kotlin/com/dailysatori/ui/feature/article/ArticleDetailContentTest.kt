@@ -19,8 +19,29 @@ class ArticleDetailContentTest {
 
     @Test
     fun trimsOuterWhitespaceBeforeRenderingMarkdown() {
-        assertEquals("# 标题\n正文", articleDetailPageContent(0, "\n\n# 标题\n正文\n", null))
+        assertEquals("正文", articleDetailPageContent(0, "\n\n# 标题\n正文\n", null))
         assertEquals("原文", articleDetailPageContent(1, null, "\n\n原文\n"))
+    }
+
+    @Test
+    fun summaryContentRemovesGeneratedTitleAndGuideHeadingsBeforeRendering() {
+        assertEquals(
+            "这是一段摘要。\n\n1. 第一个要点\n2. 第二个要点",
+            articleDetailPageContent(
+                page = 0,
+                summary = """
+                    # AI 浏览器正在重新定义个人知识入口
+
+                    ## 核心内容
+                    这是一段摘要。
+
+                    ## 核心观点
+                    1. 第一个要点
+                    2. 第二个要点
+                """.trimIndent(),
+                original = null,
+            ),
+        )
     }
 
     @Test

@@ -20,7 +20,10 @@ class FavoriteSyncService(
     private val importer: ExternalFavoriteImporter? = null,
     private val organizer: ExternalFavoriteAiOrganizer? = null,
     private val importPending: (Long) -> Int = { limit -> importer?.importPending(limit) ?: 0 },
-    private val organizePending: (Long) -> Int = { limit -> organizer?.organizePending(limit) ?: 0 },
+    private val organizePending: suspend (Long) -> Int = { limit -> organizer?.organizePending(limit) ?: 0 },
+    private val organizePendingForSource: suspend (Long, Long) -> Int = { scopedSourceId, limit ->
+        organizer?.organizePendingForSource(scopedSourceId, limit) ?: organizePending(limit)
+    },
     private val importPendingForSource: (Long, Long) -> Int = { scopedSourceId, limit ->
         importer?.importPendingForSource(scopedSourceId, limit) ?: importPending(limit)
     },
@@ -92,7 +95,7 @@ class FavoriteSyncService(
         runLocalWork(sourceId, policy, result)
     }
 
-    private fun runLocalWork(sourceId: Long, policy: SyncPolicy, result: SyncRunResult) {
+    private suspend fun runLocalWork(sourceId: Long, policy: SyncPolicy, result: SyncRunResult) {
         runCatching {
             val importLimit = policy.importLimit(result.changedItems)
             if (importLimit > 0) {
@@ -100,13 +103,17 @@ class FavoriteSyncService(
             }
         }
         runCatching {
-            organizePending(policy.aiBudget)
+            repairImportedPlaceholderArticles(IMPORT_RETRY_LIMIT)
         }
         runCatching {
             repairImportedArticleCovers(IMPORT_RETRY_LIMIT)
         }
         runCatching {
-            repairImportedPlaceholderArticles(IMPORT_RETRY_LIMIT)
+            if (organizer != null) {
+                organizer.organizePendingForSource(sourceId, policy.aiBudget, includeFailed = policy.includeFailedAi)
+            } else {
+                organizePendingForSource(sourceId, policy.aiBudget)
+            }
         }
     }
 
@@ -193,8 +200,8 @@ class FavoriteSyncService(
                     reportProgress("complete")
                 }
                 latest.changedItems == 0 -> {
-                    if (!historyComplete && historyCursor != null && hasBudget()) {
-                        var cursor = historyCursor
+                    if (!historyComplete && hasBudget()) {
+                        var cursor = historyCursor ?: latest.page.nextCursor
                         while (cursor != null && hasBudget()) {
                             val pageResult = fetchOne(cursor)
                             cursor = pageResult.page.nextCursor
@@ -210,7 +217,13 @@ class FavoriteSyncService(
                             historyComplete = false
                             persistProgress()
                         }
-                    } else if (!historyComplete && historyCursor == null) {
+                        if (cursor == null && !historyComplete) {
+                            historyCursor = null
+                            historyComplete = true
+                            persistProgress()
+                            reportProgress("complete")
+                        }
+                    } else if (!historyComplete) {
                         historyCursor = latest.page.nextCursor
                         historyComplete = latest.page.nextCursor == null
                         persistProgress()
@@ -293,24 +306,27 @@ class FavoriteSyncService(
                 maxPages = cappedPages,
                 maxItems = cappedItems,
                 earlyStopOnUnchanged = true,
-                importLimit = { changedItems -> changedItems.toLong() },
+                importLimit = { changedItems -> maxOf(changedItems.toLong(), IMPORT_RETRY_LIMIT) },
                 aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,
+                includeFailedAi = false,
             )
             FavoriteSyncMode.history -> SyncPolicy(
                 shouldFetch = true,
                 maxPages = cappedPages,
                 maxItems = cappedItems,
                 earlyStopOnUnchanged = true,
-                importLimit = { changedItems -> changedItems.toLong() },
+                importLimit = { changedItems -> maxOf(changedItems.toLong(), IMPORT_RETRY_LIMIT) },
                 aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,
+                includeFailedAi = false,
             )
             FavoriteSyncMode.full_rescan -> SyncPolicy(
                 shouldFetch = true,
                 maxPages = cappedPages,
                 maxItems = cappedItems,
                 earlyStopOnUnchanged = true,
-                importLimit = { changedItems -> changedItems.toLong() },
+                importLimit = { changedItems -> maxOf(changedItems.toLong(), IMPORT_RETRY_LIMIT) },
                 aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,
+                includeFailedAi = false,
             )
             FavoriteSyncMode.retry_failed -> SyncPolicy(
                 shouldFetch = false,
@@ -319,6 +335,7 @@ class FavoriteSyncService(
                 earlyStopOnUnchanged = false,
                 importLimit = { IMPORT_RETRY_LIMIT },
                 aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,
+                includeFailedAi = true,
             )
         }
     }
@@ -330,6 +347,7 @@ class FavoriteSyncService(
         val earlyStopOnUnchanged: Boolean,
         val importLimit: (changedItems: Int) -> Long,
         val aiBudget: Long,
+        val includeFailedAi: Boolean,
     )
 
     private data class SyncRunResult(

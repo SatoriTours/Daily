@@ -518,7 +518,7 @@ class WebpageParserService(
                         return@forEach
                     }
                     try {
-                        val extracted = article.url?.let { extractContent(it) }
+                        val extracted = existingArticleOriginalExtractedContent(article) ?: article.url?.let { extractContent(it) }
                         if (extracted != null) {
                             articleRepo.update(
                                 id = article.id,
@@ -598,7 +598,7 @@ class WebpageParserService(
         setProcessingState(articleId, "pending")
 
         try {
-            val extracted = extractContent(url)
+            val extracted = existingArticleOriginalExtractedContent(article) ?: extractContent(url)
 
             articleRepo.update(
                 id = articleId,
@@ -704,7 +704,7 @@ class WebpageParserService(
                     val article = articleRepo.getById(articleId)
                     if (article != null && isRecoverableArticleForProcessing(article.status, article.ai_content, article.ai_markdown_content)) {
                         setProcessingState(articleId, "pending")
-                        val extracted = article.url?.let { extractContent(it) }
+                        val extracted = existingArticleOriginalExtractedContent(article) ?: article.url?.let { extractContent(it) }
                         if (extracted != null) {
                             articleRepo.update(
                                 id = articleId,
@@ -957,10 +957,11 @@ class WebpageParserService(
         modelName: String,
         provider: String,
     ): String {
-        if (htmlContent.isBlank()) return generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content)
+        val markdownInput = articleMarkdownInput(extracted, modelName)
+        if (markdownInput.isBlank()) return generatedMarkdownOrFallback("", article.ai_markdown_content, extracted?.content)
         return try {
             val markdown = aiService.htmlToMarkdown(
-                articleMarkdownInput(extracted, modelName),
+                markdownInput,
                 htmlToReadableMarkdownPrompt(),
                 apiAddress, apiToken, modelName, provider,
             )
@@ -1055,7 +1056,7 @@ class WebpageParserService(
             state[articleId] = ArticleProcessingState(articleId, "pending")
             _processingStates.value = state
 
-            val extracted = extractContent(url)
+            val extracted = existingArticleOriginalExtractedContent(article) ?: extractContent(url)
 
             articleRepo.update(
                 id = articleId,
@@ -1112,7 +1113,7 @@ class WebpageParserService(
         val article = articleRepo.getById(articleId) ?: throw Exception("Article not found: $articleId")
         articleRepo.update(
             id = articleId, title = article.title, aiTitle = "",
-            aiContent = "", aiMarkdownContent = "",
+            aiContent = "", aiMarkdownContent = article.ai_markdown_content,
             url = article.url, isFavorite = article.is_favorite ?: 0L, comment = article.comment,
             status = "webContentFetched", coverImage = article.cover_image,
             coverImageUrl = article.cover_image_url, pubDate = article.pub_date,
@@ -1120,7 +1121,7 @@ class WebpageParserService(
         val state = mutableMapOf<Long, ArticleProcessingState>()
         state[articleId] = ArticleProcessingState(articleId, "webContentFetched")
         _processingStates.value = state
-        processAiTasksAsync(articleId)
+        processAiTasksAsync(articleId, existingArticleOriginalExtractedContent(article))
     }
 
     private suspend fun updateArticleStatus(article: Article, status: String) {
@@ -1225,7 +1226,7 @@ private fun String.htmlFragmentToText(): String = this
 internal fun parseArticleSummaryOutput(output: String): ParsedArticleSummary {
     val coverRegex = Regex("""(?im)^\s*COVER_IMAGE_URL\s*:\s*(\S*)\s*$""")
     val coverImageUrl = coverRegex.find(output)?.groupValues?.get(1)?.takeIf { it.isNotBlank() }
-    val summary = output.replace(coverRegex, "").trim()
+    val summary = sanitizeArticleSummaryMarkdown(output.replace(coverRegex, ""))
     return ParsedArticleSummary(summary = summary, coverImageUrl = coverImageUrl)
 }
 
@@ -1234,7 +1235,7 @@ internal fun parseArticleAnalysisOutput(output: String): ArticleAnalysisResult {
         ?: throw IllegalStateException("AI analysis output is not JSON")
     val obj = articleJson.parseToJsonElement(jsonText).jsonObject
     val title = obj.stringValue("title") ?: obj.stringValue("chinese_title")
-    val summary = obj.stringValue("summary").orEmpty().trim()
+    val summary = sanitizeArticleSummaryMarkdown(obj.stringValue("summary").orEmpty())
     val markdown = obj.stringValue("markdown").orEmpty().trim()
     if (summary.isBlank()) throw IllegalStateException("AI analysis summary is blank")
     if (markdown.isBlank()) throw IllegalStateException("AI analysis markdown is blank")
@@ -1244,6 +1245,21 @@ internal fun parseArticleAnalysisOutput(output: String): ArticleAnalysisResult {
         markdown = markdown,
     )
 }
+
+internal fun sanitizeArticleSummaryMarkdown(markdown: String): String {
+    val lines = markdown.trim().lines()
+    val cleaned = lines
+        .dropWhile { line -> line.trim().isBlank() || line.trim().matches(Regex("""#{1,6}\s+.+""")) }
+        .filterNot { line -> line.trim().matches(generatedSummaryGuideHeadingRegex) }
+        .joinToString("\n")
+        .replace(Regex("\n{3,}"), "\n\n")
+        .trim()
+    return cleaned.ifBlank { markdown.trim() }
+}
+
+private val generatedSummaryGuideHeadingRegex = Regex(
+    """#{1,6}\s*(?:标题|核心内容|核心观点|核心观点[:：]?.*|核心内容[:：]?.*)\s*""",
+)
 
 private fun JsonObject.stringValue(name: String): String? =
     this[name]?.jsonPrimitive?.contentOrNull
@@ -1303,6 +1319,35 @@ internal fun articleSummaryInput(extracted: ExtractedContent?, modelName: String
 }
 
 internal fun articleTitleInput(extracted: ExtractedContent?, modelName: String): String = articleSummaryInput(extracted, modelName)
+
+internal fun existingArticleOriginalExtractedContent(article: Article): ExtractedContent? =
+    existingArticleOriginalExtractedContent(
+        title = article.title,
+        aiTitle = article.ai_title,
+        aiContent = article.ai_content,
+        aiMarkdownContent = article.ai_markdown_content,
+        coverImageUrl = article.cover_image_url,
+    )
+
+internal fun existingArticleOriginalExtractedContent(
+    title: String?,
+    aiTitle: String?,
+    aiContent: String?,
+    aiMarkdownContent: String?,
+    coverImageUrl: String?,
+): ExtractedContent? {
+    val original = aiMarkdownContent?.trim()?.takeIf { it.isNotBlank() } ?: return null
+    val displayTitle = listOf(title, aiTitle)
+        .firstNotNullOfOrNull { it?.trim()?.takeIf { value -> value.isNotBlank() } }
+    return ExtractedContent(
+        title = displayTitle,
+        content = original.take(AIConfig.maxContentLength.toInt()),
+        htmlContent = null,
+        coverImageUrl = coverImageUrl?.trim()?.takeIf { it.isNotBlank() },
+        readableHtmlContent = null,
+        imageUrls = listOfNotNull(coverImageUrl?.trim()?.takeIf { it.isNotBlank() }),
+    )
+}
 
 internal fun articleAnalysisInput(article: Article, extracted: ExtractedContent?, modelName: String): String = buildString {
     append("标题：")

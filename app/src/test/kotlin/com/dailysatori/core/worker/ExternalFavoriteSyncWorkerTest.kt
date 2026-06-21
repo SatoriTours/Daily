@@ -90,10 +90,10 @@ class ExternalFavoriteSyncWorkerTest {
     }
 
     @Test
-    fun workerTriggersArticleProcessingResumeAfterExternalFavoriteSync() {
+    fun workerDoesNotTriggerArticleProcessingResumeAfterExternalFavoriteSync() {
         val source = java.io.File("src/main/kotlin/com/dailysatori/core/worker/ExternalFavoriteSyncWorker.kt").readText()
 
-        assertEquals(true, source.contains("ArticleProcessingScheduler(applicationContext).enqueueResume()"))
+        assertEquals(false, source.contains("ArticleProcessingScheduler(applicationContext).enqueueResume()"))
     }
 
     @Test

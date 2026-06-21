@@ -125,16 +125,18 @@ class ArticleProcessingContentTest {
     }
 
     @Test
-    fun articleSummaryPromptRequiresStructuredConciseAnalysis() {
+    fun articleSummaryPromptAvoidsUiHeadingsAndOverExpansion() {
         val prompt = articleSummaryPrompt()
 
-        assertEquals(true, prompt.contains("# 标题"))
-        assertEquals(true, prompt.contains("## 核心内容"))
-        assertEquals(true, prompt.contains("## 核心观点"))
-        assertEquals(true, prompt.contains("15-25 字"))
-        assertEquals(true, prompt.contains("50-80 字"))
-        assertEquals(true, prompt.contains("2-5 个"))
-        assertEquals(true, prompt.contains("越少越好"))
+        assertEquals(false, prompt.contains("# 标题"))
+        assertEquals(false, prompt.contains("## 核心内容"))
+        assertEquals(false, prompt.contains("## 核心观点"))
+        assertEquals(false, prompt.contains("15-25 字"))
+        assertEquals(false, prompt.contains("50-80 字"))
+        assertEquals(false, prompt.contains("2-5 个"))
+        assertEquals(true, prompt.contains("不要输出“标题”“核心内容”“核心观点”"))
+        assertEquals(true, prompt.contains("内容很短时只做忠实翻译或轻量整理"))
+        assertEquals(true, prompt.contains("禁止补充原文没有的背景、动机、情节或评价"))
         assertEquals(true, prompt.contains("不要使用代码块包裹"))
         assertEquals(false, prompt.contains("网页 HTML"))
         assertEquals(false, prompt.contains("COVER_IMAGE_URL"))
@@ -157,6 +159,9 @@ class ArticleProcessingContentTest {
         assertEquals(false, prompt.contains("保留原文语言"))
         assertEquals(true, prompt.contains("用中文输出"))
         assertEquals(false, prompt.contains("保留原文语言，不翻译正文内容"))
+        assertEquals(true, prompt.contains("输入可能是 HTML、纯文本或已有 Markdown"))
+        assertEquals(true, prompt.contains("如果输入已经是 Markdown"))
+        assertEquals(true, prompt.contains("不要把整篇内容压缩成摘要"))
     }
 
     @Test
@@ -164,6 +169,14 @@ class ArticleProcessingContentTest {
         val prompt = articleAnalysisPrompt()
 
         assertEquals(true, prompt.contains("markdown"))
+        assertEquals(false, prompt.contains("必须包含 \"# 标题\""))
+        assertEquals(false, prompt.contains("## 核心内容"))
+        assertEquals(false, prompt.contains("## 核心观点"))
+        assertEquals(true, prompt.contains("summary 不要输出“标题”“核心内容”“核心观点”"))
+        assertEquals(true, prompt.contains("内容很短时只做忠实翻译或轻量整理"))
+        assertEquals(true, prompt.contains("内容较长时必须包含简短总结和关键观点列表"))
+        assertEquals(true, prompt.contains("如果原文已经是中文短内容，summary 直接返回原文"))
+        assertEquals(true, prompt.contains("禁止补充原文没有的背景、动机、情节或评价"))
         assertEquals(true, prompt.contains("只调整排版、分段和 Markdown 结构"))
         assertEquals(true, prompt.contains("禁止总结、缩写、改写或合并原文信息"))
         assertEquals(true, prompt.contains("长段落必须按自然语义拆分"))
@@ -261,7 +274,7 @@ class ArticleProcessingContentTest {
         )
 
         assertEquals("中文标题", parsed.title)
-        assertEquals(true, parsed.summary.contains("## 核心内容"))
+        assertEquals(true, parsed.summary.contains("摘要"))
         assertEquals("# 原文\n\n正文", parsed.markdown)
     }
 
@@ -684,7 +697,10 @@ class ArticleProcessingContentTest {
 
         assertEquals("https://example.com/article/cover.jpg", parsed.coverImageUrl)
         assertEquals(false, parsed.summary.contains("COVER_IMAGE_URL"))
-        assertEquals(true, parsed.summary.contains("# 标题"))
+        assertEquals(false, parsed.summary.contains("# 标题"))
+        assertEquals(false, parsed.summary.contains("## 核心内容"))
+        assertEquals(false, parsed.summary.contains("## 核心观点"))
+        assertEquals(true, parsed.summary.contains("正文摘要。"))
     }
 
     @Test
@@ -727,6 +743,38 @@ class ArticleProcessingContentTest {
 
         assertEquals(10_000, input.length)
         assertEquals(false, input.contains("<html>"))
+    }
+
+    @Test
+    fun existingArticleOriginalContentCanBeReusedAsAiInputWithoutUrlExtraction() {
+        val extracted = existingArticleOriginalExtractedContent(
+            title = "远程文章标题",
+            aiTitle = "AI 标题",
+            aiContent = "旧摘要",
+            aiMarkdownContent = "远程 API 已返回的原文内容",
+            coverImageUrl = "https://example.com/cover.jpg",
+        )
+
+        assertEquals("远程文章标题", extracted?.title)
+        assertEquals("远程 API 已返回的原文内容", extracted?.content)
+        assertEquals(null, extracted?.htmlContent)
+        assertEquals("https://example.com/cover.jpg", extracted?.coverImageUrl)
+    }
+
+    @Test
+    fun articleMarkdownInputSupportsPlainTextOriginalsFromRemoteApis() {
+        val extracted = ExtractedContent(
+            title = "Codex 新功能",
+            content = "第一段很长。第二段也很长。第三段继续解释功能。",
+            htmlContent = null,
+            coverImageUrl = null,
+        )
+
+        val input = articleMarkdownInput(extracted, "gpt-5")
+
+        assertEquals(true, input.startsWith("正文文本：\n"))
+        assertEquals(true, input.contains("第一段很长。第二段也很长。"))
+        assertEquals(false, input.contains("正文 HTML："))
     }
 
     @Test

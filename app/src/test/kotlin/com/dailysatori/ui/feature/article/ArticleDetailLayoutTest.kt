@@ -28,26 +28,46 @@ class ArticleDetailLayoutTest {
     }
 
     @Test
-    fun localArticleDetailUsesBorderlessSharedMagazineReader() {
+    fun localArticleDetailUsesLightweightReaderWithoutBodySurface() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
         val detailBody = source.functionBody("ArticleDetailBody")
 
         assertFalse(detailBody.contains("border = BorderStroke"))
-        assertTrue(source.contains("MagazineArticle"))
-        assertTrue(source.contains("MagazineArticleHeader("))
-        assertTrue(source.contains("MagazineArticleBody("))
+        assertTrue(source.contains("ArticleReaderHeader("))
+        assertTrue(source.contains("ArticleReaderBody("))
+        assertFalse(source.contains("MagazineArticleHeader("))
+        assertFalse(source.contains("MagazineArticleBody("))
     }
 
     @Test
-    fun localArticleDetailHeaderDoesNotRepeatSummaryAboveTabs() {
+    fun localArticleDetailUsesSingleSummaryStreamAndOriginalSheet() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
         val headerBody = source.functionBody("ArticleMagazineHeader")
         val pageBody = source.functionBody("ArticleDetailPage")
 
         assertFalse(headerBody.contains("intro = article.ai_content"))
-        assertTrue(headerBody.contains("intro = null"))
-        assertTrue(pageBody.contains("MagazineArticleTabSelector("))
+        assertFalse(headerBody.contains("intro = null"))
+        assertTrue(pageBody.contains("ArticleDetailBody(article)"))
+        assertTrue(source.contains("ArticleOriginalBottomSheet("))
+        assertFalse(source.contains("MagazineArticleTabSelector("))
+        assertFalse(source.contains("MarkdownTabPager("))
         assertFalse(source.contains("MarkdownTabRow(articleDetailTabTitles"))
+    }
+
+    @Test
+    fun localArticleDetailKeepsAllActionsInOverflowMenu() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
+        val actionsBody = source.functionBody("ArticleDetailActions")
+
+        assertTrue(actionsBody.contains("Icons.Default.MoreVert"))
+        assertTrue(actionsBody.contains("DropdownMenu("))
+        assertTrue(actionsBody.contains("ArticleOriginalMenuItem("))
+        assertTrue(actionsBody.contains("ArticleRefreshMenuItem("))
+        assertTrue(actionsBody.contains("ArticleFavoriteMenuItem("))
+        assertTrue(actionsBody.contains("ArticleOpenMenuItem("))
+        assertTrue(actionsBody.contains("ArticleDeleteMenuItem("))
+        assertFalse(actionsBody.contains("IconButton(onClick = onFavoriteClick)"))
+        assertFalse(actionsBody.contains("IconButton(onClick = { openArticleUrl"))
     }
 
     @Test
@@ -70,9 +90,8 @@ class ArticleDetailLayoutTest {
             "ArticleDetailActions",
             "ArticleDetailContent",
             "ArticleDetailLoadedContent",
-            "ArticleDetailPager",
-            "ArticleDetailPage",
             "ArticleDetailBody",
+            "ArticleOriginalBottomSheet",
             "ArticleRefreshConfirmDialog",
             "ArticleDeleteConfirmDialog",
         ).forEach { functionName ->

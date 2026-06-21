@@ -289,6 +289,36 @@ class AppUrlIntakeTest {
     }
 
     @Test
+    fun refreshAndReprocessReuseExistingOriginalBeforeOpeningUrl() {
+        val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
+        val refresh = source.substringAfter("suspend fun refreshArticle")
+            .substringBefore("suspend fun reprocessArticle")
+        val reprocess = source.substringAfter("suspend fun reprocessArticle")
+            .substringBefore("private companion object")
+        val queue = source.substringAfter("private fun drainProcessingQueue")
+            .substringBefore("private fun setProcessingState")
+
+        assertTrue(source.contains("existingArticleOriginalExtractedContent(article)"))
+        assertTrue(refresh.contains("existingArticleOriginalExtractedContent(article) ?: extractContent(url)"))
+        assertTrue(queue.contains("existingArticleOriginalExtractedContent(article) ?: article.url?.let { extractContent(it) }"))
+        assertFalse(reprocess.contains("aiMarkdownContent = \"\""))
+        assertTrue(reprocess.contains("processAiTasksAsync(articleId, existingArticleOriginalExtractedContent(article))"))
+    }
+
+    @Test
+    fun markdownConversionRunsForPlainTextOriginalsNotOnlyHtml() {
+        val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
+        val body = source.substringAfter("private suspend fun generateArticleMarkdown")
+            .substringBefore("private fun updateArticleMarkdown")
+
+        assertFalse(body.contains("if (htmlContent.isBlank()) return generatedMarkdownOrFallback"))
+        assertTrue(body.contains("val markdownInput = articleMarkdownInput(extracted, modelName)"))
+        assertTrue(body.contains("if (markdownInput.isBlank()) return generatedMarkdownOrFallback"))
+        assertTrue(body.contains("aiService.htmlToMarkdown("))
+        assertTrue(body.contains("markdownInput,"))
+    }
+
+    @Test
     fun resumeQueuesRecoverableArticlesWhenSlotsAreFull() {
         val source = File("../shared/src/commonMain/kotlin/com/dailysatori/service/parser/WebpageParserService.kt").readText()
         val resume = source.substringAfter("suspend fun resumeInterruptedProcessing")

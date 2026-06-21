@@ -38,7 +38,8 @@ class ExternalFavoriteImporter(
         var repaired = 0
         itemRepo.importedWithPlaceholderArticle(limit).forEach { item ->
             val articleId = item.article_id ?: return@forEach
-            articleRepo.updateStatus(articleId, "pending")
+            articleRepo.updateStatus(articleId, "completed")
+            itemRepo.markAiState(item.id, ExternalItemAiStatus.pending.name)
             repaired += 1
         }
         return repaired
@@ -53,7 +54,9 @@ class ExternalFavoriteImporter(
                 return@forEach
             }
 
-            val existedBeforeImport = articleRepo.getByUrl(url) != null
+            val existingArticle = articleRepo.getByUrl(url)
+            val existedBeforeImport = existingArticle != null
+            val shouldOrganizeArticle = existingArticle == null || articleRepo.isExternalFavoritePlaceholder(existingArticle)
             val article = articleRepo.saveExternalFavoriteArticle(
                 title = item.importTitle(),
                 url = url,
@@ -62,7 +65,12 @@ class ExternalFavoriteImporter(
                 pubDate = item.source_created_at ?: item.favorited_at,
                 coverImageUrl = item.coverImageUrlFromNormalizedJson(),
             )
-            itemRepo.markImported(item.id, article.id, duplicateLinked = existedBeforeImport)
+            itemRepo.markImported(
+                itemId = item.id,
+                articleId = article.id,
+                duplicateLinked = existedBeforeImport,
+                aiStatus = if (shouldOrganizeArticle) ExternalItemAiStatus.pending else ExternalItemAiStatus.not_needed,
+            )
             importedCount += 1
         }
         return importedCount

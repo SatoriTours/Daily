@@ -2,7 +2,6 @@ package com.dailysatori.ui.feature.article
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -10,10 +9,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.pager.PagerState
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Delete
@@ -23,18 +21,18 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.Modifier
@@ -54,23 +52,18 @@ import com.dailysatori.ui.component.card.articleDisplayDomain
 import com.dailysatori.ui.component.card.articleDisplayTitle
 import com.dailysatori.core.util.TimeUtils
 import com.dailysatori.shared.db.Article
-import com.dailysatori.ui.component.content.MarkdownTabPager
 import com.dailysatori.ui.component.dialog.ConfirmDialog
 import com.dailysatori.ui.component.indicator.EmptyState
 import com.dailysatori.ui.component.indicator.LoadingIndicator
-import com.dailysatori.ui.component.news.MagazineArticleBody
-import com.dailysatori.ui.component.news.MagazineArticleHeader
-import com.dailysatori.ui.component.news.MagazineArticleTabSelector
+import com.dailysatori.ui.component.news.ArticleReaderBody
+import com.dailysatori.ui.component.news.ArticleReaderHeader
 import com.dailysatori.ui.component.scaffold.AppScaffold
 import com.dailysatori.ui.theme.MarkdownStyles
 import com.dailysatori.ui.theme.Radius
 import com.dailysatori.ui.theme.Spacing
-import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.io.File
-
-private val articleDetailTabTitles = listOf("AI 摘要", "原文")
 
 @Composable
 fun ArticleDetailScreen(
@@ -82,15 +75,12 @@ fun ArticleDetailScreen(
     val context = LocalContext.current
     val density = LocalDensity.current
     var showMenu by remember { mutableStateOf(false) }
+    var showOriginalSheet by remember { mutableStateOf(false) }
     var showRefreshConfirm by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var coverHeightDp by remember { mutableIntStateOf(articleCoverMaxHeightDp) }
-    val pagerState = rememberPagerState(pageCount = { 2 })
-    val coroutineScope = rememberCoroutineScope()
 
     val title = extractDomain(state.article?.url)
-
-    ArticleDetailTabSync(state.selectedTabIndex, pagerState, viewModel::selectTab)
 
     AppScaffold(
         title = title,
@@ -100,6 +90,7 @@ fun ArticleDetailScreen(
                 state = state,
                 expanded = showMenu,
                 onExpandedChange = { showMenu = it },
+                onOriginalClick = { showOriginalSheet = true },
                 onRefreshClick = { showRefreshConfirm = true },
                 onFavoriteClick = viewModel::toggleFavorite,
                 onOpenClick = { openArticleUrl(context, state.article?.url) },
@@ -109,11 +100,9 @@ fun ArticleDetailScreen(
     ) { modifier ->
         ArticleDetailContent(
             state = state,
-            pagerState = pagerState,
             coverHeightDp = coverHeightDp,
             onCoverHeightChange = { coverHeightDp = it },
             density = density,
-            onTabSelected = { index -> coroutineScope.launch { pagerState.animateScrollToPage(index) } },
             modifier = modifier,
         )
     }
@@ -129,21 +118,11 @@ fun ArticleDetailScreen(
             onBack()
         },
     )
-}
 
-@Composable
-private fun ArticleDetailTabSync(
-    selectedTabIndex: Int,
-    pagerState: PagerState,
-    onPageSelected: (Int) -> Unit,
-) {
-
-    LaunchedEffect(pagerState.currentPage) {
-        if (selectedTabIndex != pagerState.currentPage) onPageSelected(pagerState.currentPage)
-    }
-
-    LaunchedEffect(selectedTabIndex) {
-        if (pagerState.currentPage != selectedTabIndex) pagerState.animateScrollToPage(selectedTabIndex)
+    if (showOriginalSheet) {
+        state.article?.let { article ->
+            ArticleOriginalBottomSheet(article = article, onDismiss = { showOriginalSheet = false })
+        }
     }
 }
 
@@ -182,6 +161,7 @@ private fun ArticleDetailActions(
     state: ArticleDetailState,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
+    onOriginalClick: () -> Unit,
     onRefreshClick: () -> Unit,
     onFavoriteClick: () -> Unit,
     onOpenClick: () -> Unit,
@@ -192,12 +172,25 @@ private fun ArticleDetailActions(
             Icon(Icons.Default.MoreVert, contentDescription = "更多操作")
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
+            ArticleOriginalMenuItem(onExpandedChange, onOriginalClick)
             ArticleRefreshMenuItem(state, onExpandedChange, onRefreshClick)
             ArticleFavoriteMenuItem(state, onExpandedChange, onFavoriteClick)
             ArticleOpenMenuItem(onExpandedChange, onOpenClick)
             ArticleDeleteMenuItem(onExpandedChange, onDeleteClick)
         }
     }
+}
+
+@Composable
+private fun ArticleOriginalMenuItem(onExpandedChange: (Boolean) -> Unit, onOriginalClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text("查看原文") },
+        leadingIcon = { Icon(Icons.Default.Article, contentDescription = null) },
+        onClick = {
+            onExpandedChange(false)
+            onOriginalClick()
+        },
+    )
 }
 
 @Composable
@@ -262,11 +255,9 @@ private fun ArticleDeleteMenuItem(onExpandedChange: (Boolean) -> Unit, onDeleteC
 @Composable
 private fun ArticleDetailContent(
     state: ArticleDetailState,
-    pagerState: PagerState,
     coverHeightDp: Int,
     onCoverHeightChange: (Int) -> Unit,
     density: Density,
-    onTabSelected: (Int) -> Unit,
     modifier: Modifier,
 ) {
     when {
@@ -277,18 +268,16 @@ private fun ArticleDetailContent(
             title = "文章未找到",
             subtitle = "该文章可能已被删除",
         )
-        else -> ArticleDetailLoadedContent(state, pagerState, coverHeightDp, onCoverHeightChange, density, onTabSelected, modifier)
+        else -> ArticleDetailLoadedContent(state, coverHeightDp, onCoverHeightChange, density, modifier)
     }
 }
 
 @Composable
 private fun ArticleDetailLoadedContent(
     state: ArticleDetailState,
-    pagerState: PagerState,
     coverHeightDp: Int,
     onCoverHeightChange: (Int) -> Unit,
     density: Density,
-    onTabSelected: (Int) -> Unit,
     modifier: Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -296,9 +285,9 @@ private fun ArticleDetailLoadedContent(
         val article = state.article ?: return@Column
         val coverImage = article.cover_image ?: article.cover_image_url
         if (state.isRefreshing) {
-            ArticleRefreshingContent(article, state, coverImage, onTabSelected)
+            ArticleRefreshingContent(article, state, coverImage)
         } else {
-            ArticleDetailPager(article, state, pagerState, coverImage, coverHeightDp, onCoverHeightChange, density, onTabSelected)
+            ArticleDetailPage(article, coverImage, coverHeightDp, onCoverHeightChange, density)
         }
     }
 }
@@ -318,45 +307,23 @@ private fun ArticleRefreshingContent(
     article: Article,
     state: ArticleDetailState,
     coverImage: String?,
-    onTabSelected: (Int) -> Unit,
 ) {
     if (!coverImage.isNullOrBlank()) {
         ArticleCoverImage(imagePath = coverImage, modifier = Modifier.fillMaxWidth().height(articleCoverMaxHeightDp.dp))
     }
     ArticleMagazineHeader(article)
-    MagazineArticleTabSelector(articleDetailTabTitles, state.selectedTabIndex, onTabSelected)
     ArticleProcessingStepper(state.processingStage, state.processingProgress, modifier = Modifier.padding(Spacing.m))
-}
-
-@Composable
-private fun ColumnScope.ArticleDetailPager(
-    article: Article,
-    state: ArticleDetailState,
-    pagerState: PagerState,
-    coverImage: String?,
-    coverHeightDp: Int,
-    onCoverHeightChange: (Int) -> Unit,
-    density: Density,
-    onTabSelected: (Int) -> Unit,
-) {
-    val hasCover = !coverImage.isNullOrBlank()
-    MarkdownTabPager(pagerState = pagerState, modifier = Modifier.weight(1f)) { page ->
-        ArticleDetailPage(article, state, page, coverImage, hasCover, coverHeightDp, onCoverHeightChange, density, onTabSelected)
-    }
 }
 
 @Composable
 private fun ArticleDetailPage(
     article: Article,
-    state: ArticleDetailState,
-    page: Int,
     coverImage: String?,
-    hasCover: Boolean,
     coverHeightDp: Int,
     onCoverHeightChange: (Int) -> Unit,
     density: Density,
-    onTabSelected: (Int) -> Unit,
 ) {
+    val hasCover = !coverImage.isNullOrBlank()
     val listState = rememberLazyListState()
     val nestedScrollConnection = rememberArticleDetailNestedScrollConnection(
         hasCover, coverHeightDp, onCoverHeightChange, listState, density,
@@ -366,19 +333,18 @@ private fun ArticleDetailPage(
             ArticleCoverImage(imagePath = coverImage.orEmpty(), modifier = Modifier.fillMaxWidth().height(coverHeightDp.dp))
         }
         ArticleMagazineHeader(article)
-        MagazineArticleTabSelector(articleDetailTabTitles, state.selectedTabIndex, onTabSelected)
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().nestedScroll(nestedScrollConnection)) {
-            item(key = "content-$page") { ArticleDetailBody(article, page) }
+            item(key = "summary-content") { ArticleDetailBody(article) }
         }
     }
 }
 
 @Composable
-private fun ArticleDetailBody(article: Article, page: Int) {
+private fun ArticleDetailBody(article: Article) {
     Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)) {
-        MagazineArticleBody(
+        ArticleReaderBody(
             content = articleDetailPageContent(
-                page = page,
+                page = 0,
                 summary = article.ai_content,
                 original = article.ai_markdown_content,
                 originalImageUrls = listOfNotNull(article.cover_image_url),
@@ -386,6 +352,30 @@ private fun ArticleDetailBody(article: Article, page: Int) {
             typography = MarkdownStyles.readingTypography(),
             padding = MarkdownStyles.readingPadding(),
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ArticleOriginalBottomSheet(article: Article, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            "原文",
+            modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s),
+            style = MaterialTheme.typography.titleLarge,
+        )
+        Box(modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.s)) {
+            ArticleReaderBody(
+                content = articleDetailPageContent(
+                    page = 1,
+                    summary = article.ai_content,
+                    original = article.ai_markdown_content,
+                    originalImageUrls = listOfNotNull(article.cover_image_url),
+                ),
+                typography = MarkdownStyles.readingTypography(),
+                padding = MarkdownStyles.readingPadding(),
+            )
+        }
     }
 }
 
@@ -412,10 +402,9 @@ private fun rememberArticleDetailNestedScrollConnection(
 
 @Composable
 private fun ArticleMagazineHeader(article: Article) {
-    MagazineArticleHeader(
+    ArticleReaderHeader(
         title = articleMagazineTitle(article),
         metaChips = articleMagazineMetaChips(article),
-        intro = null,
     )
 }
 
