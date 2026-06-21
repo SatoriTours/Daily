@@ -26,6 +26,14 @@ class XBookmarksConnectorTest {
     }
 
     @Test
+    fun extractsPostIdFromXStatusUrlsForLookupApi() {
+        assertEquals("2068340624907202872", xPostIdFromStatusUrl("https://x.com/i/status/2068340624907202872"))
+        assertEquals("2068340624907202872", xPostIdFromStatusUrl("https://x.com/user/status/2068340624907202872?s=20"))
+        assertEquals("2068340624907202872", xPostIdFromStatusUrl("https://twitter.com/user/status/2068340624907202872"))
+        assertNull(xPostIdFromStatusUrl("https://x.com/search?q=2068340624907202872"))
+    }
+
+    @Test
     fun parsesBookmarkResponseIntoDrafts() {
         val json = """{"data":[{"id":"123","text":"Saved post","author_id":"42","created_at":"2026-06-01T00:00:00.000Z"}],"includes":{"users":[{"id":"42","username":"daily","name":"Daily"}]},"meta":{"result_count":1}}"""
 
@@ -99,6 +107,225 @@ class XBookmarksConnectorTest {
         assertEquals("External article description", normalized["url_description"]?.jsonPrimitive?.contentOrNull)
         assertTrue(item.normalizedJson.contains("https://example.com/cover.jpg"))
         assertTrue(item.normalizedJson.contains("profile_image_url"))
+    }
+
+    @Test
+    fun parsesXArticleTitleFromBookmarkResponseWhenTextOnlyContainsLink() {
+        val json = """
+            {
+              "data": [
+                {
+                  "id": "2068340624907202872",
+                  "lang": "zxx",
+                  "text": "https://t.co/iAedHNUNSa",
+                  "author_id": "1056949890",
+                  "article": {"title": "内容创作不是表达欲，而是普通人最低成本的杠杆"},
+                  "entities": {
+                    "urls": [
+                      {
+                        "url": "https://t.co/iAedHNUNSa",
+                        "expanded_url": "http://x.com/i/article/2068336874515734528",
+                        "display_url": "x.com/i/article/2068…",
+                        "status": 500,
+                        "unwound_url": "https://x.com/i/article/2068336874515734528"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "includes": {
+                "users": [{"id": "1056949890", "username": "nolan", "name": "Nolan"}]
+              },
+              "meta": {"result_count": 1}
+            }
+        """.trimIndent()
+
+        val item = XBookmarksResponseParser.parse(json).items.single()
+        val normalized = Json.parseToJsonElement(item.normalizedJson).jsonObject
+
+        assertEquals("https://x.com/i/article/2068336874515734528", item.canonicalUrl)
+        assertEquals("内容创作不是表达欲，而是普通人最低成本的杠杆", item.title)
+        assertEquals("https://t.co/iAedHNUNSa", item.text)
+        assertEquals("内容创作不是表达欲，而是普通人最低成本的杠杆", normalized["url_title"]?.jsonPrimitive?.contentOrNull)
+    }
+
+    @Test
+    fun parsesReferencedRetweetedArticleCardAsCanonicalArticleUrl() {
+        val json = """
+            {
+              "data": [
+                {
+                  "id": "2068340624907202872",
+                  "text": "收藏列表里只能看到转发壳",
+                  "author_id": "42",
+                  "referenced_tweets": [{"type": "retweeted", "id": "100"}]
+                }
+              ],
+              "includes": {
+                "users": [
+                  {"id": "42", "username": "daily", "name": "Daily"},
+                  {"id": "99", "username": "writer", "name": "Writer"}
+                ],
+                "tweets": [
+                  {
+                    "id": "100",
+                    "text": "原推里的文章卡片 https://t.co/article",
+                    "author_id": "99",
+                    "entities": {
+                      "urls": [
+                        {
+                          "url": "https://t.co/article",
+                          "expanded_url": "https://example.com/long-article",
+                          "unwound_url": "https://example.com/long-article",
+                          "title": "Long Article",
+                          "description": "Article summary from the card"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "meta": {"result_count": 1}
+            }
+        """.trimIndent()
+
+        val item = XBookmarksResponseParser.parse(json).items.single()
+        val normalized = Json.parseToJsonElement(item.normalizedJson).jsonObject
+
+        assertEquals("https://example.com/long-article", item.canonicalUrl)
+        assertEquals("Long Article", item.title)
+        assertEquals("https://example.com/long-article", normalized["primary_url"]?.jsonPrimitive?.contentOrNull)
+        assertTrue(item.normalizedJson.contains("referenced_tweets"))
+    }
+
+    @Test
+    fun parsesSinglePostLookupResponseWithReferencedArticleCard() {
+        val json = """
+            {
+              "data": {
+                "id": "2068340624907202872",
+                "text": "转发壳",
+                "author_id": "42",
+                "referenced_tweets": [{"type": "retweeted", "id": "100"}]
+              },
+              "includes": {
+                "users": [
+                  {"id": "42", "username": "daily", "name": "Daily"},
+                  {"id": "99", "username": "writer", "name": "Writer"}
+                ],
+                "tweets": [
+                  {
+                    "id": "100",
+                    "text": "原推里的文章卡片 https://t.co/article",
+                    "author_id": "99",
+                    "entities": {
+                      "urls": [
+                        {
+                          "url": "https://t.co/article",
+                          "expanded_url": "https://example.com/long-article",
+                          "unwound_url": "https://example.com/long-article",
+                          "title": "Long Article",
+                          "description": "Article summary from the card"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+        """.trimIndent()
+
+        val item = XBookmarksResponseParser.parsePostLookup(json)
+
+        assertNotNull(item)
+        assertEquals("2068340624907202872", item.externalId)
+        assertEquals("https://example.com/long-article", item.canonicalUrl)
+        assertEquals("Long Article", item.title)
+        assertTrue(item.normalizedJson.contains("referenced_tweets"))
+    }
+
+    @Test
+    fun parsesArticleLookupResponseContentFieldAsDraftText() {
+        val json = """
+            {
+              "data": {
+                "id": "2010742786430021632",
+                "content": "This is the full article body returned by the posts endpoint.",
+                "author_id": "256523056",
+                "article": {"title": "How to fix your entire life in 1 day"}
+              },
+              "includes": {
+                "users": [{"id": "256523056", "username": "thedankoe", "name": "DAN KOE"}]
+              }
+            }
+        """.trimIndent()
+
+        val item = XBookmarksResponseParser.parsePostLookup(json)
+
+        assertNotNull(item)
+        assertEquals("2010742786430021632", item.externalId)
+        assertEquals("This is the full article body returned by the posts endpoint.", item.text)
+        assertEquals("How to fix your entire life in 1 day", item.title)
+    }
+
+    @Test
+    fun referencedBookmarkCanUseFetchedChildPostContentWhileKeepingBookmarkIdentity() {
+        val bookmarkJson = """
+            {
+              "data": [
+                {
+                  "id": "2068340624907202872",
+                  "text": "收藏列表里只能看到转发壳",
+                  "author_id": "42",
+                  "referenced_tweets": [{"type": "retweeted", "id": "100"}]
+                }
+              ],
+              "includes": {
+                "users": [{"id": "42", "username": "daily", "name": "Daily"}]
+              },
+              "meta": {"result_count": 1}
+            }
+        """.trimIndent()
+        val lookupJson = """
+            {
+              "data": {
+                "id": "100",
+                "text": "原始长文章的短文本 https://t.co/article",
+                "author_id": "99",
+                "note_tweet": {
+                  "text": "这是引用子帖 API 才返回的完整长文章内容，应该用于后续文章导入。",
+                  "entities": {
+                    "urls": [
+                      {
+                        "url": "https://t.co/article",
+                        "expanded_url": "https://example.com/long-article",
+                        "unwound_url": "https://example.com/long-article",
+                        "title": "子帖长文章",
+                        "description": "来自子帖 API 的文章摘要"
+                      }
+                    ]
+                  }
+                }
+              },
+              "includes": {
+                "users": [{"id": "99", "username": "writer", "name": "Writer"}]
+              }
+            }
+        """.trimIndent()
+
+        val bookmark = XBookmarksResponseParser.parse(bookmarkJson).items.single()
+        val fetchedChild = XBookmarksResponseParser.parsePostLookup(lookupJson)
+        val enriched = xBookmarkItemWithFetchedReferencedPost(bookmark, fetchedChild)
+
+        assertNotNull(fetchedChild)
+        assertNotNull(enriched)
+        assertEquals("2068340624907202872", enriched.externalId)
+        assertEquals("https://example.com/long-article", enriched.canonicalUrl)
+        assertEquals("子帖长文章", enriched.title)
+        assertEquals("这是引用子帖 API 才返回的完整长文章内容，应该用于后续文章导入。", enriched.text)
+        assertEquals("Writer", enriched.authorName)
+        assertTrue(enriched.contentHash != bookmark.contentHash)
+        assertTrue(enriched.aiInputHash != bookmark.aiInputHash)
     }
 
     @Test

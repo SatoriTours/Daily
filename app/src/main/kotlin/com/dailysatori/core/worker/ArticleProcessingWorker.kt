@@ -16,12 +16,19 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.dailysatori.normalizeArticleUrl
+import com.dailysatori.core.task.saveArticleTaskPayloadJson
+import com.dailysatori.data.repository.AsyncTaskRepository
+import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.parser.WebpageParserService
 import kotlinx.coroutines.CancellationException
 import org.koin.core.context.GlobalContext
 import java.security.MessageDigest
 
-class ArticleProcessingScheduler(private val context: Context) {
+class ArticleProcessingScheduler(
+    private val context: Context,
+    private val asyncTaskRepo: AsyncTaskRepository? = null,
+    private val asyncTaskScheduler: AsyncTaskScheduler? = null,
+) {
     fun enqueueSave(url: String) {
         enqueueSave(url, ExistingWorkPolicy.KEEP)
     }
@@ -34,6 +41,15 @@ class ArticleProcessingScheduler(private val context: Context) {
         val normalizedUrl = normalizeArticleUrl(url)
         if (normalizedUrl.isBlank()) return
         markSavePending(normalizedUrl)
+        if (asyncTaskRepo != null && asyncTaskScheduler != null) {
+            val taskId = asyncTaskRepo.enqueue(
+                type = AsyncTaskType.save_article.name,
+                payloadJson = saveArticleTaskPayloadJson(url),
+                uniqueKey = saveTaskUniqueKey(normalizedUrl),
+            )
+            asyncTaskScheduler.enqueue(taskId)
+            return
+        }
         val request = buildArticleSaveWorkRequest(url, normalizedUrl)
         WorkManager.getInstance(context).enqueueUniqueWork(
             saveWorkName(normalizedUrl),
@@ -41,6 +57,8 @@ class ArticleProcessingScheduler(private val context: Context) {
             request,
         )
     }
+
+    private fun saveTaskUniqueKey(normalizedUrl: String): String = "save_article:$normalizedUrl"
 
     fun isSavePending(url: String): Boolean {
         val normalizedUrl = normalizeArticleUrl(url)

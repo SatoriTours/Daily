@@ -18,7 +18,10 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import androidx.lifecycle.Observer
+import com.dailysatori.core.task.externalFavoriteSyncTaskPayloadJson
+import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.shared.db.External_favorite_source
+import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
 import com.dailysatori.service.externalfavorites.FavoriteSyncProgress
 import com.dailysatori.service.externalfavorites.FavoriteSyncService
@@ -31,8 +34,21 @@ import kotlinx.coroutines.flow.callbackFlow
 import org.koin.core.context.GlobalContext
 import java.util.concurrent.TimeUnit
 
-class ExternalFavoriteSyncScheduler(private val context: Context) {
+class ExternalFavoriteSyncScheduler(
+    private val context: Context,
+    private val asyncTaskRepo: AsyncTaskRepository? = null,
+    private val asyncTaskScheduler: AsyncTaskScheduler? = null,
+) {
     fun enqueue(sourceId: Long, mode: String = FavoriteSyncMode.sync.name) {
+        if (asyncTaskRepo != null && asyncTaskScheduler != null) {
+            val taskId = asyncTaskRepo.enqueue(
+                type = AsyncTaskType.external_favorite_sync.name,
+                payloadJson = externalFavoriteSyncTaskPayloadJson(sourceId, mode),
+                uniqueKey = externalFavoriteSyncUniqueKey(sourceId, mode),
+            )
+            asyncTaskScheduler.enqueue(taskId)
+            return
+        }
         val request = buildExternalFavoriteSyncWorkRequest(sourceId, mode)
         WorkManager.getInstance(context).enqueueUniqueWork(
             externalFavoriteSyncWorkName(sourceId, mode),
@@ -42,6 +58,7 @@ class ExternalFavoriteSyncScheduler(private val context: Context) {
     }
 
     fun cancelSync(sourceId: Long) {
+        asyncTaskRepo?.cancelLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, FavoriteSyncMode.sync.name))
         WorkManager.getInstance(context).cancelUniqueWork(externalFavoriteSyncWorkName(sourceId, FavoriteSyncMode.sync.name))
     }
 
@@ -154,6 +171,9 @@ internal fun externalFavoriteSyncProgressData(
 
 internal fun externalFavoriteSyncWorkName(sourceId: Long, mode: String): String =
     "external-favorite-sync-$sourceId-$mode"
+
+internal fun externalFavoriteSyncUniqueKey(sourceId: Long, mode: String): String =
+    "external_favorite_sync:$sourceId:$mode"
 
 internal fun buildExternalFavoriteSyncWorkRequest(
     sourceId: Long,

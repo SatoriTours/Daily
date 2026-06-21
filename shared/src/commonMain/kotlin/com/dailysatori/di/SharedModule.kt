@@ -2,6 +2,7 @@ package com.dailysatori.di
 
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.AIConfigRepository
+import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.BookRepository
 import com.dailysatori.data.repository.BookViewpointAiRepository
 import com.dailysatori.data.repository.BookViewpointRepository
@@ -76,6 +77,7 @@ val sharedModule: Module = module {
     // Repositories
     single { ArticleRepository(get()) }
     single { AIConfigRepository(get(), get()) }
+    single { AsyncTaskRepository(get()) }
     single { BookRepository(get()) }
     single { BookViewpointAiRepository(get()) }
     single { BookViewpointRepository(get()) }
@@ -131,7 +133,7 @@ val sharedModule: Module = module {
     }
 
     // Webpage parser service (content processing pipeline)
-    single { WebpageParserService(get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { WebpageParserService(get(), get(), get(), get(), get(), get(), get(), get(), get(), get()) }
 
     // Book search service
     single { DoubanSuggestSearchEngine(get()) }

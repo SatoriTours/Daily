@@ -280,6 +280,41 @@ CREATE TABLE unified_news_source (
     UNIQUE(summary_id, ref_key)
 );
 
+CREATE TABLE async_task_batch (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    total_count INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE async_task (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    checkpoint_json TEXT NOT NULL DEFAULT '',
+    result_json TEXT NOT NULL DEFAULT '',
+    progress_current INTEGER NOT NULL DEFAULT 0,
+    progress_total INTEGER NOT NULL DEFAULT 0,
+    progress_message TEXT NOT NULL DEFAULT '',
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 5,
+    priority INTEGER NOT NULL DEFAULT 0,
+    unique_key TEXT,
+    batch_id INTEGER REFERENCES async_task_batch(id) ON DELETE SET NULL,
+    run_after_ms INTEGER,
+    lease_owner TEXT,
+    lease_until_ms INTEGER,
+    started_at INTEGER,
+    finished_at INTEGER,
+    last_error_code TEXT NOT NULL DEFAULT '',
+    last_error_message TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
 -- Session
 CREATE TABLE session (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -432,6 +467,78 @@ UPDATE article SET is_favorite = CASE WHEN is_favorite = 1 THEN 0 ELSE 1 END, up
 
 articleCount:
 SELECT COUNT(*) FROM article;
+
+-- Async task queries
+selectAsyncTaskById:
+SELECT * FROM async_task WHERE id = ?;
+
+selectAsyncTaskByUniqueKey:
+SELECT * FROM async_task WHERE unique_key = ? ORDER BY created_at DESC, id DESC LIMIT 1;
+
+selectAsyncTasksForTaskCenter:
+SELECT id, type, status, progress_current, progress_total, progress_message, updated_at, last_error_message
+FROM async_task
+ORDER BY updated_at DESC;
+
+selectRunnableAsyncTasks:
+SELECT * FROM async_task
+WHERE status IN ('queued', 'retrying')
+  AND (run_after_ms IS NULL OR run_after_ms <= ?)
+ORDER BY priority DESC, created_at ASC
+LIMIT ?;
+
+insertAsyncTask:
+INSERT INTO async_task (
+    type, status, payload_json, checkpoint_json, result_json,
+    progress_current, progress_total, progress_message,
+    attempt_count, max_attempts, priority, unique_key, batch_id,
+    run_after_ms, lease_owner, lease_until_ms, started_at, finished_at,
+    last_error_code, last_error_message, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectLastInsertedAsyncTaskId:
+SELECT id FROM async_task ORDER BY id DESC LIMIT 1;
+
+insertAsyncTaskBatch:
+INSERT INTO async_task_batch (name, status, total_count, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?);
+
+selectLastInsertedAsyncTaskBatchId:
+SELECT id FROM async_task_batch ORDER BY id DESC LIMIT 1;
+
+claimAsyncTaskForRun:
+UPDATE async_task
+SET status = ?, lease_owner = ?, lease_until_ms = ?, started_at = COALESCE(started_at, ?), updated_at = ?
+WHERE id = ?
+  AND status IN ('queued', 'retrying')
+  AND (run_after_ms IS NULL OR run_after_ms <= ?);
+
+updateAsyncTaskProgress:
+UPDATE async_task
+SET progress_current = ?, progress_total = ?, progress_message = ?, checkpoint_json = ?, updated_at = ?
+WHERE id = ?;
+
+finishAsyncTask:
+UPDATE async_task
+SET status = ?, result_json = ?, finished_at = ?, lease_owner = NULL, lease_until_ms = NULL,
+    last_error_code = ?, last_error_message = ?, updated_at = ?
+WHERE id = ?;
+
+markAsyncTaskRetry:
+UPDATE async_task
+SET status = ?, attempt_count = ?, run_after_ms = ?, lease_owner = NULL, lease_until_ms = NULL,
+    last_error_code = ?, last_error_message = ?, updated_at = ?
+WHERE id = ?;
+
+cancelAsyncTask:
+UPDATE async_task
+SET status = ?, finished_at = ?, updated_at = ?
+WHERE id = ?;
+
+markExpiredRunningAsyncTasksForRetry:
+UPDATE async_task
+SET status = ?, lease_owner = NULL, lease_until_ms = NULL, updated_at = ?
+WHERE status = 'running' AND lease_until_ms IS NOT NULL AND lease_until_ms < ?;
 
 -- Tag queries
 selectAllTags:
@@ -832,6 +939,14 @@ SELECT * FROM external_favorite_item
 WHERE import_status = 'not_imported'
    OR (import_status = 'failed' AND last_error_code != 'missing_url')
    OR (article_id IS NULL AND import_status IN ('imported', 'duplicate_linked'))
+   OR (
+        article_id IS NOT NULL
+        AND import_status IN ('imported', 'duplicate_linked')
+        AND NOT EXISTS (
+            SELECT 1 FROM article
+            WHERE article.id = external_favorite_item.article_id
+        )
+   )
 ORDER BY first_seen_at DESC
 LIMIT ?;
 
@@ -842,6 +957,14 @@ WHERE source_id = ?
     import_status = 'not_imported'
     OR (import_status = 'failed' AND last_error_code != 'missing_url')
     OR (article_id IS NULL AND import_status IN ('imported', 'duplicate_linked'))
+    OR (
+        article_id IS NOT NULL
+        AND import_status IN ('imported', 'duplicate_linked')
+        AND NOT EXISTS (
+            SELECT 1 FROM article
+            WHERE article.id = external_favorite_item.article_id
+        )
+    )
   )
 ORDER BY first_seen_at DESC
 LIMIT ?;
@@ -888,6 +1011,17 @@ WHERE external_favorite_item.article_id IS NOT NULL
   AND article.ai_markdown_content LIKE '%## 原文%'
   AND article.ai_markdown_content LIKE '%## AI 整理%'
   AND article.ai_markdown_content LIKE '%待整理'
+ORDER BY external_favorite_item.first_seen_at DESC
+LIMIT ?;
+
+selectExternalFavoriteItemsImportedXLongArticlePending:
+SELECT external_favorite_item.* FROM external_favorite_item
+INNER JOIN article ON article.id = external_favorite_item.article_id
+WHERE external_favorite_item.article_id IS NOT NULL
+  AND external_favorite_item.provider = 'x'
+  AND external_favorite_item.canonical_url LIKE 'https://x.com/i/article/%'
+  AND article.status IN ('pending', 'error')
+  AND external_favorite_item.text != ''
 ORDER BY external_favorite_item.first_seen_at DESC
 LIMIT ?;
 

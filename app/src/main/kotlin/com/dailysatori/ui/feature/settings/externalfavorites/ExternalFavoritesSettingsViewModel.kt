@@ -3,17 +3,21 @@ package com.dailysatori.ui.feature.settings.externalfavorites
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.WorkInfo
+import com.dailysatori.core.worker.externalFavoriteSyncUniqueKey
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.core.worker.ExternalFavoriteSyncWorker
 import com.dailysatori.core.worker.ExternalFavoriteSyncScheduler
+import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.service.asynctask.AsyncTaskStatus
 import com.dailysatori.service.externalfavorites.ExternalFavoriteProvider
 import com.dailysatori.service.externalfavorites.ExternalSourceHealth
 import com.dailysatori.service.externalfavorites.ExternalSourceStatus
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
 import com.dailysatori.service.externalfavorites.XOAuthCoordinator
 import com.dailysatori.service.externalfavorites.sourceHealth
+import com.dailysatori.shared.db.Async_task
 import com.dailysatori.shared.db.External_favorite_source
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,6 +73,7 @@ data class ExternalFavoriteSyncWorkUi(
 class ExternalFavoritesSettingsViewModel(
     private val sourceRepo: ExternalFavoriteSourceRepository,
     private val scheduler: ExternalFavoriteSyncScheduler,
+    private val asyncTaskRepo: AsyncTaskRepository,
     private val xOAuthCoordinator: XOAuthCoordinator,
     private val settingRepo: SettingRepository,
 ) : ViewModel() {
@@ -192,13 +197,16 @@ class ExternalFavoritesSettingsViewModel(
     private fun enqueueManualSync(sourceId: Long, mode: FavoriteSyncMode) {
         if (_state.value.syncingSourceId != null) return
         _state.update { it.copy(syncingSourceId = sourceId, message = null) }
+        _state.update { state ->
+            state.copy(syncWorkBySourceId = state.syncWorkBySourceId + (sourceId to externalFavoriteQueuedSyncWork()))
+        }
         observeSyncWork(sourceId)
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 scheduler.enqueue(sourceId, mode.name)
                 _state.update {
                     it.copy(
-                        syncingSourceId = null,
+                        syncingSourceId = sourceId,
                         message = externalFavoriteSyncQueuedMessage(mode),
                         sources = sourceRepo.getAll().map(::toUiSource),
                     )
@@ -212,21 +220,25 @@ class ExternalFavoritesSettingsViewModel(
     private fun observeSyncWork(sourceId: Long) {
         if (!observedSyncSources.add(sourceId)) return
         viewModelScope.launch {
-            scheduler.observeSync(sourceId).collect { workInfo ->
-                val workUi = workInfo?.toExternalFavoriteSyncWorkUi()
-                _state.update { state ->
-                    val nextMap = if (workUi == null || workUi.state in finishedWorkStates) {
-                        state.syncWorkBySourceId - sourceId
-                    } else {
-                        state.syncWorkBySourceId + (sourceId to workUi)
-                    }
-                    state.copy(
-                        syncWorkBySourceId = nextMap,
-                        syncingSourceId = if (workUi?.active == true) sourceId else if (state.syncingSourceId == sourceId) null else state.syncingSourceId,
-                    )
-                }
+            asyncTaskRepo.observeLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, FavoriteSyncMode.sync.name)).collect { task ->
+                val workUi = task?.let(::externalFavoriteSyncWorkFromAsyncTask)
+                applySyncWorkState(sourceId, workUi)
                 if (workUi?.state in finishedWorkStates) load()
             }
+        }
+    }
+
+    private fun applySyncWorkState(sourceId: Long, workUi: ExternalFavoriteSyncWorkUi?) {
+        _state.update { state ->
+            val nextMap = if (workUi == null || workUi.state in finishedWorkStates) {
+                state.syncWorkBySourceId - sourceId
+            } else {
+                state.syncWorkBySourceId + (sourceId to workUi)
+            }
+            state.copy(
+                syncWorkBySourceId = nextMap,
+                syncingSourceId = if (workUi?.active == true) sourceId else if (state.syncingSourceId == sourceId) null else state.syncingSourceId,
+            )
         }
     }
 
@@ -256,6 +268,58 @@ private fun WorkInfo.toExternalFavoriteSyncWorkUi(): ExternalFavoriteSyncWorkUi 
         phase = progress.getString(ExternalFavoriteSyncWorker.PROGRESS_PHASE).orEmpty(),
         historyComplete = progress.getBoolean(ExternalFavoriteSyncWorker.PROGRESS_HISTORY_COMPLETE, false),
     )
+
+fun externalFavoriteSyncWorkFromAsyncTask(task: Async_task): ExternalFavoriteSyncWorkUi? {
+    val status = AsyncTaskStatus.entries.firstOrNull { it.name == task.status } ?: return null
+    return ExternalFavoriteSyncWorkUi(
+        state = status.toWorkInfoState(),
+        pagesSeen = externalFavoriteTaskCheckpointLong(task.checkpoint_json, "pagesSeen")
+            ?.toInt()
+            ?: task.progress_current.toInt(),
+        maxPages = task.progress_total.toInt().coerceAtLeast(1),
+        itemsSeen = externalFavoriteTaskCheckpointLong(task.checkpoint_json, "itemsSeen")?.toInt() ?: 0,
+        phase = externalFavoriteTaskCheckpointString(task.checkpoint_json, "phase").orEmpty(),
+        historyComplete = externalFavoriteTaskCheckpointBoolean(task.checkpoint_json, "historyComplete") ?: false,
+    )
+}
+
+private fun externalFavoriteQueuedSyncWork(): ExternalFavoriteSyncWorkUi =
+    ExternalFavoriteSyncWorkUi(
+        state = WorkInfo.State.ENQUEUED,
+        pagesSeen = 0,
+        maxPages = 3,
+        itemsSeen = 0,
+        phase = "",
+    )
+
+private fun AsyncTaskStatus.toWorkInfoState(): WorkInfo.State = when (this) {
+    AsyncTaskStatus.queued,
+    AsyncTaskStatus.retrying -> WorkInfo.State.ENQUEUED
+    AsyncTaskStatus.running -> WorkInfo.State.RUNNING
+    AsyncTaskStatus.succeeded -> WorkInfo.State.SUCCEEDED
+    AsyncTaskStatus.failed -> WorkInfo.State.FAILED
+    AsyncTaskStatus.cancelled -> WorkInfo.State.CANCELLED
+}
+
+private fun externalFavoriteTaskCheckpointLong(json: String, key: String): Long? =
+    Regex(""""${Regex.escape(key)}"\s*:\s*(\d+)""")
+        .find(json)
+        ?.groupValues
+        ?.getOrNull(1)
+        ?.toLongOrNull()
+
+private fun externalFavoriteTaskCheckpointString(json: String, key: String): String? =
+    Regex(""""${Regex.escape(key)}"\s*:\s*"([^"]*)"""")
+        .find(json)
+        ?.groupValues
+        ?.getOrNull(1)
+
+private fun externalFavoriteTaskCheckpointBoolean(json: String, key: String): Boolean? =
+    Regex(""""${Regex.escape(key)}"\s*:\s*(true|false)""")
+        .find(json)
+        ?.groupValues
+        ?.getOrNull(1)
+        ?.toBooleanStrictOrNull()
 
 fun externalFavoriteSettingsRowTitle(): String = "外部收藏同步"
 

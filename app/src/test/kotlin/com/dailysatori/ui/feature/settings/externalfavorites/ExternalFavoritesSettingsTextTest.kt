@@ -2,6 +2,9 @@ package com.dailysatori.ui.feature.settings.externalfavorites
 
 import com.dailysatori.service.externalfavorites.ExternalSourceHealth
 import com.dailysatori.service.externalfavorites.FavoriteSyncMode
+import com.dailysatori.service.asynctask.AsyncTaskStatus
+import com.dailysatori.service.asynctask.AsyncTaskType
+import com.dailysatori.shared.db.Async_task
 import androidx.work.WorkInfo
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -233,6 +236,46 @@ class ExternalFavoritesSettingsTextTest {
     }
 
     @Test
+    fun asyncTaskSyncProgressMapsToVisibleSyncWork() {
+        val running = asyncTask(
+            status = AsyncTaskStatus.running.name,
+            progressCurrent = 2,
+            progressTotal = 3,
+            progressMessage = "正在补全历史收藏，已看到 168 条",
+            checkpointJson = """{"phase":"backfill","pagesSeen":2,"itemsSeen":168,"historyComplete":false}""",
+        )
+
+        val work = externalFavoriteSyncWorkFromAsyncTask(running)
+
+        assertEquals(WorkInfo.State.RUNNING, work?.state)
+        assertEquals(true, work?.active)
+        assertEquals("backfill", work?.phase)
+        assertEquals(2, work?.pagesSeen)
+        assertEquals(3, work?.maxPages)
+        assertEquals(168, work?.itemsSeen)
+        assertEquals(false, work?.historyComplete)
+        assertEquals("正在补全较早收藏", externalFavoriteSyncProgressTitle(work!!))
+    }
+
+    @Test
+    fun queuedAsyncTaskSyncShowsWaitingWork() {
+        val queued = asyncTask(
+            status = AsyncTaskStatus.queued.name,
+            progressCurrent = 0,
+            progressTotal = 3,
+            progressMessage = "",
+            checkpointJson = "",
+        )
+
+        val work = externalFavoriteSyncWorkFromAsyncTask(queued)
+
+        assertEquals(WorkInfo.State.ENQUEUED, work?.state)
+        assertEquals(true, work?.active)
+        assertEquals("等待同步", externalFavoriteSyncProgressTitle(work!!))
+        assertEquals("第 0 / 3 页", externalFavoriteSyncProgressPageText(work))
+    }
+
+    @Test
     fun manualSyncMessagesDoNotDuplicateVisibleProgress() {
         assertEquals(null, externalFavoriteSyncQueuedMessage(FavoriteSyncMode.sync))
         assertEquals(null, externalFavoriteSyncQueuedMessage(FavoriteSyncMode.history))
@@ -377,7 +420,39 @@ class ExternalFavoritesSettingsTextTest {
                 capabilities_json = "",
                 created_at = 0,
                 updated_at = 0,
-            ),
-            health = health,
-        )
+        ),
+        health = health,
+    )
+
+    private fun asyncTask(
+        status: String,
+        progressCurrent: Long,
+        progressTotal: Long,
+        progressMessage: String,
+        checkpointJson: String,
+    ) = Async_task(
+        id = 9,
+        type = AsyncTaskType.external_favorite_sync.name,
+        status = status,
+        payload_json = """{"sourceId":42,"mode":"sync"}""",
+        checkpoint_json = checkpointJson,
+        result_json = "",
+        progress_current = progressCurrent,
+        progress_total = progressTotal,
+        progress_message = progressMessage,
+        attempt_count = 0,
+        max_attempts = 5,
+        priority = 0,
+        unique_key = "external_favorite_sync:42:sync",
+        batch_id = null,
+        run_after_ms = null,
+        lease_owner = null,
+        lease_until_ms = null,
+        started_at = null,
+        finished_at = null,
+        last_error_code = "",
+        last_error_message = "",
+        created_at = 1,
+        updated_at = 1,
+    )
 }

@@ -56,6 +56,172 @@ class ExternalFavoriteImporterTest {
     }
 
     @Test
+    fun importsXArticleCardUrlAsPendingArticleForNormalContentProcessing() = withRepositories { _, sources, items, articles ->
+        val sourceId = saveXSource(sources)
+        val articleUrl = "https://example.com/article-from-retweet-card"
+        items.upsertDraft(
+            sourceId,
+            xDraft(
+                externalId = "post-article-card",
+                canonicalUrl = articleUrl,
+                title = "Article Card",
+                text = "转发壳里的文字",
+            ),
+        )
+
+        val imported = ExternalFavoriteImporter(items, articles).importPending()
+
+        assertEquals(1, imported)
+        val article = articles.getByUrl(articleUrl)
+        assertNotNull(article)
+        assertEquals("pending", article.status)
+        assertTrue(articles.getRecoverableForProcessingSync().map { it.id }.contains(article.id))
+        assertEquals("not_needed", items.getBySource(sourceId).single().ai_status)
+    }
+
+    @Test
+    fun importsXLongArticleUrlAsCompletedArticleWithoutWebProcessing() = withRepositories { _, sources, items, articles ->
+        val sourceId = saveXSource(sources)
+        val articleUrl = "https://x.com/i/article/2068336874515734528"
+        items.upsertDraft(
+            sourceId,
+            xDraft(
+                externalId = "2068340624907202872",
+                canonicalUrl = articleUrl,
+                title = "X 长文章",
+                text = "这是通过 X API 获取到的长文章正文，不应该再交给 WebView 打开网页。",
+                normalizedJson = """
+                    {
+                      "id": "2068340624907202872",
+                      "canonical_tweet_url": "https://x.com/i/status/2068340624907202872",
+                      "primary_url": "$articleUrl"
+                    }
+                """.trimIndent(),
+            ),
+        )
+
+        val imported = ExternalFavoriteImporter(items, articles).importPending()
+
+        assertEquals(1, imported)
+        val article = articles.getByUrl(articleUrl)
+        assertNotNull(article)
+        assertEquals("completed", article.status)
+        assertEquals(false, articles.getRecoverableForProcessingSync().map { it.id }.contains(article.id))
+        assertTrue(article.ai_markdown_content.orEmpty().contains("这是通过 X API 获取到的长文章正文"))
+        assertTrue(article.ai_markdown_content.orEmpty().contains("https://x.com/i/status/2068340624907202872"))
+        assertEquals("pending", items.getBySource(sourceId).single().ai_status)
+    }
+
+    @Test
+    fun importsXLongArticleMetadataInsteadOfOnlyShortLinkText() = withRepositories { _, sources, items, articles ->
+        val sourceId = saveXSource(sources)
+        val articleUrl = "https://x.com/i/article/2068336874515734528"
+        items.upsertDraft(
+            sourceId,
+            xDraft(
+                externalId = "2068340624907202872",
+                canonicalUrl = articleUrl,
+                title = "长文卡片标题",
+                text = "https://t.co/iAedHNUNSa",
+                normalizedJson = """
+                    {
+                      "id": "2068340624907202872",
+                      "canonical_tweet_url": "https://x.com/i/status/2068340624907202872",
+                      "primary_url": "$articleUrl",
+                      "url_title": "真正的 X 长文章标题",
+                      "url_description": "真正的 X 长文章摘要，应该作为可整理内容进入原文。"
+                    }
+                """.trimIndent(),
+            ),
+        )
+
+        ExternalFavoriteImporter(items, articles).importPending()
+
+        val article = articles.getByUrl(articleUrl)
+        assertNotNull(article)
+        assertEquals("completed", article.status)
+        assertEquals("真正的 X 长文章标题\n\n真正的 X 长文章摘要，应该作为可整理内容进入原文。", article.ai_content)
+        assertTrue(article.ai_markdown_content.orEmpty().contains("真正的 X 长文章标题"))
+        assertTrue(article.ai_markdown_content.orEmpty().contains("真正的 X 长文章摘要"))
+        assertEquals(false, article.ai_markdown_content.orEmpty().contains("\n\nhttps://t.co/iAedHNUNSa\n\n"))
+    }
+
+    @Test
+    fun importsXLongArticleMetadataInsteadOfOnlyArticleLinkText() = withRepositories { _, sources, items, articles ->
+        val sourceId = saveXSource(sources)
+        val articleUrl = "https://x.com/i/article/2010742786430021632"
+        items.upsertDraft(
+            sourceId,
+            xDraft(
+                externalId = "2010742786430021632",
+                canonicalUrl = articleUrl,
+                title = "长文卡片标题",
+                text = "链接：https://x.com/i/article/2010742786430021632",
+                normalizedJson = """
+                    {
+                      "id": "2010742786430021632",
+                      "canonical_tweet_url": "https://x.com/i/status/2010742786430021632",
+                      "primary_url": "$articleUrl",
+                      "url_title": "X 长文章真实标题",
+                      "url_description": "X 长文章真实摘要，应该替代单独的链接行。"
+                    }
+                """.trimIndent(),
+            ),
+        )
+
+        ExternalFavoriteImporter(items, articles).importPending()
+
+        val article = articles.getByUrl(articleUrl)
+        assertNotNull(article)
+        assertEquals("X 长文章真实标题\n\nX 长文章真实摘要，应该替代单独的链接行。", article.ai_content)
+        assertTrue(article.ai_markdown_content.orEmpty().contains("X 长文章真实标题"))
+        assertTrue(article.ai_markdown_content.orEmpty().contains("X 长文章真实摘要"))
+        assertEquals(false, article.ai_content.orEmpty().contains("链接：https://x.com/i/article/2010742786430021632"))
+    }
+
+    @Test
+    fun repairsAlreadyImportedPendingXLongArticleFromExternalItemContent() = withRepositories { _, sources, items, articles ->
+        val sourceId = saveXSource(sources)
+        val articleUrl = "https://x.com/i/article/2068336874515734528"
+        val (item, _) = items.upsertDraft(
+            sourceId,
+            xDraft(
+                externalId = "2068340624907202872",
+                canonicalUrl = articleUrl,
+                title = "X 长文章",
+                text = "这是已经同步到 external item 的正文，修复时应该直接写回文章。",
+                normalizedJson = """
+                    {
+                      "id": "2068340624907202872",
+                      "canonical_tweet_url": "https://x.com/i/status/2068340624907202872",
+                      "primary_url": "$articleUrl"
+                    }
+                """.trimIndent(),
+            ),
+        )
+        val articleId = articles.insert(
+            title = "X 长文章",
+            aiContent = "",
+            aiMarkdownContent = "",
+            url = articleUrl,
+            isFavorite = 0,
+            status = "pending",
+        )
+        items.markImported(item.id, articleId, duplicateLinked = false)
+
+        val repaired = ExternalFavoriteImporter(items, articles).repairImportedXLongArticlePendingArticles(limit = 10)
+
+        assertEquals(1, repaired)
+        val article = articles.getById(articleId)
+        assertNotNull(article)
+        assertEquals("completed", article.status)
+        assertEquals(false, articles.getRecoverableForProcessingSync().map { it.id }.contains(articleId))
+        assertTrue(article.ai_markdown_content.orEmpty().contains("这是已经同步到 external item 的正文"))
+        assertTrue(article.ai_markdown_content.orEmpty().contains("https://x.com/i/status/2068340624907202872"))
+        assertEquals("pending", items.getBySource(sourceId).single().ai_status)
+    }
+
+    @Test
     fun importsXItemMediaAsArticleCoverImageUrl() = withRepositories { _, sources, items, articles ->
         val sourceId = saveXSource(sources)
         items.upsertDraft(

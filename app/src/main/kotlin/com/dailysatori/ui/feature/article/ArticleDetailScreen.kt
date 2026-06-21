@@ -1,5 +1,9 @@
 package com.dailysatori.ui.feature.article
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +21,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -48,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import com.dailysatori.service.externalfavorites.xPostIdFromStatusUrl
 import com.dailysatori.ui.component.card.articleDisplayDomain
 import com.dailysatori.ui.component.card.articleDisplayTitle
 import com.dailysatori.core.util.TimeUtils
@@ -92,7 +98,9 @@ fun ArticleDetailScreen(
                 onExpandedChange = { showMenu = it },
                 onOriginalClick = { showOriginalSheet = true },
                 onRefreshClick = { showRefreshConfirm = true },
+                onXApiRefreshClick = viewModel::refreshArticleWithXApi,
                 onFavoriteClick = viewModel::toggleFavorite,
+                onCopyClick = { url -> copyArticleUrl(context, url) },
                 onOpenClick = { openArticleUrl(context, state.article?.url) },
                 onDeleteClick = { showDeleteConfirm = true },
             )
@@ -163,7 +171,9 @@ private fun ArticleDetailActions(
     onExpandedChange: (Boolean) -> Unit,
     onOriginalClick: () -> Unit,
     onRefreshClick: () -> Unit,
+    onXApiRefreshClick: () -> Unit,
     onFavoriteClick: () -> Unit,
+    onCopyClick: (String) -> Unit,
     onOpenClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
@@ -174,7 +184,9 @@ private fun ArticleDetailActions(
         DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
             ArticleOriginalMenuItem(onExpandedChange, onOriginalClick)
             ArticleRefreshMenuItem(state, onExpandedChange, onRefreshClick)
+            ArticleXApiRefreshMenuItem(state, onExpandedChange, onXApiRefreshClick)
             ArticleFavoriteMenuItem(state, onExpandedChange, onFavoriteClick)
+            ArticleCopyLinkMenuItem(state.article?.url, onExpandedChange, onCopyClick)
             ArticleOpenMenuItem(onExpandedChange, onOpenClick)
             ArticleDeleteMenuItem(onExpandedChange, onDeleteClick)
         }
@@ -211,6 +223,25 @@ private fun ArticleRefreshMenuItem(
 }
 
 @Composable
+private fun ArticleXApiRefreshMenuItem(
+    state: ArticleDetailState,
+    onExpandedChange: (Boolean) -> Unit,
+    onXApiRefreshClick: () -> Unit,
+) {
+    val visible = canRefreshArticleWithXApi(state.article?.url)
+    if (!visible) return
+    DropdownMenuItem(
+        text = { Text(articleXApiRefreshMenuLabel()) },
+        leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) },
+        enabled = !state.isRefreshing,
+        onClick = {
+            onExpandedChange(false)
+            onXApiRefreshClick()
+        },
+    )
+}
+
+@Composable
 private fun ArticleFavoriteMenuItem(
     state: ArticleDetailState,
     onExpandedChange: (Boolean) -> Unit,
@@ -224,6 +255,23 @@ private fun ArticleFavoriteMenuItem(
         onClick = {
             onExpandedChange(false)
             onFavoriteClick()
+        },
+    )
+}
+
+@Composable
+private fun ArticleCopyLinkMenuItem(
+    url: String?,
+    onExpandedChange: (Boolean) -> Unit,
+    onCopyClick: (String) -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text(articleCopyLinkMenuLabel()) },
+        leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+        enabled = !url.isNullOrBlank(),
+        onClick = {
+            onExpandedChange(false)
+            if (!url.isNullOrBlank()) onCopyClick(url)
         },
     )
 }
@@ -438,6 +486,23 @@ private fun ArticleDeleteConfirmDialog(onConfirm: () -> Unit, onDismiss: () -> U
 internal fun articleDeleteDialogTitle(): String = "删除文章"
 
 internal fun articleDeleteDialogMessage(): String = "确定要删除这篇文章吗？"
+
+internal fun articleCopyLinkMenuLabel(): String = "复制网页链接"
+
+internal fun articleCopyLinkClipLabel(): String = "网页链接"
+
+internal fun articleCopyLinkSuccessMessage(): String = "已复制网页链接"
+
+internal fun articleXApiRefreshMenuLabel(): String = "用 X API 刷新"
+
+internal fun canRefreshArticleWithXApi(url: String?): Boolean =
+    !url.isNullOrBlank() && xPostIdFromStatusUrl(url) != null
+
+private fun copyArticleUrl(context: Context, url: String) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText(articleCopyLinkClipLabel(), url))
+    Toast.makeText(context, articleCopyLinkSuccessMessage(), Toast.LENGTH_SHORT).show()
+}
 
 private fun extractDomain(url: String?): String = articleDisplayDomain(url)
 

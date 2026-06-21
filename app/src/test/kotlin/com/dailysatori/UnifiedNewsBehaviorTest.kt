@@ -617,29 +617,32 @@ class UnifiedNewsBehaviorTest {
 
     @Test
     fun unifiedNewsWorkerWritesDailySummaryRows() {
-        val worker = java.io.File("src/main/kotlin/com/dailysatori/core/worker/UnifiedNewsWorker.kt").readText()
+        val handler = java.io.File("src/main/kotlin/com/dailysatori/core/task/UnifiedNewsGenerateTaskHandler.kt").readText()
 
-        assertTrue(worker.contains("generateDaily"))
-        assertFalse(worker.contains("summaryService.generate(window"))
+        assertTrue(handler.contains("summaryService.generateDaily("))
+        assertFalse(handler.contains("summaryService.generate(window"))
     }
 
     @Test
     fun unifiedNewsWorkerUsesForcedDailyGenerationOnlyForDueMode() {
         val worker = java.io.File("src/main/kotlin/com/dailysatori/core/worker/UnifiedNewsWorker.kt").readText()
+        val handler = java.io.File("src/main/kotlin/com/dailysatori/core/task/UnifiedNewsGenerateTaskHandler.kt").readText()
 
-        assertTrue(worker.contains("UnifiedNewsWorkerMode.DUE -> generateDailySummary(summaryService, force = true)"))
-        assertTrue(worker.contains("UnifiedNewsWorkerMode.BACKFILL -> generateDailySummary(summaryService, force = false)"))
-        assertTrue(worker.contains("summaryService.generateDaily(force = force)"))
+        assertTrue(worker.contains("UnifiedNewsWorkerMode.DUE -> enqueueDailySummaryTask(mode = UnifiedNewsWorkerMode.DUE, force = true)"))
+        assertTrue(worker.contains("UnifiedNewsWorkerMode.BACKFILL -> enqueueDailySummaryTask(mode = UnifiedNewsWorkerMode.BACKFILL, force = false)"))
+        assertTrue(handler.contains("force = payload.force"))
     }
 
     @Test
     fun unifiedNewsWorkerSchedulesNextOnlyAfterNonRetryResult() {
-        val worker = java.io.File("src/main/kotlin/com/dailysatori/core/worker/UnifiedNewsWorker.kt").readText()
-        val retryCheck = worker.indexOf("if (shouldRetryUnifiedNews(result)) return Result.retry()")
-        val scheduleNext = worker.indexOf("UnifiedNewsScheduler(applicationContext).scheduleNext(Clock.System.now())")
+        val handler = java.io.File("src/main/kotlin/com/dailysatori/core/task/UnifiedNewsGenerateTaskHandler.kt").readText()
+        val successCheck = handler.indexOf("if (result.success)")
+        val scheduleNext = handler.indexOf("UnifiedNewsScheduler(context).scheduleNext(Clock.System.now())")
+        val retryCheck = handler.indexOf("shouldRetryUnifiedNews(result)")
 
-        assertTrue(retryCheck >= 0)
-        assertTrue(scheduleNext > retryCheck)
+        assertTrue(successCheck >= 0)
+        assertTrue(scheduleNext > successCheck)
+        assertTrue(retryCheck > scheduleNext)
     }
 
     @Test
@@ -673,7 +676,7 @@ class UnifiedNewsBehaviorTest {
         assertFalse(repo.contains("fun replaceSources"))
         assertTrue(articleRepo.contains("fun getFavoritesByDateRangeSync"))
         assertTrue(migration.contains("migrateV6ToV7"))
-        assertTrue(config.contains("currentSchemaVersion = 13L"))
+        assertTrue(config.contains("currentSchemaVersion = 14L"))
     }
 
     @Test
@@ -699,7 +702,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(schema.contains("updateRemoteNewsSource"))
         assertTrue(schema.contains("upsertRemoteNewsSource"))
         assertTrue(schema.contains("deleteRemoteNewsSource"))
-        assertTrue(config.contains("currentSchemaVersion = 13L"))
+        assertTrue(config.contains("currentSchemaVersion = 14L"))
         assertTrue(migration.contains("if (currentVersion < 8)"))
         assertTrue(migration.contains("migrateV7ToV8()"))
         assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS remote_news_source"))
@@ -1448,10 +1451,10 @@ class UnifiedNewsBehaviorTest {
 
         assertTrue(worker.contains("OneTimeWorkRequestBuilder<UnifiedNewsWorker>"))
         assertTrue(worker.contains("setInitialDelay"))
-        assertTrue(worker.contains("scheduleNext"))
+        assertTrue(worker.contains("enqueueDailySummaryTask"))
         assertTrue(worker.contains("inputData.getString(KEY_MODE)"))
-        assertTrue(worker.contains("shouldRetryUnifiedNews"))
-        assertTrue(worker.contains("scheduleNext(Clock.System.now())"))
+        assertTrue(worker.contains("AsyncTaskType.remote_news_fetch.name"))
+        assertTrue(worker.contains("unifiedNewsGenerateTaskPayloadJson"))
         assertTrue(worker.contains("else -> Result.failure()"))
         assertTrue(app.contains("UnifiedNewsScheduler(this).ensureScheduled()"))
     }

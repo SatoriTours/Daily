@@ -8,8 +8,11 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.dailysatori.core.task.UnifiedNewsGenerateTaskHandler
+import com.dailysatori.core.task.unifiedNewsGenerateTaskPayloadJson
+import com.dailysatori.data.repository.AsyncTaskRepository
+import com.dailysatori.service.asynctask.AsyncTaskType
 import com.dailysatori.service.unifiednews.UnifiedNewsGenerationResult
-import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
 import com.dailysatori.service.unifiednews.nextUnifiedNewsWindow
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -45,10 +48,9 @@ class UnifiedNewsWorker(
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         return try {
-            val summaryService = GlobalContext.get().get<UnifiedNewsSummaryService>()
             when (unifiedNewsWorkerMode(inputData.getString(KEY_MODE))) {
-                UnifiedNewsWorkerMode.DUE -> generateDailySummary(summaryService, force = true)
-                UnifiedNewsWorkerMode.BACKFILL -> generateDailySummary(summaryService, force = false)
+                UnifiedNewsWorkerMode.DUE -> enqueueDailySummaryTask(mode = UnifiedNewsWorkerMode.DUE, force = true)
+                UnifiedNewsWorkerMode.BACKFILL -> enqueueDailySummaryTask(mode = UnifiedNewsWorkerMode.BACKFILL, force = false)
                 else -> Result.failure()
             }
         } catch (_: Exception) {
@@ -56,10 +58,23 @@ class UnifiedNewsWorker(
         }
     }
 
-    private suspend fun generateDailySummary(summaryService: UnifiedNewsSummaryService, force: Boolean): Result {
-        val result = summaryService.generateDaily(force = force)
-        if (shouldRetryUnifiedNews(result)) return Result.retry()
-        UnifiedNewsScheduler(applicationContext).scheduleNext(Clock.System.now())
+    private fun enqueueDailySummaryTask(mode: UnifiedNewsWorkerMode, force: Boolean): Result {
+        val asyncTaskRepo = GlobalContext.get().get<AsyncTaskRepository>()
+        val asyncTaskScheduler = AsyncTaskScheduler(applicationContext)
+        val modeValue = when (mode) {
+            UnifiedNewsWorkerMode.DUE -> UnifiedNewsGenerateTaskHandler.MODE_DUE
+            UnifiedNewsWorkerMode.BACKFILL -> UnifiedNewsGenerateTaskHandler.MODE_BACKFILL
+        }
+        val taskId = asyncTaskRepo.enqueue(
+            type = AsyncTaskType.remote_news_fetch.name,
+            payloadJson = unifiedNewsGenerateTaskPayloadJson(
+                force = force,
+                ignoreSourceTimeFilter = false,
+                mode = modeValue,
+            ),
+            uniqueKey = "remote_news_fetch:${mode.name.lowercase()}",
+        )
+        asyncTaskScheduler.enqueue(taskId)
         return Result.success()
     }
 

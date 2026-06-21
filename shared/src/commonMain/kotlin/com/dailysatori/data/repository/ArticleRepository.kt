@@ -228,6 +228,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         markdown: String,
         pubDate: Long?,
         coverImageUrl: String? = null,
+        status: String = "completed",
     ): Article {
         val existing = getByUrl(url)
         if (existing == null) {
@@ -237,7 +238,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
                 aiMarkdownContent = markdown,
                 url = url,
                 isFavorite = 0,
-                status = "completed",
+                status = status,
                 coverImageUrl = coverImageUrl,
                 pubDate = pubDate,
             )

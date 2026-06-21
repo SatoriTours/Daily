@@ -40,12 +40,17 @@ internal fun articleProcessingCardMessage(status: String?): String? {
 }
 
 internal fun articleProcessingMessage(status: String?, progress: String? = null): String? = when (status) {
-    "pending" -> "正在打开网页..."
+    "pending" -> pendingProgressMessage(progress)
     "webContentFetched" -> "网页内容已获取，正在整理..."
     "aiProcessing" -> aiProgressMessage(progress)
     "completed" -> "文章已更新"
     "error" -> "处理失败，请稍后重试"
     else -> null
+}
+
+private fun pendingProgressMessage(progress: String?): String = when (progress) {
+    "Fetching X post" -> "正在通过 X API 获取内容..."
+    else -> "正在打开网页..."
 }
 
 private fun aiProgressMessage(progress: String?): String = when (progress) {

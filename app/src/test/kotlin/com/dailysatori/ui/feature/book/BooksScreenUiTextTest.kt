@@ -125,32 +125,34 @@ class BooksScreenUiTextTest {
 
         assertEquals("正在更新《禅宗公案》的读书观点", booksRefreshInProgressText("禅宗公案"))
         assertEquals("《禅宗公案》读书观点已更新", booksRefreshSuccessText("禅宗公案"))
+        assertEquals("《禅宗公案》观点更新已加入任务", booksRefreshQueuedText("禅宗公案"))
         assertTrue(source.contains("state.refreshingBookId != null"))
         assertTrue(source.contains("booksRefreshInProgressText"))
         assertTrue(source.contains("state.refreshMessage?.let { message ->"))
         assertTrue(viewModelSource.contains("refreshingBookId = bookId"))
-        assertTrue(viewModelSource.contains("refreshMessage = booksRefreshSuccessText(book.title)"))
+        assertTrue(viewModelSource.contains("refreshMessage = booksRefreshQueuedText(book.title)"))
         assertTrue(viewModelSource.contains("refreshingBookId = null"))
     }
 
     @Test
-    fun refreshBookWritesDiagnosticLogsAtGenerationBoundary() {
+    fun refreshBookWritesDiagnosticLogWhenQueued() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksViewModel.kt").readText()
 
         assertTrue(source.contains("Logger.withTag(\"BooksRefresh\")"))
         assertTrue(source.contains("refreshSourceUrl.isNotBlank()"))
-        assertTrue(source.contains("Book refresh failed"))
-        assertTrue(source.contains("Book refresh finished"))
+        assertTrue(source.contains("Book refresh queued"))
     }
 
     @Test
     fun refreshBookReusesStoredWeReadBookIdFromViewpointContext() {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/book/BooksViewModel.kt").readText()
+        val handlerSource = File("src/main/kotlin/com/dailysatori/core/task/BookViewpointGenerateTaskHandler.kt").readText()
 
         assertTrue(source.contains("parseBookViewpointRetryContext"))
         assertTrue(source.contains("viewpointRepo.getByBookSync(bookId)"))
-        assertTrue(source.contains("weReadSourceUrlFromBookId"))
-        assertTrue(source.contains("sourceUrl = refreshSourceUrl"))
+        assertTrue(handlerSource.contains("parseBookViewpointRetryContext"))
+        assertTrue(handlerSource.contains("viewpointRepo.getByBookSync(bookId)"))
+        assertTrue(handlerSource.contains("sourceUrl = refreshSourceUrlFromViewpoints(payload.bookId)"))
         assertEquals("weread://reading?bId=3300045871", weReadSourceUrlFromBookId("3300045871"))
     }
 

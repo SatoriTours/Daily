@@ -63,11 +63,44 @@ class ArticleDetailLayoutTest {
         assertTrue(actionsBody.contains("DropdownMenu("))
         assertTrue(actionsBody.contains("ArticleOriginalMenuItem("))
         assertTrue(actionsBody.contains("ArticleRefreshMenuItem("))
+        assertTrue(actionsBody.contains("ArticleXApiRefreshMenuItem("))
         assertTrue(actionsBody.contains("ArticleFavoriteMenuItem("))
+        assertTrue(actionsBody.contains("ArticleCopyLinkMenuItem("))
         assertTrue(actionsBody.contains("ArticleOpenMenuItem("))
         assertTrue(actionsBody.contains("ArticleDeleteMenuItem("))
         assertFalse(actionsBody.contains("IconButton(onClick = onFavoriteClick)"))
         assertFalse(actionsBody.contains("IconButton(onClick = { openArticleUrl"))
+    }
+
+    @Test
+    fun localArticleDetailCanCopyArticleUrlFromOverflowMenu() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
+        val copyBody = source.functionBody("ArticleCopyLinkMenuItem")
+
+        assertTrue(source.contains("ClipboardManager"))
+        assertTrue(source.contains("ClipData.newPlainText(articleCopyLinkClipLabel(), url)"))
+        assertTrue(copyBody.contains("Text(articleCopyLinkMenuLabel())"))
+        assertTrue(copyBody.contains("enabled = !url.isNullOrBlank()"))
+        assertTrue(copyBody.contains("onCopyClick(url)"))
+        assertTrue(source.contains("Toast.makeText(context, articleCopyLinkSuccessMessage(), Toast.LENGTH_SHORT).show()"))
+        assertEquals("复制网页链接", articleCopyLinkMenuLabel())
+        assertEquals("网页链接", articleCopyLinkClipLabel())
+        assertEquals("已复制网页链接", articleCopyLinkSuccessMessage())
+    }
+
+    @Test
+    fun localArticleDetailShowsXApiRefreshOnlyForXStatusArticles() {
+        val source = File("src/main/kotlin/com/dailysatori/ui/feature/article/ArticleDetailScreen.kt").readText()
+        val xApiBody = source.functionBody("ArticleXApiRefreshMenuItem")
+
+        assertTrue(source.contains("viewModel::refreshArticleWithXApi"))
+        assertTrue(xApiBody.contains("Text(articleXApiRefreshMenuLabel())"))
+        assertTrue(xApiBody.contains("visible = canRefreshArticleWithXApi(state.article?.url)"))
+        assertTrue(xApiBody.contains("enabled = !state.isRefreshing"))
+        assertEquals("用 X API 刷新", articleXApiRefreshMenuLabel())
+        assertTrue(canRefreshArticleWithXApi("https://x.com/i/status/2068340624907202872"))
+        assertTrue(canRefreshArticleWithXApi("https://twitter.com/user/status/2068340624907202872"))
+        assertFalse(canRefreshArticleWithXApi("https://example.com/article"))
     }
 
     @Test

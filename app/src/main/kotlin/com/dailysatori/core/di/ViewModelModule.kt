@@ -44,6 +44,7 @@ import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsViewMode
 import com.dailysatori.ui.feature.settings.SettingsViewModel
 import com.dailysatori.ui.feature.settings.mcp.McpServerViewModel
 import com.dailysatori.ui.feature.settings.skills.SkillSettingsViewModel
+import com.dailysatori.ui.feature.settings.taskcenter.TaskCenterViewModel
 import com.dailysatori.ui.feature.share.ShareDialogViewModel
 import com.dailysatori.ui.feature.remotenews.RemoteNewsViewModel
 import com.dailysatori.ui.feature.settings.weekly.WeeklySummaryViewModel
@@ -89,7 +90,8 @@ val viewModelModule: Module = module {
             bookRepo = get<BookRepository>(),
             viewpointRepo = get<BookViewpointRepository>(),
             bookAiFallbackGenerator = get(),
-            bookIntelligenceService = get(),
+            asyncTaskRepo = get(),
+            asyncTaskScheduler = get(),
         )
     }
     viewModel {
@@ -212,6 +214,7 @@ val viewModelModule: Module = module {
         ExternalFavoritesSettingsViewModel(
             sourceRepo = get(),
             scheduler = get(),
+            asyncTaskRepo = get(),
             xOAuthCoordinator = get(),
             settingRepo = get<SettingRepository>(),
         )
@@ -221,6 +224,11 @@ val viewModelModule: Module = module {
             webServerService = get<WebServerService>(),
             appUpgradeService = get<AppUpgradeService>(),
             settingRepo = get<SettingRepository>(),
+        )
+    }
+    viewModel {
+        TaskCenterViewModel(
+            repository = get(),
         )
     }
     viewModel {

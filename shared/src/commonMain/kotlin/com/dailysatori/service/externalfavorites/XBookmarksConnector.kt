@@ -1,5 +1,6 @@
 package com.dailysatori.service.externalfavorites
 
+import co.touchlab.kermit.Logger
 import com.dailysatori.shared.db.External_favorite_source
 import com.dailysatori.shared.isDevelopmentBuild
 import io.ktor.client.HttpClient
@@ -30,6 +31,8 @@ class XBookmarksConnector(
     private val apiBaseUrl: String = "https://api.x.com",
     @Suppress("unused") private val developmentMode: Boolean = isDevelopmentBuild(),
 ) : FavoriteConnector {
+    private val log = Logger.withTag("XBookmarksConnector")
+
     override val provider: String = ExternalFavoriteProvider.X.id
 
     override val capabilities: FavoriteConnectorCapabilities = FavoriteConnectorCapabilities(
@@ -87,7 +90,7 @@ class XBookmarksConnector(
         pageSize: Int,
     ): FavoriteFetchPage {
         val httpClient = client ?: error("XBookmarksConnector requires an HttpClient to fetch remote bookmarks")
-        val token = extractAccessToken(source.auth_json)
+        val token = extractXAccessToken(source.auth_json)
             ?: error("X bookmarks auth_json must contain access_token, bearer_token, or token")
         val response = httpClient.get("$apiBaseUrl${xBookmarksEndpointPath(source.account_id)}") {
             bearerAuth(token)
@@ -100,13 +103,122 @@ class XBookmarksConnector(
                 parameter("pagination_token", cursor)
             }
         }
-        return parseXBookmarksHttpResponse(
+        val body = response.bodyAsText()
+        logXApiResponseBody(
+            label = "bookmarks",
             statusCode = response.status.value,
-            body = response.bodyAsText(),
+            metadata = "account=${source.account_id}, cursor=${cursor.orEmpty()}, pageSize=${pageSize.coerceIn(1, capabilities.maxPageSize)}",
+            body = body,
+        )
+        val page = parseXBookmarksHttpResponse(
+            statusCode = response.status.value,
+            body = body,
             headers = mapOf(
                 X_RATE_LIMIT_RESET_HEADER to response.headers[X_RATE_LIMIT_RESET_HEADER].orEmpty(),
             ),
         )
+        return enrichPageWithFetchedReferencedPosts(source, page)
+    }
+
+    suspend fun fetchPostById(
+        source: External_favorite_source,
+        postId: String,
+    ): ExternalFavoriteItemDraft? {
+        val httpClient = client ?: error("XBookmarksConnector requires an HttpClient to fetch posts")
+        val token = extractXAccessToken(source.auth_json)
+            ?: error("X auth_json must contain access_token, bearer_token, or token")
+        val response = httpClient.get("$apiBaseUrl/2/tweets/${postId.trim()}") {
+            bearerAuth(token)
+            parameter("tweet.fields", X_BOOKMARKS_TWEET_FIELDS)
+            parameter("user.fields", X_BOOKMARKS_USER_FIELDS)
+            parameter("expansions", X_BOOKMARKS_EXPANSIONS)
+            parameter("media.fields", X_BOOKMARKS_MEDIA_FIELDS)
+        }
+        val body = response.bodyAsText()
+        logXApiResponseBody(
+            label = "post_lookup",
+            statusCode = response.status.value,
+            metadata = "account=${source.account_id}, postId=${postId.trim()}",
+            body = body,
+        )
+        return parseXPostLookupHttpResponse(
+            statusCode = response.status.value,
+            body = body,
+            headers = mapOf(
+                X_RATE_LIMIT_RESET_HEADER to response.headers[X_RATE_LIMIT_RESET_HEADER].orEmpty(),
+            ),
+        )
+    }
+
+    private suspend fun enrichPageWithFetchedReferencedPosts(
+        source: External_favorite_source,
+        page: FavoriteFetchPage,
+    ): FavoriteFetchPage {
+        val referencedIdsByExternalId = page.items.associate { item ->
+            item.externalId to xReferencedPostIdsFromDraft(item)
+        }
+        val fetchedPosts = referencedIdsByExternalId.values
+            .flatten()
+            .distinct()
+            .associateWith { postId ->
+                runCatching { fetchPostById(source, postId) }.getOrNull()
+            }
+        val referencedEnrichedItems = page.items.map { item ->
+            referencedIdsByExternalId[item.externalId]
+                .orEmpty()
+                .firstNotNullOfOrNull { postId -> xBookmarkItemWithFetchedReferencedPost(item, fetchedPosts[postId]) }
+                ?: item
+        }
+        val articleEnrichedItems = referencedEnrichedItems.map { item ->
+            val articleId = xArticleIdFromUrl(item.canonicalUrl.orEmpty()) ?: return@map item
+            val articleDraft = runCatching { fetchArticlePostById(source, articleId) }.getOrNull()
+            xBookmarkItemWithFetchedReferencedPost(item, articleDraft) ?: item
+        }
+        return page.copy(items = articleEnrichedItems)
+    }
+
+    private suspend fun fetchArticlePostById(
+        source: External_favorite_source,
+        articleId: String,
+    ): ExternalFavoriteItemDraft? {
+        val httpClient = client ?: error("XBookmarksConnector requires an HttpClient to fetch X articles")
+        val token = extractXAccessToken(source.auth_json)
+            ?: error("X auth_json must contain access_token, bearer_token, or token")
+        val response = httpClient.get("$apiBaseUrl/2/posts/${articleId.trim()}") {
+            bearerAuth(token)
+            parameter("tweet.fields", X_BOOKMARKS_TWEET_FIELDS)
+            parameter("user.fields", X_BOOKMARKS_USER_FIELDS)
+            parameter("expansions", X_BOOKMARKS_EXPANSIONS)
+            parameter("media.fields", X_BOOKMARKS_MEDIA_FIELDS)
+        }
+        val body = response.bodyAsText()
+        logXApiResponseBody(
+            label = "article_lookup",
+            statusCode = response.status.value,
+            metadata = "account=${source.account_id}, articleId=${articleId.trim()}",
+            body = body,
+        )
+        return parseXPostLookupHttpResponse(
+            statusCode = response.status.value,
+            body = body,
+            headers = mapOf(
+                X_RATE_LIMIT_RESET_HEADER to response.headers[X_RATE_LIMIT_RESET_HEADER].orEmpty(),
+            ),
+        )
+    }
+
+    private fun logXApiResponseBody(
+        label: String,
+        statusCode: Int,
+        metadata: String,
+        body: String,
+    ) {
+        val chunks = body.chunked(X_API_LOG_CHUNK_SIZE).ifEmpty { listOf("") }
+        chunks.forEachIndexed { index, chunk ->
+            log.i {
+                "X API response [$label] status=$statusCode $metadata chunk=${index + 1}/${chunks.size}: $chunk"
+            }
+        }
     }
 }
 
@@ -149,6 +261,7 @@ private const val X_BOOKMARKS_TWEET_FIELDS =
 private const val X_BOOKMARKS_USER_FIELDS = "username,name,profile_image_url,verified"
 private const val X_BOOKMARKS_EXPANSIONS = "author_id,attachments.media_keys,referenced_tweets.id,referenced_tweets.id.author_id"
 private const val X_BOOKMARKS_MEDIA_FIELDS = "media_key,type,url,preview_image_url,alt_text,width,height"
+private const val X_API_LOG_CHUNK_SIZE = 3_000
 
 fun parseXBookmarksHttpResponse(
     statusCode: Int,
@@ -175,6 +288,83 @@ fun parseXBookmarksHttpResponse(
         },
     )
 }
+
+fun parseXPostLookupHttpResponse(
+    statusCode: Int,
+    body: String,
+    headers: Map<String, String> = emptyMap(),
+): ExternalFavoriteItemDraft? {
+    if (statusCode in 200..299) return XBookmarksResponseParser.parsePostLookup(body)
+    if (statusCode == 401 || statusCode == 403) throw XFavoriteAuthException(statusCode, xProviderErrorDetail(body))
+    if (statusCode == 429) {
+        throw XFavoriteRateLimitException(
+            statusCode = statusCode,
+            rateLimitResetAt = headers.headerValue(X_RATE_LIMIT_RESET_HEADER)?.toRateLimitResetMillis(),
+        )
+    }
+    throw XFavoriteProviderException(
+        statusCode = statusCode,
+        message = buildString {
+            append("X post lookup request failed with HTTP ")
+            append(statusCode)
+            xProviderErrorDetail(body)?.let {
+                append(": ")
+                append(it)
+            }
+        },
+    )
+}
+
+internal fun xReferencedPostIdsFromDraft(item: ExternalFavoriteItemDraft): List<String> = runCatching {
+    Json.parseToJsonElement(item.normalizedJson)
+        .jsonObject
+        .get("referenced_tweets")
+        ?.jsonArrayOrNull()
+        .orEmpty()
+        .mapNotNull { it.jsonObjectOrNull()?.string("id")?.takeIf(String::isNotBlank) }
+        .distinct()
+}.getOrDefault(emptyList())
+
+internal fun xArticleIdFromUrl(url: String): String? =
+    Regex("""^https?://(?:mobile\.)?(?:twitter\.com|x\.com)/i/article/(\d+)(?:[/?#].*)?$""", RegexOption.IGNORE_CASE)
+        .matchEntire(url.trim())
+        ?.groupValues
+        ?.getOrNull(1)
+
+internal fun xBookmarkItemWithFetchedReferencedPost(
+    item: ExternalFavoriteItemDraft,
+    fetchedPost: ExternalFavoriteItemDraft?,
+): ExternalFavoriteItemDraft? {
+    if (fetchedPost == null) return null
+    val canonicalUrl = fetchedPost.canonicalUrl ?: item.canonicalUrl
+    val title = fetchedPost.title.takeIf { it.isNotBlank() } ?: item.title
+    val text = fetchedPost.text.takeIf { it.isNotBlank() } ?: item.text
+    val authorName = fetchedPost.authorName.takeIf { it.isNotBlank() } ?: item.authorName
+    val normalizedJson = fetchedPost.normalizedJson
+    val sourceCreatedAt = fetchedPost.sourceCreatedAt ?: item.sourceCreatedAt
+    val mediaUrls = xMediaUrlsFromNormalizedTweetJson(normalizedJson)
+    return item.copy(
+        canonicalUrl = canonicalUrl,
+        title = title,
+        text = text,
+        authorName = authorName,
+        sourceCreatedAt = sourceCreatedAt,
+        normalizedJson = normalizedJson,
+        contentHash = sha256Hex(listOf(item.externalId, text, authorName, normalizedJson).joinToString("\n")),
+        aiInputHash = sha256Hex(aiInputHashText(item.externalId, canonicalUrl, text, authorName, sourceCreatedAt, mediaUrls)),
+    )
+}
+
+private fun xMediaUrlsFromNormalizedTweetJson(normalizedJson: String): List<String> = runCatching {
+    val root = Json.parseToJsonElement(normalizedJson).jsonObject
+    root["media"]
+        ?.jsonArrayOrNull()
+        ?.mapNotNull { media ->
+            val obj = media.jsonObjectOrNull() ?: return@mapNotNull null
+            obj.string("url") ?: obj.string("preview_image_url")
+        }
+        .orEmpty()
+}.getOrDefault(emptyList())
 
 object XBookmarksResponseParser {
     private val json = Json {
@@ -211,11 +401,20 @@ object XBookmarksResponseParser {
             }
             ?.toMap()
             .orEmpty()
-
-        val items = root["data"]
+        val tweetsById = root["includes"]
+            ?.jsonObjectOrNull()
+            ?.get("tweets")
             ?.jsonArrayOrNull()
-            ?.mapNotNull { tweet -> tweet.toDraft(usersById, mediaByKey) }
+            ?.mapNotNull { tweet ->
+                val obj = tweet.jsonObjectOrNull() ?: return@mapNotNull null
+                val id = obj.string("id") ?: return@mapNotNull null
+                id to obj
+            }
+            ?.toMap()
             .orEmpty()
+
+        val items = root.tweetDataElements()
+            .mapNotNull { tweet -> tweet.toDraft(usersById, mediaByKey, tweetsById) }
         val nextCursor = root["meta"]
             ?.jsonObjectOrNull()
             ?.string("next_token")
@@ -228,16 +427,36 @@ object XBookmarksResponseParser {
         )
     }
 
+    fun parsePostLookup(rawJson: String): ExternalFavoriteItemDraft? =
+        parse(rawJson).items.firstOrNull()
+
+    private fun JsonObject.tweetDataElements(): List<JsonElement> {
+        val data = get("data") ?: return emptyList()
+        data.jsonArrayOrNull()?.let { return it }
+        data.jsonObjectOrNull()?.let { return listOf(it) }
+        return emptyList()
+    }
+
     private fun JsonElement.toDraft(
         usersById: Map<String, XUser>,
         mediaByKey: Map<String, JsonObject>,
+        tweetsById: Map<String, JsonObject>,
     ): ExternalFavoriteItemDraft? {
         val tweet = jsonObjectOrNull() ?: return null
         val id = tweet.string("id") ?: return null
         val noteText = tweet["note_tweet"]?.jsonObjectOrNull()?.string("text")
-        val text = noteText?.takeIf { it.isNotBlank() } ?: tweet.string("text").orEmpty()
+        val articleObject = tweet["article"]?.jsonObjectOrNull()
+        val articleText = articleObject?.articleContentText()
+        val text = noteText?.takeIf { it.isNotBlank() }
+            ?: articleText?.takeIf { it.isNotBlank() }
+            ?: tweet.string("content")?.takeIf { it.isNotBlank() }
+            ?: tweet.string("text").orEmpty()
         val author = usersById[tweet.string("author_id")]
-        val urls = tweet.xUrlEntities()
+        val referencedTweets = tweet["referenced_tweets"]?.jsonArrayOrNull().orEmpty()
+        val referencedTweetObjects = referencedTweets
+            .mapNotNull { it.jsonObjectOrNull()?.string("id") }
+            .mapNotNull { tweetsById[it] }
+        val urls = tweet.xUrlEntities() + referencedTweetObjects.flatMap { it.xUrlEntities() }
         val media = tweet["attachments"]
             ?.jsonObjectOrNull()
             ?.get("media_keys")
@@ -247,7 +466,8 @@ object XBookmarksResponseParser {
             .orEmpty()
         val createdAt = tweet.string("created_at")?.let(::parseInstantMillis)
         val primaryUrl = urls.firstNotNullOfOrNull { it.primaryUrl }
-        val cardTitle = urls.firstNotNullOfOrNull { it.title }
+        val articleTitle = articleObject?.string("title")?.takeIf { it.isNotBlank() }
+        val cardTitle = urls.firstNotNullOfOrNull { it.title } ?: articleTitle
         val cardDescription = urls.firstNotNullOfOrNull { it.description }
         val urlImages = urls.flatMap { it.images }
         val tweetUrl = xStatusUrl(id, author?.username)
@@ -263,7 +483,7 @@ object XBookmarksResponseParser {
             urlDescription = cardDescription,
             urlImages = urlImages,
             media = media,
-            referencedTweets = tweet["referenced_tweets"]?.jsonArrayOrNull().orEmpty(),
+            referencedTweets = referencedTweets,
             publicMetrics = tweet["public_metrics"]?.jsonObjectOrNull(),
             lang = tweet.string("lang"),
         )
@@ -385,6 +605,12 @@ private fun JsonObject.xUrlEntities(): List<XUrlEntity> {
         .mapNotNull { it.jsonObjectOrNull()?.toXUrlEntity() }
 }
 
+private fun JsonObject.articleContentText(): String? =
+    string("body")
+        ?: string("content")
+        ?: string("text")
+        ?: string("description")
+
 private fun JsonObject.toXUrlEntity(): XUrlEntity? {
     val primaryUrl = string("unwound_url")
         ?: string("expanded_url")
@@ -499,7 +725,7 @@ private fun xProviderErrorDetail(body: String): String? = runCatching {
         .takeIf { it.isNotBlank() }
 }.getOrNull()
 
-private fun extractAccessToken(authJson: String): String? = runCatching {
+fun extractXAccessToken(authJson: String): String? = runCatching {
     Json.parseToJsonElement(authJson).jsonObject.let { auth ->
         auth.string("access_token")
             ?: auth.string("bearer_token")

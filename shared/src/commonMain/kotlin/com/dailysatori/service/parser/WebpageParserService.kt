@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.dailysatori.config.AIConfig
 import com.dailysatori.config.WebViewConfig
 import com.dailysatori.data.repository.ArticleRepository
+import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
 import com.dailysatori.data.repository.ImageRepository
 import com.dailysatori.data.repository.TagRepository
 import com.dailysatori.platform.FileManager
@@ -11,6 +12,10 @@ import com.dailysatori.platform.WebViewPageContent
 import com.dailysatori.platform.WebViewLoader
 import com.dailysatori.service.ai.AiConfigService
 import com.dailysatori.service.ai.AiService
+import com.dailysatori.service.externalfavorites.ExternalFavoriteItemDraft
+import com.dailysatori.service.externalfavorites.ExternalFavoriteProvider
+import com.dailysatori.service.externalfavorites.XBookmarksConnector
+import com.dailysatori.service.externalfavorites.xPostIdFromStatusUrl
 import com.dailysatori.shared.db.Article
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
@@ -33,8 +38,10 @@ import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -391,6 +398,57 @@ private fun twitterMediaUrls(extracted: ExtractedContent?): List<String> =
         .filter { it.isNotBlank() }
         .distinct()
 
+internal fun xPostLookupDraftExtractedContent(draft: ExternalFavoriteItemDraft): ExtractedContent {
+    val metadata = runCatching { articleJson.parseToJsonElement(draft.normalizedJson).jsonObject }.getOrNull()
+    val urlTitle = metadata?.string("url_title")
+    val urlDescription = metadata?.string("url_description")
+    val imageUrls = metadata.xPostLookupImageUrls()
+    val content = listOf(draft.text, urlTitle ?: draft.title, urlDescription)
+        .mapNotNull { it?.trim()?.takeIf(String::isNotBlank) }
+        .distinct()
+        .joinToString("\n\n")
+
+    return ExtractedContent(
+        title = draft.title.takeIf { it.isNotBlank() } ?: urlTitle,
+        content = content,
+        htmlContent = null,
+        coverImageUrl = imageUrls.firstOrNull(),
+        readableHtmlContent = null,
+        imageUrls = imageUrls,
+    )
+}
+
+private fun JsonObject?.xPostLookupImageUrls(): List<String> {
+    if (this == null) return emptyList()
+    val urlImages = get("url_images")
+        ?.jsonArrayOrNull()
+        ?.mapNotNull { it.jsonPrimitiveOrNull()?.contentOrNull }
+        .orEmpty()
+    val mediaImages = get("media")
+        ?.jsonArrayOrNull()
+        ?.mapNotNull { media ->
+            val obj = media.jsonObjectOrNull() ?: return@mapNotNull null
+            obj.string("url") ?: obj.string("preview_image_url")
+        }
+        .orEmpty()
+    return (urlImages + mediaImages)
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+}
+
+private fun JsonObject.string(key: String): String? =
+    get(key)?.jsonPrimitiveOrNull()?.contentOrNull
+
+private fun kotlinx.serialization.json.JsonElement.jsonObjectOrNull(): JsonObject? =
+    runCatching { jsonObject }.getOrNull()
+
+private fun kotlinx.serialization.json.JsonElement.jsonArrayOrNull(): JsonArray? =
+    runCatching { jsonArray }.getOrNull()
+
+private fun kotlinx.serialization.json.JsonElement.jsonPrimitiveOrNull() =
+    runCatching { jsonPrimitive }.getOrNull()
+
 internal fun generatedSummaryOrFallback(
     generated: String,
     existing: String?,
@@ -498,6 +556,8 @@ class WebpageParserService(
     private val webViewLoader: WebViewLoader,
     private val fileManager: FileManager,
     private val httpClient: HttpClient,
+    private val externalFavoriteSourceRepo: ExternalFavoriteSourceRepository,
+    private val xBookmarksConnector: XBookmarksConnector,
 ) {
     private val log = Logger.withTag("WebpageParser")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -1006,7 +1066,6 @@ class WebpageParserService(
                     if (content == html) extractTextContent(html) else content
                 }
                 val usableContent = usableArticleContentOrThrow(textContent, url)
-
                 ExtractedContent(
                     title = title,
                     content = usableContent.take(AIConfig.maxContentLength.toInt()),
@@ -1021,6 +1080,21 @@ class WebpageParserService(
                 failedExtractionFallback(url)
             }
         }
+    }
+
+    private suspend fun fetchXPostExtractedContent(url: String): ExtractedContent {
+        val postId = xPostIdFromStatusUrl(url)
+            ?: throw IllegalArgumentException("Article URL is not an X status URL")
+        val source = externalFavoriteSourceRepo.getEnabled()
+            .firstOrNull { it.provider == ExternalFavoriteProvider.X.id }
+            ?: throw IllegalStateException("X favorite source is not enabled")
+        val refreshed = xBookmarksConnector.refreshAuth(source)
+        if (refreshed.auth_json != source.auth_json) {
+            externalFavoriteSourceRepo.updateAuthJson(source.id, refreshed.auth_json)
+        }
+        return xBookmarksConnector.fetchPostById(refreshed, postId)
+            ?.let(::xPostLookupDraftExtractedContent)
+            ?: throw IllegalStateException("X API did not return post content")
     }
 
     suspend fun refreshArticle(articleId: Long) {
@@ -1102,6 +1176,79 @@ class WebpageParserService(
             val errorState = mutableMapOf<Long, ArticleProcessingState>()
             errorState[articleId] = ArticleProcessingState(articleId, status, articleProcessingErrorMessage(e))
             _processingStates.value = errorState
+            if (status == "completed") return
+            throw e
+        } finally {
+            finishQueuedArticle(articleId)
+        }
+    }
+
+    suspend fun refreshArticleWithXApi(articleId: Long) {
+        val article = articleRepo.getById(articleId)
+            ?: throw Exception("Article not found: $articleId")
+        val url = article.url ?: throw Exception("Article has no URL")
+        val ownsProcessing = markArticleActive(articleId)
+        if (!ownsProcessing) throw IllegalStateException("Article is already processing")
+
+        log.i { "refreshArticleWithXApi: articleId=$articleId, url=$url" }
+
+        try {
+            articleRepo.update(
+                id = articleId,
+                title = "正在加载...",
+                aiTitle = article.ai_title,
+                aiContent = article.ai_content,
+                aiMarkdownContent = article.ai_markdown_content,
+                url = article.url,
+                isFavorite = article.is_favorite ?: 0L,
+                comment = article.comment,
+                status = "pending",
+                coverImage = article.cover_image,
+                coverImageUrl = article.cover_image_url,
+                pubDate = article.pub_date,
+            )
+
+            _processingStates.value = mutableMapOf(articleId to ArticleProcessingState(articleId, "pending", "Fetching X post"))
+
+            val extracted = fetchXPostExtractedContent(url)
+
+            articleRepo.update(
+                id = articleId,
+                title = extracted.title ?: article.title,
+                aiTitle = article.ai_title,
+                aiContent = article.ai_content,
+                aiMarkdownContent = article.ai_markdown_content,
+                url = article.url,
+                isFavorite = article.is_favorite ?: 0L,
+                comment = article.comment,
+                status = "webContentFetched",
+                coverImage = article.cover_image,
+                coverImageUrl = extracted.coverImageUrl ?: article.cover_image_url,
+                pubDate = article.pub_date,
+            )
+
+            _processingStates.value = mutableMapOf(articleId to ArticleProcessingState(articleId, "webContentFetched"))
+            processAiTasks(articleId, extracted)
+        } catch (e: Exception) {
+            if (!shouldPersistArticleProcessingError(e)) throw e
+            log.e(e) { "refreshArticleWithXApi failed: articleId=$articleId" }
+            val latestArticle = articleRepo.getById(articleId) ?: article
+            val status = finalArticleStatus(latestArticle.ai_content, latestArticle.ai_markdown_content)
+            articleRepo.update(
+                id = articleId,
+                title = latestArticle.title,
+                aiTitle = latestArticle.ai_title,
+                aiContent = latestArticle.ai_content,
+                aiMarkdownContent = latestArticle.ai_markdown_content,
+                url = latestArticle.url,
+                isFavorite = latestArticle.is_favorite ?: 0L,
+                comment = latestArticle.comment,
+                status = status,
+                coverImage = latestArticle.cover_image,
+                coverImageUrl = latestArticle.cover_image_url,
+                pubDate = latestArticle.pub_date,
+            )
+            _processingStates.value = mutableMapOf(articleId to ArticleProcessingState(articleId, status, articleProcessingErrorMessage(e)))
             if (status == "completed") return
             throw e
         } finally {
@@ -1254,11 +1401,26 @@ internal fun sanitizeArticleSummaryMarkdown(markdown: String): String {
         .joinToString("\n")
         .replace(Regex("\n{3,}"), "\n\n")
         .trim()
-    return cleaned.ifBlank { markdown.trim() }
+    return stripThirdPersonArticleIntro(cleaned.ifBlank { markdown.trim() })
 }
 
 private val generatedSummaryGuideHeadingRegex = Regex(
     """#{1,6}\s*(?:标题|核心内容|核心观点|核心观点[:：]?.*|核心内容[:：]?.*)\s*""",
+)
+
+private fun stripThirdPersonArticleIntro(summary: String): String {
+    val normalized = summary.trim()
+    if (normalized.isBlank()) return normalized
+    val stripped = thirdPersonArticleIntroRegexes.fold(normalized) { current, regex ->
+        regex.replace(current, "").trimStart()
+    }
+    return stripped.ifBlank { normalized }
+}
+
+private val thirdPersonArticleIntroRegexes = listOf(
+    Regex("""^这是一篇[^，,。；;：:]{0,80}(?:文章|名文|作品|内容|报道|帖子|推文)[，,。；;：:]?\s*"""),
+    Regex("""^这是(?:一篇|一个|一则|一段)[^，,。；;：:]{0,80}(?:文章|名文|作品|内容|报道|帖子|推文)[，,。；;：:]?\s*"""),
+    Regex("""^(?:本文|这篇文章|这篇名文|这篇内容)(?:主要)?(?:介绍了?|讲述了?|探讨了?|阐述了?|说明了?|表达了?|指出|认为|强调)[，,：:]?\s*"""),
 )
 
 private fun JsonObject.stringValue(name: String): String? =

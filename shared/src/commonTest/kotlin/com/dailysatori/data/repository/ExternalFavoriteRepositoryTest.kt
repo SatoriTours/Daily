@@ -193,6 +193,38 @@ class ExternalFavoriteRepositoryTest {
     }
 
     @Test
+    fun pendingImportIncludesImportedItemsWithDanglingArticleId() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        DailySatoriDatabase.Schema.create(driver)
+        val db = DailySatoriDatabase(driver)
+        val sources = ExternalFavoriteSourceRepository(
+            db = db,
+            encryptSecret = { value -> if (value.isBlank()) value else "enc:v1:$value" },
+            decryptSecret = { value -> value.removePrefix("enc:v1:") },
+            isSecretEncrypted = { value -> value.startsWith("enc:v1:") },
+        )
+        val items = ExternalFavoriteItemRepository(db)
+        val articleRepository = ArticleRepository(db)
+        val sourceId = saveXSource(sources)
+        val (item, _) = items.upsertDraft(sourceId, xDraft(externalId = "post-dangling"))
+        val articleId = articleRepository.insert(
+            title = "Imported",
+            aiContent = "Imported body",
+            url = "https://example.com/dangling-imported",
+            isFavorite = 1,
+            status = "completed",
+        )
+        items.markImported(item.id, articleId, duplicateLinked = false)
+        articleRepository.delete(articleId)
+
+        val pending = items.pendingImport(10).single()
+
+        assertEquals(item.id, pending.id)
+        assertEquals(articleId, pending.article_id)
+        assertEquals("imported", pending.import_status)
+    }
+
+    @Test
     fun deleteSourceRemovesSourceItemsButKeepsArticleRows() = withRepositories { db, sources, items ->
         val articleRepository = ArticleRepository(db)
         val sourceId = saveXSource(sources)

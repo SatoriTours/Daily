@@ -8,6 +8,7 @@ import com.dailysatori.di.sharedModule
 import com.dailysatori.core.service.I18nInitializer
 import com.dailysatori.core.service.WebServerService
 import com.dailysatori.core.worker.ArticleProcessingScheduler
+import com.dailysatori.core.worker.AsyncTaskScheduler
 import com.dailysatori.core.worker.BackupScheduler
 import com.dailysatori.core.worker.UnifiedNewsScheduler
 import com.dailysatori.data.repository.SettingRepository
@@ -33,6 +34,7 @@ class DailySatoriApplication : Application() {
         }
         get<DatabaseMigration>(DatabaseMigration::class.java).runMigrations()
         encryptStoredSecrets()
+        get<AsyncTaskScheduler>(AsyncTaskScheduler::class.java).recoverAndEnqueueRunnable()
         get<ArticleProcessingScheduler>(ArticleProcessingScheduler::class.java).enqueueResume()
         BackupScheduler(this).ensureScheduled()
         UnifiedNewsScheduler(this).ensureScheduled()

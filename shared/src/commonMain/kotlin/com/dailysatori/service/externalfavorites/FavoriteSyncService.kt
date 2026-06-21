@@ -33,6 +33,9 @@ class FavoriteSyncService(
     private val repairImportedPlaceholderArticles: (Long) -> Int = { limit ->
         importer?.repairImportedPlaceholderArticles(limit) ?: 0
     },
+    private val repairImportedXLongArticlePendingArticles: (Long) -> Int = { limit ->
+        importer?.repairImportedXLongArticlePendingArticles(limit) ?: 0
+    },
 ) {
     private val guards = mutableMapOf<Long, Mutex>()
     private val guardsMutex = Mutex()
@@ -104,6 +107,9 @@ class FavoriteSyncService(
         }
         runCatching {
             repairImportedPlaceholderArticles(IMPORT_RETRY_LIMIT)
+        }
+        runCatching {
+            repairImportedXLongArticlePendingArticles(IMPORT_RETRY_LIMIT)
         }
         runCatching {
             repairImportedArticleCovers(IMPORT_RETRY_LIMIT)

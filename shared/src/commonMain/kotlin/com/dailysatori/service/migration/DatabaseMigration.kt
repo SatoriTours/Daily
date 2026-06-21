@@ -64,6 +64,9 @@ class DatabaseMigration(
         if (currentVersion < 13) {
             migrateV12ToV13()
         }
+        if (currentVersion < 14) {
+            migrateV13ToV14()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -533,6 +536,58 @@ class DatabaseMigration(
             log.i { "Created external_favorite_item table" }
         } catch (e: Exception) {
             log.w(e) { "Could not create external_favorite_item table" }
+        }
+    }
+
+    private fun migrateV13ToV14() {
+        log.i { "Migration V13 -> V14: Async task tables" }
+        try {
+            runSql("""
+                CREATE TABLE IF NOT EXISTS async_task_batch (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    total_count INTEGER NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                )
+            """.trimIndent())
+            log.i { "Created async_task_batch table" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not create async_task_batch table" }
+        }
+
+        try {
+            runSql("""
+                CREATE TABLE IF NOT EXISTS async_task (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    type TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    checkpoint_json TEXT NOT NULL DEFAULT '',
+                    result_json TEXT NOT NULL DEFAULT '',
+                    progress_current INTEGER NOT NULL DEFAULT 0,
+                    progress_total INTEGER NOT NULL DEFAULT 0,
+                    progress_message TEXT NOT NULL DEFAULT '',
+                    attempt_count INTEGER NOT NULL DEFAULT 0,
+                    max_attempts INTEGER NOT NULL DEFAULT 5,
+                    priority INTEGER NOT NULL DEFAULT 0,
+                    unique_key TEXT,
+                    batch_id INTEGER REFERENCES async_task_batch(id) ON DELETE SET NULL,
+                    run_after_ms INTEGER,
+                    lease_owner TEXT,
+                    lease_until_ms INTEGER,
+                    started_at INTEGER,
+                    finished_at INTEGER,
+                    last_error_code TEXT NOT NULL DEFAULT '',
+                    last_error_message TEXT NOT NULL DEFAULT '',
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                )
+            """.trimIndent())
+            log.i { "Created async_task table" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not create async_task table" }
         }
     }
 

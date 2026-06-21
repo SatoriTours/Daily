@@ -10,6 +10,7 @@ class ArticleProcessingUiTextTest {
     @Test
     fun mapsArticleStatusesToReadableMessages() {
         assertEquals("正在打开网页...", articleProcessingMessage("pending"))
+        assertEquals("正在通过 X API 获取内容...", articleProcessingMessage("pending", "Fetching X post"))
         assertEquals("网页内容已获取，正在整理...", articleProcessingMessage("webContentFetched"))
         assertEquals("正在处理文章...", articleProcessingMessage("aiProcessing"))
         assertEquals("文章已更新", articleProcessingMessage("completed"))

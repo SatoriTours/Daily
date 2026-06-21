@@ -60,6 +60,7 @@ import com.dailysatori.ui.feature.settings.remotenews.RemoteNewsSettingsScreen
 import com.dailysatori.ui.feature.settings.skills.SkillSettingsScreen
 import com.dailysatori.ui.feature.settings.skills.skillSettingsRowSubtitle
 import com.dailysatori.ui.feature.settings.skills.skillSettingsRowTitle
+import com.dailysatori.ui.feature.settings.taskcenter.TaskCenterScreen
 import com.dailysatori.ui.theme.*
 
 private enum class SettingsPage {
@@ -73,6 +74,7 @@ private enum class SettingsPage {
     REMOTE_NEWS_SETTINGS,
     EXTERNAL_FAVORITES,
     SKILLS,
+    TASK_CENTER,
 }
 
 @Composable
@@ -109,6 +111,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: (() -> Unit)? = null) {
         SettingsPage.REMOTE_NEWS_SETTINGS -> RemoteNewsSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.EXTERNAL_FAVORITES -> ExternalFavoritesSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
         SettingsPage.SKILLS -> SkillSettingsScreen(onBack = { currentPage = SettingsPage.MAIN })
+        SettingsPage.TASK_CENTER -> TaskCenterScreen(onBack = { currentPage = SettingsPage.MAIN })
     }
 }
 
@@ -270,6 +273,7 @@ private fun DataSection(onNavigate: (SettingsPage) -> Unit) {
     SettingsSectionCard("数据管理") {
         SettingsRow(Icons.Default.Save, "备份与恢复", "管理数据备份与还原", onClick = { onNavigate(SettingsPage.BACKUP_SETTINGS) })
         SettingsRow(Icons.Default.FileDownload, "导入数据", "从 Flutter 版本迁移数据", onClick = { onNavigate(SettingsPage.DATA_IMPORT) })
+        SettingsRow(icon = Icons.Default.Refresh, title = "任务", subtitle = "查看异步任务进度和状态", onClick = { onNavigate(SettingsPage.TASK_CENTER) })
         SettingsRow(Icons.Default.CloudDownload, "下载图片", "下载文章图片到本地", onClick = {})
     }
 }

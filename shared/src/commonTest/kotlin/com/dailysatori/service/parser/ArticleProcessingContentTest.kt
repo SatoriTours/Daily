@@ -140,6 +140,9 @@ class ArticleProcessingContentTest {
         assertEquals(true, prompt.contains("不要使用代码块包裹"))
         assertEquals(false, prompt.contains("网页 HTML"))
         assertEquals(false, prompt.contains("COVER_IMAGE_URL"))
+        assertEquals(true, prompt.contains("不要用“这是一篇"))
+        assertEquals(true, prompt.contains("直接进入内容本身"))
+        assertEquals(true, prompt.contains("避免第三视角介绍文章"))
     }
 
     @Test
@@ -177,6 +180,8 @@ class ArticleProcessingContentTest {
         assertEquals(true, prompt.contains("内容较长时必须包含简短总结和关键观点列表"))
         assertEquals(true, prompt.contains("如果原文已经是中文短内容，summary 直接返回原文"))
         assertEquals(true, prompt.contains("禁止补充原文没有的背景、动机、情节或评价"))
+        assertEquals(true, prompt.contains("不要用“这是一篇"))
+        assertEquals(true, prompt.contains("直接进入内容本身"))
         assertEquals(true, prompt.contains("只调整排版、分段和 Markdown 结构"))
         assertEquals(true, prompt.contains("禁止总结、缩写、改写或合并原文信息"))
         assertEquals(true, prompt.contains("长段落必须按自然语义拆分"))
@@ -198,6 +203,22 @@ class ArticleProcessingContentTest {
         val prompt = articleSummaryPrompt()
 
         assertEquals(true, prompt.contains("用中文输出"))
+    }
+
+    @Test
+    fun summarySanitizerRemovesThirdPersonArticleIntro() {
+        assertEquals(
+            "强调持续练习比短期冲刺更重要。",
+            sanitizeArticleSummaryMarkdown("这是一篇关于学习方法的文章，强调持续练习比短期冲刺更重要。"),
+        )
+        assertEquals(
+            "AI 工具正在进入日常写作流程。",
+            sanitizeArticleSummaryMarkdown("本文介绍了 AI 工具正在进入日常写作流程。"),
+        )
+        assertEquals(
+            "作者在访谈中说，本文不是一份投资建议。",
+            sanitizeArticleSummaryMarkdown("作者在访谈中说，本文不是一份投资建议。"),
+        )
     }
 
     @Test
@@ -344,6 +365,48 @@ class ArticleProcessingContentTest {
         assertEquals(true, isTwitterStatusUrl("https://x.com/i/status/2050393928340488265"))
         assertEquals(true, isTwitterStatusUrl("https://x.com/user/status/2050393928340488265"))
         assertEquals(true, isTwitterStatusUrl("https://twitter.com/user/status/2050393928340488265"))
+    }
+
+    @Test
+    fun xPostLookupDraftBecomesTwitterExtractedContent() {
+        val draft = com.dailysatori.service.externalfavorites.ExternalFavoriteItemDraft(
+            provider = "x",
+            externalId = "2068340624907202872",
+            canonicalUrl = "https://example.com/long-article",
+            title = "Long Article",
+            text = "原推里的文章卡片 https://t.co/article",
+            authorName = "Writer",
+            sourceCreatedAt = null,
+            favoritedAt = null,
+            normalizedJson = """
+                {
+                  "url_description": "Article summary from the card",
+                  "url_images": ["https://example.com/cover.jpg"],
+                  "media": [{"url": "https://pbs.twimg.com/media/photo.jpg"}]
+                }
+            """.trimIndent(),
+            contentHash = "hash",
+            aiInputHash = "ai",
+        )
+
+        val extracted = xPostLookupDraftExtractedContent(draft)
+
+        assertEquals("Long Article", extracted.title)
+        assertEquals(
+            """
+                原推里的文章卡片 https://t.co/article
+
+                Long Article
+
+                Article summary from the card
+            """.trimIndent(),
+            extracted.content,
+        )
+        assertEquals("https://example.com/cover.jpg", extracted.coverImageUrl)
+        assertEquals(
+            listOf("https://example.com/cover.jpg", "https://pbs.twimg.com/media/photo.jpg"),
+            extracted.imageUrls,
+        )
     }
 
     @Test

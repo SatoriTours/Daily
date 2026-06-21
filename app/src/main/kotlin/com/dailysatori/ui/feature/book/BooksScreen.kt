@@ -573,6 +573,7 @@ fun booksReadingProgressText(page: Int, total: Int): String = "${(page + 1).coer
 fun booksAnalysisBannerMessage(routeMessage: String?, inlineMessage: String?): String? = routeMessage ?: inlineMessage
 fun booksAnalysisNoticeDurationMs(): Long = 4_000L
 fun booksRefreshInProgressText(title: String): String = "正在更新《${title.ifBlank { "这本书" }}》的读书观点"
+fun booksRefreshQueuedText(title: String): String = "《${title.ifBlank { "这本书" }}》观点更新已加入任务"
 fun booksRefreshSuccessText(title: String): String = "《${title.ifBlank { "这本书" }}》读书观点已更新"
 fun booksAddSheetTitle(): String = "添加书籍"
 fun booksContentSearchSheetTitle(): String = "搜索读书内容"

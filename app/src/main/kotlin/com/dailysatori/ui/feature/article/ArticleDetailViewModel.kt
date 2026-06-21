@@ -113,18 +113,33 @@ class ArticleDetailViewModel(
     }
 
     fun refreshArticle() {
+        refreshArticleWithMessage("正在打开网页...") {
+            webpageParserService.refreshArticle(articleId)
+        }
+    }
+
+    fun refreshArticleWithXApi() {
+        refreshArticleWithMessage("正在通过 X API 获取内容...") {
+            webpageParserService.refreshArticleWithXApi(articleId)
+        }
+    }
+
+    private fun refreshArticleWithMessage(
+        initialStatus: String,
+        refresh: suspend () -> Unit,
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             _state.update {
                 it.copy(
                     isRefreshing = true,
-                    processingStatus = "正在打开网页...",
+                    processingStatus = initialStatus,
                     processingStage = "pending",
                     processingProgress = "",
                     refreshError = null,
                 )
             }
             try {
-                webpageParserService.refreshArticle(articleId)
+                refresh()
             } catch (e: Exception) {
                 val article = articleRepo.getById(articleId)
                 _state.update {
