@@ -246,16 +246,18 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedNewsCachesRemoteArticlesAsLocalSourcesBeforeSummaryGeneration() {
+    fun unifiedNewsKeepsRemoteArticlesRemoteBeforeUserFavoritesThem() {
         val source = java.io.File(
             "../shared/src/commonMain/kotlin/com/dailysatori/service/unifiednews/UnifiedNewsSummaryService.kt",
         ).readText()
+        val collectionBody = source
+            .substringAfter("private suspend fun collectConfiguredRemoteArticles")
+            .substringBefore("private fun addSources")
 
-        assertTrue(source.contains("cacheRemoteArticleSource"))
-        assertTrue(source.contains("articleRepo.cacheRemoteArticle(article"))
-        assertTrue(source.contains("sourceType = UnifiedNewsSourceType.LOCAL_FAVORITE"))
-        assertTrue(source.contains("sourceId = cached.id"))
-        assertTrue(source.contains("return fallback"))
+        assertFalse(source.contains("cacheRemoteArticleSource"))
+        assertFalse(collectionBody.contains("articleRepo.cacheRemoteArticle"))
+        assertTrue(collectionBody.contains("article.toUnifiedSource"))
+        assertFalse(collectionBody.contains("sourceType = UnifiedNewsSourceType.LOCAL_FAVORITE"))
     }
 
     @Test
@@ -355,12 +357,13 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedCitationRemoteArticleDoesNotDeriveHiddenDetailApi() {
+    fun unifiedCitationRemoteArticleFetchesRemoteDetailWithoutLocalCache() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")
 
-        assertFalse(openRemoteArticleBody.contains("remoteNewsService.fetchArticle"))
-        assertTrue(openRemoteArticleBody.contains("articleRepo.getById(id)"))
+        assertTrue(openRemoteArticleBody.contains("remoteNewsService.fetchArticle"))
+        assertTrue(openRemoteArticleBody.contains("selectedRemoteArticle ="))
+        assertFalse(openRemoteArticleBody.contains("articleRepo.cacheRemoteArticle"))
         assertTrue(openRemoteArticleBody.contains("文章内容不可用"))
     }
 
@@ -388,16 +391,17 @@ class UnifiedNewsBehaviorTest {
     }
 
     @Test
-    fun unifiedLegacyRemoteArticleCitationUsesPersistedSourceMetadataBeforeFailing() {
+    fun unifiedLegacyRemoteArticleCitationDoesNotCreateLocalArticleUntilFavorite() {
         val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
         val openRemoteArticleBody = viewModel.substringAfter("private fun openRemoteArticle").substringBefore("private fun fetchSourceArticles")
 
         assertTrue(viewModel.contains("fun openCitation(source: Unified_news_source)"))
         assertTrue(openRemoteArticleBody.contains("source.source_url?.let(articleRepo::getByUrl)"))
-        assertTrue(openRemoteArticleBody.contains("RemoteArticle("))
-        assertTrue(openRemoteArticleBody.contains("articleRepo.cacheRemoteArticle"))
-        assertTrue(openRemoteArticleBody.contains("title = this.title"))
-        assertTrue(openRemoteArticleBody.contains("summary = this.summary"))
+        assertTrue(openRemoteArticleBody.contains("local?.is_favorite == 1L"))
+        assertFalse(openRemoteArticleBody.contains("if (local != null)"))
+        assertTrue(openRemoteArticleBody.contains("selectedRemoteArticle"))
+        assertFalse(openRemoteArticleBody.contains("articleRepo.cacheRemoteArticle"))
+        assertFalse(openRemoteArticleBody.contains("toRemoteArticleForLocalCache"))
     }
 
     @Test
@@ -900,7 +904,7 @@ class UnifiedNewsBehaviorTest {
         assertFalse(missingSourceBranch.contains("SettingKeys.remoteNewsApiToken"))
         assertTrue(repo.contains("fun getById(id: Long)"))
         assertTrue(di.contains("UnifiedNewsViewModel("))
-        assertTrue(di.contains("get<WebpageParserService>()"))
+        assertTrue(di.contains("remoteArticleFavoriteService = get()"))
     }
 
     @Test

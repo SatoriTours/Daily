@@ -56,6 +56,7 @@ import com.dailysatori.service.externalfavorites.ExternalFavoriteImporter
 import com.dailysatori.service.externalfavorites.FavoriteConnectorRegistry
 import com.dailysatori.service.externalfavorites.FavoriteSyncService
 import com.dailysatori.service.externalfavorites.XBookmarksConnector
+import com.dailysatori.service.remotenews.RemoteArticleFavoriteService
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.security.SecretFieldProcessor
@@ -112,6 +113,7 @@ val sharedModule: Module = module {
     single { ExternalFavoriteImporter(get(), get()) }
     single { ExternalFavoriteAiOrganizer(get(), get(), get(), get()) }
     single { FavoriteSyncService(get(), get(), get(), get(), get()) }
+    single { RemoteArticleFavoriteService(get(), get()) }
     single { DiaryMonthSummaryService(get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }
     single { UnifiedNewsSummaryService(get(), get(), get(), get(), get(), get()) }

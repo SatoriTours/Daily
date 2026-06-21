@@ -5,8 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.config.RemoteNewsConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.ArticleRepository
-import com.dailysatori.data.repository.needsLocalAiReprocessingForChineseOutput
 import com.dailysatori.data.repository.SettingRepository
+import com.dailysatori.service.remotenews.RemoteArticleFavoriteService
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteDigest
 import com.dailysatori.service.remotenews.RemoteFeed
@@ -14,7 +14,6 @@ import com.dailysatori.service.remotenews.RemoteNewsConfigValues
 import com.dailysatori.service.remotenews.RemoteNewsPagination
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
-import com.dailysatori.service.parser.WebpageParserService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -54,7 +53,7 @@ class RemoteNewsViewModel(
     private val settingRepo: SettingRepository,
     private val remoteNewsService: RemoteNewsService,
     private val articleRepo: ArticleRepository,
-    private val webpageParserService: WebpageParserService,
+    private val remoteArticleFavoriteService: RemoteArticleFavoriteService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RemoteNewsState())
     val state: StateFlow<RemoteNewsState> = _state.asStateFlow()
@@ -136,28 +135,15 @@ class RemoteNewsViewModel(
         val localId = current.selectedArticleLocalId
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                if (localId != null) {
-                    articleRepo.toggleFavorite(localId)
-                    val updated = articleRepo.getById(localId)
-                    _state.update { state ->
-                        if (state.selectedArticle?.id == article.id) {
-                            state.copy(selectedArticleIsFavorite = updated?.is_favorite == 1L)
-                        } else {
-                            state
-                        }
-                    }
-                } else {
-                    val saved = articleRepo.saveRemoteArticleAsFavorite(article)
-                    reprocessEnglishRemoteArticle(article, saved?.id)
-                    _state.update { state ->
-                        if (state.selectedArticle?.id == article.id) {
-                            state.copy(
-                                selectedArticleLocalId = saved?.id,
-                                selectedArticleIsFavorite = saved?.is_favorite == 1L,
-                            )
-                        } else {
-                            state
-                        }
+                val result = remoteArticleFavoriteService.toggleFavorite(article, localId)
+                _state.update { state ->
+                    if (state.selectedArticle?.id == article.id) {
+                        state.copy(
+                            selectedArticleLocalId = result.localArticle?.id,
+                            selectedArticleIsFavorite = result.isFavorite,
+                        )
+                    } else {
+                        state
                     }
                 }
             } catch (_: Exception) {
@@ -166,11 +152,6 @@ class RemoteNewsViewModel(
                 }
             }
         }
-    }
-
-    private suspend fun reprocessEnglishRemoteArticle(article: RemoteArticle, savedId: Long?) {
-        if (savedId == null || !article.needsLocalAiReprocessingForChineseOutput()) return
-        webpageParserService.reprocessArticle(savedId)
     }
 
     fun closeArticle() = _state.update {

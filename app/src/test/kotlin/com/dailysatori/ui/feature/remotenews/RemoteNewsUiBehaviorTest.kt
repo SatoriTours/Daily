@@ -128,7 +128,7 @@ class RemoteNewsUiBehaviorTest {
     }
 
     @Test
-    fun remoteArticleCacheSavesCompletedNonFavoriteWithoutProcessing() {
+    fun remoteArticlesAreNotCachedLocallyUntilFavorite() {
         val repository = File(
             "../shared/src/commonMain/kotlin/com/dailysatori/data/repository/ArticleRepository.kt",
         ).readText()
@@ -136,10 +136,10 @@ class RemoteNewsUiBehaviorTest {
             "../shared/src/commonMain/kotlin/com/dailysatori/data/repository/RemoteArticleFavoriteMapper.kt",
         ).readText()
 
-        assertTrue(repository.contains("fun cacheRemoteArticle(remoteArticle: RemoteArticle, sourceTime: Long? = null): Article?"))
-        assertTrue(mapper.contains("isFavorite = 0"))
-        assertTrue(repository.contains("status = fields.status"))
-        assertTrue(repository.contains("insertRemoteArticleCacheWithoutUrl"))
+        assertFalse(repository.contains("fun cacheRemoteArticle("))
+        assertFalse(repository.contains("insertRemoteArticleCacheWithoutUrl"))
+        assertTrue(repository.contains("fun saveRemoteArticleAsFavorite(remoteArticle: RemoteArticle): Article?"))
+        assertTrue(mapper.contains("isFavorite: Long = 1L"))
         assertFalse(repository.contains("WebpageParserService"))
         assertFalse(repository.contains("ArticleProcessingScheduler"))
     }
@@ -148,13 +148,14 @@ class RemoteNewsUiBehaviorTest {
     fun remoteArticleFavoriteReprocessesEnglishContentThroughLocalAiPipeline() {
         val remoteNewsViewModel = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsViewModel.kt").readText()
         val unifiedNewsViewModel = File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
-        val di = File("src/main/kotlin/com/dailysatori/core/di/ViewModelModule.kt").readText()
+        val service = File("../shared/src/commonMain/kotlin/com/dailysatori/service/remotenews/RemoteArticleFavoriteService.kt").readText()
+        val sharedDi = File("../shared/src/commonMain/kotlin/com/dailysatori/di/SharedModule.kt").readText()
 
-        assertTrue(remoteNewsViewModel.contains("needsLocalAiReprocessingForChineseOutput"))
-        assertTrue(remoteNewsViewModel.contains("webpageParserService.reprocessArticle(savedId)"))
-        assertTrue(unifiedNewsViewModel.contains("needsLocalAiReprocessingForChineseOutput"))
-        assertTrue(unifiedNewsViewModel.contains("webpageParserService.reprocessArticle(savedId)"))
-        assertTrue(di.contains("get<WebpageParserService>()"))
+        assertTrue(remoteNewsViewModel.contains("remoteArticleFavoriteService.toggleFavorite(article, localId)"))
+        assertTrue(unifiedNewsViewModel.contains("remoteArticleFavoriteService.toggleFavorite(article, localId)"))
+        assertTrue(service.contains("needsLocalAiReprocessingForChineseOutput"))
+        assertTrue(service.contains("webpageParserService.reprocessArticle(saved.id)"))
+        assertTrue(sharedDi.contains("RemoteArticleFavoriteService(get(), get())"))
     }
 
     @Test

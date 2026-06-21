@@ -30,17 +30,6 @@ fun RemoteArticle.toLocalFavoriteArticleFields(): LocalFavoriteArticleFields {
     )
 }
 
-fun RemoteArticle.toLocalCachedArticleFields(sourceTime: Long? = null): LocalFavoriteArticleFields {
-    val favoriteFields = toLocalFavoriteArticleFields()
-    return favoriteFields.copy(
-        isFavorite = 0,
-        aiMarkdownContent = favoriteFields.aiMarkdownContent
-            ?: favoriteFields.aiContent
-            ?: title?.trim()?.takeIf { it.isNotBlank() },
-        pubDate = favoriteFields.pubDate ?: sourceTime,
-    )
-}
-
 fun RemoteArticle.needsLocalAiReprocessingForChineseOutput(): Boolean {
     if (url.isNullOrBlank()) return false
     if (hasEnoughChineseForLocalArticle(this)) return false

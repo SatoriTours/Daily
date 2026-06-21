@@ -117,12 +117,11 @@ class UnifiedNewsSummaryService(
                 is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)) {
                     is RemoteNewsResult.Success -> {
                         articles += result.value.articles.mapNotNull { article ->
-                            val fallback = article.toUnifiedSource(
+                            article.toUnifiedSource(
                                 window = window,
                                 ignoreSourceTimeFilter = ignoreSourceTimeFilter,
                                 sourceFilename = remoteNewsSourceRouteKey(source.id),
-                            ) ?: return@mapNotNull null
-                            cacheRemoteArticleSource(article, fallback)
+                            )
                         }
                     }
                     is RemoteNewsResult.Failure -> warnRemoteSourceFailure(warnings, source.name, result.message)
@@ -131,27 +130,6 @@ class UnifiedNewsSummaryService(
             }
         }
         return deduplicateUnifiedNewsSources(articles)
-    }
-
-    private fun cacheRemoteArticleSource(
-        article: RemoteArticle,
-        fallback: UnifiedNewsSourceItem,
-    ): UnifiedNewsSourceItem {
-        val cached = try {
-            articleRepo.cacheRemoteArticle(article, fallback.sourceTime)
-        } catch (e: Exception) {
-            log.w(e) { "Remote article cache failed" }
-            null
-        } ?: return fallback
-
-        return fallback.copy(
-            sourceType = UnifiedNewsSourceType.LOCAL_FAVORITE,
-            sourceId = cached.id,
-            sourceFilename = null,
-            title = cached.ai_title ?: cached.title ?: fallback.title,
-            summary = cached.ai_content ?: fallback.summary,
-            content = cached.ai_markdown_content ?: cached.ai_content ?: fallback.content,
-        )
     }
 
     private fun addSources(

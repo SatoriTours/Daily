@@ -120,12 +120,4 @@ class RemoteArticleFavoriteMapperTest {
         assertFalse(article.needsLocalAiReprocessingForChineseOutput())
     }
 
-    @Test
-    fun cachedRemoteArticleUsesSummaryOrTitleAsMarkdownFallback() {
-        val withSummary = RemoteArticle(id = 13, title = "Title", summary = "Summary")
-        val titleOnly = RemoteArticle(id = 14, title = "Title Only")
-
-        assertEquals("Summary", withSummary.toLocalCachedArticleFields().aiMarkdownContent)
-        assertEquals("Title Only", titleOnly.toLocalCachedArticleFields().aiMarkdownContent)
-    }
 }

@@ -139,8 +139,13 @@ class FavoriteSyncService(
         var changedItems = 0
         var historyCursor = progress.historyCursor
         var historyComplete = progress.historyComplete
+        var historyCompleteAnchorCursor = progress.historyCompleteAnchorCursor
+        var latestPageAnchorCursor: String? = null
 
         fun hasBudget(): Boolean = pagesSeen < policy.maxPages && itemsSeen < policy.maxItems
+
+        fun verifiedHistoryComplete(): Boolean =
+            historyComplete && historyCompleteAnchorCursor == latestPageAnchorCursor
 
         suspend fun reportProgress(phase: String) {
             onProgress(
@@ -149,7 +154,7 @@ class FavoriteSyncService(
                     pagesSeen = pagesSeen,
                     maxPages = policy.maxPages,
                     itemsSeen = itemsSeen,
-                    historyComplete = historyComplete,
+                    historyComplete = verifiedHistoryComplete(),
                 ),
             )
         }
@@ -163,6 +168,7 @@ class FavoriteSyncService(
                     progress = ExternalFavoriteSyncProgress(
                         historyCursor = historyCursor,
                         historyComplete = historyComplete,
+                        historyCompleteAnchorCursor = historyCompleteAnchorCursor,
                     ),
                 ),
             )
@@ -191,16 +197,21 @@ class FavoriteSyncService(
 
         if (hasBudget()) {
             val latest = fetchOne(cursor = null)
+            val latestAnchorCursor = latest.page.nextCursor
+            latestPageAnchorCursor = latestAnchorCursor
             reportProgress("latest")
             when {
                 latest.page.exhausted -> {
                     historyCursor = null
                     historyComplete = true
+                    historyCompleteAnchorCursor = latestAnchorCursor
+                    latestPageAnchorCursor = latestAnchorCursor
                     persistProgress()
                     reportProgress("complete")
                 }
                 latest.changedItems == 0 -> {
-                    if (!historyComplete && hasBudget()) {
+                    val verifiedCompleteForLatestPage = verifiedHistoryComplete()
+                    if (!verifiedCompleteForLatestPage && hasBudget()) {
                         var cursor = historyCursor ?: latest.page.nextCursor
                         while (cursor != null && hasBudget()) {
                             val pageResult = fetchOne(cursor)
@@ -209,23 +220,27 @@ class FavoriteSyncService(
                             if (pageResult.page.exhausted) {
                                 historyCursor = null
                                 historyComplete = true
+                                historyCompleteAnchorCursor = latestAnchorCursor
                                 persistProgress()
                                 reportProgress("complete")
                                 break
                             }
                             historyCursor = cursor
                             historyComplete = false
+                            historyCompleteAnchorCursor = null
                             persistProgress()
                         }
                         if (cursor == null && !historyComplete) {
                             historyCursor = null
                             historyComplete = true
+                            historyCompleteAnchorCursor = latestAnchorCursor
                             persistProgress()
                             reportProgress("complete")
                         }
-                    } else if (!historyComplete) {
+                    } else if (!verifiedCompleteForLatestPage) {
                         historyCursor = latest.page.nextCursor
                         historyComplete = latest.page.nextCursor == null
+                        historyCompleteAnchorCursor = if (historyComplete) latestAnchorCursor else null
                         persistProgress()
                         reportProgress(if (historyComplete) "complete" else "backfill")
                     }
@@ -234,6 +249,7 @@ class FavoriteSyncService(
                     var cursor = latest.page.nextCursor
                     historyCursor = cursor
                     historyComplete = false
+                    historyCompleteAnchorCursor = null
                     persistProgress()
                     while (cursor != null && hasBudget()) {
                         val pageResult = fetchOne(cursor)
@@ -242,12 +258,14 @@ class FavoriteSyncService(
                         if (pageResult.page.exhausted) {
                             historyCursor = null
                             historyComplete = true
+                            historyCompleteAnchorCursor = latestAnchorCursor
                             persistProgress()
                             reportProgress("complete")
                             break
                         }
                         historyCursor = cursor
                         historyComplete = false
+                        historyCompleteAnchorCursor = null
                         persistProgress()
                         if (policy.earlyStopOnUnchanged && pageResult.changedItems == 0) {
                             break
@@ -255,6 +273,7 @@ class FavoriteSyncService(
                     }
                     if (cursor != null && !historyComplete) {
                         historyCursor = cursor
+                        historyCompleteAnchorCursor = null
                         persistProgress()
                     }
                 }
@@ -369,10 +388,12 @@ class FavoriteSyncService(
 
 private const val CONFIG_HISTORY_CURSOR = "history_cursor"
 private const val CONFIG_HISTORY_COMPLETE = "history_complete"
+private const val CONFIG_HISTORY_COMPLETE_ANCHOR_CURSOR = "history_complete_anchor_cursor"
 
 private data class ExternalFavoriteSyncProgress(
     val historyCursor: String?,
     val historyComplete: Boolean,
+    val historyCompleteAnchorCursor: String?,
 )
 
 private fun readSyncProgress(configJson: String): ExternalFavoriteSyncProgress {
@@ -387,6 +408,11 @@ private fun readSyncProgress(configJson: String): ExternalFavoriteSyncProgress {
             ?.get(CONFIG_HISTORY_COMPLETE)
             ?.jsonPrimitive
             ?.booleanOrNull ?: false,
+        historyCompleteAnchorCursor = root
+            ?.get(CONFIG_HISTORY_COMPLETE_ANCHOR_CURSOR)
+            ?.jsonPrimitive
+            ?.contentOrNull
+            ?.takeIf { it.isNotBlank() },
     )
 }
 
@@ -397,11 +423,17 @@ private fun renderSyncProgressConfig(
     val existing = runCatching { Json.parseToJsonElement(configJson).jsonObject }.getOrNull()
     return buildJsonObject {
         existing?.forEach { (key, value) ->
-            if (key != CONFIG_HISTORY_CURSOR && key != CONFIG_HISTORY_COMPLETE) {
+            if (key != CONFIG_HISTORY_CURSOR &&
+                key != CONFIG_HISTORY_COMPLETE &&
+                key != CONFIG_HISTORY_COMPLETE_ANCHOR_CURSOR
+            ) {
                 put(key, value)
             }
         }
         progress.historyCursor?.takeIf { it.isNotBlank() }?.let { put(CONFIG_HISTORY_CURSOR, it) }
         put(CONFIG_HISTORY_COMPLETE, progress.historyComplete)
+        progress.historyCompleteAnchorCursor
+            ?.takeIf { progress.historyComplete && it.isNotBlank() }
+            ?.let { put(CONFIG_HISTORY_COMPLETE_ANCHOR_CURSOR, it) }
     }.toString()
 }

@@ -163,6 +163,137 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
+    fun unifiedSyncContinuesAfterUnchangedNinetyFiveItemLatestPageWithNextCursor() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val existingLatest = (1..95).map { index -> xDraft("post-$index") }
+            existingLatest.forEach { items.upsertDraft(sourceId, it) }
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 3, maxItemsPerRun = 300),
+                pages = listOf(
+                    FavoriteFetchPage(existingLatest, "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("post-96")), null),
+                ),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals(listOf(null, "cursor-2"), connector.cursors)
+            assertEquals(96, items.getBySource(sourceId).size)
+            sources.getById(sourceId)!!.let { source ->
+                assertEquals(2, source.last_pages_seen_count)
+                assertEquals(96, source.last_items_seen_count)
+                assertTrue(source.config_json.contains(""""history_complete":true"""))
+                assertTrue(source.config_json.contains(""""history_complete_anchor_cursor":"cursor-2""""))
+            }
+        }
+    }
+
+    @Test
+    fun unifiedSyncRepairsLegacyCompleteStateWhenLatestPageStillHasNextCursor() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(
+                sources = sources,
+                configJson = """{"history_complete":true}""",
+            )
+            items.upsertDraft(sourceId, xDraft("post-1"))
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 3, maxItemsPerRun = 300),
+                pages = listOf(
+                    FavoriteFetchPage(listOf(xDraft("post-1")), "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("post-2")), "cursor-3"),
+                    FavoriteFetchPage(listOf(xDraft("post-3")), null),
+                ),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals(listOf(null, "cursor-2", "cursor-3"), connector.cursors)
+            assertEquals(listOf("post-1", "post-2", "post-3"), items.getBySource(sourceId).map { it.external_id }.sorted())
+            sources.getById(sourceId)!!.let { source ->
+                assertTrue(source.config_json.contains(""""history_complete":true"""))
+                assertTrue(source.config_json.contains(""""history_complete_anchor_cursor":"cursor-2""""))
+            }
+        }
+    }
+
+    @Test
+    fun progressDoesNotReportLegacyCompleteAsCompleteWhenLatestCursorDiffers() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(
+                sources = sources,
+                configJson = """{"history_complete":true}""",
+            )
+            items.upsertDraft(sourceId, xDraft("post-1"))
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 2, maxItemsPerRun = 300),
+                pages = listOf(
+                    FavoriteFetchPage(listOf(xDraft("post-1")), "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("post-2")), null),
+                ),
+            )
+            val progress = mutableListOf<FavoriteSyncProgress>()
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync) { progress += it }
+
+            val latestProgress = progress.first { it.phase == "latest" }
+            assertFalse(latestProgress.historyComplete)
+            assertTrue(progress.any { it.phase == "complete" && it.historyComplete })
+        }
+    }
+
+    @Test
+    fun unifiedSyncSkipsBackfillWhenCompleteStateMatchesLatestCursor() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(
+                sources = sources,
+                configJson = """{"history_complete":true,"history_complete_anchor_cursor":"cursor-2"}""",
+            )
+            items.upsertDraft(sourceId, xDraft("post-1"))
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 3, maxItemsPerRun = 300),
+                pages = listOf(
+                    FavoriteFetchPage(listOf(xDraft("post-1")), "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("post-2")), "cursor-3"),
+                ),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals(listOf<String?>(null), connector.cursors)
+            assertEquals(listOf("post-1"), items.getBySource(sourceId).map { it.external_id }.sorted())
+        }
+    }
+
+    @Test
     fun retryFailedDoesNotFetchProviderPages() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)

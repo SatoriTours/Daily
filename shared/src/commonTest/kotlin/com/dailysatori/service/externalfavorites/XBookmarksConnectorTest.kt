@@ -120,6 +120,25 @@ class XBookmarksConnectorTest {
     }
 
     @Test
+    fun parsesNextTokenWhenBookmarkPageHasNinetyFiveItems() {
+        val tweets = (1..95).joinToString(",") { index ->
+            """{"id":"$index","text":"Saved post $index","author_id":"42"}"""
+        }
+        val json = """
+            {
+              "data": [$tweets],
+              "includes": {"users": [{"id": "42", "username": "daily", "name": "Daily"}]},
+              "meta": {"result_count": 95, "next_token": "cursor-2"}
+            }
+        """.trimIndent()
+
+        val page = XBookmarksResponseParser.parse(json)
+
+        assertEquals(95, page.items.size)
+        assertEquals("cursor-2", page.nextCursor)
+    }
+
+    @Test
     fun developmentModeUsesProductionBookmarkPageSizeForRealApiSafety() {
         assertEquals(100, XBookmarksConnector(developmentMode = true).capabilities.maxPageSize)
         assertEquals(100, XBookmarksConnector(developmentMode = false).capabilities.maxPageSize)
