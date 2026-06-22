@@ -336,7 +336,7 @@ internal fun xBookmarkItemWithFetchedReferencedPost(
     fetchedPost: ExternalFavoriteItemDraft?,
 ): ExternalFavoriteItemDraft? {
     if (fetchedPost == null) return null
-    val canonicalUrl = fetchedPost.canonicalUrl ?: item.canonicalUrl
+    val canonicalUrl = item.canonicalUrl?.takeIf(::isXArticleUrl) ?: fetchedPost.canonicalUrl ?: item.canonicalUrl
     val title = fetchedPost.title.takeIf { it.isNotBlank() } ?: item.title
     val text = fetchedPost.text.takeIf { it.isNotBlank() } ?: item.text
     val authorName = fetchedPost.authorName.takeIf { it.isNotBlank() } ?: item.authorName
@@ -466,6 +466,8 @@ object XBookmarksResponseParser {
             .orEmpty()
         val createdAt = tweet.string("created_at")?.let(::parseInstantMillis)
         val primaryUrl = urls.firstNotNullOfOrNull { it.primaryUrl }
+        val rawTextForArticleLinkDetection = noteText?.takeIf { it.isNotBlank() } ?: tweet.string("text").orEmpty()
+        val canonicalArticleUrl = xArticleUrlWhenTextOnlyContainsArticleLink(rawTextForArticleLinkDetection, urls)
         val articleTitle = articleObject?.string("title")?.takeIf { it.isNotBlank() }
         val cardTitle = urls.firstNotNullOfOrNull { it.title } ?: articleTitle
         val cardDescription = urls.firstNotNullOfOrNull { it.description }
@@ -489,7 +491,7 @@ object XBookmarksResponseParser {
         )
         val authorName = author?.name ?: author?.username.orEmpty()
         val hashInput = listOf(id, text, authorName, normalizedJson).joinToString("\n")
-        val canonicalUrl = primaryUrl ?: tweetUrl
+        val canonicalUrl = canonicalArticleUrl ?: tweetUrl
         val mediaUrls = media.mapNotNull { it.string("url") ?: it.string("preview_image_url") }.sorted()
 
         return ExternalFavoriteItemDraft(
@@ -583,10 +585,40 @@ private data class XUser(
 
 private data class XUrlEntity(
     val primaryUrl: String?,
+    val shortUrl: String?,
     val title: String?,
     val description: String?,
     val images: List<String>,
 )
+
+private fun xArticleUrlWhenTextOnlyContainsArticleLink(text: String, urls: List<XUrlEntity>): String? {
+    val articleUrl = urls.mapNotNull { it.primaryUrl?.trim()?.takeIf(::isXArticleUrl) }
+        .distinct()
+        .singleOrNull()
+        ?: text.onlyLinkValue()?.takeIf(::isXArticleUrl)
+        ?: return null
+    if (urls.size > 1) return null
+    val link = text.onlyLinkValue() ?: return null
+    val matchesEntityLink = urls.isEmpty() || urls.any { entity ->
+        listOfNotNull(entity.shortUrl, entity.primaryUrl).any { sameUrlIgnoringTrailingSlash(it, link) }
+    }
+    return if (matchesEntityLink) articleUrl else null
+}
+
+private fun String.onlyLinkValue(): String? {
+    val link = trim()
+        .removePrefix("链接：")
+        .removePrefix("链接:")
+        .removePrefix("Link:")
+        .removePrefix("link:")
+        .trim()
+    return link.takeIf {
+        Regex("""^https?://\S+$""", RegexOption.IGNORE_CASE).matches(it)
+    }
+}
+
+private fun sameUrlIgnoringTrailingSlash(left: String, right: String): Boolean =
+    left.trim().trimEnd('/') == right.trim().trimEnd('/')
 
 private fun JsonObject.xUrlEntities(): List<XUrlEntity> {
     val noteUrls = this["note_tweet"]
@@ -618,6 +650,7 @@ private fun JsonObject.toXUrlEntity(): XUrlEntity? {
     if (primaryUrl.isNullOrBlank() && string("title").isNullOrBlank() && string("description").isNullOrBlank()) return null
     return XUrlEntity(
         primaryUrl = primaryUrl,
+        shortUrl = string("url")?.takeIf { it.isNotBlank() },
         title = string("title")?.takeIf { it.isNotBlank() },
         description = string("description")?.takeIf { it.isNotBlank() },
         images = get("images")

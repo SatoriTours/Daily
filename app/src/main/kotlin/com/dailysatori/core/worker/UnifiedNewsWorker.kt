@@ -9,6 +9,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.dailysatori.core.task.UnifiedNewsGenerateTaskHandler
+import com.dailysatori.core.task.remoteArticleSyncTaskPayloadJson
 import com.dailysatori.core.task.unifiedNewsGenerateTaskPayloadJson
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.service.asynctask.AsyncTaskType
@@ -65,7 +66,13 @@ class UnifiedNewsWorker(
             UnifiedNewsWorkerMode.DUE -> UnifiedNewsGenerateTaskHandler.MODE_DUE
             UnifiedNewsWorkerMode.BACKFILL -> UnifiedNewsGenerateTaskHandler.MODE_BACKFILL
         }
-        val taskId = asyncTaskRepo.enqueue(
+        val syncTaskId = asyncTaskRepo.enqueue(
+            type = AsyncTaskType.remote_article_sync.name,
+            payloadJson = remoteArticleSyncTaskPayloadJson(mode = modeValue),
+            uniqueKey = "remote_article_sync:${mode.name.lowercase()}",
+        )
+        asyncTaskScheduler.enqueue(syncTaskId)
+        val summaryTaskId = asyncTaskRepo.enqueue(
             type = AsyncTaskType.remote_news_fetch.name,
             payloadJson = unifiedNewsGenerateTaskPayloadJson(
                 force = force,
@@ -74,7 +81,7 @@ class UnifiedNewsWorker(
             ),
             uniqueKey = "remote_news_fetch:${mode.name.lowercase()}",
         )
-        asyncTaskScheduler.enqueue(taskId)
+        asyncTaskScheduler.enqueue(summaryTaskId)
         return Result.success()
     }
 

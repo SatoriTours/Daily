@@ -14,10 +14,10 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     private val q get() = db.dailySatoriQueries
 
     fun getAll(): Flow<List<Article>> =
-        q.selectArticles().asFlow().mapToList(Dispatchers.IO)
+        q.selectLocalArticles().asFlow().mapToList(Dispatchers.IO)
 
     fun getPaginated(limit: Long, offset: Long): Flow<List<Article>> =
-        q.selectArticlesPaginated(limit, offset).asFlow().mapToList(Dispatchers.IO)
+        q.selectLocalArticlesPaginated(limit, offset).asFlow().mapToList(Dispatchers.IO)
 
     fun getByStatus(status: String): Flow<List<Article>> =
         q.selectArticlesByStatus(status).asFlow().mapToList(Dispatchers.IO)
@@ -149,6 +149,8 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
 
     fun getAllSync(): List<Article> = q.selectArticles().executeAsList()
 
+    fun getLocalSync(): List<Article> = q.selectLocalArticles().executeAsList()
+
     fun searchSync(query: String): List<Article> = q.searchArticles(query, query, query).executeAsList()
 
     fun searchFavoriteFirstSync(query: String): List<Article> =
@@ -165,7 +167,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         q.selectFavoriteArticlesByDateRange(startMs, endMs).executeAsList()
 
     fun getLatestSync(limit: Int = 5): List<Article> =
-        q.selectArticlesPaginated(limit.toLong(), 0).executeAsList()
+        q.selectLocalArticlesPaginated(limit.toLong(), 0).executeAsList()
 
     fun findLocalArticleForRemote(remoteArticle: RemoteArticle): Article? {
         val fields = remoteArticle.toLocalFavoriteArticleFields()
@@ -199,10 +201,12 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
                 coverImageUrl = fields.coverImageUrl,
                 pubDate = fields.pubDate,
             )
+            markRemoteNewsMetadata(id, fields.aiMarkdownContent)
             getById(id)
         } else if (existing.url.isNullOrBlank()) {
             val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
             q.markArticleFavoriteById(now, existing.id)
+            if (existing.isRemoteNewsArticle()) markRemoteNewsMetadata(existing.id, fields.aiMarkdownContent)
             getById(existing.id)
         } else {
             val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
@@ -217,8 +221,57 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
                 now,
                 existing.url,
             )
+            if (existing.isRemoteNewsArticle()) markRemoteNewsMetadata(existing.id, fields.aiMarkdownContent)
             q.selectArticleByUrlNullable(existing.url).executeAsOneOrNull()
         }
+    }
+
+    fun saveRemoteArticleForSync(remoteArticle: RemoteArticle, existingArticleId: Long? = null): RemoteArticleSyncSaveResult? {
+        val fields = remoteArticle.toLocalFavoriteArticleFields().copy(isFavorite = 0L)
+        val existing = existingArticleId?.let(::getById) ?: findLocalArticleForRemote(remoteArticle)
+        if (existing == null) {
+            val inserted = if (fields.url.isNullOrBlank()) {
+                insertRemoteArticleSyncWithoutUrl(fields)
+            } else {
+                val id = insert(
+                    title = fields.title,
+                    aiTitle = fields.aiTitle,
+                    aiContent = fields.aiContent,
+                    aiMarkdownContent = fields.aiMarkdownContent,
+                    url = fields.url,
+                    isFavorite = 0,
+                    comment = fields.comment,
+                    status = fields.status,
+                    coverImage = fields.coverImage,
+                    coverImageUrl = fields.coverImageUrl,
+                    pubDate = fields.pubDate,
+                )
+                markRemoteNewsMetadata(id, fields.aiMarkdownContent)
+                getById(id)
+            } ?: return null
+            return RemoteArticleSyncSaveResult(article = inserted, inserted = true, updated = false)
+        }
+        if (!existing.isRemoteNewsArticle()) {
+            return RemoteArticleSyncSaveResult(article = existing, inserted = false, updated = false)
+        }
+
+        val nextMarkdown = fields.aiMarkdownContent ?: existing.ai_markdown_content
+        update(
+            id = existing.id,
+            title = fields.title ?: existing.title,
+            aiTitle = fields.aiTitle ?: existing.ai_title,
+            aiContent = fields.aiContent ?: existing.ai_content,
+            aiMarkdownContent = nextMarkdown,
+            url = existing.url ?: fields.url,
+            isFavorite = existing.is_favorite ?: 0,
+            comment = existing.comment,
+            status = fields.status,
+            coverImage = existing.cover_image ?: fields.coverImage,
+            coverImageUrl = existing.cover_image_url ?: fields.coverImageUrl,
+            pubDate = existing.pub_date ?: fields.pubDate,
+        )
+        markRemoteNewsMetadata(existing.id, nextMarkdown)
+        return getById(existing.id)?.let { RemoteArticleSyncSaveResult(article = it, inserted = false, updated = true) }
     }
 
     fun saveExternalFavoriteArticle(
@@ -229,6 +282,7 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
         pubDate: Long?,
         coverImageUrl: String? = null,
         status: String = "completed",
+        refreshLinkedExternalFavoriteContent: Boolean = false,
     ): Article {
         val existing = getByUrl(url)
         if (existing == null) {
@@ -245,13 +299,23 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
             return getById(id) ?: error("Inserted external favorite article not found: $url")
         }
 
-        val nextMarkdown = existing.ai_markdown_content.mergeExternalFavoriteMarkdown(markdown)
-        val shouldUpdateExternalFavoriteContent = isExternalFavoritePlaceholder(existing)
+        val nextMarkdown = if (refreshLinkedExternalFavoriteContent) {
+            markdown
+        } else {
+            existing.ai_markdown_content.mergeExternalFavoriteMarkdown(markdown)
+        }
+        val shouldUpdateExternalFavoriteContent = refreshLinkedExternalFavoriteContent || isExternalFavoritePlaceholder(existing)
         update(
             id = existing.id,
             title = if (shouldUpdateExternalFavoriteContent) existing.title.fillBlankWith(title) else existing.title,
             aiTitle = existing.ai_title,
-            aiContent = if (shouldUpdateExternalFavoriteContent) existing.ai_content.fillBlankWith(summary) else existing.ai_content,
+            aiContent = if (refreshLinkedExternalFavoriteContent) {
+                summary
+            } else if (shouldUpdateExternalFavoriteContent) {
+                existing.ai_content.fillBlankWith(summary)
+            } else {
+                existing.ai_content
+            },
             aiMarkdownContent = if (shouldUpdateExternalFavoriteContent) nextMarkdown else existing.ai_markdown_content,
             url = existing.url ?: url,
             isFavorite = existing.is_favorite ?: 0,
@@ -281,7 +345,45 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
             now,
             now,
         )
-        return q.selectArticlesPaginated(1, 0).executeAsOneOrNull()
+        val id = q.selectLastInsertedArticleId().executeAsOne()
+        markRemoteNewsMetadata(id, fields.aiMarkdownContent)
+        return getById(id)
+    }
+
+    private fun insertRemoteArticleSyncWithoutUrl(fields: LocalFavoriteArticleFields): Article? {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        q.insertArticle(
+            fields.title,
+            fields.aiTitle,
+            fields.aiContent,
+            fields.aiMarkdownContent,
+            null,
+            0,
+            fields.comment,
+            fields.status,
+            fields.coverImage,
+            fields.coverImageUrl,
+            fields.pubDate,
+            now,
+            now,
+        )
+        val id = q.selectLastInsertedArticleId().executeAsOne()
+        markRemoteNewsMetadata(id, fields.aiMarkdownContent)
+        return getById(id)
+    }
+
+    private fun markRemoteNewsMetadata(articleId: Long, originalMarkdown: String?) {
+        val now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds()
+        if (!originalMarkdown.isNullOrBlank()) {
+            q.updateArticleOriginalMarkdownContent(originalMarkdown, now, articleId)
+        }
+        q.updateArticleSourceType(SOURCE_REMOTE_NEWS, now, articleId)
+    }
+
+    private fun Article.isRemoteNewsArticle(): Boolean = source_type == SOURCE_REMOTE_NEWS
+
+    companion object {
+        const val SOURCE_REMOTE_NEWS = "remote_news"
     }
 
     private fun String?.fillBlankWith(fallback: String?): String? =
@@ -309,3 +411,9 @@ class ArticleRepository(private val db: DailySatoriDatabase) {
     fun isExternalFavoritePlaceholder(article: Article): Boolean =
         article.ai_markdown_content.isDeterministicExternalFavoriteMarkdown()
 }
+
+data class RemoteArticleSyncSaveResult(
+    val article: Article,
+    val inserted: Boolean,
+    val updated: Boolean,
+)

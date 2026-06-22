@@ -192,6 +192,8 @@ val viewModelModule: Module = module {
             remoteNewsSourceRepo = get(),
             externalFavoriteSourceRepo = get(),
             articleRepo = get<ArticleRepository>(),
+            remoteArticleSyncRepo = get(),
+            remoteArticleSyncService = get(),
             remoteArticleFavoriteService = get(),
             isDebugBuild = com.dailysatori.BuildConfig.DEBUG,
         )
@@ -200,7 +202,10 @@ val viewModelModule: Module = module {
         RemoteNewsViewModel(
             settingRepo = get<SettingRepository>(),
             remoteNewsService = get(),
+            remoteNewsSourceRepo = get(),
             articleRepo = get<ArticleRepository>(),
+            remoteArticleSyncRepo = get(),
+            remoteArticleSyncService = get(),
             remoteArticleFavoriteService = get(),
         )
     }

@@ -112,7 +112,7 @@ class MemoryExtractService(
                 onProgress("清除旧记忆...")
                 memoryRepo.deleteAllByType("content")
 
-                val articles = articleRepo.getAllSync()
+                val articles = (articleRepo.getLocalSync() + articleRepo.getFavoritesSync()).distinctBy { it.id }
                 articles.forEachIndexed { index, article ->
                     coroutineContext.ensureActive()
                     onProgress("处理文章 (${index + 1}/${articles.size})...")

@@ -1,11 +1,20 @@
 package com.dailysatori.service.externalfavorites
 
+import com.dailysatori.shared.db.External_favorite_source
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.MockRequestHandleScope
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -100,7 +109,7 @@ class XBookmarksConnectorTest {
 
         assertEquals("This is the full long-form post body with much more useful context.", item.text)
         assertEquals("External Article Title", item.title)
-        assertEquals("https://example.com/article-final", item.canonicalUrl)
+        assertEquals("https://x.com/daily/status/123", item.canonicalUrl)
         assertEquals("This is the full long-form post body with much more useful context.", normalized["note_text"]?.jsonPrimitive?.contentOrNull)
         assertEquals("https://example.com/article-final", normalized["primary_url"]?.jsonPrimitive?.contentOrNull)
         assertEquals("External Article Title", normalized["url_title"]?.jsonPrimitive?.contentOrNull)
@@ -150,7 +159,45 @@ class XBookmarksConnectorTest {
     }
 
     @Test
-    fun parsesReferencedRetweetedArticleCardAsCanonicalArticleUrl() {
+    fun detectsOnlyXArticleLinkFromRawTweetTextEvenWhenArticleMetadataHasDescription() {
+        val json = """
+            {
+              "data": [
+                {
+                  "id": "2068340624907202872",
+                  "lang": "zxx",
+                  "text": "https://t.co/iAedHNUNSa",
+                  "author_id": "1056949890",
+                  "article": {
+                    "title": "内容创作不是表达欲，而是普通人最低成本的杠杆",
+                    "description": "卡片摘要不是完整正文。"
+                  },
+                  "entities": {
+                    "urls": [
+                      {
+                        "url": "https://t.co/iAedHNUNSa",
+                        "expanded_url": "http://x.com/i/article/2068336874515734528",
+                        "unwound_url": "https://x.com/i/article/2068336874515734528"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "includes": {
+                "users": [{"id": "1056949890", "username": "nolan", "name": "Nolan"}]
+              },
+              "meta": {"result_count": 1}
+            }
+        """.trimIndent()
+
+        val item = XBookmarksResponseParser.parse(json).items.single()
+
+        assertEquals("https://x.com/i/article/2068336874515734528", item.canonicalUrl)
+        assertEquals("卡片摘要不是完整正文。", item.text)
+    }
+
+    @Test
+    fun parsesReferencedRetweetedArticleCardAsReferencedTweetUrlNotExternalUrl() {
         val json = """
             {
               "data": [
@@ -192,7 +239,7 @@ class XBookmarksConnectorTest {
         val item = XBookmarksResponseParser.parse(json).items.single()
         val normalized = Json.parseToJsonElement(item.normalizedJson).jsonObject
 
-        assertEquals("https://example.com/long-article", item.canonicalUrl)
+        assertEquals("https://x.com/daily/status/2068340624907202872", item.canonicalUrl)
         assertEquals("Long Article", item.title)
         assertEquals("https://example.com/long-article", normalized["primary_url"]?.jsonPrimitive?.contentOrNull)
         assertTrue(item.normalizedJson.contains("referenced_tweets"))
@@ -239,7 +286,7 @@ class XBookmarksConnectorTest {
 
         assertNotNull(item)
         assertEquals("2068340624907202872", item.externalId)
-        assertEquals("https://example.com/long-article", item.canonicalUrl)
+        assertEquals("https://x.com/daily/status/2068340624907202872", item.canonicalUrl)
         assertEquals("Long Article", item.title)
         assertTrue(item.normalizedJson.contains("referenced_tweets"))
     }
@@ -320,12 +367,210 @@ class XBookmarksConnectorTest {
         assertNotNull(fetchedChild)
         assertNotNull(enriched)
         assertEquals("2068340624907202872", enriched.externalId)
-        assertEquals("https://example.com/long-article", enriched.canonicalUrl)
+        assertEquals("https://x.com/writer/status/100", enriched.canonicalUrl)
         assertEquals("子帖长文章", enriched.title)
         assertEquals("这是引用子帖 API 才返回的完整长文章内容，应该用于后续文章导入。", enriched.text)
         assertEquals("Writer", enriched.authorName)
         assertTrue(enriched.contentHash != bookmark.contentHash)
         assertTrue(enriched.aiInputHash != bookmark.aiInputHash)
+    }
+
+    @Test
+    fun xArticleBookmarkKeepsArticleUrlWhenMergingFetchedArticlePostContent() {
+        val bookmark = ExternalFavoriteItemDraft(
+            provider = ExternalFavoriteProvider.X.id,
+            externalId = "2068340624907202872",
+            canonicalUrl = "https://x.com/i/article/2010742786430021632",
+            title = "X article link",
+            text = "https://t.co/article",
+            authorName = "Bookmark Author",
+            sourceCreatedAt = null,
+            favoritedAt = null,
+            normalizedJson = """{"id":"2068340624907202872"}""",
+            debugJson = "",
+            contentHash = "bookmark-content",
+            aiInputHash = "bookmark-ai",
+        )
+        val fetchedArticle = ExternalFavoriteItemDraft(
+            provider = ExternalFavoriteProvider.X.id,
+            externalId = "2010742786430021632",
+            canonicalUrl = "https://x.com/writer/status/2010742786430021632",
+            title = "Fetched article title",
+            text = "Fetched article body from X API.",
+            authorName = "Writer",
+            sourceCreatedAt = null,
+            favoritedAt = null,
+            normalizedJson = """{"id":"2010742786430021632"}""",
+            debugJson = "",
+            contentHash = "article-content",
+            aiInputHash = "article-ai",
+        )
+
+        val enriched = xBookmarkItemWithFetchedReferencedPost(bookmark, fetchedArticle)
+
+        assertNotNull(enriched)
+        assertEquals("2068340624907202872", enriched.externalId)
+        assertEquals("https://x.com/i/article/2010742786430021632", enriched.canonicalUrl)
+        assertEquals("Fetched article title", enriched.title)
+        assertEquals("Fetched article body from X API.", enriched.text)
+    }
+
+    @Test
+    fun fetchPageFetchesXArticleApiWhenBookmarkTextOnlyContainsXArticleLink() = runBlocking {
+        val requestedPaths = mutableListOf<String>()
+        val client = HttpClient(MockEngine { request ->
+            requestedPaths += request.url.encodedPath
+            when (request.url.encodedPath) {
+                "/2/users/account-1/bookmarks" -> respondJson(
+                    """
+                        {
+                          "data": [
+                            {
+                              "id": "bookmark-1",
+                              "text": "https://t.co/article",
+                              "author_id": "42",
+                              "entities": {
+                                "urls": [
+                                  {
+                                    "url": "https://t.co/article",
+                                    "expanded_url": "https://x.com/i/article/2010742786430021632",
+                                    "unwound_url": "https://x.com/i/article/2010742786430021632"
+                                  }
+                                ]
+                              }
+                            }
+                          ],
+                          "includes": {
+                            "users": [{"id": "42", "username": "daily", "name": "Daily"}]
+                          },
+                          "meta": {"result_count": 1}
+                        }
+                    """.trimIndent(),
+                )
+                "/2/posts/2010742786430021632" -> respondJson(
+                    """
+                        {
+                          "data": {
+                            "id": "2010742786430021632",
+                            "content": "Full X article body from the posts API.",
+                            "author_id": "99",
+                            "article": {"title": "Full X Article"}
+                          },
+                          "includes": {
+                            "users": [{"id": "99", "username": "writer", "name": "Writer"}]
+                          }
+                        }
+                    """.trimIndent(),
+                )
+                else -> respond("unexpected path ${request.url.encodedPath}", HttpStatusCode.NotFound)
+            }
+        })
+        val connector = XBookmarksConnector(client = client)
+
+        val page = connector.fetchPage(xTestSource(), cursor = null, pageSize = 100)
+
+        assertEquals(listOf("/2/users/account-1/bookmarks", "/2/posts/2010742786430021632"), requestedPaths)
+        val item = page.items.single()
+        assertEquals("bookmark-1", item.externalId)
+        assertEquals("https://x.com/i/article/2010742786430021632", item.canonicalUrl)
+        assertEquals("Full X Article", item.title)
+        assertEquals("Full X article body from the posts API.", item.text)
+        assertEquals("Writer", item.authorName)
+    }
+
+    @Test
+    fun fetchPageDoesNotFetchXArticleApiWhenXArticleLinkHasOtherText() = runBlocking {
+        val requestedPaths = mutableListOf<String>()
+        val client = HttpClient(MockEngine { request ->
+            requestedPaths += request.url.encodedPath
+            when (request.url.encodedPath) {
+                "/2/users/account-1/bookmarks" -> respondJson(
+                    """
+                        {
+                          "data": [
+                            {
+                              "id": "bookmark-2",
+                              "text": "Read this https://t.co/article",
+                              "author_id": "42",
+                              "entities": {
+                                "urls": [
+                                  {
+                                    "url": "https://t.co/article",
+                                    "expanded_url": "https://x.com/i/article/2010742786430021632",
+                                    "unwound_url": "https://x.com/i/article/2010742786430021632"
+                                  }
+                                ]
+                              }
+                            }
+                          ],
+                          "includes": {
+                            "users": [{"id": "42", "username": "daily", "name": "Daily"}]
+                          },
+                          "meta": {"result_count": 1}
+                        }
+                    """.trimIndent(),
+                )
+                else -> respond("unexpected path ${request.url.encodedPath}", HttpStatusCode.NotFound)
+            }
+        })
+        val connector = XBookmarksConnector(client = client)
+
+        val page = connector.fetchPage(xTestSource(), cursor = null, pageSize = 100)
+
+        assertEquals(listOf("/2/users/account-1/bookmarks"), requestedPaths)
+        val item = page.items.single()
+        assertEquals("bookmark-2", item.externalId)
+        assertEquals("https://x.com/daily/status/bookmark-2", item.canonicalUrl)
+        assertEquals("Read this https://t.co/article", item.text)
+    }
+
+    @Test
+    fun fetchPageDoesNotFetchXArticleApiForRegularExternalUrl() = runBlocking {
+        val requestedPaths = mutableListOf<String>()
+        val client = HttpClient(MockEngine { request ->
+            requestedPaths += request.url.encodedPath
+            when (request.url.encodedPath) {
+                "/2/users/account-1/bookmarks" -> respondJson(
+                    """
+                        {
+                          "data": [
+                            {
+                              "id": "bookmark-3",
+                              "text": "https://t.co/external",
+                              "author_id": "42",
+                              "entities": {
+                                "urls": [
+                                  {
+                                    "url": "https://t.co/external",
+                                    "expanded_url": "https://example.com/article",
+                                    "unwound_url": "https://example.com/article",
+                                    "title": "External Article",
+                                    "description": "External article summary"
+                                  }
+                                ]
+                              }
+                            }
+                          ],
+                          "includes": {
+                            "users": [{"id": "42", "username": "daily", "name": "Daily"}]
+                          },
+                          "meta": {"result_count": 1}
+                        }
+                    """.trimIndent(),
+                )
+                else -> respond("unexpected path ${request.url.encodedPath}", HttpStatusCode.NotFound)
+            }
+        })
+        val connector = XBookmarksConnector(client = client)
+
+        val page = connector.fetchPage(xTestSource(), cursor = null, pageSize = 100)
+
+        assertEquals(listOf("/2/users/account-1/bookmarks"), requestedPaths)
+        val item = page.items.single()
+        val normalized = Json.parseToJsonElement(item.normalizedJson).jsonObject
+        assertEquals("bookmark-3", item.externalId)
+        assertEquals("https://x.com/daily/status/bookmark-3", item.canonicalUrl)
+        assertEquals("https://example.com/article", normalized["primary_url"]?.jsonPrimitive?.contentOrNull)
     }
 
     @Test
@@ -513,5 +758,40 @@ class XBookmarksConnectorTest {
         assertTrue(refreshed.contains(""""refresh_token":"refresh""""))
         assertTrue(refreshed.contains(""""expires_at":7202000"""))
     }
+
+    private fun MockRequestHandleScope.respondJson(content: String) =
+        respond(
+            content = content,
+            status = HttpStatusCode.OK,
+            headers = headersOf(HttpHeaders.ContentType, "application/json"),
+        )
+
+    private fun xTestSource(): External_favorite_source =
+        External_favorite_source(
+            id = 1,
+            provider = ExternalFavoriteProvider.X.id,
+            display_name = "X",
+            account_id = "account-1",
+            account_name = "Daily",
+            enabled = 1,
+            sync_interval_minutes = 720,
+            last_sync_started_at = null,
+            last_sync_completed_at = null,
+            last_success_at = null,
+            last_sync_window_started_at = null,
+            last_items_seen_count = 0,
+            last_pages_seen_count = 0,
+            last_error = "",
+            last_error_code = "",
+            last_error_message = "",
+            status = "healthy",
+            last_sync_mode = "",
+            rate_limit_reset_at = null,
+            auth_json = """{"access_token":"token"}""",
+            config_json = "{}",
+            capabilities_json = "{}",
+            created_at = 0,
+            updated_at = 0,
+        )
 
 }

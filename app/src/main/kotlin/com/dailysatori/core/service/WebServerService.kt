@@ -299,6 +299,8 @@ class WebServerService(private val ctx: Context) {
                         put("url", JsonPrimitive(a.url ?: ""))
                         put("aiContent", JsonPrimitive(a.ai_content ?: ""))
                         put("aiMarkdownContent", JsonPrimitive(a.ai_markdown_content ?: ""))
+                        put("originalMarkdownContent", JsonPrimitive(a.original_markdown_content ?: ""))
+                        put("sourceType", JsonPrimitive(a.source_type))
                         put("aiTitle", JsonPrimitive(a.ai_title ?: ""))
                         put("coverImage", JsonPrimitive(fileUrl(a.cover_image)))
                         put("isFavorite", JsonPrimitive((a.is_favorite ?: 0) > 0))

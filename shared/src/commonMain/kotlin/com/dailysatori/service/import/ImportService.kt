@@ -206,7 +206,7 @@ class ImportService(
         arr.forEach { element ->
             val obj = element.jsonObject
             val oldId = obj.getLong("id") ?: return@forEach
-            insertAndGetNewId("article", oldId) {
+            val newId = insertAndGetNewId("article", oldId) {
                 db.dailySatoriQueries.insertArticle(
                     obj.getString("title"),
                     obj.getString("ai_title"),
@@ -223,6 +223,11 @@ class ImportService(
                     obj.getEpochMs("updated_at") ?: nowMs(),
                 )
             }
+            val updatedAt = obj.getEpochMs("updated_at") ?: nowMs()
+            obj.getString("original_markdown_content")?.takeIf { it.isNotBlank() }?.let {
+                db.dailySatoriQueries.updateArticleOriginalMarkdownContent(it, updatedAt, newId)
+            }
+            db.dailySatoriQueries.updateArticleSourceType(obj.getString("source_type") ?: "local", updatedAt, newId)
             count++
         }
         log.d { "Imported $count articles" }

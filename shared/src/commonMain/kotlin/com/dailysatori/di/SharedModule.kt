@@ -15,6 +15,7 @@ import com.dailysatori.data.repository.ImageRepository
 import com.dailysatori.data.repository.McpServerRepository
 import com.dailysatori.data.repository.MemoryRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
+import com.dailysatori.data.repository.RemoteArticleSyncRepository
 import com.dailysatori.data.repository.SessionRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.data.repository.SkillConfigDataSource
@@ -58,6 +59,7 @@ import com.dailysatori.service.externalfavorites.FavoriteConnectorRegistry
 import com.dailysatori.service.externalfavorites.FavoriteSyncService
 import com.dailysatori.service.externalfavorites.XBookmarksConnector
 import com.dailysatori.service.remotenews.RemoteArticleFavoriteService
+import com.dailysatori.service.remotenews.RemoteArticleSyncService
 import com.dailysatori.service.remotenews.RemoteNewsService
 import com.dailysatori.service.security.SecretCipher
 import com.dailysatori.service.security.SecretFieldProcessor
@@ -88,6 +90,7 @@ val sharedModule: Module = module {
     single { ExternalFavoriteItemRepository(get()) }
     single { ImageRepository(get()) }
     single { MemoryRepository(get()) }
+    single { RemoteArticleSyncRepository(get()) }
     single { RemoteNewsSourceRepository(get(), get()) }
     single { SessionRepository(get()) }
     single { SettingRepository(get()) }
@@ -116,6 +119,7 @@ val sharedModule: Module = module {
     single { ExternalFavoriteAiOrganizer(get(), get(), get(), get()) }
     single { FavoriteSyncService(get(), get(), get(), get(), get()) }
     single { RemoteArticleFavoriteService(get(), get()) }
+    single { RemoteArticleSyncService(get(), get()) }
     single { DiaryMonthSummaryService(get(), get(), get(), get()) }
     single { MemoryExtractService(get(), get(), get()) }
     single { UnifiedNewsSummaryService(get(), get(), get(), get(), get(), get()) }

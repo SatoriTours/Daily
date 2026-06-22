@@ -5,8 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.config.RemoteNewsConfig
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.ArticleRepository
+import com.dailysatori.data.repository.RemoteArticleSyncRepository
+import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.remotenews.RemoteArticleFavoriteService
+import com.dailysatori.service.remotenews.RemoteArticleSyncService
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteDigest
 import com.dailysatori.service.remotenews.RemoteFeed
@@ -14,6 +17,10 @@ import com.dailysatori.service.remotenews.RemoteNewsConfigValues
 import com.dailysatori.service.remotenews.RemoteNewsPagination
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
+import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
+import com.dailysatori.shared.db.Article
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +47,7 @@ data class RemoteNewsState(
     val selectedArticle: RemoteArticle? = null,
     val selectedArticleLocalId: Long? = null,
     val selectedArticleIsFavorite: Boolean = false,
+    val localArticleNavigationTarget: Long? = null,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val isLoadingMore: Boolean = false,
@@ -52,7 +60,10 @@ data class RemoteNewsState(
 class RemoteNewsViewModel(
     private val settingRepo: SettingRepository,
     private val remoteNewsService: RemoteNewsService,
+    private val remoteNewsSourceRepo: RemoteNewsSourceRepository,
     private val articleRepo: ArticleRepository,
+    private val remoteArticleSyncRepo: RemoteArticleSyncRepository,
+    private val remoteArticleSyncService: RemoteArticleSyncService,
     private val remoteArticleFavoriteService: RemoteArticleFavoriteService,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RemoteNewsState())
@@ -115,6 +126,22 @@ class RemoteNewsViewModel(
                 )
             }
             val local = runCatching { articleRepo.findLocalArticleForRemote(article) }.getOrNull()
+            if (local != null) {
+                _state.update { state ->
+                    if (state.selectedArticle?.id == article.id) {
+                        state.copy(
+                            selectedArticle = null,
+                            selectedArticleLocalId = null,
+                            selectedArticleIsFavorite = false,
+                            localArticleNavigationTarget = local.id,
+                            isLoading = false,
+                        )
+                    } else {
+                        state
+                    }
+                }
+                return@launch
+            }
             _state.update { state ->
                 if (state.selectedArticle?.id == article.id) {
                     state.copy(
@@ -158,6 +185,8 @@ class RemoteNewsViewModel(
         it.copy(selectedArticle = null, selectedArticleLocalId = null, selectedArticleIsFavorite = false, detailError = null)
     }
 
+    fun clearLocalArticleNavigationTarget() = _state.update { it.copy(localArticleNavigationTarget = null) }
+
     fun closeDetailError() = _state.update { it.copy(detailError = null) }
 
     private fun loadMode(mode: RemoteNewsMode, refresh: Boolean) = loadPage(mode, 1, append = false, refresh = refresh)
@@ -189,6 +218,55 @@ class RemoteNewsViewModel(
     }
 
     private suspend fun loadArticles(config: RemoteNewsConfigValues, page: Int, append: Boolean, refresh: Boolean) {
+        val source = remoteNewsSourceRepo.getEnabled().firstOrNull()
+        if (source == null) {
+            loadLegacyArticles(config, page, append, refresh)
+            return
+        }
+
+        val sourceDate = remoteNewsArticleSourceDate()
+        if (!append && !refresh) {
+            val localArticles = remoteArticleSyncRepo.getArticlesBySourceDate(source.id, sourceDate)
+            if (localArticles.isNotEmpty()) {
+                _state.update {
+                    val loaded = it.withRemoteNewsPageLoadFinished(refresh)
+                    loaded.copy(
+                        articles = localArticles.map { article -> article.toRemoteArticleForDisplay() },
+                        articlePagination = RemoteNewsPagination(page = 1, perPage = localArticles.size, total = localArticles.size, totalPages = 1, next = null),
+                    )
+                }
+                return
+            }
+        }
+
+        when (val sourceConfig = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
+            is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(sourceConfig.value, page = 1, limit = 50)) {
+                is RemoteNewsResult.Success -> {
+                    remoteArticleSyncService.syncSourceArticles(
+                        remoteSourceId = source.id,
+                        sourceDate = sourceDate,
+                        articles = result.value.articles,
+                        now = Clock.System.now().toEpochMilliseconds(),
+                    )
+                    val localArticles = remoteArticleSyncRepo.getArticlesBySourceDate(source.id, remoteNewsArticleSourceDate())
+                    val displayArticles = localArticles.takeIf { it.isNotEmpty() }
+                        ?.map { it.toRemoteArticleForDisplay() }
+                        ?: result.value.articles
+                    _state.update {
+                        val loaded = it.withRemoteNewsPageLoadFinished(refresh)
+                        loaded.copy(
+                            articles = if (append) it.articles + displayArticles else displayArticles,
+                            articlePagination = result.value.pagination.copy(next = null),
+                        )
+                    }
+                }
+                is RemoteNewsResult.Failure -> applyFailure(result.message, append)
+            }
+            is RemoteNewsResult.Failure -> applyFailure(sourceConfig.message, append)
+        }
+    }
+
+    private suspend fun loadLegacyArticles(config: RemoteNewsConfigValues, page: Int, append: Boolean, refresh: Boolean) {
         when (val result = remoteNewsService.fetchArticles(config, page, RemoteNewsConfig.articlesPageSize)) {
             is RemoteNewsResult.Success -> _state.update {
                 val loaded = it.withRemoteNewsPageLoadFinished(refresh)
@@ -227,4 +305,17 @@ class RemoteNewsViewModel(
             }
         }
     }
+
+    private fun remoteNewsArticleSourceDate(): String = dailyUnifiedNewsWindowFor().summaryDate
+
+    private fun Article.toRemoteArticleForDisplay(): RemoteArticle = RemoteArticle(
+        id = id,
+        title = ai_title ?: title,
+        url = url,
+        summary = ai_content,
+        content = original_markdown_content ?: ai_markdown_content,
+        coverUrl = cover_image_url,
+        publishedAt = pub_date?.let { Instant.fromEpochMilliseconds(it).toString() },
+        createdAt = Instant.fromEpochMilliseconds(created_at).toString(),
+    )
 }

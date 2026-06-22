@@ -46,7 +46,7 @@ class AsyncTaskSchemaSourceTest {
         val config = File("src/commonMain/kotlin/com/dailysatori/config/Config.kt").readText()
         val migration = File("src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
 
-        assertTrue(config.contains("currentSchemaVersion = 14L"))
+        assertTrue(config.contains("currentSchemaVersion = 16L"))
         assertTrue(migration.contains("if (currentVersion < 14)"))
         assertTrue(migration.contains("migrateV13ToV14()"))
         assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS async_task_batch"))

@@ -83,6 +83,7 @@ class ExternalFavoriteImporter(
 
             val existingArticle = articleRepo.getByUrl(url)
             val existedBeforeImport = existingArticle != null
+            val refreshLinkedExternalFavoriteContent = item.article_id != null && existingArticle?.id == item.article_id
             val importedStatus = externalFavoriteImportedArticleStatus(item, url)
             val shouldOrganizeArticle = importedStatus == "completed" &&
                 (existingArticle == null || articleRepo.isExternalFavoritePlaceholder(existingArticle))
@@ -94,6 +95,7 @@ class ExternalFavoriteImporter(
                 pubDate = item.source_created_at ?: item.favorited_at,
                 coverImageUrl = item.coverImageUrlFromNormalizedJson(),
                 status = importedStatus,
+                refreshLinkedExternalFavoriteContent = refreshLinkedExternalFavoriteContent,
             )
             itemRepo.markImported(
                 itemId = item.id,

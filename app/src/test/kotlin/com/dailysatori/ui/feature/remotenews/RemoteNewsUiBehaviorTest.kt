@@ -128,20 +128,36 @@ class RemoteNewsUiBehaviorTest {
     }
 
     @Test
-    fun remoteArticlesAreNotCachedLocallyUntilFavorite() {
+    fun remoteArticlesSyncLocallyBeforeFavorite() {
         val repository = File(
             "../shared/src/commonMain/kotlin/com/dailysatori/data/repository/ArticleRepository.kt",
         ).readText()
+        val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsViewModel.kt").readText()
         val mapper = File(
             "../shared/src/commonMain/kotlin/com/dailysatori/data/repository/RemoteArticleFavoriteMapper.kt",
         ).readText()
+        val loadBody = viewModel.substringAfter("private suspend fun loadArticles(").substringBefore("private suspend fun loadFeeds")
 
-        assertFalse(repository.contains("fun cacheRemoteArticle("))
-        assertFalse(repository.contains("insertRemoteArticleCacheWithoutUrl"))
+        assertTrue(repository.contains("fun saveRemoteArticleForSync(remoteArticle: RemoteArticle"))
+        assertTrue(loadBody.contains("remoteNewsSourceRepo.getEnabled().firstOrNull()"))
+        assertTrue(loadBody.contains("remoteNewsService.fetchTopArticlesToday(sourceConfig.value, page = 1, limit = 50)"))
+        assertTrue(loadBody.contains("remoteArticleSyncService.syncSourceArticles("))
+        assertTrue(loadBody.contains("remoteArticleSyncRepo.getArticlesBySourceDate(source.id, remoteNewsArticleSourceDate())"))
         assertTrue(repository.contains("fun saveRemoteArticleAsFavorite(remoteArticle: RemoteArticle): Article?"))
         assertTrue(mapper.contains("isFavorite: Long = 1L"))
         assertFalse(repository.contains("WebpageParserService"))
         assertFalse(repository.contains("ArticleProcessingScheduler"))
+    }
+
+    @Test
+    fun remoteNewsScreenCanNavigateSyncedArticlesToLocalDetail() {
+        val screen = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsScreen.kt").readText()
+        val viewModel = File("src/main/kotlin/com/dailysatori/ui/feature/remotenews/RemoteNewsViewModel.kt").readText()
+
+        assertTrue(screen.contains("fun RemoteNewsScreen(onArticleClick: (Long) -> Unit = {})"))
+        assertTrue(screen.contains("LaunchedEffect(state.localArticleNavigationTarget)"))
+        assertTrue(viewModel.contains("localArticleNavigationTarget = local.id"))
+        assertTrue(viewModel.contains("fun clearLocalArticleNavigationTarget()"))
     }
 
     @Test

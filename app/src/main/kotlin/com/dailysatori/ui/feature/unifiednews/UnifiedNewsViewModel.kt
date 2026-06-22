@@ -5,11 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.dailysatori.config.SettingKeys
 import com.dailysatori.data.repository.ArticleRepository
 import com.dailysatori.data.repository.ExternalFavoriteSourceRepository
+import com.dailysatori.data.repository.RemoteArticleSyncRepository
 import com.dailysatori.data.repository.RemoteNewsSourceRepository
 import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.data.repository.UnifiedNewsSummaryRepository
 import com.dailysatori.service.remotenews.RemoteArticle
 import com.dailysatori.service.remotenews.RemoteArticleFavoriteService
+import com.dailysatori.service.remotenews.RemoteArticleSyncService
 import com.dailysatori.service.remotenews.RemoteDigest
 import com.dailysatori.service.remotenews.RemoteNewsResult
 import com.dailysatori.service.remotenews.RemoteNewsService
@@ -18,6 +20,7 @@ import com.dailysatori.service.unifiednews.UnifiedNewsSummaryService
 import com.dailysatori.service.unifiednews.UnifiedNewsSummaryStatus
 import com.dailysatori.service.unifiednews.dailyUnifiedNewsWindowFor
 import com.dailysatori.service.unifiednews.remoteNewsSourceRouteKey
+import com.dailysatori.shared.db.Article
 import com.dailysatori.shared.db.Unified_news_source
 import com.dailysatori.shared.db.Unified_news_summary
 import kotlinx.coroutines.CancellationException
@@ -94,6 +97,8 @@ class UnifiedNewsViewModel(
     private val remoteNewsSourceRepo: RemoteNewsSourceRepository,
     private val externalFavoriteSourceRepo: ExternalFavoriteSourceRepository,
     private val articleRepo: ArticleRepository,
+    private val remoteArticleSyncRepo: RemoteArticleSyncRepository,
+    private val remoteArticleSyncService: RemoteArticleSyncService,
     private val remoteArticleFavoriteService: RemoteArticleFavoriteService,
     private val isDebugBuild: Boolean = false,
 ) : ViewModel() {
@@ -252,6 +257,22 @@ class UnifiedNewsViewModel(
                 )
             }
             val local = runCatching { articleRepo.findLocalArticleForRemote(article) }.getOrNull()
+            if (local != null) {
+                _state.update { state ->
+                    if (state.selectedRemoteArticle?.id == article.id) {
+                        state.copy(
+                            navigationTarget = UnifiedNewsNavigationTarget.LocalArticle(local.id),
+                            selectedRemoteArticle = null,
+                            selectedRemoteArticleLocalId = null,
+                            selectedRemoteArticleIsFavorite = false,
+                            isLoading = false,
+                        )
+                    } else {
+                        state
+                    }
+                }
+                return@launch
+            }
             _state.update { state ->
                 if (state.selectedRemoteArticle?.id == article.id) {
                     state.copy(
@@ -448,7 +469,7 @@ class UnifiedNewsViewModel(
         title = this.title,
         url = source_url,
         summary = this.summary,
-        content = this.summary,
+        content = null,
     )
 
     private fun fetchSourceArticles(sourceId: Long, force: Boolean) {
@@ -466,10 +487,31 @@ class UnifiedNewsViewModel(
                     }
                     return@launch
                 }
+                if (!force) {
+                    val localArticles = remoteArticleSyncRepo.getArticlesBySourceDate(sourceId, cacheKey.summaryDate)
+                    if (localArticles.isNotEmpty()) {
+                        ifLatestSourceArticleRequest(token) { state ->
+                            state.withUnifiedNewsSourceArticlesLoaded(sourceId, cacheKey.summaryDate, localArticles.map { it.toRemoteArticleForDisplay() })
+                        }
+                        return@launch
+                    }
+                }
                 when (val config = remoteNewsService.configOrFailure(source.base_url, source.api_token)) {
                     is RemoteNewsResult.Success -> when (val result = remoteNewsService.fetchTopArticlesToday(config.value, page = 1, limit = 50)) {
-                        is RemoteNewsResult.Success -> ifLatestSourceArticleRequest(token) { state ->
-                            state.withUnifiedNewsSourceArticlesLoaded(sourceId, cacheKey.summaryDate, result.value.articles)
+                        is RemoteNewsResult.Success -> {
+                            remoteArticleSyncService.syncSourceArticles(
+                                remoteSourceId = sourceId,
+                                sourceDate = cacheKey.summaryDate,
+                                articles = result.value.articles,
+                                now = kotlinx.datetime.Clock.System.now().toEpochMilliseconds(),
+                            )
+                            val localArticles = remoteArticleSyncRepo.getArticlesBySourceDate(sourceId, cacheKey.summaryDate)
+                            val displayArticles = localArticles.takeIf { it.isNotEmpty() }
+                                ?.map { it.toRemoteArticleForDisplay() }
+                                ?: result.value.articles
+                            ifLatestSourceArticleRequest(token) { state ->
+                                state.withUnifiedNewsSourceArticlesLoaded(sourceId, cacheKey.summaryDate, displayArticles)
+                            }
                         }
                         is RemoteNewsResult.Failure -> ifLatestSourceArticleRequest(token) { state ->
                             state.withUnifiedNewsSourceArticlesFailure(result.message)
@@ -491,6 +533,17 @@ class UnifiedNewsViewModel(
 
     private fun parseRemoteNewsSourceRouteKey(value: String?): Long? =
         value?.removePrefix("remote_news_source:")?.takeIf { it != value }?.toLongOrNull()
+
+    private fun Article.toRemoteArticleForDisplay(): RemoteArticle = RemoteArticle(
+        id = id,
+        title = ai_title ?: title,
+        url = url,
+        summary = ai_content,
+        content = original_markdown_content ?: ai_markdown_content,
+        coverUrl = cover_image_url,
+        publishedAt = pub_date?.let { kotlinx.datetime.Instant.fromEpochMilliseconds(it).toString() },
+        createdAt = kotlinx.datetime.Instant.fromEpochMilliseconds(created_at).toString(),
+    )
 
     private fun beginDetailRequest(target: UnifiedNewsNavigationTarget): Long {
         detailLoadJob?.cancel()

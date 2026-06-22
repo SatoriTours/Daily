@@ -676,7 +676,7 @@ class UnifiedNewsBehaviorTest {
         assertFalse(repo.contains("fun replaceSources"))
         assertTrue(articleRepo.contains("fun getFavoritesByDateRangeSync"))
         assertTrue(migration.contains("migrateV6ToV7"))
-        assertTrue(config.contains("currentSchemaVersion = 14L"))
+        assertTrue(config.contains("currentSchemaVersion = 16L"))
     }
 
     @Test
@@ -702,7 +702,7 @@ class UnifiedNewsBehaviorTest {
         assertTrue(schema.contains("updateRemoteNewsSource"))
         assertTrue(schema.contains("upsertRemoteNewsSource"))
         assertTrue(schema.contains("deleteRemoteNewsSource"))
-        assertTrue(config.contains("currentSchemaVersion = 14L"))
+        assertTrue(config.contains("currentSchemaVersion = 16L"))
         assertTrue(migration.contains("if (currentVersion < 8)"))
         assertTrue(migration.contains("migrateV7ToV8()"))
         assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS remote_news_source"))
@@ -2352,6 +2352,27 @@ class UnifiedNewsBehaviorTest {
     fun unifiedNewsWorkerModeRejectsUnknownModes() {
         assertNull(unifiedNewsWorkerMode("unknown"))
         assertNull(unifiedNewsWorkerMode(null))
+    }
+
+    @Test
+    fun unifiedNewsRemoteSourceRefreshPersistsRemoteArticlesBeforeUpdatingState() {
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val fetchBody = viewModel.substringAfter("private fun fetchSourceArticles(").substringBefore("private fun parseRemoteNewsSourceRouteKey")
+        val successBody = fetchBody.substringAfter("is RemoteNewsResult.Success -> {").substringBefore("is RemoteNewsResult.Failure")
+
+        assertTrue(fetchBody.contains("remoteArticleSyncService.syncSourceArticles("))
+        assertTrue(fetchBody.contains("remoteArticleSyncRepo.getArticlesBySourceDate(sourceId, cacheKey.summaryDate)"))
+        assertTrue(successBody.indexOf("remoteArticleSyncService.syncSourceArticles(") < successBody.indexOf("state.withUnifiedNewsSourceArticlesLoaded"))
+    }
+
+    @Test
+    fun unifiedNewsRemoteArticleFallbackDoesNotUseSummaryAsOriginalContent() {
+        val viewModel = java.io.File("src/main/kotlin/com/dailysatori/ui/feature/unifiednews/UnifiedNewsViewModel.kt").readText()
+        val fallbackBody = viewModel.substringAfter("private fun Unified_news_source.toRemoteArticleForDisplay()").substringBefore("private fun fetchSourceArticles")
+
+        assertTrue(fallbackBody.contains("summary = this.summary"))
+        assertTrue(fallbackBody.contains("content = null"))
+        assertFalse(fallbackBody.contains("content = this.summary"))
     }
 
     private fun String.requiredSubstringAfter(marker: String): String {

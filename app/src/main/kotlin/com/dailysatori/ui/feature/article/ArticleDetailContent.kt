@@ -6,10 +6,12 @@ internal fun articleDetailPageContent(
     page: Int,
     summary: String?,
     original: String?,
+    storedOriginal: String? = null,
     originalImageUrls: List<String> = emptyList(),
 ): String = when (page) {
     0 -> summary.normalizedSummaryMarkdownOrFallback("暂无摘要内容")
-    else -> original.normalizedOriginalMarkdownOrFallback("暂无原文内容", originalImageUrls)
+    else -> (storedOriginal?.takeIf { it.isNotBlank() } ?: original)
+        .normalizedOriginalMarkdownOrFallback("暂无原文内容", originalImageUrls)
 }
 
 private fun String?.normalizedMarkdownOrFallback(fallback: String): String =

@@ -28,7 +28,7 @@ class UnifiedNewsGenerateTaskSourceTest {
         assertTrue(source.contains("unifiedNewsGenerateTaskPayloadJson("))
         assertTrue(source.contains("\"remote_news_fetch:\${mode.name.lowercase()}\""))
         assertTrue(source.contains("asyncTaskRepo.enqueue("))
-        assertTrue(source.contains("asyncTaskScheduler.enqueue(taskId)"))
+        assertTrue(source.contains("asyncTaskScheduler.enqueue(summaryTaskId)"))
     }
 
     @Test

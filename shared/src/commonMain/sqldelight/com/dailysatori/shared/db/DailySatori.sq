@@ -5,8 +5,10 @@ CREATE TABLE article (
     ai_title TEXT,
     ai_content TEXT,
     ai_markdown_content TEXT,
+    original_markdown_content TEXT,
     url TEXT UNIQUE,
     is_favorite INTEGER DEFAULT 0,
+    source_type TEXT NOT NULL DEFAULT 'local',
     comment TEXT,
     status TEXT DEFAULT 'pending',
     cover_image TEXT,
@@ -164,6 +166,18 @@ CREATE TABLE remote_news_source (
     enabled INTEGER NOT NULL DEFAULT 1,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE remote_article_sync_item (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    remote_source_id INTEGER NOT NULL REFERENCES remote_news_source(id) ON DELETE CASCADE,
+    remote_article_id INTEGER NOT NULL,
+    article_id INTEGER NOT NULL REFERENCES article(id) ON DELETE CASCADE,
+    url TEXT,
+    source_date TEXT NOT NULL,
+    first_seen_at INTEGER NOT NULL,
+    last_seen_at INTEGER NOT NULL,
+    UNIQUE(remote_source_id, remote_article_id)
 );
 
 CREATE TABLE external_favorite_source (
@@ -330,8 +344,14 @@ CREATE TABLE session (
 selectArticles:
 SELECT * FROM article ORDER BY created_at DESC;
 
+selectLocalArticles:
+SELECT * FROM article WHERE source_type != 'remote_news' ORDER BY created_at DESC;
+
 selectArticlesPaginated:
 SELECT * FROM article ORDER BY created_at DESC LIMIT ? OFFSET ?;
+
+selectLocalArticlesPaginated:
+SELECT * FROM article WHERE source_type != 'remote_news' ORDER BY created_at DESC LIMIT ? OFFSET ?;
 
 selectArticleById:
 SELECT * FROM article WHERE id = ?;
@@ -375,21 +395,28 @@ ORDER BY a.created_at DESC;
 
 searchArticles:
 SELECT * FROM article
-WHERE title LIKE '%' || ? || '%'
-   OR ai_title LIKE '%' || ? || '%'
-   OR ai_content LIKE '%' || ? || '%'
+WHERE source_type != 'remote_news'
+  AND (
+      title LIKE '%' || ? || '%'
+      OR ai_title LIKE '%' || ? || '%'
+      OR ai_content LIKE '%' || ? || '%'
+  )
 ORDER BY created_at DESC;
 
 searchArticlesFavoriteFirst:
 SELECT * FROM article
-WHERE title LIKE '%' || ? || '%'
-   OR ai_title LIKE '%' || ? || '%'
-   OR ai_content LIKE '%' || ? || '%'
+WHERE source_type != 'remote_news'
+  AND (
+      title LIKE '%' || ? || '%'
+      OR ai_title LIKE '%' || ? || '%'
+      OR ai_content LIKE '%' || ? || '%'
+  )
 ORDER BY is_favorite DESC, created_at DESC;
 
 selectArticlesByDateRange:
 SELECT * FROM article
-WHERE created_at >= ? AND created_at <= ?
+WHERE source_type != 'remote_news'
+  AND created_at >= ? AND created_at <= ?
 ORDER BY created_at DESC;
 
 selectFavoriteArticles:
@@ -414,12 +441,16 @@ ORDER BY COALESCE(external_favorite_item.favorited_at, external_favorite_item.fi
 selectArticleDailyCounts:
 SELECT (created_at / 86400000) AS article_day, COUNT(*) AS article_count
 FROM article
+WHERE source_type != 'remote_news'
 GROUP BY article_day
 ORDER BY article_day;
 
 insertArticle:
 INSERT INTO article (title, ai_title, ai_content, ai_markdown_content, url, is_favorite, comment, status, cover_image, cover_image_url, pub_date, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectLastInsertedArticleId:
+SELECT id FROM article ORDER BY id DESC LIMIT 1;
 
 updateArticle:
 UPDATE article SET title = ?, ai_title = ?, ai_content = ?, ai_markdown_content = ?, url = ?, is_favorite = ?, comment = ?, status = ?, cover_image = ?, cover_image_url = ?, pub_date = ?, updated_at = ?
@@ -449,6 +480,12 @@ UPDATE article SET ai_content = ?, ai_title = COALESCE(?, ai_title), cover_image
 
 updateArticleAiMarkdownContent:
 UPDATE article SET ai_markdown_content = ?, updated_at = ? WHERE id = ?;
+
+updateArticleOriginalMarkdownContent:
+UPDATE article SET original_markdown_content = ?, updated_at = ? WHERE id = ?;
+
+updateArticleSourceType:
+UPDATE article SET source_type = ?, updated_at = ? WHERE id = ?;
 
 updateArticleStatus:
 UPDATE article SET status = ?, updated_at = ? WHERE id = ?;
@@ -890,6 +927,33 @@ ON CONFLICT(id) DO UPDATE SET
 
 deleteRemoteNewsSource:
 DELETE FROM remote_news_source WHERE id = ?;
+
+selectRemoteArticleSyncItemByRemoteIdentity:
+SELECT * FROM remote_article_sync_item WHERE remote_source_id = ? AND remote_article_id = ?;
+
+selectRemoteArticleSyncItemByUrl:
+SELECT * FROM remote_article_sync_item WHERE remote_source_id = ? AND url = ?;
+
+selectRemoteArticleSyncItemsBySourceDate:
+SELECT article.* FROM article
+INNER JOIN remote_article_sync_item ON remote_article_sync_item.article_id = article.id
+WHERE remote_article_sync_item.remote_source_id = ?
+  AND remote_article_sync_item.source_date = ?
+ORDER BY COALESCE(article.pub_date, article.created_at) DESC, remote_article_sync_item.last_seen_at DESC;
+
+upsertRemoteArticleSyncItem:
+INSERT INTO remote_article_sync_item (
+    remote_source_id, remote_article_id, article_id, url, source_date, first_seen_at, last_seen_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(remote_source_id, remote_article_id) DO UPDATE SET
+    article_id = excluded.article_id,
+    url = COALESCE(excluded.url, remote_article_sync_item.url),
+    source_date = excluded.source_date,
+    last_seen_at = excluded.last_seen_at;
+
+deleteRemoteArticleSyncItemsForSource:
+DELETE FROM remote_article_sync_item WHERE remote_source_id = ?;
 
 -- External Favorite Source queries
 selectExternalFavoriteSources:

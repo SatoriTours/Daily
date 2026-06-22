@@ -12,6 +12,19 @@ class ArticleDetailContentTest {
     }
 
     @Test
+    fun originalPagePrefersStoredOriginalMarkdownOverAiMarkdown() {
+        assertEquals(
+            "# remote original",
+            articleDetailPageContent(
+                page = 1,
+                summary = "summary",
+                original = "AI markdown",
+                storedOriginal = "# remote original",
+            ),
+        )
+    }
+
+    @Test
     fun fallsBackWhenPagerContentIsMissing() {
         assertEquals("暂无摘要内容", articleDetailPageContent(0, null, "original"))
         assertEquals("暂无原文内容", articleDetailPageContent(1, "summary", null))

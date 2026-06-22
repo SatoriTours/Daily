@@ -66,7 +66,7 @@ class UnifiedNewsLocalArticleBackTest {
         assertTrue(source.contains("private fun ifLatestSourceArticleRequest(token: Long, transform: (UnifiedNewsState) -> UnifiedNewsState)"))
         assertTrue(source.contains("if (token == sourceArticleRequestToken.get()) _state.update(transform)"))
         assertTrue(source.contains("catch (e: CancellationException)"))
-        assertTrue(source.contains("state.withUnifiedNewsSourceArticlesLoaded(sourceId, cacheKey.summaryDate, result.value.articles)"))
+        assertTrue(source.contains("state.withUnifiedNewsSourceArticlesLoaded(sourceId, cacheKey.summaryDate, displayArticles)"))
         assertTrue(source.contains("state.withUnifiedNewsSourceArticlesFailure(\"来源文章加载失败，请稍后重试\")"))
         assertTrue(source.contains("invalidateSourceArticleRequest()"))
         assertTrue(source.contains("_state.update { it.withUnifiedNewsSourceArticleRequestInvalidated() }"))

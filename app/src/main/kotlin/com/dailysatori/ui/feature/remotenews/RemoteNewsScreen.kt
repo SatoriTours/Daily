@@ -59,9 +59,15 @@ import com.dailysatori.ui.theme.Spacing
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun RemoteNewsScreen() {
+fun RemoteNewsScreen(onArticleClick: (Long) -> Unit = {}) {
     val viewModel: RemoteNewsViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(state.localArticleNavigationTarget) {
+        val articleId = state.localArticleNavigationTarget ?: return@LaunchedEffect
+        onArticleClick(articleId)
+        viewModel.clearLocalArticleNavigationTarget()
+    }
 
     when {
         state.mode == RemoteNewsMode.CRAYFISH -> CrayfishNewsScreen(onBackToRemoteNews = { viewModel.switchMode(RemoteNewsMode.DIGESTS) })

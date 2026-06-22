@@ -67,6 +67,12 @@ class DatabaseMigration(
         if (currentVersion < 14) {
             migrateV13ToV14()
         }
+        if (currentVersion < 15) {
+            migrateV14ToV15()
+        }
+        if (currentVersion < 16) {
+            migrateV15ToV16()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -588,6 +594,55 @@ class DatabaseMigration(
             log.i { "Created async_task table" }
         } catch (e: Exception) {
             log.w(e) { "Could not create async_task table" }
+        }
+    }
+
+    private fun migrateV14ToV15() {
+        log.i { "Migration V14 -> V15: Remote article sync mapping" }
+        try {
+            runSql("""
+                CREATE TABLE IF NOT EXISTS remote_article_sync_item (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    remote_source_id INTEGER NOT NULL REFERENCES remote_news_source(id) ON DELETE CASCADE,
+                    remote_article_id INTEGER NOT NULL,
+                    article_id INTEGER NOT NULL REFERENCES article(id) ON DELETE CASCADE,
+                    url TEXT,
+                    source_date TEXT NOT NULL,
+                    first_seen_at INTEGER NOT NULL,
+                    last_seen_at INTEGER NOT NULL,
+                    UNIQUE(remote_source_id, remote_article_id)
+                )
+            """.trimIndent())
+            log.i { "Created remote_article_sync_item table" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not create remote_article_sync_item table" }
+        }
+    }
+
+    private fun migrateV15ToV16() {
+        log.i { "Migration V15 -> V16: Article source and original markdown fields" }
+        try {
+            runSql("ALTER TABLE article ADD COLUMN original_markdown_content TEXT")
+            log.i { "Added article.original_markdown_content" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not add article.original_markdown_content" }
+        }
+        try {
+            runSql("ALTER TABLE article ADD COLUMN source_type TEXT NOT NULL DEFAULT 'local'")
+            log.i { "Added article.source_type" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not add article.source_type" }
+        }
+        try {
+            runSql("""
+                UPDATE article
+                SET source_type = 'remote_news',
+                    original_markdown_content = COALESCE(NULLIF(original_markdown_content, ''), ai_markdown_content)
+                WHERE id IN (SELECT article_id FROM remote_article_sync_item)
+            """.trimIndent())
+            log.i { "Backfilled remote news article source metadata" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not backfill remote news article source metadata" }
         }
     }
 

@@ -418,6 +418,7 @@ private fun ArticleOriginalBottomSheet(article: Article, onDismiss: () -> Unit) 
                     page = 1,
                     summary = article.ai_content,
                     original = article.ai_markdown_content,
+                    storedOriginal = article.original_markdown_content,
                     originalImageUrls = listOfNotNull(article.cover_image_url),
                 ),
                 typography = MarkdownStyles.readingTypography(),

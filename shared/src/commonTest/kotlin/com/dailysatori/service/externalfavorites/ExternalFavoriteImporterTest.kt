@@ -56,27 +56,35 @@ class ExternalFavoriteImporterTest {
     }
 
     @Test
-    fun importsXArticleCardUrlAsPendingArticleForNormalContentProcessing() = withRepositories { _, sources, items, articles ->
+    fun importsXPostWithExternalUrlAsCompletedXPostWithoutWebProcessing() = withRepositories { _, sources, items, articles ->
         val sourceId = saveXSource(sources)
-        val articleUrl = "https://example.com/article-from-retweet-card"
+        val postUrl = "https://x.com/daily/status/post-article-card"
         items.upsertDraft(
             sourceId,
             xDraft(
                 externalId = "post-article-card",
-                canonicalUrl = articleUrl,
+                canonicalUrl = postUrl,
                 title = "Article Card",
                 text = "转发壳里的文字",
+                normalizedJson = """
+                    {
+                      "id": "post-article-card",
+                      "canonical_tweet_url": "$postUrl",
+                      "primary_url": "https://example.com/article-from-retweet-card"
+                    }
+                """.trimIndent(),
             ),
         )
 
         val imported = ExternalFavoriteImporter(items, articles).importPending()
 
         assertEquals(1, imported)
-        val article = articles.getByUrl(articleUrl)
+        val article = articles.getByUrl(postUrl)
         assertNotNull(article)
-        assertEquals("pending", article.status)
-        assertTrue(articles.getRecoverableForProcessingSync().map { it.id }.contains(article.id))
-        assertEquals("not_needed", items.getBySource(sourceId).single().ai_status)
+        assertEquals("completed", article.status)
+        assertEquals(false, articles.getRecoverableForProcessingSync().map { it.id }.contains(article.id))
+        assertTrue(article.ai_markdown_content.orEmpty().contains("转发壳里的文字"))
+        assertEquals("pending", items.getBySource(sourceId).single().ai_status)
     }
 
     @Test
@@ -557,6 +565,64 @@ class ExternalFavoriteImporterTest {
         val item = items.getBySource(sourceId).single()
         assertEquals(articleId, item.article_id)
         assertEquals("duplicate_linked", item.import_status)
+    }
+
+    @Test
+    fun importerRefreshesLinkedExternalFavoriteArticleAfterXArticleApiAddsFullContent() = withRepositories { _, sources, items, articles ->
+        val canonicalUrl = "https://x.com/i/article/2010742786430021632"
+        val articleId = articles.insert(
+            title = "Old X article",
+            aiContent = "旧卡片摘要",
+            aiMarkdownContent = "# X 收藏\n\n## 原文\n\n旧卡片摘要\n\n## AI 整理\n\n已经整理过的旧内容",
+            url = canonicalUrl,
+            isFavorite = 0,
+            comment = "keep comment",
+            status = "completed",
+        )
+        val sourceId = saveXSource(sources)
+        val (item, _) = items.upsertDraft(
+            sourceId,
+            xDraft(
+                externalId = "post-x-article",
+                canonicalUrl = canonicalUrl,
+                title = "完整 X Article",
+                text = "这是 X API 后来拿到的完整长文正文。",
+                normalizedJson = """
+                    {
+                      "id": "post-x-article",
+                      "canonical_tweet_url": "https://x.com/i/status/post-x-article",
+                      "primary_url": "$canonicalUrl"
+                    }
+                """.trimIndent(),
+            ),
+        )
+        items.markImported(item.id, articleId, duplicateLinked = false, aiStatus = ExternalItemAiStatus.not_needed)
+        items.upsertDraft(
+            sourceId,
+            xDraft(
+                externalId = "post-x-article",
+                canonicalUrl = canonicalUrl,
+                title = "完整 X Article",
+                text = "这是 X API 后来拿到的完整长文正文。",
+                normalizedJson = """
+                    {
+                      "id": "post-x-article",
+                      "canonical_tweet_url": "https://x.com/i/status/post-x-article",
+                      "primary_url": "$canonicalUrl",
+                      "article_refreshed": true
+                    }
+                """.trimIndent(),
+            ),
+        )
+
+        val imported = ExternalFavoriteImporter(items, articles).importPending()
+
+        assertEquals(1, imported)
+        val article = articles.getById(articleId)
+        assertNotNull(article)
+        assertEquals("keep comment", article.comment)
+        assertEquals("这是 X API 后来拿到的完整长文正文。", article.ai_content)
+        assertTrue(article.ai_markdown_content.orEmpty().contains("这是 X API 后来拿到的完整长文正文。"))
     }
 
     @Test
