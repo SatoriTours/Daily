@@ -61,6 +61,39 @@ class XBookmarksConnectorTest {
     }
 
     @Test
+    fun fetchPageWritesRequestAndResponseToTaskHttpLogger() = runBlocking {
+        val responseJson = """
+            {
+              "data": [{"id":"123","text":"Saved post","author_id":"42"}],
+              "includes": {"users": [{"id":"42","username":"daily","name":"Daily"}]},
+              "meta": {"result_count": 95, "next_token": "cursor-2"}
+            }
+        """.trimIndent()
+        val client = HttpClient(MockEngine) {
+            engine {
+                addHandler { request ->
+                    assertEquals("/2/users/account-1/bookmarks", request.url.encodedPath)
+                    respondJson(responseJson)
+                }
+            }
+        }
+        val logger = RecordingHttpLogger()
+        val connector = XBookmarksConnector(client = client)
+
+        connector.fetchPage(
+            source = xTestSource(),
+            cursor = null,
+            pageSize = 100,
+            httpLogger = logger,
+            taskId = 77,
+        )
+
+        assertTrue(logger.entries.any { it.contains("request:77:bookmarks:GET") && it.contains("max_results=100") })
+        assertTrue(logger.entries.any { it.contains("response:77:bookmarks:200") && it.contains("next_token") })
+        assertTrue(logger.entries.none { it.contains("Authorization") || it.contains("secret") })
+    }
+
+    @Test
     fun parsesLongPostAndLinkCardFieldsForArticleImport() {
         val json = """
             {
@@ -479,6 +512,68 @@ class XBookmarksConnectorTest {
     }
 
     @Test
+    fun fetchPageFetchesXArticleApiWhenBookmarkHasArticleTitleAndExpandedArticleUrl() = runBlocking {
+        val requestedPaths = mutableListOf<String>()
+        val client = HttpClient(MockEngine { request ->
+            requestedPaths += request.url.encodedPath
+            when (request.url.encodedPath) {
+                "/2/users/account-1/bookmarks" -> respondJson(
+                    """
+                        {
+                          "data": [
+                            {
+                              "id": "bookmark-article-card",
+                              "text": "这篇文章值得读 https://t.co/article",
+                              "author_id": "42",
+                              "article": {"title": "收藏返回里的文章标题"},
+                              "entities": {
+                                "urls": [
+                                  {
+                                    "url": "https://t.co/article",
+                                    "expanded_url": "https://x.com/i/article/2010742786430021632"
+                                  }
+                                ]
+                              }
+                            }
+                          ],
+                          "includes": {
+                            "users": [{"id": "42", "username": "daily", "name": "Daily"}]
+                          },
+                          "meta": {"result_count": 1}
+                        }
+                    """.trimIndent(),
+                )
+                "/2/posts/2010742786430021632" -> respondJson(
+                    """
+                        {
+                          "data": {
+                            "id": "2010742786430021632",
+                            "content": "API 返回的完整文章正文。",
+                            "author_id": "99"
+                          },
+                          "includes": {
+                            "users": [{"id": "99", "username": "writer", "name": "Writer"}]
+                          }
+                        }
+                    """.trimIndent(),
+                )
+                else -> respond("unexpected path ${request.url.encodedPath}", HttpStatusCode.NotFound)
+            }
+        })
+        val connector = XBookmarksConnector(client = client)
+
+        val page = connector.fetchPage(xTestSource(), cursor = null, pageSize = 100)
+
+        assertEquals(listOf("/2/users/account-1/bookmarks", "/2/posts/2010742786430021632"), requestedPaths)
+        val item = page.items.single()
+        assertEquals("bookmark-article-card", item.externalId)
+        assertEquals("https://x.com/i/article/2010742786430021632", item.canonicalUrl)
+        assertEquals("收藏返回里的文章标题", item.title)
+        assertEquals("API 返回的完整文章正文。", item.text)
+        assertEquals("Writer", item.authorName)
+    }
+
+    @Test
     fun fetchPageDoesNotFetchXArticleApiWhenXArticleLinkHasOtherText() = runBlocking {
         val requestedPaths = mutableListOf<String>()
         val client = HttpClient(MockEngine { request ->
@@ -794,4 +889,27 @@ class XBookmarksConnectorTest {
             updated_at = 0,
         )
 
+    private class RecordingHttpLogger : FavoriteSyncHttpLogger {
+        val entries = mutableListOf<String>()
+
+        override fun logRequest(
+            taskId: Long?,
+            label: String,
+            method: String,
+            url: String,
+            parameters: Map<String, String>,
+        ) {
+            entries += "request:$taskId:$label:$method:$url:${parameters.entries.joinToString("&") { "${it.key}=${it.value}" }}"
+        }
+
+        override fun logResponse(
+            taskId: Long?,
+            label: String,
+            statusCode: Int,
+            headers: Map<String, String>,
+            body: String,
+        ) {
+            entries += "response:$taskId:$label:$statusCode:$body"
+        }
+    }
 }

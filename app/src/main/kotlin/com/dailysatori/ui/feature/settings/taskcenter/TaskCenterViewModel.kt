@@ -2,9 +2,11 @@ package com.dailysatori.ui.feature.settings.taskcenter
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dailysatori.core.task.AsyncTaskLogStore
 import com.dailysatori.data.repository.AsyncTaskRepository
 import com.dailysatori.service.asynctask.AsyncTaskFilter
 import com.dailysatori.service.asynctask.AsyncTaskListItem
+import com.dailysatori.shared.db.Async_task
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -15,35 +17,57 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 data class TaskCenterState(
-    val type: String? = null,
-    val status: String? = null,
+    val types: Set<String> = emptySet(),
+    val statuses: Set<String> = emptySet(),
     val showTerminal: Boolean = false,
     val tasks: List<AsyncTaskListItem> = emptyList(),
+    val selectedTask: Async_task? = null,
+    val taskLog: String = "",
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class TaskCenterViewModel(private val repository: AsyncTaskRepository) : ViewModel() {
+class TaskCenterViewModel(
+    private val repository: AsyncTaskRepository,
+    private val logStore: AsyncTaskLogStore,
+) : ViewModel() {
     private val filter = MutableStateFlow(AsyncTaskFilter())
+    private val selected = MutableStateFlow<Pair<Async_task?, String>>(null to "")
 
     val state: StateFlow<TaskCenterState> = filter
         .flatMapLatest { taskFilter ->
-            repository.observeTaskCenter(taskFilter).combine(filter) { tasks, latestFilter ->
+            repository.observeTaskCenter(taskFilter)
+                .combine(filter) { tasks, latestFilter -> tasks to latestFilter }
+                .combine(selected) { (tasks, latestFilter), selectedTask ->
                 TaskCenterState(
-                    type = latestFilter.type,
-                    status = latestFilter.status,
+                    types = latestFilter.types,
+                    statuses = latestFilter.statuses,
                     showTerminal = latestFilter.showTerminal,
                     tasks = tasks,
+                    selectedTask = selectedTask.first,
+                    taskLog = selectedTask.second,
                 )
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TaskCenterState())
 
-    fun setType(type: String?) {
-        filter.update { it.copy(type = type) }
+    fun toggleType(type: String) {
+        filter.update {
+            it.copy(types = if (type in it.types) it.types - type else it.types + type)
+        }
     }
 
-    fun setStatus(status: String?) {
-        filter.update { it.copy(status = status) }
+    fun clearTypes() {
+        filter.update { it.copy(types = emptySet()) }
+    }
+
+    fun toggleStatus(status: String) {
+        filter.update {
+            it.copy(statuses = if (status in it.statuses) it.statuses - status else it.statuses + status)
+        }
+    }
+
+    fun clearStatuses() {
+        filter.update { it.copy(statuses = emptySet()) }
     }
 
     fun setShowTerminal(show: Boolean) {
@@ -52,5 +76,13 @@ class TaskCenterViewModel(private val repository: AsyncTaskRepository) : ViewMod
 
     fun cancel(taskId: Long) {
         repository.cancel(taskId)
+    }
+
+    fun openTask(taskId: Long) {
+        selected.value = repository.getById(taskId) to logStore.read(taskId)
+    }
+
+    fun closeTask() {
+        selected.value = null to ""
     }
 }

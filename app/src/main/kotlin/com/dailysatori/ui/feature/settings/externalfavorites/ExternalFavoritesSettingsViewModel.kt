@@ -60,6 +60,7 @@ data class ExternalFavoriteDetailLine(
 )
 
 data class ExternalFavoriteSyncWorkUi(
+    val taskId: Long? = null,
     val state: WorkInfo.State,
     val pagesSeen: Int,
     val maxPages: Int,
@@ -79,7 +80,7 @@ class ExternalFavoritesSettingsViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(ExternalFavoritesSettingsState())
     val state: StateFlow<ExternalFavoritesSettingsState> = _state.asStateFlow()
-    private val observedSyncSources = mutableSetOf<Long>()
+    private val observedSyncKeys = mutableSetOf<String>()
 
     init { load() }
 
@@ -91,7 +92,9 @@ class ExternalFavoritesSettingsViewModel(
                     xOAuthClientId = settingRepo.get(SettingKeys.xOAuthClientId).orEmpty(),
                 )
             }
-            _state.value.sources.forEach { observeSyncWork(it.id) }
+            _state.value.sources.forEach {
+                FavoriteSyncMode.entries.forEach { mode -> observeSyncWork(it.id, mode) }
+            }
         }
     }
 
@@ -200,7 +203,7 @@ class ExternalFavoritesSettingsViewModel(
         _state.update { state ->
             state.copy(syncWorkBySourceId = state.syncWorkBySourceId + (sourceId to externalFavoriteQueuedSyncWork()))
         }
-        observeSyncWork(sourceId)
+        observeSyncWork(sourceId, mode)
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 scheduler.enqueue(sourceId, mode.name)
@@ -217,10 +220,11 @@ class ExternalFavoritesSettingsViewModel(
         }
     }
 
-    private fun observeSyncWork(sourceId: Long) {
-        if (!observedSyncSources.add(sourceId)) return
+    private fun observeSyncWork(sourceId: Long, mode: FavoriteSyncMode) {
+        val key = externalFavoriteSyncUniqueKey(sourceId, mode.name)
+        if (!observedSyncKeys.add(key)) return
         viewModelScope.launch {
-            asyncTaskRepo.observeLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, FavoriteSyncMode.sync.name)).collect { task ->
+            asyncTaskRepo.observeLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, mode.name)).collect { task ->
                 val workUi = task?.let(::externalFavoriteSyncWorkFromAsyncTask)
                 applySyncWorkState(sourceId, workUi)
                 if (workUi?.state in finishedWorkStates) load()
@@ -230,10 +234,13 @@ class ExternalFavoritesSettingsViewModel(
 
     private fun applySyncWorkState(sourceId: Long, workUi: ExternalFavoriteSyncWorkUi?) {
         _state.update { state ->
-            val nextMap = if (workUi == null || workUi.state in finishedWorkStates) {
-                state.syncWorkBySourceId - sourceId
-            } else {
-                state.syncWorkBySourceId + (sourceId to workUi)
+            val currentWork = state.syncWorkBySourceId[sourceId]
+            val nextMap = when {
+                workUi == null -> state.syncWorkBySourceId - sourceId
+                workUi.state in finishedWorkStates && currentWork?.active == true && currentWork.taskId != workUi.taskId ->
+                    state.syncWorkBySourceId
+                workUi.state in finishedWorkStates -> state.syncWorkBySourceId - sourceId
+                else -> state.syncWorkBySourceId + (sourceId to workUi)
             }
             state.copy(
                 syncWorkBySourceId = nextMap,
@@ -272,6 +279,7 @@ private fun WorkInfo.toExternalFavoriteSyncWorkUi(): ExternalFavoriteSyncWorkUi 
 fun externalFavoriteSyncWorkFromAsyncTask(task: Async_task): ExternalFavoriteSyncWorkUi? {
     val status = AsyncTaskStatus.entries.firstOrNull { it.name == task.status } ?: return null
     return ExternalFavoriteSyncWorkUi(
+        taskId = task.id,
         state = status.toWorkInfoState(),
         pagesSeen = externalFavoriteTaskCheckpointLong(task.checkpoint_json, "pagesSeen")
             ?.toInt()

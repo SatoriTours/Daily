@@ -1042,6 +1042,8 @@ class FavoriteSyncServiceTest {
             source: External_favorite_source,
             cursor: String?,
             pageSize: Int,
+            httpLogger: FavoriteSyncHttpLogger,
+            taskId: Long?,
         ): FavoriteFetchPage {
             fetchCalls += 1
             cursors += cursor
@@ -1077,6 +1079,8 @@ class FavoriteSyncServiceTest {
             source: External_favorite_source,
             cursor: String?,
             pageSize: Int,
+            httpLogger: FavoriteSyncHttpLogger,
+            taskId: Long?,
         ): FavoriteFetchPage {
             throw XFavoriteRateLimitException(statusCode = 429, rateLimitResetAt = resetAt)
         }
@@ -1090,6 +1094,8 @@ class FavoriteSyncServiceTest {
             source: External_favorite_source,
             cursor: String?,
             pageSize: Int,
+            httpLogger: FavoriteSyncHttpLogger,
+            taskId: Long?,
         ): FavoriteFetchPage {
             throw CancellationException("sync cancelled")
         }
@@ -1106,6 +1112,8 @@ class FavoriteSyncServiceTest {
             source: External_favorite_source,
             cursor: String?,
             pageSize: Int,
+            httpLogger: FavoriteSyncHttpLogger,
+            taskId: Long?,
         ): FavoriteFetchPage {
             activeFetches += 1
             if (activeFetches > 1) overlapped = true

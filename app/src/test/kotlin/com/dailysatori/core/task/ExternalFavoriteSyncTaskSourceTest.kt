@@ -35,7 +35,9 @@ class ExternalFavoriteSyncTaskSourceTest {
         val source = File("src/main/kotlin/com/dailysatori/ui/feature/settings/externalfavorites/ExternalFavoritesSettingsViewModel.kt").readText()
 
         assertTrue(source.contains("AsyncTaskRepository"))
-        assertTrue(source.contains("observeLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, FavoriteSyncMode.sync.name))"))
+        assertTrue(source.contains("observeSyncWork(sourceId, mode)"))
+        assertTrue(source.contains("FavoriteSyncMode.entries.forEach { mode -> observeSyncWork(it.id, mode) }"))
+        assertTrue(source.contains("observeLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, mode.name))"))
         assertTrue(source.contains("externalFavoriteSyncWorkFromAsyncTask"))
     }
 

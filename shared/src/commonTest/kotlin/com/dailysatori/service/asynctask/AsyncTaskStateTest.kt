@@ -7,7 +7,7 @@ import kotlin.test.assertTrue
 
 class AsyncTaskStateTest {
     @Test
-    fun defaultTaskFilterShowsOnlyUnfinishedTasks() {
+    fun defaultTaskFilterIncludesTerminalTasks() {
         assertTrue(AsyncTaskStatus.queued.visibleByDefault)
         assertTrue(AsyncTaskStatus.running.visibleByDefault)
         assertTrue(AsyncTaskStatus.retrying.visibleByDefault)
@@ -25,22 +25,42 @@ class AsyncTaskStateTest {
             asyncTaskListItem(id = 3, type = AsyncTaskType.save_article.name, status = AsyncTaskStatus.succeeded.name),
         )
 
-        assertEquals(listOf(1L, 2L), filterAsyncTasks(tasks, AsyncTaskFilter()).map { it.id })
+        assertEquals(listOf(1L, 2L, 3L), filterAsyncTasks(tasks, AsyncTaskFilter()).map { it.id })
         assertEquals(
-            listOf(1L),
-            filterAsyncTasks(tasks, AsyncTaskFilter(type = AsyncTaskType.save_article.name)).map { it.id },
+            listOf(1L, 3L),
+            filterAsyncTasks(tasks, AsyncTaskFilter(types = setOf(AsyncTaskType.save_article.name))).map { it.id },
         )
         assertEquals(
             listOf(2L),
-            filterAsyncTasks(tasks, AsyncTaskFilter(status = AsyncTaskStatus.running.name)).map { it.id },
+            filterAsyncTasks(tasks, AsyncTaskFilter(statuses = setOf(AsyncTaskStatus.running.name))).map { it.id },
         )
         assertEquals(
             listOf(3L),
             filterAsyncTasks(
                 tasks,
-                AsyncTaskFilter(status = AsyncTaskStatus.succeeded.name, showTerminal = true),
+                AsyncTaskFilter(statuses = setOf(AsyncTaskStatus.succeeded.name), showTerminal = true),
             ).map { it.id },
         )
+    }
+
+    @Test
+    fun taskFilterMatchesMultipleTypesAndStatuses() {
+        val tasks = listOf(
+            asyncTaskListItem(id = 1, type = AsyncTaskType.save_article.name, status = AsyncTaskStatus.queued.name),
+            asyncTaskListItem(id = 2, type = AsyncTaskType.external_favorite_sync.name, status = AsyncTaskStatus.running.name),
+            asyncTaskListItem(id = 3, type = AsyncTaskType.remote_news_fetch.name, status = AsyncTaskStatus.succeeded.name),
+            asyncTaskListItem(id = 4, type = AsyncTaskType.external_favorite_sync.name, status = AsyncTaskStatus.failed.name),
+        )
+
+        val filtered = filterAsyncTasks(
+            tasks,
+            AsyncTaskFilter(
+                types = setOf(AsyncTaskType.external_favorite_sync.name, AsyncTaskType.remote_news_fetch.name),
+                statuses = setOf(AsyncTaskStatus.succeeded.name, AsyncTaskStatus.failed.name),
+            ),
+        )
+
+        assertEquals(listOf(3L, 4L), filtered.map { it.id })
     }
 
     @Test
@@ -74,7 +94,11 @@ class AsyncTaskStateTest {
         progressCurrent = 0,
         progressTotal = 1,
         progressMessage = "",
+        checkpointJson = "",
         updatedAt = id,
+        createdAt = id,
+        startedAt = null,
+        finishedAt = null,
         lastErrorMessage = "",
     )
 }

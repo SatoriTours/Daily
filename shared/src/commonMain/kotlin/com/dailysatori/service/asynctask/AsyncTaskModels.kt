@@ -23,9 +23,9 @@ enum class AsyncTaskType(val displayName: String) {
 }
 
 data class AsyncTaskFilter(
-    val type: String? = null,
-    val status: String? = null,
-    val showTerminal: Boolean = false,
+    val types: Set<String> = emptySet(),
+    val statuses: Set<String> = emptySet(),
+    val showTerminal: Boolean = true,
 )
 
 data class AsyncTaskListItem(
@@ -35,6 +35,10 @@ data class AsyncTaskListItem(
     val progressCurrent: Long,
     val progressTotal: Long,
     val progressMessage: String,
+    val checkpointJson: String,
+    val createdAt: Long,
+    val startedAt: Long?,
+    val finishedAt: Long?,
     val updatedAt: Long,
     val lastErrorMessage: String,
 )
@@ -49,10 +53,10 @@ data class AsyncTaskBatchProgress(
 fun filterAsyncTasks(tasks: List<AsyncTaskListItem>, filter: AsyncTaskFilter): List<AsyncTaskListItem> =
     tasks.filter { task ->
         val status = asyncTaskStatus(task.status)
-        val defaultVisible = filter.showTerminal || filter.status != null || status?.visibleByDefault == true
+        val defaultVisible = filter.showTerminal || filter.statuses.isNotEmpty() || status?.visibleByDefault == true
         defaultVisible &&
-            (filter.type == null || task.type == filter.type) &&
-            (filter.status == null || task.status == filter.status)
+            (filter.types.isEmpty() || task.type in filter.types) &&
+            (filter.statuses.isEmpty() || task.status in filter.statuses)
     }
 
 fun asyncTaskStatus(value: String): AsyncTaskStatus? =

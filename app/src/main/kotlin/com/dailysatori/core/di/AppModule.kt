@@ -3,6 +3,8 @@ package com.dailysatori.core.di
 import com.dailysatori.core.service.AppUpgradeService
 import com.dailysatori.core.service.ClipboardMonitorService
 import com.dailysatori.core.service.WebServerService
+import com.dailysatori.core.task.AsyncTaskHttpLogWriter
+import com.dailysatori.core.task.AsyncTaskLogStore
 import com.dailysatori.core.task.BookViewpointGenerateTaskHandler
 import com.dailysatori.core.task.ExternalFavoriteSyncTaskHandler
 import com.dailysatori.core.task.SaveArticleTaskHandler
@@ -16,13 +18,17 @@ import com.dailysatori.data.repository.SettingRepository
 import com.dailysatori.service.externalfavorites.SharedPreferencesXOAuthSessionStore
 import com.dailysatori.service.externalfavorites.XOAuthCoordinator
 import com.dailysatori.service.asynctask.AsyncTaskHandlerRegistry
+import com.dailysatori.service.externalfavorites.FavoriteSyncHttpLogger
 import kotlinx.datetime.Clock
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.Module
 import org.koin.dsl.module
+import java.io.File
 
 val appModule: Module = module {
     single<Clock> { Clock.System }
+    single { AsyncTaskLogStore(File(androidContext().cacheDir, "async-task-logs")) }
+    single<FavoriteSyncHttpLogger> { AsyncTaskHttpLogWriter(get()) }
     single { ClipboardMonitorService(androidContext()) }
     single { AsyncTaskScheduler(androidContext()) }
     single { SaveArticleTaskHandler(get()) }

@@ -50,14 +50,15 @@ class ExternalFavoriteImporter(
         itemRepo.importedXLongArticlePending(limit).forEach { item ->
             val articleId = item.article_id ?: return@forEach
             val article = articleRepo.getById(articleId) ?: return@forEach
-            val url = item.canonical_url?.trim().orEmpty()
-            if (!isXArticleUrl(url) || item.text.isBlank()) return@forEach
+            val sourceUrl = item.canonical_url?.trim().orEmpty()
+            if (!isXArticleUrl(sourceUrl) || item.text.isBlank()) return@forEach
+            val url = item.importArticleUrl(sourceUrl)
             articleRepo.update(
                 id = article.id,
                 title = item.importTitle(),
                 aiTitle = article.ai_title,
-                aiContent = item.importBody(url),
-                aiMarkdownContent = item.toDeterministicMarkdown(url),
+                aiContent = item.importBody(sourceUrl),
+                aiMarkdownContent = item.toDeterministicMarkdown(url, sourceUrl),
                 url = article.url,
                 isFavorite = article.is_favorite ?: 0L,
                 comment = article.comment,
@@ -75,27 +76,51 @@ class ExternalFavoriteImporter(
     private fun importItems(items: List<External_favorite_item>): Int {
         var importedCount = 0
         items.forEach { item ->
-            val url = item.canonical_url?.trim().orEmpty()
-            if (url.isBlank()) {
+            val sourceUrl = item.canonical_url?.trim().orEmpty()
+            if (sourceUrl.isBlank()) {
                 itemRepo.markImportFailed(item.id, "missing_url", "External favorite item has no canonical URL.")
                 return@forEach
             }
+            val url = item.importArticleUrl(sourceUrl)
 
-            val existingArticle = articleRepo.getByUrl(url)
+            val linkedArticle = item.article_id?.let { articleRepo.getById(it) }
+            val existingArticle = linkedArticle ?: articleRepo.getByUrl(url)
             val existedBeforeImport = existingArticle != null
-            val refreshLinkedExternalFavoriteContent = item.article_id != null && existingArticle?.id == item.article_id
-            val importedStatus = externalFavoriteImportedArticleStatus(item, url)
+            val importedStatus = externalFavoriteImportedArticleStatus(item, sourceUrl)
             val shouldOrganizeArticle = importedStatus == "completed" &&
                 (existingArticle == null || articleRepo.isExternalFavoritePlaceholder(existingArticle))
+            if (linkedArticle != null) {
+                articleRepo.update(
+                    id = linkedArticle.id,
+                    title = linkedArticle.title?.takeIf { it.isNotBlank() } ?: item.importTitle(),
+                    aiTitle = linkedArticle.ai_title,
+                    aiContent = item.importBody(sourceUrl),
+                    aiMarkdownContent = item.importMarkdown(url, sourceUrl, importedStatus),
+                    url = url,
+                    isFavorite = linkedArticle.is_favorite ?: 0L,
+                    comment = linkedArticle.comment,
+                    status = importedStatus,
+                    coverImage = linkedArticle.cover_image,
+                    coverImageUrl = linkedArticle.cover_image_url ?: item.coverImageUrlFromNormalizedJson(),
+                    pubDate = linkedArticle.pub_date ?: item.source_created_at ?: item.favorited_at,
+                )
+                itemRepo.markImported(
+                    itemId = item.id,
+                    articleId = linkedArticle.id,
+                    duplicateLinked = false,
+                    aiStatus = if (importedStatus == "completed") ExternalItemAiStatus.pending else ExternalItemAiStatus.not_needed,
+                )
+                importedCount += 1
+                return@forEach
+            }
             val article = articleRepo.saveExternalFavoriteArticle(
                 title = item.importTitle(),
                 url = url,
-                summary = item.importBody(url),
-                markdown = item.importMarkdown(url, importedStatus),
+                summary = item.importBody(sourceUrl),
+                markdown = item.importMarkdown(url, sourceUrl, importedStatus),
                 pubDate = item.source_created_at ?: item.favorited_at,
                 coverImageUrl = item.coverImageUrlFromNormalizedJson(),
                 status = importedStatus,
-                refreshLinkedExternalFavoriteContent = refreshLinkedExternalFavoriteContent,
             )
             itemRepo.markImported(
                 itemId = item.id,
@@ -111,6 +136,14 @@ class ExternalFavoriteImporter(
     private fun External_favorite_item.importTitle(): String =
         title.trim().ifBlank { "X 收藏" }
 
+    private fun External_favorite_item.importArticleUrl(sourceUrl: String): String {
+        if (provider != ExternalFavoriteProvider.X.id || !isXArticleUrl(sourceUrl)) return sourceUrl
+        return normalizedJsonString("canonical_tweet_url")
+            ?.trim()
+            ?.takeIf { isXStatusLikeUrl(it) }
+            ?: sourceUrl
+    }
+
     private fun externalFavoriteImportedArticleStatus(item: External_favorite_item, url: String): String =
         if (item.provider == ExternalFavoriteProvider.X.id && !isXStatusLikeUrl(url) && !isXArticleUrl(url)) {
             "pending"
@@ -118,16 +151,22 @@ class ExternalFavoriteImporter(
             "completed"
         }
 
-    private fun External_favorite_item.importMarkdown(url: String, status: String): String =
-        if (status == "pending") "" else toDeterministicMarkdown(url)
+    private fun External_favorite_item.importMarkdown(url: String, sourceUrl: String, status: String): String =
+        if (status == "pending") "" else toDeterministicMarkdown(url, sourceUrl)
 
-    private fun External_favorite_item.toDeterministicMarkdown(url: String): String {
+    private fun External_favorite_item.toDeterministicMarkdown(url: String, sourceUrl: String): String {
         val author = author_name.trim().ifBlank { "未知" }
         val created = source_created_at?.let { Instant.fromEpochMilliseconds(it).toString() } ?: "未知"
-        val body = importBody(url).ifBlank { "（无正文）" }
+        val body = importBody(sourceUrl).ifBlank { "（无正文）" }
         val tweetUrl = normalizedJsonString("canonical_tweet_url")
+        val articleUrl = normalizedJsonString("primary_url")
+            ?.trim()
+            ?.takeIf(::isXArticleUrl)
+            ?: sourceUrl.takeIf(::isXArticleUrl)
         val sourceLinks = if (!tweetUrl.isNullOrBlank() && tweetUrl != url) {
-            listOf("- X 链接：$tweetUrl", "- 文章链接：$url")
+            listOf("- X 链接：$tweetUrl", "- 文章链接：${articleUrl ?: url}")
+        } else if (!articleUrl.isNullOrBlank() && articleUrl != url) {
+            listOf("- 链接：$url", "- 文章链接：$articleUrl")
         } else {
             listOf("- 链接：$url")
         }.joinToString("\n            ")

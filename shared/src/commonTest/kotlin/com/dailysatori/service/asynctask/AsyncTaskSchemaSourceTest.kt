@@ -2,6 +2,7 @@ package com.dailysatori.service.asynctask
 
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class AsyncTaskSchemaSourceTest {
@@ -11,6 +12,7 @@ class AsyncTaskSchemaSourceTest {
 
         assertTrue(schema.contains("CREATE TABLE async_task_batch"))
         assertTrue(schema.contains("CREATE TABLE async_task"))
+        assertFalse(schema.contains("CREATE TABLE async_task_log"))
         assertTrue(schema.contains("checkpoint_json TEXT NOT NULL DEFAULT ''"))
         assertTrue(schema.contains("lease_until_ms INTEGER"))
         assertTrue(schema.contains("selectAsyncTasksForTaskCenter:"))

@@ -12,5 +12,7 @@ interface FavoriteConnector {
         source: External_favorite_source,
         cursor: String? = null,
         pageSize: Int = capabilities.maxPageSize,
+        httpLogger: FavoriteSyncHttpLogger = NoopFavoriteSyncHttpLogger,
+        taskId: Long? = null,
     ): FavoriteFetchPage
 }

@@ -43,7 +43,7 @@ class ExternalFavoriteSyncTaskHandler(
 
         return try {
             reporter.report(0, 3, "准备同步外部收藏", checkpointJson = """{"phase":"queued"}""")
-            syncService.syncSource(payload.sourceId, mode) { progress ->
+            syncService.syncSource(payload.sourceId, mode, taskId = taskId) { progress ->
                 reporter.report(
                     current = progress.pagesSeen.toLong(),
                     total = progress.maxPages.toLong().coerceAtLeast(1),

@@ -234,6 +234,7 @@ val viewModelModule: Module = module {
     viewModel {
         TaskCenterViewModel(
             repository = get(),
+            logStore = get(),
         )
     }
     viewModel {

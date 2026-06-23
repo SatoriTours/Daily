@@ -36,6 +36,7 @@ class FavoriteSyncService(
     private val repairImportedXLongArticlePendingArticles: (Long) -> Int = { limit ->
         importer?.repairImportedXLongArticlePendingArticles(limit) ?: 0
     },
+    private val httpLogger: FavoriteSyncHttpLogger = NoopFavoriteSyncHttpLogger,
 ) {
     private val guards = mutableMapOf<Long, Mutex>()
     private val guardsMutex = Mutex()
@@ -43,16 +44,18 @@ class FavoriteSyncService(
     suspend fun syncSource(
         sourceId: Long,
         mode: FavoriteSyncMode,
+        taskId: Long? = null,
         onProgress: suspend (FavoriteSyncProgress) -> Unit = {},
     ) {
         sourceGuard(sourceId).withLock {
-            syncSourceGuarded(sourceId, mode, onProgress)
+            syncSourceGuarded(sourceId, mode, taskId, onProgress)
         }
     }
 
     private suspend fun syncSourceGuarded(
         sourceId: Long,
         mode: FavoriteSyncMode,
+        taskId: Long?,
         onProgress: suspend (FavoriteSyncProgress) -> Unit,
     ) {
         val source = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found")
@@ -73,7 +76,7 @@ class FavoriteSyncService(
             }
 
             if (policy.shouldFetch) {
-                result = fetchAndUpsert(sourceId, connector, policy, onProgress)
+                result = fetchAndUpsert(sourceId, connector, policy, taskId, onProgress)
             }
 
             sourceRepo.markSyncSucceeded(
@@ -135,6 +138,7 @@ class FavoriteSyncService(
         sourceId: Long,
         connector: FavoriteConnector,
         policy: SyncPolicy,
+        taskId: Long?,
         onProgress: suspend (FavoriteSyncProgress) -> Unit,
     ): SyncRunResult {
         val capabilities = connector.capabilities
@@ -186,6 +190,8 @@ class FavoriteSyncService(
                 source = sourceRepo.getById(sourceId) ?: error("External favorite source $sourceId was not found"),
                 cursor = cursor,
                 pageSize = capabilities.maxPageSize.coerceAtMost(remaining).coerceAtLeast(1),
+                httpLogger = httpLogger,
+                taskId = taskId,
             )
             pagesSeen += 1
 
