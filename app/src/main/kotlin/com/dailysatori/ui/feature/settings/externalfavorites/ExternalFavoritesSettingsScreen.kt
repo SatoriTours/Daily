@@ -632,7 +632,7 @@ private fun ExternalFavoriteSyncProgressBox(work: ExternalFavoriteSyncWorkUi, hi
                 )
             }
             LinearProgressIndicator(
-                progress = { (work.pagesSeen.toFloat() / work.maxPages.coerceAtLeast(1)).coerceIn(0f, 1f) },
+                progress = { externalFavoriteSyncProgressFraction(work) },
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s), modifier = Modifier.fillMaxWidth()) {

@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 
 data class ExternalFavoritesSettingsState(
@@ -61,6 +62,7 @@ data class ExternalFavoriteDetailLine(
 
 data class ExternalFavoriteSyncWorkUi(
     val taskId: Long? = null,
+    val createdAt: Long? = null,
     val state: WorkInfo.State,
     val pagesSeen: Int,
     val maxPages: Int,
@@ -233,20 +235,7 @@ class ExternalFavoritesSettingsViewModel(
     }
 
     private fun applySyncWorkState(sourceId: Long, workUi: ExternalFavoriteSyncWorkUi?) {
-        _state.update { state ->
-            val currentWork = state.syncWorkBySourceId[sourceId]
-            val nextMap = when {
-                workUi == null -> state.syncWorkBySourceId - sourceId
-                workUi.state in finishedWorkStates && currentWork?.active == true && currentWork.taskId != workUi.taskId ->
-                    state.syncWorkBySourceId
-                workUi.state in finishedWorkStates -> state.syncWorkBySourceId - sourceId
-                else -> state.syncWorkBySourceId + (sourceId to workUi)
-            }
-            state.copy(
-                syncWorkBySourceId = nextMap,
-                syncingSourceId = if (workUi?.active == true) sourceId else if (state.syncingSourceId == sourceId) null else state.syncingSourceId,
-            )
-        }
+        _state.update { state -> externalFavoriteApplySyncWorkState(state, sourceId, workUi) }
     }
 
     private fun toUiSource(source: External_favorite_source): ExternalFavoriteSourceUi =
@@ -266,6 +255,36 @@ private val finishedWorkStates = setOf(
     WorkInfo.State.CANCELLED,
 )
 
+internal fun externalFavoriteApplySyncWorkState(
+    state: ExternalFavoritesSettingsState,
+    sourceId: Long,
+    workUi: ExternalFavoriteSyncWorkUi?,
+): ExternalFavoritesSettingsState {
+    val currentWork = state.syncWorkBySourceId[sourceId]
+    val staleFinishedTask = workUi?.state in finishedWorkStates &&
+        currentWork?.active == true &&
+        when {
+            currentWork.taskId != null -> currentWork.taskId != workUi?.taskId
+            currentWork.createdAt != null && workUi?.createdAt != null -> workUi.createdAt < currentWork.createdAt
+            else -> false
+        }
+    val nextMap = when {
+        workUi == null -> state.syncWorkBySourceId - sourceId
+        staleFinishedTask -> state.syncWorkBySourceId
+        workUi.state in finishedWorkStates -> state.syncWorkBySourceId - sourceId
+        else -> state.syncWorkBySourceId + (sourceId to workUi)
+    }
+    val nextWork = nextMap[sourceId]
+    return state.copy(
+        syncWorkBySourceId = nextMap,
+        syncingSourceId = when {
+            nextWork?.active == true -> sourceId
+            state.syncingSourceId == sourceId -> null
+            else -> state.syncingSourceId
+        },
+    )
+}
+
 private fun WorkInfo.toExternalFavoriteSyncWorkUi(): ExternalFavoriteSyncWorkUi =
     ExternalFavoriteSyncWorkUi(
         state = state,
@@ -280,6 +299,7 @@ fun externalFavoriteSyncWorkFromAsyncTask(task: Async_task): ExternalFavoriteSyn
     val status = AsyncTaskStatus.entries.firstOrNull { it.name == task.status } ?: return null
     return ExternalFavoriteSyncWorkUi(
         taskId = task.id,
+        createdAt = task.created_at,
         state = status.toWorkInfoState(),
         pagesSeen = externalFavoriteTaskCheckpointLong(task.checkpoint_json, "pagesSeen")
             ?.toInt()
@@ -293,6 +313,7 @@ fun externalFavoriteSyncWorkFromAsyncTask(task: Async_task): ExternalFavoriteSyn
 
 private fun externalFavoriteQueuedSyncWork(): ExternalFavoriteSyncWorkUi =
     ExternalFavoriteSyncWorkUi(
+        createdAt = Clock.System.now().toEpochMilliseconds(),
         state = WorkInfo.State.ENQUEUED,
         pagesSeen = 0,
         maxPages = 3,
@@ -425,12 +446,27 @@ fun externalFavoriteEffectiveHealthLabel(
 fun externalFavoriteSyncProgressTitle(work: ExternalFavoriteSyncWorkUi): String = when {
     work.state == WorkInfo.State.ENQUEUED -> "等待同步"
     work.phase == "backfill" -> "正在补全较早收藏"
+    work.phase == "import" -> "正在导入收藏文章"
+    work.phase == "repair" -> "正在修复收藏文章"
+    work.phase == "organize" -> "正在整理收藏内容"
     work.phase == "complete" -> "正在完成同步"
     else -> "正在同步最新收藏"
 }
 
-fun externalFavoriteSyncProgressPageText(work: ExternalFavoriteSyncWorkUi): String =
-    "第 ${work.pagesSeen.coerceAtLeast(0)} / ${work.maxPages.coerceAtLeast(1)} 页"
+fun externalFavoriteSyncProgressPageText(work: ExternalFavoriteSyncWorkUi): String = when (work.phase) {
+    "import", "repair", "organize" ->
+        "已读取 ${work.pagesSeen.coerceAtLeast(0)} 页 · ${work.itemsSeen.coerceAtLeast(0)} 条"
+    "complete" -> "读取完成"
+    else -> "第 ${work.pagesSeen.coerceAtLeast(0)} / ${work.maxPages.coerceAtLeast(1)} 页"
+}
+
+fun externalFavoriteSyncProgressFraction(work: ExternalFavoriteSyncWorkUi): Float = when (work.phase) {
+    "import" -> 0.78f
+    "repair" -> 0.88f
+    "organize" -> 0.94f
+    "complete" -> 0.72f
+    else -> (work.pagesSeen.toFloat() / work.maxPages.coerceAtLeast(1)).coerceIn(0f, 0.72f)
+}
 
 fun externalFavoriteProgressMetrics(
     work: ExternalFavoriteSyncWorkUi,
@@ -442,10 +478,19 @@ fun externalFavoriteProgressMetrics(
 )
 
 fun externalFavoriteRunningDetailLines(work: ExternalFavoriteSyncWorkUi): List<ExternalFavoriteDetailLine> = listOf(
-    ExternalFavoriteDetailLine("当前阶段", "读取 X bookmarks"),
+    ExternalFavoriteDetailLine("当前阶段", externalFavoriteRunningPhaseLabel(work.phase)),
     ExternalFavoriteDetailLine("同步策略", "每次最多 ${work.maxPages.coerceAtLeast(1)} 页 / 300 条"),
     ExternalFavoriteDetailLine("取消后", "保留已同步内容，下次继续"),
 )
+
+private fun externalFavoriteRunningPhaseLabel(phase: String): String = when (phase) {
+    "backfill" -> "补全历史收藏"
+    "import" -> "导入本地文章"
+    "repair" -> "修复文章状态"
+    "organize" -> "整理收藏内容"
+    "complete" -> "收尾同步"
+    else -> "读取 X bookmarks"
+}
 
 fun externalFavoriteIdleDetailLines(item: ExternalFavoriteSourceUi): List<ExternalFavoriteDetailLine> = listOf(
     ExternalFavoriteDetailLine("上次结果", externalFavoriteLastResultText(item.source.last_items_seen_count, item.source.last_pages_seen_count)),

@@ -79,6 +79,7 @@ class FavoriteSyncService(
                 result = fetchAndUpsert(sourceId, connector, policy, taskId, onProgress)
             }
 
+            runLocalWork(sourceId, policy, result, onProgress)
             sourceRepo.markSyncSucceeded(
                 id = sourceId,
                 itemsSeen = result.itemsSeen.toLong(),
@@ -97,32 +98,62 @@ class FavoriteSyncService(
             )
             throw error
         }
-
-        runLocalWork(sourceId, policy, result)
     }
 
-    private suspend fun runLocalWork(sourceId: Long, policy: SyncPolicy, result: SyncRunResult) {
-        runCatching {
+    private suspend fun runLocalWork(
+        sourceId: Long,
+        policy: SyncPolicy,
+        result: SyncRunResult,
+        onProgress: suspend (FavoriteSyncProgress) -> Unit,
+    ) {
+        suspend fun reportLocalProgress(phase: String) {
+            onProgress(
+                FavoriteSyncProgress(
+                    phase = phase,
+                    pagesSeen = result.pagesSeen,
+                    maxPages = policy.maxPages.coerceAtLeast(1),
+                    itemsSeen = result.itemsSeen,
+                    historyComplete = false,
+                ),
+            )
+        }
+        runLocalWorkStep {
             val importLimit = policy.importLimit(result.changedItems)
             if (importLimit > 0) {
+                reportLocalProgress("import")
                 importPendingForSource(sourceId, importLimit)
             }
         }
-        runCatching {
+        runLocalWorkStep {
+            reportLocalProgress("repair")
             repairImportedPlaceholderArticles(IMPORT_RETRY_LIMIT)
         }
-        runCatching {
+        runLocalWorkStep {
+            reportLocalProgress("repair")
             repairImportedXLongArticlePendingArticles(IMPORT_RETRY_LIMIT)
         }
-        runCatching {
+        runLocalWorkStep {
+            reportLocalProgress("repair")
             repairImportedArticleCovers(IMPORT_RETRY_LIMIT)
         }
-        runCatching {
+        runLocalWorkStep {
             if (organizer != null) {
+                reportLocalProgress("organize")
                 organizer.organizePendingForSource(sourceId, policy.aiBudget, includeFailed = policy.includeFailedAi)
             } else {
+                reportLocalProgress("organize")
                 organizePendingForSource(sourceId, policy.aiBudget)
             }
+        }
+    }
+
+    private suspend fun runLocalWorkStep(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+            // Local import/repair/AI failures should not invalidate the provider fetch.
         }
     }
 

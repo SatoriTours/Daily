@@ -201,6 +201,7 @@ class ExternalFavoritesSettingsTextTest {
         assertEquals("同步中", externalFavoriteEffectiveHealthLabel(ExternalSourceHealth.healthy, running))
         assertEquals("正在补全较早收藏", externalFavoriteSyncProgressTitle(running))
         assertEquals("第 2 / 3 页", externalFavoriteSyncProgressPageText(running))
+        assertEquals(0.6666667f, externalFavoriteSyncProgressFraction(running))
         assertEquals(
             listOf(
                 ExternalFavoriteProgressMetric("2 页", "本次已读取"),
@@ -213,7 +214,7 @@ class ExternalFavoritesSettingsTextTest {
         assertTrue(externalFavoriteSyncActionEnabled(ExternalSourceHealth.limited, enabled = true, running))
         assertEquals(
             listOf(
-                ExternalFavoriteDetailLine("当前阶段", "读取 X bookmarks"),
+                ExternalFavoriteDetailLine("当前阶段", "补全历史收藏"),
                 ExternalFavoriteDetailLine("同步策略", "每次最多 3 页 / 300 条"),
                 ExternalFavoriteDetailLine("取消后", "保留已同步内容，下次继续"),
             ),
@@ -233,6 +234,34 @@ class ExternalFavoritesSettingsTextTest {
 
         assertEquals("等待同步", externalFavoriteSyncProgressTitle(queued))
         assertEquals("第 0 / 3 页", externalFavoriteSyncProgressPageText(queued))
+        assertEquals(0f, externalFavoriteSyncProgressFraction(queued))
+    }
+
+    @Test
+    fun localWorkSyncPhasesShowImportAndOrganizeCopy() {
+        val importing = ExternalFavoriteSyncWorkUi(
+            state = WorkInfo.State.RUNNING,
+            pagesSeen = 3,
+            maxPages = 3,
+            itemsSeen = 90,
+            phase = "import",
+        )
+        val organizing = importing.copy(phase = "organize")
+
+        assertEquals("正在导入收藏文章", externalFavoriteSyncProgressTitle(importing))
+        assertEquals("已读取 3 页 · 90 条", externalFavoriteSyncProgressPageText(importing))
+        assertEquals(0.78f, externalFavoriteSyncProgressFraction(importing))
+        assertEquals("正在整理收藏内容", externalFavoriteSyncProgressTitle(organizing))
+        assertEquals("已读取 3 页 · 90 条", externalFavoriteSyncProgressPageText(organizing))
+        assertEquals(0.94f, externalFavoriteSyncProgressFraction(organizing))
+        assertEquals(
+            listOf(
+                ExternalFavoriteDetailLine("当前阶段", "导入本地文章"),
+                ExternalFavoriteDetailLine("同步策略", "每次最多 3 页 / 300 条"),
+                ExternalFavoriteDetailLine("取消后", "保留已同步内容，下次继续"),
+            ),
+            externalFavoriteRunningDetailLines(importing),
+        )
     }
 
     @Test

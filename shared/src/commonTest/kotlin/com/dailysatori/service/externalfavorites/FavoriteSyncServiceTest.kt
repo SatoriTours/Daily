@@ -411,6 +411,45 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
+    fun sourceRemainsSyncingAndReportsLocalWorkBeforeFinalSuccess() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val connector = FakeConnector(
+                pages = listOf(FavoriteFetchPage(listOf(xDraft("post-1")), null)),
+            )
+            val progress = mutableListOf<FavoriteSyncProgress>()
+            val statusesDuringLocalWork = mutableListOf<String>()
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { scopedSourceId, _ ->
+                    assertEquals(sourceId, scopedSourceId)
+                    statusesDuringLocalWork += sources.getById(sourceId)!!.status
+                    1
+                },
+                organizePendingForSource = { scopedSourceId, _ ->
+                    assertEquals(sourceId, scopedSourceId)
+                    statusesDuringLocalWork += sources.getById(sourceId)!!.status
+                    1
+                },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.recent) { progress += it }
+
+            assertEquals(listOf("syncing", "syncing"), statusesDuringLocalWork)
+            assertTrue(progress.any { it.phase == "import" })
+            assertTrue(progress.any { it.phase == "organize" })
+            sources.getById(sourceId)!!.let { source ->
+                assertEquals("idle", source.status)
+                assertEquals(1, source.last_items_seen_count)
+                assertEquals(1, source.last_pages_seen_count)
+                assertTrue(source.last_success_at != null)
+            }
+        }
+    }
+
+    @Test
     fun organizerFailureAfterSuccessfulFetchDoesNotFailSourceSync() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
@@ -432,6 +471,33 @@ class FavoriteSyncServiceTest {
                 assertEquals(1, source.last_items_seen_count)
                 assertEquals(1, source.last_pages_seen_count)
                 assertTrue(source.last_success_at != null)
+                assertEquals("", source.last_error_code)
+            }
+        }
+    }
+
+    @Test
+    fun cancellationDuringLocalWorkIsRethrownWithoutMarkingSourceSucceeded() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val connector = FakeConnector(
+                pages = listOf(FavoriteFetchPage(listOf(xDraft("post-1")), null)),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPendingForSource = { _, _ -> 1 },
+                organizePendingForSource = { _, _ -> throw CancellationException("cancel local work") },
+            )
+
+            assertFailsWith<CancellationException> {
+                service.syncSource(sourceId, FavoriteSyncMode.recent)
+            }
+
+            sources.getById(sourceId)!!.let { source ->
+                assertEquals("syncing", source.status)
+                assertEquals(null, source.last_success_at)
                 assertEquals("", source.last_error_code)
             }
         }

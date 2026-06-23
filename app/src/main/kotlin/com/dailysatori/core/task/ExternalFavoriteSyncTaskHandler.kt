@@ -48,7 +48,7 @@ class ExternalFavoriteSyncTaskHandler(
                     current = progress.pagesSeen.toLong(),
                     total = progress.maxPages.toLong().coerceAtLeast(1),
                     message = externalFavoriteTaskProgressMessage(progress.phase, progress.itemsSeen),
-                    checkpointJson = """{"phase":"${progress.phase}","pagesSeen":${progress.pagesSeen},"itemsSeen":${progress.itemsSeen}}""",
+                    checkpointJson = """{"phase":"${progress.phase}","pagesSeen":${progress.pagesSeen},"itemsSeen":${progress.itemsSeen},"historyComplete":${progress.historyComplete}}""",
                 )
             }
             articleProcessingScheduler.enqueueResume()
@@ -79,6 +79,9 @@ fun externalFavoriteSyncTaskPayloadJson(sourceId: Long, mode: String): String =
 private fun externalFavoriteTaskProgressMessage(phase: String, itemsSeen: Int): String = when (phase) {
     "latest" -> "正在读取最新收藏，已看到 $itemsSeen 条"
     "backfill" -> "正在补全历史收藏，已看到 $itemsSeen 条"
+    "import" -> "正在导入收藏文章，已读取 $itemsSeen 条"
+    "repair" -> "正在修复收藏文章状态"
+    "organize" -> "正在整理收藏内容"
     "complete" -> "外部收藏读取完成"
     else -> "正在同步外部收藏"
 }
