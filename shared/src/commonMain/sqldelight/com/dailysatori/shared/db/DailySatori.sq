@@ -329,6 +329,11 @@ CREATE TABLE async_task (
     updated_at INTEGER NOT NULL
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_async_task_active_unique_key
+ON async_task(unique_key)
+WHERE unique_key IS NOT NULL
+  AND status IN ('queued', 'running', 'retrying');
+
 -- Session
 CREATE TABLE session (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -537,6 +542,13 @@ INSERT INTO async_task (
 selectLastInsertedAsyncTaskId:
 SELECT id FROM async_task ORDER BY id DESC LIMIT 1;
 
+refreshActiveAsyncTaskEnqueue:
+UPDATE async_task
+SET run_after_ms = CASE WHEN status IN ('queued', 'retrying') THEN NULL ELSE run_after_ms END,
+    updated_at = ?
+WHERE id = ?
+  AND status IN ('queued', 'running', 'retrying');
+
 insertAsyncTaskBatch:
 INSERT INTO async_task_batch (name, status, total_count, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?);
@@ -554,7 +566,7 @@ WHERE id = ?
 updateAsyncTaskProgress:
 UPDATE async_task
 SET progress_current = ?, progress_total = ?, progress_message = ?, checkpoint_json = ?, updated_at = ?
-WHERE id = ?;
+WHERE id = ? AND status = 'running';
 
 finishAsyncTask:
 UPDATE async_task
@@ -1103,6 +1115,13 @@ UPDATE external_favorite_item
 SET canonical_url = ?, title = ?, text = ?, author_name = ?, source_created_at = ?,
     favorited_at = ?, normalized_json = ?, debug_json = ?, content_hash = ?,
     ai_input_hash = ?, sync_status = ?, last_error_code = ?, last_error_message = ?,
+    last_seen_at = ?, updated_at = ?
+WHERE id = ?;
+
+markExternalFavoriteItemSeen:
+UPDATE external_favorite_item
+SET sync_status = ?, last_error_code = '', last_error_message = '',
+    favorited_at = COALESCE(?, favorited_at),
     last_seen_at = ?, updated_at = ?
 WHERE id = ?;
 

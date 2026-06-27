@@ -7,6 +7,7 @@ import com.dailysatori.service.ai.AiService
 import com.dailysatori.shared.db.External_favorite_item
 import kotlinx.datetime.Instant
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -41,7 +42,22 @@ class ExternalFavoriteAiOrganizer(
         return organizeItems(if (includeFailed) itemRepo.retryableAiBySource(sourceId, limit) else itemRepo.pendingAiBySource(sourceId, limit))
     }
 
-    private suspend fun organizeItems(items: List<External_favorite_item>): Int {
+    suspend fun organizePendingForSource(
+        sourceId: Long,
+        limit: Long = 10,
+        includeFailed: Boolean = false,
+        httpLogger: FavoriteSyncHttpLogger = NoopFavoriteSyncHttpLogger,
+        taskId: Long? = null,
+    ): Int {
+        val items = if (includeFailed) itemRepo.retryableAiBySource(sourceId, limit) else itemRepo.pendingAiBySource(sourceId, limit)
+        return organizeItems(items, httpLogger, taskId)
+    }
+
+    private suspend fun organizeItems(
+        items: List<External_favorite_item>,
+        httpLogger: FavoriteSyncHttpLogger = NoopFavoriteSyncHttpLogger,
+        taskId: Long? = null,
+    ): Int {
         var processed = 0
         items.forEach { item ->
             val article = item.article_id?.let(articleRepo::getById)
@@ -52,8 +68,10 @@ class ExternalFavoriteAiOrganizer(
             }
 
             val input = item.toAiInput()
+            logAiRequest(httpLogger, taskId, item, input)
             val analysis = runCatching { generateAnalysis?.invoke(input) ?: generateWithAi(input) }
                 .getOrElse { error ->
+                    logAiFailure(httpLogger, taskId, item, error)
                     itemRepo.markAiState(
                         item.id,
                         ExternalItemAiStatus.failed.name,
@@ -63,6 +81,7 @@ class ExternalFavoriteAiOrganizer(
                     processed += 1
                     return@forEach
                 }
+            logAiResponse(httpLogger, taskId, item, analysis)
 
             val aiTitle = analysis.title.trim().ifBlank { article.title ?: input.title.ifBlank { "X 收藏" } }
             val summary = analysis.summary.trim().ifBlank { input.text }
@@ -97,6 +116,59 @@ class ExternalFavoriteAiOrganizer(
         return parseAiAnalysis(response)
     }
 
+    private fun logAiRequest(
+        httpLogger: FavoriteSyncHttpLogger,
+        taskId: Long?,
+        item: External_favorite_item,
+        input: ExternalFavoriteAiInput,
+    ) {
+        httpLogger.logRequest(
+            taskId = taskId,
+            label = "external_favorite_ai",
+            method = "POST",
+            url = "ai://external-favorite/organize",
+            parameters = mapOf(
+                "externalId" to item.external_id,
+                "articleId" to item.article_id?.toString().orEmpty(),
+                "title" to input.title,
+                "body" to input.toPromptContent(),
+            ),
+        )
+    }
+
+    private fun logAiResponse(
+        httpLogger: FavoriteSyncHttpLogger,
+        taskId: Long?,
+        item: External_favorite_item,
+        analysis: ExternalFavoriteAiAnalysis,
+    ) {
+        httpLogger.logResponse(
+            taskId = taskId,
+            label = "external_favorite_ai",
+            statusCode = 200,
+            headers = mapOf("externalId" to item.external_id),
+            body = """{"title":${jsonString(analysis.title)},"summary":${jsonString(analysis.summary)},"markdown":${jsonString(analysis.markdown)}}""",
+        )
+    }
+
+    private fun logAiFailure(
+        httpLogger: FavoriteSyncHttpLogger,
+        taskId: Long?,
+        item: External_favorite_item,
+        error: Throwable,
+    ) {
+        httpLogger.logResponse(
+            taskId = taskId,
+            label = "external_favorite_ai",
+            statusCode = 599,
+            headers = mapOf("externalId" to item.external_id),
+            body = error.message.orEmpty().ifBlank { "External favorite AI organization failed." },
+        )
+    }
+
+    private fun jsonString(value: String): String =
+        JsonPrimitive(value).toString()
+
     private fun External_favorite_item.toAiInput(): ExternalFavoriteAiInput =
         ExternalFavoriteAiInput(
             provider = provider,
@@ -109,6 +181,12 @@ class ExternalFavoriteAiOrganizer(
 
     private fun ExternalFavoriteAiInput.toPromptContent(): String =
         """
+        整理要求：
+        - 直接输出内容本身，不要用第三方视角介绍这篇内容。
+        - 禁止使用“本文介绍了”“本文整理了”“这篇文章讨论了”等套话。
+        - 不要写“谁分享了关于……”这类来源说明，除非作者身份本身就是内容重点。
+        - 优先写结论、方法、步骤、清单、注意事项，让读者直接获得信息。
+
         标题：${title.ifBlank { "X 收藏" }}
         作者：${authorName.ifBlank { "未知" }}
         时间：${sourceCreatedAt?.let { Instant.fromEpochMilliseconds(it).toString() } ?: "未知"}
@@ -164,6 +242,9 @@ class ExternalFavoriteAiOrganizer(
 
         const val EXTERNAL_FAVORITE_SYSTEM_PROMPT =
             "你是内容整理助手。请直接基于用户收藏的 X/Twitter 原文整理内容，不要抓取网页。" +
-                "只输出 JSON，字段为 title、summary、markdown。title 是简洁中文标题，summary 是 1-3 句摘要，markdown 是结构化正文。"
+                "直接输出内容本身，不要用第三方视角，不要把内容写成对文章或帖子的介绍。" +
+                "禁止使用“本文介绍了”“本文整理了”“这篇文章讨论了”等套话，不要写“谁分享了关于……”这类来源说明。" +
+                "title 使用信息型标题，summary 直接概括关键结论，markdown 写成可直接阅读的结构化正文。" +
+                "只输出 JSON，字段为 title、summary、markdown。"
     }
 }

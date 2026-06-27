@@ -73,6 +73,9 @@ class DatabaseMigration(
         if (currentVersion < 16) {
             migrateV15ToV16()
         }
+        if (currentVersion < 17) {
+            migrateV16ToV17()
+        }
 
         // After migrations, update version
         settingRepo.upsert(SettingKeys.schemaVersion, DatabaseConfig.currentSchemaVersion.toString())
@@ -643,6 +646,43 @@ class DatabaseMigration(
             log.i { "Backfilled remote news article source metadata" }
         } catch (e: Exception) {
             log.w(e) { "Could not backfill remote news article source metadata" }
+        }
+    }
+
+    private fun migrateV16ToV17() {
+        log.i { "Migration V16 -> V17: Async task active unique key guard" }
+        try {
+            runSql("""
+                UPDATE async_task
+                SET status = 'cancelled',
+                    finished_at = COALESCE(finished_at, updated_at),
+                    updated_at = updated_at,
+                    last_error_code = 'duplicate_active_task',
+                    last_error_message = 'Cancelled duplicate active task during schema migration'
+                WHERE unique_key IS NOT NULL
+                  AND status IN ('queued', 'running', 'retrying')
+                  AND id NOT IN (
+                      SELECT MAX(id)
+                      FROM async_task
+                      WHERE unique_key IS NOT NULL
+                        AND status IN ('queued', 'running', 'retrying')
+                      GROUP BY unique_key
+                  )
+            """.trimIndent())
+            log.i { "Cancelled duplicate active async tasks" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not cancel duplicate active async tasks" }
+        }
+        try {
+            runSql("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_async_task_active_unique_key
+                ON async_task(unique_key)
+                WHERE unique_key IS NOT NULL
+                  AND status IN ('queued', 'running', 'retrying')
+            """.trimIndent())
+            log.i { "Created async task active unique key index" }
+        } catch (e: Exception) {
+            log.w(e) { "Could not create async task active unique key index" }
         }
     }
 

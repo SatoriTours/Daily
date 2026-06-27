@@ -73,6 +73,10 @@ class TaskCenterScreenSourceTest {
         assertTrue(viewModel.contains("selectedTask"))
         assertTrue(viewModel.contains("taskLog"))
         assertTrue(viewModel.contains("openTask"))
+        assertTrue(viewModel.contains("selectedTaskId"))
+        assertTrue(viewModel.contains("repository.observeTaskById(id)"))
+        assertTrue(viewModel.contains("logStore.observe(id)"))
+        assertFalse(viewModel.contains("selected.value = repository.getById(taskId) to logStore.read(taskId)"))
     }
 
     @Test

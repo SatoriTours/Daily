@@ -63,6 +63,73 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
+    fun syncSkipsRemoteDetailForExistingCompleteFavoriteItem() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val existingDraft = xDraft("post-1", text = "Detailed saved body")
+            val incomingListDraft = xDraft("post-1", text = "Short bookmark body")
+            items.upsertDraft(sourceId, existingDraft)
+            var shouldFetchExistingDetail: Boolean? = null
+            val connector = object : FavoriteConnector {
+                override val provider: String = ExternalFavoriteProvider.X.id
+                override val capabilities: FavoriteConnectorCapabilities = xCapabilities(maxPagesPerRun = 1)
+
+                override suspend fun fetchPage(
+                    source: External_favorite_source,
+                    cursor: String?,
+                    pageSize: Int,
+                    httpLogger: FavoriteSyncHttpLogger,
+                    taskId: Long?,
+                    shouldFetchDetail: FavoriteFetchDetailPolicy,
+                ): FavoriteFetchPage {
+                    shouldFetchExistingDetail = shouldFetchDetail(incomingListDraft)
+                    return FavoriteFetchPage(listOf(incomingListDraft), null)
+                }
+            }
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals(false, shouldFetchExistingDetail)
+            assertEquals("Detailed saved body", items.getBySource(sourceId).single().text)
+        }
+    }
+
+    @Test
+    fun syncDoesNotSpendAiBudgetWhenNoFavoriteChanged() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val existingDraft = xDraft("post-1", text = "Detailed saved body")
+            items.upsertDraft(sourceId, existingDraft)
+            var organizeCalls = 0
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 1),
+                pages = listOf(FavoriteFetchPage(listOf(existingDraft), null)),
+            )
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePendingForSource = { _, _ ->
+                    organizeCalls += 1
+                    0
+                },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync)
+
+            assertEquals(0, organizeCalls)
+        }
+    }
+
+    @Test
     fun unifiedSyncCapsProviderPagesAndStoresBackfillCursor() = runBlocking {
         withRepositories { _, sources, items, _ ->
             val sourceId = saveXSource(sources)
@@ -260,6 +327,36 @@ class FavoriteSyncServiceTest {
             val latestProgress = progress.first { it.phase == "latest" }
             assertFalse(latestProgress.historyComplete)
             assertTrue(progress.any { it.phase == "complete" && it.historyComplete })
+        }
+    }
+
+    @Test
+    fun finalProgressReportsCompleteAfterLocalWork() = runBlocking {
+        withRepositories { _, sources, items, _ ->
+            val sourceId = saveXSource(sources)
+            val connector = FakeConnector(
+                capabilities = xCapabilities(maxPagesPerRun = 2, maxItemsPerRun = 300),
+                pages = listOf(
+                    FavoriteFetchPage(listOf(xDraft("post-1")), "cursor-2"),
+                    FavoriteFetchPage(listOf(xDraft("post-2")), null),
+                ),
+            )
+            val progress = mutableListOf<FavoriteSyncProgress>()
+            val service = FavoriteSyncService(
+                sourceRepo = sources,
+                itemRepo = items,
+                registry = FavoriteConnectorRegistry(listOf(connector)),
+                importPending = { 0 },
+                organizePending = { 0 },
+            )
+
+            service.syncSource(sourceId, FavoriteSyncMode.sync) { progress += it }
+
+            val finalProgress = progress.last()
+            assertEquals("complete", finalProgress.phase)
+            assertEquals(2, finalProgress.pagesSeen)
+            assertEquals(2, finalProgress.itemsSeen)
+            assertTrue(finalProgress.historyComplete)
         }
     }
 
@@ -854,7 +951,7 @@ class FavoriteSyncServiceTest {
     }
 
     @Test
-    fun syncOrganizesPendingAiOnlyForSyncedSource() = runBlocking {
+    fun retryFailedOrganizesPendingAiOnlyForSyncedSource() = runBlocking {
         withRepositories { _, sources, items, articles ->
             val sourceA = saveXSource(sources, accountId = "acct-a")
             val sourceB = saveXSource(sources, accountId = "acct-b")
@@ -896,7 +993,7 @@ class FavoriteSyncServiceTest {
                 },
             )
 
-            service.syncSource(sourceA, FavoriteSyncMode.sync)
+            service.syncSource(sourceA, FavoriteSyncMode.retry_failed)
 
             assertEquals("completed", items.getBySource(sourceA).single().ai_status)
             assertEquals("pending", items.getBySource(sourceB).single().ai_status)
@@ -954,6 +1051,40 @@ class FavoriteSyncServiceTest {
                 assertTrue(article.ai_markdown_content.orEmpty().contains("## AI 整理"))
                 assertTrue(article.ai_markdown_content.orEmpty().contains("AI 正文整理"))
             }
+        }
+    }
+
+    @Test
+    fun organizerWritesAiRequestAndResponseDiagnosticsWhenTaskLoggerIsProvided() = runBlocking {
+        withRepositories { _, sources, items, articles ->
+            val sourceId = saveXSource(sources)
+            val (item, _) = items.upsertDraft(sourceId, xDraft("post-1", text = "原文内容"))
+            val articleId = articles.insert(
+                title = "Imported favorite",
+                aiContent = "summary",
+                aiMarkdownContent = "# X 收藏\n\n## 原文\n\nBody post-1\n\n## AI 整理\n\n待整理",
+                url = "https://x.com/daily/status/post-1",
+                isFavorite = 1,
+                status = "completed",
+            )
+            items.markImported(item.id, articleId, duplicateLinked = false)
+            val logger = RecordingHttpLogger()
+
+            ExternalFavoriteAiOrganizer(
+                itemRepo = items,
+                articleRepo = articles,
+                generateAnalysis = {
+                    ExternalFavoriteAiAnalysis("AI 标题", "AI 摘要", "AI 正文整理")
+                },
+            ).organizePendingForSource(
+                sourceId = sourceId,
+                limit = 10,
+                httpLogger = logger,
+                taskId = 42,
+            )
+
+            assertTrue(logger.entries.any { it.contains("request:42:external_favorite_ai") && it.contains("externalId=post-1") })
+            assertTrue(logger.entries.any { it.contains("response:42:external_favorite_ai:200") && it.contains("AI 正文整理") })
         }
     }
 
@@ -1110,6 +1241,7 @@ class FavoriteSyncServiceTest {
             pageSize: Int,
             httpLogger: FavoriteSyncHttpLogger,
             taskId: Long?,
+            shouldFetchDetail: FavoriteFetchDetailPolicy,
         ): FavoriteFetchPage {
             fetchCalls += 1
             cursors += cursor
@@ -1147,6 +1279,7 @@ class FavoriteSyncServiceTest {
             pageSize: Int,
             httpLogger: FavoriteSyncHttpLogger,
             taskId: Long?,
+            shouldFetchDetail: FavoriteFetchDetailPolicy,
         ): FavoriteFetchPage {
             throw XFavoriteRateLimitException(statusCode = 429, rateLimitResetAt = resetAt)
         }
@@ -1162,6 +1295,7 @@ class FavoriteSyncServiceTest {
             pageSize: Int,
             httpLogger: FavoriteSyncHttpLogger,
             taskId: Long?,
+            shouldFetchDetail: FavoriteFetchDetailPolicy,
         ): FavoriteFetchPage {
             throw CancellationException("sync cancelled")
         }
@@ -1180,6 +1314,7 @@ class FavoriteSyncServiceTest {
             pageSize: Int,
             httpLogger: FavoriteSyncHttpLogger,
             taskId: Long?,
+            shouldFetchDetail: FavoriteFetchDetailPolicy,
         ): FavoriteFetchPage {
             activeFetches += 1
             if (activeFetches > 1) overlapped = true
@@ -1187,6 +1322,30 @@ class FavoriteSyncServiceTest {
             fetchCalls += 1
             activeFetches -= 1
             return FavoriteFetchPage(listOf(xDraft("post-$fetchCalls")), null)
+        }
+    }
+
+    private class RecordingHttpLogger : FavoriteSyncHttpLogger {
+        val entries = mutableListOf<String>()
+
+        override fun logRequest(
+            taskId: Long?,
+            label: String,
+            method: String,
+            url: String,
+            parameters: Map<String, String>,
+        ) {
+            entries += "request:$taskId:$label:$method:$url:${parameters.entries.joinToString("&") { "${it.key}=${it.value}" }}"
+        }
+
+        override fun logResponse(
+            taskId: Long?,
+            label: String,
+            statusCode: Int,
+            headers: Map<String, String>,
+            body: String,
+        ) {
+            entries += "response:$taskId:$label:$statusCode:${headers.entries.joinToString(",") { "${it.key}=${it.value}" }}:$body"
         }
     }
 }

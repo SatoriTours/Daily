@@ -67,7 +67,7 @@ class FavoriteSyncService(
         val connector = registry.get(source.provider)
             ?: error("No external favorite connector registered for provider ${source.provider}")
         val policy = syncPolicy(mode, connector.capabilities)
-        var result = SyncRunResult(itemsSeen = 0, pagesSeen = 0, changedItems = 0)
+        var result = SyncRunResult(itemsSeen = 0, pagesSeen = 0, changedItems = 0, historyComplete = false)
 
         sourceRepo.markSyncStarted(sourceId, mode.name)
         try {
@@ -79,7 +79,7 @@ class FavoriteSyncService(
                 result = fetchAndUpsert(sourceId, connector, policy, taskId, onProgress)
             }
 
-            runLocalWork(sourceId, policy, result, onProgress)
+            runLocalWork(sourceId, policy, result, taskId, onProgress)
             sourceRepo.markSyncSucceeded(
                 id = sourceId,
                 itemsSeen = result.itemsSeen.toLong(),
@@ -104,6 +104,7 @@ class FavoriteSyncService(
         sourceId: Long,
         policy: SyncPolicy,
         result: SyncRunResult,
+        taskId: Long?,
         onProgress: suspend (FavoriteSyncProgress) -> Unit,
     ) {
         suspend fun reportLocalProgress(phase: String) {
@@ -117,34 +118,52 @@ class FavoriteSyncService(
                 ),
             )
         }
+        var localWorkItems = result.changedItems.toLong()
         runLocalWorkStep {
             val importLimit = policy.importLimit(result.changedItems)
             if (importLimit > 0) {
                 reportLocalProgress("import")
-                importPendingForSource(sourceId, importLimit)
+                localWorkItems += importPendingForSource(sourceId, importLimit)
             }
         }
         runLocalWorkStep {
             reportLocalProgress("repair")
-            repairImportedPlaceholderArticles(IMPORT_RETRY_LIMIT)
+            localWorkItems += repairImportedPlaceholderArticles(IMPORT_RETRY_LIMIT)
         }
         runLocalWorkStep {
             reportLocalProgress("repair")
-            repairImportedXLongArticlePendingArticles(IMPORT_RETRY_LIMIT)
+            localWorkItems += repairImportedXLongArticlePendingArticles(IMPORT_RETRY_LIMIT)
         }
         runLocalWorkStep {
             reportLocalProgress("repair")
-            repairImportedArticleCovers(IMPORT_RETRY_LIMIT)
+            localWorkItems += repairImportedArticleCovers(IMPORT_RETRY_LIMIT)
         }
         runLocalWorkStep {
+            val aiBudget = policy.aiBudget(localWorkItems)
+            if (aiBudget <= 0) return@runLocalWorkStep
             if (organizer != null) {
                 reportLocalProgress("organize")
-                organizer.organizePendingForSource(sourceId, policy.aiBudget, includeFailed = policy.includeFailedAi)
+                organizer.organizePendingForSource(
+                    sourceId = sourceId,
+                    limit = aiBudget,
+                    includeFailed = policy.includeFailedAi,
+                    httpLogger = httpLogger,
+                    taskId = taskId,
+                )
             } else {
                 reportLocalProgress("organize")
-                organizePendingForSource(sourceId, policy.aiBudget)
+                organizePendingForSource(sourceId, aiBudget)
             }
         }
+        onProgress(
+            FavoriteSyncProgress(
+                phase = "complete",
+                pagesSeen = result.pagesSeen,
+                maxPages = policy.maxPages.coerceAtLeast(1),
+                itemsSeen = result.itemsSeen,
+                historyComplete = result.historyComplete,
+            ),
+        )
     }
 
     private suspend fun runLocalWorkStep(block: suspend () -> Unit) {
@@ -223,11 +242,18 @@ class FavoriteSyncService(
                 pageSize = capabilities.maxPageSize.coerceAtMost(remaining).coerceAtLeast(1),
                 httpLogger = httpLogger,
                 taskId = taskId,
+                shouldFetchDetail = { draft -> shouldFetchRemoteDetail(sourceId, draft) },
             )
             pagesSeen += 1
 
             var changedOnPage = 0
             page.items.take(remaining).forEach { draft ->
+                val existing = itemRepo.getBySourceExternalId(sourceId, draft.externalId)
+                if (existing != null && !existing.shouldFetchRemoteDetail()) {
+                    itemRepo.markSeen(existing.id, draft.favoritedAt)
+                    itemsSeen += 1
+                    return@forEach
+                }
                 val (_, changed) = itemRepo.upsertDraft(sourceId, draft)
                 itemsSeen += 1
                 if (changed) {
@@ -329,6 +355,7 @@ class FavoriteSyncService(
             itemsSeen = itemsSeen,
             pagesSeen = pagesSeen,
             changedItems = changedItems,
+            historyComplete = verifiedHistoryComplete(),
         )
     }
 
@@ -336,6 +363,17 @@ class FavoriteSyncService(
         guardsMutex.withLock {
             guards.getOrPut(sourceId) { Mutex() }
         }
+
+    private fun shouldFetchRemoteDetail(sourceId: Long, draft: ExternalFavoriteItemDraft): Boolean {
+        val existing = itemRepo.getBySourceExternalId(sourceId, draft.externalId) ?: return true
+        return existing.shouldFetchRemoteDetail()
+    }
+
+    private fun com.dailysatori.shared.db.External_favorite_item.shouldFetchRemoteDetail(): Boolean =
+        text.isBlank() ||
+            normalized_json.isBlank() ||
+            content_hash.isBlank() ||
+            ai_input_hash.isBlank()
 
     private fun Throwable.syncFailureStatus(): ExternalSourceStatus = when (this) {
         is XFavoriteAuthException -> ExternalSourceStatus.auth_required
@@ -369,7 +407,7 @@ class FavoriteSyncService(
                 maxItems = cappedItems,
                 earlyStopOnUnchanged = true,
                 importLimit = { changedItems -> maxOf(changedItems.toLong(), IMPORT_RETRY_LIMIT) },
-                aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,
+                aiBudget = ::changedItemAiBudget,
                 includeFailedAi = false,
             )
             FavoriteSyncMode.history -> SyncPolicy(
@@ -378,7 +416,7 @@ class FavoriteSyncService(
                 maxItems = cappedItems,
                 earlyStopOnUnchanged = true,
                 importLimit = { changedItems -> maxOf(changedItems.toLong(), IMPORT_RETRY_LIMIT) },
-                aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,
+                aiBudget = ::changedItemAiBudget,
                 includeFailedAi = false,
             )
             FavoriteSyncMode.full_rescan -> SyncPolicy(
@@ -387,7 +425,7 @@ class FavoriteSyncService(
                 maxItems = cappedItems,
                 earlyStopOnUnchanged = true,
                 importLimit = { changedItems -> maxOf(changedItems.toLong(), IMPORT_RETRY_LIMIT) },
-                aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,
+                aiBudget = ::changedItemAiBudget,
                 includeFailedAi = false,
             )
             FavoriteSyncMode.retry_failed -> SyncPolicy(
@@ -396,11 +434,14 @@ class FavoriteSyncService(
                 maxItems = 0,
                 earlyStopOnUnchanged = false,
                 importLimit = { IMPORT_RETRY_LIMIT },
-                aiBudget = DEFAULT_AI_ORGANIZE_LIMIT,
+                aiBudget = { DEFAULT_AI_ORGANIZE_LIMIT },
                 includeFailedAi = true,
             )
         }
     }
+
+    private fun changedItemAiBudget(localWorkItems: Long): Long =
+        localWorkItems.coerceAtMost(DEFAULT_AI_ORGANIZE_LIMIT)
 
     private data class SyncPolicy(
         val shouldFetch: Boolean,
@@ -408,7 +449,7 @@ class FavoriteSyncService(
         val maxItems: Int,
         val earlyStopOnUnchanged: Boolean,
         val importLimit: (changedItems: Int) -> Long,
-        val aiBudget: Long,
+        val aiBudget: (localWorkItems: Long) -> Long,
         val includeFailedAi: Boolean,
     )
 
@@ -416,6 +457,7 @@ class FavoriteSyncService(
         val itemsSeen: Int,
         val pagesSeen: Int,
         val changedItems: Int,
+        val historyComplete: Boolean,
     )
 
     private data class FavoriteFetchPageResult(

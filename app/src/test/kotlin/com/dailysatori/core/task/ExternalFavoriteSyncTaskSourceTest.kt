@@ -38,6 +38,8 @@ class ExternalFavoriteSyncTaskSourceTest {
         assertTrue(source.contains("observeSyncWork(sourceId, mode)"))
         assertTrue(source.contains("FavoriteSyncMode.entries.forEach { mode -> observeSyncWork(it.id, mode) }"))
         assertTrue(source.contains("observeLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, mode.name))"))
+        assertTrue(source.contains("observeExactSyncTask(sourceId, taskId)"))
+        assertTrue(source.contains("observeTaskById(taskId)"))
         assertTrue(source.contains("externalFavoriteSyncWorkFromAsyncTask"))
     }
 

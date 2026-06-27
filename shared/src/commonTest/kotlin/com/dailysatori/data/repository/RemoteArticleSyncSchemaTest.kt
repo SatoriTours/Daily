@@ -27,7 +27,7 @@ class RemoteArticleSyncSchemaTest {
         val config = File("src/commonMain/kotlin/com/dailysatori/config/Config.kt").readText()
         val migration = File("src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
 
-        assertTrue(config.contains("currentSchemaVersion = 16L"))
+        assertTrue(config.contains("currentSchemaVersion = 17L"))
         assertTrue(migration.contains("if (currentVersion < 15)"))
         assertTrue(migration.contains("migrateV14ToV15()"))
         assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS remote_article_sync_item"))

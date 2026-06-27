@@ -43,6 +43,40 @@ class ExternalFavoriteSyncStateTest {
     }
 
     @Test
+    fun finishedTaskDoesNotClearFreshManualPlaceholderBeforeTaskIdIsBound() {
+        val queuedPlaceholder = ExternalFavoriteSyncWorkUi(
+            taskId = null,
+            createdAt = 2_000,
+            state = WorkInfo.State.ENQUEUED,
+            pagesSeen = 0,
+            maxPages = 3,
+            itemsSeen = 0,
+            phase = "",
+        )
+        val previousFinished = ExternalFavoriteSyncWorkUi(
+            taskId = 8,
+            createdAt = 2_001,
+            state = WorkInfo.State.SUCCEEDED,
+            pagesSeen = 1,
+            maxPages = 3,
+            itemsSeen = 27,
+            phase = "complete",
+        )
+
+        val next = externalFavoriteApplySyncWorkState(
+            state = ExternalFavoritesSettingsState(
+                syncingSourceId = 42,
+                syncWorkBySourceId = mapOf(42L to queuedPlaceholder),
+            ),
+            sourceId = 42,
+            workUi = previousFinished,
+        )
+
+        assertEquals(42, next.syncingSourceId)
+        assertSame(queuedPlaceholder, next.syncWorkBySourceId[42])
+    }
+
+    @Test
     fun currentFinishedTaskClearsSyncState() {
         val running = ExternalFavoriteSyncWorkUi(
             taskId = 8,
@@ -68,7 +102,7 @@ class ExternalFavoriteSyncStateTest {
     }
 
     @Test
-    fun finishedTaskClearsQueuedPlaceholderWhenNoRealTaskWasObservedYet() {
+    fun finishedTaskDoesNotClearQueuedPlaceholderBeforeRealTaskIsObserved() {
         val queuedPlaceholder = ExternalFavoriteSyncWorkUi(
             taskId = null,
             createdAt = 1_000,
@@ -97,7 +131,7 @@ class ExternalFavoriteSyncStateTest {
             workUi = finished,
         )
 
-        assertEquals(null, next.syncingSourceId)
-        assertEquals(null, next.syncWorkBySourceId[42])
+        assertEquals(42, next.syncingSourceId)
+        assertSame(queuedPlaceholder, next.syncWorkBySourceId[42])
     }
 }

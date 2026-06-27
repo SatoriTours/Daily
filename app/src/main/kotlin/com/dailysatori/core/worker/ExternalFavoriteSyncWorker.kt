@@ -39,7 +39,7 @@ class ExternalFavoriteSyncScheduler(
     private val asyncTaskRepo: AsyncTaskRepository? = null,
     private val asyncTaskScheduler: AsyncTaskScheduler? = null,
 ) {
-    fun enqueue(sourceId: Long, mode: String = FavoriteSyncMode.sync.name) {
+    fun enqueue(sourceId: Long, mode: String = FavoriteSyncMode.sync.name): Long? {
         if (asyncTaskRepo != null && asyncTaskScheduler != null) {
             val taskId = asyncTaskRepo.enqueue(
                 type = AsyncTaskType.external_favorite_sync.name,
@@ -47,7 +47,7 @@ class ExternalFavoriteSyncScheduler(
                 uniqueKey = externalFavoriteSyncUniqueKey(sourceId, mode),
             )
             asyncTaskScheduler.enqueue(taskId)
-            return
+            return taskId
         }
         val request = buildExternalFavoriteSyncWorkRequest(sourceId, mode)
         WorkManager.getInstance(context).enqueueUniqueWork(
@@ -55,6 +55,7 @@ class ExternalFavoriteSyncScheduler(
             ExistingWorkPolicy.KEEP,
             request,
         )
+        return null
     }
 
     fun cancelSync(sourceId: Long) {

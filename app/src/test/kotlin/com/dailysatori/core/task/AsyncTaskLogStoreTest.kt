@@ -5,6 +5,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 
 class AsyncTaskLogStoreTest {
     @Test
@@ -73,5 +78,21 @@ class AsyncTaskLogStoreTest {
         assertTrue(log.contains(""""tail":"complete""""))
         assertTrue(log.contains(body))
         assertFalse(log.contains("TRUNCATED"))
+    }
+
+    @Test
+    fun observeEmitsWhenTaskLogFileChanges() = runBlocking {
+        val root = createTempDir(prefix = "daily-task-logs")
+        val store = AsyncTaskLogStore(root)
+
+        val observed = async {
+            withTimeout(1_000) {
+                store.observe(11, pollIntervalMs = 10).first { it.contains("TASK started") }
+            }
+        }
+        delay(30)
+        store.append(11, "TASK started type=fake")
+
+        assertTrue(observed.await().contains("TASK started type=fake"))
     }
 }

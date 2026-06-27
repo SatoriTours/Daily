@@ -574,6 +574,72 @@ class XBookmarksConnectorTest {
     }
 
     @Test
+    fun fetchPageSkipsXArticleApiWhenDetailPolicyRejectsBookmark() = runBlocking {
+        val requestedPaths = mutableListOf<String>()
+        val client = HttpClient(MockEngine { request ->
+            requestedPaths += request.url.encodedPath
+            when (request.url.encodedPath) {
+                "/2/users/account-1/bookmarks" -> respondJson(
+                    """
+                        {
+                          "data": [
+                            {
+                              "id": "bookmark-article-card",
+                              "text": "这篇文章值得读 https://t.co/article",
+                              "author_id": "42",
+                              "article": {"title": "收藏返回里的文章标题"},
+                              "entities": {
+                                "urls": [
+                                  {
+                                    "url": "https://t.co/article",
+                                    "expanded_url": "https://x.com/i/article/2010742786430021632"
+                                  }
+                                ]
+                              }
+                            }
+                          ],
+                          "includes": {
+                            "users": [{"id": "42", "username": "daily", "name": "Daily"}]
+                          },
+                          "meta": {"result_count": 1}
+                        }
+                    """.trimIndent(),
+                )
+                "/2/posts/2010742786430021632" -> respondJson(
+                    """
+                        {
+                          "data": {
+                            "id": "2010742786430021632",
+                            "content": "API 返回的完整文章正文。",
+                            "author_id": "99"
+                          },
+                          "includes": {
+                            "users": [{"id": "99", "username": "writer", "name": "Writer"}]
+                          }
+                        }
+                    """.trimIndent(),
+                )
+                else -> respond("unexpected path ${request.url.encodedPath}", HttpStatusCode.NotFound)
+            }
+        })
+        val connector = XBookmarksConnector(client = client)
+
+        val page = connector.fetchPage(
+            source = xTestSource(),
+            cursor = null,
+            pageSize = 100,
+            shouldFetchDetail = { item -> item.externalId != "bookmark-article-card" },
+        )
+
+        assertEquals(listOf("/2/users/account-1/bookmarks"), requestedPaths)
+        val item = page.items.single()
+        assertEquals("bookmark-article-card", item.externalId)
+        assertEquals("https://x.com/i/article/2010742786430021632", item.canonicalUrl)
+        assertEquals("收藏返回里的文章标题", item.title)
+        assertEquals("这篇文章值得读 https://t.co/article", item.text)
+    }
+
+    @Test
     fun fetchPageDoesNotFetchXArticleApiWhenXArticleLinkHasOtherText() = runBlocking {
         val requestedPaths = mutableListOf<String>()
         val client = HttpClient(MockEngine { request ->

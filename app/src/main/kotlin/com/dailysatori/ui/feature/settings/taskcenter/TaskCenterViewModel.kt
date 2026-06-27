@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,7 +32,14 @@ class TaskCenterViewModel(
     private val logStore: AsyncTaskLogStore,
 ) : ViewModel() {
     private val filter = MutableStateFlow(AsyncTaskFilter())
-    private val selected = MutableStateFlow<Pair<Async_task?, String>>(null to "")
+    private val selectedTaskId = MutableStateFlow<Long?>(null)
+    private val selected = selectedTaskId.flatMapLatest { id ->
+        if (id == null) {
+            flowOf(null to "")
+        } else {
+            repository.observeTaskById(id).combine(logStore.observe(id)) { task, log -> task to log }
+        }
+    }
 
     val state: StateFlow<TaskCenterState> = filter
         .flatMapLatest { taskFilter ->
@@ -79,10 +87,10 @@ class TaskCenterViewModel(
     }
 
     fun openTask(taskId: Long) {
-        selected.value = repository.getById(taskId) to logStore.read(taskId)
+        selectedTaskId.value = taskId
     }
 
     fun closeTask() {
-        selected.value = null to ""
+        selectedTaskId.value = null
     }
 }

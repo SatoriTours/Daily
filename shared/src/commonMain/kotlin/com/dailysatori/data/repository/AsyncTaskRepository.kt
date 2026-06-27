@@ -38,8 +38,8 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
         batchId: Long? = null,
         maxAttempts: Long = 5,
         priority: Long = 0,
-    ): Long {
-        return insertTask(type, payloadJson, uniqueKey, batchId, maxAttempts, priority)
+    ): Long = q.transactionWithResult {
+        insertTask(type, payloadJson, uniqueKey, batchId, maxAttempts, priority)
     }
 
     fun enqueueBatch(name: String, requests: List<AsyncTaskEnqueueRequest>): AsyncTaskBatchEnqueueResult =
@@ -68,7 +68,10 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
     ): Long {
         val now = Clock.System.now().toEpochMilliseconds()
         val existing = uniqueKey?.let { q.selectAsyncTaskByUniqueKey(it).executeAsOneOrNull() }
-        if (existing != null && existing.status in activeStatuses) return existing.id
+        if (existing != null && existing.status in activeStatuses) {
+            q.refreshActiveAsyncTaskEnqueue(updated_at = now, id = existing.id)
+            return existing.id
+        }
         q.insertAsyncTask(
             type = type,
             status = AsyncTaskStatus.queued.name,
@@ -120,6 +123,11 @@ class AsyncTaskRepository(private val db: DailySatoriDatabase) {
 
     fun observeLatestByUniqueKey(uniqueKey: String): Flow<Async_task?> =
         q.selectAsyncTaskByUniqueKey(uniqueKey)
+            .asFlow()
+            .mapToOneOrNull(Dispatchers.IO)
+
+    fun observeTaskById(id: Long): Flow<Async_task?> =
+        q.selectAsyncTaskById(id)
             .asFlow()
             .mapToOneOrNull(Dispatchers.IO)
 

@@ -6,16 +6,16 @@ import kotlin.test.assertTrue
 
 class AsyncTaskWorkerSourceTest {
     @Test
-    fun retryableHandlerExceptionsUseSharedMaxAttemptGate() {
+    fun genericWorkerWritesTaskLifecycleLogs() {
         val source = File("src/main/kotlin/com/dailysatori/core/worker/AsyncTaskWorker.kt").readText()
-        val helper = source.substringAfter("private fun handleRetryableFailure(").substringBefore("companion object")
-        val cancellationBlock = source.substringAfter("catch (error: CancellationException)").substringBefore("catch (error: Exception)")
-        val exceptionBlock = source.substringAfter("catch (error: Exception)").substringBefore("companion object")
 
-        assertTrue(source.contains("private fun handleRetryableFailure("))
-        assertTrue(helper.contains("attempts + 1 >= task.max_attempts"))
-        assertTrue(helper.contains("repo.finishFailure(taskId, code, message)"))
-        assertTrue(cancellationBlock.contains("handleRetryableFailure("))
-        assertTrue(exceptionBlock.contains("handleRetryableFailure("))
+        assertTrue(source.contains("AsyncTaskRunner"))
+        assertTrue(source.contains("AsyncTaskLogStore"))
+        assertTrue(source.contains("runner.run(taskId)"))
+        assertTrue(source.contains("AsyncTaskRunOutcome.Succeeded"))
+        assertTrue(source.contains("AsyncTaskRunOutcome.Failed"))
+        assertTrue(source.contains("AsyncTaskRunOutcome.RetryScheduled"))
+        assertTrue(source.contains("AsyncTaskRunOutcome.Skipped"))
+        assertTrue(!source.contains("handler.execute("))
     }
 }

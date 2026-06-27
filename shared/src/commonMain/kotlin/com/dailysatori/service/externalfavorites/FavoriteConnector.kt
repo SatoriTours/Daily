@@ -2,6 +2,8 @@ package com.dailysatori.service.externalfavorites
 
 import com.dailysatori.shared.db.External_favorite_source
 
+typealias FavoriteFetchDetailPolicy = (ExternalFavoriteItemDraft) -> Boolean
+
 interface FavoriteConnector {
     val provider: String
     val capabilities: FavoriteConnectorCapabilities
@@ -14,5 +16,6 @@ interface FavoriteConnector {
         pageSize: Int = capabilities.maxPageSize,
         httpLogger: FavoriteSyncHttpLogger = NoopFavoriteSyncHttpLogger,
         taskId: Long? = null,
+        shouldFetchDetail: FavoriteFetchDetailPolicy = { true },
     ): FavoriteFetchPage
 }

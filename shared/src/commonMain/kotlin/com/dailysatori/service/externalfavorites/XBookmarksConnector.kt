@@ -90,6 +90,7 @@ class XBookmarksConnector(
         pageSize: Int,
         httpLogger: FavoriteSyncHttpLogger,
         taskId: Long?,
+        shouldFetchDetail: FavoriteFetchDetailPolicy,
     ): FavoriteFetchPage {
         val httpClient = client ?: error("XBookmarksConnector requires an HttpClient to fetch remote bookmarks")
         val token = extractXAccessToken(source.auth_json)
@@ -131,7 +132,7 @@ class XBookmarksConnector(
                 X_RATE_LIMIT_RESET_HEADER to response.headers[X_RATE_LIMIT_RESET_HEADER].orEmpty(),
             ),
         )
-        return enrichPageWithFetchedReferencedPosts(source, page, httpLogger, taskId)
+        return enrichPageWithFetchedReferencedPosts(source, page, httpLogger, taskId, shouldFetchDetail)
     }
 
     suspend fun fetchPostById(
@@ -184,23 +185,28 @@ class XBookmarksConnector(
         page: FavoriteFetchPage,
         httpLogger: FavoriteSyncHttpLogger,
         taskId: Long?,
+        shouldFetchDetail: FavoriteFetchDetailPolicy,
     ): FavoriteFetchPage {
         val referencedIdsByExternalId = page.items.associate { item ->
             item.externalId to xReferencedPostIdsFromDraft(item)
         }
-        val fetchedPosts = referencedIdsByExternalId.values
+        val fetchedPosts = page.items
+            .filter(shouldFetchDetail)
+            .map { item -> referencedIdsByExternalId[item.externalId].orEmpty() }
             .flatten()
             .distinct()
             .associateWith { postId ->
                 runCatching { fetchPostById(source, postId, httpLogger, taskId) }.getOrNull()
             }
         val referencedEnrichedItems = page.items.map { item ->
+            if (!shouldFetchDetail(item)) return@map item
             referencedIdsByExternalId[item.externalId]
                 .orEmpty()
                 .firstNotNullOfOrNull { postId -> xBookmarkItemWithFetchedReferencedPost(item, fetchedPosts[postId]) }
                 ?: item
         }
         val articleEnrichedItems = referencedEnrichedItems.map { item ->
+            if (!shouldFetchDetail(item)) return@map item
             val articleId = xArticleIdFromUrl(item.canonicalUrl.orEmpty()) ?: return@map item
             val articleDraft = runCatching { fetchArticlePostById(source, articleId, httpLogger, taskId) }.getOrNull()
             xBookmarkItemWithFetchedReferencedPost(item, articleDraft) ?: item

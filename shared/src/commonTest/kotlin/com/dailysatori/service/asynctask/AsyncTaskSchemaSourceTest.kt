@@ -18,6 +18,8 @@ class AsyncTaskSchemaSourceTest {
         assertTrue(schema.contains("selectAsyncTasksForTaskCenter:"))
         assertTrue(schema.contains("selectRunnableAsyncTasks:"))
         assertTrue(schema.contains("insertAsyncTask:"))
+        assertTrue(schema.contains("refreshActiveAsyncTaskEnqueue:"))
+        assertTrue(schema.contains("CREATE UNIQUE INDEX IF NOT EXISTS idx_async_task_active_unique_key"))
         assertTrue(schema.contains("updateAsyncTaskProgress:"))
         assertTrue(schema.contains("finishAsyncTask:"))
     }
@@ -48,10 +50,13 @@ class AsyncTaskSchemaSourceTest {
         val config = File("src/commonMain/kotlin/com/dailysatori/config/Config.kt").readText()
         val migration = File("src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
 
-        assertTrue(config.contains("currentSchemaVersion = 16L"))
+        assertTrue(config.contains("currentSchemaVersion = 17L"))
         assertTrue(migration.contains("if (currentVersion < 14)"))
         assertTrue(migration.contains("migrateV13ToV14()"))
+        assertTrue(migration.contains("if (currentVersion < 17)"))
+        assertTrue(migration.contains("migrateV16ToV17()"))
         assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS async_task_batch"))
         assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS async_task"))
+        assertTrue(migration.contains("idx_async_task_active_unique_key"))
     }
 }

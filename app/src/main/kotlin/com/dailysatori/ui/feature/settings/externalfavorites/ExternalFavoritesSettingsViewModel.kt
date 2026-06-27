@@ -83,6 +83,7 @@ class ExternalFavoritesSettingsViewModel(
     private val _state = MutableStateFlow(ExternalFavoritesSettingsState())
     val state: StateFlow<ExternalFavoritesSettingsState> = _state.asStateFlow()
     private val observedSyncKeys = mutableSetOf<String>()
+    private val observedTaskIds = mutableSetOf<Long>()
 
     init { load() }
 
@@ -208,16 +209,29 @@ class ExternalFavoritesSettingsViewModel(
         observeSyncWork(sourceId, mode)
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                scheduler.enqueue(sourceId, mode.name)
+                val taskId = scheduler.enqueue(sourceId, mode.name)
+                if (taskId != null) observeExactSyncTask(sourceId, taskId)
                 _state.update {
                     it.copy(
                         syncingSourceId = sourceId,
                         message = externalFavoriteSyncQueuedMessage(mode),
+                        syncWorkBySourceId = if (taskId == null) {
+                            it.syncWorkBySourceId
+                        } else {
+                            val current = it.syncWorkBySourceId[sourceId] ?: externalFavoriteQueuedSyncWork()
+                            it.syncWorkBySourceId + (sourceId to current.copy(taskId = taskId))
+                        },
                         sources = sourceRepo.getAll().map(::toUiSource),
                     )
                 }
             } catch (_: Exception) {
-                _state.update { it.copy(syncingSourceId = null, message = "同步任务创建失败") }
+                _state.update {
+                    it.copy(
+                        syncingSourceId = null,
+                        syncWorkBySourceId = it.syncWorkBySourceId - sourceId,
+                        message = "同步任务创建失败",
+                    )
+                }
             }
         }
     }
@@ -227,6 +241,17 @@ class ExternalFavoritesSettingsViewModel(
         if (!observedSyncKeys.add(key)) return
         viewModelScope.launch {
             asyncTaskRepo.observeLatestByUniqueKey(externalFavoriteSyncUniqueKey(sourceId, mode.name)).collect { task ->
+                val workUi = task?.let(::externalFavoriteSyncWorkFromAsyncTask)
+                applySyncWorkState(sourceId, workUi)
+                if (workUi?.state in finishedWorkStates) load()
+            }
+        }
+    }
+
+    private fun observeExactSyncTask(sourceId: Long, taskId: Long) {
+        if (!observedTaskIds.add(taskId)) return
+        viewModelScope.launch {
+            asyncTaskRepo.observeTaskById(taskId).collect { task ->
                 val workUi = task?.let(::externalFavoriteSyncWorkFromAsyncTask)
                 applySyncWorkState(sourceId, workUi)
                 if (workUi?.state in finishedWorkStates) load()
@@ -264,7 +289,8 @@ internal fun externalFavoriteApplySyncWorkState(
     val staleFinishedTask = workUi?.state in finishedWorkStates &&
         currentWork?.active == true &&
         when {
-            currentWork.taskId != null -> currentWork.taskId != workUi?.taskId
+            currentWork.taskId == null -> true
+            currentWork.taskId != workUi?.taskId -> true
             currentWork.createdAt != null && workUi?.createdAt != null -> workUi.createdAt < currentWork.createdAt
             else -> false
         }

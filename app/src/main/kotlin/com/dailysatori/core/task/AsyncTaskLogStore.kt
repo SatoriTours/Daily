@@ -1,18 +1,24 @@
 package com.dailysatori.core.task
 
 import com.dailysatori.service.externalfavorites.FavoriteSyncHttpLogger
+import com.dailysatori.service.asynctask.AsyncTaskLogger
 import java.io.File
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
 import kotlinx.datetime.Clock
 
 class AsyncTaskLogStore(
     private val root: File,
     private val maxBytesPerTask: Int = DEFAULT_MAX_BYTES_PER_TASK,
-) {
+) : AsyncTaskLogger {
     init {
         root.mkdirs()
     }
 
-    fun append(taskId: Long, message: String) {
+    override fun append(taskId: Long, message: String) {
         if (taskId <= 0L || maxBytesPerTask <= 0) return
         root.mkdirs()
         val file = taskFile(taskId)
@@ -30,6 +36,18 @@ class AsyncTaskLogStore(
     fun read(taskId: Long): String =
         if (taskId <= 0L) "" else taskFile(taskId).takeIf { it.exists() }?.readText().orEmpty()
 
+    fun observe(taskId: Long, pollIntervalMs: Long = DEFAULT_POLL_INTERVAL_MS): Flow<String> = flow {
+        var last: String? = null
+        while (currentCoroutineContext().isActive) {
+            val value = read(taskId)
+            if (value != last) {
+                emit(value)
+                last = value
+            }
+            delay(pollIntervalMs)
+        }
+    }
+
     private fun taskFile(taskId: Long): File = File(root, "task-$taskId.log")
 
     private fun String.takeLastBytes(maxBytes: Int): String {
@@ -40,6 +58,7 @@ class AsyncTaskLogStore(
 
     private companion object {
         const val DEFAULT_MAX_BYTES_PER_TASK = 64 * 1024 * 1024
+        const val DEFAULT_POLL_INTERVAL_MS = 1_000L
     }
 }
 

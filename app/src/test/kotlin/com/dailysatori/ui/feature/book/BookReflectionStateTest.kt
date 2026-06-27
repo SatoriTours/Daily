@@ -100,7 +100,7 @@ class BookReflectionStateTest {
         val config = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/config/Config.kt").readText()
         val migration = java.io.File("../shared/src/commonMain/kotlin/com/dailysatori/service/migration/DatabaseMigration.kt").readText()
 
-        assertTrue(config.contains("currentSchemaVersion = 16L"))
+        assertTrue(config.contains("currentSchemaVersion = 17L"))
         assertTrue(migration.contains("if (currentVersion < 12)"))
         assertTrue(migration.contains("migrateV11ToV12()"))
         assertTrue(migration.contains("CREATE TABLE IF NOT EXISTS book_viewpoint_ai_session"))
